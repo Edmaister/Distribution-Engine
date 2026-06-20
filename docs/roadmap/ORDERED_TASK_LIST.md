@@ -84,6 +84,27 @@ Risk level: Medium.
 Rollback notes: Documentation/checklist only; no data is changed.
 Definition of done: Live DB verification results are recorded and schema uncertainty is reduced to named follow-up tasks. Priority: P0.
 
+## TASK-030: Classify untracked repository baseline before agent execution
+
+Status: Complete (2026-06-21). Output: `docs/agent/DLAAS_AGENT_RUNBOOK.md`.
+Linked enhancement: DLaaS Agent Runner Framework
+Linked platform capability: Agent execution, traceability, clean diffs, branch/PR workflow, rollback safety
+Goal: Classify all currently untracked files and folders so the project can establish a safe baseline before autonomous agent execution begins.
+Why now: The DLaaS agent runner requires clean Git diffs. The repo currently has many untracked files, including core product folders such as `apps`, `services`, `frontend`, `dp`, `scripts`, and `test`. Product tasks should not run until the baseline is tracked or deliberately ignored.
+Files likely involved: `docs/agent/*`; `.gitignore`; `docs/roadmap/ORDERED_TASK_LIST.md`; Git status output; untracked workspace files and folders for classification only.
+Database/schema impact: None. Do not modify database schema.
+Backend impact: None. Do not modify backend product code or business logic.
+Frontend impact: None. Do not build or modify frontend UI.
+API impact: None. Do not modify APIs.
+Tests to add/update: No product tests required. Validate by reading Git status output and reviewing `.gitignore` coverage for unsafe local files.
+Validation method: Run `git status --short` or equivalent repository status inspection, list every untracked file/folder, classify each item, and confirm unsafe local files are excluded from the recommended baseline.
+Acceptance criteria: Every untracked file/folder from Git status is listed and classified as `commit to baseline`, `ignore`, `inspect before deciding`, or `delete/archive outside repo`; no secrets, virtual environments, runtime logs, coverage files, or local outputs are recommended for commit; `.gitignore` excludes unsafe local files; a recommended safe commit sequence is produced; no `git add` or `git commit` is run.
+Dependencies: DLaaS Agent Runner Framework files exist.
+Blocked by: A Git repository/status command must be available from the correct repository root.
+Risk level: High.
+Rollback notes: Revert documentation/classification output only. Do not delete, add, stage, or commit files in this task.
+Definition of done: There is a clear baseline classification and commit plan that allows the repo to become safe for branch/PR-based DLaaS agent execution. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails

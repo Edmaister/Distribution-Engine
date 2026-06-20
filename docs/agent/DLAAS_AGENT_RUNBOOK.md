@@ -46,6 +46,81 @@ Target State -> SA Docs -> Gap Matrix -> Enhancement Backlog -> Ordered Task Lis
 - Do not bundle unrelated fixes.
 - If a task expands beyond one reviewable unit, stop and split it into follow-up tasks.
 
+## Git Baseline Requirement Before Autonomous Task Execution
+
+Autonomous DLaaS task execution requires a clean Git baseline before product work begins. Codex must not run product tasks while core source folders are untracked because diffs, rollback safety, branch review, and PR scope cannot be trusted.
+
+Baseline inspection from `TASK-030`:
+
+- Current branch: `master`.
+- GitHub remote detected: No remote was configured by `git remote -v`.
+- Recent commit: `dd91298 Add DLaaS agent runner framework`.
+- Current status included modified roadmap docs plus many untracked product and local files.
+- No `git add`, `git commit`, file deletion, product-code change, schema change, frontend build, or live DB check was performed for this classification.
+
+Untracked baseline classification:
+
+| Path | Classification | Rationale |
+|---|---|---|
+| `.docker-codex-config/` | ignore | Local Docker/Codex state, including lock files; not source. |
+| `.dockerignore` | commit to baseline | Project container config. |
+| `.gitignore` | commit to baseline | Required safety guard for local files, runtime outputs, archives, caches, and secrets/certs. |
+| `CONTRIBUTING.md` | commit to baseline | Project contribution documentation. |
+| `Core Domain Features.txt` | inspect before deciding | Legacy/product notes; review for accuracy before baseline commit. |
+| `Dockerfile` | commit to baseline | Project runtime/build source. |
+| `Dockerfile.worker` | commit to baseline | Worker runtime/build source. |
+| `Front-end Blueprint.txt` | inspect before deciding | Legacy frontend plan; review against DLaaS docs before commit. |
+| `LICENSE` | commit to baseline | Project license text. |
+| `LICENSE.zip` | delete/archive outside repo | Large archive; do not commit generated/binary archive without explicit reason. |
+| `Support Queries.txt` | inspect before deciding | May contain operational queries or sensitive patterns; review before commit. |
+| `apps/` | commit to baseline | Core API and worker product source. |
+| `body` | delete/archive outside repo | Empty local artifact; not source. |
+| `config/` | inspect before deciding | Configuration source may be valid, but prod/dev files must be reviewed for secrets. |
+| `coveragerc` | commit to baseline | Test coverage configuration. |
+| `deploy/` | commit to baseline | Deployment manifests; review as part of baseline. |
+| `design-qa.md` | commit to baseline | Project QA documentation. |
+| `docker` | delete/archive outside repo | Empty local artifact; not source. |
+| `dp/` | commit to baseline | Database migrations/seeds/docs; core source for DLaaS backend truth. |
+| `env.example` | commit to baseline | Example environment template; confirm no real secrets before commit. |
+| `examples/` | commit to baseline | Partner/client examples. |
+| `folder strucuture.txt` | inspect before deciding | Legacy documentation with typo; review before commit. |
+| `frontend/` | commit to baseline | Existing frontend source should be tracked as baseline before future UI work. |
+| `github/` | inspect before deciding | Non-standard GitHub folder; compare with `.github/` before commit. |
+| `helm/` | inspect before deciding | Helm source is likely valid, but shortcut files and secret templates need review. |
+| `loadtests/` | commit to baseline | Load test source. |
+| `local_worker.py` | commit to baseline | Local worker entrypoint/source. |
+| `monitoring/` | inspect before deciding | Monitoring source is likely valid, but `secrets.yaml` and infra files need review. |
+| `project quickstart instructions.md` | commit to baseline | Project onboarding documentation. |
+| `pyproject.toml` | commit to baseline | Python project configuration. |
+| `pytest.ini` | commit to baseline | Test configuration. |
+| `requirements.txt` | commit to baseline | Python dependency manifest. |
+| `run_test.ps1` | commit to baseline | Test helper script. |
+| `run_tests.ps1` | inspect before deciding | Empty script; decide whether to remove, fill, or keep. |
+| `scripts/` | commit to baseline | Operational/dev scripts; review no secrets before commit. |
+| `services/` | commit to baseline | Core service-layer product source. |
+| `test/` | commit to baseline | Test suite. |
+| `utils/` | commit to baseline | Core utility source. |
+| `welcome-to-docker/` | inspect before deciding | Looks like sample/tutorial material; confirm whether project-owned. |
+
+Files and folders that must never be committed:
+
+- `.env` and `.env.*` except `env.example`.
+- `.venv/`, `.venv_codex/`, `venv/`, and `ENV/`.
+- `.coverage`, `.coverage.*`, `htmlcov/`, coverage XML, and test caches.
+- `local_events.jsonl`, `outputs/`, `repositories/`, `.docker-codex-config/`, and local runtime logs.
+- Dependency/build artifacts such as `node_modules/`, `dist/`, `build/`, `.next/`, and frontend coverage output.
+- Secrets, certificates, keys, provider payloads, access tokens, and files matching `*.pem`, `*.key`, `*.crt`, `*.p12`, or `*.pfx`.
+- Large/generated archives such as `*.zip` unless explicitly reviewed and approved.
+
+Recommended safe commit sequence:
+
+1. Commit `.gitignore` first so unsafe local artifacts stay out of later diffs.
+2. Commit core project baseline in small groups: root project config/docs, backend source, database migrations/seeds, services/utils, API/workers, tests, scripts, deployment/helm/monitoring after secret review, and frontend source.
+3. Commit docs/agent framework only if it is not already tracked in the current branch.
+4. Leave `inspect before deciding` and `delete/archive outside repo` items unstaged until a human reviews them.
+
+Until this baseline is committed or deliberately ignored, the DLaaS agent runner is not ready for autonomous branch/PR execution.
+
 ## Readiness Requirements
 
 A task is ready only when:
