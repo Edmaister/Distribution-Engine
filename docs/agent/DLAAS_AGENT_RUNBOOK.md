@@ -121,6 +121,35 @@ Recommended safe commit sequence:
 
 Until this baseline is committed or deliberately ignored, the DLaaS agent runner is not ready for autonomous branch/PR execution.
 
+Post-baseline GitHub readiness verification from `TASK-031`:
+
+- Current branch: `main`.
+- Branch tracking: `main` tracks `origin/main`.
+- GitHub remote: `https://github.com/Edmaister/Distribution-Engine.git`.
+- Latest baseline commit observed: `d9c538d Add core product source baseline`.
+- Baseline push status: pushed to `origin/main` according to branch tracking and commit history.
+- Unsafe local files were not tracked by Git and were ignored by `.gitignore`: `.env`, virtual environments, coverage artifacts, `local_events.jsonl`, `outputs/`, `.docker-codex-config/`, and `*.zip`.
+
+Remaining untracked items after the baseline push:
+
+| Path | Recommendation | Blocks autonomous agent execution? | Rationale |
+|---|---|---|---|
+| `Core Domain Features.txt` | inspect before deciding | No, if left untracked and not touched by agent tasks | Legacy product notes; review for accuracy before committing. |
+| `Front-end Blueprint.txt` | inspect before deciding | No, if left untracked and not touched by agent tasks | Legacy frontend plan; review against DLaaS source-of-truth docs. |
+| `Support Queries.txt` | inspect before deciding | No, if left untracked and not touched by agent tasks | May include operational query patterns; review for sensitivity. |
+| `body` | delete/archive outside repo | No | Empty local artifact. |
+| `config/` | inspect before deciding | Yes for config/auth/deploy tasks | Contains environment/config files; review for secrets and decide source ownership. |
+| `docker` | delete/archive outside repo | No | Empty local artifact. |
+| `eline readiness` | inspect before deciding | No, but should be archived or removed outside a task | Oddly named local artifact; review before keeping. |
+| `folder strucuture.txt` | inspect before deciding | No | Legacy documentation with typo; review before committing. |
+| `github/` | inspect before deciding | Yes for CI/CD tasks | Non-standard GitHub folder; compare with `.github/` before committing. |
+| `helm/` | inspect before deciding | Yes for deployment tasks | Helm chart appears source-like, but includes a shortcut file and secret template that need review. |
+| `monitoring/` | inspect before deciding | Yes for observability/deployment tasks | Monitoring/infra files include `secrets.yaml`; review before committing. |
+| `run_tests.ps1` | inspect before deciding | No | Empty script; decide whether to keep, populate, or archive. |
+| `welcome-to-docker/` | inspect before deciding | No | Sample/tutorial material; confirm whether project-owned. |
+
+Autonomous DLaaS agent execution may proceed only for tasks that do not depend on the remaining untracked config, CI/CD, Helm, or monitoring assets. Before deployment, auth/config, observability, infrastructure, or CI/CD tasks, clean or classify those untracked areas first.
+
 ## Readiness Requirements
 
 A task is ready only when:

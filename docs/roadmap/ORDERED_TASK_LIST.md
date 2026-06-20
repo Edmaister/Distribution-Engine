@@ -105,6 +105,27 @@ Risk level: High.
 Rollback notes: Revert documentation/classification output only. Do not delete, add, stage, or commit files in this task.
 Definition of done: There is a clear baseline classification and commit plan that allows the repo to become safe for branch/PR-based DLaaS agent execution. Priority: P0.
 
+## TASK-031: Verify GitHub remote and autonomous agent readiness after baseline push
+
+Status: Complete (2026-06-21). Output: `docs/agent/DLAAS_AGENT_RUNBOOK.md`.
+Linked enhancement: DLaaS Agent Runner Framework
+Linked platform capability: Agent execution, traceability, clean diffs, branch/PR workflow, rollback safety
+Goal: Verify GitHub remote configuration, branch tracking, pushed baseline commits, unsafe ignored files, and remaining untracked items before autonomous agent execution.
+Why now: TASK-030 classified the baseline before push. After the baseline push, the runner needs a final readiness gate that confirms remote tracking is healthy and remaining untracked files do not invalidate clean diffs for DLaaS task work.
+Files likely involved: `docs/agent/DLAAS_AGENT_RUNBOOK.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; Git status/remote/log output.
+Database/schema impact: None. Do not modify database schema or run live DB checks.
+Backend impact: None. Do not modify product code or business logic.
+Frontend impact: None. Do not build or modify frontend UI.
+API impact: None.
+Tests to add/update: No product tests required. Validate with Git status, branch tracking, remote URL, recent commit history, unsafe tracked-file checks, and untracked-file classification.
+Validation method: Run read-only Git inspection commands and document whether remote, branch tracking, baseline push, ignored unsafe files, and remaining untracked files are acceptable for autonomous agent execution.
+Acceptance criteria: GitHub remote is confirmed; current branch tracks `origin/main`; recent baseline commits are present; unsafe local files are not tracked; remaining untracked files are listed and classified; readiness for autonomous branch/PR execution is explicitly stated.
+Dependencies: TASK-030; baseline commits pushed to GitHub.
+Blocked by: Missing remote, branch not tracking `origin/main`, unsafe files tracked, or unclassified untracked files that affect the next agent task.
+Risk level: Medium.
+Rollback notes: Revert documentation/readiness updates only. Do not add, commit, delete, or modify product files.
+Definition of done: The repo has an explicit post-push readiness decision for DLaaS agent runner execution. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
