@@ -1,0 +1,52 @@
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Python virtual environments
+.venv/
+.venv_codex/
+venv/
+ENV/
+
+# Python cache/test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.cache/
+
+# Local/runtime outputs
+outputs/
+repositories/
+.docker-codex-config/
+local_events.jsonl
+*.log
+*.tmp
+*.bak
+*.zip
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Node/frontend artifacts
+node_modules/
+dist/
+build/
+.next/
+coverage/
+
+# Secrets/certs
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
