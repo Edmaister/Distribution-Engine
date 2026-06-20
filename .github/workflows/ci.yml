@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: referrals
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      APP_DB_DSN: postgresql://postgres:postgres@localhost:5432/referrals
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Check migration hygiene
+        run: |
+          python scripts/check_migrations.py
+          python scripts/check_distribution_migrations.py
+      - name: Replay migrations from clean database
+        run: python scripts/init_db.py
+      - name: Run tests with coverage
+        run: |
+          pytest
+          coverage xml
+      - name: Upload coverage to Codecov (optional)
+        if: ${{ vars.CODECOV_TOKEN != '' }}
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ vars.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+  clean-db-readiness:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: referrals
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      APP_DB_DSN: postgresql://postgres:postgres@localhost:5432/referrals
+      APP_ENV: test
+      ADMIN_API_KEY: ci-admin-key
+      FINANCE_ADMIN_API_KEY: ci-finance-admin-key
+      DISTRIBUTION_ADMIN_API_KEY: ci-distribution-admin-key
+      SYSTEM_ADMIN_API_KEY: ci-system-admin-key
+      WORKER_SECRET: ci-worker-secret
+      REFERRAL_CODE_SECRET: ci-referral-code-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Provision clean database
+        run: |
+          python scripts/init_db.py
+          python scripts/seed_db.py
+      - name: Start API and verify readiness
+        run: |
+          python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000 > api.log 2>&1 &
+          API_PID=$!
+          trap 'kill $API_PID' EXIT
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/readyz; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat api.log
+          exit 1
+
+  security-regression:
+    runs-on: ubuntu-latest
+    env:
+      APP_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run security regression suite
+        run: |
+          pytest \
+            test/test_settings.py \
+            test/test_permissions.py \
+            test/test_partner_seam_service.py \
+            test/test_rate_limit.py \
+            test/test_release_security_evidence.py
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+      - name: Run frontend unit tests
+        working-directory: frontend
+        run: npm test
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+      - name: Run frontend smoke checks
+        working-directory: frontend
+        run: npm run smoke
