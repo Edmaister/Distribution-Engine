@@ -1,0 +1,19 @@
+[run]
+branch = True
+source =
+    services
+    apps
+omit =
+    */__init__.py
+    */tests/*
+    */venv/*
+    */.venv/*
+    */site-packages/*
+
+[report]
+show_missing = True
+skip_covered = False
+precision = 2
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
