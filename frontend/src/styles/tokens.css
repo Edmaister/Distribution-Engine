@@ -1,0 +1,23 @@
+:root {
+  --color-ink: #0a0e1a;
+  --color-ink-mid: #1c2238;
+  --color-ink-soft: #3a4260;
+  --color-rule: #e4e7f0;
+  --color-white: #ffffff;
+  --color-off-white: #f5f6fa;
+  --color-signal: #1a56f0;
+  --color-signal-mid: #3d70f5;
+  --color-signal-light: #ebf0ff;
+  --color-success: #0d9e72;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-gold: #c8a96e;
+
+  --font-sans: "Sora", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "DM Mono", "SFMono-Regular", Consolas, monospace;
+
+  --shadow-panel: 0 12px 28px rgb(10 14 26 / 0.08);
+  --radius-panel: 8px;
+  --radius-control: 6px;
+  --sidebar-width: 272px;
+}

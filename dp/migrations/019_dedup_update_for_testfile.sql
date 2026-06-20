@@ -1,0 +1,2 @@
+ALTER TABLE referral_progress_events
+DROP CONSTRAINT IF EXISTS uq_rpe_track_event;

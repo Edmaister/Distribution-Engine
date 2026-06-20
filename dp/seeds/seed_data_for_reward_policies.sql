@@ -1,0 +1,28 @@
+INSERT INTO reward_policies (
+    product,
+    sub_product,
+    reward_type,
+    referrer_reward_amount,
+    referee_reward_amount,
+    allow_referee_reward,
+    is_active
+)
+VALUES
+(
+    'TRANSACTIONAL',
+    'EASY_ACCOUNT',
+    'EWALLET',
+    50.00,
+    25.00,
+    TRUE,
+    TRUE
+),
+(
+    'INSURANCE',
+    'FUNERAL_PLAN',
+    'EWALLET',
+    120.00,
+    0.00,
+    FALSE,
+    TRUE
+);

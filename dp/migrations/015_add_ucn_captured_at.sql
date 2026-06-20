@@ -1,0 +1,2 @@
+ALTER TABLE referral_instances
+ADD COLUMN IF NOT EXISTS ucn_captured_at TIMESTAMPTZ NULL;

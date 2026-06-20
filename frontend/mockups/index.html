@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Referral Customer Experience — Web &amp; Mobile Mock</title>
+  <link rel="stylesheet" href="cx-mock.css" />
+</head>
+<body class="mock-hub">
+
+  <header class="hub-header">
+    <h1>Customer experience mock — web &amp; mobile</h1>
+    <p>
+      Target-state UX wired to your existing stack: Referral Engine API, Experience-layer DTOs,
+      channel BFF (OCEP headers), recommendations catalogue, leaderboards, and missions.
+      Switch journey and screen below — both viewports render the same content model.
+    </p>
+  </header>
+
+  <div class="hub-controls">
+    <div class="control-group">
+      <label for="journey">Journey</label>
+      <select id="journey" aria-label="Select journey">
+        <option value="referrer">Referrer (existing customer)</option>
+        <option value="referee">Referee (friend joining)</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Referrer screen</label>
+      <div id="referrer-screens">
+        <button type="button" class="screen-btn active" data-screen="overview">Overview</button>
+        <button type="button" class="screen-btn" data-screen="refer">Refer &amp; Earn</button>
+        <button type="button" class="screen-btn" data-screen="progress">Progress</button>
+        <button type="button" class="screen-btn" data-screen="tips">Tips &amp; Tools</button>
+        <button type="button" class="screen-btn" data-screen="terms">Terms (1st visit)</button>
+      </div>
+      <div id="referee-screens" hidden>
+        <button type="button" class="screen-btn active" data-screen="friend-enter">Enter code</button>
+        <button type="button" class="screen-btn" data-screen="friend-valid">Validated</button>
+        <button type="button" class="screen-btn" data-screen="friend-done">Success + next steps</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hub-stage">
+    <!-- MOBILE -->
+    <section aria-label="Mobile app mock">
+      <div class="stage-label">
+        Mobile app <span class="badge">WebView / native shell</span>
+      </div>
+      <div class="phone-frame">
+        <div class="phone-notch" aria-hidden="true"></div>
+        <div class="phone-screen" id="mobile-mount"></div>
+      </div>
+    </section>
+
+    <!-- WEB -->
+    <section aria-label="Web banking portal mock">
+      <div class="stage-label">
+        Web portal <span class="badge">Responsive · logged-in banking</span>
+      </div>
+      <div class="web-frame">
+        <div class="web-browser-bar">
+          <span class="web-dot red"></span>
+          <span class="web-dot yellow"></span>
+          <span class="web-dot green"></span>
+          <div class="web-url" id="web-url">https://bank.example/referrals</div>
+        </div>
+        <div class="web-content">
+          <aside class="web-sidebar">
+            <div class="brand">FNB Banking</div>
+            <div class="sub">Signed in · OCEP context</div>
+            <nav class="web-nav" id="web-nav"></nav>
+          </aside>
+          <main class="web-main" id="web-mount"></main>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="hub-legend">
+    <h3>API mapping (available today or via Experience layer)</h3>
+    <ul>
+      <li><strong>Overview tier &amp; rewards</strong> — GET /v1/rewards/summary/referrers/{ucn}</li>
+      <li><strong>Primary nudge</strong> — GET /v1/recommendations/{trackId} → rendered cards</li>
+      <li><strong>Leaderboard snippet</strong> — GET /v1/tenants/{tenant}/leaderboards/{code}/me</li>
+      <li><strong>Refer &amp; Earn</strong> — POST /referrals/bootstrap → POST /referrals/codes</li>
+      <li><strong>Share link / QR</strong> — channel BFF builds /friend?referral_code=…</li>
+      <li><strong>Progress list</strong> — GET /v1/referrers/{ucn} (normalized to milestones)</li>
+      <li><strong>Missions</strong> — GET /v1/missions/referrer/{ucn}</li>
+      <li><strong>Terms</strong> — POST /referrals/accept-terms</li>
+      <li><strong>Referee validate</strong> — POST /public/referrals/validate</li>
+      <li><strong>Referee accept</strong> — POST /v1/progress (ACCOUNT_OPENED)</li>
+      <li><strong>Referee next steps</strong> — GET /v1/recommendations/{trackId}</li>
+      <li><strong>Identity</strong> — x-ocep-ucn, x-ocep-tenant (gateway → BFF, never shown to user)</li>
+    </ul>
+  </footer>
+
+  <!-- Screen templates (cloned into both viewports) -->
+  <template id="tpl-overview">
+    <div class="cx-app" data-screen="overview">
+      <div class="cx-shell">
+        <header class="cx-app-bar">
+          <button type="button" class="cx-icon-btn" aria-label="Back">←</button>
+          <h1 class="title">My Referrals</h1>
+          <button type="button" class="cx-icon-btn" aria-label="Close">×</button>
+        </header>
+        <nav class="cx-tabs" role="tablist">
+          <button type="button" class="cx-tab active" role="tab">Overview</button>
+          <button type="button" class="cx-tab" role="tab">Refer &amp; Earn</button>
+          <button type="button" class="cx-tab" role="tab">Progress</button>
+          <button type="button" class="cx-tab" role="tab">Tips</button>
+        </nav>
+
+        <div class="kpi-row">
+          <div class="kpi"><div class="kpi-val">R120</div><div class="kpi-lbl">Earned</div></div>
+          <div class="kpi"><div class="kpi-val">R80</div><div class="kpi-lbl">Pending</div></div>
+          <div class="kpi"><div class="kpi-val">3</div><div class="kpi-lbl">Active</div></div>
+        </div>
+
+        <section class="cx-card">
+          <p class="cx-step-label">Your status <span class="api-tag">rewards/summary</span></p>
+          <div class="tier-ring" style="--p: 65">
+            <div class="tier-ring-inner">
+              <div class="tier-name">Silver tier</div>
+              <div class="tier-sub">Updated 14 Jun</div>
+            </div>
+          </div>
+          <p class="cx-hint">You're 1 accepted referral away from Gold. Keep sharing — every friend who completes their journey moves you forward.</p>
+          <button type="button" class="cx-btn cx-btn-primary">Refer &amp; Earn</button>
+        </section>
+
+        <section class="cx-card">
+          <p class="cx-step-label">Recommended for you <span class="api-tag">recommendations</span></p>
+          <div class="rec-primary">
+            <span class="rec-emoji">🔥</span>
+            <div class="rec-title">You're on a roll!</div>
+            <p class="cx-hint" style="margin:0">StormHawk726 is at 70% — send a gentle reminder to help them finish.</p>
+            <button type="button" class="cx-btn cx-btn-primary" style="margin-top:12px">Send reminder</button>
+          </div>
+          <div class="rec-secondary">
+            <span>🔗</span>
+            <div>
+              <strong>Share your link again</strong>
+              <p class="cx-hint" style="margin:0">WhatsApp and SMS templates ready in Tips.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="cx-card">
+          <p class="cx-step-label">Leaderboard <span class="api-tag">leaderboards/me</span></p>
+          <div class="lb-me">
+            <div class="lb-rank">#7</div>
+            <div>
+              <strong>PlayCaptain · 420 pts</strong>
+              <div class="cx-hint" style="margin:0">32 pts to rank #6 · 2 completed referrals</div>
+            </div>
+          </div>
+          <table class="lb-table">
+            <thead><tr><th>#</th><th>Name</th><th>Pts</th></tr></thead>
+            <tbody>
+              <tr><td>5</td><td>NeoFan99</td><td>458</td></tr>
+              <tr class="highlight"><td>7</td><td>You</td><td>420</td></tr>
+              <tr><td>8</td><td>EasySaver</td><td>401</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-refer">
+    <div class="cx-app" data-screen="refer">
+      <div class="cx-shell">
+        <header class="cx-app-bar">
+          <button type="button" class="cx-icon-btn">←</button>
+          <h1 class="title">Refer &amp; Earn</h1>
+          <button type="button" class="cx-icon-btn">×</button>
+        </header>
+        <nav class="cx-tabs">
+          <button type="button" class="cx-tab">Overview</button>
+          <button type="button" class="cx-tab active">Refer &amp; Earn</button>
+          <button type="button" class="cx-tab">Progress</button>
+          <button type="button" class="cx-tab">Tips</button>
+        </nav>
+
+        <div class="privacy-strip">
+          <span>🔒</span>
+          <div>Friends see progress milestones only — never your account number or personal details.</div>
+        </div>
+
+        <section class="cx-card">
+          <p class="cx-step-label">Your code <span class="api-tag">bootstrap · codes</span></p>
+          <h2>Share with friends &amp; family</h2>
+          <p class="cx-hint">When someone uses your code to open an eligible account, rewards apply automatically.</p>
+          <div class="code-pill">
+            <span>EASY42</span>
+            <button type="button">Copy</button>
+          </div>
+          <p class="cx-hint">Gaming handle: <strong>PlayCaptain</strong></p>
+          <div class="qr-box">QR code<br><small>/friend?referral_code=EASY42</small></div>
+          <div class="share-row">
+            <div class="share-chip"><span class="icon">💬</span>WhatsApp</div>
+            <div class="share-chip"><span class="icon">📱</span>SMS</div>
+            <div class="share-chip"><span class="icon">📋</span>Copy link</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-progress">
+    <div class="cx-app" data-screen="progress">
+      <div class="cx-shell">
+        <header class="cx-app-bar">
+          <button type="button" class="cx-icon-btn">←</button>
+          <h1 class="title">Progress</h1>
+          <button type="button" class="cx-icon-btn">×</button>
+        </header>
+        <nav class="cx-tabs">
+          <button type="button" class="cx-tab">Overview</button>
+          <button type="button" class="cx-tab">Refer &amp; Earn</button>
+          <button type="button" class="cx-tab active">Progress</button>
+          <button type="button" class="cx-tab">Tips</button>
+        </nav>
+
+        <section class="cx-card">
+          <p class="cx-step-label">Summary <span class="api-tag">GET /v1/referrers/{ucn}</span></p>
+          <h2>5 referrals · 2 completed · 3 in progress</h2>
+        </section>
+
+        <section class="cx-card">
+          <p class="cx-step-label">In progress</p>
+          <div class="progress-card">
+            <div class="progress-top">
+              <span class="progress-alias">StormHawk726</span>
+              <span class="progress-pct">70%</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" style="width:70%"></div></div>
+            <div class="progress-meta">On track · Next: Fund account · Updated 12 Jun</div>
+          </div>
+          <div class="progress-card">
+            <div class="progress-top">
+              <span class="progress-alias">BlueFin88</span>
+              <span class="progress-pct">40%</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" style="width:40%"></div></div>
+            <div class="progress-meta">In progress · Next: Verify details · Updated 10 Jun</div>
+          </div>
+        </section>
+
+        <section class="cx-card">
+          <p class="cx-step-label">Completed</p>
+          <div class="progress-card">
+            <div class="progress-top">
+              <span class="progress-alias">MintLeaf3</span>
+              <span class="progress-pct">100%</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
+            <div class="progress-meta">Completed · Updated 01 Jun</div>
+            <span class="badge-earned">Reward earned · R50</span>
+          </div>
+        </section>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-tips">
+    <div class="cx-app" data-screen="tips">
+      <div class="cx-shell">
+        <header class="cx-app-bar">
+          <button type="button" class="cx-icon-btn">←</button>
+          <h1 class="title">Tips &amp; Tools</h1>
+          <button type="button" class="cx-icon-btn">×</button>
+        </header>
+        <nav class="cx-tabs">
+          <button type="button" class="cx-tab">Overview</button>
+          <button type="button" class="cx-tab">Refer &amp; Earn</button>
+          <button type="button" class="cx-tab">Progress</button>
+          <button type="button" class="cx-tab active">Tips</button>
+        </nav>
+
+        <section class="cx-card">
+          <p class="cx-step-label">Share smarter <span class="api-tag">missions</span></p>
+          <h2>Templates &amp; missions</h2>
+          <div class="tips-grid">
+            <div class="tip-item"><div class="tip-icon">💬</div><div><strong>WhatsApp invite</strong><p class="cx-hint" style="margin:0">Pre-written message with your code</p></div></div>
+            <div class="tip-item"><div class="tip-icon">🏆</div><div><strong>Weekly challenge</strong><p class="cx-hint" style="margin:0">Refer 2 friends this week · bonus R25</p></div></div>
+            <div class="tip-item"><div class="tip-icon">📄</div><div><strong>Programme terms</strong><p class="cx-hint" style="margin:0">Eligibility, caps, payout timing</p></div></div>
+            <div class="tip-item"><div class="tip-icon">❓</div><div><strong>How rewards work</strong><p class="cx-hint" style="margin:0">Step-by-step for you and your friend</p></div></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-terms">
+    <div class="cx-app" data-screen="terms">
+      <div class="cx-shell">
+        <header class="cx-app-bar">
+          <button type="button" class="cx-icon-btn">←</button>
+          <h1 class="title">Refer &amp; Earn</h1>
+          <button type="button" class="cx-icon-btn">×</button>
+        </header>
+        <section class="cx-card">
+          <p class="cx-step-label">Step 1 of 2 <span class="api-tag">bootstrap</span></p>
+          <h2>Programme terms</h2>
+          <p class="cx-hint">Accept to get your unique code and optional gaming handle.</p>
+          <ul class="cx-hint">
+            <li>Share your code or QR — rewards when friends open eligible accounts.</li>
+            <li>Track each referral's progress in your dashboard.</li>
+            <li>Your personal details are never shared with referees.</li>
+          </ul>
+          <label class="cx-hint" style="display:block;margin-bottom:8px">Gaming handle (optional)</label>
+          <input class="cx-input" type="text" placeholder="e.g. PlayCaptain" value="" />
+          <label class="cx-check">
+            <input type="checkbox" checked />
+            <span>I accept the Refer and Earn Participation Terms and Conditions.</span>
+          </label>
+          <button type="button" class="cx-btn cx-btn-primary">Accept &amp; get my code</button>
+        </section>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-friend-enter">
+    <div class="cx-app" data-screen="friend-enter">
+      <div class="cx-shell">
+        <header class="cx-app-bar">
+          <button type="button" class="cx-icon-btn">←</button>
+          <h1 class="title">Use a referral code</h1>
+          <button type="button" class="cx-icon-btn">×</button>
+        </header>
+        <section class="cx-card">
+          <p class="cx-step-label">Step 1 <span class="api-tag">public/validate</span></p>
+          <h2>Got a code from a friend?</h2>
+          <p class="cx-hint">Enter the code or scan their QR. We'll check it's valid before you continue.</p>
+          <button type="button" class="cx-btn cx-btn-outline" style="margin-bottom:12px">📷 Scan QR code</button>
+          <label class="cx-hint" style="display:block">Referral code</label>
+          <input class="cx-input" type="text" value="EASY42" />
+          <label class="cx-check">
+            <input type="checkbox" checked />
+            <span>I accept the referral terms and conditions.</span>
+          </label>
+          <button type="button" class="cx-btn cx-btn-primary">Validate code</button>
+        </section>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-friend-valid">
+    <div class="cx-app" data-screen="friend-valid">
+      <div class="cx-shell">
+        <header class="cx-app-bar">
+          <button type="button" class="cx-icon-btn">←</button>
+          <h1 class="title">Use a referral code</h1>
+          <button type="button" class="cx-icon-btn">×</button>
+        </header>
+        <section class="cx-card" style="border-color:#99f6e4;background:var(--success-bg)">
+          <p class="cx-step-label">Validated</p>
+          <h2>Code accepted ✓</h2>
+          <p class="cx-hint">This referral is valid. Accept to link your journey — rewards apply when you complete the steps.</p>
+          <p class="cx-hint">Your alias: <strong>StormHawk726</strong></p>
+          <button type="button" class="cx-btn cx-btn-primary">Accept &amp; continue</button>
+          <button type="button" class="cx-btn cx-btn-outline">Decline</button>
+        </section>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-friend-done">
+    <div class="cx-app" data-screen="friend-done">
+      <div class="cx-shell">
+        <header class="cx-app-bar">
+          <button type="button" class="cx-icon-btn">←</button>
+          <h1 class="title">Welcome</h1>
+          <button type="button" class="cx-icon-btn">×</button>
+        </header>
+        <div class="success-banner">
+          <strong>You're in!</strong>
+          Your referral journey is active. Complete the steps below to unlock your benefits.
+        </div>
+        <section class="cx-card">
+          <p class="cx-step-label">Your next steps <span class="api-tag">recommendations</span></p>
+          <div class="rec-primary">
+            <span class="rec-emoji">🚀</span>
+            <div class="rec-title">Your offer is ready</div>
+            <p class="cx-hint" style="margin:0">Start your application to open your account and unlock referral benefits.</p>
+            <button type="button" class="cx-btn cx-btn-primary" style="margin-top:12px">Start application</button>
+          </div>
+          <div class="rec-secondary">
+            <span>🔐</span>
+            <div><strong>Verify your details</strong><p class="cx-hint" style="margin:0">Complete KYC to continue.</p></div>
+          </div>
+          <div class="rec-secondary">
+            <span>💰</span>
+            <div><strong>Fund your account</strong><p class="cx-hint" style="margin:0">Add money to complete activation.</p></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    const SCREEN_MAP = {
+      referrer: {
+        overview: "tpl-overview",
+        refer: "tpl-refer",
+        progress: "tpl-progress",
+        tips: "tpl-tips",
+        terms: "tpl-terms",
+      },
+      referee: {
+        "friend-enter": "tpl-friend-enter",
+        "friend-valid": "tpl-friend-valid",
+        "friend-done": "tpl-friend-done",
+      },
+    };
+
+    const WEB_URLS = {
+      overview: "https://bank.example/referrals",
+      refer: "https://bank.example/referrals/share",
+      progress: "https://bank.example/referrals/progress",
+      tips: "https://bank.example/referrals/tips",
+      terms: "https://bank.example/referrals/terms",
+      "friend-enter": "https://bank.example/join?code=EASY42",
+      "friend-valid": "https://bank.example/join/validate",
+      "friend-done": "https://bank.example/join/welcome",
+    };
+
+    const REFERRER_NAV = [
+      { id: "overview", label: "Overview" },
+      { id: "refer", label: "Refer & Earn" },
+      { id: "progress", label: "Progress" },
+      { id: "tips", label: "Tips & Tools" },
+    ];
+
+    let journey = "referrer";
+    let screen = "overview";
+
+    function cloneTemplate(id, webLayout) {
+      const tpl = document.getElementById(id);
+      const node = tpl.content.cloneNode(true);
+      const app = node.querySelector(".cx-app");
+      if (webLayout && app) {
+        app.classList.add("web-layout");
+        if (screen === "overview") {
+          const shell = app.querySelector(".cx-shell");
+          if (shell) {
+            const grid = document.createElement("div");
+            grid.className = "web-grid-2";
+            const cards = [...shell.querySelectorAll(".cx-card")];
+            const kpi = shell.querySelector(".kpi-row");
+            if (kpi && cards.length >= 2) {
+              shell.insertBefore(grid, cards[0]);
+              grid.appendChild(kpi.cloneNode(true));
+              grid.appendChild(cards[0].cloneNode(true));
+              cards[0].remove();
+              kpi.remove();
+            }
+          }
+        }
+      }
+      return node;
+    }
+
+    function renderWebNav() {
+      const nav = document.getElementById("web-nav");
+      nav.innerHTML = "";
+      if (journey === "referrer") {
+        REFERRER_NAV.forEach((item) => {
+          const a = document.createElement("a");
+          a.href = "#";
+          a.textContent = item.label;
+          a.className = item.id === screen ? "active" : "";
+          a.addEventListener("click", (e) => {
+            e.preventDefault();
+            setScreen("referrer", item.id);
+          });
+          nav.appendChild(a);
+        });
+      } else {
+        const a = document.createElement("a");
+        a.className = "active";
+        a.textContent = "Join with code";
+        a.href = "#";
+        nav.appendChild(a);
+      }
+    }
+
+    function render() {
+      const tplId = SCREEN_MAP[journey][screen];
+      const mobileMount = document.getElementById("mobile-mount");
+      const webMount = document.getElementById("web-mount");
+      mobileMount.innerHTML = "";
+      webMount.innerHTML = "";
+      mobileMount.appendChild(cloneTemplate(tplId, false));
+      webMount.appendChild(cloneTemplate(tplId, true));
+      document.getElementById("web-url").textContent = WEB_URLS[screen] || WEB_URLS.overview;
+      renderWebNav();
+    }
+
+    function setScreen(j, s) {
+      journey = j;
+      screen = s;
+      document.getElementById("journey").value = j;
+      document.getElementById("referrer-screens").hidden = j !== "referrer";
+      document.getElementById("referee-screens").hidden = j !== "referee";
+      const container = j === "referrer" ? "referrer-screens" : "referee-screens";
+      document.querySelectorAll(`#${container} .screen-btn`).forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.screen === s);
+      });
+      render();
+    }
+
+    document.getElementById("journey").addEventListener("change", (e) => {
+      const j = e.target.value;
+      const first = j === "referrer" ? "overview" : "friend-enter";
+      setScreen(j, first);
+    });
+
+    document.querySelectorAll(".screen-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const j = document.getElementById("journey").value;
+        setScreen(j, btn.dataset.screen);
+      });
+    });
+
+    render();
+  </script>
+</body>
+</html>

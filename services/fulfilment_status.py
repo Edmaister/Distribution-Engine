@@ -1,0 +1,11 @@
+from enum import StrEnum
+
+
+class FulfilmentStatus(StrEnum):
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    SUCCESS = "SUCCESS"
+    FAILED_RETRYABLE = "FAILED_RETRYABLE"
+    FAILED_FINAL = "FAILED_FINAL"
+    DLQ = "DLQ"
+    SKIPPED_DUPLICATE = "SKIPPED_DUPLICATE"

@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: referral-engine-privacy-purge
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: privacy-purge
+              image: referral-engine-api:latest
+              command: ["python", "-m", "services.privacy_purge_scheduler"]
+              env:
+                - name: APP_DB_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      name: referral-engine-secrets
+                      key: APP_DB_DSN
+                - name: APP_TENANT_DEFAULT
+                  value: "DEFAULT"

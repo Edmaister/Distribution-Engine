@@ -1,0 +1,370 @@
+apps/
+├─ api/                 # FastAPI application: admin + public endpoints
+│  ├─ main.py           # App composition (mount routers)
+│  ├─ settings.py       # Env-driven configuration
+│  ├─ dependencies.py   # Common dependencies (tenant resolution, etc.)
+│  ├─ routers/
+│  │  ├─ campaigns.py   # Create campaign, create campaign referral codes, upsert campaign policy overrides
+│  │  ├─ referrals.py   # Issue referral codes, validate QR scans, capture UCN
+│  │  ├─ rewards.py     # Apply rewards
+│  │  ├─ progress.py    # User progress (points, badges, missions, reward counts)
+│  │  └─ health.py      # Health/readiness probes
+│  └─ schemas/          # Pydantic DTOs for request/response bodies
+│     ├─ campaigns.py
+│     ├─ referrals.py
+│     ├─ rewards.py
+│     └─ progress.py
+└─ workers/             # Long-running processes that react to events / schedules
+   ├─ ids_consumer.py   # Ingest Hogan IDS events -> enterprise_events; optionally auto-apply rewards
+   ├─ reward_scheduler.py # Scheduled job: find newly eligible referrals and apply rewards
+   └─ gamification_hooks.py # Wire platform events to gamification (points, missions, badges)
+
+Key design choice: apps/ is very thin. Routers and workers delegate to the domain services under services/ (policy, eligibility, rewards, campaigns, referral issuance, gamification). This separation keeps HTTP and background concerns out of core business logic.
+
+# README — `apps/` (API & Workers) and how they fit into the platform
+
+This document explains how the **`apps/`** directory (and its child folders) works **within the broader referrals platform**. It is written for a **Systems Analyst (SA)** who needs to understand responsibilities, data flows, and integration points across services, data stores, and events.
+
+---
+
+## 1) What lives in `apps/`?
+
+```
+apps/
+├─ api/                 # FastAPI application: admin + public endpoints
+│  ├─ main.py           # App composition (mount routers)
+│  ├─ settings.py       # Env-driven configuration
+│  ├─ dependencies.py   # Common dependencies (tenant resolution, etc.)
+│  ├─ routers/
+│  │  ├─ campaigns.py   # Create campaign, create campaign referral codes, upsert campaign policy overrides
+│  │  ├─ referrals.py   # Issue referral codes, validate QR scans, capture UCN
+│  │  ├─ rewards.py     # Apply rewards
+│  │  ├─ progress.py    # User progress (points, badges, missions, reward counts)
+│  │  └─ health.py      # Health/readiness probes
+│  └─ schemas/          # Pydantic DTOs for request/response bodies
+│     ├─ campaigns.py
+│     ├─ referrals.py
+│     ├─ rewards.py
+│     └─ progress.py
+└─ workers/             # Long-running processes that react to events / schedules
+   ├─ ids_consumer.py   # Ingest Hogan IDS events -> enterprise_events; optionally auto-apply rewards
+   ├─ reward_scheduler.py # Scheduled job: find newly eligible referrals and apply rewards
+   └─ gamification_hooks.py # Wire platform events to gamification (points, missions, badges)
+```
+
+**Key design choice:** `apps/` is **very thin**. Routers and workers delegate to the **domain services** under `services/` (policy, eligibility, rewards, campaigns, referral issuance, gamification). This separation keeps HTTP and background concerns out of core business logic.
+
+---
+
+## 2) How `apps/` integrates with the rest of the system
+
+### Core collaborators outside `apps/`
+
+* `services/` — business logic (policy resolution, eligibility, rewards, campaigns, referral issuance, gamification, cooldowns).
+* `utils/` — infrastructure helpers (DB connections, Kafka publishing, crypto, logging).
+* `db/` — migrations & seeds (schema for referrals, rewards, campaign policies, IDS events, gamification, QR scans, etc.).
+* `docs/` — systems analyst documentation, policy JSON examples.
+
+### High-level flow (end-to-end)
+
+1. **Campaign setup (Admin via API)**
+
+   * `POST /campaigns` → `services.campaign_service.create_campaign`
+   * `POST /campaigns/{code}/codes` → `create_campaign_referral_code`
+   * `PUT /campaigns/{code}/policy` → upsert campaign **policy override** (per-campaign `reward_amounts_json` + `product_rules_json`).
+
+2. **Referral lifecycle (User/Admin via API)**
+
+   * `POST /referrals/codes` → `services.referral_code.generate_referral_code` (optionally tied to a **campaign\_code**).
+   * `POST /referrals/validate` → logs **QR scan** for anti-abuse; emits `REFERRAL_CODE_PENDING`.
+   * `POST /referrals/ucn` → `services.update_ucn.update_referee_ucn` (encrypt & hash; idempotent).
+
+3. **Event ingestion (Workers)**
+
+   * `apps/workers/ids_consumer.ingest_event` writes **Hogan IDS** events (e.g., `POLICY_ACTIVATED`, `DEBIT_ORDER_SWITCHED`, `SALARY_DEPOSIT`) into `enterprise_events`.
+   * (Optional) It can **auto-call** `services.reward_service.apply_reward` for qualifying events.
+
+4. **Reward application (API or Workers)**
+
+   * `POST /rewards/apply` → `services.reward_service.apply_reward`:
+
+     * Resolves **effective policy**: **campaign override** → **sticker-level** → fallback.
+     * Runs **cooldown** + **product eligibility** (declarative rules driven by policy JSON).
+     * Inserts `referral_rewards` (idempotent) and emits `REWARD_APPLIED`.
+
+5. **Gamification (Workers & API)**
+
+   * Workers route events to `services.gamification_service`:
+
+     * On `REFERRAL_CODE_ISSUED` → mission progress (e.g., `INVITE_5`)
+     * On `REWARD_APPLIED` → points + mission progress (e.g., `EARN_3_REWARDS`)
+   * `GET /me/progress` → aggregates **points, missions, badges, referral & reward counts**.
+
+---
+
+## 3) API module: `apps/api`
+
+### `main.py`
+
+* Instantiates FastAPI.
+* Mounts routers for **campaigns**, **referrals**, **rewards**, **progress**, and **health**.
+* Does **no business logic**; just composes endpoints.
+
+### `settings.py`
+
+* `Settings` (Pydantic) pulls env vars (`APP_DB_DSN`, `APP_KAFKA_BROKER`, etc.).
+* Provides `get_settings()` dependency for routers.
+
+### `dependencies.py`
+
+* Example: `get_tenant()` extracts `X-Tenant` header or falls back to default.
+* This is where you add **auth/roles** in future (e.g., Admin vs Ops vs End-user).
+
+### `routers/` (HTTP endpoints → service calls)
+
+* **`campaigns.py`**
+
+  * `POST /campaigns` → `create_campaign(...)`
+  * `POST /campaigns/{code}/codes` → `create_campaign_referral_code(...)`
+  * `PUT /campaigns/{code}/policy` → upsert campaign policy override in `marketing_campaign_policies`.
+* **`referrals.py`**
+
+  * `POST /referrals/codes` → issue referral code (with optional `campaign_code`).
+  * `POST /referrals/validate` → log/validate QR scan; anti-abuse.
+  * `POST /referrals/ucn` → capture UCN (encrypted, idempotent).
+* **`rewards.py`**
+
+  * `POST /rewards/apply` → apply a policy-driven reward (campaign > sticker > fallback).
+* **`progress.py`**
+
+  * `GET /me/progress` → show user’s points, badges, missions, referral & reward counts.
+* **`health.py`**
+
+  * `GET /healthz`, `GET /readyz` for probes.
+
+### `schemas/` (DTOs)
+
+* Strongly-typed request bodies for campaigns, referrals, rewards, and progress.
+* Keeps HTTP boundary explicit and consistent.
+
+---
+
+## 4) Workers: `apps/workers`
+
+### `ids_consumer.py`
+
+* **Purpose:** Receive/ingest **Enterprise Events** from Hogan IDS (or another event source) into the `enterprise_events` table.
+* **Optional:** If an event qualifies (e.g., `POLICY_ACTIVATED` → Insurance **ACTIVATION**), it can **immediately call** `reward_service.apply_reward`.
+* **Inputs needed:** `referralTrackId`, `eventType`, optional `tenant`, `sticker`, `campaignCode`, `occurredAt`, `attributes`.
+
+### `reward_scheduler.py`
+
+* **Purpose:** Periodic job (cron/K8s) to **find newly eligible** referrals (e.g., based on events landed since last run) and apply rewards.
+* **Why:** Useful as a safety net if you don’t auto-apply rewards in `ids_consumer.py`.
+
+### `gamification_hooks.py`
+
+* **Purpose:** Subscribe to platform events (`referral-events`) and **route** to gamification:
+
+  * On `REFERRAL_CODE_ISSUED` → `on_referral_created`
+  * On `REWARD_APPLIED`/`REFERRAL_REWARDED` → `on_reward_applied`
+* **Outcome:** Users earn **points**, complete **missions**, and **badges** get awarded.
+
+---
+
+## 5) How tenancy, stickers, and campaigns flow through API & workers
+
+* **Tenancy (`tenant_code`)**
+
+  * Supplied via headers or payloads.
+  * Used by services to **scope policy** and campaigns (white-label support).
+
+* **Stickers** (Easy, Aspire, Premier, Private Clients, Private Wealth, RMB Private Banking)
+
+  * Provided when creating campaigns and issuing referral codes.
+  * Sticker-level policy in `cooldown_policies` acts as **defaults**.
+
+* **Campaigns**
+
+  * Identified by **`campaign_code`** (e.g., `CAMPUS-SEP-2025`).
+  * Campaign **policies override** sticker defaults (e.g., “Insurance ACTV pays 150 during Campus”).
+  * Campaign referral codes attribute referrals; rewards and events must carry `campaignCode` for accurate policy resolution and attribution.
+
+---
+
+## 6) Typical request/response walkthroughs
+
+### A. Create a campaign
+
+**Request:** `POST /campaigns`
+
+```json
+{
+  "tenant_code": "FNB",
+  "sticker": "PREMIER",
+  "name": "Campus Activation Sept",
+  "campaign_code": "CAMPUS-SEP-2025",
+  "starts_at": "2025-09-10T00:00:00Z",
+  "ends_at": "2025-10-10T00:00:00Z",
+  "attributes": {"channel": "on-campus"}
+}
+```
+
+**Response:** `{ "status": 201, "campaignId": 123, "campaignCode": "CAMPUS-SEP-2025" }`
+
+### B. Upsert campaign policy override
+
+**Request:** `PUT /campaigns/CAMPUS-SEP-2025/policy`
+
+```json
+{
+  "reward_amounts_json": {
+    "INSURANCE": { "ACTIVATION": 150 },
+    "BANKING":   { "ACTIVATION": 60, "DEBIT_ORDER": 35, "SALARY": 45 }
+  },
+  "product_rules_json": {
+    "INSURANCE": {
+      "ACTIVATION": [
+        {"kind":"event_count","eventTypes":["POLICY_ACTIVATED"],"atLeast":1,"windowDays":30}
+      ]
+    }
+  }
+}
+```
+
+**Effect:** Overrides sticker defaults **for this campaign**.
+
+### C. Issue a campaign referral code
+
+**Request:** `POST /referrals/codes`
+
+```json
+{
+  "referrer_hash": "encrypted-ucn",
+  "tenant": "FNB",
+  "sticker": "PREMIER",
+  "campaign_code": "CAMPUS-SEP-2025"
+}
+```
+
+**Response:** `{ "status": 201, "referralCode": "8C9E3A7B12", "campaignCode": "CAMPUS-SEP-2025" }`
+
+### D. Validate a scan (anti-abuse)
+
+**Request:** `POST /referrals/validate`
+
+```json
+{
+  "referral_code": "8C9E3A7B12",
+  "device_fingerprint": "device-abc",
+  "ip_address": "198.51.100.10"
+}
+```
+
+**Response:** `{ "status": "ok", "referralTrackId": "...", "campaignCode": "CAMPUS-SEP-2025" }`
+
+### E. Capture referee UCN (KYC)
+
+**Request:** `POST /referrals/ucn`
+
+```json
+{
+  "referral_code": "8C9E3A7B12",
+  "referee_ucn": "user-ucn-raw"
+}
+```
+
+**Response:** `{ "status": "success", "referralTrackId": "...", "campaignCode": "CAMPUS-SEP-2025" }`
+*(Stored encrypted; event emits only a one-way hash)*
+
+### F. Apply a reward (on qualifying event)
+
+**Request:** `POST /rewards/apply`
+
+```json
+{
+  "referral_track_id": "...",
+  "reward_type": "ACTIVATION",
+  "product": "INSURANCE",
+  "tenant": "FNB",
+  "sticker": "PREMIER",
+  "campaign_code": "CAMPUS-SEP-2025"
+}
+```
+
+**Response:** Includes `status`, `rewardId`, `amount`, and a **decision** explaining cooldown + eligibility.
+
+---
+
+## 7) Error handling & idempotency
+
+* API returns structured error payloads with HTTP status codes.
+* **Idempotency**:
+
+  * `referral_rewards` unique `(referral_track_id, reward_type)` → “already rewarded” returns 200 with message.
+  * `update_ucn` won’t overwrite `referee_ucn_encrypted`; returns “already captured”.
+* **Anti-abuse**:
+
+  * `referral_qr_scans.status` transitions from `SCANNED` to `COMPLETED`; repeated device attempts can be **BLOCKED**.
+
+---
+
+## 8) Security considerations
+
+* **PII**: UCN is **encrypted at rest**; events carry **only hashes** (non-reversible).
+* **Auth** (to add):
+
+  * Admin: manage campaigns/policies
+  * Ops: apply rewards
+  * End-user: progress view
+    Add a JWT/role guard in `apps/api/dependencies.py`.
+* **Multi-tenant isolation**: Tenant passed via header/body; services scope **policies** and **campaigns** by `tenant_code`.
+
+---
+
+## 9) Observability
+
+* All key actions **emit events** (`referral-events`) for analytics/audit:
+
+  * `REFERRAL_CODE_ISSUED`, `REFERRAL_CODE_PENDING`, `REFEREE_UCN_CAPTURED`, `REWARD_APPLIED`, etc.
+* Add structured logging in `utils/logging.py` and log per-request correlation IDs if needed.
+
+---
+
+## 10) Deployment, testing, and next steps
+
+* **Run API locally**:
+
+  ```bash
+  uvicorn apps.api.main:app --reload
+  ```
+* **Migrations & seeds**: apply `db/migrations/*` and `db/seeds/*` (or the consolidated `migrations.sql` / `seed_policies_and_campaigns.sql` if you’re using the single-file approach).
+* **Workers**: run as separate processes or Kubernetes Jobs/Deployments.
+* **Tests**:
+
+  * Unit tests target `services/` (pure logic).
+  * Integration tests hit the API and Postgres/Kafka (e.g., docker-compose in `infra/`).
+
+---
+
+## 11) Why this structure works well
+
+* **Separation of concerns**: HTTP & workers are thin wrappers; domain logic remains in `services/`.
+* **White-label by configuration**: Tenants + campaign overrides are data-driven (no code forks).
+* **Extensible**: Adding a new product or mission means **updating policy JSON or seeds**, not redeploying logic.
+
+---
+
+apps/api/ → all your HTTP APIs (routers, schemas, main entrypoint).
+
+apps/admin/ (optional) → ops/internal-only APIs.
+
+apps/worker/ → background/event-driven APIs (Kafka consumers, webhooks if needed).
+
+services/ → actual business logic (eligibility, rewards, policy, referral code, leaderboard, etc.). Routers call these — they’re the “brains.”
+
+config/ → settings & feature flags that control API behavior per env.
+
+infra/ → how those APIs get built, run, and exposed (Docker Compose locally, K8s deployments + ingress in clusters).
+
+tests/ → unit & integration coverage of your API and service functions.
