@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - api-deployment.yaml
+  - worker-deployment.yaml
+commonLabels:
+  app.kubernetes.io/part-of: referrals
+  app.kubernetes.io/managed-by: kustomize
+images:
+  - name: ghcr.io/ORG/referrals-api
+    newTag: latest
+  - name: ghcr.io/ORG/referrals-worker
+    newTag: latest

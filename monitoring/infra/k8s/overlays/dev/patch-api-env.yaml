@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: referrals-api
+spec:
+  template:
+    spec:
+      containers:
+        - name: api
+          env:
+            - { name: APP_ENV, value: "dev" }
+            - { name: LOG_LEVEL, value: "DEBUG" }

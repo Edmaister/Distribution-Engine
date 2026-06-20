@@ -30,6 +30,8 @@ local_events.jsonl
 *.tmp
 *.bak
 *.zip
+*.lnk
+monitoring/infra/k8s/secrets.yaml
 
 # OS/editor files
 .DS_Store

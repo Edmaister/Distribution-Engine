@@ -1,0 +1,28 @@
+name: Deploy (Remote Docker Compose)
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy"
+        required: true
+        default: "latest"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SSH to remote host and deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.REMOTE_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/referrals
+            echo IMAGE_TAG=${{ github.event.inputs.image_tag }} > .env.deploy
+            docker compose pull
+            docker compose up -d --remove-orphans

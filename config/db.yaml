@@ -1,0 +1,8 @@
+default_schema: public
+pool:
+  minconn: 1
+  maxconn: 10
+migrations:
+  path: db/migrations
+seeds:
+  path: db/seeds

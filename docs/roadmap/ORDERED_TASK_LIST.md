@@ -168,6 +168,27 @@ Risk level: Low.
 Rollback notes: Revert documentation/readiness updates only. Do not delete files unless explicitly approved.
 Definition of done: Accidental local artifacts have clear cleanup recommendations and no longer create ambiguity for DLaaS agent runner readiness. Priority: P0.
 
+## TASK-036: Template and migrate safe config/infra assets for safe baseline commit
+
+Status: Complete (2026-06-21). Output: `docs/agent/DLAAS_AGENT_RUNBOOK.md`.
+Linked enhancement: DLaaS Agent Runner Framework
+Linked platform capability: Agent execution, traceability, clean diffs, branch/PR workflow, rollback safety
+Goal: Template credential-looking config/infra values and copy reviewed CI/CD assets into canonical locations for a safe baseline commit.
+Why now: TASK-035 identified safe config/infra assets and files requiring templating. Broad autonomous execution needs CI/CD, deployment, Helm, and monitoring assets to be safe to stage or explicitly ignored.
+Files likely involved: `config/*`; `.github/workflows/*`; `docs/CI_CD.md`; `helm/referrals/*`; `monitoring/infra/*`; `.gitignore`; `docs/agent/DLAAS_AGENT_RUNBOOK.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None. Do not modify database schema or run live DB checks.
+Backend impact: None. Do not modify product business logic.
+Frontend impact: None. Do not build or modify frontend UI.
+API impact: None.
+Tests to add/update: No product tests required. Validate with diff review and secret-pattern scan.
+Validation method: Confirm credential-looking values are placeholders or env references, workflows are copied into `.github/workflows/`, unsafe local files are ignored, and no staging or commit was performed.
+Acceptance criteria: Config DSNs are safe placeholders/env references; deploy workflows exist under `.github/workflows/`; CI/CD docs exist under `docs/`; Helm README no longer contains credential-looking DSN examples; monitoring example infra avoids literal local credentials where edited; unsafe local secret file remains ignored; files safe to stage are listed.
+Dependencies: TASK-035.
+Blocked by: Human review and staging/commit decision for the cleaned assets.
+Risk level: Medium.
+Rollback notes: Revert templating/docs/workflow-copy changes only. Do not delete legacy folders in this task.
+Definition of done: Safe config/infra assets are templated or migrated enough for a reviewed baseline commit plan. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails

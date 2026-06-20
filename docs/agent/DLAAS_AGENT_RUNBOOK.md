@@ -208,6 +208,18 @@ Accidental local artifact review from `TASK-033`:
 
 These four files do not block backend/docs, frontend, CI/CD, deployment, or monitoring tasks if they remain untracked and untouched, but they do block a fully clean broad autonomous workspace until removed or archived.
 
+Config/infra templating update from `TASK-036`:
+
+- Credential-looking DSNs in `config/settings.dev.yaml`, `config/settings.prod.yaml`, and `config/settings.py` were replaced with placeholders or environment-variable references.
+- Reviewed deploy workflows were copied from `github/workflows/` into `.github/workflows/`; the legacy `github/` folder was left in place.
+- `github/docs/CI_CD.md` was copied into `docs/CI_CD.md` with secret-handling guidance.
+- The Helm README install example now uses a placeholder secret value, and `helm/referrals/values.yaml` continues to keep secret values empty.
+- Local credential-looking DSNs/passwords in `monitoring/infra/docker/docker-compose.yaml` and `monitoring/infra/k8s/configmaps.yaml` were replaced with placeholders or environment-variable references.
+- `monitoring/infra/k8s/secrets.yaml` remains untracked and must stay ignored unless it is converted to a safe `*.example.yaml` file in a later task.
+- `.gitignore` now ignores `*.lnk` and `monitoring/infra/k8s/secrets.yaml`.
+
+After TASK-036, CI/CD workflow migration is ready for review and staging. Deployment, Helm, and monitoring assets are safer to commit, but broad autonomous execution still depends on either staging the safe baseline or explicitly archiving/ignoring remaining legacy/untracked folders.
+
 ## Readiness Requirements
 
 A task is ready only when:

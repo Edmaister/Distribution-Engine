@@ -1,0 +1,300 @@
+{
+  "uid": "referral-engine-overview",
+  "title": "Referral Engine Operations Overview",
+  "schemaVersion": 39,
+  "version": 2,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "tenant",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(bff_aggregate_requests_total, tenant)",
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "DB Ready",
+      "targets": [
+        {
+          "expr": "min(db_ready)"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "type": "stat",
+      "title": "SQS Ready",
+      "targets": [
+        {
+          "expr": "min(sqs_ready)"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Kafka Ready",
+      "targets": [
+        {
+          "expr": "min(kafka_ready)"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      }
+    },
+    {
+      "type": "stat",
+      "title": "API Success Ratio",
+      "targets": [
+        {
+          "expr": "(sum(rate(http_requests_total[5m])) - sum(rate(http_requests_total{status=~\"5..\"}[5m]))) / clamp_min(sum(rate(http_requests_total[5m])), 1)"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Audit Write Failures",
+      "targets": [
+        {
+          "expr": "sum(rate(admin_audit_writes_total{result=\"failure\"}[5m]))"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Partner Webhook Failures",
+      "targets": [
+        {
+          "expr": "sum(rate(partner_webhook_delivery_attempts_total{delivery_status=\"FAILED\"}[5m]))"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "API Requests By Status",
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total[5m])) by (status)"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "API Latency P95",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "BFF Aggregate Health By Route",
+      "targets": [
+        {
+          "expr": "sum(rate(bff_aggregate_requests_total{tenant=~\"$tenant\"}[5m])) by (route, status)"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "BFF Section Latency P95",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(bff_aggregate_section_latency_seconds_bucket{tenant=~\"$tenant\"}[5m])) by (route, section, le))"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Partner Webhook Attempts",
+      "targets": [
+        {
+          "expr": "sum(rate(partner_webhook_delivery_attempts_total{tenant=~\"$tenant\"}[5m])) by (tenant, client_id, event_type, delivery_status)"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Partner Webhook Latency P95",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(partner_webhook_delivery_latency_seconds_bucket{tenant=~\"$tenant\"}[5m])) by (tenant, client_id, event_type, le))"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Channel Dispatch Attempts",
+      "targets": [
+        {
+          "expr": "sum(rate(channel_dispatch_attempts_total{tenant=~\"$tenant\"}[5m])) by (tenant, channel, adapter, delivery_status)"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Channel Dispatch Latency P95",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(channel_dispatch_latency_seconds_bucket{tenant=~\"$tenant\"}[5m])) by (tenant, channel, adapter, le))"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Enterprise Inbox Current",
+      "targets": [
+        {
+          "expr": "sum(enterprise_event_inbox_current) by (processing_status)"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 36
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Enterprise Events Ingested",
+      "targets": [
+        {
+          "expr": "sum(rate(enterprise_events_ingested_total[5m])) by (source_system, event_type, processing_status)"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 36
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Rewards Applied",
+      "targets": [
+        {
+          "expr": "sum(increase(rewards_applied_total{tenant=~\"$tenant\"}[1h])) by (tenant, product, reward_type)"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 44
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Admin Audit Writes",
+      "targets": [
+        {
+          "expr": "sum(rate(admin_audit_writes_total[5m])) by (action_domain, action_status, result)"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 44
+      }
+    }
+  ]
+}

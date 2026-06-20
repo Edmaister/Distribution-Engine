@@ -1,0 +1,65 @@
+image:
+  registry: ghcr.io
+  repository: ORG/referrals-api
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+worker:
+  enabled: true
+  replicaCount: 1
+  command:
+    - python
+    - -m
+    - apps.Workers.sqs_referral_worker
+
+service:
+  type: ClusterIP
+  port: 8000
+
+env:
+  APP_ENV: production
+  LOG_LEVEL: INFO
+  APP_KAFKA_CLIENT: stdout
+  APP_KAFKA_BROKER: kafka:9092
+  APP_SQS_MAX_RECEIVE_COUNT: "3"
+  HEALTH_CACHE_TTL_SECONDS: "10"
+
+secrets:
+  APP_DB_DSN: ""
+  ADMIN_API_KEY: ""
+  WORKER_SECRET: ""
+  REFERRAL_CODE_SECRET: ""
+  FNB_PARTNER_API_KEY: ""
+  FNB_TENANT_USER_API_KEY: ""
+  FNB_TENANT_ADMIN_API_KEY: ""
+  PNP_PARTNER_API_KEY: ""
+  PNP_TENANT_USER_API_KEY: ""
+  PNP_TENANT_ADMIN_API_KEY: ""
+  APP_SQS_QUEUE_URL: ""
+  APP_SQS_DLQ_URL: ""
+  AWS_REGION: ""
+  REDIS_URL: ""
+
+resources:
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+
+ingress:
+  enabled: false
+  className: ""
+  hosts:
+    - host: referrals.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

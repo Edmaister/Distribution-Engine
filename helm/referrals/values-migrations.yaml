@@ -1,0 +1,4 @@
+migrations:
+  enabled: true
+  applySeeds: false
+  backoffLimit: 1

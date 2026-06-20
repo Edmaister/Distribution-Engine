@@ -1,0 +1,70 @@
+{{- if .Values.worker.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "referrals.fullname" . }}-worker
+  labels:
+    {{- include "referrals.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "referrals.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        {{- include "referrals.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+    spec:
+      containers:
+        - name: worker
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            {{- toYaml .Values.worker.command | nindent 12 }}
+          env:
+            - name: APP_ENV
+              value: "{{ .Values.env.APP_ENV }}"
+            - name: LOG_LEVEL
+              value: "{{ .Values.env.LOG_LEVEL }}"
+            - name: APP_KAFKA_CLIENT
+              value: "{{ .Values.env.APP_KAFKA_CLIENT }}"
+            - name: APP_KAFKA_BROKER
+              value: "{{ .Values.env.APP_KAFKA_BROKER }}"
+            - name: APP_SQS_MAX_RECEIVE_COUNT
+              value: "{{ .Values.env.APP_SQS_MAX_RECEIVE_COUNT }}"
+            - name: APP_DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: APP_DB_DSN
+            - name: WORKER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: WORKER_SECRET
+            - name: APP_SQS_QUEUE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: APP_SQS_QUEUE_URL
+            - name: APP_SQS_DLQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: APP_SQS_DLQ_URL
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: AWS_REGION
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: REDIS_URL
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+{{- end }}

@@ -1,0 +1,20 @@
+{{- if and .Values.monitoring.enabled .Values.monitoring.servicemonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "referrals.fullname" . }}
+  labels:
+    {{- include "referrals.labels" . | nindent 4 }}
+    {{- if .Values.monitoring.servicemonitor.labels }}
+    {{- toYaml .Values.monitoring.servicemonitor.labels | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "referrals.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.monitoring.servicemonitor.interval }}
+      scrapeTimeout: {{ .Values.monitoring.servicemonitor.scrapeTimeout }}
+{{- end }}

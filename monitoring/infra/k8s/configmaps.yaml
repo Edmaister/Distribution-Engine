@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: referrals-config
+data:
+  logging.yaml: |
+    version: 1
+    formatters:
+      standard:
+        format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: standard
+        level: INFO
+    root:
+      handlers: [console]
+      level: INFO
+    loggers:
+      uvicorn:
+        level: INFO
+        handlers: [console]
+        propagate: no
+  kafka.yaml: |
+    brokers:
+      - kafka:9092
+    topics:
+      reward_applied: "reward.applied"
+      referral_created: "referral.created"
+      campaign_code_used: "campaign.code.used"
+    producer:
+      acks: all
+      linger_ms: 0
+      retries: 3
+  db.yaml: |
+    default_schema: public
+    pool:
+      minconn: 1
+      maxconn: 10
+    migrations:
+      path: db/migrations
+    seeds:
+      path: db/seeds
+  settings.prod.yaml: |
+    log_level: INFO
+    db_dsn: ${APP_DB_DSN}
+    kafka_broker: kafka:9092
+    kafka_client: kafka-python
+    api_host: 0.0.0.0
+    api_port: 8000
+    enable_cooldowns: true

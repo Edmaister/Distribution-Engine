@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: referrals-api
+  labels: { app: referrals-api }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: referrals-api } }
+  template:
+    metadata: { labels: { app: referrals-api } }
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/ORG/referrals-api:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: LOG_LEVEL, value: "INFO" }
+            - { name: APP_KAFKA_CLIENT, value: "kafka-python" }
+            - { name: APP_KAFKA_BROKER, value: "kafka:9092" }
+            - name: APP_DB_DSN
+              valueFrom: { secretKeyRef: { name: referrals-secrets, key: APP_DB_DSN } }
+            - name: UCN_ENC_KEY
+              valueFrom: { secretKeyRef: { name: referrals-secrets, key: UCN_ENC_KEY } }
+            - name: UCN_SALT
+              valueFrom: { secretKeyRef: { name: referrals-secrets, key: UCN_SALT } }
+          ports: [ { name: http, containerPort: 8000 } ]
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: referrals-api
+  labels: { app: referrals-api }
+spec:
+  selector: { app: referrals-api }
+  ports: [ { protocol: TCP, port: 8000, targetPort: http } ]

@@ -1,0 +1,59 @@
+# observability/prometheus-recording-rules.yml
+
+groups:
+  - name: referral_engine_slo_rules
+    interval: 30s
+    rules:
+      - record: referral_engine:http_requests:rate5m
+        expr: sum(rate(http_requests_total[5m]))
+
+      - record: referral_engine:http_errors_5xx:rate5m
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) or vector(0)
+
+      - record: referral_engine:http_success_ratio:5m
+        expr: |
+          (
+            sum(rate(http_requests_total[5m]))
+            -
+            sum(rate(http_requests_total{status=~"5.."}[5m]) or vector(0))
+          )
+          /
+          sum(rate(http_requests_total[5m]))
+
+      - record: referral_engine:http_request_duration:p95_5m
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          )
+
+      - record: referral_engine:ready:current
+        expr: min(db_ready) * min(sqs_ready)
+
+  - name: referral_engine_slo_advanced
+    interval: 30s
+    rules:
+
+      # Total request rate
+      - record: referral_engine:requests:rate5m
+        expr: sum(rate(http_requests_total[5m])) or vector(0)
+
+      # Error rate (5xx)
+      - record: referral_engine:errors:rate5m
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) or vector(0)
+
+      # Error ratio
+      - record: referral_engine:error_ratio:5m
+        expr: referral_engine:errors:rate5m / clamp_min(referral_engine:requests:rate5m, 1)
+
+      # SLO target (99.9%)
+      - record: referral_engine:slo_target
+        expr: 0.999
+
+      # Error budget remaining
+      - record: referral_engine:error_budget_remaining
+        expr: 1 - (referral_engine:error_ratio:5m / (1 - referral_engine:slo_target))
+
+      # Burn rate (how fast you're consuming error budget)
+      - record: referral_engine:error_budget_burn_rate
+        expr: referral_engine:error_ratio:5m / (1 - referral_engine:slo_target)

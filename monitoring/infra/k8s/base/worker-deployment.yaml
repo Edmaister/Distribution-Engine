@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: referrals-worker
+  labels: { app: referrals-worker }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: referrals-worker } }
+  template:
+    metadata: { labels: { app: referrals-worker } }
+    spec:
+      containers:
+        - name: worker
+          image: ghcr.io/ORG/referrals-worker:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: LOG_LEVEL, value: "INFO" }
+            - { name: APP_KAFKA_CLIENT, value: "kafka-python" }
+            - { name: APP_KAFKA_BROKER, value: "kafka:9092" }
+            - name: APP_DB_DSN
+              valueFrom: { secretKeyRef: { name: referrals-secrets, key: APP_DB_DSN } }
+          command: ["python", "scripts/refresh_recommendations.py"]
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }

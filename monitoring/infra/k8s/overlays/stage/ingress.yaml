@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: referrals-api
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: stage-referrals.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: stage-referrals-api
+                port: { number: 8000 }

@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: referrals
+resources:
+  - ../../base
+  - ../../servicemonitor.yaml
+patches:
+  - path: patch-api-env.yaml
+    target: { kind: Deployment, name: referrals-api }
+  - path: patch-api-replicas.yaml
+    target: { kind: Deployment, name: referrals-api }
+  - path: patch-api-configmap.yaml
+    target: { kind: Deployment, name: referrals-api }
+configMapGenerator:
+  - name: referrals-config
+    files:
+      - logging.yaml=../../../config/logging.yaml
+      - kafka.yaml=../../../config/kafka.yaml
+      - db.yaml=../../../config/db.yaml
+      - settings.prod.yaml=../../../config/settings.prod.yaml
+images:
+  - name: ghcr.io/ORG/referrals-api
+    newTag: latest
+  - name: ghcr.io/ORG/referrals-worker
+    newTag: latest

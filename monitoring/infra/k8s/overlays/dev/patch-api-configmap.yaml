@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: referrals-api
+spec:
+  template:
+    spec:
+      volumes:
+        - name: app-config
+          configMap:
+            name: referrals-config
+      containers:
+        - name: api
+          volumeMounts:
+            - name: app-config
+              mountPath: /app/config
+              readOnly: true

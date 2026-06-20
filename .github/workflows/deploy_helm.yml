@@ -1,0 +1,39 @@
+name: Deploy (Helm)
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy"
+        required: true
+        default: "latest"
+      namespace:
+        description: "Kubernetes namespace"
+        required: true
+        default: "referrals"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Helm upgrade/install
+        env:
+          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          helm upgrade --install referrals ./helm/referrals \
+            --namespace "${{ github.event.inputs.namespace }}" --create-namespace \
+            --set image.registry="${{ vars.REGISTRY || 'ghcr.io' }}" \
+            --set image.repository="${{ vars.IMAGE_NAME || format('{0}/{1}', github.repository_owner, 'referrals-api') }}" \
+            --set image.tag="$IMAGE_TAG" \
+            --set-string secrets.APP_DB_DSN="${{ secrets.APP_DB_DSN }}"

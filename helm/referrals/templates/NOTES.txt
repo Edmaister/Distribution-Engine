@@ -1,0 +1,7 @@
+1. Get the application URL by running these commands:
+  {{- if .Values.ingress.enabled }}
+  http(s)://{{ (index .Values.ingress.hosts 0).host }}
+  {{- else }}
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "referrals.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  kubectl port-forward $POD_NAME 8000:8000
+  {{- end }}

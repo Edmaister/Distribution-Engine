@@ -1,0 +1,122 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "referrals.fullname" . }}
+  labels:
+    {{- include "referrals.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "referrals.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        {{- include "referrals.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: APP_ENV
+              value: "{{ .Values.env.APP_ENV }}"
+            - name: LOG_LEVEL
+              value: "{{ .Values.env.LOG_LEVEL }}"
+            - name: APP_KAFKA_CLIENT
+              value: "{{ .Values.env.APP_KAFKA_CLIENT }}"
+            - name: APP_KAFKA_BROKER
+              value: "{{ .Values.env.APP_KAFKA_BROKER }}"
+            - name: APP_SQS_MAX_RECEIVE_COUNT
+              value: "{{ .Values.env.APP_SQS_MAX_RECEIVE_COUNT }}"
+            - name: HEALTH_CACHE_TTL_SECONDS
+              value: "{{ .Values.env.HEALTH_CACHE_TTL_SECONDS }}"
+            - name: APP_DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: APP_DB_DSN
+            - name: ADMIN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: ADMIN_API_KEY
+            - name: WORKER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: WORKER_SECRET
+            - name: REFERRAL_CODE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: REFERRAL_CODE_SECRET
+            - name: FNB_PARTNER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: FNB_PARTNER_API_KEY
+            - name: FNB_TENANT_USER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: FNB_TENANT_USER_API_KEY
+            - name: FNB_TENANT_ADMIN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: FNB_TENANT_ADMIN_API_KEY
+            - name: PNP_PARTNER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: PNP_PARTNER_API_KEY
+            - name: PNP_TENANT_USER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: PNP_TENANT_USER_API_KEY
+            - name: PNP_TENANT_ADMIN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: PNP_TENANT_ADMIN_API_KEY
+            - name: APP_SQS_QUEUE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: APP_SQS_QUEUE_URL
+            - name: APP_SQS_DLQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: APP_SQS_DLQ_URL
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: AWS_REGION
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "referrals.fullname" . }}-secrets
+                  key: REDIS_URL
+          ports:
+            - containerPort: 8000
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

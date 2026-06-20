@@ -1,0 +1,10 @@
+brokers:
+  - kafka:9092
+topics:
+  reward_applied: "reward.applied"
+  referral_created: "referral.created"
+  campaign_code_used: "campaign.code.used"
+producer:
+  acks: all
+  linger_ms: 0
+  retries: 3

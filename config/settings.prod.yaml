@@ -1,0 +1,7 @@
+log_level: INFO
+db_dsn: ${APP_DB_DSN}
+kafka_broker: kafka:9092
+kafka_client: kafka-python
+api_host: 0.0.0.0
+api_port: 8000
+enable_cooldowns: true
