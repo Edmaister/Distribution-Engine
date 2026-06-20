@@ -147,6 +147,27 @@ Risk level: Medium.
 Rollback notes: Revert documentation/readiness updates only. Do not add, commit, delete, or modify product files.
 Definition of done: The repo has a clear policy for remaining untracked files and a readiness decision for broad autonomous DLaaS agent execution. Priority: P0.
 
+## TASK-033: Clean accidental local artifacts after GitHub baseline push
+
+Status: Complete (2026-06-21). Output: `docs/agent/DLAAS_AGENT_RUNBOOK.md`.
+Linked enhancement: DLaaS Agent Runner Framework
+Linked platform capability: Agent execution, traceability, clean diffs, branch/PR workflow, rollback safety
+Goal: Inspect accidental local artifacts after the GitHub baseline push and produce human-approved cleanup commands.
+Why now: TASK-032 identified empty and accidental untracked files that do not belong in the product baseline but still keep the workspace noisy for broad autonomous execution.
+Files likely involved: `body`; `docker`; `eline readiness` artifact; `run_tests.ps1`; `docs/agent/DLAAS_AGENT_RUNBOOK.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None. Do not modify database schema or run live DB checks.
+Backend impact: None. Do not modify product code or business logic.
+Frontend impact: None. Do not build or modify frontend UI.
+API impact: None.
+Tests to add/update: No product tests required. Validate by inspecting target file size/content and documenting cleanup recommendations.
+Validation method: Confirm whether each target file is empty, accidental, duplicate, or useful; document whether it should be deleted, archived outside repo, kept untracked, or committed later.
+Acceptance criteria: Each target file is inspected and classified; no product code is changed; no Git staging or commit is performed; exact human-approved cleanup commands are documented.
+Dependencies: TASK-032.
+Blocked by: Human confirmation before deletion or archive operations.
+Risk level: Low.
+Rollback notes: Revert documentation/readiness updates only. Do not delete files unless explicitly approved.
+Definition of done: Accidental local artifacts have clear cleanup recommendations and no longer create ambiguity for DLaaS agent runner readiness. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
