@@ -150,6 +150,53 @@ Remaining untracked items after the baseline push:
 
 Autonomous DLaaS agent execution may proceed only for tasks that do not depend on the remaining untracked config, CI/CD, Helm, or monitoring assets. Before deployment, auth/config, observability, infrastructure, or CI/CD tasks, clean or classify those untracked areas first.
 
+Remaining-untracked cleanup review from `TASK-032`:
+
+- This was a Git/readiness cleanup review only.
+- No files were staged, committed, deleted, archived, or modified outside documentation.
+- No product code, business logic, database schema, frontend UI, or live DB checks were changed or run.
+- `run_test.ps1` is tracked and contains the active local test runner; `run_tests.ps1` is empty and should not replace it.
+- `docker` and `body` are empty files, not folders.
+- `welcome-to-docker/` is a nested sample repository with its own `.git/`; it is not part of the DLaaS product baseline.
+- `github/` is not the active GitHub Actions folder. `.github/` contains the tracked Codex prompts and CI workflow; `github/` appears to be legacy/useful deployment material that should be reviewed and migrated under `.github/` only if still wanted.
+
+Remaining untracked classification:
+
+| Path | Classification | Rationale |
+|---|---|---|
+| `Core Domain Features.txt` | archive outside repo | Legacy product notes with stale terminology and encoding artifacts; current DLaaS docs are the source of truth. |
+| `Front-end Blueprint.txt` | archive outside repo | Legacy/generic frontend plan; not aligned to DLaaS control-plane guardrails. |
+| `Support Queries.txt` | archive outside repo | Contains operational SQL examples and specific-looking IDs; do not commit without redaction review. |
+| `body` | delete after human confirmation | Empty accidental file. |
+| `config/` | keep untracked temporarily | Source-like config exists, but `settings.dev.yaml`/`settings.prod.yaml` contain placeholder DSNs and must be reviewed before committing. `config/__pycache__/` remains ignored. |
+| `docker` | delete after human confirmation | Empty accidental file. |
+| `eline readiness` | delete after human confirmation | Accidental artifact containing Git diff output from a prior readiness step. |
+| `folder strucuture.txt` | archive outside repo | Legacy architecture note with typo and encoding artifacts; not source-of-truth. |
+| `github/` | keep untracked temporarily | Useful legacy CI/CD docs and deploy workflows, but should be compared/migrated into `.github/` rather than committed as a parallel folder. |
+| `helm/` | keep untracked temporarily | Helm chart is useful deployment source, but includes a Windows shortcut and secret templates that require review before commit. |
+| `monitoring/` | keep untracked temporarily | Useful observability/infra source, but includes `secrets.yaml`, placeholder secrets, and hardcoded dev passwords that require cleanup before commit. |
+| `run_tests.ps1` | delete after human confirmation | Empty duplicate; `run_test.ps1` is the tracked runner. |
+| `welcome-to-docker/` | archive outside repo | Docker tutorial/sample app with nested `.git/`; not part of this product. |
+
+Secret and sensitive-file findings:
+
+- `config/settings.dev.yaml` and `config/settings.prod.yaml` include placeholder DSNs with `appuser:apppass`.
+- `helm/referrals/templates/secret.yaml` is a secret template using Helm values; `helm/referrals/values.yaml` leaves secret values empty.
+- `helm/referrals/README_HELM.md` shows example DSNs and secret names.
+- `github/workflows/deploy_*.yml` references GitHub Secrets such as `REMOTE_HOST`, `REMOTE_USER`, `REMOTE_SSH_KEY`, `KUBE_CONFIG`, and `APP_DB_DSN`; no literal secret values were found there.
+- `monitoring/infra/k8s/secrets.yaml` contains placeholder secret values such as `please-change-me`.
+- `monitoring/infra/docker/docker-compose.yaml` and `monitoring/infra/k8s/configmaps.yaml` include local/dev DSNs and passwords.
+- No private keys or certificate bodies were found in the inspected untracked files.
+
+Final readiness policy:
+
+- Backend and documentation tasks may proceed if they do not depend on untracked `config/`, `github/`, `helm/`, or `monitoring/`.
+- Frontend tasks may proceed from the tracked frontend baseline, but must not rely on legacy `Front-end Blueprint.txt`.
+- CI/CD tasks are blocked until `github/` is migrated, ignored, or archived.
+- Deployment tasks are blocked until `config/`, `helm/`, and `monitoring/infra` are reviewed and cleaned.
+- Monitoring tasks are blocked until `monitoring/` is reviewed and secret placeholders are converted to safe examples or ignored.
+- Broad autonomous execution remains blocked until the remaining untracked items are either committed after review, ignored, archived, or deleted after human confirmation.
+
 ## Readiness Requirements
 
 A task is ready only when:

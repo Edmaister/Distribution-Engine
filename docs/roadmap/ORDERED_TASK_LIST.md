@@ -126,6 +126,27 @@ Risk level: Medium.
 Rollback notes: Revert documentation/readiness updates only. Do not add, commit, delete, or modify product files.
 Definition of done: The repo has an explicit post-push readiness decision for DLaaS agent runner execution. Priority: P0.
 
+## TASK-032: Review remaining untracked config, infra, and legacy docs before broad agent execution
+
+Status: Complete (2026-06-21). Output: `docs/agent/DLAAS_AGENT_RUNBOOK.md`.
+Linked enhancement: DLaaS Agent Runner Framework
+Linked platform capability: Agent execution, traceability, clean diffs, branch/PR workflow, rollback safety
+Goal: Inspect and classify remaining untracked config, CI/CD, Helm, monitoring, sample, and legacy documentation items after the baseline push.
+Why now: TASK-031 confirmed restricted readiness only. Broad autonomous execution remains unsafe until remaining untracked config/infra and accidental files are explicitly classified.
+Files likely involved: `docs/agent/DLAAS_AGENT_RUNBOOK.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; untracked config/infra/legacy files for inspection only.
+Database/schema impact: None. Do not modify database schema or run live DB checks.
+Backend impact: None. Do not modify product code or business logic.
+Frontend impact: None. Do not build or modify frontend UI.
+API impact: None.
+Tests to add/update: No product tests required. Validate by inspecting untracked files, checking for secrets/sensitive values, comparing `github/` with `.github/`, and documenting cleanup recommendations.
+Validation method: Use read-only file and Git inspection to classify every remaining untracked item as commit, ignore, archive, delete after human confirmation, or keep untracked temporarily.
+Acceptance criteria: Remaining untracked items are classified; config/CI/CD/Helm/monitoring sensitive values are identified; accidental files are identified; final cleanup/commit plan is documented; blockers for backend/docs, frontend, CI/CD, deployment, monitoring, and broad autonomous execution are explicit.
+Dependencies: TASK-031.
+Blocked by: Human decision on whether to commit, migrate, ignore, archive, or delete the remaining untracked items.
+Risk level: Medium.
+Rollback notes: Revert documentation/readiness updates only. Do not add, commit, delete, or modify product files.
+Definition of done: The repo has a clear policy for remaining untracked files and a readiness decision for broad autonomous DLaaS agent execution. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
