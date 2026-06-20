@@ -189,6 +189,27 @@ Risk level: Medium.
 Rollback notes: Revert templating/docs/workflow-copy changes only. Do not delete legacy folders in this task.
 Definition of done: Safe config/infra assets are templated or migrated enough for a reviewed baseline commit plan. Priority: P0.
 
+## TASK-037: Archive or ignore remaining legacy docs and sample artifacts after config/infra cleanup
+
+Status: Complete (2026-06-21). Output: `docs/agent/DLAAS_AGENT_RUNBOOK.md`.
+Linked enhancement: DLaaS Agent Runner Framework
+Linked platform capability: Agent execution, traceability, clean diffs, branch/PR workflow, rollback safety
+Goal: Inspect remaining legacy docs, duplicate GitHub workflow source, support SQL, and sample Docker app artifacts after config/infra cleanup.
+Why now: TASK-036 made config/infra assets safer for a baseline commit, but broad autonomous execution remains noisy while legacy and duplicate untracked artifacts remain in the workspace.
+Files likely involved: `Core Domain Features.txt`; `Front-end Blueprint.txt`; `Support Queries.txt`; `folder strucuture.txt`; `github/`; `welcome-to-docker/`; `docs/agent/DLAAS_AGENT_RUNBOOK.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None. Do not modify database schema or run live DB checks.
+Backend impact: None. Do not modify product business logic.
+Frontend impact: None. Do not build or modify frontend UI.
+API impact: None.
+Tests to add/update: No product tests required. Validate by inspecting target legacy files and documenting sensitive, stale, duplicate, or conflicting content.
+Validation method: Confirm whether each target should be archived outside repo, ignored, committed after review, deleted after human confirmation, or kept untracked temporarily; check for SQL with real-looking IDs and duplicate migrated content.
+Acceptance criteria: Each target item is inspected and classified; `github/` migration status is confirmed; `welcome-to-docker/` sample/nested Git status is confirmed; `Support Queries.txt` sensitivity is documented; exact cleanup commands are provided; no staging, committing, deleting, moving, or archiving is performed.
+Dependencies: TASK-036.
+Blocked by: Human confirmation before archive/delete operations.
+Risk level: Low.
+Rollback notes: Revert documentation/readiness updates only. Do not delete or archive files in this task.
+Definition of done: Remaining legacy artifacts have clear archive/delete/retain recommendations and broad autonomous execution blockers are explicit. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails

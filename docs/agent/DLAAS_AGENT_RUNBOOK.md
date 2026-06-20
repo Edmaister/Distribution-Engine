@@ -220,6 +220,28 @@ Config/infra templating update from `TASK-036`:
 
 After TASK-036, CI/CD workflow migration is ready for review and staging. Deployment, Helm, and monitoring assets are safer to commit, but broad autonomous execution still depends on either staging the safe baseline or explicitly archiving/ignoring remaining legacy/untracked folders.
 
+Legacy artifact review from `TASK-037`:
+
+- This was a Git/workspace cleanup review only.
+- No files were staged, committed, deleted, moved, archived, or modified outside documentation.
+- `github/` has been superseded by copied files in `.github/workflows/` and `docs/CI_CD.md`; the legacy folder can be archived or deleted after human confirmation.
+- `welcome-to-docker/` is an unrelated Docker tutorial/sample app with a nested `.git/`, package files, public assets, and React source; it should be archived outside the repo or deleted after human confirmation.
+- `Support Queries.txt` contains operational SQL plus specific-looking referral track IDs, a referrer UCN, and a gaming handle; archive outside the repo unless it is intentionally redacted and converted into safe support documentation.
+- `Core Domain Features.txt`, `Front-end Blueprint.txt`, and `folder strucuture.txt` are stale legacy notes with encoding artifacts and assumptions that conflict with or duplicate the DLaaS target-state, SA, and roadmap docs; archive outside the repo unless useful portions are deliberately migrated into the appropriate docs.
+
+Final legacy/untracked policy:
+
+| Path | Classification | Migration target if retained |
+|---|---|---|
+| `Core Domain Features.txt` | archive outside repo | Extract only still-accurate platform notes into `docs/product/` or `docs/sa/` after review. |
+| `Front-end Blueprint.txt` | archive outside repo | Extract only DLaaS-aligned UX ideas into `docs/sa/CONTROL_PLANE_UX_BLUEPRINT.md` after backend truth review. |
+| `Support Queries.txt` | archive outside repo | Redact and convert into a safe support runbook under `docs/` only if still needed. |
+| `folder strucuture.txt` | archive outside repo | Extract only useful architecture notes into `docs/sa/` after review. |
+| `github/` | archive/delete after human confirmation | Already migrated to `.github/workflows/` and `docs/CI_CD.md`. |
+| `welcome-to-docker/` | archive/delete after human confirmation | No migration target; unrelated sample app. |
+
+These remaining legacy items block broad autonomous execution while they remain untracked in the workspace. They do not block narrow backend/docs work if left untouched, but the preferred next cleanup is to archive them outside the repo or delete them after human confirmation.
+
 ## Readiness Requirements
 
 A task is ready only when:
