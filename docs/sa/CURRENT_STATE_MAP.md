@@ -20,7 +20,7 @@ The current system is feature-rich, but the DLaaS platform abstractions are unev
 | Capability | Current status | Evidence |
 | --- | --- | --- |
 | Tenant model | Partial | `tenants` table in `031_tenent.sql`; `services/tenant_service.py`; `/admin/tenants`. Tenant is mostly internal `tenant_code`, not yet full SaaS account. TASK-048 decides external parties should use an external identifier boundary that maps into `tenant_code`; TASK-004 maps the account-to-tenant boundary in `docs/sa/TENANT_ACCOUNT_BOUNDARY_MAP.md`. |
-| Campaign model | Partial | `marketing_campaigns`, `marketing_campaign_policies`, `campaign_attributions`, `campaign_track_events`; `services/campaign_service.py`; `apps/api/routers/campaigns.py`. |
+| Campaign model | Partial | `marketing_campaigns`, `marketing_campaign_policies`, `campaign_attributions`, `campaign_track_events`; `services/campaign_service.py`; `apps/api/routers/campaigns.py`. TASK-006 maps campaign and distribution opportunity lifecycle sources in `docs/sa/CAMPAIGN_OPPORTUNITY_LIFECYCLE_MAP.md`. |
 | Referral model | Exists | `referrer_codes`, `referral_instances`, `referral_progress_events`, `referral_qr_scans`; `services/referral_code.py`; `apps/api/routers/referrals.py`. |
 | Distribution marketplace | Exists | `distribution_distributors`, wallets, commissions, opportunities, routes, governance, route referral links; `services/distribution/*`; `/admin/distribution/*`; `/distribution/portal/*`. |
 | Link/code generation | Partial | Referral codes and campaign referral links exist; distribution route referral links exist. A canonical distribution link/code service is not yet the platform spine. |
