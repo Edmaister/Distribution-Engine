@@ -694,23 +694,27 @@ Definition of done: Complete; participant-dependent tasks can cite a single taxo
 
 ## TASK-009: Define canonical link/code contract
 
+Status: Complete on 2026-06-22. TASK-009 produced the documentation-only canonical link/code contract in `docs/sa/LINK_CODE_CONTRACT.md`; no application code, migrations, schema, auth helpers, role behavior, attribution, funding, fulfilment, settlement, audit, tenant, or data-isolation behavior changed.
 Linked enhancement: DLaaS-006: Canonical link/code and attribution contract
 Linked platform capability: 5. Distribution link/code generation
 Goal: Define a canonical contract for issuing, resolving, inspecting, and voiding current referral codes, campaign links, and route referral links.
 Why now: Attribution and public API work require one link/code abstraction.
-Files likely involved: `services/referral_code.py`; `services/composite_code_service.py`; `services/distribution/distributor_portal_service.py`; `dp/migrations/014_campaign_referral_links.sql`; `dp/migrations/070_distribution_route_referral_links.sql`
+Files involved: `docs/sa/LINK_CODE_CONTRACT.md`; `docs/sa/API_SURFACE_MAP.md`; `docs/sa/CAPABILITY_GAP_MATRIX.md`; `docs/sa/STATE_MACHINE_MAP.md`.
+Source files inspected: `services/referral_code.py`; `services/composite_code_service.py`; `services/campaign_service.py`; `services/distribution/distributor_portal_service.py`; `apps/api/routers/referrals.py`; `apps/api/routers/campaigns.py`; `apps/api/routers/composite_codes.py`; `apps/api/routers/distribution/distributor_portal.py`; `dp/migrations/001_init.sql`; `dp/migrations/002_campaigns.sql`; `dp/migrations/006_qr_scans.sql`; `dp/migrations/014_campaign_referral_links.sql`; `dp/migrations/070_distribution_route_referral_links.sql`.
 Database/schema impact: None initially; identify metadata gaps.
 Backend impact: Defines wrapper service behavior over existing code/link sources.
 Frontend impact: Future link manager and partner portal can use one contract.
 API impact: Link/code APIs must include auth, validation, idempotency for issue/void commands, duplicate handling, and 400/401/403/404/409 errors.
 Tests to add/update: Link issue/resolve tests; void/expired tests; duplicate code tests; tenant isolation tests.
-Validation method: Compare current link/code schema and service behavior.
-Acceptance criteria: Contract represents source, tenant, campaign, participant, status, and attribution metadata for all current link/code sources.
+Validation method: Documentation readback against current link/code schema, service behavior, route auth, duplicate handling, status sources, and privacy constraints.
+Validation completed: Readback confirmed the contract covers referral codes, campaign codes, campaign/referral bridge links, route referral links, and current composite-code compatibility; canonical status mapping; issue/resolve/inspect/void operation expectations; source-specific idempotency and duplicate behavior; auth and tenant rules; privacy/redaction; non-goals; and future test cases. Backend tests were not run because TASK-009 changed documentation only.
+Findings: `referrer_codes.referral_code` is the current shareable referral code source. `marketing_campaigns.campaign_code` resolves into `campaign_attributions.campaign_track_id`. `campaign_referral_links` bridges campaign and referral tracks but has no tenant/status/metadata/void fields. `distribution_route_referral_links` binds accepted distributor routes to referral tracks and supports `ACTIVE`/`VOIDED`, but no current void route/service was identified. `validate_composite_code` is explicitly interim and validates the same code through both campaign and referral validators.
+Acceptance criteria: Complete; the contract represents source, tenant, campaign, participant, status, and attribution metadata for all current link/code sources and identifies unsupported or future-only operations.
 Dependencies: TASK-008; TASK-007.
-Blocked by: Participant and campaign mappings.
+Blocked by: None. Participant and campaign mappings are documented by TASK-006 through TASK-008.
 Risk level: Medium.
 Rollback notes: Revert contract.
-Definition of done: Link/code wrapper implementation can proceed as a separate task. Priority: P1.
+Definition of done: Complete; link/code wrapper implementation can proceed as a separate task. Priority: P1.
 
 ## TASK-010: Define outcome trace response contract
 

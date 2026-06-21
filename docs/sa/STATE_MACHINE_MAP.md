@@ -38,7 +38,7 @@ Audit, idempotency, retry, and failure handling policy for future state-machine 
 | --- | --- | --- |
 | Campaign | Define canonical lifecycle over current campaign/opportunity concepts without deleting existing statuses. TASK-006 maps this in `docs/sa/CAMPAIGN_OPPORTUNITY_LIFECYCLE_MAP.md`; TASK-007 defines readiness states and blocker categories in `docs/sa/CAMPAIGN_READINESS_SERVICE_CONTRACT.md`. | GAP-02 |
 | Participant | Normalize partner/referrer/distributor/sponsor/customer status for control plane and portal use. TASK-008 maps current participant sources and permission boundaries in `docs/sa/PARTICIPANT_TAXONOMY_PERMISSION_MAP.md`. | GAP-03 |
-| Distribution link/code | Define canonical `active/voided/expired` semantics mapped to current referral and route link tables. | GAP-04 |
+| Distribution link/code | Define canonical `issued/active/resolved/linked/voided/expired/invalid/unknown` semantics mapped to current referral, campaign, campaign-referral, composite, and route link sources. TASK-009 defines this in `docs/sa/LINK_CODE_CONTRACT.md`. | GAP-04 |
 | Attribution/outcome | Add or derive a canonical outcome state from current campaign track, referral instance, progress events, reward, commission, funding, fulfilment, settlement, and audit records. | GAP-05 |
 | Qualification decision | Capture qualification result, source events, rule version, and auditability as a target-state recommendation. | GAP-07 |
 | Money lifecycle | Normalize operator-facing statuses for calculated liability, reserved funding, fulfilled reward/commission, settled amount, reversed/disputed/failed states. | GAP-08, GAP-09, GAP-10 |
