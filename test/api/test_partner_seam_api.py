@@ -735,7 +735,9 @@ def test_system_admin_can_notify_webhook_delivery_alerts(monkeypatch):
 
 def test_system_admin_can_retry_failed_webhook_delivery(monkeypatch):
     async def fake_mark_webhook_delivery_for_retry(**kwargs):
-        assert kwargs == {"delivery_id": "delivery-1"}
+        assert kwargs["delivery_id"] == "delivery-1"
+        assert kwargs["identity"]["role"] == "SYSTEM_ADMIN"
+        assert kwargs["identity"]["tenant_code"] == "INTERNAL"
         return {"delivery_id": "delivery-1", "delivery_status": "PENDING"}
 
     monkeypatch.setattr(

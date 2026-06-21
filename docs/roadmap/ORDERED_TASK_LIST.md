@@ -325,6 +325,33 @@ Risk level: Low.
 Rollback notes: Revert the TASK-040 test/doc changes only.
 Definition of done: Badges API auth and missing-referral tests are deterministic in full-suite execution without production auth changes. Priority: P0.
 
+## TASK-041: Align partner webhook retry test with authenticated identity contract
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 14. Audit trail; 20. API keys/integration credentials; 26. Security/permissions
+Goal: Keep partner webhook retry API tests aligned with the authenticated system-admin retry contract without weakening authorization or audit traceability.
+Why now: Backend pytest progressed past TASK-040 and exposed a partner webhook retry test fake that expected only `delivery_id` while the router correctly passed authenticated identity metadata.
+Files involved: `test/api/test_partner_seam_api.py`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: Test-only. No router, service, auth helper, or business logic changes.
+Frontend impact: None.
+API impact: No production API behavior change; system-admin retry still requires `require_system_admin_key` and passes identity to the service.
+Tests to add/update: Update the system-admin webhook retry test fake to assert `delivery_id` plus authenticated `SYSTEM_ADMIN` identity metadata.
+Validation method: Run targeted partner seam API tests and full backend pytest.
+Findings:
+- `apps/api/routers/partner_seam.py` passes `identity=Depends(require_system_admin_key)` into `partner_seam_service.mark_webhook_delivery_for_retry`.
+- `services/partner_seam_service.py` defines `mark_webhook_delivery_for_retry(delivery_id, identity=None)` and writes `PARTNER_WEBHOOK_DELIVERY_RETRY` admin audit evidence with the provided identity, so the router's identity handoff is the correct audit/security contract.
+- The minimal fix is to align the test fake with that contract by asserting `delivery_id`, `identity.role == SYSTEM_ADMIN`, and `identity.tenant_code == INTERNAL`.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\api\test_partner_seam_api.py -q`; 24 partner seam API tests passed.
+- Full backend validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest`; 1689 tests passed.
+Acceptance criteria: `test_system_admin_can_retry_failed_webhook_delivery` passes; related partner seam API tests pass; backend pytest passes.
+Dependencies: TASK-040.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the TASK-041 test/doc changes only.
+Definition of done: Partner webhook retry tests preserve the authenticated audit actor contract and backend pytest is green. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
