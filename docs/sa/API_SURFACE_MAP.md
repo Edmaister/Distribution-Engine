@@ -27,7 +27,7 @@ These are target-state recommendations. They are not current implementation fact
 
 | API area | Target recommendation | Current wrap/reuse candidate | Trace |
 | --- | --- | --- | --- |
-| Accounts/tenants | Create account, tenant, environment, onboarding, lifecycle, membership context. | `tenants`, `tenant_service.py`, `/admin/tenants`. | GAP-01 |
+| Accounts/tenants | Create account, tenant, environment, onboarding, lifecycle, membership context. TASK-005 defines the additive model in `docs/sa/TENANT_ACCOUNT_LIFECYCLE_MEMBERSHIP_MODEL.md`. | `tenants`, `tenant_service.py`, `/admin/tenants`. | GAP-01 |
 | Campaigns | Stable campaign CRUD, lifecycle, readiness, config versioning, limits, policies. | `campaign_service.py`, campaign policy service/routes. | GAP-02 |
 | Participants | Unified APIs for partners/referrers/distributors/sponsors/customers with role-specific views. | referral, distribution, sponsor, partner seam services. | GAP-03 |
 | Links/codes | Issue, list, void, resolve, and inspect distribution links/codes. | referral codes, campaign referral links, route referral links. | GAP-04 |
