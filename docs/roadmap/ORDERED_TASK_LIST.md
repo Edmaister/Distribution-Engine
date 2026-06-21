@@ -574,23 +574,27 @@ Definition of done: No TASK-001 unknown remains implicit; every uncertainty is e
 
 ## TASK-004: Map tenant references and account boundary
 
+Status: Complete on 2026-06-21. TASK-004 produced `docs/sa/TENANT_ACCOUNT_BOUNDARY_MAP.md` and did not change application code, migrations, or schema.
 Linked enhancement: DLaaS-003: SaaS account and tenant lifecycle foundation
 Linked platform capability: 1. Tenant/account model; 26. Security/permissions
 Goal: Map every current `tenant_code` dependency and define the account-to-tenant boundary without changing schema yet.
 Why now: Tenant/account scope is foundational for campaign, participant, API, portal, SaaS, and reporting work.
-Files likely involved: `dp/migrations/031_tenent.sql`; `services/tenant_service.py`; `apps/api/routers/admin_tenants.py`; `utils/security.py`; `utils/permissions.py`
+Files involved: `docs/sa/TENANT_ACCOUNT_BOUNDARY_MAP.md`; `docs/sa/API_SURFACE_MAP.md`; `docs/sa/CURRENT_STATE_MAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Source files inspected: `dp/migrations/031_tenent.sql`; `services/tenant_service.py`; `apps/api/routers/admin_tenants.py`; `utils/security.py`; `utils/permissions.py`; `utils/tenant_guard.py`; tenant references across migrations, services, routers, utilities, tests, and docs.
 Database/schema impact: Design-only; identifies future account, membership, lifecycle, and relationship schema.
 Backend impact: Documents how existing tenant behavior must be preserved.
 Frontend impact: None yet; later account setup depends on this.
 API impact: No new API yet; future APIs must derive tenant scope from auth except explicit admin operations.
 Tests to add/update: Tenant isolation tests; account-member permission tests when model is implemented.
-Validation method: Search tenant usage in routers, services, migrations, tests, and docs.
-Acceptance criteria: A design note defines account, tenant, membership, lifecycle, and how current `tenant_code` remains compatible.
+Validation method: Searched tenant usage in routers, services, migrations, tests, and docs; read back the new SA note for `tenant_code`, `external_tenant_ref`, account, membership, lifecycle, API/webhook, money-flow, audit, and compatibility coverage.
+Validation completed: Documentation-only validation on 2026-06-21. Static search found `tenant_code` broadly used across schema, services, routers, utilities, and tests, confirming it is an internal platform isolation key. No backend tests were run because TASK-004 changed docs only.
+Findings: `tenant_code` is already the internal tenant partition used by auth, permissions, referrals, campaign policy, reward, funding, fulfilment, settlement, distribution, partner seam, privacy, reporting, and audit flows. No first-class SaaS account, membership, seat, tenant lifecycle, subscription, or external-reference mapping schema is currently implemented. TASK-048's external identifier boundary is now mapped into the account-to-tenant model for TASK-005.
+Acceptance criteria: Complete. `docs/sa/TENANT_ACCOUNT_BOUNDARY_MAP.md` defines account, tenant, membership, lifecycle, external references, and how current `tenant_code` remains compatible.
 Dependencies: TASK-001.
 Blocked by: None. Tenant identifier boundary accepted in `docs/sa/TENANT_IDENTIFIER_BOUNDARY_DECISION.md` by TASK-048.
 Risk level: High.
 Rollback notes: Revert design only.
-Definition of done: Implementers can add account/tenant schema without deciding tenant semantics from scratch. Priority: P0.
+Definition of done: Complete. Implementers can add account/tenant schema without deciding tenant semantics from scratch. Priority: P0.
 
 ## TASK-005: Design tenant lifecycle and membership schema
 
