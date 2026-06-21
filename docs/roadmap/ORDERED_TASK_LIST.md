@@ -465,6 +465,36 @@ Risk level: Low.
 Rollback notes: Revert the TASK-045 worker/test/doc changes only.
 Definition of done: Missing worker secret configuration fails closed with generic unauthorized response and backend pytest remains green. Priority: P0.
 
+## TASK-046: Fix funding exposure table clean-DB readiness
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-010: Campaign funding readiness and liability projection
+Linked platform capability: 10. Funding/budget allocation; 14. Audit trail; 30. Live DB/state verification
+Goal: Ensure the canonical `funding_exposure` table exists during clean DB migration replay so `/admin/funding/exposure` and funding dashboard services can run without test-only schema setup.
+Why now: Backend pytest progressed past TASK-045 and exposed that `GET /admin/funding/exposure` queried `funding_exposure`, but clean DB schema did not create that table.
+Files involved: `dp/migrations/044_create_funding_exposure.sql`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: Adds the missing idempotent `funding_exposure` table definition to migration 044, including the service-required uniqueness key on `(tenant_code, account_id, exposure_date)` and non-negative amount checks.
+Backend impact: No service or route behavior change. Existing funding exposure, dashboard, and exposure-limit services now have their canonical table after migration replay.
+Frontend impact: None.
+API impact: No response contract change for `/admin/funding/exposure`; the endpoint now works on clean DBs instead of failing with `UndefinedTableError`.
+Tests to add/update: No new tests required; existing admin funding and funding exposure/dashboard tests cover the table contract.
+Validation method: Run migration hygiene, clean DB migration replay, targeted funding API/service tests, and full backend pytest.
+Findings:
+- SA docs and roadmap inventory already describe funding exposure as an existing funding/budget primitive.
+- `services/funding/exposure.py` consistently reads and writes `funding_exposure` with `tenant_code`, `account_id`, `exposure_date`, `reserved_amount`, `settled_amount`, `released_amount`, and `updated_at`.
+- `dp/migrations/044_create_funding_exposure.sql` existed but only created `funding_account_rules`; it did not create the `funding_exposure` table needed by the service and API.
+- The minimal migration-safe fix is to add the missing idempotent table and indexes to migration 044 without changing endpoint or business logic.
+- Validation passed with `.venv_codex\Scripts\python.exe scripts\check_migrations.py`.
+- Validation passed with `.venv_codex\Scripts\python.exe scripts\init_db.py`; migration replay completed through 999.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\api\test_admin_funding.py test\services\funding\test_exposure.py test\services\funding\test_dashboard.py test\services\funding\test_exposure_limits.py -q`; 31 targeted funding tests passed.
+- Full backend validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest`; 1690 tests passed.
+Acceptance criteria: `test_get_funding_exposure_empty` passes; related admin funding tests pass; clean DB migration replay passes; backend pytest passes.
+Dependencies: TASK-045.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert the TASK-046 migration/doc changes only.
+Definition of done: Clean DBs create `funding_exposure` before funding exposure APIs/services run, and backend pytest remains green. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
