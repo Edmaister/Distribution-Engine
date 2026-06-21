@@ -379,6 +379,35 @@ Risk level: Low.
 Rollback notes: Revert the TASK-042 test/doc changes only.
 Definition of done: DLQ replay admin tests use the route's system-admin auth contract and backend pytest remains green. Priority: P0.
 
+## TASK-043: Fix HVE badge award referrer_hash contract
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 6. Progress/status tracking; 14. Audit trail; 26. Security/permissions
+Goal: Ensure HVE badge awards preserve the `user_badges.referrer_hash` identity contract while keeping the canonical beneficiary fields intact.
+Why now: Backend pytest progressed past TASK-042 and exposed an HVE badge award insert that populated `beneficiary_ref` but not the legacy `referrer_hash` column, causing a `NOT NULL` violation where that schema column exists.
+Files involved: `services/badge_service.py`; `test/test_badge_service.py`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None. The existing `user_badges.referrer_hash` constraint is preserved.
+Backend impact: Badge award service now carries the stored referrer hash from `referrer_codes.referrer_ucn_hash` through the award insert, with canonical crypto lookup as a fallback when the stored hash is unavailable.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: Align badge service unit fakes with the additional `referrer_hash` service argument; run HVE mission badge and badge service tests.
+Validation method: Run targeted mission badge tests, badge service tests, and full backend pytest.
+Findings:
+- Migrations preserve an older `user_badges.referrer_hash` identity column while later badge services write newer `beneficiary_type` and `beneficiary_ref` fields.
+- `services/badge_service.py` previously selected only `referral_instances.referrer_ucn`, so `_award_badge` had no stored hash available and inserted without `referrer_hash`.
+- The canonical source for the stored referrer identity is `referrer_codes.referrer_ucn_hash`, joined via `referral_instances.referrer_code_id`; if a referral row lacks that stored source, the existing `utils.crypto.ucn_lookup_key` helper derives the canonical lookup hash from the referrer UCN.
+- The minimal service fix is to fetch `referrer_hash` with the referral row, pass it through `_evaluate_and_award_badges`, and populate `user_badges.referrer_hash` whenever that column exists.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_mission_service_badges.py -q`; the HVE badge idempotency test passed.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_badge_service.py -q`; 20 badge service tests passed.
+- Full backend validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest`; 1690 tests passed.
+Acceptance criteria: `test_hve_event_awards_badge_once` passes; mission badge tests pass; backend pytest passes.
+Dependencies: TASK-042.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert the TASK-043 service/test/doc changes only.
+Definition of done: HVE badge awards use the same referrer identity contract as other badge award paths and backend pytest remains green. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
