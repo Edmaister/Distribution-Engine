@@ -39,7 +39,7 @@ Audit, idempotency, retry, and failure handling policy for future state-machine 
 | Campaign | Define canonical lifecycle over current campaign/opportunity concepts without deleting existing statuses. TASK-006 maps this in `docs/sa/CAMPAIGN_OPPORTUNITY_LIFECYCLE_MAP.md`; TASK-007 defines readiness states and blocker categories in `docs/sa/CAMPAIGN_READINESS_SERVICE_CONTRACT.md`. | GAP-02 |
 | Participant | Normalize partner/referrer/distributor/sponsor/customer status for control plane and portal use. TASK-008 maps current participant sources and permission boundaries in `docs/sa/PARTICIPANT_TAXONOMY_PERMISSION_MAP.md`. | GAP-03 |
 | Distribution link/code | Define canonical `issued/active/resolved/linked/voided/expired/invalid/unknown` semantics mapped to current referral, campaign, campaign-referral, composite, and route link sources. TASK-009 defines this in `docs/sa/LINK_CODE_CONTRACT.md`. | GAP-04 |
-| Attribution/outcome | Add or derive a canonical outcome state from current campaign track, referral instance, progress events, reward, commission, funding, fulfilment, settlement, and audit records. | GAP-05 |
+| Attribution/outcome | Add or derive a canonical outcome state from current campaign track, referral instance, progress events, reward, commission, funding, fulfilment, settlement, and audit records. TASK-010 defines the response contract and trace-completeness values in `docs/sa/OUTCOME_TRACE_RESPONSE_CONTRACT.md`. | GAP-05 |
 | Qualification decision | Capture qualification result, source events, rule version, and auditability as a target-state recommendation. | GAP-07 |
 | Money lifecycle | Normalize operator-facing statuses for calculated liability, reserved funding, fulfilled reward/commission, settled amount, reversed/disputed/failed states. | GAP-08, GAP-09, GAP-10 |
 | Integration delivery | Publish DLaaS event catalog mapped to partner seam delivery states. | GAP-12, GAP-13 |
@@ -54,7 +54,7 @@ Audit, idempotency, retry, and failure handling policy for future state-machine 
 
 | ID | Issue | Impact | Trace |
 | --- | --- | --- | --- |
-| SM-GAP-01 | No single canonical distribution outcome state. | Hard to build reusable UX, reporting, webhooks, and support trace. | GAP-05 |
+| SM-GAP-01 | No implemented canonical distribution outcome state or trace service. TASK-010 now defines the response shape and missing-evidence taxonomy, but implementation remains in TASK-011. | Hard to build reusable UX, reporting, webhooks, and support trace until the service is implemented and joins are verified. | GAP-05 |
 | SM-GAP-02 | Campaign lifecycle is split between marketing campaigns and distribution opportunities. | Campaign builder/control plane may make invalid assumptions. | GAP-02 |
 | SM-GAP-03 | Reward and commission lifecycles are related but separate. | Money reporting can double-count or hide obligations if not reconciled. | GAP-08 |
 | SM-GAP-04 | Multiple audit tables exist without one canonical state-transition event taxonomy. | Operator investigations require domain-specific joins. | GAP-11 |
