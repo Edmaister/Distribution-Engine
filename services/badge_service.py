@@ -17,15 +17,31 @@ def _row_to_dict(row: Any) -> Dict[str, Any]:
     return dict(row)
 
 
+def _resolve_referrer_hash(
+    beneficiary_ref: str,
+    referrer_hash: str | None = None,
+) -> str:
+    cleaned_hash = str(referrer_hash or "").strip()
+    if cleaned_hash:
+        return cleaned_hash
+
+    from utils.crypto import ucn_lookup_key
+
+    return ucn_lookup_key(beneficiary_ref)
+
+
 async def _get_referral_row(referral_track_id: str) -> Optional[Dict[str, Any]]:
     async with db_connection() as conn:
         row = await conn.fetchrow(
             """
             SELECT
-                referral_track_id,
-                referrer_ucn
-            FROM referral_instances
-            WHERE referral_track_id = $1
+                ri.referral_track_id,
+                ri.referrer_ucn,
+                rc.referrer_ucn_hash AS referrer_hash
+            FROM referral_instances ri
+            LEFT JOIN referrer_codes rc
+              ON rc.referrer_code_id = ri.referrer_code_id
+            WHERE ri.referral_track_id = $1
             """,
             referral_track_id,
         )
@@ -84,30 +100,69 @@ async def _award_badge(
     award_reason: str,
     metadata: Optional[Dict[str, Any]] = None,
     referral_track_id: Optional[str] = None,
+    referrer_hash: Optional[str] = None,
 ) -> bool:
+    resolved_referrer_hash = _resolve_referrer_hash(beneficiary_ref, referrer_hash)
+
     async with db_connection() as conn:
         async with conn.transaction():
-            result = await conn.execute(
+            has_referrer_hash = await conn.fetchval(
                 """
-                INSERT INTO user_badges (
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name = 'user_badges'
+                      AND column_name = 'referrer_hash'
+                )
+                """
+            )
+
+            if has_referrer_hash:
+                result = await conn.execute(
+                    """
+                    INSERT INTO user_badges (
+                        referrer_hash,
+                        referral_track_id,
+                        beneficiary_type,
+                        beneficiary_ref,
+                        badge_code,
+                        award_reason,
+                        metadata_json,
+                        awarded_at
+                    )
+                    VALUES ($1, $2, 'REFERRER', $3, $4, $5, $6::jsonb, NOW())
+                    ON CONFLICT (beneficiary_type, beneficiary_ref, badge_code)
+                    DO NOTHING
+                    """,
+                    resolved_referrer_hash,
                     referral_track_id,
-                    beneficiary_type,
                     beneficiary_ref,
                     badge_code,
                     award_reason,
-                    metadata_json,
-                    awarded_at
+                    json.dumps(metadata or {}),
                 )
-                VALUES ($1, 'REFERRER', $2, $3, $4, $5::jsonb, NOW())
-                ON CONFLICT (beneficiary_type, beneficiary_ref, badge_code)
-                DO NOTHING
-                """,
-                referral_track_id,
-                beneficiary_ref,
-                badge_code,
-                award_reason,
-                json.dumps(metadata or {}),
-            )
+            else:
+                result = await conn.execute(
+                    """
+                    INSERT INTO user_badges (
+                        referral_track_id,
+                        beneficiary_type,
+                        beneficiary_ref,
+                        badge_code,
+                        award_reason,
+                        metadata_json,
+                        awarded_at
+                    )
+                    VALUES ($1, 'REFERRER', $2, $3, $4, $5::jsonb, NOW())
+                    ON CONFLICT (beneficiary_type, beneficiary_ref, badge_code)
+                    DO NOTHING
+                    """,
+                    referral_track_id,
+                    beneficiary_ref,
+                    badge_code,
+                    award_reason,
+                    json.dumps(metadata or {}),
+                )
 
     return str(result).upper().endswith(" 1")
 
@@ -169,6 +224,7 @@ async def _count_hve_referrals(
 async def _evaluate_and_award_badges(
     beneficiary_ref: str,
     referral_track_id: Optional[str] = None,
+    referrer_hash: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     referrals_created = await _count_referrals_created(beneficiary_ref)
     completed_referrals = await _count_completed_referrals(beneficiary_ref)
@@ -229,6 +285,7 @@ async def _evaluate_and_award_badges(
             award_reason=reason,
             metadata=metadata,
             referral_track_id=referral_track_id,
+            referrer_hash=referrer_hash,
         )
 
         if inserted:
@@ -247,6 +304,7 @@ async def evaluate_badges_for_referral_created(
     return await _evaluate_and_award_badges(
         beneficiary_ref=referral["referrer_ucn"],
         referral_track_id=referral_track_id,
+        referrer_hash=referral.get("referrer_hash"),
     )
 
 
@@ -260,6 +318,7 @@ async def evaluate_badges_for_referral_completion(
     return await _evaluate_and_award_badges(
         beneficiary_ref=referral["referrer_ucn"],
         referral_track_id=referral_track_id,
+        referrer_hash=referral.get("referrer_hash"),
     )
 
 
@@ -277,6 +336,7 @@ async def evaluate_badges_for_hve_event(
     return await _evaluate_and_award_badges(
         beneficiary_ref=referral["referrer_ucn"],
         referral_track_id=referral_track_id,
+        referrer_hash=referral.get("referrer_hash"),
     )
 
 

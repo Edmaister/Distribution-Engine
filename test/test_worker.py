@@ -89,8 +89,8 @@ def test_validate_worker_auth_rejects_when_worker_secret_not_configured(monkeypa
             event_secret=None,
         )
 
-    assert exc.value.status_code == 500
-    assert exc.value.detail == "Worker not configured"
+    assert exc.value.status_code == 401
+    assert exc.value.detail == "Unauthorized"
 
 
 def test_validate_worker_auth_accepts_header_secret(monkeypatch):

@@ -25,6 +25,7 @@ jobs:
           --health-retries 5
     env:
       APP_DB_DSN: postgresql://postgres:postgres@localhost:5432/referrals
+      REFERRAL_CODE_SECRET: ci-referral-code-secret
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

@@ -119,14 +119,33 @@ def test_replay_unsupported_event_raises():
 
 
 def _admin_client():
-    from utils.security import require_admin_key
-
     app = FastAPI()
     app.include_router(router_mod.router)
 
-    app.dependency_overrides[require_admin_key] = lambda: {"role": "ADMIN"}
+    app.dependency_overrides[router_mod.require_admin_key] = lambda: {
+        "role": "SYSTEM_ADMIN",
+        "tenant_code": "INTERNAL",
+    }
 
-    return TestClient(app)
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_admin_dlq_replay_endpoint_requires_auth():
+    app = FastAPI()
+    app.include_router(router_mod.router)
+    client = TestClient(app, raise_server_exceptions=False)
+
+    response = client.post(
+        "/admin/dlq/replay",
+        json={
+            "originalEvent": {
+                "eventType": "REFERRAL_PROGRESS_RECORDED",
+                "tenant_code": "FNB",
+            }
+        },
+    )
+
+    assert response.status_code == 401
 
 
 def test_admin_dlq_replay_endpoint_success(monkeypatch):

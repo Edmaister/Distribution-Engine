@@ -302,7 +302,7 @@ async def test_evaluate_badges_for_referral_created(monkeypatch):
     async def fake_referral(track):
         return referral_row("123")
 
-    async def fake_eval(beneficiary_ref, referral_track_id=None):
+    async def fake_eval(beneficiary_ref, referral_track_id=None, referrer_hash=None):
         return [{"badgeCode": "FIRST_REFERRAL"}]
 
     monkeypatch.setattr(svc, "_get_referral_row", fake_referral)
@@ -330,7 +330,7 @@ async def test_evaluate_badges_for_referral_completion(monkeypatch):
     async def fake_referral(track):
         return referral_row("123")
 
-    async def fake_eval(beneficiary_ref, referral_track_id=None):
+    async def fake_eval(beneficiary_ref, referral_track_id=None, referrer_hash=None):
         return [{"badgeCode": "COMPLETED_1"}]
 
     monkeypatch.setattr(svc, "_get_referral_row", fake_referral)
@@ -353,7 +353,7 @@ async def test_evaluate_badges_for_hve_event_valid(monkeypatch):
     async def fake_referral(track):
         return referral_row("123")
 
-    async def fake_eval(beneficiary_ref, referral_track_id=None):
+    async def fake_eval(beneficiary_ref, referral_track_id=None, referrer_hash=None):
         return [{"badgeCode": "HVE_1"}]
 
     monkeypatch.setattr(svc, "_get_referral_row", fake_referral)
