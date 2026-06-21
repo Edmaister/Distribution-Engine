@@ -598,23 +598,27 @@ Definition of done: Complete. Implementers can add account/tenant schema without
 
 ## TASK-005: Design tenant lifecycle and membership schema
 
+Status: Complete on 2026-06-21. TASK-005 produced `docs/sa/TENANT_ACCOUNT_LIFECYCLE_MEMBERSHIP_MODEL.md` and did not change application code, migrations, schema, auth helpers, or tenant-scoped business logic.
 Linked enhancement: DLaaS-003
 Linked platform capability: 1. Tenant/account model; 26. Security/permissions
 Goal: Specify schema and service changes for account/org, tenant lifecycle, users, memberships, and seat ownership.
 Why now: Campaign and SaaS packaging depend on account ownership and membership boundaries.
-Files likely involved: `dp/migrations`; `services/tenant_service.py`; `utils/security.py`; `utils/permissions.py`; `apps/api/routers/session.py`
+Files involved: `docs/sa/TENANT_ACCOUNT_LIFECYCLE_MEMBERSHIP_MODEL.md`; `docs/sa/API_SURFACE_MAP.md`; `docs/sa/CAPABILITY_GAP_MATRIX.md`; `docs/API_PERMISSION_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Source files inspected: `dp/migrations/031_tenent.sql`; `services/tenant_service.py`; `apps/api/routers/admin_tenants.py`; `utils/security.py`; `utils/permissions.py`; `apps/api/routers/session.py`; `docs/API_PERMISSION_MATRIX.md`.
 Database/schema impact: New schema design for accounts, users/memberships, tenant-account link, and lifecycle fields; no implementation in this task unless split into a later build task.
 Backend impact: Defines service boundaries and permission checks.
 Frontend impact: Enables future account setup and user management screens, but no frontend build yet.
 API impact: Future tenant/account APIs must include auth, validation, idempotency for create operations, and clear 400/401/403/409/404 errors.
 Tests to add/update: Migration replay tests; tenant lifecycle tests; membership permission tests.
-Validation method: Review against current auth helpers and API permission matrix.
-Acceptance criteria: Schema/service/API design is reviewable and compatible with existing tenant-scoped data.
+Validation method: Reviewed against current auth helpers, `docs/API_PERMISSION_MATRIX.md`, TASK-048 identifier decision, and TASK-004 account-to-tenant boundary. Read back the new design for account, organisation, tenant links, external references, users, memberships, seats, lifecycle states, transition rules, service boundaries, API direction, permission model, migration plan, and implementation tests.
+Validation completed: Documentation-only validation on 2026-06-21. No backend tests were run because TASK-005 changed docs only.
+Findings: Current auth and permission helpers resolve identity through role and `tenant_code`; there is no durable account, organisation, user membership, tenant link, seat, or external-reference mapping schema. The accepted model is additive: account/membership services resolve or validate account context before existing services continue receiving internal `tenant_code`.
+Acceptance criteria: Complete. Schema/service/API design is reviewable, additive, and compatible with existing tenant-scoped data.
 Dependencies: TASK-004.
-Blocked by: Account boundary decision.
+Blocked by: None. TASK-004 completed the account boundary map.
 Risk level: High.
 Rollback notes: If later implemented, rollback must preserve existing `tenants` and `tenant_code` references.
-Definition of done: Account/tenant implementation can proceed as small schema/service/API changes. Priority: P0.
+Definition of done: Complete. Account/tenant implementation can proceed as small schema/service/API changes. Priority: P0.
 
 ## TASK-006: Map campaign and opportunity lifecycle sources
 

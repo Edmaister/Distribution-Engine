@@ -41,6 +41,8 @@ regression evidence expected before production promotion.
 
 ## New Route Gate
 
+TASK-005 defines the future account, tenant lifecycle, membership, seat, and external-reference model in `docs/sa/TENANT_ACCOUNT_LIFECYCLE_MEMBERSHIP_MODEL.md`. Until that model is implemented, this matrix remains the current permission contract. New account or membership routes must update this matrix with the resolved membership check, tenant-source rule, and regression evidence.
+
 Before adding or promoting an API route, the owner must confirm:
 
 | Gate | Standard |
