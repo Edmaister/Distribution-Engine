@@ -710,3 +710,24 @@ Blocked by: Tenant isolation, public API contracts, partner/customer safe status
 Risk level: High.
 Rollback notes: Revert plan only.
 Definition of done: Later implementation scope is bounded and dependency-gated. Priority: Later.
+
+## TASK-039: Fix clean DB migration failure for referral_track_id
+
+Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 30. Live DB/state verification
+Goal: Fix clean DB initialization failure in `024_mission_and_reward_summary.sql` where legacy gamification tables from migration 005 did not yet have canonical `referral_track_id` columns.
+Why now: GitHub backend and clean-db-readiness checks failed before documentation-only PR validation could pass.
+Files likely involved: `scripts/init_db.py`; `dp/migrations/005_gamification.sql`; `dp/migrations/024_mission_and_reward_summary.sql`; mission and badge services/tests.
+Database/schema impact: Compatibility-safe migration replay fix only; no live DB changes.
+Backend impact: Keeps canonical mission/badge services aligned to referral-track columns.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: Migration hygiene check; clean DB init; targeted mission and badge tests.
+Validation method: Run `scripts/check_migrations.py`, `scripts/init_db.py`, and targeted mission/badge tests using the repo Codex virtualenv.
+Acceptance criteria: Clean DB init succeeds; no production/live DB touched; no unrelated schema changes; schema decision is documented.
+Dependencies: TASK-001; TASK-003.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert migration compatibility changes and this roadmap entry.
+Definition of done: Backend and clean-db-readiness CI can replay migrations past 024 without `referral_track_id` undefined-column failure. Priority: P0.
