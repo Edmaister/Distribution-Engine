@@ -29,7 +29,7 @@ These are target-state recommendations. They are not current implementation fact
 | --- | --- | --- | --- |
 | Accounts/tenants | Create account, tenant, environment, onboarding, lifecycle, membership context. TASK-005 defines the additive model in `docs/sa/TENANT_ACCOUNT_LIFECYCLE_MEMBERSHIP_MODEL.md`. | `tenants`, `tenant_service.py`, `/admin/tenants`. | GAP-01 |
 | Campaigns | Stable campaign CRUD, lifecycle, readiness, config versioning, limits, policies. TASK-006 maps current lifecycle sources in `docs/sa/CAMPAIGN_OPPORTUNITY_LIFECYCLE_MAP.md`; TASK-007 defines the readiness service contract in `docs/sa/CAMPAIGN_READINESS_SERVICE_CONTRACT.md`. | `campaign_service.py`, campaign policy service/routes. | GAP-02 |
-| Participants | Unified APIs for partners/referrers/distributors/sponsors/customers with role-specific views. | referral, distribution, sponsor, partner seam services. | GAP-03 |
+| Participants | Unified APIs for partners/referrers/distributors/sponsors/customers with role-specific views. TASK-008 maps current participant sources and permission boundaries in `docs/sa/PARTICIPANT_TAXONOMY_PERMISSION_MAP.md`. | referral, distribution, sponsor, partner seam services. | GAP-03 |
 | Links/codes | Issue, list, void, resolve, and inspect distribution links/codes. | referral codes, campaign referral links, route referral links. | GAP-04 |
 | Attribution events | Public event ingestion and attribution diagnostics with idempotency. | progress/enterprise event APIs and inbox. | GAP-05, GAP-06 |
 | Qualification | Evaluate and inspect qualification decisions from backend events. | journey/progress/campaign policy services. | GAP-07 |

@@ -4,6 +4,8 @@ This matrix is the release-control view of API access. It maps each surface to
 the backend permission helper, accepted role family, tenant boundary, and the
 regression evidence expected before production promotion.
 
+TASK-008 defines the participant taxonomy and maps these role families to current source tables, claims, and scope helpers in `docs/sa/PARTICIPANT_TAXONOMY_PERMISSION_MAP.md`.
+
 ## Role Families
 
 | Role family | Typical actor | Tenant scope | Primary credential |
