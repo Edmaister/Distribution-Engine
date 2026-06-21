@@ -70,4 +70,5 @@ VALUES
     30,
     'MILESTONE',
     TRUE
-);
+)
+ON CONFLICT (mission_code) DO NOTHING;

@@ -1,14 +1,13 @@
 INSERT INTO mission_definitions (
     mission_code,
-    title,
-    description,
-    trigger_type,
+    mission_name,
+    mission_description,
+    event_type,
     product,
     sub_product,
-    goal,
-    badge_code,
-    bonus_reward_type,
+    goal_count,
     bonus_reward_amount,
+    mission_category,
     is_active
 )
 VALUES
@@ -20,9 +19,8 @@ VALUES
     'TRANSACTIONAL',
     'EASY_ACCOUNT',
     1,
-    'BADGE_TXN_STARTER',
-    'EWALLET',
-    25.00,
+    25,
+    'MILESTONE',
     TRUE
 ),
 (
@@ -33,8 +31,8 @@ VALUES
     'TRANSACTIONAL',
     'EASY_ACCOUNT',
     3,
-    'BADGE_TXN_CHAMPION',
-    'EWALLET',
-    100.00,
+    100,
+    'MILESTONE',
     TRUE
-);
+)
+ON CONFLICT (mission_code) DO NOTHING;

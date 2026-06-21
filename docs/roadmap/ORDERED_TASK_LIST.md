@@ -252,10 +252,32 @@ Findings:
 - The minimal fix is to remove the premature 041 `funding_account_rules` ALTER/INDEX block and apply the same columns/indexes after the table is first created in migration 044.
 - Migration 061 then failed on clean replay because its backfill used `ON CONFLICT (dedupe_key)` before the unique index on `enterprise_event_inbox(dedupe_key)` existed.
 - `dedupe_key` is the canonical enterprise inbox idempotency key used by migration 061 and `apps/Workers/ids_consumer.py`; the minimal fix is to create `ux_enterprise_event_inbox_dedupe_key` immediately after the inbox table is created and before the backfill runs.
+- After migration replay reached 999, CI failed in the clean DB seed step because direct execution of `scripts/seed_db.py` could not import project-root modules such as `utils.db`.
+- `scripts/init_db.py` already adds the repository root to `sys.path`; the minimal readiness fix is to apply the same direct-script import bootstrap to `scripts/seed_db.py` instead of changing seed semantics or hiding seed failures.
 - Validation passed with `.venv_codex\Scripts\python.exe scripts\check_migrations.py` after the migration 061 ordering fix.
 - Validation passed with `.venv_codex\Scripts\python.exe scripts\init_db.py`; local replay progressed past migrations 041 and 061 and completed through migration 999.
+- Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` progressed beyond the prior `ModuleNotFoundError: No module named 'utils'` import failure and began applying seed files.
+- The next seed readiness failure is a real seed/schema mismatch in `dp/seeds/seed_data_for_mission_definitions.sql`: `asyncpg.exceptions.UndefinedColumnError: column "title" of relation "mission_definitions" does not exist`.
+- `mission_definitions` canonical columns are `mission_name`, `mission_description`, `event_type`, and `goal_count`; `title`, `description`, `trigger_type`, `goal`, `badge_code`, and `bonus_reward_type` are not mission definition columns in the migration/service source of truth.
+- The minimal seed alignment fix maps the old seed to canonical mission columns, preserves the two mission rows, removes noncanonical mission-definition fields from the insert, and adds `ON CONFLICT (mission_code) DO NOTHING` for idempotent seed replay.
+- Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` progressed past `seed_data_for_mission_definitions.sql`.
+- The next seed readiness failure is in `dp/seeds/seed_leaderboard_scoring_rules.sql`: `asyncpg.exceptions.UniqueViolationError` on `uq_leaderboard_scoring_rule_expr`, meaning the leaderboard scoring rule seed needs its own idempotency alignment.
+- `leaderboard_scoring_rules` uses a canonical uniqueness expression over leaderboard, journey, product scope, milestone, and score type; the minimal seed replay fix is to add `ON CONFLICT` against that same expression without changing scoring values or table schema.
+- Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` progressed past `seed_leaderboard_scoring_rules.sql`.
+- The next seed readiness failure is in `dp/seeds/seed_mission_definition_core.sql`: `asyncpg.exceptions.UniqueViolationError` on `mission_definitions_mission_code_key` for `mission_code=ACCOUNT_OPENED_CORE`, meaning the core mission seed needs its own idempotency alignment.
+- `seed_mission_definition_core.sql` contains canonical additive mission definitions and should not override existing mission content; the minimal seed replay fix is `ON CONFLICT (mission_code) DO NOTHING`.
+- Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` progressed past `seed_mission_definition_core.sql`.
+- The next seed readiness failure is in `dp/seeds/seed_mission_definition_milestone.sql`: `asyncpg.exceptions.UniqueViolationError` on `mission_definitions_mission_code_key` for `mission_code=COMPLETE_1_REFERRAL`, meaning the milestone mission seed needs its own idempotency alignment.
+- `seed_mission_definition_milestone.sql` contains canonical additive mission definitions and should not override existing mission content; the minimal seed replay fix is `ON CONFLICT (mission_code) DO NOTHING`.
+- Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` progressed past `seed_mission_definition_milestone.sql`.
+- The next seed readiness failure is in `dp/seeds/seed_policies_and_campaigns (1).sql`: `asyncpg.exceptions.UndefinedColumnError` because `marketing_campaigns.sticker` does not exist in the canonical schema.
+- Migration 002 documents `segment` as the campaign targeting dimension that replaced campaign-level `sticker`; the minimal seed alignment fix maps the sample campaign seed from `sticker` to `segment` without changing campaign behavior or policy data.
+- Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` completed successfully after the campaign seed alignment fix.
 - Targeted funding validation passed: `test\services\funding\test_account_rules.py`, `test\services\funding\test_account_resolution.py`, `test\services\funding\test_funding_orchestrator.py`, and `test\api\test_admin_funding_rules.py`.
 - Targeted enterprise inbox validation passed: `test\test_enterprise_event_inbox_admin.py` and `test\test_worker_ids_consumer.py`.
+- Targeted mission validation passed: `test\test_mission_service.py`, `test\test_missions_api.py`, and `test\test_mission_service_badges.py`.
+- Targeted leaderboard validation passed: `test\test_leaderboard_service.py`, `test\test_leaderboard_api.py`, `test\test_leaderboard_events.py`, and `test\test_worker_leaderboard_rebuild_event.py`.
+- Targeted campaign/policy validation passed: `test\test_campaign_service.py`, `test\test_campaigns.py`, and `test\test_campaign_policy_service.py`.
 Acceptance criteria: `scripts/init_db.py` progresses beyond migration 041 on a clean database, and any later replay failure is reported as a new clean DB replay-chain finding.
 Dependencies: TASK-003.
 Blocked by: None.
