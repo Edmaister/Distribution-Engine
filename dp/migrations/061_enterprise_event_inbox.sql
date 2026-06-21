@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS enterprise_event_inbox (
         CHECK (processing_status IN ('RECEIVED', 'QUEUED', 'IGNORED', 'FAILED', 'DUPLICATE'))
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS ux_enterprise_event_inbox_dedupe_key
+    ON enterprise_event_inbox (dedupe_key);
+
 DO $$
 DECLARE
     has_source_column BOOLEAN;
@@ -132,9 +135,6 @@ BEGIN
         END IF;
     END IF;
 END $$;
-
-CREATE UNIQUE INDEX IF NOT EXISTS ux_enterprise_event_inbox_dedupe_key
-    ON enterprise_event_inbox (dedupe_key);
 
 CREATE INDEX IF NOT EXISTS idx_enterprise_event_inbox_referral_track_id
     ON enterprise_event_inbox (referral_track_id);

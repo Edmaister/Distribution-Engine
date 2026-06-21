@@ -250,9 +250,12 @@ Findings:
 - Migration 041 then failed on a clean replay because it altered `funding_account_rules` before that table existed.
 - `funding_account_rules` is first created by migration 044 and repeated idempotently by migration 045; services and tests reference the same canonical table with `funding_model` and `sponsor_wallet_id`.
 - The minimal fix is to remove the premature 041 `funding_account_rules` ALTER/INDEX block and apply the same columns/indexes after the table is first created in migration 044.
-- Validation passed with `.venv_codex\Scripts\python.exe scripts\check_migrations.py`.
-- Validation passed with `.venv_codex\Scripts\python.exe scripts\init_db.py`; local clean replay progressed past migration 041 and completed through migration 999.
+- Migration 061 then failed on clean replay because its backfill used `ON CONFLICT (dedupe_key)` before the unique index on `enterprise_event_inbox(dedupe_key)` existed.
+- `dedupe_key` is the canonical enterprise inbox idempotency key used by migration 061 and `apps/Workers/ids_consumer.py`; the minimal fix is to create `ux_enterprise_event_inbox_dedupe_key` immediately after the inbox table is created and before the backfill runs.
+- Validation passed with `.venv_codex\Scripts\python.exe scripts\check_migrations.py` after the migration 061 ordering fix.
+- Validation passed with `.venv_codex\Scripts\python.exe scripts\init_db.py`; local replay progressed past migrations 041 and 061 and completed through migration 999.
 - Targeted funding validation passed: `test\services\funding\test_account_rules.py`, `test\services\funding\test_account_resolution.py`, `test\services\funding\test_funding_orchestrator.py`, and `test\api\test_admin_funding_rules.py`.
+- Targeted enterprise inbox validation passed: `test\test_enterprise_event_inbox_admin.py` and `test\test_worker_ids_consumer.py`.
 Acceptance criteria: `scripts/init_db.py` progresses beyond migration 041 on a clean database, and any later replay failure is reported as a new clean DB replay-chain finding.
 Dependencies: TASK-003.
 Blocked by: None.
