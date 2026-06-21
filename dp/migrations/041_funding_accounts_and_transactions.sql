@@ -74,15 +74,3 @@ ADD COLUMN IF NOT EXISTS segment_code TEXT,
 ADD COLUMN IF NOT EXISTS campaign_code TEXT,
 ADD COLUMN IF NOT EXISTS sponsor_code TEXT,
 ADD COLUMN IF NOT EXISTS priority INTEGER NOT NULL DEFAULT 100;
-
-ALTER TABLE funding_account_rules
-ADD COLUMN IF NOT EXISTS funding_model TEXT NOT NULL DEFAULT 'TENANT_FUNDED';
-
-ALTER TABLE funding_account_rules
-ADD COLUMN IF NOT EXISTS sponsor_wallet_id UUID;
-
-CREATE INDEX IF NOT EXISTS idx_funding_account_rules_funding_model
-ON funding_account_rules (tenant_code, funding_model);
-
-CREATE INDEX IF NOT EXISTS idx_funding_account_rules_sponsor_wallet
-ON funding_account_rules (sponsor_wallet_id);

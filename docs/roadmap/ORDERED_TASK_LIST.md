@@ -231,6 +231,35 @@ Risk level: Low.
 Rollback notes: Revert documentation/readiness updates only.
 Definition of done: Monitoring Terraform assets have a clear safety classification and deployment/monitoring blockers are explicit. Priority: P0.
 
+## TASK-039: Fix clean DB migration replay readiness
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 30. Live DB/state verification
+Goal: Keep the clean database migration chain replayable from zero without touching live data or making unrelated schema changes.
+Why now: CI clean DB readiness found sequential replay failures that block proof that a new environment can provision safely.
+Files involved: `dp/migrations/024_mission_and_reward_summary.sql`; `dp/migrations/041_funding_accounts_and_transactions.sql`; `dp/migrations/044_create_funding_exposure.sql`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: Migration-chain correction only. No live DB access, no production data, and no business-data migration.
+Backend impact: None. Services and tests are used as source of truth for expected schema.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: No new tests unless validation reveals a missing migration hygiene assertion. Use existing migration and targeted funding tests.
+Validation method: Run `python scripts/check_migrations.py`, `python scripts/init_db.py`, and targeted funding tests.
+Findings:
+- Migration 024 previously referenced `referral_track_id` incorrectly and was fixed under this task; CI progressed beyond migration 024 afterward.
+- Migration 041 then failed on a clean replay because it altered `funding_account_rules` before that table existed.
+- `funding_account_rules` is first created by migration 044 and repeated idempotently by migration 045; services and tests reference the same canonical table with `funding_model` and `sponsor_wallet_id`.
+- The minimal fix is to remove the premature 041 `funding_account_rules` ALTER/INDEX block and apply the same columns/indexes after the table is first created in migration 044.
+- Validation passed with `.venv_codex\Scripts\python.exe scripts\check_migrations.py`.
+- Validation passed with `.venv_codex\Scripts\python.exe scripts\init_db.py`; local clean replay progressed past migration 041 and completed through migration 999.
+- Targeted funding validation passed: `test\services\funding\test_account_rules.py`, `test\services\funding\test_account_resolution.py`, `test\services\funding\test_funding_orchestrator.py`, and `test\api\test_admin_funding_rules.py`.
+Acceptance criteria: `scripts/init_db.py` progresses beyond migration 041 on a clean database, and any later replay failure is reported as a new clean DB replay-chain finding.
+Dependencies: TASK-003.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert only the TASK-039 migration-order/doc changes; do not touch live DB.
+Definition of done: Clean DB replay either completes or advances to a clearly documented later migration failure with minimal source-of-truth-aligned fixes. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
