@@ -352,6 +352,33 @@ Risk level: Low.
 Rollback notes: Revert the TASK-041 test/doc changes only.
 Definition of done: Partner webhook retry tests preserve the authenticated audit actor contract and backend pytest is green. Priority: P0.
 
+## TASK-042: Align DLQ replay admin test with admin authentication contract
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 14. Audit trail; 18. Internal API; 26. Security/permissions
+Goal: Keep DLQ replay admin endpoint tests aligned with the system-admin authentication contract without weakening replay authorization.
+Why now: Backend pytest progressed past TASK-041 and exposed a DLQ replay endpoint test overriding the wrong admin dependency, causing the success path to receive `401 Unauthorized`.
+Files involved: `test/test_dlq_replay.py`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: Test-only. No router, replay service, auth helper, or business logic changes.
+Frontend impact: None.
+API impact: No production API behavior change; `/admin/dlq/replay` remains protected by the router's system-admin dependency.
+Tests to add/update: Override the DLQ router's actual `require_admin_key` alias in the test app and add an unauthenticated 401 assertion for `/admin/dlq/replay`.
+Validation method: Run targeted DLQ replay tests and full backend pytest.
+Findings:
+- `apps/api/routers/admin_dlq_replay.py` aliases `require_system_admin_key` as `require_admin_key` and applies that alias as a router-level dependency.
+- The failing test imported and overrode `utils.security.require_admin_key`, which is not the same dependency object used by the DLQ replay router.
+- The minimal fix is to override `router_mod.require_admin_key` in the isolated test app with a system-admin identity and keep unauthenticated access covered with a 401 regression test.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_dlq_replay.py -q`; 9 DLQ replay tests passed.
+- Full backend validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest`; 1690 tests passed.
+Acceptance criteria: `test_admin_dlq_replay_endpoint_success` passes; unauthenticated replay requests still return 401; related DLQ replay tests pass; backend pytest passes.
+Dependencies: TASK-041.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the TASK-042 test/doc changes only.
+Definition of done: DLQ replay admin tests use the route's system-admin auth contract and backend pytest remains green. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
