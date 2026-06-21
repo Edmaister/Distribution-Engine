@@ -646,23 +646,27 @@ Definition of done: Complete. Readiness service can be designed without guessing
 
 ## TASK-007: Define campaign readiness service contract
 
+Status: Complete on 2026-06-21. TASK-007 produced the documentation-only campaign readiness service contract in `docs/sa/CAMPAIGN_READINESS_SERVICE_CONTRACT.md`; no application code, migrations, schema, auth, audit, retry, funding, fulfilment, settlement, or data-isolation behavior changed.
 Linked enhancement: DLaaS-004
 Linked platform capability: 2. Campaign model; 10. Funding/budget allocation
 Goal: Define a backend contract that evaluates whether a campaign is ready for activation based on policy, link/code, event, funding, and audit prerequisites.
 Why now: Campaign activation and control-plane UX must be backend-driven.
-Files likely involved: `services/campaign_service.py`; `services/campaign_policy_service.py`; `services/funding/*`; `services/distribution/opportunity_service.py`
+Files involved: `docs/sa/CAMPAIGN_READINESS_SERVICE_CONTRACT.md`; `docs/sa/API_SURFACE_MAP.md`; `docs/sa/CAPABILITY_GAP_MATRIX.md`; `docs/sa/STATE_MACHINE_MAP.md`.
+Source files inspected: `services/campaign_service.py`; `services/campaign_policy_service.py`; `services/funding/*`; `services/marketplace_funding/funding_contract_service.py`; `services/distribution/opportunity_service.py`; `services/distribution/distributor_portal_service.py`; `apps/api/routers/distribution/admin_opportunities.py`; `apps/api/routers/distribution/admin_routing.py`; `apps/api/routers/distribution/producer_supply.py`.
 Database/schema impact: None initially; may identify missing config/version fields.
 Backend impact: Adds readiness decision contract before implementation.
 Frontend impact: Future campaign builder will consume readiness reasons.
 API impact: Readiness API must include auth, tenant validation, deterministic response, idempotent read behavior, and 400/401/403/404 errors.
 Tests to add/update: Readiness guard tests; activation blocker tests; tenant permission tests.
-Validation method: Review against current campaign policy and funding readiness sources.
-Acceptance criteria: Readiness contract lists required checks and missing-setup reason categories.
+Validation method: Documentation readback against current campaign policy, distribution opportunity/routing, link, funding, and audit sources.
+Validation completed: Readback confirmed the contract defines inputs, output shape, readiness states, operation-specific checks, blocker/warning/unknown categories, source ownership, API implications, audit/idempotency expectations, non-goals, and future tests. Backend tests were not run because TASK-007 changed documentation only.
+Findings: Current campaign readiness must be a read-only derived decision over existing campaign, policy, opportunity, route/link, commission, funding, and audit evidence. The contract deliberately does not publish opportunities, activate campaigns, reserve funding, mutate policies, or create links.
+Acceptance criteria: Complete; readiness contract lists required checks and missing-setup reason categories and can guide a later implementation without frontend-invented blocker states.
 Dependencies: TASK-006; TASK-005.
-Blocked by: Tenant lifecycle design.
+Blocked by: None. TASK-005 and TASK-006 are complete.
 Risk level: High.
 Rollback notes: Revert contract only.
-Definition of done: Backend implementation task can add readiness service without deciding checks. Priority: P0.
+Definition of done: Complete; backend implementation task can add readiness service without deciding checks. Priority: P0.
 
 ## TASK-008: Define participant taxonomy and permission mapping
 
