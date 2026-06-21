@@ -718,6 +718,7 @@ Definition of done: Complete; link/code wrapper implementation can proceed as a 
 
 ## TASK-010: Define outcome trace response contract
 
+Status: Complete (2026-06-22). Output: `docs/sa/OUTCOME_TRACE_RESPONSE_CONTRACT.md`.
 Linked enhancement: DLaaS-001: Canonical distribution outcome spine
 Linked platform capability: 6. Attribution tracking; 11. Reward liability tracking; 27. Observability
 Goal: Define the backend response contract for tracing one outcome across attribution, reward/commission, funding, fulfilment, settlement, audit, and webhook evidence.
@@ -731,10 +732,10 @@ Tests to add/update: Contract fixture tests; broken-trail tests; cross-tenant ac
 Validation method: Dry-map contract fields to current tables/services.
 Acceptance criteria: Contract distinguishes current facts from missing evidence and avoids invented statuses.
 Dependencies: TASK-001; TASK-009.
-Blocked by: Ambiguous identifier joins requiring live schema/data verification.
+Blocked by: None for the documentation-only contract. Implementation in TASK-011 remains gated by migrated-schema/live-state verification for ambiguous joins.
 Risk level: High.
 Rollback notes: Revert contract.
-Definition of done: Implementation can build the aggregation service without choosing response structure. Priority: P0.
+Definition of done: Implementation can build the aggregation service without choosing response structure. Validation: static source inspection, readback checks, and documentation diff only; no code, migration, live DB, or backend test execution was needed. Priority: P0.
 
 ## TASK-011: Implement outcome trace aggregation service
 

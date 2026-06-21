@@ -31,14 +31,14 @@ These are target-state recommendations. They are not current implementation fact
 | Campaigns | Stable campaign CRUD, lifecycle, readiness, config versioning, limits, policies. TASK-006 maps current lifecycle sources in `docs/sa/CAMPAIGN_OPPORTUNITY_LIFECYCLE_MAP.md`; TASK-007 defines the readiness service contract in `docs/sa/CAMPAIGN_READINESS_SERVICE_CONTRACT.md`. | `campaign_service.py`, campaign policy service/routes. | GAP-02 |
 | Participants | Unified APIs for partners/referrers/distributors/sponsors/customers with role-specific views. TASK-008 maps current participant sources and permission boundaries in `docs/sa/PARTICIPANT_TAXONOMY_PERMISSION_MAP.md`. | referral, distribution, sponsor, partner seam services. | GAP-03 |
 | Links/codes | Issue, list, void, resolve, and inspect distribution links/codes. TASK-009 defines the canonical wrapper contract in `docs/sa/LINK_CODE_CONTRACT.md`. | referral codes, campaign referral links, route referral links. | GAP-04 |
-| Attribution events | Public event ingestion and attribution diagnostics with idempotency. | progress/enterprise event APIs and inbox. | GAP-05, GAP-06 |
+| Attribution events | Public event ingestion and attribution diagnostics with idempotency. TASK-010 defines the operator/backend outcome trace response contract in `docs/sa/OUTCOME_TRACE_RESPONSE_CONTRACT.md`. | progress/enterprise event APIs and inbox. | GAP-05, GAP-06 |
 | Qualification | Evaluate and inspect qualification decisions from backend events. | journey/progress/campaign policy services. | GAP-07 |
 | Rewards/commissions | Calculate, approve, fulfil, reverse, summarize; keep customer reward and distributor commission boundaries clear. | reward service, commission service, reward summary. | GAP-08 |
 | Funding/budgets | Reserve, release, settle, forecast, alert, reconcile, expose liability and readiness. | funding and marketplace funding services. | GAP-09 |
 | Fulfilment/settlement | Create/inspect fulfilment and settlement lifecycle records, batches, approvals, exceptions, reversals. | fulfilment and settlement services/routes. | GAP-10 |
 | Webhooks | Subscribe to DLaaS event catalog, inspect delivery, retry, export dead letters. | partner seam. | GAP-13 |
 | Analytics/reporting | Tenant-safe reports across campaigns, participants, attribution, reward, funding, settlement, webhook health. | distribution reporting, finance metrics, materialized views. | GAP-16 |
-| Audit/support | Trace outcome, export audit, investigate stuck states, capture repair actions. | admin audit, failure, DLQ, outcome-money map. | GAP-11, GAP-14 |
+| Audit/support | Trace outcome, export audit, investigate stuck states, capture repair actions. TASK-010 defines trace sections, missing-evidence categories, and safe evidence boundaries. | admin audit, failure, DLQ, outcome-money map. | GAP-11, GAP-14 |
 | SaaS packaging | API keys, plans, usage, quotas, billing hooks. | partner clients are reusable only for integration credentials, not full SaaS packaging. | GAP-17 |
 
 ## API Design Rules
