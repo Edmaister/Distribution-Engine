@@ -496,6 +496,34 @@ Risk level: Medium.
 Rollback notes: Revert the TASK-046 migration/doc changes only.
 Definition of done: Clean DBs create `funding_exposure` before funding exposure APIs/services run, and backend pytest remains green. Priority: P0.
 
+## TASK-047: Select next DLaaS priority and record readiness stop
+
+Status: Complete (2026-06-21). Branch: `task-047-next-dlaas-priority`.
+Linked enhancement: DLaaS Agent Runner Framework
+Linked platform capability: Agent execution, traceability, clean diffs, branch/PR workflow, rollback safety
+Goal: Select the next highest-priority unblocked task from this ordered list and execute only that task, or stop safely if the next work is blocked or unsafe.
+Why now: TASK-039 through TASK-046 restored clean DB, seed, and backend pytest readiness; the next runner cycle must return to ordered DLaaS roadmap selection without skipping dependency gates.
+Files involved: `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: None. This was a selection/readiness check only.
+Validation method: Read `AGENTS.md`, `docs/agent/DLAAS_AGENT_RUNBOOK.md`, `docs/agent/DLAAS_AGENT_STOP_CONDITIONS.md`, `docs/product/DLAAS_TARGET_STATE.md`, SA/roadmap context, and inspect Git status.
+Findings:
+- The first incomplete task by ordered dependency is TASK-027, but it remains blocked by runtime database access and safe read-only credentials.
+- TASK-028 depends on TASK-027 and remains blocked until live DB verification results exist or an explicit deferral decision is made.
+- TASK-004 is the next P0 roadmap task after the live-verification chain, but it is explicitly blocked by the decision on preserving `tenant_code` as the external identifier.
+- TASK-006 lists `Blocked by: None`, but it depends on TASK-004, so it is not ready while TASK-004 is blocked.
+- No later task should be selected until the live-verification chain is deliberately deferred or the tenant/account boundary decision unblocks TASK-004.
+- Validation confirmed the current branch is `task-047-next-dlaas-priority` and the working tree was clean before this documentation update.
+Acceptance criteria: Next task selection is documented; no blocked task is implemented; no unrelated product code is changed.
+Dependencies: TASK-046.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the TASK-047 documentation update only.
+Definition of done: The runner stops safely with the next-roadmap blocker recorded and no product implementation performed. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
