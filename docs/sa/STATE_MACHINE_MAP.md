@@ -4,6 +4,8 @@
 
 This map records current state fields and statuses found in schema and service code. Target recommendations are labeled separately.
 
+Audit, idempotency, retry, and failure handling policy for future state-machine work is defined in `docs/sa/AUDIT_RETRY_POLICY_STANDARD.md`.
+
 ## Current State Machines
 
 | Entity | Source of truth | Current states observed | Current transition owners |

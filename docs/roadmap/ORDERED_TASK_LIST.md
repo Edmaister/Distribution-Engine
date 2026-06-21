@@ -25,6 +25,7 @@ Definition of done: The state/idempotency inventory is complete enough to unbloc
 
 ## TASK-002: Define platform audit and retry policy standards
 
+Status: Complete (2026-06-21). Output: `docs/sa/AUDIT_RETRY_POLICY_STANDARD.md`.
 Linked enhancement: DLaaS-002; DLaaS-012: Audit taxonomy and observable support trace
 Linked platform capability: 14. Audit trail; 27. Observability; 28. Idempotency/retry handling
 Goal: Define required audit fields, retry classes, idempotency expectations, and failure categories for DLaaS-critical actions.
