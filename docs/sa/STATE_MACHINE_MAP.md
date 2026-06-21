@@ -36,7 +36,7 @@ Audit, idempotency, retry, and failure handling policy for future state-machine 
 
 | Target entity | Recommendation | Traces to gaps |
 | --- | --- | --- |
-| Campaign | Define canonical lifecycle over current campaign/opportunity concepts without deleting existing statuses. | GAP-02 |
+| Campaign | Define canonical lifecycle over current campaign/opportunity concepts without deleting existing statuses. TASK-006 maps this in `docs/sa/CAMPAIGN_OPPORTUNITY_LIFECYCLE_MAP.md`. | GAP-02 |
 | Participant | Normalize partner/referrer/distributor/sponsor/customer status for control plane and portal use. | GAP-03 |
 | Distribution link/code | Define canonical `active/voided/expired` semantics mapped to current referral and route link tables. | GAP-04 |
 | Attribution/outcome | Add or derive a canonical outcome state from current campaign track, referral instance, progress events, reward, commission, funding, fulfilment, settlement, and audit records. | GAP-05 |

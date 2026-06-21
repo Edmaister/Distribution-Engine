@@ -622,23 +622,27 @@ Definition of done: Complete. Account/tenant implementation can proceed as small
 
 ## TASK-006: Map campaign and opportunity lifecycle sources
 
+Status: Complete on 2026-06-21. TASK-006 produced `docs/sa/CAMPAIGN_OPPORTUNITY_LIFECYCLE_MAP.md` and did not change application code, migrations, schema, auth, audit, funding, fulfilment, settlement, or data-isolation behavior.
 Linked enhancement: DLaaS-004: Canonical campaign lifecycle and readiness
 Linked platform capability: 2. Campaign model
 Goal: Map marketing campaign, campaign policy, campaign track, and distribution opportunity concepts into one canonical campaign lifecycle proposal.
 Why now: Campaign readiness depends on knowing which existing entity owns lifecycle, policy, routing, and funding context.
-Files likely involved: `dp/migrations/002_campaigns.sql`; `dp/migrations/003_policies.sql`; `services/campaign_service.py`; `services/campaign_policy_service.py`; `services/distribution/opportunity_service.py`
+Files involved: `docs/sa/CAMPAIGN_OPPORTUNITY_LIFECYCLE_MAP.md`; `docs/sa/API_SURFACE_MAP.md`; `docs/sa/CURRENT_STATE_MAP.md`; `docs/sa/CAPABILITY_GAP_MATRIX.md`; `docs/sa/STATE_MACHINE_MAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Source files inspected: `dp/migrations/002_campaigns.sql`; `dp/migrations/003_policies.sql`; `dp/migrations/067_distribution_opportunities.sql`; `dp/migrations/068_distribution_offer_routes.sql`; `services/campaign_service.py`; `services/campaign_policy_service.py`; `services/distribution/opportunity_service.py`; `services/distribution/routing_service.py`; `apps/api/routers/campaigns.py`; `apps/api/routers/distribution/admin_opportunities.py`; `apps/api/routers/distribution/admin_routing.py`.
 Database/schema impact: None yet; identifies whether lifecycle/config version fields are needed later.
 Backend impact: Defines service/readiness boundaries.
 Frontend impact: Prevents campaign builder UI from assuming states that do not exist.
 API impact: No API changes yet.
 Tests to add/update: None until readiness service is implemented.
-Validation method: Compare schema constraints, campaign routes, opportunity routes, and service status handling.
-Acceptance criteria: Current campaign/opportunity lifecycle facts and target canonical mapping are documented.
+Validation method: Compared schema constraints, campaign routes, opportunity routes, routing routes, service constants, status handling, state inventory, and state-machine docs. Read back the new map for current source facts, canonical lifecycle, current-to-canonical mapping, readiness ownership, API implications, implementation guidance, and non-goals.
+Validation completed: Documentation-only validation on 2026-06-21. No backend tests were run because TASK-006 changed docs only.
+Findings: Campaign definition lifecycle is currently boolean/window-based on `marketing_campaigns`, policy lifecycle is active/version-based on `marketing_campaign_policies`, interaction lifecycle lives on `campaign_attributions.status`, marketplace lifecycle lives on `distribution_opportunities.opportunity_status`, and distributor-specific offer state lives on `distribution_offer_routes.route_status`. The canonical campaign lifecycle should be derived/read-model first and must keep interaction states separate from campaign configuration states.
+Acceptance criteria: Complete. Current campaign/opportunity lifecycle facts and target canonical mapping are documented.
 Dependencies: TASK-004.
 Blocked by: None.
 Risk level: Medium.
 Rollback notes: Revert mapping document.
-Definition of done: Readiness service can be designed without guessing campaign semantics. Priority: P0.
+Definition of done: Complete. Readiness service can be designed without guessing campaign semantics. Priority: P0.
 
 ## TASK-007: Define campaign readiness service contract
 
