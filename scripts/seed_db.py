@@ -2,6 +2,10 @@ import asyncio
 import sys
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from utils.db import close_async_pool, db_connection
 from utils.logging import get_logger
 
@@ -16,8 +20,7 @@ async def apply_sql_file(path: Path) -> None:
 
 
 async def run() -> None:
-    root = Path(__file__).resolve().parents[1]
-    seeds_dir = root / "dp" / "seeds"
+    seeds_dir = ROOT / "dp" / "seeds"
 
     if not seeds_dir.exists():
         logger.error("Seeds folder not found at %s", seeds_dir)

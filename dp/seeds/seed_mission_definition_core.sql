@@ -70,4 +70,5 @@ VALUES
     3,
     'CORE',
     TRUE
-);
+)
+ON CONFLICT (mission_code) DO NOTHING;

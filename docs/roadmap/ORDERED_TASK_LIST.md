@@ -232,6 +232,270 @@ Risk level: Low.
 Rollback notes: Revert documentation/readiness updates only.
 Definition of done: Monitoring Terraform assets have a clear safety classification and deployment/monitoring blockers are explicit. Priority: P0.
 
+## TASK-039: Fix clean DB migration replay readiness
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 30. Live DB/state verification
+Goal: Keep the clean database migration chain replayable from zero without touching live data or making unrelated schema changes.
+Why now: CI clean DB readiness found sequential replay failures that block proof that a new environment can provision safely.
+Files involved: `dp/migrations/024_mission_and_reward_summary.sql`; `dp/migrations/041_funding_accounts_and_transactions.sql`; `dp/migrations/044_create_funding_exposure.sql`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: Migration-chain correction only. No live DB access, no production data, and no business-data migration.
+Backend impact: None. Services and tests are used as source of truth for expected schema.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: No new tests unless validation reveals a missing migration hygiene assertion. Use existing migration and targeted funding tests.
+Validation method: Run `python scripts/check_migrations.py`, `python scripts/init_db.py`, and targeted funding tests.
+Findings:
+- Migration 024 previously referenced `referral_track_id` incorrectly and was fixed under this task; CI progressed beyond migration 024 afterward.
+- Migration 041 then failed on a clean replay because it altered `funding_account_rules` before that table existed.
+- `funding_account_rules` is first created by migration 044 and repeated idempotently by migration 045; services and tests reference the same canonical table with `funding_model` and `sponsor_wallet_id`.
+- The minimal fix is to remove the premature 041 `funding_account_rules` ALTER/INDEX block and apply the same columns/indexes after the table is first created in migration 044.
+- Migration 061 then failed on clean replay because its backfill used `ON CONFLICT (dedupe_key)` before the unique index on `enterprise_event_inbox(dedupe_key)` existed.
+- `dedupe_key` is the canonical enterprise inbox idempotency key used by migration 061 and `apps/Workers/ids_consumer.py`; the minimal fix is to create `ux_enterprise_event_inbox_dedupe_key` immediately after the inbox table is created and before the backfill runs.
+- After migration replay reached 999, CI failed in the clean DB seed step because direct execution of `scripts/seed_db.py` could not import project-root modules such as `utils.db`.
+- `scripts/init_db.py` already adds the repository root to `sys.path`; the minimal readiness fix is to apply the same direct-script import bootstrap to `scripts/seed_db.py` instead of changing seed semantics or hiding seed failures.
+- Validation passed with `.venv_codex\Scripts\python.exe scripts\check_migrations.py` after the migration 061 ordering fix.
+- Validation passed with `.venv_codex\Scripts\python.exe scripts\init_db.py`; local replay progressed past migrations 041 and 061 and completed through migration 999.
+- Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` progressed beyond the prior `ModuleNotFoundError: No module named 'utils'` import failure and began applying seed files.
+- The next seed readiness failure is a real seed/schema mismatch in `dp/seeds/seed_data_for_mission_definitions.sql`: `asyncpg.exceptions.UndefinedColumnError: column "title" of relation "mission_definitions" does not exist`.
+- `mission_definitions` canonical columns are `mission_name`, `mission_description`, `event_type`, and `goal_count`; `title`, `description`, `trigger_type`, `goal`, `badge_code`, and `bonus_reward_type` are not mission definition columns in the migration/service source of truth.
+- The minimal seed alignment fix maps the old seed to canonical mission columns, preserves the two mission rows, removes noncanonical mission-definition fields from the insert, and adds `ON CONFLICT (mission_code) DO NOTHING` for idempotent seed replay.
+- Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` progressed past `seed_data_for_mission_definitions.sql`.
+- The next seed readiness failure is in `dp/seeds/seed_leaderboard_scoring_rules.sql`: `asyncpg.exceptions.UniqueViolationError` on `uq_leaderboard_scoring_rule_expr`, meaning the leaderboard scoring rule seed needs its own idempotency alignment.
+- `leaderboard_scoring_rules` uses a canonical uniqueness expression over leaderboard, journey, product scope, milestone, and score type; the minimal seed replay fix is to add `ON CONFLICT` against that same expression without changing scoring values or table schema.
+- Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` progressed past `seed_leaderboard_scoring_rules.sql`.
+- The next seed readiness failure is in `dp/seeds/seed_mission_definition_core.sql`: `asyncpg.exceptions.UniqueViolationError` on `mission_definitions_mission_code_key` for `mission_code=ACCOUNT_OPENED_CORE`, meaning the core mission seed needs its own idempotency alignment.
+- `seed_mission_definition_core.sql` contains canonical additive mission definitions and should not override existing mission content; the minimal seed replay fix is `ON CONFLICT (mission_code) DO NOTHING`.
+- Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` progressed past `seed_mission_definition_core.sql`.
+- The next seed readiness failure is in `dp/seeds/seed_mission_definition_milestone.sql`: `asyncpg.exceptions.UniqueViolationError` on `mission_definitions_mission_code_key` for `mission_code=COMPLETE_1_REFERRAL`, meaning the milestone mission seed needs its own idempotency alignment.
+- `seed_mission_definition_milestone.sql` contains canonical additive mission definitions and should not override existing mission content; the minimal seed replay fix is `ON CONFLICT (mission_code) DO NOTHING`.
+- Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` progressed past `seed_mission_definition_milestone.sql`.
+- The next seed readiness failure is in `dp/seeds/seed_policies_and_campaigns (1).sql`: `asyncpg.exceptions.UndefinedColumnError` because `marketing_campaigns.sticker` does not exist in the canonical schema.
+- Migration 002 documents `segment` as the campaign targeting dimension that replaced campaign-level `sticker`; the minimal seed alignment fix maps the sample campaign seed from `sticker` to `segment` without changing campaign behavior or policy data.
+- Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` completed successfully after the campaign seed alignment fix.
+- CI later reported `dp/seeds/seed_data_for_insurance.sql` failing because `progress_definitions` does not exist in the canonical clean DB schema; `progress_definitions` exists only in legacy migrations, while current progress configuration is sourced from `services/progress_definitions.py`.
+- The minimal seed replay fix is to guard the obsolete insurance and transactional `progress_definitions` seed inserts so canonical clean DB replay skips them, while preserving idempotent inserts if a legacy local schema still has that table.
+- Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` completed successfully after the progress seed guards.
+- CI then reported `dp/seeds/seed_data_for_reward_policies.sql` failing because `reward_policies` did not exist in the canonical clean DB schema; unlike `progress_definitions`, current reward services and reconciliation code read `reward_policies` directly, and the existing legacy migration provides the table shape.
+- The minimal migration-chain fix is to create `reward_policies` and its product/sub-product lookup index in migration 022 using the existing legacy schema, then make the reward policy seed additive/idempotent with `WHERE NOT EXISTS` checks for the natural policy rows.
+- Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` completed successfully after the reward policy migration/seed alignment fix.
+- Backend CI then failed during pytest collection because `utils.crypto` intentionally raises `RuntimeError: REFERRAL_CODE_SECRET must be set` when the referral-code signing secret is absent.
+- `utils.crypto` requires a non-empty secret value and does not impose an additional format or length check; the minimal CI-readiness fix is to set the deterministic test-only `REFERRAL_CODE_SECRET: ci-referral-code-secret` in the backend CI job, matching the existing clean-db-readiness job value without changing crypto behavior or committing a real secret.
+- Validation passed with `.venv_codex\Scripts\python.exe scripts\check_migrations.py`, `.venv_codex\Scripts\python.exe scripts\init_db.py`, and `.venv_codex\Scripts\python.exe scripts\seed_db.py` after the CI environment update.
+- Validation with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest --collect-only` collected 1688 tests, including `test/test_admin_audit_api.py`, without the prior crypto import failure.
+- Full backend validation with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest` progressed beyond collection and then stopped at the next real test failure: `test/api/test_partner_seam_api.py::test_system_admin_can_retry_failed_webhook_delivery`, where the test fake expects only `delivery_id` but the router passes both `delivery_id` and an authenticated `identity` payload.
+- Targeted funding validation passed: `test\services\funding\test_account_rules.py`, `test\services\funding\test_account_resolution.py`, `test\services\funding\test_funding_orchestrator.py`, and `test\api\test_admin_funding_rules.py`.
+- Targeted enterprise inbox validation passed: `test\test_enterprise_event_inbox_admin.py` and `test\test_worker_ids_consumer.py`.
+- Targeted mission validation passed: `test\test_mission_service.py`, `test\test_missions_api.py`, and `test\test_mission_service_badges.py`.
+- Targeted leaderboard validation passed: `test\test_leaderboard_service.py`, `test\test_leaderboard_api.py`, `test\test_leaderboard_events.py`, and `test\test_worker_leaderboard_rebuild_event.py`.
+- Targeted campaign/policy validation passed: `test\test_campaign_service.py`, `test\test_campaigns.py`, and `test\test_campaign_policy_service.py`.
+- Targeted insurance/progress validation passed: `test\test_second_vertical_agnosticism.py`, `test\test_progress_service.py`, `test\test_progress_api.py`, and `test\test_insurance_journey_proof_service.py`.
+- Targeted reward/policy validation passed: `test\test_reward_policy_service.py`, `test\test_reward_service.py`, `test\test_rewards.py`, and `test\test_rewards_router.py`.
+Acceptance criteria: `scripts/init_db.py` progresses beyond migration 041 on a clean database, and any later replay failure is reported as a new clean DB replay-chain finding.
+Dependencies: TASK-003.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert only the TASK-039 migration-order/doc changes; do not touch live DB.
+Definition of done: Clean DB replay either completes or advances to a clearly documented later migration failure with minimal source-of-truth-aligned fixes. Priority: P0.
+
+## TASK-040: Align badges API missing-referral test with auth contract
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 17. Public API; 26. Security/permissions
+Goal: Keep badges API tests aligned with the route auth contract without weakening authentication or changing production behavior.
+Why now: Backend pytest progressed past TASK-039 readiness work and exposed a badges API test that expected missing-referral handling but received `401 Unauthorized` first.
+Files involved: `test/test_badges_api.py`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: Test-only. No router, auth helper, or business logic changes.
+Frontend impact: None.
+API impact: No production API behavior change; unauthenticated badges requests still return 401, and authenticated missing-referral requests return 404.
+Tests to add/update: Update badges API tests to use an isolated test app with a mocked authenticated identity; add a focused unauthenticated 401 assertion for the referral badges route.
+Validation method: Run targeted badges API tests and full backend pytest if practical.
+Findings:
+- `apps/api/routers/badges.py` correctly requires `require_admin_or_partner_key` at the router and route levels before reaching missing-referral logic.
+- The failing missing-referral test used a module-level dependency override on the shared app; other tests can clear shared dependency overrides during full-suite execution, causing the request to hit real auth and return 401 before the mocked missing-referral path.
+- The minimal test-focused fix is to build an isolated badges-only FastAPI app per test, apply a valid mocked identity for authenticated badges assertions, and keep an explicit unauthenticated test to preserve the 401 contract.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_badges_api.py -q`; 4 badges API tests passed.
+- Full backend validation with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest` progressed beyond the badges API failure and then stopped at the next existing blocker: `test/api/test_partner_seam_api.py::test_system_admin_can_retry_failed_webhook_delivery`.
+Acceptance criteria: Authenticated missing-referral badges API test returns 404; unauthenticated badges API access remains 401; related badges API tests pass.
+Dependencies: TASK-039.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the TASK-040 test/doc changes only.
+Definition of done: Badges API auth and missing-referral tests are deterministic in full-suite execution without production auth changes. Priority: P0.
+
+## TASK-041: Align partner webhook retry test with authenticated identity contract
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 14. Audit trail; 20. API keys/integration credentials; 26. Security/permissions
+Goal: Keep partner webhook retry API tests aligned with the authenticated system-admin retry contract without weakening authorization or audit traceability.
+Why now: Backend pytest progressed past TASK-040 and exposed a partner webhook retry test fake that expected only `delivery_id` while the router correctly passed authenticated identity metadata.
+Files involved: `test/api/test_partner_seam_api.py`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: Test-only. No router, service, auth helper, or business logic changes.
+Frontend impact: None.
+API impact: No production API behavior change; system-admin retry still requires `require_system_admin_key` and passes identity to the service.
+Tests to add/update: Update the system-admin webhook retry test fake to assert `delivery_id` plus authenticated `SYSTEM_ADMIN` identity metadata.
+Validation method: Run targeted partner seam API tests and full backend pytest.
+Findings:
+- `apps/api/routers/partner_seam.py` passes `identity=Depends(require_system_admin_key)` into `partner_seam_service.mark_webhook_delivery_for_retry`.
+- `services/partner_seam_service.py` defines `mark_webhook_delivery_for_retry(delivery_id, identity=None)` and writes `PARTNER_WEBHOOK_DELIVERY_RETRY` admin audit evidence with the provided identity, so the router's identity handoff is the correct audit/security contract.
+- The minimal fix is to align the test fake with that contract by asserting `delivery_id`, `identity.role == SYSTEM_ADMIN`, and `identity.tenant_code == INTERNAL`.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\api\test_partner_seam_api.py -q`; 24 partner seam API tests passed.
+- Full backend validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest`; 1689 tests passed.
+Acceptance criteria: `test_system_admin_can_retry_failed_webhook_delivery` passes; related partner seam API tests pass; backend pytest passes.
+Dependencies: TASK-040.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the TASK-041 test/doc changes only.
+Definition of done: Partner webhook retry tests preserve the authenticated audit actor contract and backend pytest is green. Priority: P0.
+
+## TASK-042: Align DLQ replay admin test with admin authentication contract
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 14. Audit trail; 18. Internal API; 26. Security/permissions
+Goal: Keep DLQ replay admin endpoint tests aligned with the system-admin authentication contract without weakening replay authorization.
+Why now: Backend pytest progressed past TASK-041 and exposed a DLQ replay endpoint test overriding the wrong admin dependency, causing the success path to receive `401 Unauthorized`.
+Files involved: `test/test_dlq_replay.py`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: Test-only. No router, replay service, auth helper, or business logic changes.
+Frontend impact: None.
+API impact: No production API behavior change; `/admin/dlq/replay` remains protected by the router's system-admin dependency.
+Tests to add/update: Override the DLQ router's actual `require_admin_key` alias in the test app and add an unauthenticated 401 assertion for `/admin/dlq/replay`.
+Validation method: Run targeted DLQ replay tests and full backend pytest.
+Findings:
+- `apps/api/routers/admin_dlq_replay.py` aliases `require_system_admin_key` as `require_admin_key` and applies that alias as a router-level dependency.
+- The failing test imported and overrode `utils.security.require_admin_key`, which is not the same dependency object used by the DLQ replay router.
+- The minimal fix is to override `router_mod.require_admin_key` in the isolated test app with a system-admin identity and keep unauthenticated access covered with a 401 regression test.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_dlq_replay.py -q`; 9 DLQ replay tests passed.
+- Full backend validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest`; 1690 tests passed.
+Acceptance criteria: `test_admin_dlq_replay_endpoint_success` passes; unauthenticated replay requests still return 401; related DLQ replay tests pass; backend pytest passes.
+Dependencies: TASK-041.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the TASK-042 test/doc changes only.
+Definition of done: DLQ replay admin tests use the route's system-admin auth contract and backend pytest remains green. Priority: P0.
+
+## TASK-043: Fix HVE badge award referrer_hash contract
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 6. Progress/status tracking; 14. Audit trail; 26. Security/permissions
+Goal: Ensure HVE badge awards preserve the `user_badges.referrer_hash` identity contract while keeping the canonical beneficiary fields intact.
+Why now: Backend pytest progressed past TASK-042 and exposed an HVE badge award insert that populated `beneficiary_ref` but not the legacy `referrer_hash` column, causing a `NOT NULL` violation where that schema column exists.
+Files involved: `services/badge_service.py`; `test/test_badge_service.py`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None. The existing `user_badges.referrer_hash` constraint is preserved.
+Backend impact: Badge award service now carries the stored referrer hash from `referrer_codes.referrer_ucn_hash` through the award insert, with canonical crypto lookup as a fallback when the stored hash is unavailable.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: Align badge service unit fakes with the additional `referrer_hash` service argument; run HVE mission badge and badge service tests.
+Validation method: Run targeted mission badge tests, badge service tests, and full backend pytest.
+Findings:
+- Migrations preserve an older `user_badges.referrer_hash` identity column while later badge services write newer `beneficiary_type` and `beneficiary_ref` fields.
+- `services/badge_service.py` previously selected only `referral_instances.referrer_ucn`, so `_award_badge` had no stored hash available and inserted without `referrer_hash`.
+- The canonical source for the stored referrer identity is `referrer_codes.referrer_ucn_hash`, joined via `referral_instances.referrer_code_id`; if a referral row lacks that stored source, the existing `utils.crypto.ucn_lookup_key` helper derives the canonical lookup hash from the referrer UCN.
+- The minimal service fix is to fetch `referrer_hash` with the referral row, pass it through `_evaluate_and_award_badges`, and populate `user_badges.referrer_hash` whenever that column exists.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_mission_service_badges.py -q`; the HVE badge idempotency test passed.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_badge_service.py -q`; 20 badge service tests passed.
+- Full backend validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest`; 1690 tests passed.
+Acceptance criteria: `test_hve_event_awards_badge_once` passes; mission badge tests pass; backend pytest passes.
+Dependencies: TASK-042.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert the TASK-043 service/test/doc changes only.
+Definition of done: HVE badge awards use the same referrer identity contract as other badge award paths and backend pytest remains green. Priority: P0.
+
+## TASK-044: Align HVE badge award with canonical badge definition
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 6. Progress/status tracking; 14. Audit trail
+Goal: Align the HVE badge award regression fixture with the canonical badge definition while preserving the `user_badges.badge_code` foreign key contract.
+Why now: Backend pytest progressed past TASK-043 and exposed that the HVE badge fixture inserted `VALUE_ESTABLISHED` into `badge_definitions` without a matching canonical `badges` row, causing a foreign key violation when awarding `user_badges`.
+Files involved: `test/test_mission_service_badges.py`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None. The existing `user_badges_badge_code_fkey` constraint is preserved.
+Backend impact: Test/reference alignment only. No badge service, HVE threshold, reward, fulfilment, or scoring logic changed.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: Update the HVE mission badge fixture to seed the canonical first-HVE badge in both `badges` and `badge_definitions`; run mission badge, badge service, and backend pytest.
+Validation method: Run targeted mission badge tests, badge service tests, and full backend pytest.
+Findings:
+- `services/badge_service.py` does not hard-code `VALUE_ESTABLISHED`; it awards active `badge_definitions` rows matching the HVE trigger.
+- Migration 030 seeds the canonical first HVE badge as `VALUE_DRIVER` with trigger `HVE_COUNT`, value `1`, and display name `Value Driver`.
+- `VALUE_ESTABLISHED` was test-local legacy data and did not have a matching row in the legacy `badges` table required by the preserved `user_badges.badge_code` foreign key.
+- The minimal fix is to update the HVE fixture to seed `VALUE_DRIVER` into both `badges` and `badge_definitions`, then assert the canonical awarded badge code.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_mission_service_badges.py -q`; the HVE badge idempotency test passed.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_badge_service.py -q`; 20 badge service tests passed.
+- Full backend validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest`; 1690 tests passed.
+Acceptance criteria: `test_hve_event_awards_badge_once` passes; all mission badge tests pass; backend pytest passes.
+Dependencies: TASK-043.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the TASK-044 test/doc changes only.
+Definition of done: HVE badge award tests use the canonical `VALUE_DRIVER` badge reference data and backend pytest remains green. Priority: P0.
+
+## TASK-045: Align worker missing-secret error handling with security contract
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 26. Security/permissions; 28. Idempotency/retry handling
+Goal: Ensure worker referral-event authentication fails closed with a controlled unauthorized response when `WORKER_SECRET` is not configured.
+Why now: Backend pytest progressed past TASK-044 and exposed that `/worker/referral-events` returned `500 Internal Server Error` for missing worker secret configuration, even though this is an authentication failure path.
+Files involved: `apps/api/routers/worker.py`; `test/test_worker.py`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: Worker auth now returns `401 Unauthorized` when server-side worker secret configuration is missing, matching existing missing/wrong credential behavior while retaining server-side error logging.
+Frontend impact: None.
+API impact: Worker endpoint no longer exposes a 500 for missing worker auth configuration; client response remains generic and does not reveal secret/config details.
+Tests to add/update: Align the worker auth unit expectation for missing configured secret with the endpoint security contract; run security/error handling and worker router tests.
+Validation method: Run targeted security/error handling tests, worker router tests, and full backend pytest.
+Findings:
+- `apps/api/routers/worker.py` already returns `401 Unauthorized` for missing or wrong request worker credentials.
+- The missing server-side `WORKER_SECRET` branch logged the configuration error but raised `500 Worker not configured`, causing the public endpoint to expose an internal server error for an auth failure.
+- The minimal fix is to preserve the server-side log and return `401 Unauthorized` with the same generic detail used by other worker auth failures.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_security_and_error_handling.py -q`; 4 tests passed.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_worker.py test\test_worker_leaderboard_rebuild_event.py -q`; 39 worker tests passed.
+- Full backend validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest`; 1690 tests passed.
+Acceptance criteria: `test_worker_rejects_missing_secret` passes; related worker/security tests pass; backend pytest passes.
+Dependencies: TASK-044.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the TASK-045 worker/test/doc changes only.
+Definition of done: Missing worker secret configuration fails closed with generic unauthorized response and backend pytest remains green. Priority: P0.
+
+## TASK-046: Fix funding exposure table clean-DB readiness
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-010: Campaign funding readiness and liability projection
+Linked platform capability: 10. Funding/budget allocation; 14. Audit trail; 30. Live DB/state verification
+Goal: Ensure the canonical `funding_exposure` table exists during clean DB migration replay so `/admin/funding/exposure` and funding dashboard services can run without test-only schema setup.
+Why now: Backend pytest progressed past TASK-045 and exposed that `GET /admin/funding/exposure` queried `funding_exposure`, but clean DB schema did not create that table.
+Files involved: `dp/migrations/044_create_funding_exposure.sql`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: Adds the missing idempotent `funding_exposure` table definition to migration 044, including the service-required uniqueness key on `(tenant_code, account_id, exposure_date)` and non-negative amount checks.
+Backend impact: No service or route behavior change. Existing funding exposure, dashboard, and exposure-limit services now have their canonical table after migration replay.
+Frontend impact: None.
+API impact: No response contract change for `/admin/funding/exposure`; the endpoint now works on clean DBs instead of failing with `UndefinedTableError`.
+Tests to add/update: No new tests required; existing admin funding and funding exposure/dashboard tests cover the table contract.
+Validation method: Run migration hygiene, clean DB migration replay, targeted funding API/service tests, and full backend pytest.
+Findings:
+- SA docs and roadmap inventory already describe funding exposure as an existing funding/budget primitive.
+- `services/funding/exposure.py` consistently reads and writes `funding_exposure` with `tenant_code`, `account_id`, `exposure_date`, `reserved_amount`, `settled_amount`, `released_amount`, and `updated_at`.
+- `dp/migrations/044_create_funding_exposure.sql` existed but only created `funding_account_rules`; it did not create the `funding_exposure` table needed by the service and API.
+- The minimal migration-safe fix is to add the missing idempotent table and indexes to migration 044 without changing endpoint or business logic.
+- Validation passed with `.venv_codex\Scripts\python.exe scripts\check_migrations.py`.
+- Validation passed with `.venv_codex\Scripts\python.exe scripts\init_db.py`; migration replay completed through 999.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\api\test_admin_funding.py test\services\funding\test_exposure.py test\services\funding\test_dashboard.py test\services\funding\test_exposure_limits.py -q`; 31 targeted funding tests passed.
+- Full backend validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest`; 1690 tests passed.
+Acceptance criteria: `test_get_funding_exposure_empty` passes; related admin funding tests pass; clean DB migration replay passes; backend pytest passes.
+Dependencies: TASK-045.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert the TASK-046 migration/doc changes only.
+Definition of done: Clean DBs create `funding_exposure` before funding exposure APIs/services run, and backend pytest remains green. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
@@ -711,3 +975,24 @@ Blocked by: Tenant isolation, public API contracts, partner/customer safe status
 Risk level: High.
 Rollback notes: Revert plan only.
 Definition of done: Later implementation scope is bounded and dependency-gated. Priority: Later.
+
+## TASK-039: Fix clean DB migration failure for referral_track_id
+
+Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 30. Live DB/state verification
+Goal: Fix clean DB initialization failure in `024_mission_and_reward_summary.sql` where legacy gamification tables from migration 005 did not yet have canonical `referral_track_id` columns.
+Why now: GitHub backend and clean-db-readiness checks failed before documentation-only PR validation could pass.
+Files likely involved: `scripts/init_db.py`; `dp/migrations/005_gamification.sql`; `dp/migrations/024_mission_and_reward_summary.sql`; mission and badge services/tests.
+Database/schema impact: Compatibility-safe migration replay fix only; no live DB changes.
+Backend impact: Keeps canonical mission/badge services aligned to referral-track columns.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: Migration hygiene check; clean DB init; targeted mission and badge tests.
+Validation method: Run `scripts/check_migrations.py`, `scripts/init_db.py`, and targeted mission/badge tests using the repo Codex virtualenv.
+Acceptance criteria: Clean DB init succeeds; no production/live DB touched; no unrelated schema changes; schema decision is documented.
+Dependencies: TASK-001; TASK-003.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert migration compatibility changes and this roadmap entry.
+Definition of done: Backend and clean-db-readiness CI can replay migrations past 024 without `referral_track_id` undefined-column failure. Priority: P0.

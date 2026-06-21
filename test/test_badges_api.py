@@ -1,25 +1,46 @@
 from __future__ import annotations
 
+import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from apps.api.main import app
+from apps.api.routers import badges as router
 from utils.security import require_admin_or_partner_key
 
-app.dependency_overrides[require_admin_or_partner_key] = lambda: {
-    "tenant_code": "FNB",
-    "role": "tenant_user",
-}
 
-client = TestClient(app)
+def _identity():
+    return {
+        "authenticated": True,
+        "tenant_code": "FNB",
+        "role": "tenant_user",
+    }
+
+
+@pytest.fixture
+def client():
+    test_app = FastAPI()
+    test_app.include_router(router.router)
+    test_app.dependency_overrides[require_admin_or_partner_key] = _identity
+    return TestClient(test_app, raise_server_exceptions=False)
 
 
 def _headers():
-    return {"x-api-key": "dev-fnb-key-123"}
+    return {"x-api-key": "test-auth-overridden"}
 
 
-def test_get_badges_for_referral_returns_404_when_referral_missing(monkeypatch):
-    from apps.api.routers import badges as router
+def test_get_badges_for_referral_requires_auth(monkeypatch):
+    test_app = FastAPI()
+    test_app.include_router(router.router)
+    unauthenticated_client = TestClient(test_app, raise_server_exceptions=False)
 
+    monkeypatch.setattr(router, "_get_referral_row", lambda referral_track_id: None)
+
+    response = unauthenticated_client.get("/v1/referrals/missing-track/badges")
+
+    assert response.status_code == 401
+
+
+def test_get_badges_for_referral_returns_404_when_referral_missing(client, monkeypatch):
     monkeypatch.setattr(router, "_get_referral_row", lambda referral_track_id: None)
 
     response = client.get("/v1/referrals/missing-track/badges", headers=_headers())
@@ -28,9 +49,7 @@ def test_get_badges_for_referral_returns_404_when_referral_missing(monkeypatch):
     assert response.json()["detail"] == "Referral track not found"
 
 
-def test_get_badges_for_referral_returns_badges(monkeypatch):
-    from apps.api.routers import badges as router
-
+def test_get_badges_for_referral_returns_badges(client, monkeypatch):
     monkeypatch.setattr(
         router,
         "_get_referral_row",
@@ -72,9 +91,7 @@ def test_get_badges_for_referral_returns_badges(monkeypatch):
     assert body["items"][0]["badgeCode"] == "FIRST_REFERRAL_CREATED"
 
 
-def test_get_badges_for_referrer_returns_user_level_badges(monkeypatch):
-    from apps.api.routers import badges as router
-
+def test_get_badges_for_referrer_returns_user_level_badges(client, monkeypatch):
     monkeypatch.setattr(
         router,
         "list_badges_for_referrer",
