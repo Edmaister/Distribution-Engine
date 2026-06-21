@@ -524,6 +524,34 @@ Risk level: Low.
 Rollback notes: Revert the TASK-047 documentation update only.
 Definition of done: The runner stops safely with the next-roadmap blocker recorded and no product implementation performed. Priority: P0.
 
+## TASK-048: Decide tenant-code external identifier boundary
+
+Status: Complete (2026-06-21). Branch: `task-048-tenant-identifier-boundary-decision`.
+Linked enhancement: DLaaS-003: SaaS account and tenant lifecycle foundation
+Linked platform capability: 1. Tenant/account model; 26. Security/permissions
+Goal: Make and document the tenant-code/external identifier boundary decision required to unblock TASK-004.
+Why now: TASK-047 confirmed TASK-004 was the next P0 design task after the live-verification chain, but it was blocked by whether `tenant_code` should be preserved as an external identifier.
+Files involved: `docs/sa/TENANT_IDENTIFIER_BOUNDARY_DECISION.md`; `docs/sa/API_SURFACE_MAP.md`; `docs/sa/CURRENT_STATE_MAP.md`; `docs/sa/CAPABILITY_GAP_MATRIX.md`; `docs/sa/LIVE_CRITICAL_STATE_INVENTORY.md`; `docs/roadmap/ENHANCEMENT_BACKLOG.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None. No migrations, schema changes, or tenant-code column renames were made.
+Backend impact: None. No application code changed.
+Frontend impact: None.
+API impact: Documentation-only. Target public APIs should use credential-derived scope, `external_tenant_ref`, or role-specific aliases, while existing tenant-code routes remain backward-compatible current implementation facts.
+Tests to add/update: None for this documentation-only task.
+Validation method: Read required source docs; perform documentation readback; confirm no non-doc files changed; confirm `git diff --stat`.
+Findings:
+- `tenant_code` remains the internal platform tenant identifier for partitioning, service joins, tenant isolation, audit, funding, fulfilment, settlement, reporting, workers, and internal/admin routes.
+- External parties must not depend on `tenant_code` as the primary integration identifier in target DLaaS contracts.
+- The generic external SaaS-facing identifier is `external_tenant_ref`; role-specific aliases may include `organisation_ref`, `producer_ref`, `partner_ref`, and `distributor_ref`.
+- External references map to internal `tenant_code` through a future account/tenant identity layer.
+- Existing tenant-code routes, columns, services, tests, seeds, and migrations remain unchanged until future versioned wrappers or migration plans exist.
+- TASK-004 is unblocked by this decision and can now map current `tenant_code` dependencies and define the account-to-tenant boundary.
+Acceptance criteria: Tenant identifier boundary is documented; relevant SA/roadmap docs point to the decision; TASK-004 blocker is removed; no code or schema changed.
+Dependencies: TASK-047.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the TASK-048 documentation changes only.
+Definition of done: TASK-004 can proceed without deciding tenant identifier semantics from scratch. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
@@ -559,7 +587,7 @@ Tests to add/update: Tenant isolation tests; account-member permission tests whe
 Validation method: Search tenant usage in routers, services, migrations, tests, and docs.
 Acceptance criteria: A design note defines account, tenant, membership, lifecycle, and how current `tenant_code` remains compatible.
 Dependencies: TASK-001.
-Blocked by: Decision on preserving `tenant_code` as external identifier.
+Blocked by: None. Tenant identifier boundary accepted in `docs/sa/TENANT_IDENTIFIER_BOUNDARY_DECISION.md` by TASK-048.
 Risk level: High.
 Rollback notes: Revert design only.
 Definition of done: Implementers can add account/tenant schema without deciding tenant semantics from scratch. Priority: P0.

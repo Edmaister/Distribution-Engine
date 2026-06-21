@@ -86,7 +86,7 @@ Static inspection only: no live database connection was used for this task, so d
 
 | Identifier | Type assumption from schema/code | Used by | Source |
 |---|---|---|---|
-| `tenant_code` | text external tenant scope | Most domain tables, auth, routes, funding, partner seam | `dp/migrations/*`; `utils/security.py`; services |
+| `tenant_code` | text internal platform tenant identifier | Most domain tables, auth, routes, funding, partner seam | `dp/migrations/*`; `utils/security.py`; services; TASK-048 decision keeps `tenant_code` internal and maps external references into it |
 | `referrer_code_id` | UUID PK | `referrer_codes`, `referral_instances` FK | `dp/migrations/001_init.sql` |
 | `referrer_ucn_hash` | text unique deterministic lookup | Referrer registry | `dp/migrations/001_init.sql` |
 | `referral_code` | text unique share token | Referrer/customer validation | `dp/migrations/001_init.sql`; `services/referral_code.py` |

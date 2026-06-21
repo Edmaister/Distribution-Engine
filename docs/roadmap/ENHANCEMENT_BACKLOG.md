@@ -53,23 +53,23 @@ Recommended task breakdown: Inventory state fields; define idempotency classes; 
 ## DLaaS-003: SaaS account and tenant lifecycle foundation
 
 Platform capability: 1. Tenant/account model; 26. Security/permissions.
-Current state: `tenant_code` exists across schema, services, auth, reporting, and funding; no full account/org, membership, seat, subscription, or lifecycle model was found.
+Current state: `tenant_code` exists across schema, services, auth, reporting, and funding. TASK-048 decides `tenant_code` remains the internal platform tenant identifier, while external references such as `external_tenant_ref`, `organisation_ref`, `producer_ref`, `partner_ref`, and `distributor_ref` map into it. No full account/org, membership, seat, subscription, or lifecycle model was found.
 Target state: Tenants belong to SaaS accounts and have lifecycle, onboarding state, owner/admin memberships, and enforceable isolation.
 Gap: Tenant is mostly a runtime scope, not a SaaS account model.
 Why this matters: A sellable multi-client platform needs client ownership, isolation, setup state, and permission boundaries.
 User/operator impact: Operators can onboard and support clients; tenant admins can own their workspace safely.
-Backend impact: Define account/tenant model and lifecycle while preserving existing `tenant_code` references.
+Backend impact: Define account/tenant model and lifecycle while preserving existing internal `tenant_code` references and adding an external-reference mapping boundary.
 Frontend/control-plane impact: Enables account setup, tenant readiness, user management, and permission-denied guidance.
-API/webhook impact: Tenant-scoped APIs and webhooks can bind to account-level ownership and credentials.
+API/webhook impact: Tenant-scoped APIs and webhooks can bind to account-level ownership, credentials, and external references rather than requiring public callers to depend on internal `tenant_code`.
 Database impact: Add account/org, memberships, lifecycle, and relationship tables only after migration plan is agreed.
 Funding/settlement/audit impact: Account/tenant context must be present in audit and money views.
 Security/permissions impact: Adds membership and seat checks on top of existing API-key/JWT role helpers.
 Dependencies: None for design; migration depends on current tenant table compatibility.
-Acceptance criteria: Account/tenant lifecycle and membership design is documented and can be implemented without breaking current tenant-code behavior.
-Tests required: Tenant lifecycle tests; tenant isolation tests; membership permission tests; migration replay tests.
+Acceptance criteria: Account/tenant lifecycle and membership design is documented and can be implemented without breaking current tenant-code behavior or public external-reference contracts.
+Tests required: Tenant lifecycle tests; tenant isolation tests; membership permission tests; external-reference mapping tests; migration replay tests.
 Risks: Retrofitting account ownership can expose routes that currently rely only on explicit tenant query params.
 Priority: MVP / P0.
-Blocked by: Decision on preserving `tenant_code` as external identifier.
+Blocked by: None. Tenant identifier boundary accepted in `docs/sa/TENANT_IDENTIFIER_BOUNDARY_DECISION.md` by TASK-048.
 Recommended task breakdown: Map current tenant references; define account/tenant lifecycle; design membership model; plan migration; add permission tests.
 
 ## DLaaS-004: Canonical campaign lifecycle and readiness

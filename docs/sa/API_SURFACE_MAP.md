@@ -48,3 +48,13 @@ These are target-state recommendations. They are not current implementation fact
 - Money-affecting APIs must emit audit evidence and reject duplicate commands.
 - Partner/customer APIs must return safe derived statuses.
 - Existing endpoints should be wrapped or versioned rather than renamed in-place unless a migration plan exists.
+
+## Tenant Identifier Boundary
+
+TASK-048 accepts `docs/sa/TENANT_IDENTIFIER_BOUNDARY_DECISION.md` as the API identifier boundary.
+
+Current routes that expose `tenant_code` remain current implementation facts and backward-compatible surfaces. They are not the preferred target-state public contract.
+
+Target DLaaS public APIs, partner APIs, webhooks, QR/distribution links, onboarding, SaaS setup, and white-label/embed surfaces should use credential-derived tenant scope, `external_tenant_ref`, or role-specific aliases such as `organisation_ref`, `producer_ref`, `partner_ref`, and `distributor_ref`.
+
+Internal/admin/operator APIs and backend services may continue using resolved `tenant_code` for data isolation, audit, funding, fulfilment, settlement, and reporting.
