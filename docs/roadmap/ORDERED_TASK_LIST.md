@@ -670,23 +670,27 @@ Definition of done: Complete; backend implementation task can add readiness serv
 
 ## TASK-008: Define participant taxonomy and permission mapping
 
+Status: Complete on 2026-06-22. TASK-008 produced the documentation-only participant taxonomy and permission map in `docs/sa/PARTICIPANT_TAXONOMY_PERMISSION_MAP.md`; no application code, migrations, schema, auth helpers, role behavior, funding, fulfilment, settlement, audit, or data-isolation behavior changed.
 Linked enhancement: DLaaS-005: Participant taxonomy and role mapping
 Linked platform capability: 3. Partner/referrer/distributor model; 4. Customer/referred user model; 26. Security/permissions
 Goal: Map referrer, distributor, partner, sponsor/producer, customer/consumer, and operator roles to current tables and auth claims.
 Why now: Link/code, attribution, portal, and API work need consistent participant language and access rules.
-Files likely involved: `referrer_codes`; `distribution_distributors`; `partner_clients`; `utils/security.py`; `utils/permissions.py`; `apps/api/routers/session.py`
+Files involved: `docs/sa/PARTICIPANT_TAXONOMY_PERMISSION_MAP.md`; `docs/sa/API_SURFACE_MAP.md`; `docs/sa/CAPABILITY_GAP_MATRIX.md`; `docs/sa/STATE_MACHINE_MAP.md`; `docs/API_PERMISSION_MATRIX.md`.
+Source files inspected: `referrer_codes`; `referral_instances`; `distribution_distributors`; `distribution_opportunities`; `sponsor_wallets`; `partner_clients`; `utils/security.py`; `utils/permissions.py`; `apps/api/routers/session.py`; `apps/api/routers/referrals.py`; `apps/api/routers/consumer_experience.py`; `apps/api/routers/sponsor_experience.py`; `apps/api/routers/sponsor_portal_billing.py`; `apps/api/routers/distribution/distributor_portal.py`; `apps/api/routers/partner_seam.py`.
 Database/schema impact: None initially; identifies whether participant read models are needed.
 Backend impact: Defines role mapping and participant source lookup.
 Frontend impact: Prevents role-specific UI from inventing participant fields.
 API impact: Future participant APIs must include auth, tenant/role validation, pagination/filter validation, idempotency only for mutating operations, and clear 403/404 semantics.
 Tests to add/update: Role mapping tests; participant isolation tests; customer privacy tests.
-Validation method: Compare auth claims, portal route scope checks, and domain tables.
-Acceptance criteria: Taxonomy maps current participant sources and states where no canonical entity exists.
+Validation method: Documentation readback against auth claims, permission helpers, session workspace exposure, portal route scope checks, and domain tables.
+Validation completed: Readback confirmed the map covers operator, partner, producer/sponsor, distributor, referrer, customer/consumer, public, and worker boundaries; current source tables/claims; route-family helpers; role-specific scope checks; missing canonical entities; non-goals; and follow-up implementation tasks. Backend tests were not run because TASK-008 changed documentation only.
+Findings: `distribution_distributors` and `partner_clients` are first-class current participant sources. Producers/sponsors are currently represented by `sponsor_code` in opportunity, funding, wallet, billing, and reporting records while auth uses `producer_code`. Referrers and referred customers are referral/progress-source concepts, with raw UCN values treated as internal-sensitive. Operators are auth/session roles, not domain rows. No canonical `participants`, `customers`, `producers`, `sponsors`, or `operators` table exists today.
+Acceptance criteria: Complete; taxonomy maps current participant sources, current role/auth claims, permission boundaries, and places where no canonical entity exists.
 Dependencies: TASK-004; TASK-006.
-Blocked by: Tenant/account model decisions.
+Blocked by: None. Tenant/account and campaign lifecycle decisions are documented by TASK-004 through TASK-007.
 Risk level: Medium.
 Rollback notes: Revert mapping.
-Definition of done: Participant-dependent tasks can cite a single taxonomy. Priority: P1.
+Definition of done: Complete; participant-dependent tasks can cite a single taxonomy. Priority: P1.
 
 ## TASK-009: Define canonical link/code contract
 
