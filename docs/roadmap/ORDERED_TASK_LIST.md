@@ -273,11 +273,15 @@ Findings:
 - The next seed readiness failure is in `dp/seeds/seed_policies_and_campaigns (1).sql`: `asyncpg.exceptions.UndefinedColumnError` because `marketing_campaigns.sticker` does not exist in the canonical schema.
 - Migration 002 documents `segment` as the campaign targeting dimension that replaced campaign-level `sticker`; the minimal seed alignment fix maps the sample campaign seed from `sticker` to `segment` without changing campaign behavior or policy data.
 - Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` completed successfully after the campaign seed alignment fix.
+- CI later reported `dp/seeds/seed_data_for_insurance.sql` failing because `progress_definitions` does not exist in the canonical clean DB schema; `progress_definitions` exists only in legacy migrations, while current progress configuration is sourced from `services/progress_definitions.py`.
+- The minimal seed replay fix is to guard the obsolete insurance and transactional `progress_definitions` seed inserts so canonical clean DB replay skips them, while preserving idempotent inserts if a legacy local schema still has that table.
+- Validation with `.venv_codex\Scripts\python.exe scripts\seed_db.py` completed successfully after the progress seed guards.
 - Targeted funding validation passed: `test\services\funding\test_account_rules.py`, `test\services\funding\test_account_resolution.py`, `test\services\funding\test_funding_orchestrator.py`, and `test\api\test_admin_funding_rules.py`.
 - Targeted enterprise inbox validation passed: `test\test_enterprise_event_inbox_admin.py` and `test\test_worker_ids_consumer.py`.
 - Targeted mission validation passed: `test\test_mission_service.py`, `test\test_missions_api.py`, and `test\test_mission_service_badges.py`.
 - Targeted leaderboard validation passed: `test\test_leaderboard_service.py`, `test\test_leaderboard_api.py`, `test\test_leaderboard_events.py`, and `test\test_worker_leaderboard_rebuild_event.py`.
 - Targeted campaign/policy validation passed: `test\test_campaign_service.py`, `test\test_campaigns.py`, and `test\test_campaign_policy_service.py`.
+- Targeted insurance/progress validation passed: `test\test_second_vertical_agnosticism.py`, `test\test_progress_service.py`, `test\test_progress_api.py`, and `test\test_insurance_journey_proof_service.py`.
 Acceptance criteria: `scripts/init_db.py` progresses beyond migration 041 on a clean database, and any later replay failure is reported as a new clean DB replay-chain finding.
 Dependencies: TASK-003.
 Blocked by: None.
