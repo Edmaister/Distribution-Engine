@@ -298,6 +298,33 @@ Risk level: Medium.
 Rollback notes: Revert only the TASK-039 migration-order/doc changes; do not touch live DB.
 Definition of done: Clean DB replay either completes or advances to a clearly documented later migration failure with minimal source-of-truth-aligned fixes. Priority: P0.
 
+## TASK-040: Align badges API missing-referral test with auth contract
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 17. Public API; 26. Security/permissions
+Goal: Keep badges API tests aligned with the route auth contract without weakening authentication or changing production behavior.
+Why now: Backend pytest progressed past TASK-039 readiness work and exposed a badges API test that expected missing-referral handling but received `401 Unauthorized` first.
+Files involved: `test/test_badges_api.py`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: Test-only. No router, auth helper, or business logic changes.
+Frontend impact: None.
+API impact: No production API behavior change; unauthenticated badges requests still return 401, and authenticated missing-referral requests return 404.
+Tests to add/update: Update badges API tests to use an isolated test app with a mocked authenticated identity; add a focused unauthenticated 401 assertion for the referral badges route.
+Validation method: Run targeted badges API tests and full backend pytest if practical.
+Findings:
+- `apps/api/routers/badges.py` correctly requires `require_admin_or_partner_key` at the router and route levels before reaching missing-referral logic.
+- The failing missing-referral test used a module-level dependency override on the shared app; other tests can clear shared dependency overrides during full-suite execution, causing the request to hit real auth and return 401 before the mocked missing-referral path.
+- The minimal test-focused fix is to build an isolated badges-only FastAPI app per test, apply a valid mocked identity for authenticated badges assertions, and keep an explicit unauthenticated test to preserve the 401 contract.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_badges_api.py -q`; 4 badges API tests passed.
+- Full backend validation with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest` progressed beyond the badges API failure and then stopped at the next existing blocker: `test/api/test_partner_seam_api.py::test_system_admin_can_retry_failed_webhook_delivery`.
+Acceptance criteria: Authenticated missing-referral badges API test returns 404; unauthenticated badges API access remains 401; related badges API tests pass.
+Dependencies: TASK-039.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the TASK-040 test/doc changes only.
+Definition of done: Badges API auth and missing-referral tests are deterministic in full-suite execution without production auth changes. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
