@@ -56,7 +56,7 @@ def _unwrap_sqsd_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
 def _validate_worker_auth(incoming_secret: str | None, event_secret: str | None) -> None:
     if not WORKER_SECRET:
         logger.error("WORKER_SECRET is not configured")
-        raise HTTPException(status_code=500, detail="Worker not configured")
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     if incoming_secret == WORKER_SECRET or event_secret == WORKER_SECRET:
         return

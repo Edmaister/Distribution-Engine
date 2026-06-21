@@ -437,6 +437,34 @@ Risk level: Low.
 Rollback notes: Revert the TASK-044 test/doc changes only.
 Definition of done: HVE badge award tests use the canonical `VALUE_DRIVER` badge reference data and backend pytest remains green. Priority: P0.
 
+## TASK-045: Align worker missing-secret error handling with security contract
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 26. Security/permissions; 28. Idempotency/retry handling
+Goal: Ensure worker referral-event authentication fails closed with a controlled unauthorized response when `WORKER_SECRET` is not configured.
+Why now: Backend pytest progressed past TASK-044 and exposed that `/worker/referral-events` returned `500 Internal Server Error` for missing worker secret configuration, even though this is an authentication failure path.
+Files involved: `apps/api/routers/worker.py`; `test/test_worker.py`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: Worker auth now returns `401 Unauthorized` when server-side worker secret configuration is missing, matching existing missing/wrong credential behavior while retaining server-side error logging.
+Frontend impact: None.
+API impact: Worker endpoint no longer exposes a 500 for missing worker auth configuration; client response remains generic and does not reveal secret/config details.
+Tests to add/update: Align the worker auth unit expectation for missing configured secret with the endpoint security contract; run security/error handling and worker router tests.
+Validation method: Run targeted security/error handling tests, worker router tests, and full backend pytest.
+Findings:
+- `apps/api/routers/worker.py` already returns `401 Unauthorized` for missing or wrong request worker credentials.
+- The missing server-side `WORKER_SECRET` branch logged the configuration error but raised `500 Worker not configured`, causing the public endpoint to expose an internal server error for an auth failure.
+- The minimal fix is to preserve the server-side log and return `401 Unauthorized` with the same generic detail used by other worker auth failures.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_security_and_error_handling.py -q`; 4 tests passed.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_worker.py test\test_worker_leaderboard_rebuild_event.py -q`; 39 worker tests passed.
+- Full backend validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest`; 1690 tests passed.
+Acceptance criteria: `test_worker_rejects_missing_secret` passes; related worker/security tests pass; backend pytest passes.
+Dependencies: TASK-044.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the TASK-045 worker/test/doc changes only.
+Definition of done: Missing worker secret configuration fails closed with generic unauthorized response and backend pytest remains green. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
