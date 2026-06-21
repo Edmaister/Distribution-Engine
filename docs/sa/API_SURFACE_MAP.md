@@ -51,7 +51,7 @@ These are target-state recommendations. They are not current implementation fact
 
 ## Tenant Identifier Boundary
 
-TASK-048 accepts `docs/sa/TENANT_IDENTIFIER_BOUNDARY_DECISION.md` as the API identifier boundary.
+TASK-048 accepts `docs/sa/TENANT_IDENTIFIER_BOUNDARY_DECISION.md` as the API identifier boundary. TASK-004 maps the current account-to-tenant boundary in `docs/sa/TENANT_ACCOUNT_BOUNDARY_MAP.md`.
 
 Current routes that expose `tenant_code` remain current implementation facts and backward-compatible surfaces. They are not the preferred target-state public contract.
 
