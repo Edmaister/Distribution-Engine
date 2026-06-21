@@ -210,6 +210,27 @@ Risk level: Low.
 Rollback notes: Revert documentation/readiness updates only. Do not delete or archive files in this task.
 Definition of done: Remaining legacy artifacts have clear archive/delete/retain recommendations and broad autonomous execution blockers are explicit. Priority: P0.
 
+## TASK-038: Review remaining monitoring Terraform assets before baseline commit
+
+Status: Complete (2026-06-21). Output: `docs/agent/DLAAS_AGENT_RUNBOOK.md`.
+Linked enhancement: DLaaS Agent Runner Framework
+Linked platform capability: Agent execution, traceability, clean diffs, branch/PR workflow, rollback safety
+Goal: Inspect remaining monitoring Terraform assets for secrets, credentials, backend state, provider details, and production-risk values before baseline commit.
+Why now: TASK-036 cleaned config/infra assets, but monitoring Terraform skeletons need explicit classification before monitoring/deployment work is unblocked.
+Files likely involved: `monitoring/infra/Infra_Read_Me.md`; `monitoring/infra/Terraform/*`; `docs/agent/DLAAS_AGENT_RUNBOOK.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None. Do not modify database schema or run live DB checks.
+Backend impact: None. Do not modify product code or business logic.
+Frontend impact: None. Do not build or modify frontend UI.
+API impact: None.
+Tests to add/update: No product tests required. Validate by inspecting Terraform/infra docs and scanning for sensitive values.
+Validation method: Confirm each target file is safe to commit, needs templating, should be ignored, archived, or deleted after human confirmation.
+Acceptance criteria: Terraform/infra files are inspected; sensitive findings are documented; safe-to-commit and blocked files are listed; exact staging or redaction commands are recommended; no staging, committing, deleting, or product changes are performed.
+Dependencies: TASK-036.
+Blocked by: Human review and baseline staging/commit decision.
+Risk level: Low.
+Rollback notes: Revert documentation/readiness updates only.
+Definition of done: Monitoring Terraform assets have a clear safety classification and deployment/monitoring blockers are explicit. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails

@@ -242,6 +242,24 @@ Final legacy/untracked policy:
 
 These remaining legacy items block broad autonomous execution while they remain untracked in the workspace. They do not block narrow backend/docs work if left untouched, but the preferred next cleanup is to archive them outside the repo or delete them after human confirmation.
 
+Monitoring Terraform review from `TASK-038`:
+
+- This was a monitoring/infra review only.
+- No files were staged, committed, deleted, moved, archived, or modified outside documentation.
+- `monitoring/infra/Terraform/main.tf` is a reusable skeleton that defines the Kubernetes provider, reads kubeconfig from a local path variable, and creates a namespace. No backend state, cloud account IDs, tokens, passwords, SSH keys, certificates, or real environment values were found.
+- `monitoring/infra/Terraform/Terraform_Read_ME.md` is a placeholder layout note. It mentions future backend state but does not define one.
+- `monitoring/infra/Infra_Read_Me.md` is safe as overview documentation, but it references `infra/k8s/secrets.yaml`. That referenced secret file must remain ignored or be converted to a safe example before deployment docs are followed.
+
+Classification:
+
+| Path | Classification | Notes |
+|---|---|---|
+| `monitoring/infra/Infra_Read_Me.md` | safe to commit after review | Keep the caveat that `secrets.yaml` must not contain real secrets. |
+| `monitoring/infra/Terraform/main.tf` | safe to commit as reusable example infra | No remote backend or real cloud/provider credentials found. |
+| `monitoring/infra/Terraform/Terraform_Read_ME.md` | safe to commit after review | Placeholder note only. |
+
+Monitoring and deployment tasks remain partially blocked until `monitoring/infra/k8s/secrets.yaml` is ignored or converted to a safe example and the broader monitoring infra baseline is staged/reviewed.
+
 ## Readiness Requirements
 
 A task is ready only when:
