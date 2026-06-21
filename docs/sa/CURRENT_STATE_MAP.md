@@ -19,7 +19,7 @@ The current system is feature-rich, but the DLaaS platform abstractions are unev
 
 | Capability | Current status | Evidence |
 | --- | --- | --- |
-| Tenant model | Partial | `tenants` table in `031_tenent.sql`; `services/tenant_service.py`; `/admin/tenants`. Tenant is mostly `tenant_code`, not yet full SaaS account. |
+| Tenant model | Partial | `tenants` table in `031_tenent.sql`; `services/tenant_service.py`; `/admin/tenants`. Tenant is mostly internal `tenant_code`, not yet full SaaS account. TASK-048 decides external parties should use an external identifier boundary that maps into `tenant_code`. |
 | Campaign model | Partial | `marketing_campaigns`, `marketing_campaign_policies`, `campaign_attributions`, `campaign_track_events`; `services/campaign_service.py`; `apps/api/routers/campaigns.py`. |
 | Referral model | Exists | `referrer_codes`, `referral_instances`, `referral_progress_events`, `referral_qr_scans`; `services/referral_code.py`; `apps/api/routers/referrals.py`. |
 | Distribution marketplace | Exists | `distribution_distributors`, wallets, commissions, opportunities, routes, governance, route referral links; `services/distribution/*`; `/admin/distribution/*`; `/distribution/portal/*`. |
@@ -54,7 +54,7 @@ The current system is feature-rich, but the DLaaS platform abstractions are unev
 
 ## Current Risks
 
-- Tenant is widely represented as `tenant_code`; full account/user/seat membership and SaaS entitlement boundaries are not first-class.
+- Tenant is widely represented internally as `tenant_code`; full account/user/seat membership, external identifier mapping, and SaaS entitlement boundaries are not first-class.
 - Multiple state machines exist across referral, campaign, reward, funding, fulfilment, settlement, distribution, and webhooks; they need a canonical cross-domain map.
 - There is strong money-flow machinery, but reward, commission, funding, fulfilment, settlement, sponsor billing, and SaaS billing must stay clearly separated.
 - Existing APIs are broad; public DLaaS APIs should be formalized rather than exposing every internal/admin route.
