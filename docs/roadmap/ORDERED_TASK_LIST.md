@@ -408,6 +408,35 @@ Risk level: Medium.
 Rollback notes: Revert the TASK-043 service/test/doc changes only.
 Definition of done: HVE badge awards use the same referrer identity contract as other badge award paths and backend pytest remains green. Priority: P0.
 
+## TASK-044: Align HVE badge award with canonical badge definition
+
+Status: Complete (2026-06-21). Branch: `task-039-fix-referral-track-id-migration`.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 6. Progress/status tracking; 14. Audit trail
+Goal: Align the HVE badge award regression fixture with the canonical badge definition while preserving the `user_badges.badge_code` foreign key contract.
+Why now: Backend pytest progressed past TASK-043 and exposed that the HVE badge fixture inserted `VALUE_ESTABLISHED` into `badge_definitions` without a matching canonical `badges` row, causing a foreign key violation when awarding `user_badges`.
+Files involved: `test/test_mission_service_badges.py`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None. The existing `user_badges_badge_code_fkey` constraint is preserved.
+Backend impact: Test/reference alignment only. No badge service, HVE threshold, reward, fulfilment, or scoring logic changed.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: Update the HVE mission badge fixture to seed the canonical first-HVE badge in both `badges` and `badge_definitions`; run mission badge, badge service, and backend pytest.
+Validation method: Run targeted mission badge tests, badge service tests, and full backend pytest.
+Findings:
+- `services/badge_service.py` does not hard-code `VALUE_ESTABLISHED`; it awards active `badge_definitions` rows matching the HVE trigger.
+- Migration 030 seeds the canonical first HVE badge as `VALUE_DRIVER` with trigger `HVE_COUNT`, value `1`, and display name `Value Driver`.
+- `VALUE_ESTABLISHED` was test-local legacy data and did not have a matching row in the legacy `badges` table required by the preserved `user_badges.badge_code` foreign key.
+- The minimal fix is to update the HVE fixture to seed `VALUE_DRIVER` into both `badges` and `badge_definitions`, then assert the canonical awarded badge code.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_mission_service_badges.py -q`; the HVE badge idempotency test passed.
+- Validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest test\test_badge_service.py -q`; 20 badge service tests passed.
+- Full backend validation passed with `REFERRAL_CODE_SECRET=ci-referral-code-secret .venv_codex\Scripts\python.exe -m pytest`; 1690 tests passed.
+Acceptance criteria: `test_hve_event_awards_badge_once` passes; all mission badge tests pass; backend pytest passes.
+Dependencies: TASK-043.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the TASK-044 test/doc changes only.
+Definition of done: HVE badge award tests use the canonical `VALUE_DRIVER` badge reference data and backend pytest remains green. Priority: P0.
+
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails

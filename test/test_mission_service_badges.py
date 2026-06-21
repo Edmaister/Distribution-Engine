@@ -104,6 +104,26 @@ async def _insert_hve_badge() -> None:
     async with async_db_cursor() as cur:
         await cur.execute(
             """
+            INSERT INTO badges (
+                badge_code,
+                title,
+                description,
+                reward_points
+            )
+            VALUES (
+                'VALUE_DRIVER',
+                'Value Driver',
+                'Awarded when value is established on your first referral.',
+                NULL
+            )
+            ON CONFLICT (badge_code) DO UPDATE SET
+                title = EXCLUDED.title,
+                description = EXCLUDED.description,
+                reward_points = EXCLUDED.reward_points
+            """
+        )
+        await cur.execute(
+            """
             INSERT INTO badge_definitions (
                 badge_code,
                 badge_name,
@@ -119,14 +139,14 @@ async def _insert_hve_badge() -> None:
                 created_at
             )
             VALUES (
-                'VALUE_ESTABLISHED',
-                'Value Established',
-                'Achieved a high-value referral event.',
+                'VALUE_DRIVER',
+                'Value Driver',
+                'Awarded when value is established on your first referral.',
                 'REFERRAL_OUTCOME',
                 'REFERRER',
                 'HVE_COUNT',
                 '1',
-                'icon-value-established',
+                'trending-up',
                 1,
                 '["TCF","FAIS","MARKET_CONDUCT"]'::jsonb,
                 TRUE,
@@ -167,6 +187,6 @@ async def test_hve_event_awards_badge_once():
     )
 
     assert len(first) == 1
-    assert first[0]["badgeCode"] == "VALUE_ESTABLISHED"
+    assert first[0]["badgeCode"] == "VALUE_DRIVER"
 
     assert second == []
