@@ -1069,6 +1069,12 @@ Risk level: High.
 Rollback notes: Revert design; do not touch sponsor billing.
 Definition of done: SaaS schema/API implementation can proceed as separate reviewable changes. Priority: P2.
 
+Status: Complete on 2026-06-22.
+Output: `docs/sa/SAAS_USAGE_BILLING_SEPARATION_MODEL.md`.
+Finding: TASK-025 is a documentation/contract task. Current runtime metrics, rate-limit counters, and partner seam clients are useful hooks but are not billing-grade usage metering. Sponsor utilisation billing exists, but it remains separate from platform SaaS billing and must not be reused as subscription billing.
+Implementation notes: The model defines SaaS packaging entities, candidate billable usage events, immutable usage event shape, rollup and quota rules, plan/subscription boundaries, billing hook families, API/auth direction, reporting relationship, privacy constraints, and sponsor-vs-SaaS separation.
+Validation: Readback confirmed coverage for billable usage events, rollups, quotas, plans, subscriptions, billing hooks, idempotency, account/tenant/API credential attribution, sponsor-vs-SaaS separation, operational metrics vs billing-grade usage, and future tests. No backend or frontend tests were run because this task changed documentation only.
+
 ## TASK-026: Define white-label/embed security and dependency plan
 
 Linked enhancement: DLaaS-018: White-label, embed, and SDK foundation

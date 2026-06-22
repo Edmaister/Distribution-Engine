@@ -41,7 +41,7 @@ These are target-state recommendations. They are not current implementation fact
 | Partner/customer status | Role-safe status and action-required APIs for partners, distributors, sponsors/producers, referrers, and customers. TASK-023 defines the safe status contract in `docs/sa/PARTNER_CUSTOMER_SAFE_STATUS_CONTRACT.md`. | distributor portal, sponsor portal billing, consumer experience, reward summary, partner seam, outcome trace, liability projection. | GAP-15 |
 | Analytics/reporting | Tenant-safe reports across campaigns, participants, attribution, reward, funding, settlement, webhook health. TASK-024 defines dimensions, freshness, export, and ledger reconciliation rules in `docs/sa/TENANT_SAFE_ANALYTICS_REPORTING_CONTRACT.md`. | distribution reporting, finance metrics, materialized views. | GAP-16 |
 | Audit/support | Trace outcome, export audit, investigate stuck states, capture repair actions. TASK-010 defines trace sections, missing-evidence categories, and safe evidence boundaries. | admin audit, failure, DLQ, outcome-money map. | GAP-11, GAP-14 |
-| SaaS packaging | API keys, plans, usage, quotas, billing hooks. | partner clients are reusable only for integration credentials, not full SaaS packaging. | GAP-17 |
+| SaaS packaging | API keys, plans, usage, quotas, billing hooks. TASK-025 defines the SaaS usage and billing separation model in `docs/sa/SAAS_USAGE_BILLING_SEPARATION_MODEL.md`. | partner clients are reusable only for integration credentials, not full SaaS packaging; sponsor billing remains separate. | GAP-17 |
 
 ## API Design Rules
 
