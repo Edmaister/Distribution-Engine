@@ -910,6 +910,9 @@ Definition of done: Outcome/money trace contains audit/correlation evidence wher
 
 ## TASK-019: Define DLaaS public/internal API families and permission matrix updates
 
+Status: Complete (2026-06-22). Output: `docs/API_PERMISSION_MATRIX.md`; `docs/sa/API_SURFACE_MAP.md`.
+Finding: TASK-019 is a documentation/contract task, not an endpoint implementation task. The current outcome trace, liability projection, and safe fulfilment/settlement status services provide enough source truth to define API-family guardrails without code, schema, or migration changes.
+Validation: Read current route families, permission helpers, outcome trace/support trace behavior, liability projection behavior, safe status mappings, and related tests. Readback validation confirmed the API matrix covers campaigns, participants, links/codes, events, outcomes, rewards, funding, fulfilment, settlement, analytics, audit, credentials, and webhooks. No backend/frontend tests were run because only docs changed.
 Linked enhancement: DLaaS-013: Versioned public/internal API and webhook event catalog
 Linked platform capability: 17. Public API; 18. Internal API; 20. API keys/integration credentials; 26. Security/permissions
 Goal: Define API families, auth helpers, tenant scope, validation, idempotency, and error handling for target DLaaS routes before implementing endpoints.

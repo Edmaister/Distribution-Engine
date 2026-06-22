@@ -43,6 +43,7 @@ These are target-state recommendations. They are not current implementation fact
 
 ## API Design Rules
 
+- TASK-019 records the public/internal API family guardrails in `docs/API_PERMISSION_MATRIX.md`. Endpoint implementation tasks should cite that matrix before adding routes, auth helpers, schemas, or emitted events.
 - Do not expose internal admin routes as public DLaaS APIs without a stable contract.
 - Public APIs must define tenant scope, auth, idempotency, validation, events emitted, and error shape.
 - Money-affecting APIs must emit audit evidence and reject duplicate commands.
