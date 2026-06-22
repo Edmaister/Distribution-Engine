@@ -27,6 +27,7 @@ from apps.api.routers.dashboard import router as dashboard_router
 from apps.api.routers import admin_tenants
 from apps.api.routers import privacy
 from apps.api.routers import admin_audit
+from apps.api.routers import admin_outcomes
 from apps.api.routers import admin_dlq_replay
 from apps.api.routers.admin_fulfilment import router as admin_fulfilment_router
 from apps.api.routers import admin_settlement
@@ -508,6 +509,7 @@ app.include_router(dashboard_router)
 app.include_router(admin_tenants.router)
 app.include_router(privacy.router)
 app.include_router(admin_audit.router)
+app.include_router(admin_outcomes.router)
 app.add_middleware(RateLimitMiddleware)
 app.include_router(admin_dlq_replay.router)
 app.include_router(admin_fulfilment_router)

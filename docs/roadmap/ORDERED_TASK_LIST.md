@@ -979,6 +979,9 @@ Definition of done: Backend BFF implementation can proceed before frontend scree
 
 ## TASK-022: Implement internal outcome trace API
 
+Status: Complete (2026-06-22). Implemented a read-only internal/admin outcome trace API at `GET /admin/outcomes/{referral_track_id}/trace`.
+Finding: TASK-022 was small enough for one implementation PR. The existing `services/outcome_trace_service.py` already provided the trace contract, missing-evidence handling, support trace references, and safe redactions, so the API layer only needed operator/admin auth, explicit tenant filtering, request validation, safe 400/403/404 handling, and route registration. No schema, migration, frontend, money movement, reward/funding/fulfilment/settlement mutation, audit write, webhook emission, or public external exposure was added.
+Validation: Targeted API and service tests passed with 15 tests total using `.venv_codex`: `python -m pytest test/api/test_admin_outcomes_api.py test/test_outcome_trace_service.py --no-cov`. Black check passed for the changed route/test files. Ruff check passed for the changed route/test files with only the existing pyproject deprecation warning.
 Linked enhancement: DLaaS-014; DLaaS-013
 Linked platform capability: 15. Admin/operator workflow; 18. Internal API
 Goal: Expose the outcome trace service through an internal/admin API for operators.
@@ -992,7 +995,7 @@ Tests to add/update: API contract tests; permission tests; cross-tenant tests; n
 Validation method: Run API tests against seeded traces.
 Acceptance criteria: Authorized operator can fetch outcome trace; unauthorized/cross-tenant requests are rejected; missing evidence is explicit.
 Dependencies: TASK-011; TASK-018; TASK-021.
-Blocked by: Outcome trace service.
+Blocked by: None. The outcome trace service and operator BFF contract are in place.
 Risk level: High.
 Rollback notes: Remove route; service can remain internal.
 Definition of done: Internal outcome trace API passes contract and permission tests. Priority: P1.
