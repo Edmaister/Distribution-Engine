@@ -933,6 +933,9 @@ Definition of done: Endpoint implementation tasks can cite exact API guardrails.
 
 ## TASK-020: Define webhook lifecycle event catalog
 
+Status: Complete (2026-06-22). Output: `docs/sa/WEBHOOK_EVENT_CATALOG.md`; `docs/sa/API_SURFACE_MAP.md`.
+Finding: TASK-020 is a documentation/contract task. Current partner seam tables and services already support tenant/client-scoped subscriptions, delivery rows, event type matching, signed delivery, retry, alert notification evidence, and dead-letter export; the missing piece was a named event catalog tied to current source truth.
+Validation: Read roadmap, API permission matrix, API surface map, current-state/capability/state-machine/audit docs, target state, agent docs, partner seam migrations, service, router, worker, and partner seam docs. Readback validation confirmed the catalog covers campaign, outcome, reward, funding, fulfilment, settlement, and integration event families and maps them to current delivery mechanics. No backend/frontend tests were run because only docs changed.
 Linked enhancement: DLaaS-013
 Linked platform capability: 19. Webhooks
 Goal: Define DLaaS lifecycle webhook event types and map them to current partner seam delivery mechanics.
