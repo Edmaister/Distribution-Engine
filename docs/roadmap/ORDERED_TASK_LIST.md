@@ -1043,6 +1043,12 @@ Risk level: Medium.
 Rollback notes: Revert reporting contract.
 Definition of done: Analytics implementation can proceed without inventing dimensions. Priority: P2.
 
+Status: Complete on 2026-06-22.
+Output: `docs/sa/TENANT_SAFE_ANALYTICS_REPORTING_CONTRACT.md`.
+Finding: TASK-024 is a documentation/contract task. Existing outcome trace, liability projection, safe status, webhook, operator control-plane, and partner/customer status contracts are sufficient to define tenant-safe analytics dimensions and freshness rules without schema, migration, API, frontend, or service changes.
+Implementation notes: The contract defines reporting classes, approved dimension families, operational metrics, ledger-backed money metrics, tenant filter rules, freshness statuses, export constraints, ledger reconciliation statuses, privacy/redaction boundaries, and future validation expectations. It explicitly separates operational metrics from ledger-backed totals and preserves reward/commission no-double-counting rules.
+Validation: Readback confirmed coverage for tenant-safe dimensions, tenant filters, freshness indicators, exports, ledger reconciliation, operational-vs-ledger separation, source ownership, redaction boundaries, and future reporting tests. No backend or frontend tests were run because this task changed documentation only.
+
 ## TASK-025: Define SaaS usage and billing separation model
 
 Linked enhancement: DLaaS-017: SaaS usage, plan, quota, and billing boundary
