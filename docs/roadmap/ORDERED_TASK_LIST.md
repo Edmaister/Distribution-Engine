@@ -956,6 +956,9 @@ Definition of done: Webhook implementation can add event emission without invent
 
 ## TASK-021: Define operator control-plane BFF contracts
 
+Status: Complete (2026-06-22). Output: `docs/sa/OPERATOR_CONTROL_PLANE_BFF_CONTRACT.md`; `docs/sa/API_SURFACE_MAP.md`.
+Finding: TASK-021 is a documentation/contract task. Existing admin experience routing already has a partial-section aggregate pattern, and current finance, funding, fulfilment, settlement, partner seam, audit, failure, DLQ, outcome trace, liability projection, and safe-status sources are sufficient to define the BFF contract without schema, migrations, API route implementation, or frontend work.
+Validation: Read roadmap, webhook catalog, API permission matrix, API surface/current-state/capability/state-machine/audit docs, target state, agent docs, and current admin route/source-truth patterns. Readback validation confirmed the contract covers campaign readiness, outcome trace, funding/liability, fulfilment, settlement, integration health, audit, and failures; includes admin auth, tenant filters, read idempotency, partial-section behavior, permission-denied behavior, safe errors, redactions, and backend source ownership. No backend/frontend tests were run because only docs changed.
 Linked enhancement: DLaaS-014: Operator control-plane information architecture and BFF contracts
 Linked platform capability: 15. Admin/operator workflow
 Goal: Define BFF contracts for campaign readiness, outcome trace, funding/liability, fulfilment, settlement, integration health, audit, and failures.
@@ -969,7 +972,7 @@ Tests to add/update: BFF aggregation tests; partial-section tests; permission te
 Validation method: Check each BFF field has backend source truth.
 Acceptance criteria: BFF contracts do not require frontend-invented state and identify unavailable/missing sections explicitly.
 Dependencies: TASK-018; TASK-019.
-Blocked by: Outcome trace, liability, audit contracts.
+Blocked by: None. TASK-018 and TASK-019 provide the trace/audit and API guardrail dependencies needed for the contract.
 Risk level: Medium.
 Rollback notes: Revert BFF contract docs.
 Definition of done: Backend BFF implementation can proceed before frontend screens. Priority: P1.
