@@ -36,7 +36,7 @@ These are target-state recommendations. They are not current implementation fact
 | Rewards/commissions | Calculate, approve, fulfil, reverse, summarize; keep customer reward and distributor commission boundaries clear. TASK-014 defines the policy boundary in `docs/sa/REWARD_COMMISSION_POLICY_BOUNDARY.md`. | reward service, commission service, reward summary. | GAP-08 |
 | Funding/budgets | Reserve, release, settle, forecast, alert, reconcile, expose liability and readiness. TASK-015 defines the liability state model in `docs/sa/LIABILITY_STATE_MODEL.md`. | funding and marketplace funding services. | GAP-09 |
 | Fulfilment/settlement | Create/inspect fulfilment and settlement lifecycle records, batches, approvals, exceptions, reversals. | fulfilment and settlement services/routes. | GAP-10 |
-| Webhooks | Subscribe to DLaaS event catalog, inspect delivery, retry, export dead letters. | partner seam. | GAP-13 |
+| Webhooks | Subscribe to DLaaS event catalog, inspect delivery, retry, export dead letters. TASK-020 defines the initial catalog in `docs/sa/WEBHOOK_EVENT_CATALOG.md`. | partner seam. | GAP-13 |
 | Analytics/reporting | Tenant-safe reports across campaigns, participants, attribution, reward, funding, settlement, webhook health. | distribution reporting, finance metrics, materialized views. | GAP-16 |
 | Audit/support | Trace outcome, export audit, investigate stuck states, capture repair actions. TASK-010 defines trace sections, missing-evidence categories, and safe evidence boundaries. | admin audit, failure, DLQ, outcome-money map. | GAP-11, GAP-14 |
 | SaaS packaging | API keys, plans, usage, quotas, billing hooks. | partner clients are reusable only for integration credentials, not full SaaS packaging. | GAP-17 |
