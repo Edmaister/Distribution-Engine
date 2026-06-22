@@ -1123,6 +1123,136 @@ Finding: TASK-026 is a documentation/dependency-gating task. Current source maps
 Implementation notes: The plan defines future tenant branding, custom domain, allowed-origin, embed client, embed token, SDK, and embed usage primitives; dependency gates; auth and tenant validation; CORS/origin rules; rate limits; safe errors; idempotency for config writes; cross-tenant leak prevention; and future test expectations. It does not authorize implementation before the gates are satisfied.
 Validation: Readback confirmed coverage for tenant branding, custom domains, allowed origins, embed clients, SDK candidates, scoped tokens, auth/tenant validation, CORS/origin controls, rate limits, safe errors, config-write idempotency, cross-tenant leak prevention, blockers, and future tests. No backend or frontend tests were run because this task changed documentation only.
 
+## TASK-049: Add read-only admin liability projection endpoint
+
+Linked enhancement: DLaaS-010; DLaaS-014
+Linked platform capability: 10. Funding/budget allocation; 11. Reward liability tracking; 15. Admin/operator workflow; 18. Internal API
+Objective: Expose the existing read-only liability projection service through an authenticated admin/operator endpoint for one outcome/referral track.
+Type: API.
+Dependencies: TASK-016; TASK-018; TASK-019; TASK-022.
+Likely files involved: `apps/api/routers/admin_outcomes.py`; `services/liability_projection_service.py`; `test/api/test_admin_outcomes_api.py`; `test/test_liability_projection_service.py`.
+Stop conditions: Stop if the endpoint requires schema changes, live DB assumptions, money movement, fulfilment/settlement/funding mutation, raw provider data exposure, raw private identifiers, or broad route refactoring.
+Validation expectation: Add targeted API tests for authorized access, unauthenticated/unauthorized access, tenant filtering, not-found or missing-evidence responses, redaction, and read-only behavior. Run liability projection service tests and admin outcomes API tests.
+Explicit non-goals: Do not create or move money, reserve/release/settle/reverse obligations, mutate reward/commission/funding/fulfilment/settlement records, add schema or migrations, add frontend, or unblock TASK-027/TASK-028.
+Definition of done: Operators can fetch a tenant-scoped liability projection over the existing service contract without changing source records. Priority: P1.
+
+## TASK-050: Add operator control-plane BFF aggregate shell
+
+Linked enhancement: DLaaS-014
+Linked platform capability: 15. Admin/operator workflow; 18. Internal API
+Objective: Add a minimal read-only operator BFF aggregate shell that returns the accepted envelope, section statuses, unavailable/not-implemented sections, guardrail text, tenant scope, and any already implemented outcome/liability sections where safely available.
+Type: API.
+Dependencies: TASK-021; TASK-022; TASK-049.
+Likely files involved: `apps/api/routers/admin_experience.py` or a focused admin BFF router; `apps/api/main.py`; `services/outcome_trace_service.py`; `services/liability_projection_service.py`; `test/api/test_admin_experience_api.py` or new admin BFF tests.
+Stop conditions: Stop if the task expands into frontend work, command/repair workflows, broad data joins, schema changes, money movement, or implementation of every BFF section at once.
+Validation expectation: Add tests for admin auth, tenant filter enforcement, read-only aggregate response, partial section behavior, not-implemented section handling, permission-denied section handling where practical, and redaction guardrails.
+Explicit non-goals: Do not implement frontend screens, repair/replay commands, funding/fulfilment/settlement mutations, full campaign readiness logic, full analytics, or new schema.
+Definition of done: The control-plane has a stable backend aggregate shell that frontend work can consume without inventing state. Priority: P1.
+
+## TASK-051: Add campaign readiness service implementation
+
+Linked enhancement: DLaaS-004
+Linked platform capability: 2. Campaign model; 10. Funding/budget allocation; 15. Admin/operator workflow
+Objective: Implement the first read-only `campaign_readiness_service` slice from `docs/sa/CAMPAIGN_READINESS_SERVICE_CONTRACT.md` for campaign definition checks and safe missing-evidence/blocker output.
+Type: Service.
+Dependencies: TASK-007; TASK-019.
+Likely files involved: `services/campaign_readiness_service.py`; `services/campaign_service.py`; `services/campaign_policy_service.py`; `test/test_campaign_readiness_service.py`.
+Stop conditions: Stop if implementation requires schema changes, publishing/activating campaigns, creating campaign tracks, routing distributors, generating links, reserving funding, writing audit records, or relying on unverified live DB-only fields.
+Validation expectation: Add service tests for campaign not found, tenant mismatch, inactive campaign, not-started/expired windows, exhausted cap, no active policy handling, unknown source handling, evidence redaction, and read-only behavior.
+Explicit non-goals: Do not add API routes, frontend, lifecycle commands, route generation, funding mutation, audit writes, migrations, or live DB verification.
+Definition of done: Campaign readiness can be derived in-process for core campaign checks with explicit blockers, warnings, unknowns, and source evidence. Priority: P1.
+
+## TASK-052: Add campaign readiness admin endpoint
+
+Linked enhancement: DLaaS-004; DLaaS-014
+Linked platform capability: 2. Campaign model; 15. Admin/operator workflow; 18. Internal API
+Objective: Expose the campaign readiness service through a read-only admin endpoint with tenant scope, operation validation, auth enforcement, safe errors, and no mutation.
+Type: API.
+Dependencies: TASK-051.
+Likely files involved: `apps/api/routers/campaigns.py` or a focused admin campaign readiness router; `apps/api/main.py`; `services/campaign_readiness_service.py`; `test/api/test_campaign_readiness_api.py`.
+Stop conditions: Stop if the endpoint needs lifecycle mutation, publish/activate commands, route generation, funding reservation, schema changes, or public/partner exposure.
+Validation expectation: Add targeted API tests for authorized admin access, invalid operation, tenant mismatch/cross-tenant denial, 404 for inaccessible campaign, readiness response shape, and read-only behavior.
+Explicit non-goals: Do not implement campaign activation, opportunity publication, routing, link generation, funding readiness mutations, frontend, or public API packaging.
+Definition of done: Operators can request campaign readiness through an authenticated read-only admin API. Priority: P1.
+
+## TASK-053: Add canonical link/code service facade
+
+Linked enhancement: DLaaS-006
+Linked platform capability: 5. Distribution link/code generation; 6. Attribution tracking
+Objective: Implement a read-only/inspection-first canonical link/code facade over existing referral, campaign, composite, campaign-referral-link, and route-referral-link source evidence.
+Type: Service.
+Dependencies: TASK-009; TASK-019.
+Likely files involved: `services/link_code_service.py`; `services/referral_code.py`; `services/composite_code_service.py`; `services/campaign_service.py`; `services/distribution/distributor_portal_service.py`; `test/test_link_code_service.py`.
+Stop conditions: Stop if the facade requires a canonical persisted link table, code format changes, source mutation, void commands, track creation, accepted-terms flow changes, or schema migrations.
+Validation expectation: Add service tests for supported source type mapping, inspect-by-source evidence, derived status mapping, invalid source types, unknown/missing source evidence, tenant scope, and redaction of raw UCN/token/secret fields.
+Explicit non-goals: Do not add issue/resolve/void routes, do not create or validate new referral/campaign tracks, do not modify current referral/campaign/distribution behavior, and do not add schema.
+Definition of done: Link/code evidence can be represented through one canonical facade while preserving current source ownership. Priority: P1.
+
+## TASK-054: Add link/code inspect endpoint
+
+Linked enhancement: DLaaS-006
+Linked platform capability: 5. Distribution link/code generation; 17. Public API; 18. Internal API
+Objective: Expose the canonical link/code facade through a read-only admin inspect endpoint for tenant-scoped operator diagnostics.
+Type: API.
+Dependencies: TASK-053.
+Likely files involved: `apps/api/routers/admin_links.py` or another focused admin router; `apps/api/main.py`; `services/link_code_service.py`; `test/api/test_admin_links_api.py`.
+Stop conditions: Stop if the endpoint becomes a public resolve API, mutates link/code state, creates tracks, voids links, changes accepted-terms behavior, or requires schema changes.
+Validation expectation: Add tests for admin auth, tenant filter enforcement, source type validation, not-found handling, conflict/missing evidence shape, redaction, and read-only behavior.
+Explicit non-goals: Do not implement issue, resolve, void, public validation, frontend, schema, or code format changes.
+Definition of done: Operators can inspect existing link/code evidence through a safe canonical API without changing attribution behavior. Priority: P1.
+
+## TASK-055: Add tenant-safe analytics read service
+
+Linked enhancement: DLaaS-016
+Linked platform capability: 22. Analytics/reporting
+Objective: Implement a minimal tenant-safe analytics service that validates approved dimensions/report types and returns classified operational/read-model metrics from existing safe sources where already available.
+Type: Service.
+Dependencies: TASK-016; TASK-017; TASK-018; TASK-024.
+Likely files involved: `services/tenant_safe_analytics_service.py`; `services/distribution/reporting_service.py`; `services/finance_metrics_service.py`; `services/liability_projection_service.py`; `services/fulfilment_safe_status.py`; `test/test_tenant_safe_analytics_service.py`.
+Stop conditions: Stop if the task requires new materialized views, exports, billing-grade usage metering, ledger writebacks, schema changes, live DB assumptions, or raw private/provider/audit payload exposure.
+Validation expectation: Add service tests for report type validation, approved/rejected dimensions, tenant filter handling, metric class labelling, freshness block output, unavailable source warnings, operational-vs-ledger separation, and redaction.
+Explicit non-goals: Do not add API routes, exports, frontend charts, schema, rollup jobs, materialized views, money movement, billing usage events, or settlement/funding mutation.
+Definition of done: A first backend analytics read model exists for safe operator use without claiming ledger authority beyond existing source evidence. Priority: P2.
+
+## TASK-056: Add webhook event constants and validation helper
+
+Linked enhancement: DLaaS-013
+Linked platform capability: 19. Webhooks
+Objective: Add a focused helper that centralizes accepted webhook event names from `docs/sa/WEBHOOK_EVENT_CATALOG.md` and validates event type strings without changing subscription or delivery behavior.
+Type: Service.
+Dependencies: TASK-020; TASK-019.
+Likely files involved: `services/webhook_event_catalog.py` or `services/partner_webhook_events.py`; `services/partner_seam_service.py` only if a non-behavioral import is needed; `test/test_webhook_event_catalog.py`.
+Stop conditions: Stop if validation would reject existing stored subscriptions/deliveries without migration, change queueing behavior, require schema changes, or alter webhook retry/signing behavior.
+Validation expectation: Add helper tests for every catalog event type, invalid event names, family classification where included, case sensitivity, and no secret/provider/internal status leakage.
+Explicit non-goals: Do not enforce validation on production subscription writes unless explicitly scoped later, do not emit events, do not change delivery rows, retry, signing, webhook APIs, schema, or migrations.
+Definition of done: Future webhook tasks can import one tested catalog helper instead of duplicating event strings. Priority: P1.
+
+## TASK-057: Add webhook payload envelope builder
+
+Linked enhancement: DLaaS-013
+Linked platform capability: 19. Webhooks
+Objective: Add a pure payload builder for the accepted webhook envelope that accepts safe event, tenant, subject, correlation, data, and redaction inputs and returns a redacted payload without queueing delivery.
+Type: Service.
+Dependencies: TASK-020; TASK-056.
+Likely files involved: `services/webhook_payload_builder.py` or `services/partner_webhook_events.py`; `test/test_webhook_payload_builder.py`.
+Stop conditions: Stop if the task starts emitting events, queueing deliveries, changing partner seam APIs, reading raw provider payloads, exposing secrets, or requiring schema changes.
+Validation expectation: Add tests for required envelope fields, schema version, valid event names, external tenant reference handling, redaction propagation, rejection of unsafe fields, and deterministic/safe correlation handling.
+Explicit non-goals: Do not queue webhooks, create delivery rows, change subscription validation, mutate source state, add API routes, add schema, or change signing/retry behavior.
+Definition of done: A tested payload envelope builder exists for later event producer tasks without side effects. Priority: P1.
+
+## TASK-058: Add partner/customer safe status projection helper
+
+Linked enhancement: DLaaS-015
+Linked platform capability: 16. Partner/customer portal; 21. Notifications
+Objective: Implement a focused helper that projects outcome, liability, fulfilment, settlement, reward, commission, and webhook source evidence into role-safe status/action-required categories from `docs/sa/PARTNER_CUSTOMER_SAFE_STATUS_CONTRACT.md`.
+Type: Service.
+Dependencies: TASK-017; TASK-023; TASK-049.
+Likely files involved: `services/partner_customer_safe_status_service.py`; `services/fulfilment_safe_status.py`; `services/liability_projection_service.py`; `services/outcome_trace_service.py`; `test/test_partner_customer_safe_status_service.py`.
+Stop conditions: Stop if the helper needs new schema, public API exposure, frontend work, raw provider/settlement/audit internals, private identifiers, or mutation of reward/funding/fulfilment/settlement/webhook records.
+Validation expectation: Add service tests for role-specific redaction, safe status mapping, action-required categories, missing-evidence handling, unknown source statuses, no internal detail leakage, and tenant/participant-safe input assumptions.
+Explicit non-goals: Do not add portal APIs, notification delivery, frontend, schema, money movement, repair/retry commands, or source status changes.
+Definition of done: Partner/customer surfaces can reuse one tested safe-status projection helper before any role-specific API is added. Priority: P2.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
