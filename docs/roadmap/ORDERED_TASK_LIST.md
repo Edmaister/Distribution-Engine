@@ -739,6 +739,7 @@ Definition of done: Implementation can build the aggregation service without cho
 
 ## TASK-011: Implement outcome trace aggregation service
 
+Status: Complete (2026-06-22). Output: `services/outcome_trace_service.py`; `test/test_outcome_trace_service.py`.
 Linked enhancement: DLaaS-001
 Linked platform capability: 6. Attribution tracking; 11. Reward liability tracking; 27. Observability
 Goal: Add a backend aggregation service over existing tables/services for outcome trace lookups.
@@ -752,10 +753,10 @@ Tests to add/update: Golden-path outcome trace tests; missing reward/commission/
 Validation method: Run targeted service tests and compare against seeded test data.
 Acceptance criteria: Service returns completed and broken outcome traces with explicit missing-evidence categories.
 Dependencies: TASK-010.
-Blocked by: Live DB/schema ambiguity if existing keys do not join.
+Blocked by: None for the first read-only service slice. Weak commission, funding, and webhook joins remain explicitly marked as `JOIN_AMBIGUOUS` until follow-up verification/event-catalog work.
 Risk level: High.
 Rollback notes: Remove service/read queries; no data migration expected.
-Definition of done: Outcome trace service passes golden and broken-trail tests. Priority: P0.
+Definition of done: Outcome trace service passes golden and broken-trail tests. Validation: targeted outcome trace tests passed; nearby outcome-money reconciliation service tests passed; full backend pytest passed with coverage disabled after a parallel coverage data-file error; no schema/API changes. Priority: P0.
 
 ## TASK-012: Define event ingestion public contract
 
