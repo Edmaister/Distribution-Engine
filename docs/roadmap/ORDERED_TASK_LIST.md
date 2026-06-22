@@ -1002,6 +1002,9 @@ Definition of done: Internal outcome trace API passes contract and permission te
 
 ## TASK-023: Define partner/customer safe status contract
 
+Status: Complete (2026-06-22). Output: `docs/sa/PARTNER_CUSTOMER_SAFE_STATUS_CONTRACT.md`; `docs/sa/API_SURFACE_MAP.md`; `docs/sa/STATE_MACHINE_MAP.md`.
+Finding: TASK-023 is a documentation/contract task. Current source truth includes outcome trace, liability projection, existing role-scoped portal routes, reward summaries, partner seam/webhook delivery state, and external-safe fulfilment/settlement mappings, but a broader implementation would be premature before the role-specific safe status contract is accepted.
+Validation: Read roadmap, operator BFF contract, outcome trace contract/service/API/tests, liability model/service/tests, API permission matrix, API surface/current-state/capability/state-machine docs, target state, and agent docs. Readback validation confirmed the contract covers partners, distributors, sponsors/producers, referrers, and customers; defines safe statuses, action-required categories, source-family mappings, current fulfilment/settlement/reward/commission/webhook mappings, missing-evidence behavior, API guardrails, and redaction rules. No backend/frontend tests were run because only docs changed.
 Linked enhancement: DLaaS-015: Partner/customer safe status and action-required APIs
 Linked platform capability: 16. Partner/customer portal; 21. Notifications
 Goal: Define safe statuses and action-required categories for partners, distributors, sponsors, referrers, and customers.
@@ -1015,7 +1018,7 @@ Tests to add/update: Safe status tests; internal detail leakage tests; action-re
 Validation method: Map each current status to safe role-specific status.
 Acceptance criteria: Contract answers what happened, what happens next, whether action is required, and what backend state family supports it.
 Dependencies: TASK-017; TASK-019.
-Blocked by: Canonical state mapping and permissions.
+Blocked by: None. TASK-017 provides fulfilment/settlement safe mapping and TASK-019 provides API permission guardrails.
 Risk level: Medium.
 Rollback notes: Revert contract.
 Definition of done: Portal API tasks can proceed without exposing raw internals. Priority: P2.

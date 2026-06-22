@@ -49,6 +49,7 @@ Audit, idempotency, retry, and failure handling policy for future state-machine 
 - Customer-visible statuses should be derived and safe: pending, in progress, approved, fulfilled, failed, action required.
 - Partner/distributor statuses should show campaign availability, routed offers, accepted offers, conversions, earnings, wallet movement, payout/settlement readiness, and failed/action-required states.
 - Internal states such as fraud flags, raw provider errors, DLQ payloads, settlement exceptions, and audit internals should remain operator-visible only unless explicitly transformed into safe copy.
+- TASK-023 defines the role-safe status vocabulary, action-required categories, source-family mapping, and redaction rules in `docs/sa/PARTNER_CUSTOMER_SAFE_STATUS_CONTRACT.md`.
 
 ## Missing Or Ambiguous States
 
@@ -59,4 +60,4 @@ Audit, idempotency, retry, and failure handling policy for future state-machine 
 | SM-GAP-03 | Reward and commission lifecycles are related but separate. TASK-014 documents the policy boundary in `docs/sa/REWARD_COMMISSION_POLICY_BOUNDARY.md`. | Money reporting can double-count or hide obligations if not reconciled. | GAP-08 |
 | SM-GAP-03A | Liability states are derived from multiple money evidence sources. TASK-015 documents the source mapping in `docs/sa/LIABILITY_STATE_MODEL.md`. | Implementation must preserve source statuses and avoid counting funding, wallet, invoice, fulfilment, or settlement rows as new obligations. | GAP-09 |
 | SM-GAP-04 | Multiple audit tables exist without one canonical state-transition event taxonomy. | Operator investigations require domain-specific joins. | GAP-11 |
-| SM-GAP-05 | Customer/partner-safe status mapping is not the source of truth. | Frontend may expose internal or confusing statuses. | GAP-15 |
+| SM-GAP-05 | Customer/partner-safe status mapping was not the source of truth until TASK-023 defined the contract. Implementation helpers and APIs remain follow-up work. | Frontend may expose internal or confusing statuses if future portal APIs bypass the TASK-023 contract. | GAP-15 |
