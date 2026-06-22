@@ -1135,6 +1135,9 @@ Stop conditions: Stop if the endpoint requires schema changes, live DB assumptio
 Validation expectation: Add targeted API tests for authorized access, unauthenticated/unauthorized access, tenant filtering, not-found or missing-evidence responses, redaction, and read-only behavior. Run liability projection service tests and admin outcomes API tests.
 Explicit non-goals: Do not create or move money, reserve/release/settle/reverse obligations, mutate reward/commission/funding/fulfilment/settlement records, add schema or migrations, add frontend, or unblock TASK-027/TASK-028.
 Definition of done: Operators can fetch a tenant-scoped liability projection over the existing service contract without changing source records. Priority: P1.
+Status: Complete (2026-06-23). Output: `GET /admin/outcomes/{referral_track_id}/liability`.
+Finding: The existing read-only `get_outcome_liability_projection` service was ready to expose through the admin outcomes router. TASK-049 added the endpoint using the current tenant normalization and operator identity boundary, preserving the read-only guardrail and safe 400/403/404 behavior.
+Validation: `python -m pytest test/api/test_admin_outcomes_api.py test/test_liability_projection_service.py --no-cov` passed with 24 tests. `python -m black --check apps/api/routers/admin_outcomes.py test/api/test_admin_outcomes_api.py` passed. `python -m ruff check apps/api/routers/admin_outcomes.py test/api/test_admin_outcomes_api.py` passed with only the existing top-level linter settings deprecation warning. Outcome trace service was not changed; full backend pytest was not run for this focused API slice.
 
 ## TASK-050: Add operator control-plane BFF aggregate shell
 

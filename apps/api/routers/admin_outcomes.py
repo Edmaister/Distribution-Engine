@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from services.liability_projection_service import get_outcome_liability_projection
 from services.outcome_trace_service import OutcomeTraceNotFound, get_outcome_trace
 from utils.security import require_session_key
 
@@ -102,5 +103,51 @@ async def get_admin_outcome_trace(
         "guardrail": (
             "Read-only operator outcome trace. This endpoint does not mutate "
             "reward, funding, fulfilment, settlement, audit, or webhook state."
+        ),
+    }
+
+
+@router.get("/{referral_track_id}/liability")
+async def get_admin_outcome_liability_projection(
+    referral_track_id: UUID,
+    tenant_code: Annotated[str, Query(min_length=1)],
+    identity: dict = Depends(require_session_key),
+):
+    resolved_tenant = _normalise_tenant_code(tenant_code)
+    operator_identity = _require_operator_identity(identity, resolved_tenant)
+
+    try:
+        projection = await get_outcome_liability_projection(
+            tenant_code=resolved_tenant,
+            referral_track_id=str(referral_track_id),
+            identity=operator_identity,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": str(exc),
+            },
+        ) from exc
+    except OutcomeTraceNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "outcome_not_found",
+                "message": (
+                    "Outcome liability projection was not found for the "
+                    "requested tenant."
+                ),
+            },
+        ) from exc
+
+    return {
+        "status": "ok",
+        "projection": projection,
+        "guardrail": (
+            "Read-only operator liability projection. This endpoint does not "
+            "mutate reward, commission, funding, fulfilment, settlement, "
+            "audit, or liability state."
         ),
     }
