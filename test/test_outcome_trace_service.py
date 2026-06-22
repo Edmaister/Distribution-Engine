@@ -113,7 +113,14 @@ def _full_fetch_results():
                 "amount": Decimal("100.00"),
             }
         ],
-        [{"audit_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "status": "SUCCESS"}],
+        [
+            {
+                "audit_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                "status": "SUCCESS",
+                "idempotency_key": "fulfilment:reward-1",
+                "correlation_id": "11111111-1111-4111-8111-111111111111",
+            }
+        ],
         [
             {
                 "settlement_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
@@ -123,8 +130,28 @@ def _full_fetch_results():
                 "reversal_count": 0,
             }
         ],
-        [{"source": "admin_audit_log", "audit_id": "audit-1"}],
-        [{"source": "referral_processing_audit", "audit_id": "audit-2"}],
+        [
+            {
+                "source": "admin_audit_log",
+                "audit_id": "audit-1",
+                "action_domain": "fulfilment",
+                "action_type": "replay",
+                "action_status": "SUCCESS",
+                "target_type": "fulfilment_audit",
+                "target_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                "correlation_id": "11111111-1111-4111-8111-111111111111",
+                "error_message": "raw provider timeout detail",
+            }
+        ],
+        [
+            {
+                "source": "referral_processing_audit",
+                "audit_id": "audit-2",
+                "event_id": "event-1",
+                "event_type": "ACCOUNT_OPENED",
+                "processing_status": "PROCESSED",
+            }
+        ],
         [
             {
                 "delivery_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
@@ -188,6 +215,21 @@ async def test_get_outcome_trace_returns_contract_shape_for_complete_source_trai
         == "SETTLED"
     )
     assert result["missing_evidence"] == []
+    assert result["support_trace"]["audit_reference_count"] == 3
+    assert result["support_trace"]["correlation_reference_count"] >= 4
+    assert {
+        item["audit_id"] for item in result["support_trace"]["audit_references"]
+    } == {
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "audit-1",
+        "audit-2",
+    }
+    assert any(
+        item["reference_type"] == "idempotency_key"
+        and item["value"] == "fulfilment:reward-1"
+        for item in result["support_trace"]["correlation_references"]
+    )
+    assert "raw provider timeout detail" not in str(result["support_trace"])
     assert "referrer_ucn" not in result["sections"]["outcome"]
     assert "referee_ucn" not in result["sections"]["outcome"]
 
@@ -232,6 +274,9 @@ async def test_get_outcome_trace_returns_missing_evidence_for_broken_trail(monke
     assert codes_by_section["settlement"] == "NO_SOURCE_EVIDENCE"
     assert codes_by_section["audit"] == "NO_SOURCE_EVIDENCE"
     assert codes_by_section["webhooks"] == "JOIN_AMBIGUOUS"
+    assert result["support_trace"]["missing_audit_evidence"] == [
+        item for item in result["missing_evidence"] if item["section"] == "audit"
+    ]
 
 
 @pytest.mark.asyncio

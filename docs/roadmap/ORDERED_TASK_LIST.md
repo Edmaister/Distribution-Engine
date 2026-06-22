@@ -888,23 +888,25 @@ Definition of done: Outcome trace includes safe fulfilment/settlement status alo
 
 ## TASK-018: Add audit/correlation references to outcome and money traces
 
+Status: Complete (2026-06-22). Implemented read-only support trace references for outcome trace and liability projection responses.
 Linked enhancement: DLaaS-012: Audit taxonomy and observable support trace
 Linked platform capability: 14. Audit trail; 27. Observability
 Goal: Extend outcome/liability trace contracts to include available audit and correlation evidence.
 Why now: Operators need proof and support traces before repair workflows or public APIs.
 Files likely involved: `services/admin_audit_service.py`; `services/fulfilment_audit_service.py`; `services/outcome_money_reconciliation_service.py`; `utils/metrics.py`
+Files changed: `services/outcome_trace_service.py`; `services/liability_projection_service.py`; `test/test_outcome_trace_service.py`; `test/test_liability_projection_service.py`; `docs/roadmap/ORDERED_TASK_LIST.md`
 Database/schema impact: Read existing audit tables first; schema only if critical references are missing.
-Backend impact: Adds audit/correlation lookup into trace services.
+Backend impact: Adds derived `support_trace` evidence from existing outcome trace sections, including audit references, correlation/idempotency references, and missing audit evidence. Liability projection carries the same support trace through without new queries.
 Frontend impact: Future audit viewer/support console depends on this.
 API impact: Any later API exposing audit references must enforce role scope and safe error handling.
 Tests to add/update: Audit reference tests; role-scoped audit access tests; trace ID propagation tests.
-Validation method: Verify audit references against existing audit tables and seeded traces.
+Validation method: Verify audit references against existing audit tables and seeded traces. Validation run: targeted outcome trace and liability projection tests passed with 8 tests total; Black check passed; Ruff check passed with only the existing pyproject deprecation warning.
 Acceptance criteria: Outcome trace identifies available audit records and missing audit evidence without leaking restricted payloads.
 Dependencies: TASK-011; TASK-016; TASK-002.
-Blocked by: Audit taxonomy.
+Blocked by: None for the read-only support-trace slice. Full canonical audit taxonomy remains future work.
 Risk level: High.
 Rollback notes: Remove audit enrichment from trace.
-Definition of done: Outcome/money trace contains audit/correlation evidence where current repo supports it. Priority: P0.
+Definition of done: Outcome/money trace contains audit/correlation evidence where current repo supports it. The implementation derives references from existing safe section fields only, excludes raw provider errors from support trace output, does not add schema, does not write audit records, and does not start TASK-019 route/API-family work. Priority: P0.
 
 ## TASK-019: Define DLaaS public/internal API families and permission matrix updates
 
