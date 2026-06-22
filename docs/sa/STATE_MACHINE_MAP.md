@@ -42,7 +42,7 @@ Audit, idempotency, retry, and failure handling policy for future state-machine 
 | Attribution/outcome | Add or derive a canonical outcome state from current campaign track, referral instance, progress events, reward, commission, funding, fulfilment, settlement, and audit records. TASK-010 defines the response contract and trace-completeness values in `docs/sa/OUTCOME_TRACE_RESPONSE_CONTRACT.md`. | GAP-05 |
 | Qualification decision | Capture qualification result, source events, rule version, and auditability as a target-state recommendation. | GAP-07 |
 | Money lifecycle | Normalize operator-facing statuses for calculated liability, reserved funding, fulfilled reward/commission, settled amount, reversed/disputed/failed states. | GAP-08, GAP-09, GAP-10 |
-| Integration delivery | Publish DLaaS event catalog mapped to partner seam delivery states. | GAP-12, GAP-13 |
+| Integration delivery | TASK-012 defines the public event ingestion contract in `docs/sa/EVENT_INGESTION_PUBLIC_CONTRACT.md`; later work must publish the DLaaS outbound webhook event catalog mapped to partner seam delivery states. | GAP-12, GAP-13 |
 
 ## Customer/Partner Visibility Rules
 

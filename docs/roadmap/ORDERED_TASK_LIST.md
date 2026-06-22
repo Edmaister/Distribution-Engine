@@ -760,6 +760,7 @@ Definition of done: Outcome trace service passes golden and broken-trail tests. 
 
 ## TASK-012: Define event ingestion public contract
 
+Status: Complete (2026-06-22). Output: `docs/sa/EVENT_INGESTION_PUBLIC_CONTRACT.md`.
 Linked enhancement: DLaaS-007: Productized event ingestion contract
 Linked platform capability: 7. Event ingestion; 28. Idempotency/retry handling
 Goal: Document the stable event ingestion contract over existing progress and enterprise-event routes.
@@ -773,10 +774,10 @@ Tests to add/update: Ingestion contract tests; duplicate event tests; invalid pa
 Validation method: Compare route models, service behavior, migration idempotency columns, and existing tests.
 Acceptance criteria: Contract describes accepted, invalid, duplicate, queued, failed, ignored, and replayed outcomes.
 Dependencies: TASK-002; TASK-010.
-Blocked by: Outcome trace contract for downstream diagnostics.
+Blocked by: None. TASK-010 and TASK-011 provide the outcome trace contract/service used for downstream diagnostics.
 Risk level: High.
 Rollback notes: Revert contract.
-Definition of done: API implementation and tests can align to one event contract. Priority: P1.
+Definition of done: API implementation and tests can align to one event contract. Validation: readback checks passed for the contract and SA cross-references; no code, schema, auth, money, fulfilment, settlement, or audit behavior changed. Priority: P1.
 
 ## TASK-013: Define qualification decision contract
 
