@@ -781,6 +781,7 @@ Definition of done: API implementation and tests can align to one event contract
 
 ## TASK-013: Define qualification decision contract
 
+Status: Complete (2026-06-22). Output: `docs/sa/QUALIFICATION_DECISION_CONTRACT.md`.
 Linked enhancement: DLaaS-008: Qualification and campaign rules boundary
 Linked platform capability: 8. Qualification rules
 Goal: Define how backend events, journey/progress definitions, campaign policies, and limits produce a qualification decision.
@@ -794,10 +795,10 @@ Tests to add/update: Rule evaluation tests; negative qualification tests; rule v
 Validation method: Map current journey/progress completion behavior to decision categories.
 Acceptance criteria: Contract explains qualified, not qualified, pending, blocked, and invalid cases using current backend evidence where possible.
 Dependencies: TASK-007; TASK-012.
-Blocked by: Campaign readiness and event contract.
+Blocked by: None. TASK-007 and TASK-012 provide the campaign readiness and event ingestion contracts.
 Risk level: Medium.
 Rollback notes: Revert contract.
-Definition of done: Reward policy work can depend on explicit qualification decisions. Priority: P1.
+Definition of done: Reward policy work can depend on explicit qualification decisions. Validation: readback checks passed for the contract and SA cross-references; no code, schema, auth, reward, funding, fulfilment, settlement, audit, tenant, or data-isolation behavior changed. Priority: P1.
 
 ## TASK-014: Define reward and commission policy boundary
 
