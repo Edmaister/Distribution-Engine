@@ -6,8 +6,8 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
+from services.fulfilment_safe_status import map_fulfilment_status, map_settlement_status
 from utils.db import db_connection
-
 
 DEFAULT_SECTIONS = [
     "outcome",
@@ -87,6 +87,17 @@ def _row(row: Any) -> dict[str, Any]:
 
 def _rows(rows: list[Any]) -> list[dict[str, Any]]:
     return [_row(row) for row in rows or []]
+
+
+def _rows_with_safe_status(
+    rows: list[Any],
+    mapper,
+) -> list[dict[str, Any]]:
+    items = _rows(rows)
+    for item in items:
+        item["operator_safe_status"] = mapper(item.get("status"), surface="operator")
+        item["external_safe_status"] = mapper(item.get("status"), surface="external")
+    return items
 
 
 def _missing(
@@ -670,7 +681,7 @@ async def get_outcome_trace(
     if "fulfilment" in sections_to_include:
         sections["fulfilment"] = _section_rows(
             section="fulfilment",
-            rows=_rows(fulfilment_rows),
+            rows=_rows_with_safe_status(fulfilment_rows, map_fulfilment_status),
             missing_evidence=missing_evidence,
             missing_source="fulfilment_audit",
             missing_message="No fulfilment audit evidence was found for this outcome.",
@@ -679,7 +690,7 @@ async def get_outcome_trace(
     if "settlement" in sections_to_include:
         sections["settlement"] = _section_rows(
             section="settlement",
-            rows=_rows(settlement_rows),
+            rows=_rows_with_safe_status(settlement_rows, map_settlement_status),
             missing_evidence=missing_evidence,
             missing_source="fulfilment_settlement_ledger",
             missing_message="No settlement evidence was found for this outcome.",

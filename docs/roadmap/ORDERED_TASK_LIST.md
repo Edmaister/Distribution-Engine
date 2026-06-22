@@ -866,23 +866,25 @@ Definition of done: Liability projection passes money-focused tests and is audit
 
 ## TASK-017: Map fulfilment and settlement statuses to outcome-safe statuses
 
+Status: Complete (2026-06-22). Implemented read-only safe status mappings for fulfilment and settlement source statuses.
 Linked enhancement: DLaaS-011: Fulfilment and settlement status integration
 Linked platform capability: 12. Fulfilment lifecycle; 13. Settlement lifecycle
 Goal: Map current fulfilment and settlement states into operator-safe and partner/customer-safe status categories.
 Why now: Portal and control-plane status must not expose raw provider or settlement internals.
 Files likely involved: `services/fulfilment_status.py`; `services/fulfilment/*`; `services/fulfilment/settlement/status.py`; `services/fulfilment/settlement/*`
+Files changed: `services/fulfilment_safe_status.py`; `services/outcome_trace_service.py`; `test/test_fulfilment_safe_status.py`; `test/test_outcome_trace_service.py`; `docs/roadmap/ORDERED_TASK_LIST.md`
 Database/schema impact: None.
-Backend impact: Defines mapping helper or contract for later services.
+Backend impact: Defines a mapping helper for operator and external safe statuses, and annotates outcome trace fulfilment/settlement rows without changing raw source statuses.
 Frontend impact: Future UI consumes safe statuses instead of raw states.
 API impact: Future APIs must include auth, validation, read idempotency, and error handling for status lookup.
 Tests to add/update: Safe status mapping tests; internal detail leakage tests.
-Validation method: Compare status enums, admin routes, settlement services, and failure handling.
+Validation method: Compare status enums, admin routes, settlement services, and failure handling. Validation run: targeted safe-status and outcome trace tests passed with 24 tests total; Black check passed; Ruff check passed with only the existing pyproject deprecation warning.
 Acceptance criteria: Every current fulfilment/settlement status maps to operator and external visibility category.
 Dependencies: TASK-015.
-Blocked by: Liability state model.
+Blocked by: None for the read-only mapping helper slice.
 Risk level: Medium.
 Rollback notes: Revert mapping.
-Definition of done: Outcome trace can include safe fulfilment/settlement status. Priority: P1.
+Definition of done: Outcome trace includes safe fulfilment/settlement status alongside raw source status. External-safe mappings omit raw provider/settlement status detail; operator-safe mappings preserve source status and detail code. No schema, migration, API route, frontend, money movement, or TASK-018 audit/correlation work was added. Priority: P1.
 
 ## TASK-018: Add audit/correlation references to outcome and money traces
 

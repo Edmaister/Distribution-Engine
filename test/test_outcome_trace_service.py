@@ -125,13 +125,22 @@ def _full_fetch_results():
         ],
         [{"source": "admin_audit_log", "audit_id": "audit-1"}],
         [{"source": "referral_processing_audit", "audit_id": "audit-2"}],
-        [{"delivery_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc", "delivery_status": "SENT"}],
+        [
+            {
+                "delivery_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                "delivery_status": "SENT",
+            }
+        ],
     ]
 
 
 @pytest.mark.asyncio
-async def test_get_outcome_trace_returns_contract_shape_for_complete_source_trail(monkeypatch):
-    conn = FakeConnection(fetchrow_result=_outcome(), fetch_results=_full_fetch_results())
+async def test_get_outcome_trace_returns_contract_shape_for_complete_source_trail(
+    monkeypatch,
+):
+    conn = FakeConnection(
+        fetchrow_result=_outcome(), fetch_results=_full_fetch_results()
+    )
     monkeypatch.setattr(service, "db_connection", lambda: FakeConnectionContext(conn))
 
     result = await service.get_outcome_trace(
@@ -151,10 +160,33 @@ async def test_get_outcome_trace_returns_contract_shape_for_complete_source_trai
     assert result["tenant_code"] == "FNB"
     assert result["trace_completeness"] == "COMPLETE"
     assert result["sections"]["outcome"]["status"] == "COMPLETED"
-    assert result["sections"]["participants"]["items"][0]["safe_display_ref"] == "safe_handle"
-    assert result["sections"]["participants"]["items"][1]["participant_type"] == "DISTRIBUTOR"
+    assert (
+        result["sections"]["participants"]["items"][0]["safe_display_ref"]
+        == "safe_handle"
+    )
+    assert (
+        result["sections"]["participants"]["items"][1]["participant_type"]
+        == "DISTRIBUTOR"
+    )
     assert result["sections"]["reward"]["count"] == 1
+    assert result["sections"]["fulfilment"]["items"][0]["status"] == "SUCCESS"
+    assert (
+        result["sections"]["fulfilment"]["items"][0]["operator_safe_status"]["status"]
+        == "FULFILLED"
+    )
+    assert (
+        result["sections"]["fulfilment"]["items"][0]["external_safe_status"]["status"]
+        == "FULFILLED"
+    )
     assert result["sections"]["settlement"]["items"][0]["status"] == "SETTLED"
+    assert (
+        result["sections"]["settlement"]["items"][0]["operator_safe_status"]["status"]
+        == "SETTLED"
+    )
+    assert (
+        result["sections"]["settlement"]["items"][0]["external_safe_status"]["status"]
+        == "SETTLED"
+    )
     assert result["missing_evidence"] == []
     assert "referrer_ucn" not in result["sections"]["outcome"]
     assert "referee_ucn" not in result["sections"]["outcome"]
