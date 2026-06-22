@@ -156,6 +156,164 @@ def _section_rows(
     return {"items": rows, "count": len(rows)}
 
 
+def _compact_record(
+    source: dict[str, Any],
+    fields: list[str],
+) -> dict[str, Any]:
+    return {
+        field: source.get(field)
+        for field in fields
+        if source.get(field) not in (None, "")
+    }
+
+
+def _append_unique(
+    items: list[dict[str, Any]],
+    item: dict[str, Any],
+    seen: set[tuple[Any, ...]],
+    identity_fields: list[str],
+) -> None:
+    identity = tuple(item.get(field) for field in identity_fields)
+    if not any(identity) or identity in seen:
+        return
+    seen.add(identity)
+    items.append(item)
+
+
+def _add_correlation_reference(
+    references: list[dict[str, Any]],
+    seen: set[tuple[Any, ...]],
+    *,
+    section: str,
+    source: str,
+    reference_type: str,
+    value: Any,
+    related_id: Any = None,
+) -> None:
+    if value in (None, ""):
+        return
+    item = {
+        "section": section,
+        "source": source,
+        "reference_type": reference_type,
+        "value": value,
+    }
+    if related_id not in (None, ""):
+        item["related_id"] = related_id
+    _append_unique(
+        references,
+        item,
+        seen,
+        ["section", "source", "reference_type", "value", "related_id"],
+    )
+
+
+def _support_trace(
+    *,
+    trace_id: str,
+    lookup: dict[str, Any],
+    sections: dict[str, Any],
+    missing_evidence: list[dict[str, Any]],
+) -> dict[str, Any]:
+    audit_references: list[dict[str, Any]] = []
+    correlation_references: list[dict[str, Any]] = []
+    audit_seen: set[tuple[Any, ...]] = set()
+    correlation_seen: set[tuple[Any, ...]] = set()
+
+    _add_correlation_reference(
+        correlation_references,
+        correlation_seen,
+        section="outcome",
+        source="outcome_trace_service",
+        reference_type=lookup.get("type", "LOOKUP"),
+        value=lookup.get("value"),
+        related_id=trace_id,
+    )
+
+    for section_name, section in sections.items():
+        if not isinstance(section, dict):
+            continue
+        for item in section.get("items", []):
+            if not isinstance(item, dict):
+                continue
+
+            source = str(item.get("source") or section_name)
+            related_id = (
+                item.get("audit_id")
+                or item.get("event_id")
+                or item.get("reward_id")
+                or item.get("commission_event_id")
+                or item.get("funding_id")
+                or item.get("settlement_id")
+                or item.get("delivery_id")
+            )
+
+            for field in [
+                "correlation_id",
+                "source_event_id",
+                "dedupe_key",
+                "idempotency_key",
+                "referral_track_id",
+                "reward_id",
+            ]:
+                _add_correlation_reference(
+                    correlation_references,
+                    correlation_seen,
+                    section=section_name,
+                    source=source,
+                    reference_type=field,
+                    value=item.get(field),
+                    related_id=related_id,
+                )
+
+            if item.get("audit_id"):
+                audit_reference = {
+                    "section": section_name,
+                    "source": source,
+                    **_compact_record(
+                        item,
+                        [
+                            "audit_id",
+                            "action_domain",
+                            "action_type",
+                            "action_status",
+                            "actor_role",
+                            "actor_tenant_code",
+                            "tenant_code",
+                            "target_type",
+                            "target_id",
+                            "correlation_id",
+                            "event_id",
+                            "event_type",
+                            "processing_status",
+                            "reason",
+                            "created_at",
+                            "processed_at",
+                        ],
+                    ),
+                }
+                _append_unique(
+                    audit_references,
+                    audit_reference,
+                    audit_seen,
+                    ["section", "source", "audit_id"],
+                )
+
+    audit_missing_evidence = [
+        item for item in missing_evidence if item.get("section") == "audit"
+    ]
+
+    return {
+        "trace_id": trace_id,
+        "lookup": lookup,
+        "audit_references": audit_references,
+        "audit_reference_count": len(audit_references),
+        "correlation_references": correlation_references,
+        "correlation_reference_count": len(correlation_references),
+        "missing_audit_evidence": audit_missing_evidence,
+    }
+
+
 async def get_outcome_trace(
     *,
     tenant_code: str,
@@ -730,13 +888,23 @@ async def get_outcome_trace(
                 )
             )
 
+    trace_id = f"outcome:referral_track_id:{track_id}"
+    lookup = {"type": "REFERRAL_TRACK_ID", "value": track_id}
+    support_trace = _support_trace(
+        trace_id=trace_id,
+        lookup=lookup,
+        sections=sections,
+        missing_evidence=missing_evidence,
+    )
+
     return {
-        "trace_id": f"outcome:referral_track_id:{track_id}",
+        "trace_id": trace_id,
         "trace_type": "OUTCOME",
-        "lookup": {"type": "REFERRAL_TRACK_ID", "value": track_id},
+        "lookup": lookup,
         "tenant_code": tenant,
         "trace_completeness": _trace_completeness(missing_evidence),
         "sections": sections,
+        "support_trace": support_trace,
         "missing_evidence": missing_evidence,
         "source_warnings": source_warnings,
         "redactions": [

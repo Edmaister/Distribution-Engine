@@ -341,6 +341,7 @@ def derive_liability_projection(trace: dict[str, Any]) -> dict[str, Any]:
         "totals": totals,
         "totals_by_category": _recalculate_by_category(items),
         "items": items,
+        "support_trace": trace.get("support_trace"),
         "missing_evidence": relevant_missing,
         "source_warnings": source_warnings,
         "redactions": trace.get("redactions", []),

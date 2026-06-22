@@ -72,6 +72,22 @@ def _trace(*, missing_evidence=None):
         },
         "missing_evidence": missing_evidence or [],
         "source_warnings": [],
+        "support_trace": {
+            "trace_id": "outcome:referral_track_id:track-1",
+            "audit_references": [{"audit_id": "admin-audit-1"}],
+            "audit_reference_count": 1,
+            "correlation_references": [
+                {
+                    "section": "fulfilment",
+                    "source": "fulfilment_audit",
+                    "reference_type": "correlation_id",
+                    "value": "track-1",
+                    "related_id": "audit-1",
+                }
+            ],
+            "correlation_reference_count": 1,
+            "missing_audit_evidence": [],
+        },
         "redactions": [{"field": "referrer_ucn"}],
         "generated_at": "2026-06-22T00:00:00Z",
     }
@@ -88,6 +104,8 @@ def test_derive_liability_projection_preserves_categories_and_phase_totals():
     assert result["totals"]["reserved_total"] == Decimal("100.00")
     assert result["totals"]["fulfilled_total"] == Decimal("125.00")
     assert result["totals"]["settled_total"] == Decimal("100.00")
+    assert result["support_trace"]["audit_reference_count"] == 1
+    assert result["support_trace"]["correlation_reference_count"] == 1
 
     # Funding, fulfilment, and settlement are phase evidence; they must not
     # inflate the source obligation total.
