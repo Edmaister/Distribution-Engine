@@ -67,6 +67,17 @@ Definition of done: Live verification is no longer ambiguous and can be executed
 
 ## TASK-027: Run live DB verification for TASK-001 inventory
 
+Status: Blocked.
+
+Finding:
+TASK-027 is ready in scope but cannot execute without approved safe read-only runtime database access. No database connection was attempted.
+
+Blocked by:
+Environment name, read-only DB credentials, write-protection confirmation, and approval for any runtime/API smoke checks.
+
+Validation:
+Readiness inspection only; no files changed beyond this roadmap update and no DB access attempted.
+
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
 Linked platform capability: 14. Audit trail; 28. Idempotency/retry handling; 30. Live DB/state verification
 Goal: Compare `docs/sa/LIVE_CRITICAL_STATE_INVENTORY.md` against a real migrated database, including status constraints, unique indexes, columns, and critical table presence.
