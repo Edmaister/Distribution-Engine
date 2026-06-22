@@ -42,6 +42,7 @@ These are target-state recommendations. They are not current implementation fact
 | Analytics/reporting | Tenant-safe reports across campaigns, participants, attribution, reward, funding, settlement, webhook health. TASK-024 defines dimensions, freshness, export, and ledger reconciliation rules in `docs/sa/TENANT_SAFE_ANALYTICS_REPORTING_CONTRACT.md`. | distribution reporting, finance metrics, materialized views. | GAP-16 |
 | Audit/support | Trace outcome, export audit, investigate stuck states, capture repair actions. TASK-010 defines trace sections, missing-evidence categories, and safe evidence boundaries. | admin audit, failure, DLQ, outcome-money map. | GAP-11, GAP-14 |
 | SaaS packaging | API keys, plans, usage, quotas, billing hooks. TASK-025 defines the SaaS usage and billing separation model in `docs/sa/SAAS_USAGE_BILLING_SEPARATION_MODEL.md`. | partner clients are reusable only for integration credentials, not full SaaS packaging; sponsor billing remains separate. | GAP-17 |
+| White-label/embed | Tenant branding, custom domains, allowed origins, embed clients, scoped tokens, and SDK candidates. TASK-026 defines the dependency-gated security plan in `docs/sa/WHITE_LABEL_EMBED_SECURITY_DEPENDENCY_PLAN.md`. | No current first-class implementation; future work must wait for tenant isolation, safe status APIs, and public API contracts. | GAP-18 |
 
 ## API Design Rules
 

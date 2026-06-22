@@ -1095,6 +1095,12 @@ Risk level: High.
 Rollback notes: Revert plan only.
 Definition of done: Later implementation scope is bounded and dependency-gated. Priority: Later.
 
+Status: Complete on 2026-06-22.
+Output: `docs/sa/WHITE_LABEL_EMBED_SECURITY_DEPENDENCY_PLAN.md`.
+Finding: TASK-026 is a documentation/dependency-gating task. Current source maps confirm no first-class tenant branding, custom domain, allowed-origin, embed client, scoped token, or SDK model exists. Implementation remains blocked until tenant isolation, public API contracts, account/membership and credential lifecycle, and partner/customer safe status APIs are implemented.
+Implementation notes: The plan defines future tenant branding, custom domain, allowed-origin, embed client, embed token, SDK, and embed usage primitives; dependency gates; auth and tenant validation; CORS/origin rules; rate limits; safe errors; idempotency for config writes; cross-tenant leak prevention; and future test expectations. It does not authorize implementation before the gates are satisfied.
+Validation: Readback confirmed coverage for tenant branding, custom domains, allowed origins, embed clients, SDK candidates, scoped tokens, auth/tenant validation, CORS/origin controls, rate limits, safe errors, config-write idempotency, cross-tenant leak prevention, blockers, and future tests. No backend or frontend tests were run because this task changed documentation only.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
