@@ -823,6 +823,7 @@ Definition of done: Liability projection can consume reward/commission decisions
 
 ## TASK-015: Define liability state model and source mapping
 
+Status: Complete (2026-06-22). Output: `docs/sa/LIABILITY_STATE_MODEL.md`.
 Linked enhancement: DLaaS-010: Campaign funding readiness and liability projection
 Linked platform capability: 10. Funding/budget allocation; 11. Reward liability tracking
 Goal: Define liability states and map them to rewards, commissions, funding reservations, wallets, fulfilment, settlement, and invoice evidence.
@@ -836,10 +837,10 @@ Tests to add/update: Liability state mapping tests; double-count prevention test
 Validation method: Trace sample reward/commission/funding/settlement records through current services.
 Acceptance criteria: Model distinguishes calculated, reserved, released, fulfilled, settled, reversed, failed, disputed, and missing-evidence states where current backend supports them.
 Dependencies: TASK-011; TASK-014.
-Blocked by: Outcome trace and reward/commission boundary.
+Blocked by: None. TASK-011 provides outcome trace source discipline and TASK-014 provides reward/commission money-decision boundaries.
 Risk level: High.
 Rollback notes: Revert model.
-Definition of done: Backend liability projection can be implemented without inventing money states. Priority: P0.
+Definition of done: Backend liability projection can be implemented without inventing money states. Validation: readback confirmed the model maps calculated, reserved, released, fulfilled, settled, reversed, failed, disputed, pending, and missing-evidence states to current reward, commission, funding, wallet, fulfilment, invoice, settlement, and audit sources; preserves reward/commission category separation; and prevents downstream evidence from inflating obligation totals. No code, schema, auth, reward, funding, fulfilment, settlement, audit, tenant, privacy, or data-isolation behavior changed. Priority: P0.
 
 ## TASK-016: Implement liability projection read service
 
