@@ -844,23 +844,25 @@ Definition of done: Backend liability projection can be implemented without inve
 
 ## TASK-016: Implement liability projection read service
 
+Status: Complete (2026-06-22). Implemented a read-only outcome liability projection service backed by canonical outcome trace evidence.
 Linked enhancement: DLaaS-010
 Linked platform capability: 10. Funding/budget allocation; 11. Reward liability tracking
 Goal: Build a backend read service that computes campaign/outcome liability from existing reward, commission, funding, fulfilment, settlement, and invoice evidence.
 Why now: It unblocks funding readiness, settlement observability, control-plane money views, and reporting.
 Files likely involved: `services/outcome_money_reconciliation_service.py`; `services/funding/dashboard.py`; `services/funding/reservations.py`; `services/marketplace_funding/*`; `services/fulfilment/settlement/*`
+Files changed: `services/liability_projection_service.py`; `test/test_liability_projection_service.py`; `docs/sa/CAPABILITY_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`
 Database/schema impact: Read-only first; add indexes/rollups only if tests expose performance issues.
 Backend impact: Adds liability projection service with tenant and role scope.
 Frontend impact: None yet.
 API impact: No public API in this task; service must expose clear validation errors to callers.
 Tests to add/update: Reservation/release/settle tests; liability rollup tests; double-count tests; reconciliation tests; tenant filter tests.
-Validation method: Run service tests over seeded current-domain data.
+Validation method: Run service tests over current-domain trace evidence.
 Acceptance criteria: Service returns liability totals and missing-evidence flags without double-counting reward, commission, wallet, invoice, or settlement evidence.
 Dependencies: TASK-015.
-Blocked by: DB/state verification if source tables differ from migrations.
+Blocked by: None for the read-only trace-derived service slice. Direct DB/source-table expansion remains gated by DB/state verification if source tables differ from migrations.
 Risk level: High.
 Rollback notes: Remove read service; no data mutation expected.
-Definition of done: Liability projection passes money-focused tests and is audit/source traceable. Priority: P0.
+Definition of done: Liability projection passes money-focused tests and is audit/source traceable. Validation: targeted liability projection and outcome trace regression tests passed with 8 tests total. The service preserves reward/commission separation, treats funding/fulfilment/settlement as phase evidence rather than new obligations, dedupes repeated reward evidence, and surfaces money-section missing evidence. No schema, route, auth, reward, funding, fulfilment, settlement, audit, tenant, privacy, or data-isolation behavior changed. Priority: P0.
 
 ## TASK-017: Map fulfilment and settlement statuses to outcome-safe statuses
 
