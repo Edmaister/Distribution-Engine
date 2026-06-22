@@ -802,6 +802,7 @@ Definition of done: Reward policy work can depend on explicit qualification deci
 
 ## TASK-014: Define reward and commission policy boundary
 
+Status: Complete (2026-06-22). Output: `docs/sa/REWARD_COMMISSION_POLICY_BOUNDARY.md`.
 Linked enhancement: DLaaS-009: Reward and commission policy boundary
 Linked platform capability: 9. Reward rules; 11. Reward liability tracking
 Goal: Define how reward policies and distributor commission rules map to outcome money decisions without combining distinct money types incorrectly.
@@ -815,10 +816,10 @@ Tests to add/update: Reward calculation tests; commission calculation tests; no-
 Validation method: Compare current reward and commission services and tests.
 Acceptance criteria: Reward and commission decisions can be traced to rule source, outcome, participant, amount, and status.
 Dependencies: TASK-013.
-Blocked by: Qualification decision contract.
+Blocked by: None. TASK-013 provides the qualification decision contract.
 Risk level: High.
 Rollback notes: Revert design; no data changes.
-Definition of done: Liability projection can consume reward/commission decisions safely. Priority: P1.
+Definition of done: Liability projection can consume reward/commission decisions safely. Validation: readback confirmed reward and commission decisions remain separate source families, both require qualification evidence, duplicate guards are preserved, and funding/fulfilment/settlement/reporting implications keep category-level evidence for later liability work. No code, schema, auth, reward, funding, fulfilment, settlement, audit, tenant, or data-isolation behavior changed. Priority: P1.
 
 ## TASK-015: Define liability state model and source mapping
 
