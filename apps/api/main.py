@@ -59,6 +59,7 @@ from apps.api.routers import session
 from apps.api.routers import partner_seam
 from apps.api.routers import consumer_experience
 from apps.api.routers import admin_experience
+from apps.api.routers import operator_control_plane
 from apps.api.routers import distributor_experience
 from apps.api.routers import sponsor_experience
 from apps.api.routers import admin_budget_governance
@@ -554,5 +555,6 @@ app.include_router(partner_seam.router)
 app.include_router(partner_seam.admin_router)
 app.include_router(consumer_experience.router)
 app.include_router(admin_experience.router)
+app.include_router(operator_control_plane.router)
 app.include_router(distributor_experience.router)
 app.include_router(sponsor_experience.router)
