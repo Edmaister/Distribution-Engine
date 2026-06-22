@@ -565,6 +565,17 @@ Definition of done: TASK-004 can proceed without deciding tenant identifier sema
 
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
+Status: Blocked.
+
+Finding:
+TASK-028 cannot execute because TASK-027 live DB verification is blocked and no verified drift results exist. TASK-028 should only resolve confirmed live/schema mismatches or explicitly deferred unknowns.
+
+Blocked by:
+TASK-027 completion, or an explicit decision to defer specific TASK-001 unknowns without live DB verification.
+
+Validation:
+Readiness inspection only; no files changed beyond this roadmap update, no DB access attempted, no secrets inspected, and no downstream tasks started.
+
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
 Linked platform capability: 14. Audit trail; 28. Idempotency/retry handling; 30. Live DB/state verification
 Goal: Convert TASK-001 unknowns and TASK-027 drift findings into confirmed documentation updates or separate implementation tasks.
