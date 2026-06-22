@@ -43,6 +43,59 @@ def _trace(*, completeness: str = "COMPLETE") -> dict:
     }
 
 
+def _projection(*, completeness: str = "COMPLETE") -> dict:
+    return {
+        "projection_type": "OUTCOME_LIABILITY",
+        "tenant_code": "FNB",
+        "lookup": {"type": "REFERRAL_TRACK_ID", "value": TRACE_ID},
+        "trace_id": f"outcome:referral_track_id:{TRACE_ID}",
+        "trace_completeness": completeness,
+        "liability_completeness": completeness,
+        "totals": {
+            "obligation_total": "125.00",
+            "reserved_total": "100.00",
+            "released_total": "0.00",
+            "fulfilled_total": "125.00",
+            "settled_total": "100.00",
+            "reversed_total": "0.00",
+            "failed_total": "0.00",
+            "disputed_total": "0.00",
+        },
+        "totals_by_category": {},
+        "items": [
+            {
+                "source_family": "reward",
+                "source": "rewards",
+                "source_id": "reward-1",
+                "liability_category": "REFERRER_REWARD",
+                "derived_state": "CALCULATED",
+                "amount": "100.00",
+                "currency": "ZAR",
+                "source_status": "APPLIED",
+                "join_confidence": "MEDIUM",
+                "evidence": {"reward_id": "reward-1", "status": "APPLIED"},
+            }
+        ],
+        "support_trace": {"audit_reference_count": 0},
+        "missing_evidence": (
+            []
+            if completeness == "COMPLETE"
+            else [
+                {
+                    "section": "funding",
+                    "code": "JOIN_AMBIGUOUS",
+                    "severity": "WARNING",
+                    "source": "funding_reservations",
+                    "message": "Funding join is weak.",
+                }
+            ]
+        ),
+        "source_warnings": [],
+        "redactions": [{"field": "referrer_ucn"}],
+        "generated_at": "2026-06-22T00:00:00Z",
+    }
+
+
 async def test_system_admin_can_fetch_outcome_trace(monkeypatch):
     calls = []
 
@@ -221,3 +274,186 @@ async def test_admin_outcome_trace_rejects_cross_tenant_operator_jwt(monkeypatch
 
     assert exc_info.value.status_code == 403
     assert exc_info.value.detail["code"] == "permission_denied"
+
+
+async def test_system_admin_can_fetch_outcome_liability_projection(monkeypatch):
+    calls = []
+
+    async def fake_get_outcome_liability_projection(**kwargs):
+        calls.append(kwargs)
+        return _projection()
+
+    monkeypatch.setattr(
+        admin_outcomes,
+        "get_outcome_liability_projection",
+        fake_get_outcome_liability_projection,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=SYSTEM_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            f"/admin/outcomes/{TRACE_ID}/liability",
+            params={"tenant_code": "fnb"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["projection"]["projection_type"] == "OUTCOME_LIABILITY"
+    assert body["projection"]["tenant_code"] == "FNB"
+    assert body["projection"]["liability_completeness"] == "COMPLETE"
+    assert body["projection"]["redactions"] == [{"field": "referrer_ucn"}]
+    assert body["guardrail"].startswith("Read-only operator liability projection")
+    assert calls == [
+        {
+            "tenant_code": "FNB",
+            "referral_track_id": TRACE_ID,
+            "identity": {
+                "authenticated": True,
+                "role": "SYSTEM_ADMIN",
+                "tenant_code": "INTERNAL",
+                "tenant": "INTERNAL",
+                "auth_source": "api_key",
+            },
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"x-api-key": "test-admin-key"},
+        {"x-api-key": "test-finance-admin-key"},
+        {"x-api-key": "test-distribution-admin-key"},
+    ],
+)
+async def test_admin_outcome_liability_allows_operator_admin_roles(
+    monkeypatch, headers
+):
+    async def fake_get_outcome_liability_projection(**kwargs):
+        return _projection()
+
+    monkeypatch.setattr(
+        admin_outcomes,
+        "get_outcome_liability_projection",
+        fake_get_outcome_liability_projection,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=headers) as client:
+        response = await client.get(
+            f"/admin/outcomes/{TRACE_ID}/liability",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 200
+
+
+async def test_admin_outcome_liability_returns_401_without_credentials():
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.get(
+            f"/admin/outcomes/{TRACE_ID}/liability",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 401
+
+
+async def test_admin_outcome_liability_rejects_non_operator_identity(monkeypatch):
+    async def fake_get_outcome_liability_projection(
+        **kwargs,
+    ):  # pragma: no cover - should not run
+        raise AssertionError("service should not be called")
+
+    monkeypatch.setattr(
+        admin_outcomes,
+        "get_outcome_liability_projection",
+        fake_get_outcome_liability_projection,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers={"x-api-key": "test-partner-key"}
+    ) as client:
+        response = await client.get(
+            f"/admin/outcomes/{TRACE_ID}/liability",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "permission_denied"
+
+
+async def test_admin_outcome_liability_returns_404_for_missing_outcome(monkeypatch):
+    async def fake_get_outcome_liability_projection(**kwargs):
+        raise OutcomeTraceNotFound("missing")
+
+    monkeypatch.setattr(
+        admin_outcomes,
+        "get_outcome_liability_projection",
+        fake_get_outcome_liability_projection,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=SYSTEM_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            f"/admin/outcomes/{TRACE_ID}/liability",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == {
+        "code": "outcome_not_found",
+        "message": (
+            "Outcome liability projection was not found for the requested tenant."
+        ),
+    }
+
+
+async def test_admin_outcome_liability_returns_safe_validation_error(monkeypatch):
+    async def fake_get_outcome_liability_projection(**kwargs):
+        raise ValueError("tenant_code is required")
+
+    monkeypatch.setattr(
+        admin_outcomes,
+        "get_outcome_liability_projection",
+        fake_get_outcome_liability_projection,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=SYSTEM_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            f"/admin/outcomes/{TRACE_ID}/liability",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "validation_error",
+        "message": "tenant_code is required",
+    }
+
+
+async def test_admin_outcome_liability_preserves_missing_evidence(monkeypatch):
+    async def fake_get_outcome_liability_projection(**kwargs):
+        return _projection(completeness="PARTIAL")
+
+    monkeypatch.setattr(
+        admin_outcomes,
+        "get_outcome_liability_projection",
+        fake_get_outcome_liability_projection,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=SYSTEM_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            f"/admin/outcomes/{TRACE_ID}/liability",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["projection"]["liability_completeness"] == "PARTIAL"
+    assert body["projection"]["missing_evidence"][0]["code"] == "JOIN_AMBIGUOUS"
