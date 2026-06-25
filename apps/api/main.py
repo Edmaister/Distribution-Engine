@@ -27,6 +27,7 @@ from apps.api.routers.dashboard import router as dashboard_router
 from apps.api.routers import admin_tenants
 from apps.api.routers import privacy
 from apps.api.routers import admin_audit
+from apps.api.routers import admin_analytics
 from apps.api.routers import admin_campaign_readiness
 from apps.api.routers import admin_links
 from apps.api.routers import admin_outcomes
@@ -512,6 +513,7 @@ app.include_router(dashboard_router)
 app.include_router(admin_tenants.router)
 app.include_router(privacy.router)
 app.include_router(admin_audit.router)
+app.include_router(admin_analytics.router)
 app.include_router(admin_campaign_readiness.router)
 app.include_router(admin_links.router)
 app.include_router(admin_outcomes.router)
