@@ -1235,6 +1235,10 @@ Validation expectation: Add service tests for report type validation, approved/r
 Explicit non-goals: Do not add API routes, exports, frontend charts, schema, rollup jobs, materialized views, money movement, billing usage events, or settlement/funding mutation.
 Definition of done: A first backend analytics read model exists for safe operator use without claiming ledger authority beyond existing source evidence. Priority: P2.
 
+Status: Complete (2026-06-25).
+Finding: Added a focused service-only tenant-safe analytics read helper in `services/tenant_safe_analytics_service.py`. The service validates report types, dimensions, filters, tenant scope, and data windows; returns contract-style envelopes with metric class, freshness, source warnings, redactions, and reconciliation status; exposes operational distribution overview metrics without money amounts; and keeps finance reconciliation metrics under a separate ledger-backed class. No API routes, exports, schema, migrations, materialized views, rollup jobs, billing events, ledger writebacks, settlement/funding mutation, or money movement were added.
+Validation: `python -m black services/tenant_safe_analytics_service.py test/test_tenant_safe_analytics_service.py` passed. `python -m pytest test/test_tenant_safe_analytics_service.py test/api/distribution/test_admin_reporting_api.py test/test_finance_metrics_service.py --no-cov` passed with 17 tests. `python -m ruff check services/tenant_safe_analytics_service.py test/test_tenant_safe_analytics_service.py` passed.
+
 ## TASK-056: Add webhook event constants and validation helper
 
 Linked enhancement: DLaaS-013
