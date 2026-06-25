@@ -1346,6 +1346,10 @@ Validation expectation: Add targeted API tests for admin auth, tenant filter han
 Explicit non-goals: Do not add frontend charts, CSV/export jobs, SaaS usage billing, materialized views, schema, migrations, settlement/funding mutation, or ledger authority beyond existing service output.
 Definition of done: Operators can query tenant-safe analytics through an authenticated read-only API backed by the existing service. Priority: P1.
 
+Status: Complete (2026-06-26).
+Finding: Added a focused read-only `/admin/analytics/reports/{report_type}` endpoint backed by `services.tenant_safe_analytics_service.get_tenant_safe_analytics_report`. The endpoint supports explicit tenant scope, approved repeated dimensions, current service-supported filters (`sponsor_code`, `campaign_code`, `provider_key`), and optional data window inputs. It preserves analytics admin role boundaries for platform/admin, distribution, finance, and system admins; rejects non-admin identities; returns safe validation envelopes; and leaves exports, billing, invoices, ledger writebacks, schema, migrations, materialized views, funding, settlement, fulfilment, reward, commission, audit, tenant, and analytics records untouched.
+Validation: `python -m black apps/api/routers/admin_analytics.py test/api/test_admin_analytics_api.py` passed using `.venv_codex`. `python -m ruff check apps/api/routers/admin_analytics.py test/api/test_admin_analytics_api.py` passed with the existing top-level linter settings deprecation warning. A direct Ruff check of `apps/api/main.py` still reports pre-existing import-layout warnings from the app bootstrap file, so TASK-063 did not broaden into a main-module lint refactor. `python -m pytest test/api/test_admin_analytics_api.py test/test_tenant_safe_analytics_service.py test/api/distribution/test_admin_reporting_api.py --no-cov` passed with 24 tests. Full backend `python -m pytest --no-cov` passed with 1924 tests.
+
 ## TASK-064: Add webhook event catalog read endpoint
 
 Linked enhancement: DLaaS-013
