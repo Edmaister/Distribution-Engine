@@ -1218,6 +1218,10 @@ Validation expectation: Add tests for admin auth, tenant filter enforcement, sou
 Explicit non-goals: Do not implement issue, resolve, void, public validation, frontend, schema, or code format changes.
 Definition of done: Operators can inspect existing link/code evidence through a safe canonical API without changing attribution behavior. Priority: P1.
 
+Status: Complete (2026-06-25).
+Finding: Added a focused read-only admin inspect endpoint at `GET /admin/links/inspect`, backed by the TASK-053 `inspect_link_code` facade. The route uses the distribution-admin permission boundary so Platform Admin and Distribution Admin can inspect tenant-scoped link/code evidence, forwards source type, source reference, and evidence inclusion controls, returns safe validation errors, and preserves facade-provided `INVALID`/`UNKNOWN` diagnostic results without issuing, resolving, voiding, rotating, mutating, or generating codes.
+Validation: `python -m black apps/api/routers/admin_links.py apps/api/main.py test/api/test_admin_links_api.py` passed. `python -m pytest test/api/test_admin_links_api.py test/test_link_code_service.py --no-cov` passed with 21 tests. `python -m ruff check apps/api/routers/admin_links.py test/api/test_admin_links_api.py` passed. `python -m ruff check apps/api/main.py` still reports pre-existing import-order/module-level import warnings in the app entrypoint, so TASK-054 did not broaden into unrelated main-file cleanup.
+
 ## TASK-055: Add tenant-safe analytics read service
 
 Linked enhancement: DLaaS-016
