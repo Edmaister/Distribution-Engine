@@ -1252,6 +1252,10 @@ Validation expectation: Add helper tests for every catalog event type, invalid e
 Explicit non-goals: Do not enforce validation on production subscription writes unless explicitly scoped later, do not emit events, do not change delivery rows, retry, signing, webhook APIs, schema, or migrations.
 Definition of done: Future webhook tasks can import one tested catalog helper instead of duplicating event strings. Priority: P1.
 
+Status: Complete (2026-06-25).
+Finding: Added a focused `services/webhook_event_catalog.py` helper that centralizes accepted webhook event constants from `docs/sa/WEBHOOK_EVENT_CATALOG.md`, classifies event families, validates canonical event type strings, supports explicit normalization for callers, and returns safe invalid results for unknown or unsafe internal/raw/secret-style names. No partner seam subscription enforcement, webhook dispatch, delivery queueing, retry, replay, signing, persistence, schema, migrations, or existing partner seam behavior changed.
+Validation: `python -m black services/webhook_event_catalog.py test/test_webhook_event_catalog.py` passed. `python -m pytest test/test_webhook_event_catalog.py test/test_partner_seam_service.py test/api/test_partner_seam_api.py --no-cov` passed with 99 tests. `python -m ruff check services/webhook_event_catalog.py test/test_webhook_event_catalog.py` passed after import ordering fix. `python -m pytest test/test_webhook_event_catalog.py --no-cov` passed with 37 tests after the lint fix.
+
 ## TASK-057: Add webhook payload envelope builder
 
 Linked enhancement: DLaaS-013
