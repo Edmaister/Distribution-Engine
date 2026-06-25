@@ -1296,6 +1296,96 @@ Status: Complete (2026-06-25).
 Finding: Added `docs/roadmap/PLATFORM_READINESS_CHECKPOINT_2026-06-25.md` to summarize the completed TASK-049 through TASK-058 implementation wave, capabilities now available, remaining gaps, blocked TASK-027/TASK-028 live verification work, release/demo risks, and a suggested next implementation priority order. This was documentation-only; no code, routes, schema, migrations, secrets, DB access, or implementation tasks were touched.
 Validation: Read `docs/roadmap/ORDERED_TASK_LIST.md`, `docs/sa/CAPABILITY_GAP_MATRIX.md`, `docs/sa/API_SURFACE_MAP.md`, `docs/sa/CURRENT_STATE_MAP.md`, `docs/product/DLAAS_TARGET_STATE.md`, and `AGENTS.md`. No backend/frontend tests were run because TASK-059 changed roadmap documentation only. No DB access was attempted and no secrets were inspected.
 
+## TASK-060: Define next implementation wave from platform readiness checkpoint
+
+Status: Complete (2026-06-26).
+Finding: Added the next implementation-focused roadmap wave after TASK-059. The wave prioritizes demo/release readiness, visible operator/admin value, safe read-only adoption of completed helpers, no money movement, no schema changes, and no dependency on TASK-027/TASK-028. TASK-027 and TASK-028 remain blocked and are not unblocked by this planning task.
+Validation: Read `docs/roadmap/PLATFORM_READINESS_CHECKPOINT_2026-06-25.md`, `docs/roadmap/ORDERED_TASK_LIST.md`, `docs/sa/CAPABILITY_GAP_MATRIX.md`, `docs/sa/API_SURFACE_MAP.md`, `docs/product/DLAAS_TARGET_STATE.md`, and `AGENTS.md`. Documentation-only update; no backend/frontend tests were run. No DB access was attempted and no secrets were inspected.
+
+## TASK-061: Adopt safe status helper in distributor portal outcome status
+
+Linked enhancement: DLaaS-015
+Linked platform capability: 16. Partner/customer portal
+Objective: Add one read-only distributor-scoped status surface that uses `services/partner_customer_safe_status_service.py` to project existing distributor/outcome evidence into partner/customer-safe status and action-required categories.
+Type: API.
+Dependencies: TASK-058; TASK-019; existing distributor portal auth/tenant scoping.
+Stop conditions: Stop if the endpoint requires schema changes, live DB assumptions, source mutation, money movement, settlement/fulfilment commands, raw provider/audit/settlement internals, private customer identifiers, or cross-tenant exposure.
+Validation expectation: Add targeted API/service tests for authorized distributor access, tenant/distributor scoping, safe status shape, missing evidence, unknown source statuses, redaction/no leakage, and read-only behavior.
+Explicit non-goals: Do not add frontend, public unauthenticated APIs, reward/commission/funding/fulfilment/settlement mutations, retry/repair commands, schema, migrations, or broad portal redesign.
+Definition of done: One role-scoped portal path can return safe status/action categories using the TASK-058 helper without exposing raw internal state. Priority: P1.
+
+## TASK-062: Add campaign readiness section to operator control-plane BFF
+
+Linked enhancement: DLaaS-014
+Linked platform capability: 15. Admin/operator workflow; 2. Campaign model
+Objective: Extend the read-only operator control-plane BFF shell with an optional campaign readiness section backed by the TASK-051/TASK-052 readiness behavior.
+Type: API.
+Dependencies: TASK-050; TASK-051; TASK-052; TASK-019.
+Stop conditions: Stop if the work requires campaign activation, lifecycle mutation, opportunity publication, route generation, funding reservation, schema changes, frontend work, or public/partner exposure.
+Validation expectation: Add targeted BFF tests for requested campaign readiness section, partial/unavailable section behavior, permission denial, tenant/campaign mismatch, missing campaign, readiness blocker/warning propagation, and read-only behavior.
+Explicit non-goals: Do not implement activation, publication, routing, link generation, funding mutations, frontend UI, public APIs, schema, or migrations.
+Definition of done: Operators can request campaign readiness inside the existing control-plane aggregate without changing campaign state. Priority: P1.
+
+## TASK-063: Add tenant-safe analytics admin read endpoint
+
+Linked enhancement: DLaaS-016
+Linked platform capability: 22. Analytics/reporting; 18. Internal API
+Objective: Expose the TASK-055 tenant-safe analytics read service through a read-only admin endpoint for approved report types, dimensions, tenant filters, freshness metadata, and unavailable-source warnings.
+Type: API.
+Dependencies: TASK-055; TASK-019.
+Stop conditions: Stop if the endpoint requires exports, materialized views, rollup jobs, schema changes, live DB assumptions, billing-grade metering, ledger writebacks, money movement, or raw private/provider/audit payload exposure.
+Validation expectation: Add targeted API tests for admin auth, tenant filter handling, report type validation, dimension validation, freshness/source-warning response shape, operational-vs-ledger separation, redaction, and read-only behavior.
+Explicit non-goals: Do not add frontend charts, CSV/export jobs, SaaS usage billing, materialized views, schema, migrations, settlement/funding mutation, or ledger authority beyond existing service output.
+Definition of done: Operators can query tenant-safe analytics through an authenticated read-only API backed by the existing service. Priority: P1.
+
+## TASK-064: Add webhook event catalog read endpoint
+
+Linked enhancement: DLaaS-013
+Linked platform capability: 19. Webhooks; 17. Public API; 18. Internal API
+Objective: Add a read-only endpoint that exposes the accepted webhook event catalog from `services/webhook_event_catalog.py` for admin/partner integration discovery without enforcing subscription validation.
+Type: API.
+Dependencies: TASK-056; TASK-019.
+Stop conditions: Stop if the endpoint changes subscription writes, rejects existing stored subscriptions, queues deliveries, dispatches events, changes signing/retry behavior, requires schema changes, or exposes internal table/provider names.
+Validation expectation: Add targeted API tests for authorized access, catalog response shape, event family grouping, no secret/provider/internal leakage, stable schema version or catalog metadata where present, and no delivery/subscription side effects.
+Explicit non-goals: Do not add event producers, delivery queueing, subscription enforcement, webhook signing changes, retry/replay behavior, frontend, schema, or migrations.
+Definition of done: Integrators and operators can inspect supported webhook event names safely without changing partner seam behavior. Priority: P1.
+
+## TASK-065: Add non-delivering webhook payload preview for campaign/outcome events
+
+Linked enhancement: DLaaS-013
+Linked platform capability: 19. Webhooks; 15. Admin/operator workflow
+Objective: Add an admin-only read-only preview helper or endpoint that uses the TASK-057 envelope builder to render safe sample payloads for one or two non-money event families, preferably campaign and outcome, without queueing or dispatching deliveries.
+Type: API.
+Dependencies: TASK-056; TASK-057; TASK-019.
+Stop conditions: Stop if the task starts emitting events, creating delivery rows, signing payloads, reading raw provider payloads, exposing private identifiers, requiring live DB verification, mutating source state, or changing partner seam delivery behavior.
+Validation expectation: Add targeted tests for valid catalog event preview, unknown event rejection, tenant external reference handling, redaction propagation, no raw/secret/internal fields, and proof that no queue/delivery/signing service is invoked.
+Explicit non-goals: Do not implement event producers, subscription matching, delivery queueing, retries, signing, partner notification, schema, migrations, frontend, or money-related event emission.
+Definition of done: Operators can preview safe webhook payload envelopes for demo/readiness without producing side effects. Priority: P2.
+
+## TASK-066: Add public API contract tests for read-only campaign and link/code diagnostics
+
+Linked enhancement: DLaaS-006; DLaaS-014; DLaaS-017
+Linked platform capability: 5. Distribution link/code generation; 15. Admin/operator workflow; 17. Public API
+Objective: Add focused contract tests that lock the response shape, auth behavior, tenant scoping, safe error envelopes, and read-only guarantees for the campaign readiness and link/code inspect APIs added in TASK-052 and TASK-054.
+Type: Tests.
+Dependencies: TASK-052; TASK-054; TASK-019.
+Stop conditions: Stop if the task requires changing production behavior beyond safe test-alignment fixes, adding new routes, mutating source state, schema changes, public unauthenticated exposure, or broad API redesign.
+Validation expectation: Add targeted contract tests for successful response envelopes, invalid source/campaign inputs, 401/403/404 behavior, tenant mismatch, redaction/no leakage, and no mutation/service write calls.
+Explicit non-goals: Do not add frontend, new endpoint families, link issuing/resolution, campaign activation, schema, migrations, or live DB smoke tests.
+Definition of done: Release/demo-facing read-only diagnostics have stable tested API contracts before broader public API packaging. Priority: P2.
+
+## TASK-067: Add operator demo readiness smoke checklist
+
+Linked enhancement: DLaaS-014; DLaaS-016; DLaaS-029
+Linked platform capability: 15. Admin/operator workflow; 22. Analytics/reporting; 29. End-to-end testing
+Objective: Create a repeatable local/CI-safe smoke checklist for the read-only operator demo path covering campaign readiness, link/code inspect, outcome trace, liability projection, control-plane aggregate, tenant-safe analytics, webhook catalog, and safe status projection.
+Type: Docs/Tests.
+Dependencies: TASK-049; TASK-050; TASK-052; TASK-054; TASK-055; TASK-056; TASK-058; TASK-063 if endpoint smoke is included.
+Stop conditions: Stop if the checklist requires live DB access, production data, secrets, write credentials, money movement, settlement/fulfilment commands, schema changes, or frontend automation that depends on unavailable backend state.
+Validation expectation: Add a docs checklist and, if practical, a small non-live test selection command that verifies the read-only demo path in local/CI using existing targeted tests.
+Explicit non-goals: Do not run live smoke tests, inspect secrets, touch production data, add frontend work, mutate records, add schema, or unblock TASK-027/TASK-028.
+Definition of done: The team has a safe repeatable demo/readiness validation path for the read-only platform wave. Priority: P2.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
