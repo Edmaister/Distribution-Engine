@@ -1330,6 +1330,10 @@ Validation expectation: Add targeted BFF tests for requested campaign readiness 
 Explicit non-goals: Do not implement activation, publication, routing, link generation, funding mutations, frontend UI, public APIs, schema, or migrations.
 Definition of done: Operators can request campaign readiness inside the existing control-plane aggregate without changing campaign state. Priority: P1.
 
+Status: Complete (2026-06-26).
+Finding: Added `campaign_readiness` as an implemented optional section in the read-only operator control-plane BFF. The section reuses `services.campaign_readiness_service.get_campaign_readiness`, accepts explicit campaign readiness query context, preserves tenant-scoped operator/admin auth, keeps missing input, invalid operations, missing campaigns, and tenant mismatches inside safe section-level responses, and leaves the existing outcome trace and funding liability sections unchanged. No schema, migrations, frontend, campaign lifecycle, opportunity routing, funding, fulfilment, settlement, audit, tenant, reward, or attribution mutation behavior changed.
+Validation: `python -m black apps/api/routers/operator_control_plane.py test/api/test_operator_control_plane_bff_api.py` passed using `.venv_codex`. `python -m ruff check apps/api/routers/operator_control_plane.py test/api/test_operator_control_plane_bff_api.py` passed with the existing top-level linter settings deprecation warning. `python -m pytest test/api/test_operator_control_plane_bff_api.py test/api/test_campaign_readiness_api.py test/test_campaign_readiness_service.py --no-cov` passed with 38 tests using `.venv_codex`. Full backend `python -m pytest --no-cov` passed with 1915 tests. The default `python` launcher is broken on this workstation (`0x80070520`), so validation used the project Codex virtual environment.
+
 ## TASK-063: Add tenant-safe analytics admin read endpoint
 
 Linked enhancement: DLaaS-016

@@ -72,6 +72,29 @@ def _projection(*, completeness: str = "COMPLETE") -> dict:
     }
 
 
+def _campaign_readiness(
+    *,
+    readiness: str = "READY",
+    blockers: list[dict] | None = None,
+    warnings: list[dict] | None = None,
+    unknowns: list[dict] | None = None,
+) -> dict:
+    return {
+        "tenant_code": "FNB",
+        "campaign_code": "CAMP001",
+        "opportunity_id": None,
+        "operation": "CONTROL_PLANE_VIEW",
+        "canonical_lifecycle": "ACTIVE",
+        "readiness": readiness,
+        "can_proceed": readiness in {"READY", "READY_WITH_WARNINGS"},
+        "blockers": blockers or [],
+        "warnings": warnings or [],
+        "unknowns": unknowns or [],
+        "evidence": {"campaign": {"campaign_code": "CAMP001"}},
+        "evaluated_at": "2026-06-25T00:00:00Z",
+    }
+
+
 async def test_system_admin_can_load_operator_control_plane_shell(monkeypatch):
     trace_calls = []
     projection_calls = []
@@ -108,7 +131,7 @@ async def test_system_admin_can_load_operator_control_plane_shell(monkeypatch):
     assert body["requested_sections"] == operator_control_plane.CONTRACTED_SECTIONS
     assert body["sections"]["outcome_trace"]["status"] == "ok"
     assert body["sections"]["funding_liability"]["status"] == "ok"
-    assert body["sections"]["campaign_readiness"]["status"] == "not_implemented"
+    assert body["sections"]["campaign_readiness"]["status"] == "unavailable"
     assert "campaign_readiness" in body["unavailable_sections"]
     assert body["permission_denied_sections"] == []
     assert {"field": "referrer_ucn"} in body["redactions"]
@@ -117,6 +140,207 @@ async def test_system_admin_can_load_operator_control_plane_shell(monkeypatch):
     assert trace_calls[0]["tenant_code"] == "FNB"
     assert trace_calls[0]["referral_track_id"] == TRACE_ID
     assert projection_calls[0]["tenant_code"] == "FNB"
+
+
+async def test_operator_control_plane_loads_campaign_readiness_section(monkeypatch):
+    calls = []
+
+    async def fake_get_campaign_readiness(**kwargs):
+        calls.append(kwargs)
+        return _campaign_readiness()
+
+    monkeypatch.setattr(
+        operator_control_plane,
+        "get_campaign_readiness",
+        fake_get_campaign_readiness,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=SYSTEM_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            f"/v1/experience/operator-control-plane/outcomes/{TRACE_ID}",
+            params={
+                "tenant_code": "fnb",
+                "sections": "campaign_readiness",
+                "campaign_code": "camp001",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["sections"]["campaign_readiness"]["status"] == "ok"
+    assert body["sections"]["campaign_readiness"]["data"]["readiness"] == "READY"
+    assert body["unavailable_sections"] == []
+    assert calls == [
+        {
+            "tenant_code": "FNB",
+            "campaign_code": "camp001",
+            "operation": "CONTROL_PLANE_VIEW",
+            "opportunity_id": None,
+            "include_evidence": True,
+        }
+    ]
+
+
+async def test_operator_control_plane_campaign_readiness_preserves_blockers(
+    monkeypatch,
+):
+    async def fake_get_campaign_readiness(**kwargs):
+        return _campaign_readiness(
+            readiness="NOT_READY",
+            blockers=[
+                {
+                    "code": "CAMPAIGN_INACTIVE",
+                    "severity": "BLOCKER",
+                    "source": "marketing_campaigns",
+                    "message": "Campaign definition is inactive.",
+                }
+            ],
+        )
+
+    monkeypatch.setattr(
+        operator_control_plane,
+        "get_campaign_readiness",
+        fake_get_campaign_readiness,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=SYSTEM_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            f"/v1/experience/operator-control-plane/outcomes/{TRACE_ID}",
+            params={
+                "tenant_code": "FNB",
+                "sections": "campaign_readiness",
+                "campaign_code": "CAMP001",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "partial"
+    section = body["sections"]["campaign_readiness"]
+    assert section["status"] == "missing_evidence"
+    assert section["missing_evidence"][0]["code"] == "CAMPAIGN_INACTIVE"
+
+
+async def test_operator_control_plane_campaign_readiness_requires_campaign_code(
+    monkeypatch,
+):
+    called = False
+
+    async def fake_get_campaign_readiness(**kwargs):
+        nonlocal called
+        called = True
+        return _campaign_readiness()
+
+    monkeypatch.setattr(
+        operator_control_plane,
+        "get_campaign_readiness",
+        fake_get_campaign_readiness,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=SYSTEM_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            f"/v1/experience/operator-control-plane/outcomes/{TRACE_ID}",
+            params={"tenant_code": "FNB", "sections": "campaign_readiness"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "unavailable"
+    assert body["sections"]["campaign_readiness"]["error"] == {
+        "code": "validation_error",
+        "message": "campaign_code is required for campaign_readiness.",
+        "retryable": False,
+    }
+    assert called is False
+
+
+async def test_operator_control_plane_campaign_readiness_handles_invalid_operation(
+    monkeypatch,
+):
+    async def fake_get_campaign_readiness(**kwargs):
+        raise ValueError("Unsupported campaign readiness operation: DO_SOMETHING")
+
+    monkeypatch.setattr(
+        operator_control_plane,
+        "get_campaign_readiness",
+        fake_get_campaign_readiness,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=SYSTEM_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            f"/v1/experience/operator-control-plane/outcomes/{TRACE_ID}",
+            params={
+                "tenant_code": "FNB",
+                "sections": "campaign_readiness",
+                "campaign_code": "CAMP001",
+                "campaign_operation": "DO_SOMETHING",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "unavailable"
+    assert body["sections"]["campaign_readiness"]["error"] == {
+        "code": "validation_error",
+        "message": "Unsupported campaign readiness operation: DO_SOMETHING",
+        "retryable": False,
+    }
+
+
+@pytest.mark.parametrize("code", ["CAMPAIGN_NOT_FOUND", "TENANT_MISMATCH"])
+async def test_operator_control_plane_campaign_readiness_not_found_blockers(
+    monkeypatch, code
+):
+    async def fake_get_campaign_readiness(**kwargs):
+        return _campaign_readiness(
+            readiness="NOT_READY",
+            blockers=[
+                {
+                    "code": code,
+                    "severity": "BLOCKER",
+                    "source": "marketing_campaigns",
+                    "message": "Not accessible.",
+                }
+            ],
+        )
+
+    monkeypatch.setattr(
+        operator_control_plane,
+        "get_campaign_readiness",
+        fake_get_campaign_readiness,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=SYSTEM_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            f"/v1/experience/operator-control-plane/outcomes/{TRACE_ID}",
+            params={
+                "tenant_code": "FNB",
+                "sections": "campaign_readiness",
+                "campaign_code": "CAMP001",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "unavailable"
+    assert body["sections"]["campaign_readiness"]["error"] == {
+        "code": "not_found",
+        "message": (
+            "campaign_readiness source evidence was not found for this tenant."
+        ),
+        "retryable": False,
+    }
 
 
 async def test_operator_control_plane_can_return_ok_for_implemented_sections_only(

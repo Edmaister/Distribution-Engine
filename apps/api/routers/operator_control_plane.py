@@ -6,6 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from services.campaign_readiness_service import get_campaign_readiness
 from services.liability_projection_service import get_outcome_liability_projection
 from services.outcome_trace_service import OutcomeTraceNotFound, get_outcome_trace
 from utils.security import require_session_key
@@ -25,7 +26,7 @@ CONTRACTED_SECTIONS = [
     "audit",
     "failures",
 ]
-IMPLEMENTED_SECTIONS = {"outcome_trace", "funding_liability"}
+IMPLEMENTED_SECTIONS = {"campaign_readiness", "outcome_trace", "funding_liability"}
 AGGREGATE_ROLES = {
     "ADMIN",
     "SYSTEM_ADMIN",
@@ -34,6 +35,7 @@ AGGREGATE_ROLES = {
     "PLATFORM_ADMIN",
 }
 LIABILITY_ROLES = {"ADMIN", "SYSTEM_ADMIN", "FINANCE_ADMIN", "PLATFORM_ADMIN"}
+CAMPAIGN_NOT_FOUND_BLOCKERS = {"CAMPAIGN_NOT_FOUND", "TENANT_MISMATCH"}
 
 
 def _normalise_tenant_code(tenant_code: str) -> str:
@@ -181,6 +183,17 @@ def _source_unavailable_section(name: str) -> dict[str, Any]:
     )
 
 
+def _validation_error_section(name: str, message: str) -> dict[str, Any]:
+    return _section(
+        status="unavailable",
+        error={
+            "code": "validation_error",
+            "message": message,
+            "retryable": False,
+        },
+    )
+
+
 def _loaded_section(
     *,
     data: dict[str, Any],
@@ -203,6 +216,33 @@ def _loaded_section(
         source_warnings=source_warnings,
         redactions=redactions,
         backend_sources=[backend_source],
+    )
+
+
+def _has_blocker(data: dict[str, Any], codes: set[str]) -> bool:
+    return any(
+        str(blocker.get("code") or "").upper() in codes
+        for blocker in data.get("blockers", [])
+        if isinstance(blocker, dict)
+    )
+
+
+def _campaign_readiness_section(data: dict[str, Any]) -> dict[str, Any]:
+    blockers = list(data.get("blockers") or [])
+    warnings = list(data.get("warnings") or [])
+    unknowns = list(data.get("unknowns") or [])
+    readiness = str(data.get("readiness") or "").upper()
+    section_status = (
+        "ok"
+        if readiness == "READY" and not blockers and not warnings and not unknowns
+        else "missing_evidence"
+    )
+    return _section(
+        status=section_status,
+        data=data,
+        missing_evidence=blockers + unknowns,
+        source_warnings=warnings,
+        backend_sources=["services.campaign_readiness_service.get_campaign_readiness"],
     )
 
 
@@ -236,6 +276,10 @@ def _collect_redactions(sections: dict[str, dict[str, Any]]) -> list[dict[str, A
 async def get_operator_control_plane_outcome(
     referral_track_id: UUID,
     tenant_code: Annotated[str, Query(min_length=1)],
+    campaign_code: str | None = Query(default=None),
+    campaign_operation: Annotated[str, Query(min_length=1)] = "CONTROL_PLANE_VIEW",
+    opportunity_id: str | None = Query(default=None),
+    include_campaign_evidence: bool = Query(default=True),
     requested_sections: Annotated[
         list[str] | None,
         Query(alias="sections"),
@@ -259,7 +303,28 @@ async def get_operator_control_plane_outcome(
             continue
 
         try:
-            if section_name == "outcome_trace":
+            if section_name == "campaign_readiness":
+                if not str(campaign_code or "").strip():
+                    resolved_sections[section_name] = _validation_error_section(
+                        section_name,
+                        "campaign_code is required for campaign_readiness.",
+                    )
+                    continue
+
+                readiness = await get_campaign_readiness(
+                    tenant_code=resolved_tenant,
+                    campaign_code=str(campaign_code),
+                    operation=campaign_operation,
+                    opportunity_id=opportunity_id,
+                    include_evidence=include_campaign_evidence,
+                )
+                if _has_blocker(readiness, CAMPAIGN_NOT_FOUND_BLOCKERS):
+                    resolved_sections[section_name] = _not_found_section(section_name)
+                else:
+                    resolved_sections[section_name] = _campaign_readiness_section(
+                        readiness
+                    )
+            elif section_name == "outcome_trace":
                 trace = await get_outcome_trace(
                     tenant_code=resolved_tenant,
                     referral_track_id=str(referral_track_id),
@@ -284,6 +349,11 @@ async def get_operator_control_plane_outcome(
                         "get_outcome_liability_projection"
                     ),
                 )
+        except ValueError as exc:
+            resolved_sections[section_name] = _validation_error_section(
+                section_name,
+                str(exc),
+            )
         except OutcomeTraceNotFound:
             resolved_sections[section_name] = _not_found_section(section_name)
         except Exception:  # pragma: no cover - defensive BFF section boundary
