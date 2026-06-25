@@ -1269,6 +1269,10 @@ Validation expectation: Add tests for required envelope fields, schema version, 
 Explicit non-goals: Do not queue webhooks, create delivery rows, change subscription validation, mutate source state, add API routes, add schema, or change signing/retry behavior.
 Definition of done: A tested payload envelope builder exists for later event producer tasks without side effects. Priority: P1.
 
+Status: Complete (2026-06-25).
+Finding: Added a pure `services/webhook_payload_builder.py` helper that builds the accepted webhook envelope with catalog event type/family validation, schema version, external tenant scope, subject, correlation/idempotency references, occurred timestamp, safe data/metadata/source sections, and redaction evidence. The helper rejects unknown or unsafe event types and unsafe payload fields such as internal tenant codes, raw/provider payloads, UCNs, tokens, and signing/client secrets. No webhook dispatch, queueing, delivery rows, retries, signing, persistence, subscription validation, API routes, schema, migrations, or partner seam behavior changed.
+Validation: `python -m black services/webhook_payload_builder.py test/test_webhook_payload_builder.py` passed. `python -m pytest test/test_webhook_payload_builder.py test/test_webhook_event_catalog.py --no-cov` passed with 74 tests. `python -m pytest test/test_partner_seam_service.py test/api/test_partner_seam_api.py --no-cov` passed with 62 tests. `python -m ruff check services/webhook_payload_builder.py test/test_webhook_payload_builder.py` passed after import ordering fix. `python -m pytest test/test_webhook_payload_builder.py test/test_webhook_event_catalog.py test/test_partner_seam_service.py test/api/test_partner_seam_api.py --no-cov` passed with 136 tests.
+
 ## TASK-058: Add partner/customer safe status projection helper
 
 Linked enhancement: DLaaS-015
