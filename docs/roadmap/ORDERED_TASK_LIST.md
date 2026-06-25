@@ -1184,6 +1184,10 @@ Validation expectation: Add targeted API tests for authorized admin access, inva
 Explicit non-goals: Do not implement campaign activation, opportunity publication, routing, link generation, funding readiness mutations, frontend, or public API packaging.
 Definition of done: Operators can request campaign readiness through an authenticated read-only admin API. Priority: P1.
 
+Status: Complete (2026-06-25).
+Finding: Added a focused read-only admin campaign readiness endpoint at `GET /admin/campaigns/{campaign_code}/readiness`, backed by the TASK-051 campaign readiness service. The route uses the distribution-admin permission boundary so Platform Admin and Distribution Admin can inspect tenant-scoped readiness, maps unsupported operations to safe 400 responses, maps missing or tenant-mismatched campaign evidence to safe 404 responses, and does not mutate campaigns, policies, referrals, attribution, funding, fulfilment, settlement, audit, or rewards.
+Validation: `python -m black apps/api/routers/admin_campaign_readiness.py apps/api/main.py test/api/test_campaign_readiness_api.py` passed. `python -m pytest test/api/test_campaign_readiness_api.py test/test_campaign_readiness_service.py --no-cov` passed with 24 tests. `python -m ruff check apps/api/routers/admin_campaign_readiness.py test/api/test_campaign_readiness_api.py` passed. `python -m ruff check apps/api/main.py` still reports pre-existing import-order/module-level import warnings in the app entrypoint, so TASK-052 did not broaden into unrelated main-file cleanup.
+
 ## TASK-053: Add canonical link/code service facade
 
 Linked enhancement: DLaaS-006
