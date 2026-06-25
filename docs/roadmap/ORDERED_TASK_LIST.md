@@ -1201,6 +1201,10 @@ Validation expectation: Add service tests for supported source type mapping, ins
 Explicit non-goals: Do not add issue/resolve/void routes, do not create or validate new referral/campaign tracks, do not modify current referral/campaign/distribution behavior, and do not add schema.
 Definition of done: Link/code evidence can be represented through one canonical facade while preserving current source ownership. Priority: P1.
 
+Status: Complete (2026-06-25).
+Finding: Added a focused read-only `services/link_code_service.py` facade for canonical link/code inspection across `REFERRAL_CODE`, `CAMPAIGN_CODE`, `CAMPAIGN_REFERRAL_LINK`, `ROUTE_REFERRAL_LINK`, and compatibility `COMPOSITE_CODE` sources. The facade derives safe canonical statuses from existing source evidence, surfaces missing source evidence, tenant mismatch, and source-unavailable states safely, and redacts raw UCN/hash/secret/token-style evidence. No routes, schema, migrations, code format changes, issue/resolve/void commands, track creation, or existing referral/composite/campaign behavior changed.
+Validation: `python -m black services/link_code_service.py test/test_link_code_service.py` passed. `python -m pytest test/test_link_code_service.py test/test_composite_code_service.py test/test_referral_code.py --no-cov` passed with 33 tests. `python -m ruff check services/link_code_service.py test/test_link_code_service.py` passed.
+
 ## TASK-054: Add link/code inspect endpoint
 
 Linked enhancement: DLaaS-006
