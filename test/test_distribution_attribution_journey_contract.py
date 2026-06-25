@@ -10,7 +10,6 @@ import pytest
 import services.distribution.distributor_portal_service as portal_service
 import services.distribution.reporting_service as reporting_service
 
-
 pytestmark = pytest.mark.asyncio
 
 
@@ -26,7 +25,9 @@ class FakeDbConnection(AbstractAsyncContextManager):
 
 
 class FakePortalConnection:
-    def __init__(self, *, distributor: dict[str, Any], conversions: list[dict[str, Any]]):
+    def __init__(
+        self, *, distributor: dict[str, Any], conversions: list[dict[str, Any]]
+    ):
         self.distributor = distributor
         self.conversions = conversions
 
@@ -75,7 +76,9 @@ def conversion_row(
         "display_status": "Completed" if is_complete else "Almost there",
         "progress_percent": 100 if is_complete else 80,
         "progress_band": "DONE" if is_complete else "ACTIVE",
-        "next_milestone": None if is_complete else "Salary switch or debit order switch",
+        "next_milestone": (
+            None if is_complete else "Salary switch or debit order switch"
+        ),
         "is_complete": is_complete,
         "completed_at": "2026-06-12T11:00:00" if is_complete else None,
         "validated_at": "2026-06-12T10:00:00",
@@ -125,13 +128,34 @@ async def test_distributor_conversion_summary_tracks_attribution(monkeypatch):
     assert result["unlinked_count"] == 1
     assert result["attribution_rate"] == Decimal("0.6667")
     assert result["items"][0]["opportunity_title"] == "Boxer Home Loans"
+    assert result["items"][0]["distributor_safe_status"]["status"] == "FULFILLED"
+    assert result["items"][0]["distributor_safe_status"]["action_category"] == "NONE"
+    assert result["items"][1]["distributor_safe_status"]["status"] == "IN_PROGRESS"
+    assert result["items"][1]["distributor_safe_status"]["source_families"] == [
+        "outcome"
+    ]
     assert result["items"][2]["route_id"] is None
+    assert result["items"][2]["distributor_safe_status"]["status"] == "IN_PROGRESS"
+    assert result["items"][2]["distributor_safe_status"]["missing_evidence"] == [
+        {
+            "code": "NO_SOURCE_EVIDENCE",
+            "severity": "INFO",
+            "section": "attribution",
+        }
+    ]
+    assert "tenant_code" not in str(result["items"][0]["distributor_safe_status"])
+    assert "ucn" not in str(result["items"][0]["distributor_safe_status"]).lower()
 
 
 async def test_admin_reporting_overview_tracks_network_attribution(monkeypatch):
     conn = FakeReportingConnection(
         [
-            {"total_count": 2, "active_count": 2, "suspended_count": 0, "terminated_count": 0},
+            {
+                "total_count": 2,
+                "active_count": 2,
+                "suspended_count": 0,
+                "terminated_count": 0,
+            },
             {
                 "total_count": 1,
                 "draft_count": 0,

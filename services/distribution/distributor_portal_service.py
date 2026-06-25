@@ -11,6 +11,9 @@ from services.distribution.routing_service import (
     ROUTE_STATUS_ROUTED,
     RouteNotFound,
 )
+from services.partner_customer_safe_status_service import (
+    project_partner_customer_safe_status,
+)
 from utils.db import db_connection
 
 
@@ -43,6 +46,41 @@ def _serialize(row: Any) -> dict[str, Any]:
             result[key] = json.loads(result[key])
 
     return result
+
+
+def _json(value: dict[str, Any] | None) -> str:
+    return json.dumps(value or {})
+
+
+def _conversion_safe_status(item: dict[str, Any]) -> dict[str, Any]:
+    status = "COMPLETED" if item.get("is_complete") else None
+    if status is None:
+        progress_percent = int(item.get("progress_percent") or 0)
+        status = "IN_PROGRESS" if progress_percent > 0 else "PENDING"
+
+    missing_evidence = []
+    if not item.get("route_id"):
+        missing_evidence.append(
+            {
+                "section": "attribution",
+                "code": "NO_SOURCE_EVIDENCE",
+                "severity": "INFO",
+            }
+        )
+
+    return project_partner_customer_safe_status(
+        viewer_role="distributor",
+        subject={
+            "type": "outcome",
+            "safe_ref": f"outcome:referral_track_id:{item.get('referral_track_id')}",
+        },
+        evidence={
+            "source_family": "outcome",
+            "status": status,
+            "source_confidence": "MEDIUM" if item.get("route_id") else "LOW",
+        },
+        missing_evidence=missing_evidence,
+    )["safe_status"]
 
 
 async def get_portal_distributor(
@@ -359,6 +397,8 @@ async def list_portal_conversions(
         )
 
     items = [_serialize(row) for row in rows]
+    for item in items:
+        item["distributor_safe_status"] = _conversion_safe_status(item)
     completed_count = sum(1 for item in items if item.get("is_complete"))
     attributed_count = sum(1 for item in items if item.get("route_id"))
     unlinked_count = len(items) - attributed_count
@@ -569,9 +609,13 @@ async def get_portal_performance(
         "declined_count": int(route_summary["declined_count"] or 0),
         "acceptance_rate": acceptance_rate.quantize(Decimal("0.0001")),
         "conversion_count": int(conversion_summary["conversion_count"] or 0),
-        "completed_conversion_count": int(conversion_summary["completed_conversion_count"] or 0),
+        "completed_conversion_count": int(
+            conversion_summary["completed_conversion_count"] or 0
+        ),
         "conversion_completion_rate": conversion_summary["conversion_completion_rate"],
-        "commission_event_count": int(commission_summary["commission_event_count"] or 0),
+        "commission_event_count": int(
+            commission_summary["commission_event_count"] or 0
+        ),
         "total_commission_amount": commission_summary["total_commission_amount"],
         "wallet_current_balance": wallet_summary["current_balance"],
         "wallet_available_balance": wallet_summary["available_balance"],

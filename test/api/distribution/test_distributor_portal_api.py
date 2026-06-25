@@ -9,7 +9,6 @@ from httpx import AsyncClient
 from apps.api.main import app
 from apps.api.routers.distribution import distributor_portal
 
-
 PORTAL_HEADERS = {"x-api-key": "test-fnb-key"}
 DISTRIBUTOR_HEADERS = {"x-api-key": "test-fnb-distributor-insurance-advocate-key"}
 
@@ -233,6 +232,24 @@ def conversion_payload(referral_track_id: str, **overrides):
         "first_transaction_completed_at": None,
         "created_at": "2026-06-12T10:00:00",
         "updated_at": "2026-06-12T10:30:00",
+        "distributor_safe_status": {
+            "status": "IN_PROGRESS",
+            "label": "In progress",
+            "summary": "Your outcome status is in progress.",
+            "what_happened": "Outcome evidence was received.",
+            "what_happens_next": "No action is required.",
+            "action_required": False,
+            "action_category": "NONE",
+            "terminal": False,
+            "source_families": ["outcome"],
+            "source_confidence": "MEDIUM",
+            "missing_evidence": [],
+            "redactions": [
+                "private_identifier",
+                "provider_payload",
+                "raw_status",
+            ],
+        },
     }
     payload.update(overrides)
     return payload
@@ -643,6 +660,10 @@ async def test_list_distributor_portal_conversions(monkeypatch):
     assert body["unlinked_count"] == 1
     assert body["attribution_rate"] == "0.0000"
     assert body["items"][0]["referral_track_id"] == referral_track_id
+    assert body["items"][0]["distributor_safe_status"]["status"] == "IN_PROGRESS"
+    assert body["items"][0]["distributor_safe_status"]["action_category"] == "NONE"
+    assert "tenant_code" not in str(body["items"][0]["distributor_safe_status"])
+    assert "ucn" not in str(body["items"][0]["distributor_safe_status"]).lower()
     assert calls == {
         "tenant_code": "FNB",
         "distributor_code": "AGENCY_001",

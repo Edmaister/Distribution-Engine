@@ -162,6 +162,7 @@ class DistributorPortalConversionResponse(BaseModel):
     first_transaction_completed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+    distributor_safe_status: dict[str, Any] | None = None
 
 
 class DistributorPortalConversionListResponse(BaseModel):
