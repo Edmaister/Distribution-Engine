@@ -1167,6 +1167,9 @@ Stop conditions: Stop if implementation requires schema changes, publishing/acti
 Validation expectation: Add service tests for campaign not found, tenant mismatch, inactive campaign, not-started/expired windows, exhausted cap, no active policy handling, unknown source handling, evidence redaction, and read-only behavior.
 Explicit non-goals: Do not add API routes, frontend, lifecycle commands, route generation, funding mutation, audit writes, migrations, or live DB verification.
 Definition of done: Campaign readiness can be derived in-process for core campaign checks with explicit blockers, warnings, unknowns, and source evidence. Priority: P1.
+Status: Complete (2026-06-25). Output: `services/campaign_readiness_service.py`.
+Finding: Added the first read-only campaign readiness service slice over canonical campaign definition and active policy evidence. The service derives lifecycle/readiness from existing `marketing_campaigns` fields, surfaces blockers/warnings/unknowns, keeps opportunity/routing/funding checks as safe unknowns where this slice does not yet implement source joins, and does not mutate campaigns, policies, tracks, funding, audit, or opportunity state.
+Validation: `python -m pytest test/test_campaign_readiness_service.py test/test_campaign_service.py test/test_campaign_policy_service.py test/test_campaigns.py --no-cov` passed with 79 tests. `python -m black --check services/campaign_readiness_service.py test/test_campaign_readiness_service.py` passed. `python -m ruff check services/campaign_readiness_service.py test/test_campaign_readiness_service.py` passed with only the existing top-level linter settings deprecation warning. Full backend pytest was not run for this focused service slice.
 
 ## TASK-052: Add campaign readiness admin endpoint
 
