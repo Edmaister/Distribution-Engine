@@ -33,7 +33,7 @@ def patch_db(monkeypatch, conn):
 
 
 def _now():
-    return datetime(2026, 6, 25, tzinfo=timezone.utc)
+    return datetime.now(timezone.utc)
 
 
 @pytest.mark.asyncio
