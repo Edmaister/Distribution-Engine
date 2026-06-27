@@ -9,6 +9,11 @@ const AdminOverviewPage = lazy(() =>
 const AdminAuditPage = lazy(() =>
   import("../pages/admin/AdminAuditPage").then((module) => ({ default: module.AdminAuditPage })),
 );
+const CompanyOnboardingPage = lazy(() =>
+  import("../pages/admin/CompanyOnboardingPage").then((module) => ({
+    default: module.CompanyOnboardingPage,
+  })),
+);
 const ChannelOperationsPage = lazy(() =>
   import("../pages/admin/ChannelOperationsPage").then((module) => ({
     default: module.ChannelOperationsPage,
@@ -82,6 +87,7 @@ export function App() {
         element={<AppShell refreshKey={refreshKey} onRefresh={() => setRefreshKey((value) => value + 1)} />}
       >
         <Route path="/admin" element={lazyWorkspace(<AdminOverviewPage />)} />
+        <Route path="/admin/onboarding/company" element={lazyWorkspace(<CompanyOnboardingPage />)} />
         <Route path="/admin/health" element={lazyWorkspace(<HealthPage />)} />
         <Route path="/admin/audit" element={lazyWorkspace(<AdminAuditPage />)} />
         <Route path="/admin/channels" element={lazyWorkspace(<ChannelOperationsPage />)} />
