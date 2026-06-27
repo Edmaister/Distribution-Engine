@@ -46,6 +46,7 @@ const sections = [
     links: [
       { to: "/admin", label: "Command Centre", icon: Gauge, sub: "Admin" },
       { to: "/admin/onboarding/company", label: "Company Onboarding", icon: Building2, sub: "Setup" },
+      { to: "/admin/onboarding/members-roles", label: "User & Role Setup", icon: ShieldCheck, sub: "Access" },
       { to: "/admin/distribution/operations", label: "Demand Operations", icon: GitPullRequestArrow, sub: "Ops" },
       { to: "/admin/channels", label: "Channel Operations", icon: RadioTower, sub: "Channels" },
       { to: "/admin/events", label: "Event Fabric", icon: GitBranch },

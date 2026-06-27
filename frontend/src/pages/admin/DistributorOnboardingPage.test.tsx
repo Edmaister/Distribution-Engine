@@ -122,6 +122,9 @@ describe("DistributorOnboardingPage", () => {
       screen.getByRole("link", { name: /Producer \/ sponsor onboarding/ }),
     ).toHaveAttribute("href", "/admin/onboarding/producer-sponsor");
     expect(
+      screen.getByRole("link", { name: /User & role setup/ }),
+    ).toHaveAttribute("href", "/admin/onboarding/members-roles");
+    expect(
       screen.getByRole("link", { name: /Distributor portal/ }),
     ).toHaveAttribute("href", "/distributor");
   });

@@ -55,6 +55,11 @@ const nextJourneyLinks = [
     copy: "Continue to distributor setup once the producer/sponsor shell is ready.",
   },
   {
+    label: "User & role setup",
+    path: "/admin/onboarding/members-roles",
+    copy: "Draft producer admin invite and role-family intent without provisioning access.",
+  },
+  {
     label: "Producer workspace",
     path: "/sponsor",
     copy: "View the existing producer workspace after onboarding data is mocked locally.",

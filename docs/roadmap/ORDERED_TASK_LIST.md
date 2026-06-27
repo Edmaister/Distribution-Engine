@@ -1484,6 +1484,10 @@ Validation expectation: Add frontend tests for role-family options, permission-b
 Explicit non-goals: Do not implement membership tables, invitation delivery, identity provider integration, auth/session changes, permission helper changes, or production user provisioning.
 Definition of done: A role setup shell shows how user membership will fit the onboarding journey while staying read-only/demo-safe. Priority: P1.
 
+Status: Complete (2026-06-28).
+Finding: Added a frontend-only user/member invite and role assignment shell at `/admin/onboarding/members-roles`. The shell captures `organisation_ref`, `external_tenant_ref`, user email, display name, role family, participant type, access scope, and invite status in local UI state; keeps `tenant_code` internal; shows readiness for external account scope, invite identity, role-family intent, access scope, and blocked backend membership lifecycle; includes platform operator, producer/sponsor/company admin, and distributor/partner admin guidance; disables invite delivery, role assignment, and membership activation actions; links from company, producer/sponsor, and distributor onboarding shells; and adds navigation/title wiring. No backend routes, schema, migrations, auth changes, DB access, secrets, users, memberships, invites, seats, role records, billing, funding, fulfilment, settlement, retry, money movement, or downstream TASK-074 work changed.
+Validation: `npm.cmd test -- MemberRoleOnboardingPage.test.tsx CompanyOnboardingPage.test.tsx ProducerSponsorOnboardingPage.test.tsx DistributorOnboardingPage.test.tsx` passed with 12 tests. Full `npm.cmd test` passed with 43 tests across 15 files. `npm.cmd run build` passed. `npm.cmd run lint` passed with 0 errors and the existing 42 warnings in pre-existing frontend files. No backend tests were run because TASK-073 changed frontend/test/docs files only.
+
 ## TASK-074: Add campaign and opportunity setup wizard shell
 
 Objective: Build a frontend wizard shell for configuring a campaign or distribution opportunity with product context, participant roles, link/code intent, readiness diagnostics, and go-live blocker preview.

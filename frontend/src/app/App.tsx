@@ -24,6 +24,11 @@ const DistributorOnboardingPage = lazy(() =>
     default: module.DistributorOnboardingPage,
   })),
 );
+const MemberRoleOnboardingPage = lazy(() =>
+  import("../pages/admin/MemberRoleOnboardingPage").then((module) => ({
+    default: module.MemberRoleOnboardingPage,
+  })),
+);
 const ChannelOperationsPage = lazy(() =>
   import("../pages/admin/ChannelOperationsPage").then((module) => ({
     default: module.ChannelOperationsPage,
@@ -105,6 +110,10 @@ export function App() {
         <Route
           path="/admin/onboarding/distributor"
           element={lazyWorkspace(<DistributorOnboardingPage />)}
+        />
+        <Route
+          path="/admin/onboarding/members-roles"
+          element={lazyWorkspace(<MemberRoleOnboardingPage />)}
         />
         <Route path="/admin/health" element={lazyWorkspace(<HealthPage />)} />
         <Route path="/admin/audit" element={lazyWorkspace(<AdminAuditPage />)} />
