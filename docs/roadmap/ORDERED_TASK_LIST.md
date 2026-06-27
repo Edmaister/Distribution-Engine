@@ -1378,6 +1378,10 @@ Validation expectation: Add targeted tests for valid catalog event preview, unkn
 Explicit non-goals: Do not implement event producers, subscription matching, delivery queueing, retries, signing, partner notification, schema, migrations, frontend, or money-related event emission.
 Definition of done: Operators can preview safe webhook payload envelopes for demo/readiness without producing side effects. Priority: P2.
 
+Status: Complete (2026-06-27).
+Finding: Added a non-delivering `/admin/webhooks/payload-preview` endpoint to the existing admin webhook catalog router. The preview endpoint supports campaign and outcome catalog event types only, requires `external_tenant_ref` and safe subject context, delegates envelope construction to `services.webhook_payload_builder.build_webhook_payload_envelope`, preserves redaction and correlation/idempotency handling, and returns an explicit `preview_only` delivery mode and non-delivery guardrail. It does not validate subscriptions, dispatch, queue, sign, retry, replay, deliver, persist webhook records, create partner deliveries, build source event producers, or change partner seam behavior. No schema, migrations, frontend, money movement, raw provider payloads, `tenant_code`, UCNs, tokens, client secrets, or signing secrets were introduced.
+Validation: `python -m black apps/api/routers/admin_webhook_catalog.py test/api/test_admin_webhook_catalog_api.py` passed using `.venv_codex`. `python -m ruff check apps/api/routers/admin_webhook_catalog.py test/api/test_admin_webhook_catalog_api.py` passed with the existing top-level linter settings deprecation warning. `python -m pytest test/api/test_admin_webhook_catalog_api.py test/test_webhook_event_catalog.py test/test_webhook_payload_builder.py --no-cov` passed with 89 tests. Full backend `python -m pytest --no-cov` passed with 1939 tests.
+
 ## TASK-066: Add public API contract tests for read-only campaign and link/code diagnostics
 
 Linked enhancement: DLaaS-006; DLaaS-014; DLaaS-017
