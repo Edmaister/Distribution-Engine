@@ -8,6 +8,10 @@ import { BackendSessionProvider } from "../auth/useBackendSession";
 const titles: Record<string, [string, string]> = {
   "/admin": ["Amplifi Admin", "Platform operator command centre"],
   "/admin/onboarding/company": ["Company Onboarding", "Organisation setup and external identifier shell"],
+  "/admin/onboarding/producer-sponsor": [
+    "Producer Onboarding",
+    "Sponsor setup, funding-readiness placeholders, and campaign ownership shell",
+  ],
   "/admin/health": ["Runtime Health", "Platform readiness and dependency signals"],
   "/admin/audit": ["Trust & Audit", "Platform-sensitive action visibility"],
   "/admin/channels": ["Channel Operations", "Messaging delivery, retries, and channel audit evidence"],

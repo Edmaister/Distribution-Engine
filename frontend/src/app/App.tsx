@@ -14,6 +14,11 @@ const CompanyOnboardingPage = lazy(() =>
     default: module.CompanyOnboardingPage,
   })),
 );
+const ProducerSponsorOnboardingPage = lazy(() =>
+  import("../pages/admin/ProducerSponsorOnboardingPage").then((module) => ({
+    default: module.ProducerSponsorOnboardingPage,
+  })),
+);
 const ChannelOperationsPage = lazy(() =>
   import("../pages/admin/ChannelOperationsPage").then((module) => ({
     default: module.ChannelOperationsPage,
@@ -88,6 +93,10 @@ export function App() {
       >
         <Route path="/admin" element={lazyWorkspace(<AdminOverviewPage />)} />
         <Route path="/admin/onboarding/company" element={lazyWorkspace(<CompanyOnboardingPage />)} />
+        <Route
+          path="/admin/onboarding/producer-sponsor"
+          element={lazyWorkspace(<ProducerSponsorOnboardingPage />)}
+        />
         <Route path="/admin/health" element={lazyWorkspace(<HealthPage />)} />
         <Route path="/admin/audit" element={lazyWorkspace(<AdminAuditPage />)} />
         <Route path="/admin/channels" element={lazyWorkspace(<ChannelOperationsPage />)} />

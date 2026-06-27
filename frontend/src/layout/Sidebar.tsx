@@ -33,6 +33,7 @@ const sections = [
     label: "Producer - Supply",
     links: [
       { to: "/partner", label: "Partner Integration", icon: KeyRound, sub: "Connect" },
+      { to: "/admin/onboarding/producer-sponsor", label: "Producer Onboarding", icon: Building2, sub: "Setup" },
       { to: "/sponsor", label: "Producer Workspace", icon: Building2, sub: "Supply" },
       { to: "/sponsor/operations", label: "Producer Operations", icon: GitPullRequestArrow, sub: "Ops" },
       { to: "/admin/billing", label: "Funding Spine", icon: BadgeDollarSign, sub: "Fund" },
