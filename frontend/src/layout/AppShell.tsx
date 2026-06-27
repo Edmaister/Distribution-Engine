@@ -12,6 +12,10 @@ const titles: Record<string, [string, string]> = {
     "Producer Onboarding",
     "Sponsor setup, funding-readiness placeholders, and campaign ownership shell",
   ],
+  "/admin/onboarding/distributor": [
+    "Distributor Onboarding",
+    "Distributor setup, channel intent, and portal readiness shell",
+  ],
   "/admin/health": ["Runtime Health", "Platform readiness and dependency signals"],
   "/admin/audit": ["Trust & Audit", "Platform-sensitive action visibility"],
   "/admin/channels": ["Channel Operations", "Messaging delivery, retries, and channel audit evidence"],
