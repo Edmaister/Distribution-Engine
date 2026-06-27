@@ -1414,6 +1414,15 @@ Status: Complete (2026-06-27).
 Finding: Added `docs/roadmap/OPERATOR_DEMO_READINESS_SMOKE_CHECKLIST.md` as a local/CI-safe read-only operator demo checklist. The checklist covers the operator control-plane BFF, admin outcome trace, admin liability projection, admin campaign readiness, admin link/code inspect, admin analytics, admin webhook event catalog, admin webhook payload preview, safe status helper validation, auth and tenant expectations, safe redaction behavior, no-mutation/no-money-movement guardrails, local placeholder-key curl examples, CI-safe pytest selections, demo prerequisites, and TASK-027/TASK-028 live DB verification blockers. No code, schema, migrations, DB access, secrets, live smoke tests, frontend, production data, or downstream roadmap work changed.
 Validation: Documentation/readback only. Confirmed checklist coverage for the required eight read-only surfaces, auth/tenant expectations, safe redaction behavior, no-mutation/no-money-movement guardrails, local/non-secret curl-style examples, CI-safe test selections, and TASK-027/TASK-028 blocked status. No backend/frontend tests were run because TASK-067 is documentation-only.
 
+## TASK-068: Create demo-readiness checkpoint after TASK-061 through TASK-067
+
+Status: Complete (2026-06-27). Output: `docs/roadmap/DEMO_READINESS_CHECKPOINT_TASK_068.md`.
+Objective: Record demo readiness after the TASK-061 through TASK-067 wave, including read-only operator/admin endpoints, distributor/partner/customer-safe surfaces, reusable helpers, safe demo flows, backend-only UI gaps, remaining risks, TASK-027/TASK-028 blockers, and the recommended next implementation wave.
+Type: Docs.
+Dependencies: TASK-061; TASK-062; TASK-063; TASK-064; TASK-065; TASK-066; TASK-067.
+Finding: Added a concise demo-readiness checkpoint that identifies the controlled local/test/CI demo surface now available, separates demo-ready read-only diagnostics from backend-only capabilities that still need UI work, preserves no-mutation/no-money-movement guardrails, and keeps TASK-027/TASK-028 blocked pending approved safe read-only live DB verification access. The recommended next priority is frontend/demo UI first, then API hardening, live DB verification when access is approved, public partner API packaging, and webhook delivery hardening. No code, tests, schema, migrations, secrets, DB access, live smoke checks, or implementation tasks changed.
+Validation: Documentation/readback only. Confirmed the checkpoint covers what is demo-ready, read-only operator/admin endpoints, distributor/partner/customer-safe surfaces, services/helpers, safe non-money demo flows, backend-only UI gaps, external-demo risks, TASK-027/TASK-028 blockers, recommended next wave, and priority ordering. No backend/frontend tests were run because TASK-068 is documentation-only.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
