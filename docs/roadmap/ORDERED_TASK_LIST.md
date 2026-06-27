@@ -1442,6 +1442,10 @@ Validation expectation: Add focused frontend tests for rendering, form state, re
 Explicit non-goals: Do not implement account schema, migrations, backend onboarding writes, billing, plan selection, external-reference resolver behavior, or production tenant creation.
 Definition of done: A company/organisation onboarding shell exists that explains the target account setup flow without pretending backend account lifecycle primitives are complete. Priority: P1.
 
+Status: Complete (2026-06-27).
+Finding: Added a frontend-only company/organisation onboarding shell at `/admin/onboarding/company`. The shell captures organisation name, `external_tenant_ref`, `organisation_ref`, country, organisation type, industry, admin contact, and intended role in local UI state; shows readiness steps for company profile, external identifiers, admin contact, and blocked backend account lifecycle; keeps `tenant_code` internal; links to future producer/sponsor, distributor, and operator monitoring paths; and clearly states that no account, tenant, membership, billing, or external-reference records are created. Wired the page into the admin route title and sidebar navigation. No backend routes, schema, migrations, auth changes, DB access, secrets, production writes, billing, tenant-code renames, or downstream TASK-071 work changed.
+Validation: `npm.cmd test -- CompanyOnboardingPage.test.tsx` passed with 3 tests. Full `npm.cmd test` passed with 34 tests across 12 files. `npm.cmd run build` passed. `npm.cmd run lint` passed with 0 errors and the existing 42 warnings in pre-existing frontend files. No backend tests were run because TASK-070 changed frontend files only.
+
 ## TASK-071: Add producer and sponsor onboarding UI shell
 
 Objective: Build a frontend shell for producer/sponsor setup that captures display profile, sponsor/producer reference, campaign ownership intent, funding-readiness placeholders, and safe next steps.
