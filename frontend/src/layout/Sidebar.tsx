@@ -22,6 +22,7 @@ const sections = [
   {
     label: "Distributor - Demand",
     links: [
+      { to: "/admin/onboarding/distributor", label: "Distributor Onboarding", icon: Users, sub: "Setup" },
       { to: "/distributor", label: "Earnings Hub", icon: Users, sub: "Earn" },
       { to: "/distributor/wallet", label: "My Wallet", icon: Wallet, sub: "Wallet" },
       { to: "/distributor/operations", label: "Earnings Operations", icon: GitPullRequestArrow, sub: "Ops" },

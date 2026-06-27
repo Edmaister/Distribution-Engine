@@ -115,14 +115,6 @@ function input(container: HTMLElement, selector: string) {
   return element as HTMLInputElement;
 }
 
-function submitButtonForm(button: HTMLElement) {
-  const form = button.closest("form");
-  if (!form) {
-    throw new Error("Expected action button to be inside a form");
-  }
-  fireEvent.submit(form);
-}
-
 function mockDistributionOperationsData() {
   mockedGetAdminDistributors.mockResolvedValue([
     {
@@ -240,7 +232,7 @@ describe("DistributionCommandCentrePage", () => {
     const activateButton = lifecycle.getByRole("button", { name: /^activate$/i });
     await waitFor(() => expect(activateButton).toBeEnabled());
 
-    submitButtonForm(activateButton);
+    fireEvent.click(activateButton);
     await waitFor(() => expect(mockedActivateAdminDistributor).toHaveBeenCalledWith("DIST-1"));
 
     await waitFor(() => expect(wallet.getByRole("button", { name: /^credit$/i })).toBeEnabled());

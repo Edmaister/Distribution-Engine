@@ -1,11 +1,11 @@
 import {
-  BadgeDollarSign,
-  Building2,
   CheckCircle2,
   CircleDashed,
+  GitPullRequestArrow,
   Link as LinkIcon,
+  Route,
   ShieldCheck,
-  Target,
+  Store,
   Wallet,
 } from "lucide-react";
 import { useId, useMemo, useState } from "react";
@@ -14,15 +14,15 @@ import { StatusBadge } from "../../components/StatusBadge";
 import { SummaryItem } from "../../components/SummaryItem";
 
 type FormState = {
-  sponsorName: string;
+  distributorName: string;
   externalTenantRef: string;
-  producerRef: string;
-  sponsorRef: string;
+  distributorRef: string;
   organisationRef: string;
-  industry: string;
-  fundingModelIntent: string;
+  channelType: string;
+  marketCountry: string;
   adminContact: string;
-  campaignRole: string;
+  distributionModel: string;
+  participationIntent: string;
 };
 
 type ReadinessStep = {
@@ -32,76 +32,80 @@ type ReadinessStep = {
 };
 
 const initialState: FormState = {
-  sponsorName: "",
+  distributorName: "",
   externalTenantRef: "",
-  producerRef: "",
-  sponsorRef: "",
+  distributorRef: "",
   organisationRef: "",
-  industry: "",
-  fundingModelIntent: "Budget owner, not funded yet",
+  channelType: "Partner distributor",
+  marketCountry: "",
   adminContact: "",
-  campaignRole: "Campaign owner",
+  distributionModel: "Lead/referral distribution",
+  participationIntent: "Campaign participant",
 };
 
 const nextJourneyLinks = [
   {
     label: "Company onboarding",
     path: "/admin/onboarding/company",
-    copy: "Return to the organisation shell and external tenant boundary.",
+    copy: "Return to the organisation shell and shared external tenant boundary.",
   },
   {
-    label: "Distributor onboarding",
-    path: "/admin/onboarding/distributor",
-    copy: "Continue to distributor setup once the producer/sponsor shell is ready.",
+    label: "Producer / sponsor onboarding",
+    path: "/admin/onboarding/producer-sponsor",
+    copy: "Review sponsor setup intent before connecting demand-side partners.",
   },
   {
-    label: "Producer workspace",
-    path: "/sponsor",
-    copy: "View the existing producer workspace after onboarding data is mocked locally.",
+    label: "Distributor portal",
+    path: "/distributor",
+    copy: "View the existing distributor-safe portal after onboarding data is mocked locally.",
   },
 ];
 
-export function ProducerSponsorOnboardingPage() {
+export function DistributorOnboardingPage() {
   const [form, setForm] = useState<FormState>(initialState);
   const requiredComplete = Boolean(
-    form.sponsorName.trim() &&
+    form.distributorName.trim() &&
       form.externalTenantRef.trim() &&
-      form.producerRef.trim() &&
-      form.sponsorRef.trim() &&
+      form.distributorRef.trim() &&
       form.organisationRef.trim() &&
+      form.marketCountry.trim() &&
       form.adminContact.trim(),
   );
 
   const readinessSteps = useMemo<ReadinessStep[]>(
     () => [
       {
-        label: "Producer profile",
-        copy: "Display name, industry, and campaign ownership intent are captured locally.",
-        ready: Boolean(form.sponsorName.trim() && form.industry.trim()),
+        label: "Distributor profile",
+        copy: "Display name, channel type, market, and distribution model are captured locally.",
+        ready: Boolean(
+          form.distributorName.trim() &&
+            form.channelType.trim() &&
+            form.marketCountry.trim() &&
+            form.distributionModel.trim(),
+        ),
       },
       {
         label: "External references",
-        copy: "`external_tenant_ref`, `producer_ref`, `sponsor_ref`, and `organisation_ref` stay outside internal tenant partitioning.",
+        copy: "`external_tenant_ref`, `distributor_ref`, and `organisation_ref` stay outside internal tenant partitioning.",
         ready: Boolean(
           form.externalTenantRef.trim() &&
-            form.producerRef.trim() &&
-            form.sponsorRef.trim() &&
+            form.distributorRef.trim() &&
             form.organisationRef.trim(),
         ),
       },
       {
-        label: "Admin contact",
-        copy: "Primary producer admin contact is ready for a future membership invite flow.",
-        ready: Boolean(form.adminContact.trim() && form.campaignRole.trim()),
+        label: "Portal access contact",
+        copy: "Distributor admin contact is ready for a future membership and role invite flow.",
+        ready: Boolean(form.adminContact.trim()),
       },
       {
-        label: "Funding readiness",
-        copy: "Funding model intent is noted, but no wallet, funding contract, invoice, or budget record is created.",
-        ready: Boolean(form.fundingModelIntent.trim()),
+        label: "Campaign participation intent",
+        copy: "Offer, route, and campaign participation are captured as intent only.",
+        ready: Boolean(form.participationIntent.trim()),
       },
       {
-        label: "Backend sponsor onboarding",
-        copy: "Blocked until additive producer/sponsor onboarding APIs are implemented.",
+        label: "Backend distributor onboarding",
+        copy: "Blocked until additive distributor onboarding and lifecycle APIs are implemented.",
         ready: false,
       },
     ],
@@ -118,13 +122,13 @@ export function ProducerSponsorOnboardingPage() {
     <>
       <section className="page-header">
         <div>
-          <div className="page-kicker">DLaaS onboarding - Producer setup</div>
-          <h1 className="page-title">Producer & sponsor onboarding</h1>
+          <div className="page-kicker">DLaaS onboarding - Distributor setup</div>
+          <h1 className="page-title">Distributor onboarding</h1>
           <p className="page-copy">
-            Capture producer and sponsor setup intent with external references
-            and funding-readiness placeholders. This is a frontend shell only;
-            no sponsor, wallet, billing, funding, or campaign records are
-            created.
+            Capture distributor setup intent, market context, and portal access
+            readiness using external references. This shell does not create
+            distributors, routes, wallets, offers, commissions, or lifecycle
+            records.
           </p>
         </div>
         <StatusBadge label="Shell only" tone="warning" />
@@ -132,130 +136,139 @@ export function ProducerSponsorOnboardingPage() {
 
       <section className="grid-3">
         <SummaryItem label="Readiness" value={`${readyCount}/5`} />
-        <SummaryItem label="Funding actions" value="Disabled" />
+        <SummaryItem label="Lifecycle actions" value="Disabled" />
         <SummaryItem label="Internal tenant_code" value="Hidden" />
       </section>
 
       <section className="banner warning" role="note">
         <ShieldCheck size={18} />
         <div>
-          <strong>No money or sponsor records are created from this page.</strong>
+          <strong>No distributor or marketplace records are created from this page.</strong>
           <div className="table-subtext">
-            This shell uses local form state only. It does not call sponsor
-            onboarding, funding, wallet, billing, fulfilment, settlement, or
-            campaign launch APIs.
+            This shell uses local form state only. It does not call distributor
+            creation, activation, route, offer, wallet, funding, fulfilment,
+            settlement, retry, or money movement APIs.
           </div>
         </div>
       </section>
 
       <section className="grid-2">
-        <form className="panel" aria-label="Producer sponsor onboarding shell">
+        <form className="panel" aria-label="Distributor onboarding shell">
           <div className="panel-header">
             <div>
-              <h2 className="panel-title">Producer profile</h2>
+              <h2 className="panel-title">Distributor profile</h2>
               <div className="panel-subtitle">
-                Safe setup fields for campaign ownership and sponsor identity.
+                Safe demand-side setup fields before marketplace lifecycle work.
               </div>
             </div>
-            <Building2 size={18} />
+            <Store size={18} />
           </div>
           <div className="panel-body">
             <div className="grid-2">
               <TextField
-                label="Producer / sponsor name"
-                value={form.sponsorName}
-                onChange={(value) => updateField("sponsorName", value)}
-                placeholder="Acme Insurance Sponsors"
+                label="Distributor name"
+                value={form.distributorName}
+                onChange={(value) => updateField("distributorName", value)}
+                placeholder="Acme Advisor Network"
                 required
               />
               <TextField
                 label="external_tenant_ref"
                 value={form.externalTenantRef}
                 onChange={(value) => updateField("externalTenantRef", value)}
-                placeholder="acme-insurance"
+                placeholder="acme-advisors"
                 required
               />
               <TextField
-                label="producer_ref"
-                value={form.producerRef}
-                onChange={(value) => updateField("producerRef", value)}
-                placeholder="prod-acme-insurance"
-                required
-              />
-              <TextField
-                label="sponsor_ref"
-                value={form.sponsorRef}
-                onChange={(value) => updateField("sponsorRef", value)}
-                placeholder="spon-acme-insurance"
+                label="distributor_ref"
+                value={form.distributorRef}
+                onChange={(value) => updateField("distributorRef", value)}
+                placeholder="dist-acme-advisors"
                 required
               />
               <TextField
                 label="organisation_ref"
                 value={form.organisationRef}
                 onChange={(value) => updateField("organisationRef", value)}
-                placeholder="org-acme"
+                placeholder="org-acme-advisors"
                 required
               />
-              <TextField
-                label="Industry / vertical"
-                value={form.industry}
-                onChange={(value) => updateField("industry", value)}
-                placeholder="Insurance, banking, retail"
-              />
               <SelectField
-                label="Funding model intention"
-                value={form.fundingModelIntent}
-                onChange={(value) => updateField("fundingModelIntent", value)}
+                label="Channel type"
+                value={form.channelType}
+                onChange={(value) => updateField("channelType", value)}
                 options={[
-                  "Budget owner, not funded yet",
-                  "Prefunded campaign later",
-                  "Invoice-backed sponsor later",
-                  "Funding model undecided",
+                  "Partner distributor",
+                  "Advisor network",
+                  "Affiliate channel",
+                  "Broker channel",
+                  "Embedded marketplace",
                 ]}
               />
               <TextField
-                label="Producer admin contact"
+                label="Market / country"
+                value={form.marketCountry}
+                onChange={(value) => updateField("marketCountry", value)}
+                placeholder="South Africa"
+                required
+              />
+              <TextField
+                label="Distributor admin contact"
                 value={form.adminContact}
                 onChange={(value) => updateField("adminContact", value)}
-                placeholder="producer-admin@example.test"
+                placeholder="distributor-admin@example.test"
                 required
               />
               <SelectField
-                label="Campaign / opportunity role"
-                value={form.campaignRole}
-                onChange={(value) => updateField("campaignRole", value)}
+                label="Distribution model"
+                value={form.distributionModel}
+                onChange={(value) => updateField("distributionModel", value)}
                 options={[
-                  "Campaign owner",
-                  "Opportunity sponsor",
-                  "Funding approver",
-                  "Reporting viewer",
+                  "Lead/referral distribution",
+                  "Offer route distribution",
+                  "QR/link distribution",
+                  "Partner API distribution",
+                ]}
+              />
+              <SelectField
+                label="Campaign / opportunity participation"
+                value={form.participationIntent}
+                onChange={(value) => updateField("participationIntent", value)}
+                options={[
+                  "Campaign participant",
+                  "Opportunity candidate",
+                  "Route owner later",
+                  "Portal viewer first",
                 ]}
               />
             </div>
             <div className="action-button-row">
               <button className="button" disabled type="button">
-                Create sponsor later
+                Create distributor later
               </button>
               <button className="button secondary" disabled type="button">
-                Configure funding later
+                Activate route later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Create wallet later
               </button>
               <span className={requiredComplete ? "muted" : "danger-text"}>
                 {requiredComplete
                   ? "Required shell fields are captured locally."
-                  : "Complete required shell fields before a future producer create flow."}
+                  : "Complete required shell fields before a future distributor create flow."}
               </span>
             </div>
           </div>
         </form>
 
-        <section className="panel" aria-labelledby="producer-readiness-heading">
+        <section className="panel" aria-labelledby="distributor-readiness-heading">
           <div className="panel-header">
             <div>
-              <h2 className="panel-title" id="producer-readiness-heading">
+              <h2 className="panel-title" id="distributor-readiness-heading">
                 Setup readiness
               </h2>
               <div className="panel-subtitle">
-                Producer setup guardrails before campaign and funding work.
+                Distributor guardrails before routes, offers, wallets, and portal access.
               </div>
             </div>
             <StatusBadge
@@ -283,28 +296,28 @@ export function ProducerSponsorOnboardingPage() {
       <section className="panel">
         <div className="panel-header">
           <div>
-            <h2 className="panel-title">Safe funding boundary</h2>
+            <h2 className="panel-title">Safe distributor boundary</h2>
             <div className="panel-subtitle">
-              TASK-071 stops at setup intent and disabled placeholders.
+              TASK-072 stops at setup intent and disabled placeholders.
             </div>
           </div>
-          <Wallet size={18} />
+          <Route size={18} />
         </div>
         <div className="panel-body capability-grid">
           <BoundaryCard
             icon={LinkIcon}
-            title="External sponsor identity"
-            copy="Use producer_ref and sponsor_ref for SaaS-facing setup; tenant_code remains internal."
+            title="External distributor identity"
+            copy="Use distributor_ref and organisation_ref for SaaS-facing setup; tenant_code remains internal."
           />
           <BoundaryCard
-            icon={BadgeDollarSign}
-            title="Funding is not active"
-            copy="No wallet, invoice, funding contract, budget, or reserve/release behavior is triggered."
+            icon={GitPullRequestArrow}
+            title="Routes are not active"
+            copy="No offer routes, referral links, acceptance, activation, or opportunity mutations are triggered."
           />
           <BoundaryCard
-            icon={Target}
-            title="Campaign role only"
-            copy="Campaign or opportunity ownership is captured as intent before future readiness and launch flows."
+            icon={Wallet}
+            title="Wallets are not created"
+            copy="No distributor wallet, commission, payout, fulfilment, settlement, or funding state is changed."
           />
         </div>
       </section>
@@ -314,7 +327,7 @@ export function ProducerSponsorOnboardingPage() {
           <div>
             <h2 className="panel-title">Next onboarding steps</h2>
             <div className="panel-subtitle">
-              Continue the visible product journey without production writes.
+              Continue the product journey without production writes.
             </div>
           </div>
           <CircleDashed size={18} />
@@ -404,7 +417,7 @@ function BoundaryCard({
   title,
   copy,
 }: {
-  icon: typeof Building2;
+  icon: typeof Store;
   title: string;
   copy: string;
 }) {

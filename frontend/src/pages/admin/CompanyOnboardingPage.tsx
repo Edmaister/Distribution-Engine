@@ -48,7 +48,7 @@ const futureJourneyLinks = [
   },
   {
     label: "Distributor onboarding",
-    path: "/distributor",
+    path: "/admin/onboarding/distributor",
     copy: "Invite distributors or partner admins into the demand side once the company shell is complete.",
   },
   {
