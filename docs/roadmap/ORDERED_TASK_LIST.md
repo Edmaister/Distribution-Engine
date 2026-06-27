@@ -1410,6 +1410,10 @@ Validation expectation: Add a docs checklist and, if practical, a small non-live
 Explicit non-goals: Do not run live smoke tests, inspect secrets, touch production data, add frontend work, mutate records, add schema, or unblock TASK-027/TASK-028.
 Definition of done: The team has a safe repeatable demo/readiness validation path for the read-only platform wave. Priority: P2.
 
+Status: Complete (2026-06-27).
+Finding: Added `docs/roadmap/OPERATOR_DEMO_READINESS_SMOKE_CHECKLIST.md` as a local/CI-safe read-only operator demo checklist. The checklist covers the operator control-plane BFF, admin outcome trace, admin liability projection, admin campaign readiness, admin link/code inspect, admin analytics, admin webhook event catalog, admin webhook payload preview, safe status helper validation, auth and tenant expectations, safe redaction behavior, no-mutation/no-money-movement guardrails, local placeholder-key curl examples, CI-safe pytest selections, demo prerequisites, and TASK-027/TASK-028 live DB verification blockers. No code, schema, migrations, DB access, secrets, live smoke tests, frontend, production data, or downstream roadmap work changed.
+Validation: Documentation/readback only. Confirmed checklist coverage for the required eight read-only surfaces, auth/tenant expectations, safe redaction behavior, no-mutation/no-money-movement guardrails, local/non-secret curl-style examples, CI-safe test selections, and TASK-027/TASK-028 blocked status. No backend/frontend tests were run because TASK-067 is documentation-only.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
