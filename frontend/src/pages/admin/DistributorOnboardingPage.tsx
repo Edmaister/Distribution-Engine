@@ -55,6 +55,11 @@ const nextJourneyLinks = [
     copy: "Review sponsor setup intent before connecting demand-side partners.",
   },
   {
+    label: "User & role setup",
+    path: "/admin/onboarding/members-roles",
+    copy: "Draft distributor or partner admin invite intent before portal access is live.",
+  },
+  {
     label: "Distributor portal",
     path: "/distributor",
     copy: "View the existing distributor-safe portal after onboarding data is mocked locally.",

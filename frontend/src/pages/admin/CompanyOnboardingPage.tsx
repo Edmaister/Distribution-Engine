@@ -52,6 +52,11 @@ const futureJourneyLinks = [
     copy: "Invite distributors or partner admins into the demand side once the company shell is complete.",
   },
   {
+    label: "User & role setup",
+    path: "/admin/onboarding/members-roles",
+    copy: "Draft invite, membership, and role-family intent without creating users or roles.",
+  },
+  {
     label: "Operator monitoring",
     path: "/admin",
     copy: "Return to read-only platform diagnostics while account lifecycle APIs remain future work.",
