@@ -62,8 +62,12 @@ async def test_distribution_admin_can_fetch_campaign_readiness(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
+    assert set(body) == {"status", "readiness", "guardrail"}
     assert body["readiness"]["readiness"] == "READY"
     assert body["guardrail"].startswith("Read-only admin campaign readiness")
+    assert "does not mutate campaigns" in body["guardrail"]
+    assert "funding" in body["guardrail"]
+    assert "settlement" in body["guardrail"]
     assert calls == [
         {
             "tenant_code": "FNB",
@@ -73,6 +77,54 @@ async def test_distribution_admin_can_fetch_campaign_readiness(monkeypatch):
             "include_evidence": True,
         }
     ]
+
+
+async def test_campaign_readiness_contract_preserves_safe_shape(monkeypatch):
+    async def fake_get_campaign_readiness(**kwargs):
+        return _readiness(
+            readiness="READY_WITH_WARNINGS",
+            warnings=[
+                {
+                    "code": "NO_ACTIVE_POLICY",
+                    "severity": "WARNING",
+                    "source": "marketing_campaign_policies",
+                    "message": "No active effective campaign policy was found.",
+                }
+            ],
+        )
+
+    monkeypatch.setattr(
+        admin_campaign_readiness,
+        "get_campaign_readiness",
+        fake_get_campaign_readiness,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=DISTRIBUTION_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            "/admin/campaigns/CAMP001/readiness",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body["readiness"]) == {
+        "readiness",
+        "can_proceed",
+        "operation",
+        "tenant_code",
+        "campaign_code",
+        "opportunity_id",
+        "blockers",
+        "warnings",
+        "unknowns",
+        "evidence",
+        "evaluated_at",
+    }
+    assert body["readiness"]["warnings"][0]["code"] == "NO_ACTIVE_POLICY"
+    assert "raw_ucn" not in str(body).lower()
+    assert "secret" not in str(body).lower()
 
 
 async def test_platform_admin_can_fetch_campaign_readiness(monkeypatch):
@@ -132,6 +184,48 @@ async def test_campaign_readiness_forwards_operation_scope(monkeypatch):
             "include_evidence": False,
         }
     ]
+
+
+async def test_campaign_readiness_can_return_compact_read_only_diagnostics(
+    monkeypatch,
+):
+    async def fake_get_campaign_readiness(**kwargs):
+        return {
+            **_readiness(readiness="UNKNOWN"),
+            "evidence": {},
+            "unknowns": [
+                {
+                    "code": "SOURCE_UNAVAILABLE",
+                    "severity": "UNKNOWN",
+                    "source": "distribution_opportunities",
+                    "message": "Opportunity source checks are unavailable.",
+                }
+            ],
+        }
+
+    monkeypatch.setattr(
+        admin_campaign_readiness,
+        "get_campaign_readiness",
+        fake_get_campaign_readiness,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=DISTRIBUTION_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            "/admin/campaigns/CAMP001/readiness",
+            params={
+                "tenant_code": "FNB",
+                "operation": "ROUTE_OPPORTUNITY",
+                "include_evidence": "false",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["readiness"]["readiness"] == "UNKNOWN"
+    assert body["readiness"]["evidence"] == {}
+    assert body["readiness"]["unknowns"][0]["code"] == "SOURCE_UNAVAILABLE"
 
 
 async def test_campaign_readiness_returns_401_without_credentials(monkeypatch):

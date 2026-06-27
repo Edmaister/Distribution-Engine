@@ -70,9 +70,32 @@ async def test_distribution_admin_can_inspect_link_code(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
+    assert set(body) == {"status", "link_code", "guardrail"}
     assert body["link_code"]["status"] == "ISSUED"
+    assert set(body["link_code"]) == {
+        "link_code_id",
+        "source_type",
+        "source",
+        "tenant_code",
+        "status",
+        "code",
+        "campaign",
+        "participant",
+        "attribution",
+        "metadata",
+        "evidence",
+        "missing_evidence",
+        "source_warnings",
+        "redactions",
+        "created_at",
+        "updated_at",
+        "inspected_at",
+    }
     assert body["link_code"]["evidence"]["referrer_ucn"] == "[REDACTED]"
+    assert "900001" not in str(body)
     assert body["guardrail"].startswith("Read-only admin link/code inspection")
+    assert "does not issue" in body["guardrail"]
+    assert "mutate" in body["guardrail"]
     assert calls == [
         {
             "tenant_code": "FNB",
@@ -103,6 +126,56 @@ async def test_platform_admin_can_inspect_link_code(monkeypatch):
         )
 
     assert response.status_code == 200
+
+
+async def test_link_code_inspect_contract_preserves_redactions_and_safe_shape(
+    monkeypatch,
+):
+    async def fake_inspect_link_code(**kwargs):
+        result = _link_code(status="ACTIVE")
+        result["source_type"] = "ROUTE_REFERRAL_LINK"
+        result["source"] = "distribution_route_referral_links"
+        result["code"] = None
+        result["participant"] = {
+            "participant_type": "DISTRIBUTOR",
+            "participant_ref": "DIST-1",
+            "source": "distribution_distributors",
+        }
+        result["attribution"] = {
+            "referral_track_id": "referral-safe-1",
+            "route_id": "route-safe-1",
+            "opportunity_id": "opportunity-safe-1",
+        }
+        result["evidence"] = {
+            "route_id": "route-safe-1",
+            "metadata": {"source": "portal"},
+            "referrer_ucn": "[REDACTED]",
+        }
+        result["redactions"] = ["referrer_ucn"]
+        return result
+
+    monkeypatch.setattr(admin_links, "inspect_link_code", fake_inspect_link_code)
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=DISTRIBUTION_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            "/admin/links/inspect",
+            params={
+                "tenant_code": "FNB",
+                "source_type": "ROUTE_REFERRAL_LINK",
+                "link_code_id": "route-safe-1:referral-safe-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["link_code"]["source_type"] == "ROUTE_REFERRAL_LINK"
+    assert body["link_code"]["status"] == "ACTIVE"
+    assert body["link_code"]["redactions"] == ["referrer_ucn"]
+    assert "raw_ucn" not in str(body).lower()
+    assert "provider_payload" not in str(body).lower()
+    assert "secret" not in str(body).lower()
 
 
 async def test_link_code_inspect_forwards_link_id_and_evidence_flag(monkeypatch):
@@ -249,6 +322,40 @@ async def test_link_code_inspect_preserves_missing_evidence_result(monkeypatch):
     body = response.json()
     assert body["link_code"]["status"] == "INVALID"
     assert body["link_code"]["missing_evidence"][0]["code"] == "SOURCE_NOT_FOUND"
+
+
+async def test_link_code_inspect_preserves_tenant_mismatch_diagnostic(monkeypatch):
+    async def fake_inspect_link_code(**kwargs):
+        result = _link_code(status="INVALID")
+        result["missing_evidence"] = [
+            {
+                "code": "TENANT_MISMATCH",
+                "severity": "BLOCKER",
+                "source": "marketing_campaigns",
+                "message": "Source evidence exists outside the requested tenant.",
+            }
+        ]
+        return result
+
+    monkeypatch.setattr(admin_links, "inspect_link_code", fake_inspect_link_code)
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=DISTRIBUTION_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            "/admin/links/inspect",
+            params={
+                "tenant_code": "FNB",
+                "source_type": "CAMPAIGN_CODE",
+                "code_or_ref": "CAMP001",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["link_code"]["status"] == "INVALID"
+    assert body["link_code"]["missing_evidence"][0]["code"] == "TENANT_MISMATCH"
+    assert "requested tenant" in body["link_code"]["missing_evidence"][0]["message"]
 
 
 async def test_link_code_inspect_preserves_unknown_source_warning(monkeypatch):

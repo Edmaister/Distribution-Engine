@@ -1394,6 +1394,10 @@ Validation expectation: Add targeted contract tests for successful response enve
 Explicit non-goals: Do not add frontend, new endpoint families, link issuing/resolution, campaign activation, schema, migrations, or live DB smoke tests.
 Definition of done: Release/demo-facing read-only diagnostics have stable tested API contracts before broader public API packaging. Priority: P2.
 
+Status: Complete (2026-06-27).
+Finding: Added tests-only API contract coverage for the read-only campaign readiness and link/code inspect diagnostics. The expanded tests lock stable response envelopes, distribution-admin/platform-admin access, adjacent-role and unauthenticated rejection, tenant-scope forwarding, operation/evidence flag forwarding, read-only guardrails, safe validation/404 envelopes, missing-evidence and unknown-source preservation, tenant mismatch diagnostics, redaction fields, and no raw private/provider/secret leakage in diagnostic responses. No route, service, schema, migration, campaign, policy, link/code, referral, attribution, reward, funding, fulfilment, settlement, audit, tenant, webhook, or production behavior changed.
+Validation: `python -m black test/api/test_campaign_readiness_api.py test/api/test_admin_links_api.py` passed using `.venv_codex`. `python -m ruff check test/api/test_campaign_readiness_api.py test/api/test_admin_links_api.py` passed with the existing top-level linter settings deprecation warning. `python -m pytest test/api/test_campaign_readiness_api.py test/api/test_admin_links_api.py --no-cov` passed with 22 tests. `python -m pytest test/test_campaign_readiness_service.py test/test_link_code_service.py --no-cov` passed with 27 tests. Full backend `python -m pytest --no-cov` passed with 1943 tests.
+
 ## TASK-067: Add operator demo readiness smoke checklist
 
 Linked enhancement: DLaaS-014; DLaaS-016; DLaaS-029
