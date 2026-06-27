@@ -1456,6 +1456,10 @@ Validation expectation: Add frontend tests for producer/sponsor persona copy, re
 Explicit non-goals: Do not create sponsor wallets, funding contracts, invoices, billing records, rewards, settlements, fulfilment records, or backend sponsor onboarding APIs.
 Definition of done: A producer/sponsor onboarding shell can be shown as part of the product journey without touching money or funding state. Priority: P1.
 
+Status: Complete (2026-06-28).
+Finding: Added a frontend-only producer/sponsor onboarding shell at `/admin/onboarding/producer-sponsor`. The shell captures producer/sponsor name, `external_tenant_ref`, `producer_ref`, `sponsor_ref`, `organisation_ref`, industry/vertical, funding model intention, producer admin contact, and campaign/opportunity role in local UI state; shows setup readiness for producer profile, external references, admin contact, funding-readiness placeholders, and blocked backend sponsor onboarding; keeps `tenant_code` internal; disables sponsor creation and funding configuration actions; links from company onboarding and navigation; and links onward to distributor setup and the existing producer workspace. No backend routes, schema, migrations, auth changes, DB access, secrets, sponsor wallets, funding contracts, invoices, billing records, rewards, settlements, fulfilment records, money movement, or downstream TASK-072 work changed.
+Validation: `npm.cmd test -- ProducerSponsorOnboardingPage.test.tsx CompanyOnboardingPage.test.tsx` passed with 6 tests. Full `npm.cmd test` passed with 37 tests across 13 files. `npm.cmd run build` passed. `npm.cmd run lint` passed with 0 errors and the existing 42 warnings in pre-existing frontend files. No backend tests were run because TASK-071 changed frontend files only.
+
 ## TASK-072: Add distributor onboarding UI shell
 
 Objective: Build a frontend shell for distributor/partner admin onboarding that captures distributor profile, distributor reference, channel/route intent, offer acceptance prerequisites, and portal access readiness.

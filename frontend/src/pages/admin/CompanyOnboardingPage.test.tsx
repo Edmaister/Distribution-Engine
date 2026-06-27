@@ -99,7 +99,7 @@ describe("CompanyOnboardingPage", () => {
 
     expect(
       screen.getByRole("link", { name: /Producer \/ sponsor onboarding/ }),
-    ).toHaveAttribute("href", "/sponsor");
+    ).toHaveAttribute("href", "/admin/onboarding/producer-sponsor");
     expect(
       screen.getByRole("link", { name: /Distributor onboarding/ }),
     ).toHaveAttribute("href", "/distributor");

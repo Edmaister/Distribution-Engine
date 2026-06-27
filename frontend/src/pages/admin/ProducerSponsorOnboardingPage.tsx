@@ -1,11 +1,12 @@
 import {
+  BadgeDollarSign,
   Building2,
   CheckCircle2,
   CircleDashed,
-  KeyRound,
   Link as LinkIcon,
   ShieldCheck,
-  Users,
+  Target,
+  Wallet,
 } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -13,14 +14,15 @@ import { StatusBadge } from "../../components/StatusBadge";
 import { SummaryItem } from "../../components/SummaryItem";
 
 type FormState = {
-  organisationName: string;
+  sponsorName: string;
   externalTenantRef: string;
+  producerRef: string;
+  sponsorRef: string;
   organisationRef: string;
-  country: string;
-  organisationType: string;
   industry: string;
+  fundingModelIntent: string;
   adminContact: string;
-  intendedRole: string;
+  campaignRole: string;
 };
 
 type ReadinessStep = {
@@ -30,70 +32,76 @@ type ReadinessStep = {
 };
 
 const initialState: FormState = {
-  organisationName: "",
+  sponsorName: "",
   externalTenantRef: "",
+  producerRef: "",
+  sponsorRef: "",
   organisationRef: "",
-  country: "",
-  organisationType: "Producer / sponsor",
   industry: "",
+  fundingModelIntent: "Budget owner, not funded yet",
   adminContact: "",
-  intendedRole: "Company admin",
+  campaignRole: "Campaign owner",
 };
 
-const futureJourneyLinks = [
+const nextJourneyLinks = [
   {
-    label: "Producer / sponsor onboarding",
-    path: "/admin/onboarding/producer-sponsor",
-    copy: "Continue with sponsor profile, funding-readiness placeholders, and campaign ownership context.",
+    label: "Company onboarding",
+    path: "/admin/onboarding/company",
+    copy: "Return to the organisation shell and external tenant boundary.",
   },
   {
     label: "Distributor onboarding",
     path: "/distributor",
-    copy: "Invite distributors or partner admins into the demand side once the company shell is complete.",
+    copy: "Continue to distributor setup once the producer/sponsor shell is ready.",
   },
   {
-    label: "Operator monitoring",
-    path: "/admin",
-    copy: "Return to read-only platform diagnostics while account lifecycle APIs remain future work.",
+    label: "Producer workspace",
+    path: "/sponsor",
+    copy: "View the existing producer workspace after onboarding data is mocked locally.",
   },
 ];
 
-export function CompanyOnboardingPage() {
+export function ProducerSponsorOnboardingPage() {
   const [form, setForm] = useState<FormState>(initialState);
   const requiredComplete = Boolean(
-    form.organisationName.trim() &&
-    form.externalTenantRef.trim() &&
-    form.organisationRef.trim() &&
-    form.country.trim() &&
-    form.adminContact.trim(),
+    form.sponsorName.trim() &&
+      form.externalTenantRef.trim() &&
+      form.producerRef.trim() &&
+      form.sponsorRef.trim() &&
+      form.organisationRef.trim() &&
+      form.adminContact.trim(),
   );
 
   const readinessSteps = useMemo<ReadinessStep[]>(
     () => [
       {
-        label: "Company profile",
-        copy: "Organisation name, country, type, and industry are captured locally for the onboarding shell.",
-        ready: Boolean(
-          form.organisationName.trim() &&
-          form.country.trim() &&
-          form.industry.trim(),
-        ),
+        label: "Producer profile",
+        copy: "Display name, industry, and campaign ownership intent are captured locally.",
+        ready: Boolean(form.sponsorName.trim() && form.industry.trim()),
       },
       {
-        label: "External identifiers",
-        copy: "`external_tenant_ref` and `organisation_ref` stay outside the internal tenant partition.",
+        label: "External references",
+        copy: "`external_tenant_ref`, `producer_ref`, `sponsor_ref`, and `organisation_ref` stay outside internal tenant partitioning.",
         ready: Boolean(
-          form.externalTenantRef.trim() && form.organisationRef.trim(),
+          form.externalTenantRef.trim() &&
+            form.producerRef.trim() &&
+            form.sponsorRef.trim() &&
+            form.organisationRef.trim(),
         ),
       },
       {
         label: "Admin contact",
-        copy: "Primary admin contact and intended role are ready for a future membership invite flow.",
-        ready: Boolean(form.adminContact.trim() && form.intendedRole.trim()),
+        copy: "Primary producer admin contact is ready for a future membership invite flow.",
+        ready: Boolean(form.adminContact.trim() && form.campaignRole.trim()),
       },
       {
-        label: "Backend account lifecycle",
-        copy: "Blocked until additive account, membership, and external-reference APIs are implemented.",
+        label: "Funding readiness",
+        copy: "Funding model intent is noted, but no wallet, funding contract, invoice, or budget record is created.",
+        ready: Boolean(form.fundingModelIntent.trim()),
+      },
+      {
+        label: "Backend sponsor onboarding",
+        copy: "Blocked until additive producer/sponsor onboarding APIs are implemented.",
         ready: false,
       },
     ],
@@ -110,42 +118,43 @@ export function CompanyOnboardingPage() {
     <>
       <section className="page-header">
         <div>
-          <div className="page-kicker">DLaaS onboarding - Company setup</div>
-          <h1 className="page-title">Company & organisation onboarding</h1>
+          <div className="page-kicker">DLaaS onboarding - Producer setup</div>
+          <h1 className="page-title">Producer & sponsor onboarding</h1>
           <p className="page-copy">
-            Capture the first company setup pass using external SaaS-facing
-            identifiers while account creation, memberships, and tenant-link
-            APIs remain future implementation work.
+            Capture producer and sponsor setup intent with external references
+            and funding-readiness placeholders. This is a frontend shell only;
+            no sponsor, wallet, billing, funding, or campaign records are
+            created.
           </p>
         </div>
         <StatusBadge label="Shell only" tone="warning" />
       </section>
 
       <section className="grid-3">
-        <SummaryItem label="Readiness" value={`${readyCount}/4`} />
-        <SummaryItem label="Create API" value="Not wired" />
+        <SummaryItem label="Readiness" value={`${readyCount}/5`} />
+        <SummaryItem label="Funding actions" value="Disabled" />
         <SummaryItem label="Internal tenant_code" value="Hidden" />
       </section>
 
       <section className="banner warning" role="note">
         <ShieldCheck size={18} />
         <div>
-          <strong>No records are created from this page.</strong>
+          <strong>No money or sponsor records are created from this page.</strong>
           <div className="table-subtext">
-            This shell uses local form state only. It does not call account,
-            tenant, membership, billing, or external-reference APIs.
+            This shell uses local form state only. It does not call sponsor
+            onboarding, funding, wallet, billing, fulfilment, settlement, or
+            campaign launch APIs.
           </div>
         </div>
       </section>
 
       <section className="grid-2">
-        <form className="panel" aria-label="Company onboarding shell">
+        <form className="panel" aria-label="Producer sponsor onboarding shell">
           <div className="panel-header">
             <div>
-              <h2 className="panel-title">Company profile</h2>
+              <h2 className="panel-title">Producer profile</h2>
               <div className="panel-subtitle">
-                External identifiers are captured before any internal tenant
-                mapping.
+                Safe setup fields for campaign ownership and sponsor identity.
               </div>
             </div>
             <Building2 size={18} />
@@ -153,17 +162,31 @@ export function CompanyOnboardingPage() {
           <div className="panel-body">
             <div className="grid-2">
               <TextField
-                label="Organisation name"
-                value={form.organisationName}
-                onChange={(value) => updateField("organisationName", value)}
-                placeholder="Acme Distribution Ltd"
+                label="Producer / sponsor name"
+                value={form.sponsorName}
+                onChange={(value) => updateField("sponsorName", value)}
+                placeholder="Acme Insurance Sponsors"
                 required
               />
               <TextField
                 label="external_tenant_ref"
                 value={form.externalTenantRef}
                 onChange={(value) => updateField("externalTenantRef", value)}
-                placeholder="acme-distribution"
+                placeholder="acme-insurance"
+                required
+              />
+              <TextField
+                label="producer_ref"
+                value={form.producerRef}
+                onChange={(value) => updateField("producerRef", value)}
+                placeholder="prod-acme-insurance"
+                required
+              />
+              <TextField
+                label="sponsor_ref"
+                value={form.sponsorRef}
+                onChange={(value) => updateField("sponsorRef", value)}
+                placeholder="spon-acme-insurance"
                 required
               />
               <TextField
@@ -174,71 +197,65 @@ export function CompanyOnboardingPage() {
                 required
               />
               <TextField
-                label="Country"
-                value={form.country}
-                onChange={(value) => updateField("country", value)}
-                placeholder="South Africa"
-                required
+                label="Industry / vertical"
+                value={form.industry}
+                onChange={(value) => updateField("industry", value)}
+                placeholder="Insurance, banking, retail"
               />
               <SelectField
-                label="Organisation type"
-                value={form.organisationType}
-                onChange={(value) => updateField("organisationType", value)}
+                label="Funding model intention"
+                value={form.fundingModelIntent}
+                onChange={(value) => updateField("fundingModelIntent", value)}
                 options={[
-                  "Producer / sponsor",
-                  "Distributor",
-                  "Partner",
-                  "Mixed account",
-                  "Platform operator",
+                  "Budget owner, not funded yet",
+                  "Prefunded campaign later",
+                  "Invoice-backed sponsor later",
+                  "Funding model undecided",
                 ]}
               />
               <TextField
-                label="Industry"
-                value={form.industry}
-                onChange={(value) => updateField("industry", value)}
-                placeholder="Banking, insurance, retail"
-              />
-              <TextField
-                label="Admin contact"
+                label="Producer admin contact"
                 value={form.adminContact}
                 onChange={(value) => updateField("adminContact", value)}
-                placeholder="ops@example.test"
+                placeholder="producer-admin@example.test"
                 required
               />
               <SelectField
-                label="Intended role"
-                value={form.intendedRole}
-                onChange={(value) => updateField("intendedRole", value)}
+                label="Campaign / opportunity role"
+                value={form.campaignRole}
+                onChange={(value) => updateField("campaignRole", value)}
                 options={[
-                  "Company admin",
-                  "Producer admin",
-                  "Distributor admin",
-                  "Partner admin",
-                  "Platform operator",
+                  "Campaign owner",
+                  "Opportunity sponsor",
+                  "Funding approver",
+                  "Reporting viewer",
                 ]}
               />
             </div>
             <div className="action-button-row">
               <button className="button" disabled type="button">
-                Create account later
+                Create sponsor later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Configure funding later
               </button>
               <span className={requiredComplete ? "muted" : "danger-text"}>
                 {requiredComplete
                   ? "Required shell fields are captured locally."
-                  : "Complete required shell fields before a future create flow."}
+                  : "Complete required shell fields before a future producer create flow."}
               </span>
             </div>
           </div>
         </form>
 
-        <section className="panel" aria-labelledby="readiness-heading">
+        <section className="panel" aria-labelledby="producer-readiness-heading">
           <div className="panel-header">
             <div>
-              <h2 className="panel-title" id="readiness-heading">
+              <h2 className="panel-title" id="producer-readiness-heading">
                 Setup readiness
               </h2>
               <div className="panel-subtitle">
-                Visible guardrails before producer, distributor, and role setup.
+                Producer setup guardrails before campaign and funding work.
               </div>
             </div>
             <StatusBadge
@@ -266,28 +283,28 @@ export function CompanyOnboardingPage() {
       <section className="panel">
         <div className="panel-header">
           <div>
-            <h2 className="panel-title">Identifier boundary</h2>
+            <h2 className="panel-title">Safe funding boundary</h2>
             <div className="panel-subtitle">
-              This shell follows the TASK-048 tenant identifier decision.
+              TASK-071 stops at setup intent and disabled placeholders.
             </div>
           </div>
-          <KeyRound size={18} />
+          <Wallet size={18} />
         </div>
         <div className="panel-body capability-grid">
           <BoundaryCard
             icon={LinkIcon}
-            title="External first"
-            copy="Use external_tenant_ref and organisation_ref in onboarding and future public/SaaS-facing flows."
+            title="External sponsor identity"
+            copy="Use producer_ref and sponsor_ref for SaaS-facing setup; tenant_code remains internal."
           />
           <BoundaryCard
-            icon={ShieldCheck}
-            title="tenant_code stays internal"
-            copy="Do not expose tenant_code as the primary product identifier in this company setup journey."
+            icon={BadgeDollarSign}
+            title="Funding is not active"
+            copy="No wallet, invoice, funding contract, budget, or reserve/release behavior is triggered."
           />
           <BoundaryCard
-            icon={Users}
-            title="Membership comes later"
-            copy="User invites, seats, role assignment, and tenant-link enforcement are TASK-073 and backend follow-up work."
+            icon={Target}
+            title="Campaign role only"
+            copy="Campaign or opportunity ownership is captured as intent before future readiness and launch flows."
           />
         </div>
       </section>
@@ -297,14 +314,13 @@ export function CompanyOnboardingPage() {
           <div>
             <h2 className="panel-title">Next onboarding steps</h2>
             <div className="panel-subtitle">
-              Links point to existing workspaces until the next shells are
-              built.
+              Continue the visible product journey without production writes.
             </div>
           </div>
           <CircleDashed size={18} />
         </div>
         <div className="panel-body route-list">
-          {futureJourneyLinks.map((item) => (
+          {nextJourneyLinks.map((item) => (
             <Link className="route-item" key={item.label} to={item.path}>
               <div>
                 <div className="route-name">{item.label}</div>
