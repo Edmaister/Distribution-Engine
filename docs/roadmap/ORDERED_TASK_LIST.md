@@ -1362,6 +1362,10 @@ Validation expectation: Add targeted API tests for authorized access, catalog re
 Explicit non-goals: Do not add event producers, delivery queueing, subscription enforcement, webhook signing changes, retry/replay behavior, frontend, schema, or migrations.
 Definition of done: Integrators and operators can inspect supported webhook event names safely without changing partner seam behavior. Priority: P1.
 
+Status: Complete (2026-06-27).
+Finding: Added a focused read-only `/admin/webhooks/event-catalog` endpoint backed by `services.webhook_event_catalog`. The endpoint lists safe catalog families and event types, supports optional family filtering, returns safe validation errors for unknown family filters, preserves admin/internal access boundaries, and does not validate subscriptions, build payloads, dispatch, queue, sign, retry, replay, deliver, persist webhook records, or change partner seam behavior. No schema, migrations, frontend, provider internals, secrets, raw payloads, subscription writes, delivery behavior, or webhook worker behavior changed.
+Validation: `python -m black apps/api/routers/admin_webhook_catalog.py apps/api/main.py test/api/test_admin_webhook_catalog_api.py` passed using `.venv_codex`. `python -m ruff check apps/api/routers/admin_webhook_catalog.py test/api/test_admin_webhook_catalog_api.py` passed with the existing top-level linter settings deprecation warning. `python -m pytest test/api/test_admin_webhook_catalog_api.py test/test_webhook_event_catalog.py --no-cov` passed with 43 tests. TASK-064-CI-FIX stabilized the unrelated date-sensitive active campaign-code fixture in `test/test_link_code_service.py` without changing production link/code expiry behavior; `python -m pytest test/test_link_code_service.py --no-cov` passed with 12 tests. Full backend `python -m pytest --no-cov` passed with 1930 tests.
+
 ## TASK-065: Add non-delivering webhook payload preview for campaign/outcome events
 
 Linked enhancement: DLaaS-013
