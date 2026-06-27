@@ -92,3 +92,155 @@ def test_webhook_event_catalog_api_fixture_has_no_unsafe_names():
     assert "ACCESS_TOKEN" not in rendered
     assert "RAW_PROVIDER_PAYLOAD" not in rendered
     assert "PARTNER_WEBHOOK_DELIVERIES" not in rendered
+
+
+async def test_admin_can_preview_campaign_webhook_payload():
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=SYSTEM_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            "/admin/webhooks/payload-preview",
+            params={
+                "event_type": catalog.CAMPAIGN_PUBLISHED,
+                "external_tenant_ref": "partner-fnb",
+                "subject_id": "campaign-safe-1",
+                "correlation_id": "corr-1",
+                "source_event_id": "source-1",
+                "idempotency_key": "campaign-preview-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["delivery_mode"] == "preview_only"
+    assert body["payload"]["event_type"] == catalog.CAMPAIGN_PUBLISHED
+    assert body["payload"]["event_family"] == "campaign"
+    assert body["payload"]["tenant"] == {"external_tenant_ref": "partner-fnb"}
+    assert body["payload"]["subject"] == {
+        "type": "campaign",
+        "id": "campaign-safe-1",
+    }
+    assert body["payload"]["correlation"]["correlation_id"] == "corr-1"
+    assert body["payload"]["correlation"]["source_event_id"] == "source-1"
+    assert body["payload"]["correlation"]["idempotency_key"] == "campaign-preview-1"
+    assert body["payload"]["metadata"] == {
+        "preview": True,
+        "delivery": "none",
+        "surface": "admin_webhook_payload_preview",
+    }
+    assert body["guardrail"].startswith("Non-delivering webhook payload preview")
+    assert "tenant_code" not in str(body).lower()
+
+
+async def test_admin_can_preview_outcome_webhook_payload_with_redactions():
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            "/admin/webhooks/payload-preview",
+            params=[
+                ("event_type", catalog.OUTCOME_COMPLETED),
+                ("external_tenant_ref", "partner-fnb"),
+                ("subject_id", "outcome-safe-1"),
+                ("redactions", "ucn"),
+                ("redactions", "raw_provider_payload"),
+            ],
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["payload"]["event_type"] == catalog.OUTCOME_COMPLETED
+    assert body["payload"]["event_family"] == "outcome"
+    assert body["payload"]["subject"] == {
+        "type": "outcome",
+        "id": "outcome-safe-1",
+    }
+    assert body["payload"]["redactions"] == ["raw_provider_payload", "ucn"]
+
+
+@pytest.mark.parametrize(
+    "event_type",
+    [
+        catalog.REWARD_APPLIED,
+        catalog.FULFILMENT_SUCCEEDED,
+        "UNKNOWN_EVENT",
+        "RAW_PROVIDER_PAYLOAD_FAILED",
+    ],
+)
+async def test_webhook_payload_preview_rejects_unsupported_or_unsafe_events(
+    event_type,
+):
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=SYSTEM_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            "/admin/webhooks/payload-preview",
+            params={
+                "event_type": event_type,
+                "external_tenant_ref": "partner-fnb",
+                "subject_id": "safe-subject-1",
+            },
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "validation_error",
+        "message": (
+            "Webhook payload preview only supports campaign and outcome events."
+        ),
+    }
+
+
+async def test_webhook_payload_preview_rejects_missing_external_tenant_ref():
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=SYSTEM_ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            "/admin/webhooks/payload-preview",
+            params={
+                "event_type": catalog.OUTCOME_COMPLETED,
+                "external_tenant_ref": " ",
+                "subject_id": "outcome-safe-1",
+            },
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "validation_error",
+        "message": "external_tenant_ref is required for webhook payloads.",
+    }
+
+
+async def test_webhook_payload_preview_returns_401_without_credentials():
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.get(
+            "/admin/webhooks/payload-preview",
+            params={
+                "event_type": catalog.OUTCOME_COMPLETED,
+                "external_tenant_ref": "partner-fnb",
+                "subject_id": "outcome-safe-1",
+            },
+        )
+
+    assert response.status_code == 401
+
+
+async def test_webhook_payload_preview_rejects_partner_identity():
+    async with AsyncClient(
+        app=app, base_url="http://test", headers={"x-api-key": "test-partner-key"}
+    ) as client:
+        response = await client.get(
+            "/admin/webhooks/payload-preview",
+            params={
+                "event_type": catalog.OUTCOME_COMPLETED,
+                "external_tenant_ref": "partner-fnb",
+                "subject_id": "outcome-safe-1",
+            },
+        )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == {
+        "code": "permission_denied",
+        "message": "API key is not authorised for webhook catalog access.",
+    }
