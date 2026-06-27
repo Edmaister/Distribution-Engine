@@ -1423,6 +1423,115 @@ Dependencies: TASK-061; TASK-062; TASK-063; TASK-064; TASK-065; TASK-066; TASK-0
 Finding: Added a concise demo-readiness checkpoint that identifies the controlled local/test/CI demo surface now available, separates demo-ready read-only diagnostics from backend-only capabilities that still need UI work, preserves no-mutation/no-money-movement guardrails, and keeps TASK-027/TASK-028 blocked pending approved safe read-only live DB verification access. The recommended next priority is frontend/demo UI first, then API hardening, live DB verification when access is approved, public partner API packaging, and webhook delivery hardening. No code, tests, schema, migrations, secrets, DB access, live smoke checks, or implementation tasks changed.
 Validation: Documentation/readback only. Confirmed the checkpoint covers what is demo-ready, read-only operator/admin endpoints, distributor/partner/customer-safe surfaces, services/helpers, safe non-money demo flows, backend-only UI gaps, external-demo risks, TASK-027/TASK-028 blockers, recommended next wave, and priority ordering. No backend/frontend tests were run because TASK-068 is documentation-only.
 
+## TASK-069: Define frontend onboarding and demo journey implementation wave
+
+Status: Complete (2026-06-27).
+Objective: Add the next ordered frontend/product implementation wave focused on onboarding and demo journeys for the DLaaS platform, before advanced operations or money movement.
+Type: Docs.
+Dependencies: TASK-068.
+Finding: Added TASK-070 through TASK-079 as a frontend/product journey wave. The wave prioritises company/organisation onboarding, producer/sponsor onboarding, distributor onboarding, user membership/role setup, campaign/opportunity setup, webhook/API credential setup, onboarding readiness, operator demo home, distributor safe status display, and an end-to-end demo smoke test. It covers platform operator, producer/sponsor/company admin, and distributor/partner admin personas while preserving TASK-027/TASK-028 as blocked and avoiding code, backend, migrations, secrets, DB access, and implementation work.
+Validation: Documentation/readback only. Confirmed the new wave covers the three required personas, prioritises onboarding before advanced operations, keeps live DB verification blocked, and changes no code files.
+
+## TASK-070: Add company and organisation onboarding UI shell
+
+Objective: Build a frontend shell for platform operators or company admins to capture the minimum organisation/account setup journey: company profile, organisation reference, intended tenant scope, primary contact placeholder, and setup progress.
+Type: Frontend.
+Dependencies: TASK-005; TASK-048; TASK-069.
+Stop conditions: Stop if implementation requires new account schema, account creation APIs, production onboarding writes, live DB access, secrets, billing setup, tenant-code renames, or membership enforcement not already available.
+Validation expectation: Add focused frontend tests for rendering, form state, required-field validation, external identifier language, disabled/placeholder submit behavior where no backend exists, and navigation from the demo home.
+Explicit non-goals: Do not implement account schema, migrations, backend onboarding writes, billing, plan selection, external-reference resolver behavior, or production tenant creation.
+Definition of done: A company/organisation onboarding shell exists that explains the target account setup flow without pretending backend account lifecycle primitives are complete. Priority: P1.
+
+## TASK-071: Add producer and sponsor onboarding UI shell
+
+Objective: Build a frontend shell for producer/sponsor setup that captures display profile, sponsor/producer reference, campaign ownership intent, funding-readiness placeholders, and safe next steps.
+Type: Frontend.
+Dependencies: TASK-070; TASK-008; TASK-069.
+Stop conditions: Stop if implementation requires funding account creation, sponsor billing mutation, wallet creation, live DB access, money movement, new backend schema, or production sponsor onboarding writes.
+Validation expectation: Add frontend tests for producer/sponsor persona copy, required setup sections, disabled money/funding actions, safe identifier usage, and navigation from company onboarding.
+Explicit non-goals: Do not create sponsor wallets, funding contracts, invoices, billing records, rewards, settlements, fulfilment records, or backend sponsor onboarding APIs.
+Definition of done: A producer/sponsor onboarding shell can be shown as part of the product journey without touching money or funding state. Priority: P1.
+
+## TASK-072: Add distributor onboarding UI shell
+
+Objective: Build a frontend shell for distributor/partner admin onboarding that captures distributor profile, distributor reference, channel/route intent, offer acceptance prerequisites, and portal access readiness.
+Type: Frontend.
+Dependencies: TASK-061; TASK-070; TASK-008; TASK-069.
+Stop conditions: Stop if implementation requires creating distributors, activating routes, accepting offers, creating wallets, mutating opportunities, live DB access, schema changes, or backend lifecycle commands.
+Validation expectation: Add frontend tests for distributor persona flow, profile/setup sections, safe reference language, inactive command buttons, and links to distributor portal/status surfaces.
+Explicit non-goals: Do not create distributor records, wallets, commissions, opportunities, offer routes, route links, backend APIs, schema, or lifecycle mutations.
+Definition of done: A distributor onboarding shell communicates setup status and next steps without changing distribution records. Priority: P1.
+
+## TASK-073: Add user invite, membership, and role assignment UI shell
+
+Objective: Build a frontend shell for inviting users and assigning role-family intent across platform operator, producer/sponsor/company admin, distributor/partner admin, finance, system, and support contexts.
+Type: Frontend.
+Dependencies: TASK-005; TASK-006; TASK-070; TASK-071; TASK-072; TASK-069.
+Stop conditions: Stop if implementation requires membership schema, invite APIs, auth helper changes, role enforcement changes, email delivery, secrets, live DB access, or production user mutation.
+Validation expectation: Add frontend tests for role-family options, permission-boundary warnings, disabled invite submission where no backend exists, validation of required fields, and no exposure of secrets or raw credentials.
+Explicit non-goals: Do not implement membership tables, invitation delivery, identity provider integration, auth/session changes, permission helper changes, or production user provisioning.
+Definition of done: A role setup shell shows how user membership will fit the onboarding journey while staying read-only/demo-safe. Priority: P1.
+
+## TASK-074: Add campaign and opportunity setup wizard shell
+
+Objective: Build a frontend wizard shell for configuring a campaign or distribution opportunity with product context, participant roles, link/code intent, readiness diagnostics, and go-live blocker preview.
+Type: Frontend.
+Dependencies: TASK-052; TASK-062; TASK-066; TASK-070; TASK-071; TASK-072; TASK-069.
+Stop conditions: Stop if implementation requires campaign creation, opportunity publication, route generation, link/code issuance, reward/funding mutation, schema changes, live DB access, or backend lifecycle commands.
+Validation expectation: Add frontend tests for wizard steps, readiness API integration where already available, safe validation/error display, disabled publish/go-live actions, and role-specific setup context.
+Explicit non-goals: Do not implement campaign CRUD, opportunity publication, link/code generation, reward rules, funding reservations, lifecycle activation, backend APIs, schema, or migrations.
+Definition of done: Operators can walk through a campaign/opportunity setup demo and see readiness diagnostics without launching anything. Priority: P1.
+
+## TASK-075: Add webhook and API credential setup screen
+
+Objective: Build a frontend screen for integration setup that explains API credential readiness, webhook event catalog discovery, non-delivering payload preview, callback URL placeholders, and safe credential handling.
+Type: Frontend.
+Dependencies: TASK-064; TASK-065; TASK-069.
+Stop conditions: Stop if implementation requires creating, rotating, revealing, storing, or validating real secrets; subscription writes; webhook delivery; signing; queueing; live DB access; or backend credential lifecycle APIs.
+Validation expectation: Add frontend tests for catalog display, payload preview integration, secret redaction copy, disabled credential mutation actions, safe placeholder handling, and no real secret examples.
+Explicit non-goals: Do not create API keys, rotate secrets, validate target URLs, create webhook subscriptions, dispatch deliveries, sign payloads, persist credentials, or change partner seam behavior.
+Definition of done: The demo can show how integrations will be configured using safe catalog and preview data without exposing or creating credentials. Priority: P1.
+
+## TASK-076: Add onboarding readiness checklist
+
+Objective: Build a frontend checklist that aggregates company, producer/sponsor, distributor, user/role, campaign/opportunity, link/code, analytics, and webhook setup readiness into a clear go-live readiness view.
+Type: Frontend.
+Dependencies: TASK-070; TASK-071; TASK-072; TASK-073; TASK-074; TASK-075; TASK-067; TASK-069.
+Stop conditions: Stop if implementation requires command execution, backend readiness mutations, live DB verification, production data, money movement, fulfilment, settlement, webhook delivery, or schema changes.
+Validation expectation: Add frontend tests for checklist status rendering, missing-step handling, safe blocker copy, TASK-027/TASK-028 blocker visibility, and no enabled go-live command when prerequisites are demo-only.
+Explicit non-goals: Do not implement real go-live activation, campaign publication, funding readiness commands, delivery checks, live DB verification, or production release signoff.
+Definition of done: Operators and company admins can see onboarding completeness and blockers before moving into monitoring. Priority: P1.
+
+## TASK-077: Add operator demo home linking onboarding to monitoring
+
+Objective: Build a frontend demo home for platform operators that links onboarding shells to existing monitoring/read-only diagnostics: control-plane BFF, outcome trace, liability projection, campaign readiness, link/code inspect, analytics, webhook catalog, and payload preview.
+Type: Frontend.
+Dependencies: TASK-049; TASK-050; TASK-052; TASK-054; TASK-063; TASK-064; TASK-065; TASK-076; TASK-069.
+Stop conditions: Stop if implementation requires backend route changes, command workflows, live DB access, production data, schema changes, secrets, money movement, or broad dashboard redesign unrelated to the demo journey.
+Validation expectation: Add frontend tests for navigation, persona sections, read-only route links, missing-data states, safe guardrail copy, and TASK-027/TASK-028 blocked-state display.
+Explicit non-goals: Do not build a generic dashboard, add command-center mutations, create new APIs, mutate operations, or automate live smoke checks.
+Definition of done: A platform operator can start a controlled demo from one place and move from onboarding to read-only monitoring surfaces. Priority: P1.
+
+## TASK-078: Enhance distributor portal safe status display
+
+Objective: Confirm and, if needed, update the distributor portal frontend to render the TASK-061 `distributor_safe_status` fields with safe labels, action categories, missing evidence, and no raw internal state.
+Type: Frontend.
+Dependencies: TASK-061; TASK-072; TASK-069.
+Stop conditions: Stop if implementation requires changing backend safe-status behavior, exposing raw provider/settlement/tenant/UCN fields, creating actions, mutating distributor records, schema changes, or live DB access.
+Validation expectation: Add or update distributor portal frontend tests for safe status display, action-required states, missing evidence, redaction/no-leakage, and backward-compatible rendering when the field is absent.
+Explicit non-goals: Do not change backend status projection, commission/wallet/payout logic, offer acceptance, route actions, settlement, fulfilment, funding, or distributor lifecycle behavior.
+Definition of done: Distributor-facing demo screens show safe status clearly without leaking internal status details. Priority: P1.
+
+## TASK-079: Add end-to-end onboarding demo journey smoke test
+
+Objective: Add a frontend-focused smoke test that walks the demo journey from operator home through company onboarding, producer/sponsor onboarding, distributor onboarding, role setup, campaign/opportunity setup, integration setup, readiness checklist, and read-only monitoring links.
+Type: Frontend/Tests.
+Dependencies: TASK-070; TASK-071; TASK-072; TASK-073; TASK-074; TASK-075; TASK-076; TASK-077; TASK-078; TASK-067; TASK-069.
+Stop conditions: Stop if the test requires live DB access, production data, secrets, real credential creation, webhook delivery, money movement, settlement/fulfilment commands, unstable external services, or implementation of missing backend write APIs.
+Validation expectation: Add a targeted frontend smoke test using mocked/local-safe API responses, then run the focused frontend test plus related page tests. Keep backend tests out of scope unless backend files change.
+Explicit non-goals: Do not create an external E2E environment, run live smoke tests, inspect secrets, mutate backend state, add backend routes, create migrations, or unblock TASK-027/TASK-028.
+Definition of done: The product team has a repeatable frontend demo journey that proves onboarding-first navigation before advanced operations. Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
