@@ -1,4 +1,10 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createMemoryRouter, Outlet, RouterProvider } from "react-router-dom";
@@ -14,6 +20,7 @@ import { OperatorDemoHomePage } from "./OperatorDemoHomePage";
 import { ProducerSponsorOnboardingPage } from "./ProducerSponsorOnboardingPage";
 import { WebhookApiSetupPage } from "./WebhookApiSetupPage";
 import { DistributorPortalPage } from "../distributor/DistributorPortalPage";
+import { getAdminOnboardingState } from "../../api/endpoints/adminOnboarding";
 import {
   acceptAdminRoute,
   activateAdminDistributor,
@@ -43,6 +50,10 @@ import {
 vi.mock("../../auth/useBackendSession", () => ({
   normalizeSessionRole: (role: unknown) => String(role || "").toLowerCase(),
   useBackendSession: () => ({ status: "idle", session: null }),
+}));
+
+vi.mock("../../api/endpoints/adminOnboarding", () => ({
+  getAdminOnboardingState: vi.fn(),
 }));
 
 vi.mock("../../api/endpoints/distribution", () => ({
@@ -88,24 +99,41 @@ vi.mock("../../api/endpoints/distribution", () => ({
   terminateAdminDistributor: vi.fn(),
 }));
 
+const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
 const mockedAcceptAdminRoute = vi.mocked(acceptAdminRoute);
 const mockedActivateAdminDistributor = vi.mocked(activateAdminDistributor);
-const mockedCreditAdminDistributorWallet = vi.mocked(creditAdminDistributorWallet);
+const mockedCreditAdminDistributorWallet = vi.mocked(
+  creditAdminDistributorWallet,
+);
 const mockedGetAdminComplianceReviews = vi.mocked(getAdminComplianceReviews);
 const mockedGetAdminDisputes = vi.mocked(getAdminDisputes);
-const mockedGetAdminDistributionAttributionExceptions = vi.mocked(getAdminDistributionAttributionExceptions);
-const mockedGetAdminDistributionDistributorReport = vi.mocked(getAdminDistributionDistributorReport);
-const mockedGetAdminDistributionGovernanceReport = vi.mocked(getAdminDistributionGovernanceReport);
-const mockedGetAdminDistributionOpportunityReport = vi.mocked(getAdminDistributionOpportunityReport);
-const mockedGetAdminDistributionOverview = vi.mocked(getAdminDistributionOverview);
+const mockedGetAdminDistributionAttributionExceptions = vi.mocked(
+  getAdminDistributionAttributionExceptions,
+);
+const mockedGetAdminDistributionDistributorReport = vi.mocked(
+  getAdminDistributionDistributorReport,
+);
+const mockedGetAdminDistributionGovernanceReport = vi.mocked(
+  getAdminDistributionGovernanceReport,
+);
+const mockedGetAdminDistributionOpportunityReport = vi.mocked(
+  getAdminDistributionOpportunityReport,
+);
+const mockedGetAdminDistributionOverview = vi.mocked(
+  getAdminDistributionOverview,
+);
 const mockedGetAdminDistributors = vi.mocked(getAdminDistributors);
-const mockedGetAdminDistributorWalletLedger = vi.mocked(getAdminDistributorWalletLedger);
+const mockedGetAdminDistributorWalletLedger = vi.mocked(
+  getAdminDistributorWalletLedger,
+);
 const mockedGetAdminDistributorWallets = vi.mocked(getAdminDistributorWallets);
 const mockedGetAdminGovernanceAudit = vi.mocked(getAdminGovernanceAudit);
 const mockedGetAdminOpportunities = vi.mocked(getAdminOpportunities);
 const mockedGetAdminRoutes = vi.mocked(getAdminRoutes);
 const mockedGetDistributorExperience = vi.mocked(getDistributorExperience);
-const mockedGetDistributorPortalWalletLedger = vi.mocked(getDistributorPortalWalletLedger);
+const mockedGetDistributorPortalWalletLedger = vi.mocked(
+  getDistributorPortalWalletLedger,
+);
 const mockedGetRecognitionBadges = vi.mocked(getRecognitionBadges);
 const mockedGetRecognitionMissions = vi.mocked(getRecognitionMissions);
 const mockedGetRecognitionProgress = vi.mocked(getRecognitionProgress);
@@ -209,11 +237,27 @@ function mockDistributionOperationsData() {
     disputes: [],
     governance_actions: [],
   });
-  mockedGetAdminDistributionAttributionExceptions.mockResolvedValue({ items: [], count: 0, completed_count: 0 });
-  mockedActivateAdminDistributor.mockResolvedValue({ distributor_id: "DIST-1", status: "ACTIVE" });
-  mockedPublishAdminOpportunity.mockResolvedValue({ opportunity_id: "OPP-1", opportunity_status: "PUBLISHED" });
-  mockedAcceptAdminRoute.mockResolvedValue({ route_id: "ROUTE-1", route_status: "ACCEPTED" });
-  mockedCreditAdminDistributorWallet.mockResolvedValue({ wallet_id: "WALLET-1", available_balance: "151.00" });
+  mockedGetAdminDistributionAttributionExceptions.mockResolvedValue({
+    items: [],
+    count: 0,
+    completed_count: 0,
+  });
+  mockedActivateAdminDistributor.mockResolvedValue({
+    distributor_id: "DIST-1",
+    status: "ACTIVE",
+  });
+  mockedPublishAdminOpportunity.mockResolvedValue({
+    opportunity_id: "OPP-1",
+    opportunity_status: "PUBLISHED",
+  });
+  mockedAcceptAdminRoute.mockResolvedValue({
+    route_id: "ROUTE-1",
+    route_status: "ACCEPTED",
+  });
+  mockedCreditAdminDistributorWallet.mockResolvedValue({
+    wallet_id: "WALLET-1",
+    available_balance: "151.00",
+  });
 }
 
 function mockDistributorPortalData() {
@@ -293,7 +337,11 @@ function mockDistributorPortalData() {
                     severity: "INFO",
                   },
                 ],
-                redactions: ["private_identifier", "provider_payload", "raw_status"],
+                redactions: [
+                  "private_identifier",
+                  "provider_payload",
+                  "raw_status",
+                ],
               },
             },
           ],
@@ -316,9 +364,17 @@ function mockDistributorPortalData() {
           },
         ],
       },
-      outcomeMoney: { status: "ok", data: { summary: { completed_outcome_count: 0, ready_count: 0 } } },
+      outcomeMoney: {
+        status: "ok",
+        data: { summary: { completed_outcome_count: 0, ready_count: 0 } },
+      },
       proof: { status: "ok", data: { steps: [] } },
-      channels: { status: "ok", data: { readiness: { status: "READY", summary: { ready_count: 2, count: 2 } } } },
+      channels: {
+        status: "ok",
+        data: {
+          readiness: { status: "READY", summary: { ready_count: 2, count: 2 } },
+        },
+      },
     },
   });
   mockedGetDistributorPortalWalletLedger.mockResolvedValue([]);
@@ -332,6 +388,24 @@ describe("onboarding demo journey smoke", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.spyOn(window, "confirm").mockReturnValue(true);
+    mockedGetAdminOnboardingState.mockResolvedValue({
+      status: "ok",
+      guardrail: "Read-only admin onboarding state.",
+      readiness: {
+        contract_version: "onboarding.v1",
+        overall_status: "GO_LIVE_DISABLED",
+        categories: [],
+        summary: {
+          ready_count: 0,
+          in_progress_count: 0,
+          blocked_count: 0,
+          missing_evidence_count: 0,
+          permission_limited_count: 0,
+          go_live_disabled_count: 1,
+          total_count: 1,
+        },
+      },
+    });
   });
 
   afterEach(() => {
@@ -342,46 +416,45 @@ describe("onboarding demo journey smoke", () => {
   it("links the operator demo home through onboarding, readiness, monitoring, and distributor status", () => {
     renderWorkspace(<OperatorDemoHomePage />);
 
-    expect(screen.getByRole("heading", { name: "Operator demo home" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Company \/ organisation onboarding/ })).toHaveAttribute(
-      "href",
-      "/admin/onboarding/company",
-    );
-    expect(screen.getByRole("link", { name: /Producer \/ sponsor onboarding/ })).toHaveAttribute(
-      "href",
-      "/admin/onboarding/producer-sponsor",
-    );
-    expect(screen.getByRole("link", { name: /Distributor onboarding/ })).toHaveAttribute(
-      "href",
-      "/admin/onboarding/distributor",
-    );
-    expect(screen.getByRole("link", { name: /User \/ member role setup/ })).toHaveAttribute(
-      "href",
-      "/admin/onboarding/members-roles",
-    );
-    expect(screen.getByRole("link", { name: /Campaign \/ opportunity setup/ })).toHaveAttribute(
-      "href",
-      "/admin/onboarding/campaign-opportunity",
-    );
-    expect(screen.getByRole("link", { name: /Webhook \/ API setup/ })).toHaveAttribute(
-      "href",
-      "/admin/onboarding/webhook-api",
-    );
-    expect(screen.getByRole("link", { name: /Onboarding readiness checklist/ })).toHaveAttribute(
-      "href",
-      "/admin/onboarding/readiness",
-    );
-    expect(screen.getByRole("link", { name: /Demand operations/ })).toHaveAttribute(
-      "href",
-      "/admin/distribution/operations",
-    );
-    expect(screen.getByRole("link", { name: /Distributor safe status/ })).toHaveAttribute(
-      "href",
-      "/distributor",
-    );
-    expect(screen.getByRole("button", { name: "Start live demo later" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Publish campaign later" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Deliver webhook later" })).toBeDisabled();
+    expect(
+      screen.getByRole("heading", { name: "Operator demo home" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Company \/ organisation onboarding/ }),
+    ).toHaveAttribute("href", "/admin/onboarding/company");
+    expect(
+      screen.getByRole("link", { name: /Producer \/ sponsor onboarding/ }),
+    ).toHaveAttribute("href", "/admin/onboarding/producer-sponsor");
+    expect(
+      screen.getByRole("link", { name: /Distributor onboarding/ }),
+    ).toHaveAttribute("href", "/admin/onboarding/distributor");
+    expect(
+      screen.getByRole("link", { name: /User \/ member role setup/ }),
+    ).toHaveAttribute("href", "/admin/onboarding/members-roles");
+    expect(
+      screen.getByRole("link", { name: /Campaign \/ opportunity setup/ }),
+    ).toHaveAttribute("href", "/admin/onboarding/campaign-opportunity");
+    expect(
+      screen.getByRole("link", { name: /Webhook \/ API setup/ }),
+    ).toHaveAttribute("href", "/admin/onboarding/webhook-api");
+    expect(
+      screen.getByRole("link", { name: /Onboarding readiness checklist/ }),
+    ).toHaveAttribute("href", "/admin/onboarding/readiness");
+    expect(
+      screen.getByRole("link", { name: /Demand operations/ }),
+    ).toHaveAttribute("href", "/admin/distribution/operations");
+    expect(
+      screen.getByRole("link", { name: /Distributor safe status/ }),
+    ).toHaveAttribute("href", "/distributor");
+    expect(
+      screen.getByRole("button", { name: "Start live demo later" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Publish campaign later" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Deliver webhook later" }),
+    ).toBeDisabled();
   });
 
   it("renders each onboarding shell with disabled live actions and forward journey links", () => {
@@ -432,9 +505,15 @@ describe("onboarding demo journey smoke", () => {
     routeSmokeCases.forEach(({ ui, heading, disabledAction, forwardLink }) => {
       renderWorkspace(ui);
 
-      expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: disabledAction })).toBeDisabled();
-      expect(screen.getByRole("link", { name: forwardLink })).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: heading }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: disabledAction }),
+      ).toBeDisabled();
+      expect(
+        screen.getByRole("link", { name: forwardLink }),
+      ).toBeInTheDocument();
 
       cleanup();
     });
@@ -443,39 +522,63 @@ describe("onboarding demo journey smoke", () => {
   it("renders the readiness checklist with setup links and disabled go-live controls", () => {
     renderWorkspace(<OnboardingReadinessChecklistPage />);
 
-    expect(screen.getByRole("heading", { name: "Onboarding readiness checklist" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Company onboarding/ })).toHaveAttribute(
-      "href",
-      "/admin/onboarding/company",
-    );
-    expect(screen.getByRole("link", { name: /Producer \/ sponsor onboarding/ })).toHaveAttribute(
-      "href",
-      "/admin/onboarding/producer-sponsor",
-    );
-    expect(screen.getByRole("link", { name: /Distributor onboarding/ })).toHaveAttribute(
-      "href",
-      "/admin/onboarding/distributor",
-    );
-    expect(screen.getByRole("link", { name: /User & role setup/ })).toHaveAttribute(
-      "href",
-      "/admin/onboarding/members-roles",
-    );
-    expect(screen.getByRole("button", { name: "Request go-live review later" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Mark ready for review later" })).toBeDisabled();
+    expect(
+      screen.getByRole("heading", { name: "Onboarding readiness checklist" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Company onboarding/ }),
+    ).toHaveAttribute("href", "/admin/onboarding/company");
+    expect(
+      screen.getByRole("link", { name: /Producer \/ sponsor onboarding/ }),
+    ).toHaveAttribute("href", "/admin/onboarding/producer-sponsor");
+    expect(
+      screen.getByRole("link", { name: /Distributor onboarding/ }),
+    ).toHaveAttribute("href", "/admin/onboarding/distributor");
+    expect(
+      screen.getByRole("link", { name: /User & role setup/ }),
+    ).toHaveAttribute("href", "/admin/onboarding/members-roles");
+    expect(
+      screen.getByRole("button", { name: "Request go-live review later" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Mark ready for review later" }),
+    ).toBeDisabled();
     expect(screen.getByText("No live commands")).toBeInTheDocument();
   });
 
   it("renders read-only operations monitoring without triggering guarded workflows", async () => {
     mockDistributionOperationsData();
 
-    const { container } = renderWorkspace(<DistributionCommandCentrePage mode="operations" />);
+    const { container } = renderWorkspace(
+      <DistributionCommandCentrePage mode="operations" />,
+    );
 
-    expect(await screen.findByRole("heading", { name: "Demand Operations" })).toBeInTheDocument();
-    expect(panel(container, "#distribution-distributor-lifecycle").getByText("Distributor lifecycle")).toBeInTheDocument();
-    expect(panel(container, "#distribution-wallet-operations").getByText("Distributor wallet operations")).toBeInTheDocument();
-    expect(panel(container, "#distribution-opportunity-actions").getByText("Opportunity actions")).toBeInTheDocument();
-    expect(panel(container, "#distribution-route-actions").getByText("Route actions")).toBeInTheDocument();
-    await waitFor(() => expect(mockedGetAdminDistributors).toHaveBeenCalledWith("FNB"));
+    expect(
+      await screen.findByRole("heading", { name: "Demand Operations" }),
+    ).toBeInTheDocument();
+    expect(
+      panel(container, "#distribution-distributor-lifecycle").getByText(
+        "Distributor lifecycle",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      panel(container, "#distribution-wallet-operations").getByText(
+        "Distributor wallet operations",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      panel(container, "#distribution-opportunity-actions").getByText(
+        "Opportunity actions",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      panel(container, "#distribution-route-actions").getByText(
+        "Route actions",
+      ),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(mockedGetAdminDistributors).toHaveBeenCalledWith("FNB"),
+    );
     expect(mockedActivateAdminDistributor).not.toHaveBeenCalled();
     expect(mockedCreditAdminDistributorWallet).not.toHaveBeenCalled();
     expect(mockedPublishAdminOpportunity).not.toHaveBeenCalled();
@@ -487,15 +590,25 @@ describe("onboarding demo journey smoke", () => {
     localStorage.setItem("amplifi.distributorPortal.distributor", "DIST-1");
     mockDistributorPortalData();
 
-    const { container } = renderWorkspace(<DistributorPortalPage mode="operations" />);
+    const { container } = renderWorkspace(
+      <DistributorPortalPage mode="operations" />,
+    );
 
-    expect(await screen.findByRole("heading", { name: "Earnings Operations" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Earnings Operations" }),
+    ).toBeInTheDocument();
 
     const safeStatusPanel = panel(container, "#distributor-safe-status");
-    expect(safeStatusPanel.getByText("Outcome progress status")).toBeInTheDocument();
-    expect(safeStatusPanel.getByText(/Your outcome status is in progress/)).toBeInTheDocument();
+    expect(
+      safeStatusPanel.getByText("Outcome progress status"),
+    ).toBeInTheDocument();
+    expect(
+      safeStatusPanel.getByText(/Your outcome status is in progress/),
+    ).toBeInTheDocument();
     expect(safeStatusPanel.queryByText(/tenant_code/i)).not.toBeInTheDocument();
-    expect(safeStatusPanel.queryByText(/provider_payload/i)).not.toBeInTheDocument();
+    expect(
+      safeStatusPanel.queryByText(/provider_payload/i),
+    ).not.toBeInTheDocument();
     expect(safeStatusPanel.queryByText(/raw_status/i)).not.toBeInTheDocument();
     expect(safeStatusPanel.queryByText(/ucn/i)).not.toBeInTheDocument();
   });

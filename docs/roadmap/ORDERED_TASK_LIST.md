@@ -1650,6 +1650,10 @@ Validation expectation: Add frontend tests for loading, success, partial/missing
 Explicit non-goals: Do not implement onboarding writes, go-live commands, account creation, campaign publication, credential lifecycle, webhook delivery, or money movement.
 Definition of done: Operator demo home can display real/read-only readiness state without losing demo-safe fallback behavior. Priority: P1.
 
+Status: Complete (2026-06-28). Output: `frontend/src/api/endpoints/adminOnboarding.ts`; `frontend/src/pages/admin/OperatorDemoHomePage.tsx`; `frontend/src/pages/admin/OperatorDemoHomePage.test.tsx`; `frontend/src/pages/admin/OnboardingDemoJourneySmoke.test.tsx`.
+Finding: Integrated the operator demo home with `GET /admin/onboarding/state` using external onboarding references only. The page now shows loading, read-only readiness summary/categories, explicit missing-evidence states, and a safe local demo fallback when the endpoint is unavailable. Existing demo navigation and disabled live-action guardrails remain intact, and the page avoids rendering `tenant_code` as a user-facing onboarding identifier.
+Validation: `npm.cmd test -- OperatorDemoHomePage.test.tsx OnboardingDemoJourneySmoke.test.tsx` passed with 17 tests. `npm.cmd test -- CompanyOnboardingPage.test.tsx ProducerSponsorOnboardingPage.test.tsx DistributorOnboardingPage.test.tsx MemberRoleOnboardingPage.test.tsx CampaignOpportunitySetupPage.test.tsx WebhookApiSetupPage.test.tsx OnboardingReadinessChecklistPage.test.tsx OperatorDemoHomePage.test.tsx OnboardingDemoJourneySmoke.test.tsx` passed with 40 tests. Full `npm.cmd test` passed with 73 tests. `npm.cmd run build` passed. `npm.cmd run lint` passed with the existing project warning baseline and no TASK-085 blocking lint errors. Targeted `npx.cmd prettier --check` passed for the changed frontend files.
+
 ## TASK-086: Design safe onboarding draft/save API boundary
 
 Objective: Document the smallest safe draft/save API boundary for future onboarding persistence, including idempotency, audit, validation, tenant/external reference resolution, and stop conditions.
