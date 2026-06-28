@@ -16,7 +16,13 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  getAdminOnboardingState,
+  type AdminOnboardingStateResponse,
+  type OnboardingReadinessCategory,
+} from "../../api/endpoints/adminOnboarding";
 import { StatusBadge } from "../../components/StatusBadge";
 import { SummaryItem } from "../../components/SummaryItem";
 
@@ -38,37 +44,54 @@ type DemoSection = {
   items: DemoItem[];
 };
 
+type ReadinessLoadState = "loading" | "success" | "fallback";
+
+const demoReadinessScope = {
+  external_tenant_ref: "demo-platform-operator",
+  organisation_ref: "org-demo",
+  producer_ref: "producer-demo",
+  sponsor_ref: "sponsor-demo",
+  distributor_ref: "distributor-demo",
+  campaign_code: "DEMO-CAMPAIGN",
+  opportunity_ref: "opportunity-demo",
+};
+
 const demoSections: DemoSection[] = [
   {
     id: "setup-journey",
     title: "Setup journey",
-    subtitle: "Draft the organisation, participants, and access model before readiness review.",
+    subtitle:
+      "Draft the organisation, participants, and access model before readiness review.",
     icon: Building2,
     items: [
       {
         title: "Company / organisation onboarding",
-        description: "Capture organisation_ref, external_tenant_ref, country, industry, and admin contact.",
+        description:
+          "Capture organisation_ref, external_tenant_ref, country, industry, and admin contact.",
         path: "/admin/onboarding/company",
         status: "Ready",
         icon: Building2,
       },
       {
         title: "Producer / sponsor onboarding",
-        description: "Draft producer_ref or sponsor_ref, ownership, funding intention, and campaign role.",
+        description:
+          "Draft producer_ref or sponsor_ref, ownership, funding intention, and campaign role.",
         path: "/admin/onboarding/producer-sponsor",
         status: "Ready",
         icon: Target,
       },
       {
         title: "Distributor onboarding",
-        description: "Draft distributor_ref, channel model, market, contact, and participation intent.",
+        description:
+          "Draft distributor_ref, channel model, market, contact, and participation intent.",
         path: "/admin/onboarding/distributor",
         status: "Ready",
         icon: Users,
       },
       {
         title: "User / member role setup",
-        description: "Review invite intent, participant type, role family, and access scope.",
+        description:
+          "Review invite intent, participant type, role family, and access scope.",
         path: "/admin/onboarding/members-roles",
         status: "Ready",
         icon: ShieldCheck,
@@ -78,26 +101,30 @@ const demoSections: DemoSection[] = [
   {
     id: "readiness-review",
     title: "Readiness review",
-    subtitle: "Connect setup inputs to campaign, integration, and demo-safe go-live evidence.",
+    subtitle:
+      "Connect setup inputs to campaign, integration, and demo-safe go-live evidence.",
     icon: CheckCircle2,
     items: [
       {
         title: "Campaign / opportunity setup",
-        description: "Review campaign_code, opportunity_ref, distribution model, outcome, reward, and funding intent.",
+        description:
+          "Review campaign_code, opportunity_ref, distribution model, outcome, reward, and funding intent.",
         path: "/admin/onboarding/campaign-opportunity",
         status: "Ready",
         icon: Target,
       },
       {
         title: "Webhook / API setup",
-        description: "Review callback placeholder, event categories, auth method intent, and payload format.",
+        description:
+          "Review callback placeholder, event categories, auth method intent, and payload format.",
         path: "/admin/onboarding/webhook-api",
         status: "Ready",
         icon: KeyRound,
       },
       {
         title: "Onboarding readiness checklist",
-        description: "See blockers, next actions, and disabled go-live controls in one review surface.",
+        description:
+          "See blockers, next actions, and disabled go-live controls in one review surface.",
         path: "/admin/onboarding/readiness",
         status: "Ready",
         icon: CheckCircle2,
@@ -107,7 +134,8 @@ const demoSections: DemoSection[] = [
   {
     id: "operational-monitoring",
     title: "Operational monitoring",
-    subtitle: "Move from setup to existing read-only operations and demand surfaces.",
+    subtitle:
+      "Move from setup to existing read-only operations and demand surfaces.",
     icon: Gauge,
     items: [
       {
@@ -119,21 +147,24 @@ const demoSections: DemoSection[] = [
       },
       {
         title: "Demand operations",
-        description: "Review distributor eligibility, producer demand, routing, wallets, and governance controls.",
+        description:
+          "Review distributor eligibility, producer demand, routing, wallets, and governance controls.",
         path: "/admin/distribution/operations",
         status: "Available",
         icon: Gauge,
       },
       {
         title: "Channel operations",
-        description: "Review messaging delivery, retries, and channel audit evidence.",
+        description:
+          "Review messaging delivery, retries, and channel audit evidence.",
         path: "/admin/channels",
         status: "Available",
         icon: RadioTower,
       },
       {
         title: "Event fabric",
-        description: "Review enterprise event intake and platform event visibility.",
+        description:
+          "Review enterprise event intake and platform event visibility.",
         path: "/admin/events",
         status: "Available",
         icon: GitBranch,
@@ -147,7 +178,8 @@ const demoSections: DemoSection[] = [
       },
       {
         title: "Distributor safe status",
-        description: "Review distributor-facing safe status without raw provider or settlement internals.",
+        description:
+          "Review distributor-facing safe status without raw provider or settlement internals.",
         path: "/distributor",
         status: "Available",
         icon: Users,
@@ -157,48 +189,56 @@ const demoSections: DemoSection[] = [
   {
     id: "diagnostics-support",
     title: "Diagnostics and support",
-    subtitle: "Track backend-ready diagnostics that still need dedicated frontend screens.",
+    subtitle:
+      "Track backend-ready diagnostics that still need dedicated frontend screens.",
     icon: Sparkles,
     items: [
       {
         title: "Operator control-plane BFF",
-        description: "Backend aggregate is available for read-only operator sections; dedicated UI is pending.",
+        description:
+          "Backend aggregate is available for read-only operator sections; dedicated UI is pending.",
         status: "UI pending",
         icon: Gauge,
       },
       {
         title: "Outcome trace",
-        description: "Admin API can inspect outcome evidence safely; dedicated frontend inspector is pending.",
+        description:
+          "Admin API can inspect outcome evidence safely; dedicated frontend inspector is pending.",
         status: "UI pending",
         icon: LinkIcon,
       },
       {
         title: "Liability projection",
-        description: "Admin API can project liability state without money movement; dedicated UI is pending.",
+        description:
+          "Admin API can project liability state without money movement; dedicated UI is pending.",
         status: "UI pending",
         icon: CircleDashed,
       },
       {
         title: "Campaign readiness",
-        description: "Admin API can expose readiness blockers and warnings; dedicated UI is pending.",
+        description:
+          "Admin API can expose readiness blockers and warnings; dedicated UI is pending.",
         status: "UI pending",
         icon: CheckCircle2,
       },
       {
         title: "Link/code diagnostics",
-        description: "Admin API can inspect safe link and code state; dedicated UI is pending.",
+        description:
+          "Admin API can inspect safe link and code state; dedicated UI is pending.",
         status: "UI pending",
         icon: LinkIcon,
       },
       {
         title: "Tenant-safe analytics",
-        description: "Admin API can provide safe aggregate analytics; dedicated report UI is pending.",
+        description:
+          "Admin API can provide safe aggregate analytics; dedicated report UI is pending.",
         status: "UI pending",
         icon: Activity,
       },
       {
         title: "Webhook catalog and payload preview",
-        description: "Admin APIs can list event types and build non-delivering previews; dedicated UI is pending.",
+        description:
+          "Admin APIs can list event types and build non-delivering previews; dedicated UI is pending.",
         status: "UI pending",
         icon: RadioTower,
       },
@@ -209,19 +249,22 @@ const demoSections: DemoSection[] = [
 const personaPaths = [
   {
     title: "Platform operator",
-    description: "Start setup, review readiness, then move into monitoring and support diagnostics.",
+    description:
+      "Start setup, review readiness, then move into monitoring and support diagnostics.",
     status: "Demo path",
     icon: ShieldCheck,
   },
   {
     title: "Producer / sponsor / company admin",
-    description: "Use external references, campaign setup intent, and readiness evidence without funding actions.",
+    description:
+      "Use external references, campaign setup intent, and readiness evidence without funding actions.",
     status: "Setup path",
     icon: Building2,
   },
   {
     title: "Distributor / partner admin",
-    description: "Use distributor onboarding and safe status surfaces without route activation or settlement commands.",
+    description:
+      "Use distributor onboarding and safe status surfaces without route activation or settlement commands.",
     status: "Portal path",
     icon: Users,
   },
@@ -238,10 +281,42 @@ function statusTone(status: DemoStatus) {
 }
 
 export function OperatorDemoHomePage() {
-  const readyLinks = demoSections.flatMap((section) => section.items).filter((item) => item.path).length;
+  const [readinessState, setReadinessState] =
+    useState<ReadinessLoadState>("loading");
+  const [readinessResponse, setReadinessResponse] =
+    useState<AdminOnboardingStateResponse | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getAdminOnboardingState(demoReadinessScope)
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        setReadinessResponse(response);
+        setReadinessState("success");
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setReadinessResponse(null);
+        setReadinessState("fallback");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const readyLinks = demoSections
+    .flatMap((section) => section.items)
+    .filter((item) => item.path).length;
   const pendingDiagnostics = demoSections
     .flatMap((section) => section.items)
     .filter((item) => item.status === "UI pending").length;
+  const readinessSummary = readinessResponse?.readiness.summary;
 
   return (
     <>
@@ -260,8 +335,86 @@ export function OperatorDemoHomePage() {
 
       <section className="grid-3">
         <SummaryItem label="Demo journey links" value={readyLinks} />
-        <SummaryItem label="Diagnostics UI pending" value={pendingDiagnostics} />
-        <SummaryItem label="Internal tenant_code" value="Hidden" />
+        <SummaryItem
+          label="Diagnostics UI pending"
+          value={pendingDiagnostics}
+        />
+        <SummaryItem label="Internal tenant identifier" value="Hidden" />
+      </section>
+
+      <section className="panel" aria-labelledby="read-only-readiness-heading">
+        <div className="panel-header">
+          <div>
+            <h2 className="panel-title" id="read-only-readiness-heading">
+              Read-only onboarding readiness
+            </h2>
+            <div className="panel-subtitle">
+              Hydrates from the admin onboarding state endpoint when available,
+              with local demo fallback preserved.
+            </div>
+          </div>
+          <StatusBadge
+            label={
+              readinessState === "loading"
+                ? "Loading"
+                : readinessState === "success"
+                  ? "Read-only state"
+                  : "Demo fallback"
+            }
+            tone={readinessState === "success" ? "success" : "info"}
+          />
+        </div>
+        <div className="panel-body">
+          {readinessState === "loading" ? (
+            <div className="banner info" role="status">
+              <CircleDashed size={18} />
+              <div>
+                <strong>Loading read-only readiness state.</strong>
+                <div className="table-subtext">
+                  The demo home is checking external onboarding references
+                  without enabling live actions.
+                </div>
+              </div>
+            </div>
+          ) : readinessState === "fallback" ? (
+            <div className="banner warning" role="status">
+              <ShieldCheck size={18} />
+              <div>
+                <strong>Using local demo fallback.</strong>
+                <div className="table-subtext">
+                  The read-only onboarding state endpoint is unavailable, so
+                  this page keeps the existing shell journey visible without
+                  attempting live setup.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="grid-3">
+                <SummaryItem
+                  label="Overall readiness"
+                  value={readinessResponse?.readiness.overall_status}
+                />
+                <SummaryItem
+                  label="Ready categories"
+                  value={readinessSummary?.ready_count ?? 0}
+                />
+                <SummaryItem
+                  label="Missing evidence"
+                  value={readinessSummary?.missing_evidence_count ?? 0}
+                />
+              </div>
+              <div className="route-list">
+                {readinessResponse?.readiness.categories.map((category) => (
+                  <ReadinessCategoryItem
+                    category={category}
+                    key={category.category}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </section>
 
       <section className="banner warning" role="note">
@@ -429,4 +582,42 @@ function DemoRouteItem({ item }: { item: DemoItem }) {
       {body}
     </div>
   );
+}
+
+function ReadinessCategoryItem({
+  category,
+}: {
+  category: OnboardingReadinessCategory;
+}) {
+  const label = category.safe_display_status?.label || category.status;
+  const goLiveEnabled = category.safe_display_status?.go_live_enabled === true;
+
+  return (
+    <article className="route-item">
+      <div>
+        <div className="route-name">{category.display_label}</div>
+        <div className="route-path">{category.evidence_summary}</div>
+        {category.blockers.length > 0 ? (
+          <div className="table-subtext">{category.blockers[0]}</div>
+        ) : null}
+        {!goLiveEnabled && category.next_actions.length > 0 ? (
+          <div className="table-subtext">{category.next_actions[0]}</div>
+        ) : null}
+      </div>
+      <StatusBadge label={label} tone={readinessStatusTone(category.status)} />
+    </article>
+  );
+}
+
+function readinessStatusTone(status: string) {
+  if (status === "READY") {
+    return "success";
+  }
+  if (status === "BLOCKED" || status === "GO_LIVE_DISABLED") {
+    return "warning";
+  }
+  if (status === "MISSING_EVIDENCE" || status === "PERMISSION_LIMITED") {
+    return "info";
+  }
+  return "neutral";
 }
