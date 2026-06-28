@@ -1615,6 +1615,7 @@ Validation: `python -m pytest test/test_onboarding_state_projection_service.py` 
 
 ## TASK-083: Add onboarding readiness aggregation service
 
+Status: Complete (2026-06-28). Output: `services/onboarding/onboarding_readiness_aggregation_service.py`; `test/test_onboarding_readiness_aggregation_service.py`.
 Objective: Aggregate onboarding state into readiness categories for organisation, producer/sponsor, distributor, members/roles, campaign/opportunity, webhook/API, security, and go-live controls.
 Type: Service.
 Dependencies: TASK-081; TASK-082; TASK-076.
@@ -1622,6 +1623,8 @@ Stop conditions: Stop if readiness evaluation requires production writes, comman
 Validation expectation: Add service tests for ready, in-progress, blocked, missing-evidence, permission-limited, and go-live-disabled states.
 Explicit non-goals: Do not implement real go-live activation, production release signoff, campaign publication, credential lifecycle, or money movement.
 Definition of done: Readiness can be derived by a reusable read-only service instead of hard-coded local frontend state. Priority: P1.
+Finding: Added a pure read-only onboarding readiness aggregation service that consumes the TASK-082 safe projection output and derives eight checklist categories: organisation profile, producer/sponsor setup, distributor setup, members and roles, campaign/opportunity setup, webhook/API setup, security and permissions, and go-live controls. The service supports `READY`, `IN_PROGRESS`, `BLOCKED`, `MISSING_EVIDENCE`, `PERMISSION_LIMITED`, and `GO_LIVE_DISABLED`; preserves external references; omits `tenant_code` from user-facing scope; carries safe source evidence references, bounded blockers, next actions, guardrails, source warnings, and redaction categories; keeps TASK-027/TASK-028 blockers visible; and keeps go-live disabled. No route, schema, migration, DB read/write, secret access, frontend feature, auth change, live mutation, webhook delivery, credential lifecycle, invite delivery, campaign publication, funding, wallet, fulfilment, settlement, retry, or money movement was added.
+Validation: `python -m pytest test/test_onboarding_readiness_aggregation_service.py test/test_onboarding_state_projection_service.py` passed with 12 tests. `python -m black --check services/onboarding/onboarding_readiness_aggregation_service.py test/test_onboarding_readiness_aggregation_service.py services/onboarding/onboarding_state_projection_service.py test/test_onboarding_state_projection_service.py` passed. `python -m ruff check services/onboarding/onboarding_readiness_aggregation_service.py test/test_onboarding_readiness_aggregation_service.py services/onboarding/onboarding_state_projection_service.py test/test_onboarding_state_projection_service.py` passed with only the existing top-level Ruff settings deprecation warning. TASK-027/TASK-028 remain blocked.
 
 ## TASK-084: Add read-only admin onboarding state endpoint
 
