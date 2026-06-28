@@ -1596,6 +1596,10 @@ Validation expectation: Add or update a focused contract doc and run readback ch
 Explicit non-goals: Do not implement persistence, draft saves, tenant creation, membership creation, credential lifecycle, campaign lifecycle commands, or migrations.
 Definition of done: Onboarding shells share a documented data contract that keeps `tenant_code` internal and external references explicit. Priority: P1.
 
+Status: Complete (2026-06-28).
+Finding: Added `docs/sa/ONBOARDING_DATA_CONTRACT.md` as the canonical onboarding data contract for company/organisation, producer/sponsor, distributor, member/invite/role, campaign/opportunity, webhook/API, and readiness checklist state. The contract maps the completed frontend shell fields to canonical field names, defines safe readiness/status labels, keeps `tenant_code` internal, makes `external_tenant_ref`, `organisation_ref`, `producer_ref`, `sponsor_ref`, `distributor_ref`, `opportunity_ref`, and `campaign_code` explicit, lists fields that must not be exposed externally, and defines the future read-only projection shape for TASK-082/TASK-083. No typed helpers, product code, backend routes, frontend features, schema, migrations, persistence, draft saves, account creation, invite delivery, credential lifecycle, webhook delivery, campaign publication, funding, wallet, fulfilment, settlement, retry, go-live activation, secrets, DB access, or money movement were added.
+Validation: Documentation/readback only. Confirmed only docs changed, all completed onboarding shells map to contract sections, `tenant_code` remains internal, external references are explicit, no live mutations are introduced, TASK-027/TASK-028 remain blocked, and no secrets, credentials, webhook delivery, funding, wallet movement, fulfilment, settlement, retry, invite delivery, campaign publication, go-live activation, or money movement is enabled.
+
 ## TASK-082: Add read-only onboarding state projection helper
 
 Objective: Add a read-only helper that projects onboarding state from available current sources and marks missing evidence explicitly for shell-only areas.
