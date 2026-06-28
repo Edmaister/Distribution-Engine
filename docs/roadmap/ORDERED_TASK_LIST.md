@@ -1568,6 +1568,10 @@ Validation expectation: Add a targeted frontend smoke test using mocked/local-sa
 Explicit non-goals: Do not create an external E2E environment, run live smoke tests, inspect secrets, mutate backend state, add backend routes, create migrations, or unblock TASK-027/TASK-028.
 Definition of done: The product team has a repeatable frontend demo journey that proves onboarding-first navigation before advanced operations. Priority: P1.
 
+Status: Complete (2026-06-28).
+Finding: Added a frontend TASK-079 smoke proof for the onboarding demo journey. The smoke coverage renders operator demo home links, company onboarding, producer/sponsor onboarding, distributor onboarding, member/role setup, campaign/opportunity setup, webhook/API setup, onboarding readiness, Distribution Command Centre operations, and distributor portal safe status using local shell state and mocked frontend API responses. Added `docs/roadmap/FRONTEND_ONBOARDING_DEMO_SMOKE_CHECKLIST_TASK_079.md` to document the repeatable demo path, no-mutation guardrails, validation commands, and the remaining TASK-027/TASK-028 live verification blockers. No backend routes, schema, migrations, secrets, DB access, auth changes, credential generation, webhook delivery, funding, fulfilment, settlement, retry, or money movement were added.
+Validation: `npm.cmd test -- OnboardingDemoJourneySmoke.test.tsx` passed with 5 tests. Related onboarding/demo/distribution/distributor tests passed with 36 tests across 10 files. Full `npm.cmd test` passed with 66 tests across 20 files. `npm.cmd run build` passed. `npm.cmd run lint` passed with 0 errors and the existing 42 warnings in pre-existing frontend files. No backend tests were run because TASK-079 changed frontend tests/docs only.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
