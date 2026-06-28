@@ -30,6 +30,7 @@ from apps.api.routers import admin_audit
 from apps.api.routers import admin_analytics
 from apps.api.routers import admin_campaign_readiness
 from apps.api.routers import admin_links
+from apps.api.routers import admin_onboarding
 from apps.api.routers import admin_outcomes
 from apps.api.routers import admin_webhook_catalog
 from apps.api.routers import admin_dlq_replay
@@ -517,6 +518,7 @@ app.include_router(admin_audit.router)
 app.include_router(admin_analytics.router)
 app.include_router(admin_campaign_readiness.router)
 app.include_router(admin_links.router)
+app.include_router(admin_onboarding.router)
 app.include_router(admin_outcomes.router)
 app.include_router(admin_webhook_catalog.router)
 app.add_middleware(RateLimitMiddleware)
