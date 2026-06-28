@@ -29,6 +29,11 @@ const MemberRoleOnboardingPage = lazy(() =>
     default: module.MemberRoleOnboardingPage,
   })),
 );
+const CampaignOpportunitySetupPage = lazy(() =>
+  import("../pages/admin/CampaignOpportunitySetupPage").then((module) => ({
+    default: module.CampaignOpportunitySetupPage,
+  })),
+);
 const ChannelOperationsPage = lazy(() =>
   import("../pages/admin/ChannelOperationsPage").then((module) => ({
     default: module.ChannelOperationsPage,
@@ -114,6 +119,10 @@ export function App() {
         <Route
           path="/admin/onboarding/members-roles"
           element={lazyWorkspace(<MemberRoleOnboardingPage />)}
+        />
+        <Route
+          path="/admin/onboarding/campaign-opportunity"
+          element={lazyWorkspace(<CampaignOpportunitySetupPage />)}
         />
         <Route path="/admin/health" element={lazyWorkspace(<HealthPage />)} />
         <Route path="/admin/audit" element={lazyWorkspace(<AdminAuditPage />)} />

@@ -60,6 +60,11 @@ const nextJourneyLinks = [
     copy: "Draft distributor or partner admin invite intent before portal access is live.",
   },
   {
+    label: "Campaign / opportunity setup",
+    path: "/admin/onboarding/campaign-opportunity",
+    copy: "Draft opportunity participation, routing, and link/code intent without activating routes.",
+  },
+  {
     label: "Distributor portal",
     path: "/distributor",
     copy: "View the existing distributor-safe portal after onboarding data is mocked locally.",

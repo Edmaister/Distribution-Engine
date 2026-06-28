@@ -58,6 +58,11 @@ const nextJourneyLinks = [
     copy: "Review distributor setup before distributor/partner admin invite intent.",
   },
   {
+    label: "Campaign / opportunity setup",
+    path: "/admin/onboarding/campaign-opportunity",
+    copy: "Draft campaign, opportunity, readiness, and go-live intent after access setup.",
+  },
+  {
     label: "Operator monitoring",
     path: "/admin",
     copy: "Return to read-only platform diagnostics while membership APIs remain future work.",
