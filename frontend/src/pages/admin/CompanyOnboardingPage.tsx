@@ -62,6 +62,11 @@ const futureJourneyLinks = [
     copy: "Draft campaign, opportunity, readiness, and go-live intent without launching anything.",
   },
   {
+    label: "Webhook & API setup",
+    path: "/admin/onboarding/webhook-api",
+    copy: "Draft credential, callback, event catalog, and payload preview intent without creating secrets.",
+  },
+  {
     label: "Operator monitoring",
     path: "/admin",
     copy: "Return to read-only platform diagnostics while account lifecycle APIs remain future work.",

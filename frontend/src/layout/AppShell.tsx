@@ -24,6 +24,10 @@ const titles: Record<string, [string, string]> = {
     "Campaign Setup",
     "Campaign, opportunity, readiness, and go-live shell",
   ],
+  "/admin/onboarding/webhook-api": [
+    "Webhook & API Setup",
+    "Credential, callback, catalog, and payload preview shell",
+  ],
   "/admin/health": ["Runtime Health", "Platform readiness and dependency signals"],
   "/admin/audit": ["Trust & Audit", "Platform-sensitive action visibility"],
   "/admin/channels": ["Channel Operations", "Messaging delivery, retries, and channel audit evidence"],

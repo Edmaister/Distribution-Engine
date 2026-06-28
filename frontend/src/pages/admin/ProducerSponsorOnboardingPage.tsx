@@ -65,6 +65,11 @@ const nextJourneyLinks = [
     copy: "Draft campaign ownership, outcome, reward, and funding intent without launching anything.",
   },
   {
+    label: "Webhook & API setup",
+    path: "/admin/onboarding/webhook-api",
+    copy: "Draft API environment, callback, event catalog, and payload preview intent without credentials.",
+  },
+  {
     label: "Producer workspace",
     path: "/sponsor",
     copy: "View the existing producer workspace after onboarding data is mocked locally.",

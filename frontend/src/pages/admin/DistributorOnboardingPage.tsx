@@ -65,6 +65,11 @@ const nextJourneyLinks = [
     copy: "Draft opportunity participation, routing, and link/code intent without activating routes.",
   },
   {
+    label: "Webhook & API setup",
+    path: "/admin/onboarding/webhook-api",
+    copy: "Draft integration callback and event catalog intent without webhook subscriptions or secrets.",
+  },
+  {
     label: "Distributor portal",
     path: "/distributor",
     copy: "View the existing distributor-safe portal after onboarding data is mocked locally.",

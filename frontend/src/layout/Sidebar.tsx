@@ -37,6 +37,7 @@ const sections = [
       { to: "/partner", label: "Partner Integration", icon: KeyRound, sub: "Connect" },
       { to: "/admin/onboarding/producer-sponsor", label: "Producer Onboarding", icon: Building2, sub: "Setup" },
       { to: "/admin/onboarding/campaign-opportunity", label: "Campaign Setup", icon: Target, sub: "Wizard" },
+      { to: "/admin/onboarding/webhook-api", label: "Webhook & API Setup", icon: KeyRound, sub: "Safe" },
       { to: "/sponsor", label: "Producer Workspace", icon: Building2, sub: "Supply" },
       { to: "/sponsor/operations", label: "Producer Operations", icon: GitPullRequestArrow, sub: "Ops" },
       { to: "/admin/billing", label: "Funding Spine", icon: BadgeDollarSign, sub: "Fund" },
