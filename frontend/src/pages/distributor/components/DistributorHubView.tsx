@@ -282,6 +282,7 @@ function ReferralTrackerRow({ row }: { row: Record<string, unknown> }) {
   const progress = Math.max(0, Math.min(100, numberValue(getValue(row, ["progress_percent"], "0"))));
   const title = getValue(row, ["opportunity_title", "opportunity_code", "campaign_code"], "Referral journey");
   const trackId = getValue(row, ["referral_track_id"], "-");
+  const safeStatus = distributorSafeStatus(row);
 
   return (
     <div className="referral-tracker-row">
@@ -290,11 +291,11 @@ function ReferralTrackerRow({ row }: { row: Record<string, unknown> }) {
       </div>
       <div>
         <strong>{title}</strong>
-        <p>{conversionNextStep(row)}</p>
+        <p>{safeStatus.next}</p>
         <span className="mono">{trackId}</span>
       </div>
       <div className="referral-progress">
-        <span>{progress}%</span>
+        <StatusBadge label={safeStatus.label} tone={safeStatus.tone} />
         <div>
           <i style={{ width: `${progress}%` }} />
         </div>
@@ -365,6 +366,52 @@ function conversionNextStep(row: Record<string, unknown>): string {
     return explicit;
   }
   return "Continue customer journey";
+}
+
+function distributorSafeStatus(row: Record<string, unknown>): {
+  label: string;
+  next: string;
+  tone: "success" | "warning" | "danger" | "info" | "neutral";
+} {
+  const safeStatus = getNestedValue(row, ["distributor_safe_status"], null);
+  if (safeStatus && typeof safeStatus === "object") {
+    const status = getValue(safeStatus as Record<string, unknown>, ["status"], "UNAVAILABLE");
+    return {
+      label: getValue(safeStatus as Record<string, unknown>, ["label"], statusLabel(status)),
+      next: getValue(safeStatus as Record<string, unknown>, ["what_happens_next"], conversionNextStep(row)),
+      tone: safeStatusTone(status),
+    };
+  }
+
+  return {
+    label: getValue(row, ["is_complete"], "false") === "true" ? "Fulfilled" : "Unavailable",
+    next:
+      getValue(row, ["is_complete"], "false") === "true"
+        ? "No action is required."
+        : "Safe status is not available yet.",
+    tone: getValue(row, ["is_complete"], "false") === "true" ? "success" : "warning",
+  };
+}
+
+function safeStatusTone(status: string): "success" | "warning" | "danger" | "info" | "neutral" {
+  if (["FULFILLED", "SETTLED", "APPROVED", "QUALIFIED"].includes(status)) {
+    return "success";
+  }
+  if (["PENDING", "IN_PROGRESS"].includes(status)) {
+    return "info";
+  }
+  if (["ACTION_REQUIRED", "UNAVAILABLE", "ADJUSTED"].includes(status)) {
+    return "warning";
+  }
+  return "neutral";
+}
+
+function statusLabel(status: string): string {
+  return status
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function numberValue(value: unknown): number {
