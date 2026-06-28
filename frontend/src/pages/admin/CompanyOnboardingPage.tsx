@@ -57,6 +57,11 @@ const futureJourneyLinks = [
     copy: "Draft invite, membership, and role-family intent without creating users or roles.",
   },
   {
+    label: "Campaign / opportunity setup",
+    path: "/admin/onboarding/campaign-opportunity",
+    copy: "Draft campaign, opportunity, readiness, and go-live intent without launching anything.",
+  },
+  {
     label: "Operator monitoring",
     path: "/admin",
     copy: "Return to read-only platform diagnostics while account lifecycle APIs remain future work.",

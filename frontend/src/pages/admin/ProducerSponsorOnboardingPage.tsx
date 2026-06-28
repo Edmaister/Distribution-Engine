@@ -60,6 +60,11 @@ const nextJourneyLinks = [
     copy: "Draft producer admin invite and role-family intent without provisioning access.",
   },
   {
+    label: "Campaign / opportunity setup",
+    path: "/admin/onboarding/campaign-opportunity",
+    copy: "Draft campaign ownership, outcome, reward, and funding intent without launching anything.",
+  },
+  {
     label: "Producer workspace",
     path: "/sponsor",
     copy: "View the existing producer workspace after onboarding data is mocked locally.",

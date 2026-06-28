@@ -116,6 +116,9 @@ describe("MemberRoleOnboardingPage", () => {
       screen.getByRole("link", { name: /Distributor onboarding/ }),
     ).toHaveAttribute("href", "/admin/onboarding/distributor");
     expect(
+      screen.getByRole("link", { name: /Campaign \/ opportunity setup/ }),
+    ).toHaveAttribute("href", "/admin/onboarding/campaign-opportunity");
+    expect(
       screen.getByRole("link", { name: /Operator monitoring/ }),
     ).toHaveAttribute("href", "/admin");
   });
