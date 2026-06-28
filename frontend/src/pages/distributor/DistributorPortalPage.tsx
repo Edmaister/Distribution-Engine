@@ -322,6 +322,15 @@ export function DistributorPortalPage({ mode = "hub" }: { mode?: DistributorPage
   const attributedConversions = Number(getNestedValue(conversions, ["attributed_count"], conversionRows.filter((row) => getValue(row, ["route_id"], "")).length));
   const unlinkedConversions = Number(getNestedValue(conversions, ["unlinked_count"], Math.max(conversionRows.length - attributedConversions, 0)));
   const conversionAttributionRate = formatPercent(getNestedValue(conversions, ["attribution_rate"], "0.0000"));
+  const safeStatusSummary = getDistributorSafeStatusSummary({
+    conversionRows,
+    profile,
+    offers,
+    performance,
+    wallets,
+    attributedConversions,
+    unlinkedConversions,
+  });
   const offerGuard = getOfferDecisionGuardrail({ selectedOffer, selectedOfferStatus, actionLoading });
   const linkGuard = getConversionLinkGuardrail({
     selectedOffer: selectedAcceptedOffer,
@@ -571,6 +580,8 @@ export function DistributorPortalPage({ mode = "hub" }: { mode?: DistributorPage
           />
 
           <InsuranceJourneyProofPanel proof={insuranceProof} role="distributor" />
+
+          <DistributorSafeStatusPanel summary={safeStatusSummary} />
 
           <section className="panel" id="distributor-channel-intelligence">
             <div className="panel-header">
@@ -830,12 +841,9 @@ export function DistributorPortalPage({ mode = "hub" }: { mode?: DistributorPage
                 },
                 {
                   key: "state",
-                  header: "State",
+                  header: "Safe status",
                   render: (row) => (
-                    <StatusBadge
-                      label={getValue(row, ["is_complete"], "false") === "true" ? "Complete" : getValue(row, ["status"], "In progress")}
-                      tone={getValue(row, ["is_complete"], "false") === "true" ? "success" : statusTone(getValue(row, ["status"], "In progress"))}
-                    />
+                    <ConversionSafeStatus row={row} />
                   ),
                 },
               ]}
@@ -1062,6 +1070,348 @@ export function DistributorPortalPage({ mode = "hub" }: { mode?: DistributorPage
       ) : null}
     </>
   );
+}
+
+type DistributorSafeStatusItem = {
+  title: string;
+  status: string;
+  label: string;
+  summary: string;
+  next: string;
+  actionCategory: string;
+  sourceFamilies: string[];
+  sourceConfidence: string;
+  missingEvidence: Record<string, unknown>[];
+  tone: BadgeTone;
+};
+
+function DistributorSafeStatusPanel({ summary }: { summary: DistributorSafeStatusItem[] }) {
+  return (
+    <section className="panel" id="distributor-safe-status">
+      <div className="panel-header">
+        <div>
+          <PanelTitle
+            help="Distributor-safe status uses role-scoped projection fields where available. It hides raw tenant, provider, funding, settlement, audit, and private customer details."
+            title="Distributor safe status"
+          />
+          <div className="panel-subtitle">
+            Partner-safe onboarding, participation, route, outcome, commission, and support signals.
+          </div>
+        </div>
+        <StatusBadge
+          label={summary.some((item) => item.status === "ACTION_REQUIRED") ? "Action required" : "Safe view"}
+          tone={summary.some((item) => item.status === "ACTION_REQUIRED") ? "warning" : "success"}
+        />
+      </div>
+      <div className="panel-body route-list">
+        {summary.map((item) => (
+          <div className="route-item" key={item.title}>
+            <div>
+              <div className="route-name">{item.title}</div>
+              <div className="route-path">{item.summary}</div>
+              <div className="route-path">{item.next}</div>
+              <div className="table-subtext">
+                Action: {safeDisplay(item.actionCategory)} | Source:{" "}
+                {item.sourceFamilies.length ? item.sourceFamilies.map(safeDisplay).join(", ") : "safe projection"} | Confidence:{" "}
+                {safeDisplay(item.sourceConfidence)}
+              </div>
+              {item.missingEvidence.length ? (
+                <div className="table-subtext">
+                  Missing evidence:{" "}
+                  {item.missingEvidence
+                    .map((evidence) =>
+                      [
+                        safeDisplay(getNestedValue(evidence, ["section"], "unknown")),
+                        safeDisplay(getNestedValue(evidence, ["code"], "NO_SOURCE_EVIDENCE")),
+                        safeDisplay(getNestedValue(evidence, ["severity"], "INFO")),
+                      ].join(" / "),
+                    )
+                    .join("; ")}
+                </div>
+              ) : null}
+            </div>
+            <StatusBadge label={item.label} tone={item.tone} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ConversionSafeStatus({ row }: { row: Record<string, unknown> }) {
+  const item = conversionSafeStatusItem(row);
+  return (
+    <div>
+      <StatusBadge label={item.label} tone={item.tone} />
+      <div className="table-subtext">{item.next}</div>
+      {item.missingEvidence.length ? (
+        <div className="table-subtext">
+          Missing evidence:{" "}
+          {item.missingEvidence
+            .map((evidence) => safeDisplay(getNestedValue(evidence, ["code"], "NO_SOURCE_EVIDENCE")))
+            .join(", ")}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function getDistributorSafeStatusSummary({
+  conversionRows,
+  profile,
+  offers,
+  performance,
+  wallets,
+  attributedConversions,
+  unlinkedConversions,
+}: {
+  conversionRows: Record<string, unknown>[];
+  profile: unknown;
+  offers: Record<string, unknown>[];
+  performance: unknown;
+  wallets: Record<string, unknown>[];
+  attributedConversions: number;
+  unlinkedConversions: number;
+}): DistributorSafeStatusItem[] {
+  const conversionItems = conversionRows.map(conversionSafeStatusItem);
+  const firstAction = conversionItems.find((item) => item.status === "ACTION_REQUIRED");
+  const firstMissing = conversionItems.find((item) => item.missingEvidence.length);
+  const completed = conversionItems.filter((item) => item.status === "FULFILLED").length;
+  const inProgress = conversionItems.filter((item) => item.status === "IN_PROGRESS").length;
+  const actionRequired = conversionItems.filter((item) => item.status === "ACTION_REQUIRED").length;
+  const distributorStatus = String(getNestedValue(profile, ["status"], "") || "");
+  const routed = offers.filter((offer) => getValue(offer, ["route_status", "status"]) === "ROUTED").length;
+  const accepted = Number(getNestedValue(performance, ["accepted_count"], 0)) || 0;
+  const commissionTotal = numberValue(getNestedValue(performance, ["total_commission_amount"], "0"));
+  const availableBalance = numberValue(getNestedValue(performance, ["wallet_available_balance"], "0"));
+
+  return [
+    {
+      title: "Distributor onboarding status",
+      ...buildLocalSafeStatus({
+        status: distributorStatus === "ACTIVE" ? "APPROVED" : distributorStatus ? "ACTION_REQUIRED" : "UNAVAILABLE",
+        label: distributorStatus === "ACTIVE" ? "Ready" : distributorStatus ? "Needs review" : "Unavailable",
+        summary:
+          distributorStatus === "ACTIVE"
+            ? "Distributor profile is active and can participate in visible opportunities."
+            : distributorStatus
+              ? "Distributor profile needs support review before new participation is assumed."
+              : "Distributor profile status is not available in this response.",
+        next:
+          distributorStatus === "ACTIVE"
+            ? "No distributor profile action is required."
+            : "Confirm onboarding status with support before treating this distributor as ready.",
+        actionCategory: distributorStatus === "ACTIVE" ? "NONE" : "COMPLETE_PROFILE",
+        sourceFamilies: ["profile"],
+        sourceConfidence: distributorStatus ? "MEDIUM" : "LOW",
+      }),
+    },
+    {
+      title: "Campaign / opportunity participation status",
+      ...buildLocalSafeStatus({
+        status: accepted > 0 ? "APPROVED" : routed > 0 ? "PENDING" : "UNAVAILABLE",
+        label: accepted > 0 ? "Participating" : routed > 0 ? "Review offers" : "Unavailable",
+        summary:
+          accepted > 0
+            ? `${accepted} accepted route${accepted === 1 ? "" : "s"} can support active distribution work.`
+            : routed > 0
+              ? `${routed} routed offer${routed === 1 ? "" : "s"} need a visible decision.`
+              : "No routed or accepted opportunities were returned for this distributor.",
+        next:
+          routed > 0 && accepted === 0
+            ? "Review routed offers in the offer decision panel."
+            : "Monitor opportunities as producer demand changes.",
+        actionCategory: routed > 0 && accepted === 0 ? "ACCEPT_OFFER" : "NONE",
+        sourceFamilies: ["campaign"],
+        sourceConfidence: offers.length ? "MEDIUM" : "LOW",
+      }),
+    },
+    {
+      title: "Route / link / code readiness status",
+      ...buildLocalSafeStatus({
+        status: unlinkedConversions > 0 ? "PENDING" : attributedConversions > 0 ? "APPROVED" : "UNAVAILABLE",
+        label: unlinkedConversions > 0 ? "Needs link" : attributedConversions > 0 ? "Linked" : "Unavailable",
+        summary:
+          unlinkedConversions > 0
+            ? `${unlinkedConversions} customer journey${unlinkedConversions === 1 ? "" : "ies"} still need route attribution.`
+            : attributedConversions > 0
+              ? "Visible customer journeys are linked to distributor routes."
+              : "No route-linked customer journeys were returned.",
+        next:
+          unlinkedConversions > 0
+            ? "Use accepted routes and referral tracks to complete attribution."
+            : "No route-link action is required right now.",
+        actionCategory: unlinkedConversions > 0 ? "WAITING_FOR_EVENT" : "NONE",
+        sourceFamilies: ["campaign", "outcome"],
+        sourceConfidence: conversionRows.length ? "MEDIUM" : "LOW",
+      }),
+    },
+    {
+      title: "Outcome progress status",
+      ...buildLocalSafeStatus({
+        status: actionRequired > 0 ? "ACTION_REQUIRED" : inProgress > 0 ? "IN_PROGRESS" : completed > 0 ? "FULFILLED" : "UNAVAILABLE",
+        label:
+          actionRequired > 0
+            ? "Action required"
+            : inProgress > 0
+              ? "In progress"
+              : completed > 0
+                ? "Fulfilled"
+                : "Unavailable",
+        summary: conversionRows.length
+          ? `${completed} fulfilled, ${inProgress} in progress, ${actionRequired} need support review.`
+          : "No customer conversion journeys were returned.",
+        next:
+          firstAction?.next ||
+          firstMissing?.next ||
+          "Watch the safe status shown on each customer conversion row.",
+        actionCategory: firstAction?.actionCategory || firstMissing?.actionCategory || "NONE",
+        sourceFamilies: ["outcome"],
+        sourceConfidence: conversionRows.length ? "MEDIUM" : "LOW",
+        missingEvidence: firstMissing?.missingEvidence || [],
+      }),
+    },
+    {
+      title: "Reward / commission status",
+      ...buildLocalSafeStatus({
+        status: commissionTotal > 0 || availableBalance > 0 ? "APPROVED" : wallets.length ? "PENDING" : "UNAVAILABLE",
+        label: commissionTotal > 0 || availableBalance > 0 ? "Visible" : wallets.length ? "Pending" : "Unavailable",
+        summary:
+          commissionTotal > 0 || availableBalance > 0
+            ? "Commission and earning signals are visible in safe business language."
+            : wallets.length
+              ? "Wallet context exists, but no visible commission movement is available yet."
+              : "No wallet or commission context was returned.",
+        next:
+          commissionTotal > 0 || availableBalance > 0
+            ? "Continue monitoring visible earning and wallet readiness signals."
+            : "Wait for qualified outcomes or support-confirmed earning evidence.",
+        actionCategory: "NONE",
+        sourceFamilies: ["commission", "wallet"],
+        sourceConfidence: wallets.length || commissionTotal > 0 ? "MEDIUM" : "LOW",
+      }),
+    },
+    {
+      title: "Support / next action guidance",
+      ...buildLocalSafeStatus({
+        status: firstAction ? "ACTION_REQUIRED" : firstMissing ? "PENDING" : "APPROVED",
+        label: firstAction ? "Contact support" : firstMissing ? "Waiting" : "No action",
+        summary: firstAction?.summary || firstMissing?.summary || "No support action is required from visible safe status evidence.",
+        next: firstAction?.next || firstMissing?.next || "Continue monitoring offers, journeys, and safe status changes.",
+        actionCategory: firstAction?.actionCategory || firstMissing?.actionCategory || "NONE",
+        sourceFamilies: firstAction?.sourceFamilies || firstMissing?.sourceFamilies || ["outcome"],
+        sourceConfidence: firstAction?.sourceConfidence || firstMissing?.sourceConfidence || "MEDIUM",
+        missingEvidence: firstAction?.missingEvidence || firstMissing?.missingEvidence || [],
+      }),
+    },
+  ];
+}
+
+function conversionSafeStatusItem(row: Record<string, unknown>): DistributorSafeStatusItem {
+  const safeStatus = getNestedValue(row, ["distributor_safe_status"], null);
+  if (safeStatus && typeof safeStatus === "object") {
+    const record = safeStatus as Record<string, unknown>;
+    const status = safeDisplay(getNestedValue(record, ["status"], "UNAVAILABLE"));
+    return {
+      title: safeDisplay(getNestedValue(row, ["display_status", "status"], "Customer journey")),
+      status,
+      label: safeDisplay(getNestedValue(record, ["label"], statusLabel(status))),
+      summary: safeDisplay(getNestedValue(record, ["summary"], "Status is available for this distributor view.")),
+      next: safeDisplay(getNestedValue(record, ["what_happens_next"], "Continue monitoring this journey.")),
+      actionCategory: safeDisplay(getNestedValue(record, ["action_category"], "NOT_AVAILABLE")),
+      sourceFamilies: asArray(getNestedValue(record, ["source_families"], [])).map(safeDisplay),
+      sourceConfidence: safeDisplay(getNestedValue(record, ["source_confidence"], "LOW")),
+      missingEvidence: asArray(getNestedValue(record, ["missing_evidence"], [])) as Record<string, unknown>[],
+      tone: safeStatusTone(status),
+    };
+  }
+
+  const fallbackStatus = getValue(row, ["is_complete"], "false") === "true" ? "FULFILLED" : "UNAVAILABLE";
+  return {
+    title: safeDisplay(getNestedValue(row, ["display_status", "status"], "Customer journey")),
+    ...buildLocalSafeStatus({
+      status: fallbackStatus,
+      label: fallbackStatus === "FULFILLED" ? "Fulfilled" : "Unavailable",
+      summary:
+        fallbackStatus === "FULFILLED"
+          ? "Customer journey is complete, but the dedicated safe-status projection was not returned."
+          : "Safe distributor status is not available in this response.",
+      next:
+        fallbackStatus === "FULFILLED"
+          ? "No action is required from this row."
+          : "Check again when the portal response includes distributor_safe_status.",
+      actionCategory: fallbackStatus === "FULFILLED" ? "NONE" : "NOT_AVAILABLE",
+      sourceFamilies: ["outcome"],
+      sourceConfidence: "LOW",
+      missingEvidence: [
+        {
+          section: "safe_status",
+          code: "NO_SOURCE_EVIDENCE",
+          severity: "INFO",
+        },
+      ],
+    }),
+  };
+}
+
+function buildLocalSafeStatus({
+  status,
+  label,
+  summary,
+  next,
+  actionCategory,
+  sourceFamilies,
+  sourceConfidence,
+  missingEvidence = [],
+}: {
+  status: string;
+  label: string;
+  summary: string;
+  next: string;
+  actionCategory: string;
+  sourceFamilies: string[];
+  sourceConfidence: string;
+  missingEvidence?: Record<string, unknown>[];
+}): Omit<DistributorSafeStatusItem, "title"> {
+  return {
+    status,
+    label,
+    summary,
+    next,
+    actionCategory,
+    sourceFamilies,
+    sourceConfidence,
+    missingEvidence,
+    tone: safeStatusTone(status),
+  };
+}
+
+function safeStatusTone(status: string): BadgeTone {
+  if (["FULFILLED", "SETTLED", "APPROVED", "QUALIFIED"].includes(status)) {
+    return "success";
+  }
+  if (["PENDING", "IN_PROGRESS"].includes(status)) {
+    return "info";
+  }
+  if (["ACTION_REQUIRED", "UNAVAILABLE", "ADJUSTED"].includes(status)) {
+    return "warning";
+  }
+  if (["DECLINED", "EXPIRED"].includes(status)) {
+    return "neutral";
+  }
+  return "neutral";
+}
+
+function statusLabel(status: string): string {
+  return status
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function safeDisplay(value: unknown): string {
+  return formatDisplay(value).replace(/tenant_code/gi, "internal tenant reference").replace(/ucn/gi, "private identifier");
 }
 
 function OutcomeMoneyReviewPanel({ review, title }: { review: unknown; title: string }) {

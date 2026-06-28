@@ -83,7 +83,36 @@ function field(container: HTMLElement, selector: string) {
   return element as HTMLInputElement;
 }
 
-function mockDistributorData() {
+function mockDistributorData(includeSafeStatus = true) {
+  const conversionRow: Record<string, unknown> = {
+    referral_track_id: "TRACK-UNLINKED",
+    display_status: "Validated",
+    status: "VALIDATED",
+    progress_percent: 40,
+  };
+  if (includeSafeStatus) {
+    conversionRow.distributor_safe_status = {
+      status: "IN_PROGRESS",
+      label: "In progress",
+      summary: "Your outcome status is in progress.",
+      what_happened: "Outcome evidence was received.",
+      what_happens_next: "The platform is waiting for more evidence.",
+      action_required: false,
+      action_category: "WAITING_FOR_EVENT",
+      terminal: false,
+      source_families: ["outcome"],
+      source_confidence: "LOW",
+      missing_evidence: [
+        {
+          section: "attribution",
+          code: "NO_SOURCE_EVIDENCE",
+          severity: "INFO",
+        },
+      ],
+      redactions: ["private_identifier", "provider_payload", "raw_status"],
+    };
+  }
+
   mockedGetAdminDistributors.mockResolvedValue([
     {
       distributor_code: "DIST-1",
@@ -147,14 +176,7 @@ function mockDistributorData() {
       conversions: {
         status: "ok",
         data: {
-          items: [
-            {
-              referral_track_id: "TRACK-UNLINKED",
-              display_status: "Validated",
-              status: "VALIDATED",
-              progress_percent: 40,
-            },
-          ],
+          items: [conversionRow],
           count: 1,
           attributed_count: 0,
           unlinked_count: 1,
@@ -233,6 +255,7 @@ describe("DistributorPortalPage", () => {
     const { container } = renderWorkspace(<DistributorPortalPage mode="operations" />);
 
     expect(await screen.findByRole("heading", { name: "Earnings Operations" })).toBeInTheDocument();
+    expect(panel(container, "#distributor-safe-status").getByText("Distributor safe status")).toBeInTheDocument();
     expect(panel(container, "#distributor-offer-decision").getByText("Offer decision")).toBeInTheDocument();
     expect(panel(container, "#distributor-wallet-activity").getByText("Wallet activity")).toBeInTheDocument();
     expect(panel(container, "#distributor-offer-inbox").getByText("Offer inbox")).toBeInTheDocument();
@@ -241,6 +264,49 @@ describe("DistributorPortalPage", () => {
     await waitFor(() =>
       expect(mockedGetDistributorPortalWalletLedger).toHaveBeenCalledWith("FNB", "DIST-1", "WALLET-1"),
     );
+  });
+
+  it("renders distributor-safe status fields without leaking raw internals", async () => {
+    const { container } = renderWorkspace(<DistributorPortalPage mode="operations" />);
+
+    expect(await screen.findByRole("heading", { name: "Earnings Operations" })).toBeInTheDocument();
+
+    const safeStatusPanel = panel(container, "#distributor-safe-status");
+    expect(safeStatusPanel.getByText("Outcome progress status")).toBeInTheDocument();
+    expect(safeStatusPanel.getByText(/Your outcome status is in progress/)).toBeInTheDocument();
+    expect(safeStatusPanel.getAllByText(/The platform is waiting for more evidence/).length).toBeGreaterThan(0);
+    expect(safeStatusPanel.getAllByText(/Action: WAITING_FOR_EVENT/).length).toBeGreaterThan(0);
+    expect(
+      safeStatusPanel.getAllByText(/Missing evidence: attribution \/ NO_SOURCE_EVIDENCE \/ INFO/).length,
+    ).toBeGreaterThan(0);
+    expect(safeStatusPanel.queryByText(/tenant_code/i)).not.toBeInTheDocument();
+    expect(safeStatusPanel.queryByText(/provider_payload/i)).not.toBeInTheDocument();
+    expect(safeStatusPanel.queryByText(/raw_status/i)).not.toBeInTheDocument();
+    expect(safeStatusPanel.queryByText(/ucn/i)).not.toBeInTheDocument();
+
+    const conversions = panel(container, "#customer-conversions");
+    expect(conversions.getByText("Safe status")).toBeInTheDocument();
+    expect(conversions.getByText("In progress")).toBeInTheDocument();
+    expect(conversions.getByText(/Missing evidence: NO_SOURCE_EVIDENCE/)).toBeInTheDocument();
+  });
+
+  it("falls back safely when distributor_safe_status is absent", async () => {
+    mockDistributorData(false);
+
+    const { container } = renderWorkspace(<DistributorPortalPage mode="operations" />);
+
+    expect(await screen.findByRole("heading", { name: "Earnings Operations" })).toBeInTheDocument();
+
+    const safeStatusPanel = panel(container, "#distributor-safe-status");
+    expect(safeStatusPanel.getByText("Outcome progress status")).toBeInTheDocument();
+    expect(safeStatusPanel.getByText(/Safe distributor status is not available in this response/)).toBeInTheDocument();
+    expect(
+      safeStatusPanel.getAllByText(/Missing evidence: safe_status \/ NO_SOURCE_EVIDENCE \/ INFO/).length,
+    ).toBeGreaterThan(0);
+
+    const conversions = panel(container, "#customer-conversions");
+    expect(conversions.getByText("Unavailable")).toBeInTheDocument();
+    expect(conversions.getByText(/Check again when the portal response includes distributor_safe_status/)).toBeInTheDocument();
   });
 
   it("accepts a routed distributor offer", async () => {

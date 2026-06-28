@@ -1546,6 +1546,10 @@ Definition of done: A platform operator can start a controlled demo from one pla
 
 ## TASK-078: Enhance distributor portal safe status display
 
+Status: Complete (2026-06-28).
+Finding: Enhanced the distributor portal to render `distributor_safe_status` on conversion rows and added a partner-safe distributor status panel covering onboarding, campaign participation, route/link readiness, outcome progress, reward/commission visibility, and support guidance. The display consumes existing safe projection fields, handles missing evidence in bounded form, hides raw redaction values, and falls back safely when older payloads omit `distributor_safe_status`. No backend, schema, migration, money movement, fulfilment, settlement, funding, audit, tenant, or route-action behavior changed.
+Validation: `npm.cmd test -- DistributorPortalPage.test.tsx` passed. Related frontend tests passed for distributor portal, distributor onboarding, onboarding readiness, and operator demo home. Full frontend `npm.cmd test` passed. Frontend `npm.cmd run build` passed. Frontend `npm.cmd run lint` passed with the existing warning budget.
+
 Objective: Confirm and, if needed, update the distributor portal frontend to render the TASK-061 `distributor_safe_status` fields with safe labels, action categories, missing evidence, and no raw internal state.
 Type: Frontend.
 Dependencies: TASK-061; TASK-072; TASK-069.
