@@ -1572,6 +1572,120 @@ Status: Complete (2026-06-28).
 Finding: Added a frontend TASK-079 smoke proof for the onboarding demo journey. The smoke coverage renders operator demo home links, company onboarding, producer/sponsor onboarding, distributor onboarding, member/role setup, campaign/opportunity setup, webhook/API setup, onboarding readiness, Distribution Command Centre operations, and distributor portal safe status using local shell state and mocked frontend API responses. Added `docs/roadmap/FRONTEND_ONBOARDING_DEMO_SMOKE_CHECKLIST_TASK_079.md` to document the repeatable demo path, no-mutation guardrails, validation commands, and the remaining TASK-027/TASK-028 live verification blockers. No backend routes, schema, migrations, secrets, DB access, auth changes, credential generation, webhook delivery, funding, fulfilment, settlement, retry, or money movement were added.
 Validation: `npm.cmd test -- OnboardingDemoJourneySmoke.test.tsx` passed with 5 tests. Related onboarding/demo/distribution/distributor tests passed with 36 tests across 10 files. Full `npm.cmd test` passed with 66 tests across 20 files. `npm.cmd run build` passed. `npm.cmd run lint` passed with 0 errors and the existing 42 warnings in pre-existing frontend files. No backend tests were run because TASK-079 changed frontend tests/docs only.
 
+## TASK-080: Create frontend onboarding wave checkpoint and next implementation wave
+
+Objective: Document the completed TASK-070 through TASK-079 frontend onboarding/demo wave, clarify what is demo-ready versus shell-only, and define the next implementation wave that moves toward safe backend/read-model contracts without jumping to live mutations.
+Type: Docs.
+Dependencies: TASK-070; TASK-071; TASK-072; TASK-073; TASK-074; TASK-075; TASK-076; TASK-077; TASK-078; TASK-079.
+Stop conditions: Stop if the checkpoint requires product code changes, backend code changes, schema/migration changes, live DB access, secrets, production data, or implementation of TASK-081.
+Validation expectation: Confirm the checkpoint accurately describes TASK-070 through TASK-079, changes docs only, preserves TASK-027/TASK-028 blockers, and defines a no-money/no-secrets/no-go-live next wave.
+Explicit non-goals: Do not implement backend contracts, frontend integrations, onboarding persistence, account creation, credential flows, webhook delivery, money movement, schema, migrations, or live smoke checks.
+Definition of done: The roadmap has a clear checkpoint and ordered next wave after the frontend onboarding/demo shell work. Priority: P1.
+
+Status: Complete (2026-06-28).
+Finding: Added `docs/roadmap/FRONTEND_ONBOARDING_WAVE_CHECKPOINT_TASK_080.md` documenting the completed frontend onboarding/demo wave, current demo flow, shell-only/local-only boundaries, explicit non-live capabilities, validation baseline, TASK-027/TASK-028 blockers, and recommended next implementation wave. Added TASK-081 through TASK-090 as a safe backend/read-model wave that starts with data contracts, read-only projection, readiness aggregation, admin read endpoints, and permission tests before any draft/save mutation design. No frontend code, backend code, tests, schema, migrations, secrets, DB access, live smoke checks, or downstream implementation work changed.
+Validation: Documentation/readback only. Confirmed only roadmap docs changed, TASK-070 through TASK-079 are represented, the next wave does not jump to unsafe live mutations, and no-money/no-secrets/no-go-live guardrails remain explicit.
+
+## TASK-081: Consolidate onboarding data contracts
+
+Objective: Define the canonical frontend-to-backend data contract for company, producer/sponsor, distributor, member/role, campaign/opportunity, and webhook/API onboarding state using the completed shell fields and existing tenant/external identifier decisions.
+Type: Docs/Service contract.
+Dependencies: TASK-048; TASK-070; TASK-071; TASK-072; TASK-073; TASK-074; TASK-075; TASK-080.
+Stop conditions: Stop if implementation requires schema changes, production writes, account creation APIs, invite delivery, credential generation, campaign publication, live DB access, secrets, or money movement.
+Validation expectation: Add or update a focused contract doc and run readback checks. If typed helpers are added, include targeted unit tests only.
+Explicit non-goals: Do not implement persistence, draft saves, tenant creation, membership creation, credential lifecycle, campaign lifecycle commands, or migrations.
+Definition of done: Onboarding shells share a documented data contract that keeps `tenant_code` internal and external references explicit. Priority: P1.
+
+## TASK-082: Add read-only onboarding state projection helper
+
+Objective: Add a read-only helper that projects onboarding state from available current sources and marks missing evidence explicitly for shell-only areas.
+Type: Service.
+Dependencies: TASK-081.
+Stop conditions: Stop if the helper requires schema changes, DB writes, live DB access, production data, secrets, account creation, invitation mutation, campaign mutation, credential mutation, webhook delivery, or money movement.
+Validation expectation: Add focused service tests for complete, partial, missing-evidence, unknown-reference, and redaction-safe projection outputs.
+Explicit non-goals: Do not mutate onboarding, tenant, membership, campaign, credential, webhook, funding, fulfilment, settlement, or audit records.
+Definition of done: A read-only onboarding state projection exists with safe missing-evidence handling and no state mutation. Priority: P1.
+
+## TASK-083: Add onboarding readiness aggregation service
+
+Objective: Aggregate onboarding state into readiness categories for organisation, producer/sponsor, distributor, members/roles, campaign/opportunity, webhook/API, security, and go-live controls.
+Type: Service.
+Dependencies: TASK-081; TASK-082; TASK-076.
+Stop conditions: Stop if readiness evaluation requires production writes, command execution, live DB access, secrets, schema changes, campaign launch, credential creation, webhook delivery, funding, fulfilment, settlement, retry, or money movement.
+Validation expectation: Add service tests for ready, in-progress, blocked, missing-evidence, permission-limited, and go-live-disabled states.
+Explicit non-goals: Do not implement real go-live activation, production release signoff, campaign publication, credential lifecycle, or money movement.
+Definition of done: Readiness can be derived by a reusable read-only service instead of hard-coded local frontend state. Priority: P1.
+
+## TASK-084: Add read-only admin onboarding state endpoint
+
+Objective: Expose the onboarding state projection and readiness aggregation through an authenticated read-only admin endpoint.
+Type: API.
+Dependencies: TASK-082; TASK-083; docs/API_PERMISSION_MATRIX.md.
+Stop conditions: Stop if the endpoint requires schema changes, backend mutations, production data, live DB access, secrets, or unsafe exposure of internal identifiers.
+Validation expectation: Add API tests for auth, tenant/admin permission boundaries, safe errors, missing evidence, response shape, redaction, and no-mutation behavior.
+Explicit non-goals: Do not add create/update onboarding commands, account creation, invitations, campaign publication, credential writes, webhook delivery, funding, fulfilment, settlement, retry, or money movement.
+Definition of done: Operators can request onboarding state/readiness through a safe read-only endpoint. Priority: P1.
+
+## TASK-085: Integrate operator demo home with read-only onboarding readiness state
+
+Objective: Connect the operator demo home to the read-only onboarding state endpoint when available, while preserving local fallback and no-mutation guardrails.
+Type: Frontend/API integration.
+Dependencies: TASK-084; TASK-077; TASK-079.
+Stop conditions: Stop if integration requires backend mutations, auth changes, secrets, live DB access, production data, schema changes, or enabled command actions.
+Validation expectation: Add frontend tests for loading, success, partial/missing evidence, safe error fallback, disabled live actions, and no `tenant_code` exposure as a user-facing identifier.
+Explicit non-goals: Do not implement onboarding writes, go-live commands, account creation, campaign publication, credential lifecycle, webhook delivery, or money movement.
+Definition of done: Operator demo home can display real/read-only readiness state without losing demo-safe fallback behavior. Priority: P1.
+
+## TASK-086: Design safe onboarding draft/save API boundary
+
+Objective: Document the smallest safe draft/save API boundary for future onboarding persistence, including idempotency, audit, validation, tenant/external reference resolution, and stop conditions.
+Type: Docs/API contract.
+Dependencies: TASK-081; TASK-083; TASK-084; docs/sa/AUDIT_RETRY_POLICY_STANDARD.md.
+Stop conditions: Stop if implementation starts writing data, adding schema, creating tenants, creating users, publishing campaigns, generating credentials, dispatching webhooks, or moving money.
+Validation expectation: Readback contract coverage for idempotency, audit actor, duplicate handling, safe errors, redaction, permission boundaries, and no-money/no-go-live guardrails.
+Explicit non-goals: Do not implement draft/save endpoints or migrations in this task.
+Definition of done: Future onboarding mutation work has a reviewed contract and explicit safety gates before implementation. Priority: P1.
+
+## TASK-087: Define onboarding audit and event capture design
+
+Objective: Define audit/event capture requirements for future onboarding mutations across organisation, participant, member/role, campaign, and integration setup.
+Type: Docs/Service contract.
+Dependencies: TASK-086; docs/sa/AUDIT_RETRY_POLICY_STANDARD.md; docs/sa/WEBHOOK_EVENT_CATALOG.md.
+Stop conditions: Stop if design requires writing audit rows, dispatching events, adding schema, inspecting secrets, live DB access, or implementing mutation workflows.
+Validation expectation: Readback confirms actor, external reference, resolved tenant, before/after state, idempotency key, correlation ID, and redaction expectations.
+Explicit non-goals: Do not implement audit writes, event persistence, webhook delivery, replay, retry, or repair flows.
+Definition of done: Future onboarding mutation tasks know what audit and event evidence they must produce. Priority: P1.
+
+## TASK-088: Add RBAC and permission contract tests for onboarding read routes
+
+Objective: Add regression tests for onboarding/readiness read routes to verify admin/operator access, adjacent-role rejection, tenant scope, safe errors, and no data leakage.
+Type: API/Tests.
+Dependencies: TASK-084; docs/API_PERMISSION_MATRIX.md.
+Stop conditions: Stop if tests require production data, live DB access, secrets, backend mutations, auth weakening, or broad permission refactors.
+Validation expectation: Targeted API permission tests pass and confirm unauthenticated/unauthorized requests are rejected while authorized read-only access works.
+Explicit non-goals: Do not change auth behavior unless tests expose a clear route contract bug; do not add mutation routes.
+Definition of done: Onboarding read surfaces are locked to the intended admin/operator permission contract. Priority: P1.
+
+## TASK-089: Connect onboarding shells to read-only/mock-safe backend state
+
+Objective: Gradually connect frontend onboarding shells to the read-only onboarding state endpoint where available, preserving local fallback, disabled actions, and safe missing-evidence behavior.
+Type: Frontend/API integration.
+Dependencies: TASK-084; TASK-085; TASK-088.
+Stop conditions: Stop if integration requires enabling writes, creating records, auth changes, schema changes, secrets, live DB access, credential lifecycle, webhook delivery, or money movement.
+Validation expectation: Add frontend tests for read-only hydrated state, local fallback, partial evidence, safe errors, disabled action preservation, and external-reference display.
+Explicit non-goals: Do not implement draft/save, create, publish, invite, activate, credential, webhook delivery, funding, fulfilment, settlement, retry, or money movement behavior.
+Definition of done: Onboarding shells can consume read-only platform state while remaining demo-safe and non-mutating. Priority: P1.
+
+## TASK-090: Checkpoint onboarding read-model implementation wave
+
+Objective: Record the outcomes of TASK-081 through TASK-089, update remaining gaps, and recommend the next wave only after read-only contracts and tests are in place.
+Type: Docs.
+Dependencies: TASK-081; TASK-082; TASK-083; TASK-084; TASK-085; TASK-086; TASK-087; TASK-088; TASK-089.
+Stop conditions: Stop if checkpoint requires implementation work, live DB access, secrets, schema changes, or starting the next wave.
+Validation expectation: Documentation/readback only; confirm completed work, remaining shell-only areas, blockers, validation baseline, and safe next priorities.
+Explicit non-goals: Do not implement TASK-091 or any downstream feature.
+Definition of done: The product has a clear readiness checkpoint after moving frontend shells toward safe read-only backend contracts. Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
