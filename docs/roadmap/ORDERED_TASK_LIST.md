@@ -1532,6 +1532,10 @@ Validation: `npm.cmd test -- OnboardingReadinessChecklistPage.test.tsx WebhookAp
 
 ## TASK-077: Add operator demo home linking onboarding to monitoring
 
+Status: Complete (2026-06-28).
+Finding: Added a frontend-only operator demo home at `/admin/demo-home` that links the onboarding journey, readiness review, existing read-only monitoring views, and backend-ready diagnostics. Backend-only diagnostics are visible as UI-pending rather than pretending a frontend exists, TASK-027/TASK-028 remain blocked, and all live command actions remain disabled.
+Validation: Targeted frontend tests passed for the new operator demo home plus related onboarding and Distribution Command Centre pages: `npm.cmd test -- OperatorDemoHomePage.test.tsx OnboardingReadinessChecklistPage.test.tsx CompanyOnboardingPage.test.tsx ProducerSponsorOnboardingPage.test.tsx DistributorOnboardingPage.test.tsx MemberRoleOnboardingPage.test.tsx CampaignOpportunitySetupPage.test.tsx WebhookApiSetupPage.test.tsx DistributionCommandCentrePage.test.tsx`. Full frontend `npm.cmd test` passed. Frontend `npm.cmd run build` passed. Frontend `npm.cmd run lint` passed with the existing warning budget.
+
 Objective: Build a frontend demo home for platform operators that links onboarding shells to existing monitoring/read-only diagnostics: control-plane BFF, outcome trace, liability projection, campaign readiness, link/code inspect, analytics, webhook catalog, and payload preview.
 Type: Frontend.
 Dependencies: TASK-049; TASK-050; TASK-052; TASK-054; TASK-063; TASK-064; TASK-065; TASK-076; TASK-069.

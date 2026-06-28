@@ -32,6 +32,10 @@ const titles: Record<string, [string, string]> = {
     "Onboarding Readiness",
     "Demo-safe go-live checklist and blockers",
   ],
+  "/admin/demo-home": [
+    "Operator Demo Home",
+    "Onboarding journey, readiness review, and read-only monitoring path",
+  ],
   "/admin/health": ["Runtime Health", "Platform readiness and dependency signals"],
   "/admin/audit": ["Trust & Audit", "Platform-sensitive action visibility"],
   "/admin/channels": ["Channel Operations", "Messaging delivery, retries, and channel audit evidence"],
