@@ -1602,6 +1602,7 @@ Validation: Documentation/readback only. Confirmed only docs changed, all comple
 
 ## TASK-082: Add read-only onboarding state projection helper
 
+Status: Complete (2026-06-28). Output: `services/onboarding/onboarding_state_projection_service.py`; `test/test_onboarding_state_projection_service.py`.
 Objective: Add a read-only helper that projects onboarding state from available current sources and marks missing evidence explicitly for shell-only areas.
 Type: Service.
 Dependencies: TASK-081.
@@ -1609,6 +1610,8 @@ Stop conditions: Stop if the helper requires schema changes, DB writes, live DB 
 Validation expectation: Add focused service tests for complete, partial, missing-evidence, unknown-reference, and redaction-safe projection outputs.
 Explicit non-goals: Do not mutate onboarding, tenant, membership, campaign, credential, webhook, funding, fulfilment, settlement, or audit records.
 Definition of done: A read-only onboarding state projection exists with safe missing-evidence handling and no state mutation. Priority: P1.
+Finding: Added a pure read-only onboarding projection helper aligned to `docs/sa/ONBOARDING_DATA_CONTRACT.md`. The helper projects company, producer/sponsor, distributor, member/role, campaign/opportunity, and webhook/API sections; uses safe evidence statuses (`PRESENT`, `PARTIAL`, `MISSING`, `SHELL_ONLY`, `UNKNOWN_REFERENCE`, `BLOCKED`); keeps `tenant_code` out of the default user-facing scope; returns bounded blockers, next actions, missing evidence, redactions, guardrails, and review-only readiness. No API route, schema, migration, frontend feature, DB access, secret access, persistence, account creation, invite delivery, credential lifecycle, webhook delivery, campaign mutation, funding, fulfilment, settlement, retry, audit mutation, go-live activation, or money movement was added.
+Validation: `python -m pytest test/test_onboarding_state_projection_service.py` passed with 5 tests covering complete, partial, shell-only/missing evidence, unknown-reference, and redaction/no-mutation projections. `python -m black --check services/onboarding/onboarding_state_projection_service.py test/test_onboarding_state_projection_service.py` passed. TASK-027/TASK-028 remain blocked.
 
 ## TASK-083: Add onboarding readiness aggregation service
 
