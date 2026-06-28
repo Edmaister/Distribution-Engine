@@ -44,6 +44,11 @@ const OnboardingReadinessChecklistPage = lazy(() =>
     default: module.OnboardingReadinessChecklistPage,
   })),
 );
+const OperatorDemoHomePage = lazy(() =>
+  import("../pages/admin/OperatorDemoHomePage").then((module) => ({
+    default: module.OperatorDemoHomePage,
+  })),
+);
 const ChannelOperationsPage = lazy(() =>
   import("../pages/admin/ChannelOperationsPage").then((module) => ({
     default: module.ChannelOperationsPage,
@@ -142,6 +147,7 @@ export function App() {
           path="/admin/onboarding/readiness"
           element={lazyWorkspace(<OnboardingReadinessChecklistPage />)}
         />
+        <Route path="/admin/demo-home" element={lazyWorkspace(<OperatorDemoHomePage />)} />
         <Route path="/admin/health" element={lazyWorkspace(<HealthPage />)} />
         <Route path="/admin/audit" element={lazyWorkspace(<AdminAuditPage />)} />
         <Route path="/admin/channels" element={lazyWorkspace(<ChannelOperationsPage />)} />
