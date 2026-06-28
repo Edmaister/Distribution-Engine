@@ -63,6 +63,11 @@ const nextJourneyLinks = [
     copy: "Draft campaign, opportunity, readiness, and go-live intent after access setup.",
   },
   {
+    label: "Webhook & API setup",
+    path: "/admin/onboarding/webhook-api",
+    copy: "Draft integration owner and credential readiness intent without granting access or creating secrets.",
+  },
+  {
     label: "Operator monitoring",
     path: "/admin",
     copy: "Return to read-only platform diagnostics while membership APIs remain future work.",

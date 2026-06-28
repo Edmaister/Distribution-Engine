@@ -143,6 +143,9 @@ describe("CampaignOpportunitySetupPage", () => {
       screen.getByRole("link", { name: /User & role setup/ }),
     ).toHaveAttribute("href", "/admin/onboarding/members-roles");
     expect(
+      screen.getByRole("link", { name: /Webhook & API setup/ }),
+    ).toHaveAttribute("href", "/admin/onboarding/webhook-api");
+    expect(
       screen.getByRole("link", { name: /Demand marketplace/ }),
     ).toHaveAttribute("href", "/admin/distribution");
   });

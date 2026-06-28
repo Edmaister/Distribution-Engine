@@ -113,6 +113,11 @@ const journeyLinks = [
     copy: "Draft role-family access before operational readiness.",
   },
   {
+    label: "Webhook & API setup",
+    path: "/admin/onboarding/webhook-api",
+    copy: "Draft callback, credential, event catalog, and payload preview intent after campaign setup.",
+  },
+  {
     label: "Demand marketplace",
     path: "/admin/distribution",
     copy: "Move to the existing read-only marketplace surface after setup review.",

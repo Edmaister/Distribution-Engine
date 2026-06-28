@@ -34,6 +34,11 @@ const CampaignOpportunitySetupPage = lazy(() =>
     default: module.CampaignOpportunitySetupPage,
   })),
 );
+const WebhookApiSetupPage = lazy(() =>
+  import("../pages/admin/WebhookApiSetupPage").then((module) => ({
+    default: module.WebhookApiSetupPage,
+  })),
+);
 const ChannelOperationsPage = lazy(() =>
   import("../pages/admin/ChannelOperationsPage").then((module) => ({
     default: module.ChannelOperationsPage,
@@ -123,6 +128,10 @@ export function App() {
         <Route
           path="/admin/onboarding/campaign-opportunity"
           element={lazyWorkspace(<CampaignOpportunitySetupPage />)}
+        />
+        <Route
+          path="/admin/onboarding/webhook-api"
+          element={lazyWorkspace(<WebhookApiSetupPage />)}
         />
         <Route path="/admin/health" element={lazyWorkspace(<HealthPage />)} />
         <Route path="/admin/audit" element={lazyWorkspace(<AdminAuditPage />)} />
