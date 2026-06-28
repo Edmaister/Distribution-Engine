@@ -28,6 +28,10 @@ const titles: Record<string, [string, string]> = {
     "Webhook & API Setup",
     "Credential, callback, catalog, and payload preview shell",
   ],
+  "/admin/onboarding/readiness": [
+    "Onboarding Readiness",
+    "Demo-safe go-live checklist and blockers",
+  ],
   "/admin/health": ["Runtime Health", "Platform readiness and dependency signals"],
   "/admin/audit": ["Trust & Audit", "Platform-sensitive action visibility"],
   "/admin/channels": ["Channel Operations", "Messaging delivery, retries, and channel audit evidence"],

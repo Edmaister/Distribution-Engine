@@ -39,6 +39,11 @@ const WebhookApiSetupPage = lazy(() =>
     default: module.WebhookApiSetupPage,
   })),
 );
+const OnboardingReadinessChecklistPage = lazy(() =>
+  import("../pages/admin/OnboardingReadinessChecklistPage").then((module) => ({
+    default: module.OnboardingReadinessChecklistPage,
+  })),
+);
 const ChannelOperationsPage = lazy(() =>
   import("../pages/admin/ChannelOperationsPage").then((module) => ({
     default: module.ChannelOperationsPage,
@@ -132,6 +137,10 @@ export function App() {
         <Route
           path="/admin/onboarding/webhook-api"
           element={lazyWorkspace(<WebhookApiSetupPage />)}
+        />
+        <Route
+          path="/admin/onboarding/readiness"
+          element={lazyWorkspace(<OnboardingReadinessChecklistPage />)}
         />
         <Route path="/admin/health" element={lazyWorkspace(<HealthPage />)} />
         <Route path="/admin/audit" element={lazyWorkspace(<AdminAuditPage />)} />
