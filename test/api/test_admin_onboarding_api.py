@@ -118,6 +118,29 @@ async def test_admin_onboarding_state_returns_projection_and_readiness(headers):
     assert set(body) == {"status", "onboarding_state", "readiness", "guardrail"}
     assert body["guardrail"].startswith("Read-only admin onboarding state")
     assert "does not create or update" in body["guardrail"]
+    assert set(body["onboarding_state"]) == {
+        "contract_version",
+        "generated_at",
+        "scope",
+        "sections",
+        "readiness",
+        "missing_evidence",
+        "redactions",
+        "guardrails",
+        "source_warnings",
+    }
+    assert set(body["readiness"]) == {
+        "contract_version",
+        "generated_at",
+        "scope",
+        "overall_status",
+        "categories",
+        "summary",
+        "guardrails",
+        "missing_evidence",
+        "source_warnings",
+        "redactions",
+    }
     assert body["onboarding_state"]["contract_version"] == "onboarding.v1"
     assert body["readiness"]["contract_version"] == "onboarding.v1"
     assert body["onboarding_state"]["scope"]["external_tenant_ref"] == (
@@ -125,6 +148,20 @@ async def test_admin_onboarding_state_returns_projection_and_readiness(headers):
     )
     assert body["readiness"]["scope"]["organisation_ref"] == "org-acme"
     assert body["readiness"]["summary"]["total_count"] == 8
+    for category in body["readiness"]["categories"]:
+        assert {
+            "category",
+            "display_label",
+            "status",
+            "safe_display_status",
+            "path",
+            "evidence_summary",
+            "blockers",
+            "next_actions",
+            "source_evidence_refs",
+            "guardrails",
+        }.issubset(category)
+        assert category["safe_display_status"]["go_live_enabled"] is False
 
 
 async def test_admin_onboarding_state_scope_uses_external_references_only(

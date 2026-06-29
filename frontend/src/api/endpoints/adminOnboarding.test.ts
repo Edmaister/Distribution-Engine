@@ -170,18 +170,18 @@ describe("admin onboarding api helper", () => {
     const result = await getAdminOnboardingState({
       external_tenant_ref: "acme-distribution",
     });
-    const state = result.onboarding_state;
 
     expect(result.status).toBe("ok");
-    expect(state).toBeDefined();
-    expect(state?.contract_version).toBe("onboarding.v1");
-    expect(state?.sections.organisation_profile.status).toBe("READY");
-    expect(state?.sections.webhook_api_setup.missing_evidence[0]).toMatchObject(
-      {
-        code: "NO_BACKEND_SOURCE",
-        severity: "warning",
-      },
+    expect(result.onboarding_state.contract_version).toBe("onboarding.v1");
+    expect(result.onboarding_state.sections.organisation_profile.status).toBe(
+      "READY",
     );
+    expect(
+      result.onboarding_state.sections.webhook_api_setup.missing_evidence[0],
+    ).toMatchObject({
+      code: "NO_BACKEND_SOURCE",
+      severity: "warning",
+    });
     expect(result.readiness.overall_status).toBe("GO_LIVE_DISABLED");
     expect(result.readiness.categories[1]).toMatchObject({
       category: "webhook_api_setup",
@@ -249,10 +249,8 @@ describe("admin onboarding api helper", () => {
     const result = await getAdminOnboardingState({
       external_tenant_ref: "unknown-demo-tenant",
     });
-    const state = result.onboarding_state;
 
-    expect(state).toBeDefined();
-    expect(state?.scope.resolved_tenant).toEqual({
+    expect(result.onboarding_state.scope.resolved_tenant).toEqual({
       status: "UNAVAILABLE",
     });
     expect(result.readiness.categories[0]).toMatchObject({
@@ -289,11 +287,9 @@ describe("admin onboarding api helper", () => {
     const result = await getAdminOnboardingState({
       external_tenant_ref: "acme-distribution",
     });
-    const state = result.onboarding_state;
     const rendered = JSON.stringify(result).toLowerCase();
 
-    expect(state).toBeDefined();
-    expect(state?.scope.resolved_tenant).toEqual({
+    expect(result.onboarding_state.scope.resolved_tenant).toEqual({
       status: "UNAVAILABLE",
     });
     expect(rendered).toContain("tenant_code_internal");
