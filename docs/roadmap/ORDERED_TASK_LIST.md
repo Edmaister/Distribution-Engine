@@ -1720,6 +1720,110 @@ Validation expectation: Documentation/readback only; confirm completed work, rem
 Explicit non-goals: Do not implement TASK-091 or any downstream feature.
 Definition of done: The product has a clear readiness checkpoint after moving frontend shells toward safe read-only backend contracts. Priority: P1.
 
+Status: Complete (2026-06-29). Output: `docs/roadmap/ONBOARDING_READ_MODEL_WAVE_CHECKPOINT_TASK_090.md`.
+Finding: Added the onboarding read-model checkpoint covering TASK-081 through TASK-089 outcomes, current read-only onboarding capabilities, remaining shell-only areas, explicit non-live boundaries, validation baseline, permission/safety posture, TASK-027/TASK-028 blockers, and a safe TASK-091 onward recommendation. The next wave keeps work read-only/design-first and avoids jumping directly to writes, schema, go-live, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, audit mutation, or money movement.
+Validation: Documentation/readback only. Confirmed TASK-081 through TASK-089 are represented, remaining shell-only areas are explicit, blockers are preserved, validation baseline is captured, and next priorities remain safe. Only roadmap docs changed; no backend routes, frontend code, services, tests, schema, migrations, persistence, DB access, secrets, onboarding writes, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, audit mutation, or money movement were introduced.
+
+## TASK-091: Connect producer/sponsor onboarding shell to read-only state
+
+Objective: Integrate the producer/sponsor onboarding shell with the read-only admin onboarding state endpoint while preserving local fallback, disabled actions, and no-money/no-credential guardrails.
+Type: Frontend/API integration.
+Dependencies: TASK-084; TASK-089; TASK-090.
+Stop conditions: Stop if integration requires backend mutations, schema changes, auth changes, secrets, live DB access, sponsor creation, funding setup, wallet creation, billing mutation, credential lifecycle, webhook delivery, go-live, or money movement.
+Validation expectation: Add/update targeted frontend tests for loading, hydrated read-only state, missing evidence, fallback, disabled actions, external reference display, and no `tenant_code` exposure.
+Explicit non-goals: Do not implement producer/sponsor writes, sponsor funding, wallet, billing, campaign publication, credential generation, webhook delivery, fulfilment, settlement, retry, or money movement.
+Definition of done: Producer/sponsor onboarding can consume safe read-only platform state while remaining shell-only and non-mutating. Priority: P1.
+
+## TASK-092: Connect distributor onboarding shell to read-only state
+
+Objective: Integrate the distributor onboarding shell with read-only onboarding state while preserving local fallback, disabled lifecycle/wallet/route actions, and distributor-safe external reference display.
+Type: Frontend/API integration.
+Dependencies: TASK-084; TASK-089; TASK-090.
+Stop conditions: Stop if integration requires backend mutations, schema changes, auth changes, secrets, live DB access, distributor creation, activation, suspension, route activation, wallet creation, funding, fulfilment, settlement, retry, or money movement.
+Validation expectation: Add/update targeted frontend tests for read-only hydration, missing evidence, fallback, disabled lifecycle actions, external reference display, and no `tenant_code` exposure.
+Explicit non-goals: Do not implement distributor writes, route commands, wallet commands, offer decisions, commission, payout, fulfilment, settlement, retry, or money movement.
+Definition of done: Distributor onboarding can consume safe read-only platform state while remaining shell-only and non-mutating. Priority: P1.
+
+## TASK-093: Connect member and role onboarding shell to read-only state
+
+Objective: Integrate the member/role onboarding shell with read-only onboarding state while preserving local fallback, disabled invite/role actions, and safe permission guidance.
+Type: Frontend/API integration.
+Dependencies: TASK-084; TASK-089; TASK-090.
+Stop conditions: Stop if integration requires backend mutations, schema changes, auth changes, secrets, live DB access, user creation, membership creation, identity-provider writes, invite delivery, role assignment, audit mutation, or money movement.
+Validation expectation: Add/update targeted frontend tests for read-only hydration, permission/missing evidence states, fallback, disabled invite/role actions, external reference display, and no `tenant_code` exposure.
+Explicit non-goals: Do not implement user creation, membership creation, invite delivery, role assignment, auth claim changes, audit writes, or onboarding writes.
+Definition of done: Member/role onboarding can consume safe read-only platform state while remaining shell-only and non-mutating. Priority: P1.
+
+## TASK-094: Connect campaign/opportunity setup shell to read-only state
+
+Objective: Integrate the campaign/opportunity setup shell with read-only onboarding state while preserving local fallback, disabled launch/publish actions, and safe readiness blockers.
+Type: Frontend/API integration.
+Dependencies: TASK-084; TASK-089; TASK-090.
+Stop conditions: Stop if integration requires backend mutations, schema changes, auth changes, secrets, live DB access, campaign creation, opportunity publication, link/code generation, route activation, reward policy writes, funding, fulfilment, settlement, retry, go-live, or money movement.
+Validation expectation: Add/update targeted frontend tests for read-only hydration, missing evidence, fallback, disabled launch/publish actions, external reference display, and no `tenant_code` exposure.
+Explicit non-goals: Do not implement campaign writes, opportunity publication, link/code generation, reward/commission writes, funding setup, fulfilment, settlement, retry, go-live, or money movement.
+Definition of done: Campaign/opportunity setup can consume safe read-only platform state while remaining shell-only and non-mutating. Priority: P1.
+
+## TASK-095: Connect webhook/API setup shell to read-only state
+
+Objective: Integrate the webhook/API setup shell with read-only onboarding state while preserving local fallback, disabled credential/webhook actions, and no secret exposure.
+Type: Frontend/API integration.
+Dependencies: TASK-084; TASK-089; TASK-090.
+Stop conditions: Stop if integration requires backend mutations, schema changes, auth changes, secrets, live DB access, API key creation, secret generation, credential rotation, webhook subscription, signing, queueing, delivery, retry, or go-live activation.
+Validation expectation: Add/update targeted frontend tests for read-only hydration, missing evidence, fallback, disabled credential/webhook actions, external reference display, no secret display, and no `tenant_code` exposure.
+Explicit non-goals: Do not implement credential lifecycle, webhook subscription, test delivery, signing, callback registration, secret display, webhook delivery, retry, go-live, or money movement.
+Definition of done: Webhook/API setup can consume safe read-only platform state while remaining shell-only and non-mutating. Priority: P1.
+
+## TASK-096: Add onboarding frontend API helper contract tests
+
+Objective: Add focused frontend tests for the onboarding API helper response mapping, safe fallback assumptions, external reference query parameters, and redaction/no-leak expectations.
+Type: Frontend/Tests.
+Dependencies: TASK-084; TASK-089; TASK-090.
+Stop conditions: Stop if tests require backend mutations, live DB access, secrets, auth changes, schema changes, production data, or broad frontend API refactors.
+Validation expectation: Targeted frontend API helper tests pass and confirm external-reference query behavior, response shape expectations, safe missing evidence, and no `tenant_code` user-facing dependency.
+Explicit non-goals: Do not add routes, backend services, frontend pages, writes, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, or money movement.
+Definition of done: Frontend onboarding API consumption has regression tests independent of page rendering. Priority: P1.
+
+## TASK-097: Align onboarding endpoint response schema and frontend types
+
+Objective: Review and align the admin onboarding endpoint response envelope with frontend TypeScript types and documented contract, adding type/schema checks where safe.
+Type: API/Frontend contract.
+Dependencies: TASK-084; TASK-096.
+Stop conditions: Stop if alignment requires schema changes, backend mutations, auth changes, live DB access, secrets, production data, or broad route redesign.
+Validation expectation: Targeted backend/frontend contract tests pass for the response shape used by onboarding pages and operator demo home.
+Explicit non-goals: Do not add mutation routes, persistence, account creation, invites, campaign publication, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, audit mutation, or money movement.
+Definition of done: Backend response and frontend types agree on the read-only onboarding state contract. Priority: P1.
+
+## TASK-098: Design onboarding draft persistence schema and rollback plan
+
+Objective: Design the future onboarding draft persistence schema, indexes, retention, idempotency references, rollback approach, and migration safety plan without adding migrations.
+Type: Docs/Schema design.
+Dependencies: TASK-086; TASK-087; TASK-090.
+Stop conditions: Stop if implementation starts, migrations are added, live DB is accessed, secrets are inspected, or draft/write endpoints are created.
+Validation expectation: Documentation/readback confirms schema intent, additive migration strategy, rollback plan, idempotency model, audit linkage, redaction boundaries, and no live action semantics.
+Explicit non-goals: Do not create tables, migrations, services, routes, frontend code, audit writes, event persistence, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, or money movement.
+Definition of done: Future draft persistence has a reviewed schema and rollback design before implementation. Priority: P1.
+
+## TASK-099: Design onboarding dry-run validation endpoint contract
+
+Objective: Define a no-op/dry-run onboarding validation endpoint contract for future draft review, including safe errors, missing evidence, permission checks, idempotency expectations, and no mutation guarantees.
+Type: Docs/API contract.
+Dependencies: TASK-086; TASK-087; TASK-090; TASK-098.
+Stop conditions: Stop if implementation starts, routes are added, schema/migrations are added, live DB is accessed, secrets are inspected, or writes/audit mutation are introduced.
+Validation expectation: Documentation/readback confirms dry-run semantics, safe error shape, no-persistence guarantee, external-reference scope, redaction, permission boundaries, and no live actions.
+Explicit non-goals: Do not implement the endpoint, draft persistence, account creation, invite delivery, campaign publication, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, audit mutation, or money movement.
+Definition of done: Future validation work has a safe contract before any route implementation. Priority: P1.
+
+## TASK-100: Checkpoint onboarding read-only integration and pre-write readiness
+
+Objective: Record outcomes of TASK-091 through TASK-099, confirm remaining gaps, and decide whether the platform is ready to consider a tightly scoped onboarding write implementation wave.
+Type: Docs.
+Dependencies: TASK-091; TASK-092; TASK-093; TASK-094; TASK-095; TASK-096; TASK-097; TASK-098; TASK-099.
+Stop conditions: Stop if checkpoint requires implementation work, live DB access, secrets, schema changes, migrations, writes, go-live, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, audit mutation, or money movement.
+Validation expectation: Documentation/readback only; confirm completed read-only integrations, contract tests, schema/design readiness, blockers, and safe next priorities.
+Explicit non-goals: Do not implement onboarding writes or downstream features.
+Definition of done: Roadmap has a clear pre-write checkpoint before any onboarding mutation task begins. Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
