@@ -1678,6 +1678,10 @@ Validation expectation: Readback confirms actor, external reference, resolved te
 Explicit non-goals: Do not implement audit writes, event persistence, webhook delivery, replay, retry, or repair flows.
 Definition of done: Future onboarding mutation tasks know what audit and event evidence they must produce. Priority: P1.
 
+Status: Complete (2026-06-29). Output: `docs/sa/ONBOARDING_AUDIT_EVENT_CAPTURE_DESIGN.md`.
+Finding: Documented the future onboarding audit/event capture contract for organisation/company, producer/sponsor, distributor, member/role, campaign/opportunity, webhook/API, readiness validation, submit-for-review, and discard draft operations. The design covers required audit evidence, event evidence, suggested onboarding event names, before/after safe state expectations, idempotency and duplicate handling, correlation/tracing, permission and tenant boundaries, safe error/rejection capture, retry/replay/repair boundaries, redaction guardrails, and safety gates before implementation. TASK-027 and TASK-028 remain blocked.
+Validation: Documentation/readback only. Confirmed TASK-087 changed docs only; no backend routes, frontend code, services, schema, migrations, persistence, DB access, secrets, audit writes, event persistence, webhook dispatch, replay, retry, repair, mutation workflows, tenant/account/user/campaign/credential creation, go-live activation, funding, fulfilment, settlement, or money movement were introduced.
+
 ## TASK-088: Add RBAC and permission contract tests for onboarding read routes
 
 Objective: Add regression tests for onboarding/readiness read routes to verify admin/operator access, adjacent-role rejection, tenant scope, safe errors, and no data leakage.
