@@ -8,8 +8,12 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  getAdminOnboardingState,
+  type AdminOnboardingStateResponse,
+} from "../../api/endpoints/adminOnboarding";
 import { StatusBadge } from "../../components/StatusBadge";
 import { SummaryItem } from "../../components/SummaryItem";
 
@@ -74,25 +78,37 @@ const nextJourneyLinks = [
   },
 ];
 
+const readOnlyScope = {
+  external_tenant_ref: "demo-platform-operator",
+  organisation_ref: "demo-organisation",
+};
+
+type LoadState = "loading" | "success" | "fallback";
+
 export function MemberRoleOnboardingPage() {
   const [form, setForm] = useState<FormState>(initialState);
+  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [readOnlyState, setReadOnlyState] =
+    useState<AdminOnboardingStateResponse | null>(null);
   const requiredComplete = Boolean(
     form.organisationRef.trim() &&
-      form.externalTenantRef.trim() &&
-      form.userEmail.trim() &&
-      form.displayName.trim() &&
-      form.roleFamily.trim() &&
-      form.participantType.trim() &&
-      form.accessScope.trim() &&
-      form.inviteStatus.trim(),
+    form.externalTenantRef.trim() &&
+    form.userEmail.trim() &&
+    form.displayName.trim() &&
+    form.roleFamily.trim() &&
+    form.participantType.trim() &&
+    form.accessScope.trim() &&
+    form.inviteStatus.trim(),
   );
 
   const readinessSteps = useMemo<ReadinessStep[]>(
     () => [
       {
         label: "External account scope",
-        copy: "`external_tenant_ref` and `organisation_ref` identify the future account boundary without exposing tenant_code.",
-        ready: Boolean(form.externalTenantRef.trim() && form.organisationRef.trim()),
+        copy: "`external_tenant_ref` and `organisation_ref` identify the future account boundary while the internal tenant identifier stays hidden.",
+        ready: Boolean(
+          form.externalTenantRef.trim() && form.organisationRef.trim(),
+        ),
       },
       {
         label: "Invite identity",
@@ -119,10 +135,39 @@ export function MemberRoleOnboardingPage() {
   );
 
   const readyCount = readinessSteps.filter((step) => step.ready).length;
+  const memberRoleCategory = readOnlyState?.readiness.categories.find(
+    (category) =>
+      category.category.toUpperCase().includes("MEMBER") ||
+      category.category.toUpperCase().includes("ROLE"),
+  );
 
   function updateField(field: keyof FormState, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
   }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getAdminOnboardingState(readOnlyScope)
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        setReadOnlyState(response);
+        setLoadState("success");
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setReadOnlyState(null);
+        setLoadState("fallback");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <>
@@ -142,14 +187,124 @@ export function MemberRoleOnboardingPage() {
 
       <section className="grid-3">
         <SummaryItem label="Readiness" value={`${readyCount}/5`} />
-        <SummaryItem label="Invite actions" value="Disabled" />
-        <SummaryItem label="Internal tenant_code" value="Hidden" />
+        <SummaryItem
+          label="Read-only state"
+          value={loadState === "success" ? "Available" : "Fallback"}
+        />
+        <SummaryItem label="Internal tenant identifier" value="Hidden" />
+      </section>
+
+      <section className="panel" aria-labelledby="read-only-state-heading">
+        <div className="panel-header">
+          <div>
+            <h2 className="panel-title" id="read-only-state-heading">
+              Read-only platform state
+            </h2>
+            <div className="panel-subtitle">
+              Uses external organisation references to hydrate safe member and
+              role readiness when available.
+            </div>
+          </div>
+          <StatusBadge
+            label={
+              loadState === "loading"
+                ? "Loading"
+                : loadState === "success"
+                  ? "Read-only"
+                  : "Demo fallback"
+            }
+            tone={loadState === "success" ? "success" : "info"}
+          />
+        </div>
+        <div className="panel-body">
+          {loadState === "loading" ? (
+            <div className="banner info" role="status">
+              <CircleDashed size={18} />
+              <div>
+                <strong>Loading read-only member and role readiness.</strong>
+                <div className="table-subtext">
+                  The shell is checking external references without creating
+                  users, memberships, invites, roles, auth claims, or audit
+                  records.
+                </div>
+              </div>
+            </div>
+          ) : loadState === "fallback" ? (
+            <div className="banner warning" role="status">
+              <ShieldCheck size={18} />
+              <div>
+                <strong>Using local member and role setup fallback.</strong>
+                <div className="table-subtext">
+                  The read-only onboarding state endpoint is unavailable, so
+                  this page keeps local shell state only.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="grid-3">
+                <SummaryItem
+                  label="Overall readiness"
+                  value={
+                    readOnlyState?.readiness.overall_status ?? "Unavailable"
+                  }
+                />
+                <SummaryItem
+                  label="External tenant ref"
+                  value={readOnlyScope.external_tenant_ref}
+                />
+                <SummaryItem
+                  label="Organisation ref"
+                  value={readOnlyScope.organisation_ref}
+                />
+              </div>
+              <div className="route-list">
+                <div className="route-item">
+                  <div>
+                    <div className="route-name">
+                      {memberRoleCategory?.display_label ?? "Members and roles"}
+                    </div>
+                    <div className="route-path">
+                      {memberRoleCategory?.evidence_summary ??
+                        "Read-only member and role evidence is not available yet."}
+                    </div>
+                    {memberRoleCategory?.blockers[0] ? (
+                      <div className="table-subtext">
+                        {memberRoleCategory.blockers[0]}
+                      </div>
+                    ) : null}
+                    {memberRoleCategory?.next_actions[0] ? (
+                      <div className="table-subtext">
+                        {memberRoleCategory.next_actions[0]}
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge
+                    label={
+                      memberRoleCategory?.safe_display_status?.label ??
+                      memberRoleCategory?.status ??
+                      "Missing evidence"
+                    }
+                    tone={
+                      memberRoleCategory?.status === "READY"
+                        ? "success"
+                        : "info"
+                    }
+                  />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </section>
 
       <section className="banner warning" role="note">
         <ShieldCheck size={18} />
         <div>
-          <strong>No user, invite, membership, or role records are created from this page.</strong>
+          <strong>
+            No user, invite, membership, or role records are created from this
+            page.
+          </strong>
           <div className="table-subtext">
             This shell uses local form state only. It does not call identity,
             invitation, membership, seat, role-assignment, auth, billing,
@@ -260,6 +415,15 @@ export function MemberRoleOnboardingPage() {
               <button className="button secondary" disabled type="button">
                 Activate membership later
               </button>
+              <button className="button secondary" disabled type="button">
+                Register identity later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Change auth claims later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Write audit event later
+              </button>
               <span className={requiredComplete ? "muted" : "danger-text"}>
                 {requiredComplete
                   ? "Required shell fields are captured locally."
@@ -344,7 +508,7 @@ export function MemberRoleOnboardingPage() {
           <BoundaryCard
             icon={LinkIcon}
             title="External references only"
-            copy="Use external_tenant_ref and organisation_ref for onboarding; tenant_code remains an internal partition key."
+            copy="Use external_tenant_ref and organisation_ref for onboarding; the internal tenant identifier remains a platform partition key."
           />
           <BoundaryCard
             icon={UserPlus}

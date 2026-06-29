@@ -1761,6 +1761,9 @@ Stop conditions: Stop if integration requires backend mutations, schema changes,
 Validation expectation: Add/update targeted frontend tests for read-only hydration, permission/missing evidence states, fallback, disabled invite/role actions, external reference display, and no `tenant_code` exposure.
 Explicit non-goals: Do not implement user creation, membership creation, invite delivery, role assignment, auth claim changes, audit writes, or onboarding writes.
 Definition of done: Member/role onboarding can consume safe read-only platform state while remaining shell-only and non-mutating. Priority: P1.
+Status: Complete (2026-06-29).
+Finding: Connected the member/role onboarding shell to the existing read-only admin onboarding state endpoint using external references only. The page now surfaces loading, hydrated, permission-limited/missing-evidence, and local fallback states while keeping invite, user creation, membership, role assignment, identity-provider, auth-claim, audit, and onboarding write actions disabled.
+Validation: `npm.cmd test -- MemberRoleOnboardingPage.test.tsx` passed with 7 tests. Related onboarding and demo smoke tests passed with 38 tests. Full frontend `npm.cmd test` passed with 90 tests. Frontend build passed. Frontend lint passed with the existing warning baseline: 42 warnings, 0 errors.
 
 ## TASK-094: Connect campaign/opportunity setup shell to read-only state
 
