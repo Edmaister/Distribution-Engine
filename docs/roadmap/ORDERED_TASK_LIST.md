@@ -1692,6 +1692,10 @@ Validation expectation: Targeted API permission tests pass and confirm unauthent
 Explicit non-goals: Do not change auth behavior unless tests expose a clear route contract bug; do not add mutation routes.
 Definition of done: Onboarding read surfaces are locked to the intended admin/operator permission contract. Priority: P1.
 
+Status: Complete (2026-06-29). Output: `test/api/test_admin_onboarding_api.py`.
+Finding: Added onboarding read-route permission regression coverage for adjacent scoped admin and role-scoped identities. The tests now confirm finance admin, partner, producer, distributor, and consumer credentials are rejected before read-only projection helpers run, safe 403 errors do not echo tenant scope or internals, authorized admin/distribution/system access remains read-only, and onboarding state scope is built from external references while ignoring user-supplied `tenant_code`.
+Validation: Targeted API tests passed with `.venv_codex`: `python -m pytest test/api/test_admin_onboarding_api.py` (15 passed) and `python -m pytest test/api/test_admin_onboarding_api.py test/test_onboarding_state_projection_service.py test/test_onboarding_readiness_aggregation_service.py` (27 passed). `ruff check test/api/test_admin_onboarding_api.py` passed with the existing pyproject deprecation warning. `black --check` could not be completed because the local Black invocation timed out before returning, including `black --version`. No backend route, auth behavior, schema, migration, live DB access, secrets, persistence, mutation routes, production data, or onboarding writes were introduced.
+
 ## TASK-089: Connect onboarding shells to read-only/mock-safe backend state
 
 Objective: Gradually connect frontend onboarding shells to the read-only onboarding state endpoint where available, preserving local fallback, disabled actions, and safe missing-evidence behavior.
