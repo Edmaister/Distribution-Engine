@@ -13,6 +13,7 @@ import {
   getAdminOnboardingState,
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
+import { createAdminOnboardingStateResponse } from "../../api/endpoints/adminOnboarding.testFixtures";
 import { ProducerSponsorOnboardingPage } from "./ProducerSponsorOnboardingPage";
 
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
@@ -24,40 +25,35 @@ const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
 function onboardingStateResponse(
   overrides: Partial<AdminOnboardingStateResponse["readiness"]> = {},
 ): AdminOnboardingStateResponse {
-  return {
-    status: "ok",
-    guardrail: "Read-only admin onboarding state.",
-    readiness: {
-      contract_version: "onboarding.v1",
-      overall_status: "GO_LIVE_DISABLED",
-      categories: [
-        {
-          category: "PRODUCER_SPONSOR_SETUP",
-          display_label: "Producer / sponsor setup",
+  return createAdminOnboardingStateResponse({
+    overall_status: "GO_LIVE_DISABLED",
+    categories: [
+      {
+        category: "PRODUCER_SPONSOR_SETUP",
+        display_label: "Producer / sponsor setup",
+        status: "MISSING_EVIDENCE",
+        safe_display_status: {
           status: "MISSING_EVIDENCE",
-          safe_display_status: {
-            status: "MISSING_EVIDENCE",
-            label: "Missing evidence",
-            action_required: true,
-            go_live_enabled: false,
-          },
-          evidence_summary: "Producer/sponsor evidence is partially available.",
-          blockers: ["Producer/sponsor onboarding remains shell-only."],
-          next_actions: ["Confirm producer_ref and sponsor_ref before review."],
+          label: "Missing evidence",
+          action_required: true,
+          go_live_enabled: false,
         },
-      ],
-      summary: {
-        ready_count: 0,
-        in_progress_count: 0,
-        blocked_count: 0,
-        missing_evidence_count: 1,
-        permission_limited_count: 0,
-        go_live_disabled_count: 1,
-        total_count: 1,
+        evidence_summary: "Producer/sponsor evidence is partially available.",
+        blockers: ["Producer/sponsor onboarding remains shell-only."],
+        next_actions: ["Confirm producer_ref and sponsor_ref before review."],
       },
-      ...overrides,
+    ],
+    summary: {
+      ready_count: 0,
+      in_progress_count: 0,
+      blocked_count: 0,
+      missing_evidence_count: 1,
+      permission_limited_count: 0,
+      go_live_disabled_count: 1,
+      total_count: 1,
     },
-  };
+    ...overrides,
+  });
 }
 
 function renderWorkspace(ui: ReactElement) {
