@@ -8,8 +8,12 @@ import {
   Target,
   Wallet,
 } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  getAdminOnboardingState,
+  type AdminOnboardingStateResponse,
+} from "../../api/endpoints/adminOnboarding";
 import { StatusBadge } from "../../components/StatusBadge";
 import { SummaryItem } from "../../components/SummaryItem";
 
@@ -76,15 +80,27 @@ const nextJourneyLinks = [
   },
 ];
 
+const readOnlyScope = {
+  external_tenant_ref: "demo-platform-operator",
+  organisation_ref: "demo-organisation",
+  producer_ref: "demo-producer",
+  sponsor_ref: "demo-sponsor",
+};
+
+type LoadState = "loading" | "success" | "fallback";
+
 export function ProducerSponsorOnboardingPage() {
   const [form, setForm] = useState<FormState>(initialState);
+  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [readOnlyState, setReadOnlyState] =
+    useState<AdminOnboardingStateResponse | null>(null);
   const requiredComplete = Boolean(
     form.sponsorName.trim() &&
-      form.externalTenantRef.trim() &&
-      form.producerRef.trim() &&
-      form.sponsorRef.trim() &&
-      form.organisationRef.trim() &&
-      form.adminContact.trim(),
+    form.externalTenantRef.trim() &&
+    form.producerRef.trim() &&
+    form.sponsorRef.trim() &&
+    form.organisationRef.trim() &&
+    form.adminContact.trim(),
   );
 
   const readinessSteps = useMemo<ReadinessStep[]>(
@@ -99,9 +115,9 @@ export function ProducerSponsorOnboardingPage() {
         copy: "`external_tenant_ref`, `producer_ref`, `sponsor_ref`, and `organisation_ref` stay outside internal tenant partitioning.",
         ready: Boolean(
           form.externalTenantRef.trim() &&
-            form.producerRef.trim() &&
-            form.sponsorRef.trim() &&
-            form.organisationRef.trim(),
+          form.producerRef.trim() &&
+          form.sponsorRef.trim() &&
+          form.organisationRef.trim(),
         ),
       },
       {
@@ -124,10 +140,39 @@ export function ProducerSponsorOnboardingPage() {
   );
 
   const readyCount = readinessSteps.filter((step) => step.ready).length;
+  const producerCategory = readOnlyState?.readiness.categories.find(
+    (category) =>
+      category.category.toUpperCase().includes("PRODUCER") ||
+      category.category.toUpperCase().includes("SPONSOR"),
+  );
 
   function updateField(field: keyof FormState, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
   }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getAdminOnboardingState(readOnlyScope)
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        setReadOnlyState(response);
+        setLoadState("success");
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setReadOnlyState(null);
+        setLoadState("fallback");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <>
@@ -147,14 +192,121 @@ export function ProducerSponsorOnboardingPage() {
 
       <section className="grid-3">
         <SummaryItem label="Readiness" value={`${readyCount}/5`} />
-        <SummaryItem label="Funding actions" value="Disabled" />
-        <SummaryItem label="Internal tenant_code" value="Hidden" />
+        <SummaryItem
+          label="Read-only state"
+          value={loadState === "success" ? "Available" : "Fallback"}
+        />
+        <SummaryItem label="Internal tenant identifier" value="Hidden" />
+      </section>
+
+      <section className="panel" aria-labelledby="read-only-state-heading">
+        <div className="panel-header">
+          <div>
+            <h2 className="panel-title" id="read-only-state-heading">
+              Read-only platform state
+            </h2>
+            <div className="panel-subtitle">
+              Uses external producer and sponsor references to hydrate safe
+              onboarding context when available.
+            </div>
+          </div>
+          <StatusBadge
+            label={
+              loadState === "loading"
+                ? "Loading"
+                : loadState === "success"
+                  ? "Read-only"
+                  : "Demo fallback"
+            }
+            tone={loadState === "success" ? "success" : "info"}
+          />
+        </div>
+        <div className="panel-body">
+          {loadState === "loading" ? (
+            <div className="banner info" role="status">
+              <CircleDashed size={18} />
+              <div>
+                <strong>Loading read-only producer readiness.</strong>
+                <div className="table-subtext">
+                  The shell is checking external references without creating
+                  sponsor, funding, wallet, or billing records.
+                </div>
+              </div>
+            </div>
+          ) : loadState === "fallback" ? (
+            <div className="banner warning" role="status">
+              <ShieldCheck size={18} />
+              <div>
+                <strong>Using local producer setup fallback.</strong>
+                <div className="table-subtext">
+                  The read-only onboarding state endpoint is unavailable, so
+                  this page keeps local shell state only.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="grid-3">
+                <SummaryItem
+                  label="Overall readiness"
+                  value={
+                    readOnlyState?.readiness.overall_status ?? "Unavailable"
+                  }
+                />
+                <SummaryItem
+                  label="Producer ref"
+                  value={readOnlyScope.producer_ref}
+                />
+                <SummaryItem
+                  label="Sponsor ref"
+                  value={readOnlyScope.sponsor_ref}
+                />
+              </div>
+              <div className="route-list">
+                <div className="route-item">
+                  <div>
+                    <div className="route-name">
+                      {producerCategory?.display_label ??
+                        "Producer / sponsor setup"}
+                    </div>
+                    <div className="route-path">
+                      {producerCategory?.evidence_summary ??
+                        "Read-only producer/sponsor evidence is not available yet."}
+                    </div>
+                    {producerCategory?.blockers[0] ? (
+                      <div className="table-subtext">
+                        {producerCategory.blockers[0]}
+                      </div>
+                    ) : null}
+                    {producerCategory?.next_actions[0] ? (
+                      <div className="table-subtext">
+                        {producerCategory.next_actions[0]}
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge
+                    label={
+                      producerCategory?.safe_display_status?.label ??
+                      producerCategory?.status ??
+                      "Missing evidence"
+                    }
+                    tone={
+                      producerCategory?.status === "READY" ? "success" : "info"
+                    }
+                  />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </section>
 
       <section className="banner warning" role="note">
         <ShieldCheck size={18} />
         <div>
-          <strong>No money or sponsor records are created from this page.</strong>
+          <strong>
+            No money or sponsor records are created from this page.
+          </strong>
           <div className="table-subtext">
             This shell uses local form state only. It does not call sponsor
             onboarding, funding, wallet, billing, fulfilment, settlement, or
@@ -309,7 +461,7 @@ export function ProducerSponsorOnboardingPage() {
           <BoundaryCard
             icon={LinkIcon}
             title="External sponsor identity"
-            copy="Use producer_ref and sponsor_ref for SaaS-facing setup; tenant_code remains internal."
+            copy="Use producer_ref and sponsor_ref for SaaS-facing setup; the internal tenant identifier stays hidden."
           />
           <BoundaryCard
             icon={BadgeDollarSign}
