@@ -1774,6 +1774,9 @@ Stop conditions: Stop if integration requires backend mutations, schema changes,
 Validation expectation: Add/update targeted frontend tests for read-only hydration, missing evidence, fallback, disabled launch/publish actions, external reference display, and no `tenant_code` exposure.
 Explicit non-goals: Do not implement campaign writes, opportunity publication, link/code generation, reward/commission writes, funding setup, fulfilment, settlement, retry, go-live, or money movement.
 Definition of done: Campaign/opportunity setup can consume safe read-only platform state while remaining shell-only and non-mutating. Priority: P1.
+Status: Complete (2026-06-29).
+Finding: Connected the campaign/opportunity setup shell to the existing read-only admin onboarding state endpoint using external references only. The page now surfaces loading, hydrated, missing-evidence/blocker, and local fallback states while keeping campaign create, opportunity publish, link/code, route activation, reward/commission, funding, fulfilment, settlement, retry, go-live, webhook, wallet, and money movement actions disabled.
+Validation: `npm.cmd test -- CampaignOpportunitySetupPage.test.tsx` passed with 7 tests. `npm.cmd test -- DistributionCommandCentrePage.test.tsx` passed with 3 tests after hardening the guarded lifecycle test isolation and waiting for the selected distributor fixture to settle on `DIST-1`. `npm.cmd test -- OnboardingDemoJourneySmoke.test.tsx` passed with 5 tests. Full frontend `npm.cmd test` passed with 94 tests across 20 files. Frontend build passed. Frontend lint passed with the existing warning baseline: 42 warnings, 0 errors.
 
 ## TASK-095: Connect webhook/API setup shell to read-only state
 
