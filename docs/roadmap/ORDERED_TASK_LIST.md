@@ -1664,6 +1664,10 @@ Validation expectation: Readback contract coverage for idempotency, audit actor,
 Explicit non-goals: Do not implement draft/save endpoints or migrations in this task.
 Definition of done: Future onboarding mutation work has a reviewed contract and explicit safety gates before implementation. Priority: P1.
 
+Status: Complete (2026-06-29). Output: `docs/sa/ONBOARDING_DRAFT_SAVE_API_BOUNDARY.md`.
+Finding: Documented the future onboarding draft/save API boundary as a contract-only design. The boundary defines safe draft lifecycle states, separation from live tenant/account creation, invites, campaign publication, credentials, webhook delivery, go-live activation, funding, wallet, fulfilment, settlement, retry, audit mutation, and money movement. It covers idempotency keys, duplicate/replay/conflict behavior, stale draft handling, audit actor/role/correlation/external-reference evidence, tenant/external reference resolution, validation layers, permission boundaries, safe errors, redaction, future endpoint sketches, explicitly disabled endpoint families, and implementation safety gates. TASK-027 and TASK-028 remain blocked.
+Validation: Documentation/readback only. Confirmed TASK-086 changed docs only; no backend routes, frontend code, services, schema, migrations, persistence, DB access, secrets, tenant creation, user creation, invite delivery, campaign publication, credential generation, webhook dispatch, funding, fulfilment, settlement, retry, audit writes, go-live activation, or money movement were introduced.
+
 ## TASK-087: Define onboarding audit and event capture design
 
 Objective: Define audit/event capture requirements for future onboarding mutations across organisation, participant, member/role, campaign, and integration setup.
