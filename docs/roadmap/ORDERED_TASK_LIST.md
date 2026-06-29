@@ -1787,6 +1787,9 @@ Stop conditions: Stop if integration requires backend mutations, schema changes,
 Validation expectation: Add/update targeted frontend tests for read-only hydration, missing evidence, fallback, disabled credential/webhook actions, external reference display, no secret display, and no `tenant_code` exposure.
 Explicit non-goals: Do not implement credential lifecycle, webhook subscription, test delivery, signing, callback registration, secret display, webhook delivery, retry, go-live, or money movement.
 Definition of done: Webhook/API setup can consume safe read-only platform state while remaining shell-only and non-mutating. Priority: P1.
+Status: Complete (2026-06-29).
+Finding: Connected the webhook/API setup shell to the existing read-only admin onboarding state endpoint using external references only. The page now surfaces loading, hydrated missing-evidence/blocker, and local fallback states while keeping API key creation, secret generation, credential rotation, webhook subscription, callback registration, signing, queueing, test delivery, retry, go-live, and money actions disabled. Literal `tenant_code` is not exposed as a user-facing onboarding identifier, and secret-like credential material is not displayed.
+Validation: `npm.cmd test -- WebhookApiSetupPage.test.tsx` passed with 8 tests. Related onboarding tests passed with `npm.cmd test -- CompanyOnboardingPage.test.tsx ProducerSponsorOnboardingPage.test.tsx DistributorOnboardingPage.test.tsx MemberRoleOnboardingPage.test.tsx CampaignOpportunitySetupPage.test.tsx WebhookApiSetupPage.test.tsx OnboardingReadinessChecklistPage.test.tsx` (48 tests). `npm.cmd test -- OnboardingDemoJourneySmoke.test.tsx` passed with 5 tests. Full frontend `npm.cmd test` passed with 98 tests across 20 files. Frontend build passed. Frontend lint passed with the existing warning baseline: 42 warnings, 0 errors.
 
 ## TASK-096: Add onboarding frontend API helper contract tests
 

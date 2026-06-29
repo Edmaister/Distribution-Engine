@@ -6,8 +6,12 @@ import {
   RadioTower,
   ShieldCheck,
 } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  getAdminOnboardingState,
+  type AdminOnboardingStateResponse,
+} from "../../api/endpoints/adminOnboarding";
 import { StatusBadge } from "../../components/StatusBadge";
 import { SummaryItem } from "../../components/SummaryItem";
 
@@ -77,13 +81,21 @@ const eventCategories: EventCategory[] = [
     id: "fulfilment",
     label: "Fulfilment events",
     copy: "Safe fulfilment status events for pending, processing, success, failure, or duplicate-skip evidence.",
-    examples: ["FULFILMENT_PENDING", "FULFILMENT_SUCCEEDED", "FULFILMENT_FAILED"],
+    examples: [
+      "FULFILMENT_PENDING",
+      "FULFILMENT_SUCCEEDED",
+      "FULFILMENT_FAILED",
+    ],
   },
   {
     id: "settlement",
     label: "Settlement events",
     copy: "Safe settlement state events without ledger internals or exception details.",
-    examples: ["SETTLEMENT_PENDING", "SETTLEMENT_SETTLED", "SETTLEMENT_DISPUTED"],
+    examples: [
+      "SETTLEMENT_PENDING",
+      "SETTLEMENT_SETTLED",
+      "SETTLEMENT_DISPUTED",
+    ],
   },
   {
     id: "integration",
@@ -124,34 +136,51 @@ const journeyLinks = [
   },
 ];
 
+const readOnlyScope = {
+  external_tenant_ref: "demo-platform-operator",
+  organisation_ref: "demo-organisation",
+};
+
+type LoadState = "loading" | "success" | "fallback";
+
 export function WebhookApiSetupPage() {
   const [form, setForm] = useState<FormState>(initialState);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(["campaign", "outcome"]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([
+    "campaign",
+    "outcome",
+  ]);
+  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [readOnlyState, setReadOnlyState] =
+    useState<AdminOnboardingStateResponse | null>(null);
 
   const requiredComplete = Boolean(
     form.organisationRef.trim() &&
-      form.externalTenantRef.trim() &&
-      form.integrationOwner.trim() &&
-      form.apiEnvironmentIntent.trim() &&
-      form.callbackUrl.trim() &&
-      selectedCategories.length > 0 &&
-      form.authMethodIntent.trim() &&
-      form.ipAllowlistNotes.trim() &&
-      form.payloadFormatVersion.trim() &&
-      form.goLiveReadinessStatus.trim(),
+    form.externalTenantRef.trim() &&
+    form.integrationOwner.trim() &&
+    form.apiEnvironmentIntent.trim() &&
+    form.callbackUrl.trim() &&
+    selectedCategories.length > 0 &&
+    form.authMethodIntent.trim() &&
+    form.ipAllowlistNotes.trim() &&
+    form.payloadFormatVersion.trim() &&
+    form.goLiveReadinessStatus.trim(),
   );
 
   const readinessSteps = useMemo<ReadinessStep[]>(
     () => [
       {
         label: "External tenant scope",
-        copy: "organisation_ref and external_tenant_ref are captured without exposing tenant_code.",
-        ready: Boolean(form.organisationRef.trim() && form.externalTenantRef.trim()),
+        copy: "organisation_ref and external_tenant_ref are captured without exposing the internal tenant identifier.",
+        ready: Boolean(
+          form.organisationRef.trim() && form.externalTenantRef.trim(),
+        ),
       },
       {
         label: "Integration owner",
         copy: "Owner/contact and API environment intent are drafted locally.",
-        ready: Boolean(form.integrationOwner.trim() && form.apiEnvironmentIntent.trim()),
+        ready: Boolean(
+          form.integrationOwner.trim() && form.apiEnvironmentIntent.trim(),
+        ),
       },
       {
         label: "Callback placeholder",
@@ -161,12 +190,16 @@ export function WebhookApiSetupPage() {
       {
         label: "Webhook catalog selection",
         copy: "Selected event categories and payload format are ready for a future subscription flow.",
-        ready: Boolean(selectedCategories.length > 0 && form.payloadFormatVersion.trim()),
+        ready: Boolean(
+          selectedCategories.length > 0 && form.payloadFormatVersion.trim(),
+        ),
       },
       {
         label: "Security method intent",
         copy: "Authentication method and go-live readiness status are documented without creating credentials.",
-        ready: Boolean(form.authMethodIntent.trim() && form.goLiveReadinessStatus.trim()),
+        ready: Boolean(
+          form.authMethodIntent.trim() && form.goLiveReadinessStatus.trim(),
+        ),
       },
       {
         label: "Backend credential lifecycle",
@@ -181,6 +214,12 @@ export function WebhookApiSetupPage() {
   const selectedCategoryLabels = eventCategories
     .filter((category) => selectedCategories.includes(category.id))
     .map((category) => category.label);
+  const webhookCategory = readOnlyState?.readiness.categories.find(
+    (category) => {
+      const categoryKey = category.category.toUpperCase();
+      return categoryKey.includes("WEBHOOK") || categoryKey.includes("API");
+    },
+  );
 
   function updateField(field: keyof FormState, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -194,6 +233,30 @@ export function WebhookApiSetupPage() {
     );
   }
 
+  useEffect(() => {
+    let cancelled = false;
+
+    getAdminOnboardingState(readOnlyScope)
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        setReadOnlyState(response);
+        setLoadState("success");
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setReadOnlyState(null);
+        setLoadState("fallback");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <>
       <section className="page-header">
@@ -201,8 +264,8 @@ export function WebhookApiSetupPage() {
           <div className="page-kicker">DLaaS onboarding - Integrations</div>
           <h1 className="page-title">Webhook & API credential setup</h1>
           <p className="page-copy">
-            Draft integration setup intent for external tenant references,
-            API environment, callback URL, webhook event categories, payload
+            Draft integration setup intent for external tenant references, API
+            environment, callback URL, webhook event categories, payload
             preview, and security guardrails without creating credentials.
           </p>
         </div>
@@ -213,17 +276,121 @@ export function WebhookApiSetupPage() {
         <SummaryItem label="Readiness" value={`${readyCount}/6`} />
         <SummaryItem label="Credential actions" value="Disabled" />
         <SummaryItem label="Secrets displayed" value="Never" />
+        <SummaryItem
+          label="Read-only state"
+          value={loadState === "success" ? "Available" : "Fallback"}
+        />
       </section>
 
       <section className="banner warning" role="note">
         <ShieldCheck size={18} />
         <div>
-          <strong>No API keys, webhook subscriptions, signing material, callback registrations, or deliveries are created from this page.</strong>
+          <strong>
+            No API keys, webhook subscriptions, signing material, callback
+            registrations, or deliveries are created from this page.
+          </strong>
           <div className="table-subtext">
             This shell uses local form state only. It does not create, rotate,
             reveal, store, validate, subscribe, sign, queue, retry, deliver, or
             persist credentials or webhook records.
           </div>
+        </div>
+      </section>
+
+      <section className="panel" aria-labelledby="read-only-state-heading">
+        <div className="panel-header">
+          <div>
+            <h2 className="panel-title" id="read-only-state-heading">
+              Read-only platform state
+            </h2>
+            <div className="panel-subtitle">
+              Uses external integration references to hydrate safe webhook/API
+              readiness when available.
+            </div>
+          </div>
+          <StatusBadge
+            label={
+              loadState === "loading"
+                ? "Loading"
+                : loadState === "success"
+                  ? "Read-only"
+                  : "Demo fallback"
+            }
+            tone={loadState === "success" ? "success" : "info"}
+          />
+        </div>
+        <div className="panel-body">
+          {loadState === "loading" ? (
+            <div className="banner info" role="status">
+              <CircleDashed size={18} />
+              <div>
+                <strong>Loading read-only webhook and API readiness.</strong>
+                <div className="table-subtext">
+                  This checks the admin onboarding state endpoint without
+                  creating credentials, subscriptions, deliveries, retries, or
+                  go-live actions.
+                </div>
+              </div>
+            </div>
+          ) : loadState === "fallback" ? (
+            <div className="banner warning" role="status">
+              <ShieldCheck size={18} />
+              <div>
+                <strong>Using local webhook/API setup fallback.</strong>
+                <div className="table-subtext">
+                  The read-only onboarding state endpoint is unavailable, so
+                  this page keeps local shell state only and all credential and
+                  webhook actions remain disabled.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid-2">
+              <div className="summary-grid">
+                <SummaryItem
+                  label="External tenant ref"
+                  value={readOnlyScope.external_tenant_ref}
+                />
+                <SummaryItem
+                  label="Organisation ref"
+                  value={readOnlyScope.organisation_ref}
+                />
+              </div>
+              <div className="route-list">
+                <div className="route-item">
+                  <div>
+                    <div className="route-name">
+                      {webhookCategory?.display_label ?? "Webhook / API setup"}
+                    </div>
+                    <div className="route-path">
+                      {webhookCategory?.evidence_summary ??
+                        "Read-only webhook/API evidence is not available yet."}
+                    </div>
+                    {webhookCategory?.blockers[0] ? (
+                      <div className="table-subtext">
+                        {webhookCategory.blockers[0]}
+                      </div>
+                    ) : null}
+                    {webhookCategory?.next_actions[0] ? (
+                      <div className="table-subtext">
+                        {webhookCategory.next_actions[0]}
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge
+                    label={
+                      webhookCategory?.safe_display_status?.label ??
+                      webhookCategory?.status ??
+                      "Missing evidence"
+                    }
+                    tone={
+                      webhookCategory?.status === "READY" ? "success" : "info"
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -233,7 +400,8 @@ export function WebhookApiSetupPage() {
             <div>
               <h2 className="panel-title">Integration setup intent</h2>
               <div className="panel-subtitle">
-                Capture safe placeholders before credential lifecycle APIs exist.
+                Capture safe placeholders before credential lifecycle APIs
+                exist.
               </div>
             </div>
             <KeyRound size={18} />
@@ -265,7 +433,11 @@ export function WebhookApiSetupPage() {
                 label="API environment intention"
                 value={form.apiEnvironmentIntent}
                 onChange={(value) => updateField("apiEnvironmentIntent", value)}
-                options={["Sandbox only", "Sandbox then live review", "Live readiness later"]}
+                options={[
+                  "Sandbox only",
+                  "Sandbox then live review",
+                  "Live readiness later",
+                ]}
               />
               <TextField
                 label="Callback URL placeholder"
@@ -306,7 +478,9 @@ export function WebhookApiSetupPage() {
               <SelectField
                 label="Go-live readiness status"
                 value={form.goLiveReadinessStatus}
-                onChange={(value) => updateField("goLiveReadinessStatus", value)}
+                onChange={(value) =>
+                  updateField("goLiveReadinessStatus", value)
+                }
                 options={[
                   "Draft setup",
                   "Ready for future credential API",
@@ -317,7 +491,10 @@ export function WebhookApiSetupPage() {
               />
             </div>
 
-            <fieldset className="panel-body" aria-label="Webhook event categories">
+            <fieldset
+              className="panel-body"
+              aria-label="Webhook event categories"
+            >
               <legend className="panel-title">Webhook event categories</legend>
               <div className="route-list">
                 {eventCategories.map((category) => (
@@ -325,7 +502,8 @@ export function WebhookApiSetupPage() {
                     <div>
                       <div className="route-name">{category.label}</div>
                       <div className="route-path">
-                        {category.copy} Examples: {category.examples.join(", ")}.
+                        {category.copy} Examples: {category.examples.join(", ")}
+                        .
                       </div>
                     </div>
                     <input
@@ -355,7 +533,22 @@ export function WebhookApiSetupPage() {
                 Subscribe later
               </button>
               <button className="button secondary" disabled type="button">
+                Register callback later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Sign payload later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Queue delivery later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Retry delivery later
+              </button>
+              <button className="button secondary" disabled type="button">
                 Activate live credentials later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Move money later
               </button>
               <span className={requiredComplete ? "muted" : "danger-text"}>
                 {requiredComplete
@@ -373,7 +566,8 @@ export function WebhookApiSetupPage() {
                 Readiness review
               </h2>
               <div className="panel-subtitle">
-                Local readiness only; backend credential lifecycle remains unavailable.
+                Local readiness only; backend credential lifecycle remains
+                unavailable.
               </div>
             </div>
             <StatusBadge
@@ -414,7 +608,8 @@ export function WebhookApiSetupPage() {
               <div>
                 <div className="route-name">Tenant reference</div>
                 <div className="route-path">
-                  {form.externalTenantRef.trim() || "external_tenant_ref placeholder"}
+                  {form.externalTenantRef.trim() ||
+                    "external_tenant_ref placeholder"}
                 </div>
               </div>
               <StatusBadge label="External" tone="info" />
@@ -441,7 +636,8 @@ export function WebhookApiSetupPage() {
               <div>
                 <div className="route-name">Credential material</div>
                 <div className="route-path">
-                  Never generated, stored, displayed, signed, or delivered in this shell.
+                  Never generated, stored, displayed, signed, or delivered in
+                  this shell.
                 </div>
               </div>
               <StatusBadge label="Redacted" tone="warning" />
@@ -463,7 +659,7 @@ export function WebhookApiSetupPage() {
             <BoundaryCard
               icon={LinkIcon}
               title="External references only"
-              copy="Use external_tenant_ref and organisation_ref for setup; tenant_code remains internal."
+              copy="Use external_tenant_ref and organisation_ref for setup; the internal tenant identifier stays hidden."
             />
             <BoundaryCard
               icon={KeyRound}
