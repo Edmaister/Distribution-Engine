@@ -1852,6 +1852,109 @@ Stop conditions: Stop if checkpoint requires implementation work, live DB access
 Validation expectation: Documentation/readback only; confirm completed read-only integrations, contract tests, schema/design readiness, blockers, and safe next priorities.
 Explicit non-goals: Do not implement onboarding writes or downstream features.
 Definition of done: Roadmap has a clear pre-write checkpoint before any onboarding mutation task begins. Priority: P1.
+Status: Complete (2026-06-30). Output: `docs/roadmap/ONBOARDING_PRE_WRITE_READINESS_CHECKPOINT_TASK_100.md`.
+Finding: Added the TASK-100 pre-write readiness checkpoint covering TASK-091 through TASK-099 outcomes, completed read-only frontend integrations, contract/test hardening, future-write design work, current demo capabilities, explicit not-live boundaries, validation baseline, permission/safety posture, TASK-027/TASK-028 blockers, and the pre-write readiness decision. The checkpoint concludes the platform is ready to consider only a tightly scoped draft-persistence foundation wave, not full onboarding writes or live activation.
+Validation: Documentation/readback only. Confirmed TASK-100 changed docs only; no backend routes, frontend code, services, tests, schema, migrations, DB access, secrets, onboarding writes, draft persistence, audit writes, event persistence, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live activation, or money movement were introduced. Readback confirms remaining gaps, blockers, and next priorities are explicit and guarded.
+
+## TASK-101: Draft persistence migration design final review
+
+Objective: Perform a final documentation review before any onboarding draft persistence migration is added.
+Type: Docs/checkpoint.
+Dependencies: TASK-098; TASK-099; TASK-100.
+Stop conditions: Stop if review requires adding migrations, writing code, accessing live DB, inspecting secrets, or enabling writes.
+Validation expectation: Documentation/readback confirms schema design, rollback, clean DB replay plan, TASK-027/TASK-028 posture, and no-live-action guardrails.
+Explicit non-goals: Do not add migrations, services, routes, frontend code, draft writes, audit writes, credential lifecycle, webhook delivery, go-live, funding, fulfilment, settlement, retry, wallet, or money movement.
+Definition of done: The draft persistence migration is ready for a narrow implementation task with reviewed guardrails. Priority: P1.
+
+## TASK-102: Add onboarding draft persistence migration
+
+Objective: Add onboarding draft persistence tables only, with no write route and no production writes.
+Type: DB migration.
+Dependencies: TASK-101.
+Stop conditions: Stop if migration needs live DB access, production data, secrets, route implementation, services, frontend code, or live action semantics.
+Validation expectation: Migration check and clean DB replay pass; schema matches TASK-098; no route or write path exists.
+Explicit non-goals: Do not add draft-save routes, account creation, invite delivery, campaign publication, credential lifecycle, webhook delivery, audit writes, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Definition of done: Draft persistence tables exist in migration replay without enabling onboarding writes. Priority: P1.
+
+## TASK-103: Add clean DB migration replay tests for onboarding draft tables
+
+Objective: Prove clean DB readiness for onboarding draft persistence tables.
+Type: Tests.
+Dependencies: TASK-102.
+Stop conditions: Stop if tests require live DB access, production data, secrets, or write APIs.
+Validation expectation: Migration hygiene and clean DB replay tests pass; draft tables, indexes, and constraints are verified locally/CI only.
+Explicit non-goals: Do not add services, routes, frontend code, draft writes, audit writes, credential lifecycle, webhook delivery, go-live, funding, fulfilment, settlement, retry, wallet, or money movement.
+Definition of done: Clean DB replay covers the onboarding draft schema. Priority: P1.
+
+## TASK-104: Add onboarding draft repository with no route wiring
+
+Objective: Add repository primitives and repository tests only, with no API exposure.
+Type: Service/repository.
+Dependencies: TASK-102; TASK-103.
+Stop conditions: Stop if repository work requires route wiring, frontend changes, live DB access, secrets, or live action semantics.
+Validation expectation: Repository tests cover create/read/update draft-intent primitives, stale version behavior, redaction boundaries, and no-live-action fields.
+Explicit non-goals: Do not add API routes, frontend integration, account creation, invite delivery, campaign publication, credential lifecycle, webhook delivery, audit writes, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Definition of done: Draft repository primitives are tested but not exposed through routes. Priority: P1.
+
+## TASK-105: Add draft idempotency helper
+
+Objective: Implement idempotency key hashing, scoping, payload hash comparison, replay, and conflict logic for onboarding drafts only.
+Type: Service/tests.
+Dependencies: TASK-104.
+Stop conditions: Stop if helper requires route wiring, live DB access, secrets, or non-draft side effects.
+Validation expectation: Tests cover same-key/same-payload replay, same-key/different-payload conflict, scoped keys, hash-only storage, and no sensitive leakage.
+Explicit non-goals: Do not make live commands idempotent, add routes, write audit rows, dispatch events, generate credentials, deliver webhooks, fund, fulfil, settle, retry, activate go-live, or move money.
+Definition of done: Draft idempotency behavior is reusable and tested without route exposure. Priority: P1.
+
+## TASK-106: Add draft validation service using read-only readiness aggregation
+
+Objective: Validate draft payloads and produce readiness preview without persistence side effects.
+Type: Service/tests.
+Dependencies: TASK-104; TASK-105; TASK-099.
+Stop conditions: Stop if validation needs live DB access, secrets, route implementation, persistence beyond explicitly scoped draft reads, or live action semantics.
+Validation expectation: Tests cover field validation, cross-section validation, permission-shaped inputs, missing evidence, safe errors, redaction, and go-live disabled state.
+Explicit non-goals: Do not add API routes, create accounts, send invites, publish campaigns, generate credentials, deliver webhooks, write audit rows, fund, fulfil, settle, retry, activate go-live, or move money.
+Definition of done: Draft validation can produce safe readiness previews without live side effects. Priority: P1.
+
+## TASK-107: Add admin draft save endpoint behind strict guardrails
+
+Objective: Add a guarded admin endpoint that saves draft intent only.
+Type: API.
+Dependencies: TASK-104; TASK-105; TASK-106.
+Stop conditions: Stop if endpoint requires live DB access, production data, secrets, auth weakening, broad permission refactors, live entity creation, or money actions.
+Validation expectation: API tests cover auth, adjacent-role rejection, external-reference scope, idempotency, stale update, duplicate draft, safe errors, redaction, and no-live-action behavior.
+Explicit non-goals: Do not create tenants, users, invites, campaigns, credentials, webhooks, funding, wallets, fulfilments, settlements, retries, go-live activation, or money movement.
+Definition of done: Operators can save onboarding draft intent only, with no live activation semantics. Priority: P1.
+
+## TASK-108: Frontend draft-save integration behind disabled/live-safe controls
+
+Objective: Connect onboarding shells to draft-save only if prior backend guardrails pass.
+Type: Frontend/API integration.
+Dependencies: TASK-107.
+Stop conditions: Stop if frontend work enables live actions, credential lifecycle, webhook delivery, invite delivery, campaign publication, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Validation expectation: Frontend tests cover save draft, safe errors, fallback, disabled live actions, no secret display, external references, and no `tenant_code` user-facing dependency.
+Explicit non-goals: Do not implement submit-for-review, go-live, account creation, invite delivery, credential generation, webhook delivery, funding, fulfilment, settlement, retry, wallet, or money movement.
+Definition of done: Frontend can save draft intent without enabling live onboarding. Priority: P1.
+
+## TASK-109: Audit/event evidence implementation for draft save only
+
+Objective: Add audit evidence only for draft save, with no webhook dispatch.
+Type: Service/tests.
+Dependencies: TASK-107.
+Stop conditions: Stop if implementation dispatches events/webhooks, stores raw sensitive payloads, touches money domains, or enables live onboarding.
+Validation expectation: Tests cover actor, role, external references, correlation ID, idempotency reference, before/after hash, changed sections, redaction, and no webhook/event dispatch unless explicitly scoped as internal evidence.
+Explicit non-goals: Do not add webhook delivery, event replay, repair, credential lifecycle, invite delivery, campaign publication, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Definition of done: Draft-save audit evidence is available without live platform side effects. Priority: P1.
+
+## TASK-110: Checkpoint draft-save implementation readiness
+
+Objective: Decide whether submit-for-review or dry-run validation can be implemented next.
+Type: Docs.
+Dependencies: TASK-102; TASK-103; TASK-104; TASK-105; TASK-106; TASK-107; TASK-108; TASK-109.
+Stop conditions: Stop if checkpoint requires implementation work, live DB access, secrets, schema changes, migrations, writes, go-live, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, audit mutation beyond completed draft-save evidence, or money movement.
+Validation expectation: Documentation/readback confirms draft-save readiness, remaining blockers, validation baseline, and safe next priorities.
+Explicit non-goals: Do not implement submit-for-review, dry-run route, live onboarding, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Definition of done: Roadmap has a clear decision point after draft-save foundations. Priority: P1.
 
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
