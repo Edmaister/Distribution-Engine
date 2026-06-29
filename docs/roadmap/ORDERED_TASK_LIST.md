@@ -1706,6 +1706,10 @@ Validation expectation: Add frontend tests for read-only hydrated state, local f
 Explicit non-goals: Do not implement draft/save, create, publish, invite, activate, credential, webhook delivery, funding, fulfilment, settlement, retry, or money movement behavior.
 Definition of done: Onboarding shells can consume read-only platform state while remaining demo-safe and non-mutating. Priority: P1.
 
+Status: Complete (2026-06-29). Output: `frontend/src/pages/admin/OnboardingReadinessChecklistPage.tsx`, `frontend/src/pages/admin/CompanyOnboardingPage.tsx`.
+Finding: Connected the onboarding readiness checklist and company/organisation onboarding shell to the existing read-only admin onboarding state helper for `GET /admin/onboarding/state` using external references only. Both pages now show loading, hydrated read-only state, partial/missing evidence, safe local fallback, and disabled live-action guardrails while avoiding `tenant_code` as a user-facing identifier. Remaining onboarding shells are still local/demo shells and can follow this pattern in a later task.
+Validation: Targeted frontend tests passed with `npm.cmd test -- CompanyOnboardingPage.test.tsx OnboardingReadinessChecklistPage.test.tsx` (12 passed) and related onboarding/demo tests passed with `npm.cmd test -- OperatorDemoHomePage.test.tsx OnboardingDemoJourneySmoke.test.tsx CompanyOnboardingPage.test.tsx ProducerSponsorOnboardingPage.test.tsx DistributorOnboardingPage.test.tsx MemberRoleOnboardingPage.test.tsx CampaignOpportunitySetupPage.test.tsx WebhookApiSetupPage.test.tsx OnboardingReadinessChecklistPage.test.tsx` (45 passed). No backend routes, backend mutations, auth changes, schema, migrations, secrets, production data, live DB access, save/create/update/publish/invite/activate commands, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, or money movement were introduced.
+
 ## TASK-090: Checkpoint onboarding read-model implementation wave
 
 Objective: Record the outcomes of TASK-081 through TASK-089, update remaining gaps, and recommend the next wave only after read-only contracts and tests are in place.

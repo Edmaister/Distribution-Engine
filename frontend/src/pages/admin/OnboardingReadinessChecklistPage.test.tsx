@@ -1,8 +1,79 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactElement } from "react";
 import { createMemoryRouter, Outlet, RouterProvider } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  getAdminOnboardingState,
+  type AdminOnboardingStateResponse,
+} from "../../api/endpoints/adminOnboarding";
 import { OnboardingReadinessChecklistPage } from "./OnboardingReadinessChecklistPage";
+
+vi.mock("../../api/endpoints/adminOnboarding", () => ({
+  getAdminOnboardingState: vi.fn(),
+}));
+
+const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
+
+function onboardingStateResponse(
+  overrides: Partial<AdminOnboardingStateResponse["readiness"]> = {},
+): AdminOnboardingStateResponse {
+  return {
+    status: "ok",
+    guardrail: "Read-only admin onboarding state.",
+    readiness: {
+      contract_version: "onboarding.v1",
+      overall_status: "GO_LIVE_DISABLED",
+      categories: [
+        {
+          category: "ORGANISATION_PROFILE",
+          display_label: "Organisation profile",
+          status: "READY",
+          safe_display_status: {
+            status: "READY",
+            label: "Ready",
+            action_required: false,
+            go_live_enabled: false,
+          },
+          evidence_summary: "Read-only organisation evidence is present.",
+          blockers: [],
+          next_actions: ["Review organisation profile before go-live."],
+        },
+        {
+          category: "WEBHOOK_API_SETUP",
+          display_label: "Webhook / API setup",
+          status: "MISSING_EVIDENCE",
+          safe_display_status: {
+            status: "MISSING_EVIDENCE",
+            label: "Missing evidence",
+            action_required: true,
+            go_live_enabled: false,
+          },
+          evidence_summary: "Webhook/API evidence is unavailable.",
+          blockers: ["Webhook/API setup is currently shell-only."],
+          next_actions: [
+            "Capture webhook/API setup when a safe source is available.",
+          ],
+        },
+      ],
+      summary: {
+        ready_count: 1,
+        in_progress_count: 0,
+        blocked_count: 0,
+        missing_evidence_count: 1,
+        permission_limited_count: 0,
+        go_live_disabled_count: 1,
+        total_count: 2,
+      },
+      ...overrides,
+    },
+  };
+}
 
 function renderWorkspace(ui: ReactElement) {
   const router = createMemoryRouter([
@@ -41,11 +112,16 @@ function blockersPanel() {
 }
 
 describe("OnboardingReadinessChecklistPage", () => {
-  afterEach(() => {
-    cleanup();
+  beforeEach(() => {
+    mockedGetAdminOnboardingState.mockResolvedValue(onboardingStateResponse());
   });
 
-  it("renders the onboarding readiness checklist with demo-safe statuses", () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it("renders the onboarding readiness checklist with demo-safe statuses", async () => {
     renderWorkspace(<OnboardingReadinessChecklistPage />);
 
     expect(
@@ -54,50 +130,64 @@ describe("OnboardingReadinessChecklistPage", () => {
     expect(screen.getByText("Review only")).toBeInTheDocument();
     expect(screen.getByText("Ready categories")).toBeInTheDocument();
     expect(screen.getByText("Blocked categories")).toBeInTheDocument();
-    expect(screen.getByText("Internal tenant_code")).toBeInTheDocument();
-    expect(checklistPanel().getByText("Organisation profile")).toBeInTheDocument();
-    expect(checklistPanel().getByText("Producer / sponsor setup")).toBeInTheDocument();
-    expect(checklistPanel().getByText("Distributor setup")).toBeInTheDocument();
-    expect(checklistPanel().getByText("Members and roles")).toBeInTheDocument();
-    expect(checklistPanel().getByText("Campaign / opportunity setup")).toBeInTheDocument();
-    expect(checklistPanel().getByText("Webhook / API setup")).toBeInTheDocument();
-    expect(checklistPanel().getByText("Security and permissions")).toBeInTheDocument();
-    expect(checklistPanel().getByText("Go-live controls")).toBeInTheDocument();
-    expect(checklistPanel().getAllByText("Ready")).toHaveLength(2);
-    expect(checklistPanel().getAllByText("In progress")).toHaveLength(4);
-    expect(checklistPanel().getAllByText("Blocked")).toHaveLength(2);
+    expect(screen.getByText("Internal tenant identifier")).toBeInTheDocument();
+    expect(await screen.findByText("Overall readiness")).toBeInTheDocument();
+    expect(screen.getByText("demo-platform-operator")).toBeInTheDocument();
+    expect(
+      checklistPanel().getByText("Organisation profile"),
+    ).toBeInTheDocument();
+    expect(
+      checklistPanel().getByText("Webhook / API setup"),
+    ).toBeInTheDocument();
+    expect(checklistPanel().getByText("Missing evidence")).toBeInTheDocument();
+    expect(
+      checklistPanel().getByText("Webhook/API setup is currently shell-only."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
   });
 
-  it("links each setup category back to the relevant onboarding shell", () => {
+  it("requests read-only onboarding state using external references", async () => {
     renderWorkspace(<OnboardingReadinessChecklistPage />);
+
+    await waitFor(() => {
+      expect(mockedGetAdminOnboardingState).toHaveBeenCalledWith({
+        external_tenant_ref: "demo-platform-operator",
+        organisation_ref: "demo-organisation",
+        producer_ref: "demo-producer",
+        distributor_ref: "demo-distributor",
+        campaign_code: "DEMO-CAMPAIGN",
+        opportunity_ref: "demo-opportunity",
+      });
+    });
+  });
+
+  it("links hydrated categories back to relevant onboarding shells", async () => {
+    renderWorkspace(<OnboardingReadinessChecklistPage />);
+
+    await screen.findByText(/Read-only organisation evidence is present/);
 
     expect(
       checklistPanel().getByRole("link", { name: /Organisation profile/ }),
     ).toHaveAttribute("href", "/admin/onboarding/company");
-    expect(
-      checklistPanel().getByRole("link", { name: /Producer \/ sponsor setup/ }),
-    ).toHaveAttribute("href", "/admin/onboarding/producer-sponsor");
-    expect(
-      checklistPanel().getByRole("link", { name: /Distributor setup/ }),
-    ).toHaveAttribute("href", "/admin/onboarding/distributor");
-    expect(
-      checklistPanel().getByRole("link", { name: /Members and roles/ }),
-    ).toHaveAttribute("href", "/admin/onboarding/members-roles");
-    expect(
-      checklistPanel().getByRole("link", { name: /^Campaign \/ opportunity setup/ }),
-    ).toHaveAttribute("href", "/admin/onboarding/campaign-opportunity");
     expect(
       checklistPanel().getByRole("link", { name: /Webhook \/ API setup/ }),
     ).toHaveAttribute("href", "/admin/onboarding/webhook-api");
   });
 
   it("shows live verification blockers and keeps go-live actions disabled", () => {
+    mockedGetAdminOnboardingState.mockRejectedValue(new Error("offline"));
     renderWorkspace(<OnboardingReadinessChecklistPage />);
 
-    expect(blockersPanel().getByText("TASK-027 live DB verification")).toBeInTheDocument();
-    expect(blockersPanel().getByText("TASK-028 drift resolution")).toBeInTheDocument();
     expect(
-      blockersPanel().getByText(/approved safe read-only runtime database access/),
+      blockersPanel().getByText("TASK-027 live DB verification"),
+    ).toBeInTheDocument();
+    expect(
+      blockersPanel().getByText("TASK-028 drift resolution"),
+    ).toBeInTheDocument();
+    expect(
+      blockersPanel().getByText(
+        /approved safe read-only runtime database access/,
+      ),
     ).toBeInTheDocument();
     expect(
       blockersPanel().getByText(/verified live\/schema mismatch/),
@@ -121,7 +211,25 @@ describe("OnboardingReadinessChecklistPage", () => {
     expect(screen.getByText("No live commands")).toBeInTheDocument();
     expect(screen.getByText("Demo review only")).toBeInTheDocument();
     expect(
-      screen.getByText(/wallet, funding, fulfilment, settlement, retry, and webhook delivery stay disabled/),
+      screen.getByText(
+        /wallet, funding, fulfilment, settlement, retry, and webhook delivery stay disabled/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to local demo readiness when the endpoint is unavailable", async () => {
+    mockedGetAdminOnboardingState.mockRejectedValue(new Error("offline"));
+    renderWorkspace(<OnboardingReadinessChecklistPage />);
+
+    expect(
+      await screen.findByText("Using local demo fallback."),
+    ).toBeInTheDocument();
+    expect(
+      checklistPanel().getByText("Producer / sponsor setup"),
+    ).toBeInTheDocument();
+    expect(checklistPanel().getByText("Distributor setup")).toBeInTheDocument();
+    expect(
+      checklistPanel().getByText("Security and permissions"),
     ).toBeInTheDocument();
   });
 });

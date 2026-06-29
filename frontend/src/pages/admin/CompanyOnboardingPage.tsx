@@ -7,8 +7,12 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  getAdminOnboardingState,
+  type AdminOnboardingStateResponse,
+} from "../../api/endpoints/adminOnboarding";
 import { StatusBadge } from "../../components/StatusBadge";
 import { SummaryItem } from "../../components/SummaryItem";
 
@@ -73,8 +77,18 @@ const futureJourneyLinks = [
   },
 ];
 
+const readOnlyScope = {
+  external_tenant_ref: "demo-platform-operator",
+  organisation_ref: "demo-organisation",
+};
+
+type LoadState = "loading" | "success" | "fallback";
+
 export function CompanyOnboardingPage() {
   const [form, setForm] = useState<FormState>(initialState);
+  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [readOnlyState, setReadOnlyState] =
+    useState<AdminOnboardingStateResponse | null>(null);
   const requiredComplete = Boolean(
     form.organisationName.trim() &&
     form.externalTenantRef.trim() &&
@@ -116,10 +130,37 @@ export function CompanyOnboardingPage() {
   );
 
   const readyCount = readinessSteps.filter((step) => step.ready).length;
+  const organisationCategory = readOnlyState?.readiness.categories.find(
+    (category) => category.category.toUpperCase().includes("ORGANISATION"),
+  );
 
   function updateField(field: keyof FormState, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
   }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getAdminOnboardingState(readOnlyScope)
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        setReadOnlyState(response);
+        setLoadState("success");
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setReadOnlyState(null);
+        setLoadState("fallback");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <>
@@ -138,8 +179,115 @@ export function CompanyOnboardingPage() {
 
       <section className="grid-3">
         <SummaryItem label="Readiness" value={`${readyCount}/4`} />
-        <SummaryItem label="Create API" value="Not wired" />
-        <SummaryItem label="Internal tenant_code" value="Hidden" />
+        <SummaryItem
+          label="Read-only state"
+          value={loadState === "success" ? "Available" : "Fallback"}
+        />
+        <SummaryItem label="Internal tenant identifier" value="Hidden" />
+      </section>
+
+      <section className="panel" aria-labelledby="read-only-state-heading">
+        <div className="panel-header">
+          <div>
+            <h2 className="panel-title" id="read-only-state-heading">
+              Read-only platform state
+            </h2>
+            <div className="panel-subtitle">
+              Uses external references to hydrate safe onboarding context when
+              available.
+            </div>
+          </div>
+          <StatusBadge
+            label={
+              loadState === "loading"
+                ? "Loading"
+                : loadState === "success"
+                  ? "Read-only"
+                  : "Demo fallback"
+            }
+            tone={loadState === "success" ? "success" : "info"}
+          />
+        </div>
+        <div className="panel-body">
+          {loadState === "loading" ? (
+            <div className="banner info" role="status">
+              <CircleDashed size={18} />
+              <div>
+                <strong>Loading read-only company readiness.</strong>
+                <div className="table-subtext">
+                  The shell is checking external references without creating
+                  account records.
+                </div>
+              </div>
+            </div>
+          ) : loadState === "fallback" ? (
+            <div className="banner warning" role="status">
+              <ShieldCheck size={18} />
+              <div>
+                <strong>Using local company setup fallback.</strong>
+                <div className="table-subtext">
+                  The read-only onboarding state endpoint is unavailable, so
+                  this page keeps local shell state only.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="grid-3">
+                <SummaryItem
+                  label="Overall readiness"
+                  value={
+                    readOnlyState?.readiness.overall_status ?? "Unavailable"
+                  }
+                />
+                <SummaryItem
+                  label="External tenant ref"
+                  value={readOnlyScope.external_tenant_ref}
+                />
+                <SummaryItem
+                  label="Organisation ref"
+                  value={readOnlyScope.organisation_ref}
+                />
+              </div>
+              <div className="route-list">
+                <div className="route-item">
+                  <div>
+                    <div className="route-name">
+                      {organisationCategory?.display_label ??
+                        "Organisation profile"}
+                    </div>
+                    <div className="route-path">
+                      {organisationCategory?.evidence_summary ??
+                        "Read-only organisation evidence is not available yet."}
+                    </div>
+                    {organisationCategory?.blockers[0] ? (
+                      <div className="table-subtext">
+                        {organisationCategory.blockers[0]}
+                      </div>
+                    ) : null}
+                    {organisationCategory?.next_actions[0] ? (
+                      <div className="table-subtext">
+                        {organisationCategory.next_actions[0]}
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge
+                    label={
+                      organisationCategory?.safe_display_status?.label ??
+                      organisationCategory?.status ??
+                      "Missing evidence"
+                    }
+                    tone={
+                      organisationCategory?.status === "READY"
+                        ? "success"
+                        : "info"
+                    }
+                  />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </section>
 
       <section className="banner warning" role="note">
@@ -296,8 +444,8 @@ export function CompanyOnboardingPage() {
           />
           <BoundaryCard
             icon={ShieldCheck}
-            title="tenant_code stays internal"
-            copy="Do not expose tenant_code as the primary product identifier in this company setup journey."
+            title="Internal tenant identifier stays hidden"
+            copy="Use external references as the visible product identifiers in this company setup journey."
           />
           <BoundaryCard
             icon={Users}
