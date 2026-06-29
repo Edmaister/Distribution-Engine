@@ -1734,6 +1734,10 @@ Validation expectation: Add/update targeted frontend tests for loading, hydrated
 Explicit non-goals: Do not implement producer/sponsor writes, sponsor funding, wallet, billing, campaign publication, credential generation, webhook delivery, fulfilment, settlement, retry, or money movement.
 Definition of done: Producer/sponsor onboarding can consume safe read-only platform state while remaining shell-only and non-mutating. Priority: P1.
 
+Status: Complete (2026-06-29). Output: `frontend/src/pages/admin/ProducerSponsorOnboardingPage.tsx`.
+Finding: Integrated the producer/sponsor onboarding shell with the existing read-only admin onboarding state helper for `GET /admin/onboarding/state` using external references only. The page now shows loading, hydrated read-only producer/sponsor evidence, partial/missing evidence, safe local fallback, and disabled sponsor/funding guardrails while avoiding `tenant_code` as a user-facing identifier. No producer/sponsor writes or money-related actions were enabled.
+Validation: Targeted frontend test `npm.cmd test -- ProducerSponsorOnboardingPage.test.tsx` passed with 7 tests. No backend routes, backend mutations, auth changes, schema, migrations, secrets, production data, live DB access, sponsor creation, funding setup, wallet creation, billing mutation, credential lifecycle, webhook delivery, go-live, fulfilment, settlement, retry, or money movement were introduced.
+
 ## TASK-092: Connect distributor onboarding shell to read-only state
 
 Objective: Integrate the distributor onboarding shell with read-only onboarding state while preserving local fallback, disabled lifecycle/wallet/route actions, and distributor-safe external reference display.
