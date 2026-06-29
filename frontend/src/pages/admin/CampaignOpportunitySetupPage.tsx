@@ -9,8 +9,12 @@ import {
   ShieldCheck,
   Target,
 } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  getAdminOnboardingState,
+  type AdminOnboardingStateResponse,
+} from "../../api/endpoints/adminOnboarding";
 import { StatusBadge } from "../../components/StatusBadge";
 import { SummaryItem } from "../../components/SummaryItem";
 
@@ -124,23 +128,37 @@ const journeyLinks = [
   },
 ];
 
+const readOnlyScope = {
+  external_tenant_ref: "demo-platform-operator",
+  organisation_ref: "demo-organisation",
+  producer_ref: "demo-producer",
+  sponsor_ref: "demo-sponsor",
+  campaign_code: "DEMO-CAMPAIGN",
+  opportunity_ref: "demo-opportunity",
+};
+
+type LoadState = "loading" | "success" | "fallback";
+
 export function CampaignOpportunitySetupPage() {
   const [form, setForm] = useState<FormState>(initialState);
   const [activeStepId, setActiveStepId] = useState(wizardSteps[0].id);
+  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [readOnlyState, setReadOnlyState] =
+    useState<AdminOnboardingStateResponse | null>(null);
   const requiredComplete = Boolean(
     form.organisationRef.trim() &&
-      form.producerSponsorRef.trim() &&
-      form.campaignCode.trim() &&
-      form.opportunityRef.trim() &&
-      form.campaignName.trim() &&
-      form.marketCountry.trim() &&
-      form.distributionModel.trim() &&
-      form.eligibleDistributorType.trim() &&
-      form.intendedOutcomeEvent.trim() &&
-      form.rewardCommissionIntent.trim() &&
-      form.fundingModelIntent.trim() &&
-      form.goLiveTargetStatus.trim() &&
-      form.linkCodeIntent.trim(),
+    form.producerSponsorRef.trim() &&
+    form.campaignCode.trim() &&
+    form.opportunityRef.trim() &&
+    form.campaignName.trim() &&
+    form.marketCountry.trim() &&
+    form.distributionModel.trim() &&
+    form.eligibleDistributorType.trim() &&
+    form.intendedOutcomeEvent.trim() &&
+    form.rewardCommissionIntent.trim() &&
+    form.fundingModelIntent.trim() &&
+    form.goLiveTargetStatus.trim() &&
+    form.linkCodeIntent.trim(),
   );
 
   const readinessSteps = useMemo<ReadinessStep[]>(
@@ -150,26 +168,33 @@ export function CampaignOpportunitySetupPage() {
         copy: "Organisation reference, campaign code, opportunity reference, name, and market are captured locally.",
         ready: Boolean(
           form.organisationRef.trim() &&
-            form.campaignCode.trim() &&
-            form.opportunityRef.trim() &&
-            form.campaignName.trim() &&
-            form.marketCountry.trim(),
+          form.campaignCode.trim() &&
+          form.opportunityRef.trim() &&
+          form.campaignName.trim() &&
+          form.marketCountry.trim(),
         ),
       },
       {
         label: "Participant scope",
         copy: "Producer/sponsor reference and eligible distributor type are selected without changing permissions.",
-        ready: Boolean(form.producerSponsorRef.trim() && form.eligibleDistributorType.trim()),
+        ready: Boolean(
+          form.producerSponsorRef.trim() && form.eligibleDistributorType.trim(),
+        ),
       },
       {
         label: "Distribution intent",
         copy: "Distribution model and link/code intent are drafted, but no routes, links, or codes are generated.",
-        ready: Boolean(form.distributionModel.trim() && form.linkCodeIntent.trim()),
+        ready: Boolean(
+          form.distributionModel.trim() && form.linkCodeIntent.trim(),
+        ),
       },
       {
         label: "Outcome and policy intent",
         copy: "Outcome event and reward/commission policy direction are captured without policy or money writes.",
-        ready: Boolean(form.intendedOutcomeEvent.trim() && form.rewardCommissionIntent.trim()),
+        ready: Boolean(
+          form.intendedOutcomeEvent.trim() &&
+          form.rewardCommissionIntent.trim(),
+        ),
       },
       {
         label: "Funding intention",
@@ -186,11 +211,41 @@ export function CampaignOpportunitySetupPage() {
   );
 
   const readyCount = readinessSteps.filter((step) => step.ready).length;
-  const activeStep = wizardSteps.find((step) => step.id === activeStepId) || wizardSteps[0];
+  const activeStep =
+    wizardSteps.find((step) => step.id === activeStepId) || wizardSteps[0];
+  const campaignCategory = readOnlyState?.readiness.categories.find(
+    (category) =>
+      category.category.toUpperCase().includes("CAMPAIGN") ||
+      category.category.toUpperCase().includes("OPPORTUNITY"),
+  );
 
   function updateField(field: keyof FormState, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
   }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getAdminOnboardingState(readOnlyScope)
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        setReadOnlyState(response);
+        setLoadState("success");
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setReadOnlyState(null);
+        setLoadState("fallback");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <>
@@ -209,14 +264,138 @@ export function CampaignOpportunitySetupPage() {
 
       <section className="grid-3">
         <SummaryItem label="Readiness" value={`${readyCount}/6`} />
-        <SummaryItem label="Launch actions" value="Disabled" />
-        <SummaryItem label="Internal tenant_code" value="Hidden" />
+        <SummaryItem
+          label="Read-only state"
+          value={loadState === "success" ? "Available" : "Fallback"}
+        />
+        <SummaryItem label="Internal tenant identifier" value="Hidden" />
+      </section>
+
+      <section className="panel" aria-labelledby="read-only-state-heading">
+        <div className="panel-header">
+          <div>
+            <h2 className="panel-title" id="read-only-state-heading">
+              Read-only platform state
+            </h2>
+            <div className="panel-subtitle">
+              Uses external campaign and opportunity references to hydrate safe
+              readiness context when available.
+            </div>
+          </div>
+          <StatusBadge
+            label={
+              loadState === "loading"
+                ? "Loading"
+                : loadState === "success"
+                  ? "Read-only"
+                  : "Demo fallback"
+            }
+            tone={loadState === "success" ? "success" : "info"}
+          />
+        </div>
+        <div className="panel-body">
+          {loadState === "loading" ? (
+            <div className="banner info" role="status">
+              <CircleDashed size={18} />
+              <div>
+                <strong>Loading read-only campaign readiness.</strong>
+                <div className="table-subtext">
+                  The wizard is checking external references without creating
+                  campaigns, publishing opportunities, issuing links, activating
+                  routes, writing policies, funding, fulfilling, settling,
+                  retrying, going live, or moving money.
+                </div>
+              </div>
+            </div>
+          ) : loadState === "fallback" ? (
+            <div className="banner warning" role="status">
+              <ShieldCheck size={18} />
+              <div>
+                <strong>Using local campaign setup fallback.</strong>
+                <div className="table-subtext">
+                  The read-only onboarding state endpoint is unavailable, so
+                  this page keeps local shell state only.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="grid-3">
+                <SummaryItem
+                  label="Overall readiness"
+                  value={
+                    readOnlyState?.readiness.overall_status ?? "Unavailable"
+                  }
+                />
+                <SummaryItem
+                  label="Campaign code"
+                  value={readOnlyScope.campaign_code}
+                />
+                <SummaryItem
+                  label="Opportunity ref"
+                  value={readOnlyScope.opportunity_ref}
+                />
+              </div>
+              <div className="grid-3">
+                <SummaryItem
+                  label="Producer ref"
+                  value={readOnlyScope.producer_ref}
+                />
+                <SummaryItem
+                  label="Sponsor ref"
+                  value={readOnlyScope.sponsor_ref}
+                />
+                <SummaryItem
+                  label="Organisation ref"
+                  value={readOnlyScope.organisation_ref}
+                />
+              </div>
+              <div className="route-list">
+                <div className="route-item">
+                  <div>
+                    <div className="route-name">
+                      {campaignCategory?.display_label ??
+                        "Campaign / opportunity setup"}
+                    </div>
+                    <div className="route-path">
+                      {campaignCategory?.evidence_summary ??
+                        "Read-only campaign/opportunity evidence is not available yet."}
+                    </div>
+                    {campaignCategory?.blockers[0] ? (
+                      <div className="table-subtext">
+                        {campaignCategory.blockers[0]}
+                      </div>
+                    ) : null}
+                    {campaignCategory?.next_actions[0] ? (
+                      <div className="table-subtext">
+                        {campaignCategory.next_actions[0]}
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge
+                    label={
+                      campaignCategory?.safe_display_status?.label ??
+                      campaignCategory?.status ??
+                      "Missing evidence"
+                    }
+                    tone={
+                      campaignCategory?.status === "READY" ? "success" : "info"
+                    }
+                  />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </section>
 
       <section className="banner warning" role="note">
         <ShieldCheck size={18} />
         <div>
-          <strong>No campaign, opportunity, route, link, code, reward, or funding records are created from this page.</strong>
+          <strong>
+            No campaign, opportunity, route, link, code, reward, or funding
+            records are created from this page.
+          </strong>
           <div className="table-subtext">
             This wizard uses local form state only. It does not call campaign
             creation, opportunity publication, route generation, link/code
@@ -227,7 +406,10 @@ export function CampaignOpportunitySetupPage() {
       </section>
 
       <section className="grid-2">
-        <section className="panel" aria-label="Campaign opportunity setup wizard">
+        <section
+          className="panel"
+          aria-label="Campaign opportunity setup wizard"
+        >
           <div className="panel-header">
             <div>
               <h2 className="panel-title">Wizard steps</h2>
@@ -321,7 +503,9 @@ export function CampaignOpportunitySetupPage() {
                 <SelectField
                   label="Eligible distributor type"
                   value={form.eligibleDistributorType}
-                  onChange={(value) => updateField("eligibleDistributorType", value)}
+                  onChange={(value) =>
+                    updateField("eligibleDistributorType", value)
+                  }
                   options={[
                     "Distributor / partner admin",
                     "Advisor network",
@@ -365,7 +549,9 @@ export function CampaignOpportunitySetupPage() {
                 <SelectField
                   label="Intended outcome event"
                   value={form.intendedOutcomeEvent}
-                  onChange={(value) => updateField("intendedOutcomeEvent", value)}
+                  onChange={(value) =>
+                    updateField("intendedOutcomeEvent", value)
+                  }
                   options={[
                     "QUALIFIED_OUTCOME",
                     "ACCOUNT_OPENED",
@@ -377,7 +563,9 @@ export function CampaignOpportunitySetupPage() {
                 <SelectField
                   label="Reward / commission policy intention"
                   value={form.rewardCommissionIntent}
-                  onChange={(value) => updateField("rewardCommissionIntent", value)}
+                  onChange={(value) =>
+                    updateField("rewardCommissionIntent", value)
+                  }
                   options={[
                     "Reward and commission policy to be selected later",
                     "Customer/referrer reward only",
@@ -432,6 +620,30 @@ export function CampaignOpportunitySetupPage() {
               </button>
               <button className="button secondary" disabled type="button">
                 Generate links later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Activate route later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Write reward policy later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Configure funding later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Trigger fulfilment later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Run settlement later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Retry lifecycle later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Activate go-live later
+              </button>
+              <button className="button secondary" disabled type="button">
+                Move money later
               </button>
               <span className={requiredComplete ? "muted" : "danger-text"}>
                 {requiredComplete
@@ -489,7 +701,7 @@ export function CampaignOpportunitySetupPage() {
             <BoundaryCard
               icon={LinkIcon}
               title="External setup identifiers"
-              copy="Use organisation_ref, producer_ref or sponsor_ref, campaign_code, and opportunity_ref; tenant_code remains internal."
+              copy="Use organisation_ref, producer_ref or sponsor_ref, campaign_code, and opportunity_ref; the internal tenant identifier remains hidden."
             />
             <BoundaryCard
               icon={GitPullRequestArrow}

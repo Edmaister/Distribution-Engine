@@ -1,4 +1,11 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createMemoryRouter, Outlet, RouterProvider } from "react-router-dom";
@@ -61,16 +68,30 @@ vi.mock("../../api/endpoints/distribution", () => ({
 
 const mockedAcceptAdminRoute = vi.mocked(acceptAdminRoute);
 const mockedActivateAdminDistributor = vi.mocked(activateAdminDistributor);
-const mockedCreditAdminDistributorWallet = vi.mocked(creditAdminDistributorWallet);
+const mockedCreditAdminDistributorWallet = vi.mocked(
+  creditAdminDistributorWallet,
+);
 const mockedGetAdminComplianceReviews = vi.mocked(getAdminComplianceReviews);
 const mockedGetAdminDisputes = vi.mocked(getAdminDisputes);
-const mockedGetAdminDistributorWalletLedger = vi.mocked(getAdminDistributorWalletLedger);
+const mockedGetAdminDistributorWalletLedger = vi.mocked(
+  getAdminDistributorWalletLedger,
+);
 const mockedGetAdminDistributorWallets = vi.mocked(getAdminDistributorWallets);
-const mockedGetAdminDistributionAttributionExceptions = vi.mocked(getAdminDistributionAttributionExceptions);
-const mockedGetAdminDistributionDistributorReport = vi.mocked(getAdminDistributionDistributorReport);
-const mockedGetAdminDistributionGovernanceReport = vi.mocked(getAdminDistributionGovernanceReport);
-const mockedGetAdminDistributionOpportunityReport = vi.mocked(getAdminDistributionOpportunityReport);
-const mockedGetAdminDistributionOverview = vi.mocked(getAdminDistributionOverview);
+const mockedGetAdminDistributionAttributionExceptions = vi.mocked(
+  getAdminDistributionAttributionExceptions,
+);
+const mockedGetAdminDistributionDistributorReport = vi.mocked(
+  getAdminDistributionDistributorReport,
+);
+const mockedGetAdminDistributionGovernanceReport = vi.mocked(
+  getAdminDistributionGovernanceReport,
+);
+const mockedGetAdminDistributionOpportunityReport = vi.mocked(
+  getAdminDistributionOpportunityReport,
+);
+const mockedGetAdminDistributionOverview = vi.mocked(
+  getAdminDistributionOverview,
+);
 const mockedGetAdminDistributors = vi.mocked(getAdminDistributors);
 const mockedGetAdminGovernanceAudit = vi.mocked(getAdminGovernanceAudit);
 const mockedGetAdminOpportunities = vi.mocked(getAdminOpportunities);
@@ -113,6 +134,14 @@ function input(container: HTMLElement, selector: string) {
     throw new Error(`${selector} was not rendered`);
   }
   return element as HTMLInputElement;
+}
+
+function select(container: HTMLElement, selector: string) {
+  const element = container.querySelector<HTMLSelectElement>(selector);
+  if (!element) {
+    throw new Error(`${selector} was not rendered`);
+  }
+  return element;
 }
 
 function mockDistributionOperationsData() {
@@ -190,16 +219,33 @@ function mockDistributionOperationsData() {
     disputes: [],
     governance_actions: [],
   });
-  mockedGetAdminDistributionAttributionExceptions.mockResolvedValue({ items: [], count: 0, completed_count: 0 });
+  mockedGetAdminDistributionAttributionExceptions.mockResolvedValue({
+    items: [],
+    count: 0,
+    completed_count: 0,
+  });
 
-  mockedActivateAdminDistributor.mockResolvedValue({ distributor_id: "DIST-1", status: "ACTIVE" });
-  mockedPublishAdminOpportunity.mockResolvedValue({ opportunity_id: "OPP-1", opportunity_status: "PUBLISHED" });
-  mockedAcceptAdminRoute.mockResolvedValue({ route_id: "ROUTE-1", route_status: "ACCEPTED" });
-  mockedCreditAdminDistributorWallet.mockResolvedValue({ wallet_id: "WALLET-1", available_balance: "151.00" });
+  mockedActivateAdminDistributor.mockResolvedValue({
+    distributor_id: "DIST-1",
+    status: "ACTIVE",
+  });
+  mockedPublishAdminOpportunity.mockResolvedValue({
+    opportunity_id: "OPP-1",
+    opportunity_status: "PUBLISHED",
+  });
+  mockedAcceptAdminRoute.mockResolvedValue({
+    route_id: "ROUTE-1",
+    route_status: "ACCEPTED",
+  });
+  mockedCreditAdminDistributorWallet.mockResolvedValue({
+    wallet_id: "WALLET-1",
+    available_balance: "151.00",
+  });
 }
 
 describe("DistributionCommandCentrePage", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     localStorage.clear();
     mockDistributionOperationsData();
     vi.spyOn(window, "confirm").mockReturnValue(true);
@@ -208,59 +254,112 @@ describe("DistributionCommandCentrePage", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    localStorage.clear();
   });
 
   it("loads the admin operations command-centre panels from distribution data", async () => {
-    const { container } = renderWorkspace(<DistributionCommandCentrePage mode="operations" />);
+    const { container } = renderWorkspace(
+      <DistributionCommandCentrePage mode="operations" />,
+    );
 
-    expect(await screen.findByRole("heading", { name: "Demand Operations" })).toBeInTheDocument();
-    expect(panel(container, "#distribution-distributor-lifecycle").getByText("Distributor lifecycle")).toBeInTheDocument();
-    expect(panel(container, "#distribution-wallet-operations").getByText("Distributor wallet operations")).toBeInTheDocument();
-    expect(panel(container, "#distribution-opportunity-actions").getByText("Opportunity actions")).toBeInTheDocument();
-    expect(panel(container, "#distribution-route-actions").getByText("Route actions")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Demand Operations" }),
+    ).toBeInTheDocument();
+    expect(
+      panel(container, "#distribution-distributor-lifecycle").getByText(
+        "Distributor lifecycle",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      panel(container, "#distribution-wallet-operations").getByText(
+        "Distributor wallet operations",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      panel(container, "#distribution-opportunity-actions").getByText(
+        "Opportunity actions",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      panel(container, "#distribution-route-actions").getByText(
+        "Route actions",
+      ),
+    ).toBeInTheDocument();
     expect(mockedGetAdminDistributors).toHaveBeenCalledWith("FNB");
   });
 
   it("runs guarded lifecycle and funding workflows", async () => {
-    const { container } = renderWorkspace(<DistributionCommandCentrePage mode="operations" />);
+    const { container } = renderWorkspace(
+      <DistributionCommandCentrePage mode="operations" />,
+    );
 
     await screen.findByRole("heading", { name: "Demand Operations" });
 
     const lifecycle = panel(container, "#distribution-distributor-lifecycle");
     const wallet = panel(container, "#distribution-wallet-operations");
 
-    const activateButton = lifecycle.getByRole("button", { name: /^activate$/i });
+    const activateButton = lifecycle.getByRole("button", {
+      name: /^activate$/i,
+    });
+    const distributorSelect = select(
+      container,
+      "#distribution-distributor-action",
+    );
+    await waitFor(() => expect(distributorSelect.value).toBe("DIST-1"));
     await waitFor(() => expect(activateButton).toBeEnabled());
 
     fireEvent.click(activateButton);
-    await waitFor(() => expect(mockedActivateAdminDistributor).toHaveBeenCalledWith("DIST-1"));
+    await waitFor(() =>
+      expect(mockedActivateAdminDistributor).toHaveBeenCalledWith("DIST-1"),
+    );
 
-    await waitFor(() => expect(wallet.getByRole("button", { name: /^credit$/i })).toBeEnabled());
-    fireEvent.change(input(container, "#wallet-action-amount"), { target: { value: "10.00" } });
-    fireEvent.change(input(container, "#wallet-action-correlation"), { target: { value: "ADMIN-WORKFLOW-1" } });
+    await waitFor(() =>
+      expect(wallet.getByRole("button", { name: /^credit$/i })).toBeEnabled(),
+    );
+    fireEvent.change(input(container, "#wallet-action-amount"), {
+      target: { value: "10.00" },
+    });
+    fireEvent.change(input(container, "#wallet-action-correlation"), {
+      target: { value: "ADMIN-WORKFLOW-1" },
+    });
     fireEvent.click(wallet.getByRole("button", { name: /^credit$/i }));
     await waitFor(() => {
       expect(mockedCreditAdminDistributorWallet).toHaveBeenCalledWith(
         "WALLET-1",
-        expect.objectContaining({ amount: "10.00", correlation_id: "ADMIN-WORKFLOW-1" }),
+        expect.objectContaining({
+          amount: "10.00",
+          correlation_id: "ADMIN-WORKFLOW-1",
+        }),
       );
     });
   });
 
   it("runs guarded opportunity and route workflows", async () => {
-    const { container } = renderWorkspace(<DistributionCommandCentrePage mode="operations" />);
+    const { container } = renderWorkspace(
+      <DistributionCommandCentrePage mode="operations" />,
+    );
 
     await screen.findByRole("heading", { name: "Demand Operations" });
 
     const opportunity = panel(container, "#distribution-opportunity-actions");
     const route = panel(container, "#distribution-route-actions");
 
-    await waitFor(() => expect(opportunity.getByRole("button", { name: /^publish$/i })).toBeEnabled());
+    await waitFor(() =>
+      expect(
+        opportunity.getByRole("button", { name: /^publish$/i }),
+      ).toBeEnabled(),
+    );
     fireEvent.click(opportunity.getByRole("button", { name: /^publish$/i }));
-    await waitFor(() => expect(mockedPublishAdminOpportunity).toHaveBeenCalledWith("OPP-1"));
+    await waitFor(() =>
+      expect(mockedPublishAdminOpportunity).toHaveBeenCalledWith("OPP-1"),
+    );
 
-    await waitFor(() => expect(route.getByRole("button", { name: /^accept$/i })).toBeEnabled());
+    await waitFor(() =>
+      expect(route.getByRole("button", { name: /^accept$/i })).toBeEnabled(),
+    );
     fireEvent.click(route.getByRole("button", { name: /^accept$/i }));
-    await waitFor(() => expect(mockedAcceptAdminRoute).toHaveBeenCalledWith("ROUTE-1"));
+    await waitFor(() =>
+      expect(mockedAcceptAdminRoute).toHaveBeenCalledWith("ROUTE-1"),
+    );
   });
 });
