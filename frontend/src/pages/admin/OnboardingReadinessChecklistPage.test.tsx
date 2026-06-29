@@ -12,6 +12,7 @@ import {
   getAdminOnboardingState,
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
+import { createAdminOnboardingStateResponse } from "../../api/endpoints/adminOnboarding.testFixtures";
 import { OnboardingReadinessChecklistPage } from "./OnboardingReadinessChecklistPage";
 
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
@@ -23,56 +24,51 @@ const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
 function onboardingStateResponse(
   overrides: Partial<AdminOnboardingStateResponse["readiness"]> = {},
 ): AdminOnboardingStateResponse {
-  return {
-    status: "ok",
-    guardrail: "Read-only admin onboarding state.",
-    readiness: {
-      contract_version: "onboarding.v1",
-      overall_status: "GO_LIVE_DISABLED",
-      categories: [
-        {
-          category: "ORGANISATION_PROFILE",
-          display_label: "Organisation profile",
+  return createAdminOnboardingStateResponse({
+    overall_status: "GO_LIVE_DISABLED",
+    categories: [
+      {
+        category: "ORGANISATION_PROFILE",
+        display_label: "Organisation profile",
+        status: "READY",
+        safe_display_status: {
           status: "READY",
-          safe_display_status: {
-            status: "READY",
-            label: "Ready",
-            action_required: false,
-            go_live_enabled: false,
-          },
-          evidence_summary: "Read-only organisation evidence is present.",
-          blockers: [],
-          next_actions: ["Review organisation profile before go-live."],
+          label: "Ready",
+          action_required: false,
+          go_live_enabled: false,
         },
-        {
-          category: "WEBHOOK_API_SETUP",
-          display_label: "Webhook / API setup",
-          status: "MISSING_EVIDENCE",
-          safe_display_status: {
-            status: "MISSING_EVIDENCE",
-            label: "Missing evidence",
-            action_required: true,
-            go_live_enabled: false,
-          },
-          evidence_summary: "Webhook/API evidence is unavailable.",
-          blockers: ["Webhook/API setup is currently shell-only."],
-          next_actions: [
-            "Capture webhook/API setup when a safe source is available.",
-          ],
-        },
-      ],
-      summary: {
-        ready_count: 1,
-        in_progress_count: 0,
-        blocked_count: 0,
-        missing_evidence_count: 1,
-        permission_limited_count: 0,
-        go_live_disabled_count: 1,
-        total_count: 2,
+        evidence_summary: "Read-only organisation evidence is present.",
+        blockers: [],
+        next_actions: ["Review organisation profile before go-live."],
       },
-      ...overrides,
+      {
+        category: "WEBHOOK_API_SETUP",
+        display_label: "Webhook / API setup",
+        status: "MISSING_EVIDENCE",
+        safe_display_status: {
+          status: "MISSING_EVIDENCE",
+          label: "Missing evidence",
+          action_required: true,
+          go_live_enabled: false,
+        },
+        evidence_summary: "Webhook/API evidence is unavailable.",
+        blockers: ["Webhook/API setup is currently shell-only."],
+        next_actions: [
+          "Capture webhook/API setup when a safe source is available.",
+        ],
+      },
+    ],
+    summary: {
+      ready_count: 1,
+      in_progress_count: 0,
+      blocked_count: 0,
+      missing_evidence_count: 1,
+      permission_limited_count: 0,
+      go_live_disabled_count: 1,
+      total_count: 2,
     },
-  };
+    ...overrides,
+  });
 }
 
 function renderWorkspace(ui: ReactElement) {

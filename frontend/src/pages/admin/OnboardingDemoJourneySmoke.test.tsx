@@ -21,6 +21,7 @@ import { ProducerSponsorOnboardingPage } from "./ProducerSponsorOnboardingPage";
 import { WebhookApiSetupPage } from "./WebhookApiSetupPage";
 import { DistributorPortalPage } from "../distributor/DistributorPortalPage";
 import { getAdminOnboardingState } from "../../api/endpoints/adminOnboarding";
+import { createAdminOnboardingStateResponse } from "../../api/endpoints/adminOnboarding.testFixtures";
 import {
   acceptAdminRoute,
   activateAdminDistributor,
@@ -388,11 +389,8 @@ describe("onboarding demo journey smoke", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.spyOn(window, "confirm").mockReturnValue(true);
-    mockedGetAdminOnboardingState.mockResolvedValue({
-      status: "ok",
-      guardrail: "Read-only admin onboarding state.",
-      readiness: {
-        contract_version: "onboarding.v1",
+    mockedGetAdminOnboardingState.mockResolvedValue(
+      createAdminOnboardingStateResponse({
         overall_status: "GO_LIVE_DISABLED",
         categories: [],
         summary: {
@@ -404,8 +402,8 @@ describe("onboarding demo journey smoke", () => {
           go_live_disabled_count: 1,
           total_count: 1,
         },
-      },
-    });
+      }),
+    );
   });
 
   afterEach(() => {

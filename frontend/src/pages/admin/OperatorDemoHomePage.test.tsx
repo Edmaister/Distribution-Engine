@@ -6,6 +6,7 @@ import {
   getAdminOnboardingState,
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
+import { createAdminOnboardingStateResponse } from "../../api/endpoints/adminOnboarding.testFixtures";
 import { OperatorDemoHomePage } from "./OperatorDemoHomePage";
 
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
@@ -38,70 +39,65 @@ function panelByHeading(name: string) {
 function onboardingStateResponse(
   overrides: Partial<AdminOnboardingStateResponse["readiness"]> = {},
 ): AdminOnboardingStateResponse {
-  return {
-    status: "ok",
-    guardrail: "Read-only admin onboarding state.",
-    readiness: {
-      contract_version: "onboarding.v1",
-      overall_status: "GO_LIVE_DISABLED",
-      categories: [
-        {
-          category: "ORGANISATION_PROFILE",
-          display_label: "Organisation profile",
+  return createAdminOnboardingStateResponse({
+    overall_status: "GO_LIVE_DISABLED",
+    categories: [
+      {
+        category: "ORGANISATION_PROFILE",
+        display_label: "Organisation profile",
+        status: "READY",
+        safe_display_status: {
           status: "READY",
-          safe_display_status: {
-            status: "READY",
-            label: "Ready",
-            action_required: false,
-            go_live_enabled: false,
-          },
-          evidence_summary: "Required read-only evidence is present.",
-          blockers: [],
-          next_actions: ["Review this section before go-live."],
+          label: "Ready",
+          action_required: false,
+          go_live_enabled: false,
         },
-        {
-          category: "WEBHOOK_API_SETUP",
-          display_label: "Webhook / API setup",
-          status: "MISSING_EVIDENCE",
-          safe_display_status: {
-            status: "MISSING_EVIDENCE",
-            label: "Missing evidence",
-            action_required: true,
-            go_live_enabled: false,
-          },
-          evidence_summary: "Required evidence is unavailable or shell-only.",
-          blockers: ["Webhook/API setup is currently shell-only."],
-          next_actions: [
-            "Capture webhook/API setup when a safe source is available.",
-          ],
-        },
-        {
-          category: "GO_LIVE_CONTROLS",
-          display_label: "Go-live controls",
-          status: "GO_LIVE_DISABLED",
-          safe_display_status: {
-            status: "GO_LIVE_DISABLED",
-            label: "Go-live disabled",
-            action_required: true,
-            go_live_enabled: false,
-          },
-          evidence_summary: "GO_LIVE_DISABLED",
-          blockers: ["Go-live activation and money movement are disabled."],
-          next_actions: ["Use this readiness output for review only."],
-        },
-      ],
-      summary: {
-        ready_count: 1,
-        in_progress_count: 0,
-        blocked_count: 0,
-        missing_evidence_count: 1,
-        permission_limited_count: 0,
-        go_live_disabled_count: 1,
-        total_count: 3,
+        evidence_summary: "Required read-only evidence is present.",
+        blockers: [],
+        next_actions: ["Review this section before go-live."],
       },
-      ...overrides,
+      {
+        category: "WEBHOOK_API_SETUP",
+        display_label: "Webhook / API setup",
+        status: "MISSING_EVIDENCE",
+        safe_display_status: {
+          status: "MISSING_EVIDENCE",
+          label: "Missing evidence",
+          action_required: true,
+          go_live_enabled: false,
+        },
+        evidence_summary: "Required evidence is unavailable or shell-only.",
+        blockers: ["Webhook/API setup is currently shell-only."],
+        next_actions: [
+          "Capture webhook/API setup when a safe source is available.",
+        ],
+      },
+      {
+        category: "GO_LIVE_CONTROLS",
+        display_label: "Go-live controls",
+        status: "GO_LIVE_DISABLED",
+        safe_display_status: {
+          status: "GO_LIVE_DISABLED",
+          label: "Go-live disabled",
+          action_required: true,
+          go_live_enabled: false,
+        },
+        evidence_summary: "GO_LIVE_DISABLED",
+        blockers: ["Go-live activation and money movement are disabled."],
+        next_actions: ["Use this readiness output for review only."],
+      },
+    ],
+    summary: {
+      ready_count: 1,
+      in_progress_count: 0,
+      blocked_count: 0,
+      missing_evidence_count: 1,
+      permission_limited_count: 0,
+      go_live_disabled_count: 1,
+      total_count: 3,
     },
-  };
+    ...overrides,
+  });
 }
 
 function expectLiveActionsDisabled() {

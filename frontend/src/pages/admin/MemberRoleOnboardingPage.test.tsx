@@ -13,6 +13,7 @@ import {
   getAdminOnboardingState,
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
+import { createAdminOnboardingStateResponse } from "../../api/endpoints/adminOnboarding.testFixtures";
 import { MemberRoleOnboardingPage } from "./MemberRoleOnboardingPage";
 
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
@@ -24,45 +25,40 @@ const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
 function onboardingStateResponse(
   overrides: Partial<AdminOnboardingStateResponse["readiness"]> = {},
 ): AdminOnboardingStateResponse {
-  return {
-    status: "ok",
-    guardrail: "Read-only admin onboarding state.",
-    readiness: {
-      contract_version: "onboarding.v1",
-      overall_status: "GO_LIVE_DISABLED",
-      categories: [
-        {
-          category: "MEMBERS_AND_ROLES",
-          display_label: "Members and roles",
+  return createAdminOnboardingStateResponse({
+    overall_status: "GO_LIVE_DISABLED",
+    categories: [
+      {
+        category: "MEMBERS_AND_ROLES",
+        display_label: "Members and roles",
+        status: "PERMISSION_LIMITED",
+        safe_display_status: {
           status: "PERMISSION_LIMITED",
-          safe_display_status: {
-            status: "PERMISSION_LIMITED",
-            label: "Permission limited",
-            action_required: true,
-            go_live_enabled: false,
-          },
-          evidence_summary:
-            "Member and role evidence is permission-limited and partially available.",
-          blockers: [
-            "Membership source evidence is not available for this scope.",
-          ],
-          next_actions: [
-            "Use an authorized operator/admin view before inviting or assigning roles.",
-          ],
+          label: "Permission limited",
+          action_required: true,
+          go_live_enabled: false,
         },
-      ],
-      summary: {
-        ready_count: 0,
-        in_progress_count: 0,
-        blocked_count: 0,
-        missing_evidence_count: 1,
-        permission_limited_count: 1,
-        go_live_disabled_count: 1,
-        total_count: 1,
+        evidence_summary:
+          "Member and role evidence is permission-limited and partially available.",
+        blockers: [
+          "Membership source evidence is not available for this scope.",
+        ],
+        next_actions: [
+          "Use an authorized operator/admin view before inviting or assigning roles.",
+        ],
       },
-      ...overrides,
+    ],
+    summary: {
+      ready_count: 0,
+      in_progress_count: 0,
+      blocked_count: 0,
+      missing_evidence_count: 1,
+      permission_limited_count: 1,
+      go_live_disabled_count: 1,
+      total_count: 1,
     },
-  };
+    ...overrides,
+  });
 }
 
 function renderWorkspace(ui: ReactElement) {

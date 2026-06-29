@@ -13,6 +13,7 @@ import {
   getAdminOnboardingState,
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
+import { createAdminOnboardingStateResponse } from "../../api/endpoints/adminOnboarding.testFixtures";
 import { CampaignOpportunitySetupPage } from "./CampaignOpportunitySetupPage";
 
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
@@ -24,45 +25,40 @@ const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
 function onboardingStateResponse(
   overrides: Partial<AdminOnboardingStateResponse["readiness"]> = {},
 ): AdminOnboardingStateResponse {
-  return {
-    status: "ok",
-    guardrail: "Read-only admin onboarding state.",
-    readiness: {
-      contract_version: "onboarding.v1",
-      overall_status: "GO_LIVE_DISABLED",
-      categories: [
-        {
-          category: "CAMPAIGN_OPPORTUNITY_SETUP",
-          display_label: "Campaign / opportunity setup",
+  return createAdminOnboardingStateResponse({
+    overall_status: "GO_LIVE_DISABLED",
+    categories: [
+      {
+        category: "CAMPAIGN_OPPORTUNITY_SETUP",
+        display_label: "Campaign / opportunity setup",
+        status: "MISSING_EVIDENCE",
+        safe_display_status: {
           status: "MISSING_EVIDENCE",
-          safe_display_status: {
-            status: "MISSING_EVIDENCE",
-            label: "Missing evidence",
-            action_required: true,
-            go_live_enabled: false,
-          },
-          evidence_summary:
-            "Campaign/opportunity evidence is partially available.",
-          blockers: [
-            "Campaign readiness remains blocked until policy and funding evidence exist.",
-          ],
-          next_actions: [
-            "Confirm campaign_code and opportunity_ref before go-live review.",
-          ],
+          label: "Missing evidence",
+          action_required: true,
+          go_live_enabled: false,
         },
-      ],
-      summary: {
-        ready_count: 0,
-        in_progress_count: 0,
-        blocked_count: 1,
-        missing_evidence_count: 1,
-        permission_limited_count: 0,
-        go_live_disabled_count: 1,
-        total_count: 1,
+        evidence_summary:
+          "Campaign/opportunity evidence is partially available.",
+        blockers: [
+          "Campaign readiness remains blocked until policy and funding evidence exist.",
+        ],
+        next_actions: [
+          "Confirm campaign_code and opportunity_ref before go-live review.",
+        ],
       },
-      ...overrides,
+    ],
+    summary: {
+      ready_count: 0,
+      in_progress_count: 0,
+      blocked_count: 1,
+      missing_evidence_count: 1,
+      permission_limited_count: 0,
+      go_live_disabled_count: 1,
+      total_count: 1,
     },
-  };
+    ...overrides,
+  });
 }
 
 function renderWorkspace(ui: ReactElement) {

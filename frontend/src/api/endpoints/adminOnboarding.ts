@@ -88,7 +88,7 @@ export type AdminOnboardingReadiness = {
 
 export type AdminOnboardingStateResponse = {
   status: string;
-  onboarding_state?: AdminOnboardingStateProjection;
+  onboarding_state: AdminOnboardingStateProjection;
   readiness: AdminOnboardingReadiness;
   guardrail: string;
 };
