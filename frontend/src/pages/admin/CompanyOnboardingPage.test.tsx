@@ -3,12 +3,62 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { createMemoryRouter, Outlet, RouterProvider } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  getAdminOnboardingState,
+  type AdminOnboardingStateResponse,
+} from "../../api/endpoints/adminOnboarding";
 import { CompanyOnboardingPage } from "./CompanyOnboardingPage";
+
+vi.mock("../../api/endpoints/adminOnboarding", () => ({
+  getAdminOnboardingState: vi.fn(),
+}));
+
+const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
+
+function onboardingStateResponse(
+  overrides: Partial<AdminOnboardingStateResponse["readiness"]> = {},
+): AdminOnboardingStateResponse {
+  return {
+    status: "ok",
+    guardrail: "Read-only admin onboarding state.",
+    readiness: {
+      contract_version: "onboarding.v1",
+      overall_status: "GO_LIVE_DISABLED",
+      categories: [
+        {
+          category: "ORGANISATION_PROFILE",
+          display_label: "Organisation profile",
+          status: "MISSING_EVIDENCE",
+          safe_display_status: {
+            status: "MISSING_EVIDENCE",
+            label: "Missing evidence",
+            action_required: true,
+            go_live_enabled: false,
+          },
+          evidence_summary: "Organisation evidence is partially available.",
+          blockers: ["Company onboarding remains shell-only."],
+          next_actions: ["Confirm external references before go-live review."],
+        },
+      ],
+      summary: {
+        ready_count: 0,
+        in_progress_count: 0,
+        blocked_count: 0,
+        missing_evidence_count: 1,
+        permission_limited_count: 0,
+        go_live_disabled_count: 1,
+        total_count: 1,
+      },
+      ...overrides,
+    },
+  };
+}
 
 function renderWorkspace(ui: ReactElement) {
   const router = createMemoryRouter([
@@ -32,11 +82,16 @@ function readinessPanel() {
 }
 
 describe("CompanyOnboardingPage", () => {
-  afterEach(() => {
-    cleanup();
+  beforeEach(() => {
+    mockedGetAdminOnboardingState.mockResolvedValue(onboardingStateResponse());
   });
 
-  it("renders the company onboarding shell with external identifier guardrails", () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it("renders the company onboarding shell with external identifier guardrails", async () => {
     renderWorkspace(<CompanyOnboardingPage />);
 
     expect(
@@ -48,10 +103,47 @@ describe("CompanyOnboardingPage", () => {
     expect(screen.getByLabelText(/Organisation name/)).toBeInTheDocument();
     expect(screen.getByLabelText(/external_tenant_ref/)).toBeInTheDocument();
     expect(screen.getByLabelText(/organisation_ref/)).toBeInTheDocument();
-    expect(screen.getByText("tenant_code stays internal")).toBeInTheDocument();
+    expect(
+      screen.getByText("Internal tenant identifier stays hidden"),
+    ).toBeInTheDocument();
     expect(
       screen.getByText("No records are created from this page."),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create account later" }),
+    ).toBeDisabled();
+    expect(
+      await screen.findByText("Read-only platform state"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
+  });
+
+  it("requests read-only company state with external references", async () => {
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    await waitFor(() => {
+      expect(mockedGetAdminOnboardingState).toHaveBeenCalledWith({
+        external_tenant_ref: "demo-platform-operator",
+        organisation_ref: "demo-organisation",
+      });
+    });
+  });
+
+  it("shows read-only partial evidence without enabling account creation", async () => {
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    expect(
+      await screen.findByText("Organisation evidence is partially available."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Company onboarding remains shell-only."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Confirm external references before go-live review."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("demo-platform-operator")).toBeInTheDocument();
+    expect(screen.getByText("demo-organisation")).toBeInTheDocument();
+    expect(screen.getByText("Missing evidence")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Create account later" }),
     ).toBeDisabled();
@@ -115,5 +207,18 @@ describe("CompanyOnboardingPage", () => {
     expect(
       screen.getByRole("link", { name: /Operator monitoring/ }),
     ).toHaveAttribute("href", "/admin");
+  });
+
+  it("falls back to local shell state when read-only company state is unavailable", async () => {
+    mockedGetAdminOnboardingState.mockRejectedValue(new Error("offline"));
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    expect(
+      await screen.findByText("Using local company setup fallback."),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Company profile").length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("button", { name: "Create account later" }),
+    ).toBeDisabled();
   });
 });
