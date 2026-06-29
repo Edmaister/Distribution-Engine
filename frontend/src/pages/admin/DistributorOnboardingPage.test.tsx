@@ -3,12 +3,62 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { createMemoryRouter, Outlet, RouterProvider } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  getAdminOnboardingState,
+  type AdminOnboardingStateResponse,
+} from "../../api/endpoints/adminOnboarding";
 import { DistributorOnboardingPage } from "./DistributorOnboardingPage";
+
+vi.mock("../../api/endpoints/adminOnboarding", () => ({
+  getAdminOnboardingState: vi.fn(),
+}));
+
+const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
+
+function onboardingStateResponse(
+  overrides: Partial<AdminOnboardingStateResponse["readiness"]> = {},
+): AdminOnboardingStateResponse {
+  return {
+    status: "ok",
+    guardrail: "Read-only admin onboarding state.",
+    readiness: {
+      contract_version: "onboarding.v1",
+      overall_status: "GO_LIVE_DISABLED",
+      categories: [
+        {
+          category: "DISTRIBUTOR_SETUP",
+          display_label: "Distributor setup",
+          status: "MISSING_EVIDENCE",
+          safe_display_status: {
+            status: "MISSING_EVIDENCE",
+            label: "Missing evidence",
+            action_required: true,
+            go_live_enabled: false,
+          },
+          evidence_summary: "Distributor evidence is partially available.",
+          blockers: ["Distributor onboarding remains shell-only."],
+          next_actions: ["Confirm distributor_ref before route review."],
+        },
+      ],
+      summary: {
+        ready_count: 0,
+        in_progress_count: 0,
+        blocked_count: 0,
+        missing_evidence_count: 1,
+        permission_limited_count: 0,
+        go_live_disabled_count: 1,
+        total_count: 1,
+      },
+      ...overrides,
+    },
+  };
+}
 
 function renderWorkspace(ui: ReactElement) {
   const router = createMemoryRouter([
@@ -32,11 +82,16 @@ function readinessPanel() {
 }
 
 describe("DistributorOnboardingPage", () => {
-  afterEach(() => {
-    cleanup();
+  beforeEach(() => {
+    mockedGetAdminOnboardingState.mockResolvedValue(onboardingStateResponse());
   });
 
-  it("renders the distributor onboarding shell with safe reference guardrails", () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it("renders the distributor onboarding shell with safe reference guardrails", async () => {
     renderWorkspace(<DistributorOnboardingPage />);
 
     expect(
@@ -49,12 +104,76 @@ describe("DistributorOnboardingPage", () => {
     expect(screen.getByLabelText(/organisation_ref/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Channel type/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Market \/ country/)).toBeInTheDocument();
-    expect(screen.getByText("External distributor identity")).toBeInTheDocument();
+    expect(
+      screen.getByText("External distributor identity"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Routes are not active")).toBeInTheDocument();
     expect(screen.getByText("Wallets are not created")).toBeInTheDocument();
     expect(
-      screen.getByText("No distributor or marketplace records are created from this page."),
+      screen.getByText(
+        "No distributor or marketplace records are created from this page.",
+      ),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create distributor later" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Activate route later" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Create wallet later" }),
+    ).toBeDisabled();
+    expect(
+      await screen.findByText("Read-only platform state"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
+  });
+
+  it("shows loading while fetching read-only distributor state", () => {
+    mockedGetAdminOnboardingState.mockReturnValue(new Promise(() => undefined));
+    renderWorkspace(<DistributorOnboardingPage />);
+
+    expect(
+      screen.getByText("Loading read-only distributor readiness."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create distributor later" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Activate route later" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Create wallet later" }),
+    ).toBeDisabled();
+  });
+
+  it("requests read-only distributor state with external references", async () => {
+    renderWorkspace(<DistributorOnboardingPage />);
+
+    await waitFor(() => {
+      expect(mockedGetAdminOnboardingState).toHaveBeenCalledWith({
+        external_tenant_ref: "demo-platform-operator",
+        organisation_ref: "demo-organisation",
+        distributor_ref: "demo-distributor",
+      });
+    });
+  });
+
+  it("shows read-only partial evidence without enabling distributor lifecycle actions", async () => {
+    renderWorkspace(<DistributorOnboardingPage />);
+
+    expect(
+      await screen.findByText("Distributor evidence is partially available."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Distributor onboarding remains shell-only."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Confirm distributor_ref before route review."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("demo-distributor")).toBeInTheDocument();
+    expect(screen.getByText("demo-organisation")).toBeInTheDocument();
+    expect(screen.getByText("Missing evidence")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Create distributor later" }),
     ).toBeDisabled();
@@ -90,9 +209,12 @@ describe("DistributorOnboardingPage", () => {
     fireEvent.change(screen.getByLabelText(/Distribution model/), {
       target: { value: "QR/link distribution" },
     });
-    fireEvent.change(screen.getByLabelText(/Campaign \/ opportunity participation/), {
-      target: { value: "Opportunity candidate" },
-    });
+    fireEvent.change(
+      screen.getByLabelText(/Campaign \/ opportunity participation/),
+      {
+        target: { value: "Opportunity candidate" },
+      },
+    );
 
     expect(
       screen.getByText("Required shell fields are captured locally."),
@@ -109,7 +231,9 @@ describe("DistributorOnboardingPage", () => {
     expect(readinessPanel().getByText("Profile drafted")).toBeInTheDocument();
     expect(readinessPanel().getAllByText("Ready")).toHaveLength(4);
     expect(readinessPanel().getByText("Pending")).toBeInTheDocument();
-    expect(screen.getByText("Backend distributor onboarding")).toBeInTheDocument();
+    expect(
+      screen.getByText("Backend distributor onboarding"),
+    ).toBeInTheDocument();
   });
 
   it("links distributor setup to company, producer, and portal surfaces", () => {
@@ -133,5 +257,26 @@ describe("DistributorOnboardingPage", () => {
     expect(
       screen.getByRole("link", { name: /Distributor portal/ }),
     ).toHaveAttribute("href", "/distributor");
+  });
+
+  it("falls back to local shell state when read-only distributor state is unavailable", async () => {
+    mockedGetAdminOnboardingState.mockRejectedValue(new Error("offline"));
+    renderWorkspace(<DistributorOnboardingPage />);
+
+    expect(
+      await screen.findByText("Using local distributor setup fallback."),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Distributor profile").length).toBeGreaterThan(
+      0,
+    );
+    expect(
+      screen.getByRole("button", { name: "Create distributor later" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Activate route later" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Create wallet later" }),
+    ).toBeDisabled();
   });
 });

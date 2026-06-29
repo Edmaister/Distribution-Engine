@@ -8,8 +8,12 @@ import {
   Store,
   Wallet,
 } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  getAdminOnboardingState,
+  type AdminOnboardingStateResponse,
+} from "../../api/endpoints/adminOnboarding";
 import { StatusBadge } from "../../components/StatusBadge";
 import { SummaryItem } from "../../components/SummaryItem";
 
@@ -76,15 +80,26 @@ const nextJourneyLinks = [
   },
 ];
 
+const readOnlyScope = {
+  external_tenant_ref: "demo-platform-operator",
+  organisation_ref: "demo-organisation",
+  distributor_ref: "demo-distributor",
+};
+
+type LoadState = "loading" | "success" | "fallback";
+
 export function DistributorOnboardingPage() {
   const [form, setForm] = useState<FormState>(initialState);
+  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [readOnlyState, setReadOnlyState] =
+    useState<AdminOnboardingStateResponse | null>(null);
   const requiredComplete = Boolean(
     form.distributorName.trim() &&
-      form.externalTenantRef.trim() &&
-      form.distributorRef.trim() &&
-      form.organisationRef.trim() &&
-      form.marketCountry.trim() &&
-      form.adminContact.trim(),
+    form.externalTenantRef.trim() &&
+    form.distributorRef.trim() &&
+    form.organisationRef.trim() &&
+    form.marketCountry.trim() &&
+    form.adminContact.trim(),
   );
 
   const readinessSteps = useMemo<ReadinessStep[]>(
@@ -94,9 +109,9 @@ export function DistributorOnboardingPage() {
         copy: "Display name, channel type, market, and distribution model are captured locally.",
         ready: Boolean(
           form.distributorName.trim() &&
-            form.channelType.trim() &&
-            form.marketCountry.trim() &&
-            form.distributionModel.trim(),
+          form.channelType.trim() &&
+          form.marketCountry.trim() &&
+          form.distributionModel.trim(),
         ),
       },
       {
@@ -104,8 +119,8 @@ export function DistributorOnboardingPage() {
         copy: "`external_tenant_ref`, `distributor_ref`, and `organisation_ref` stay outside internal tenant partitioning.",
         ready: Boolean(
           form.externalTenantRef.trim() &&
-            form.distributorRef.trim() &&
-            form.organisationRef.trim(),
+          form.distributorRef.trim() &&
+          form.organisationRef.trim(),
         ),
       },
       {
@@ -128,16 +143,45 @@ export function DistributorOnboardingPage() {
   );
 
   const readyCount = readinessSteps.filter((step) => step.ready).length;
+  const distributorCategory = readOnlyState?.readiness.categories.find(
+    (category) => category.category.toUpperCase().includes("DISTRIBUTOR"),
+  );
 
   function updateField(field: keyof FormState, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
+  useEffect(() => {
+    let cancelled = false;
+
+    getAdminOnboardingState(readOnlyScope)
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        setReadOnlyState(response);
+        setLoadState("success");
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setReadOnlyState(null);
+        setLoadState("fallback");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <>
       <section className="page-header">
         <div>
-          <div className="page-kicker">DLaaS onboarding - Distributor setup</div>
+          <div className="page-kicker">
+            DLaaS onboarding - Distributor setup
+          </div>
           <h1 className="page-title">Distributor onboarding</h1>
           <p className="page-copy">
             Capture distributor setup intent, market context, and portal access
@@ -151,14 +195,123 @@ export function DistributorOnboardingPage() {
 
       <section className="grid-3">
         <SummaryItem label="Readiness" value={`${readyCount}/5`} />
-        <SummaryItem label="Lifecycle actions" value="Disabled" />
-        <SummaryItem label="Internal tenant_code" value="Hidden" />
+        <SummaryItem
+          label="Read-only state"
+          value={loadState === "success" ? "Available" : "Fallback"}
+        />
+        <SummaryItem label="Internal tenant identifier" value="Hidden" />
+      </section>
+
+      <section className="panel" aria-labelledby="read-only-state-heading">
+        <div className="panel-header">
+          <div>
+            <h2 className="panel-title" id="read-only-state-heading">
+              Read-only platform state
+            </h2>
+            <div className="panel-subtitle">
+              Uses external distributor references to hydrate safe onboarding
+              context when available.
+            </div>
+          </div>
+          <StatusBadge
+            label={
+              loadState === "loading"
+                ? "Loading"
+                : loadState === "success"
+                  ? "Read-only"
+                  : "Demo fallback"
+            }
+            tone={loadState === "success" ? "success" : "info"}
+          />
+        </div>
+        <div className="panel-body">
+          {loadState === "loading" ? (
+            <div className="banner info" role="status">
+              <CircleDashed size={18} />
+              <div>
+                <strong>Loading read-only distributor readiness.</strong>
+                <div className="table-subtext">
+                  The shell is checking external references without creating
+                  distributor, route, wallet, offer, or money records.
+                </div>
+              </div>
+            </div>
+          ) : loadState === "fallback" ? (
+            <div className="banner warning" role="status">
+              <ShieldCheck size={18} />
+              <div>
+                <strong>Using local distributor setup fallback.</strong>
+                <div className="table-subtext">
+                  The read-only onboarding state endpoint is unavailable, so
+                  this page keeps local shell state only.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="grid-3">
+                <SummaryItem
+                  label="Overall readiness"
+                  value={
+                    readOnlyState?.readiness.overall_status ?? "Unavailable"
+                  }
+                />
+                <SummaryItem
+                  label="Distributor ref"
+                  value={readOnlyScope.distributor_ref}
+                />
+                <SummaryItem
+                  label="Organisation ref"
+                  value={readOnlyScope.organisation_ref}
+                />
+              </div>
+              <div className="route-list">
+                <div className="route-item">
+                  <div>
+                    <div className="route-name">
+                      {distributorCategory?.display_label ??
+                        "Distributor setup"}
+                    </div>
+                    <div className="route-path">
+                      {distributorCategory?.evidence_summary ??
+                        "Read-only distributor evidence is not available yet."}
+                    </div>
+                    {distributorCategory?.blockers[0] ? (
+                      <div className="table-subtext">
+                        {distributorCategory.blockers[0]}
+                      </div>
+                    ) : null}
+                    {distributorCategory?.next_actions[0] ? (
+                      <div className="table-subtext">
+                        {distributorCategory.next_actions[0]}
+                      </div>
+                    ) : null}
+                  </div>
+                  <StatusBadge
+                    label={
+                      distributorCategory?.safe_display_status?.label ??
+                      distributorCategory?.status ??
+                      "Missing evidence"
+                    }
+                    tone={
+                      distributorCategory?.status === "READY"
+                        ? "success"
+                        : "info"
+                    }
+                  />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </section>
 
       <section className="banner warning" role="note">
         <ShieldCheck size={18} />
         <div>
-          <strong>No distributor or marketplace records are created from this page.</strong>
+          <strong>
+            No distributor or marketplace records are created from this page.
+          </strong>
           <div className="table-subtext">
             This shell uses local form state only. It does not call distributor
             creation, activation, route, offer, wallet, funding, fulfilment,
@@ -276,14 +429,18 @@ export function DistributorOnboardingPage() {
           </div>
         </form>
 
-        <section className="panel" aria-labelledby="distributor-readiness-heading">
+        <section
+          className="panel"
+          aria-labelledby="distributor-readiness-heading"
+        >
           <div className="panel-header">
             <div>
               <h2 className="panel-title" id="distributor-readiness-heading">
                 Setup readiness
               </h2>
               <div className="panel-subtitle">
-                Distributor guardrails before routes, offers, wallets, and portal access.
+                Distributor guardrails before routes, offers, wallets, and
+                portal access.
               </div>
             </div>
             <StatusBadge
@@ -322,7 +479,7 @@ export function DistributorOnboardingPage() {
           <BoundaryCard
             icon={LinkIcon}
             title="External distributor identity"
-            copy="Use distributor_ref and organisation_ref for SaaS-facing setup; tenant_code remains internal."
+            copy="Use distributor_ref and organisation_ref for SaaS-facing setup; the internal tenant identifier stays hidden."
           />
           <BoundaryCard
             icon={GitPullRequestArrow}

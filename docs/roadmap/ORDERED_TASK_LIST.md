@@ -1748,6 +1748,10 @@ Validation expectation: Add/update targeted frontend tests for read-only hydrati
 Explicit non-goals: Do not implement distributor writes, route commands, wallet commands, offer decisions, commission, payout, fulfilment, settlement, retry, or money movement.
 Definition of done: Distributor onboarding can consume safe read-only platform state while remaining shell-only and non-mutating. Priority: P1.
 
+Status: Complete (2026-06-29). Output: `frontend/src/pages/admin/DistributorOnboardingPage.tsx`.
+Finding: Integrated the distributor onboarding shell with the existing read-only admin onboarding state helper for `GET /admin/onboarding/state` using external references only. The page now shows loading, hydrated read-only distributor evidence, partial/missing evidence, safe local fallback, and disabled lifecycle/route/wallet guardrails while avoiding `tenant_code` as a user-facing identifier. No distributor writes or marketplace/money actions were enabled.
+Validation: Targeted frontend test `npm.cmd test -- DistributorOnboardingPage.test.tsx` passed with 7 tests. No backend routes, backend mutations, auth changes, schema, migrations, secrets, production data, live DB access, distributor creation, activation, suspension, route activation, wallet creation, funding, fulfilment, settlement, retry, offer decision, commission, payout, webhook delivery, go-live, or money movement were introduced.
+
 ## TASK-093: Connect member and role onboarding shell to read-only state
 
 Objective: Integrate the member/role onboarding shell with read-only onboarding state while preserving local fallback, disabled invite/role actions, and safe permission guidance.
