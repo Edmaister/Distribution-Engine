@@ -1982,6 +1982,109 @@ Stop conditions: Stop if checkpoint requires implementation work, live DB access
 Validation expectation: Documentation/readback confirms draft-save readiness, remaining blockers, validation baseline, and safe next priorities.
 Explicit non-goals: Do not implement submit-for-review, dry-run route, live onboarding, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
 Definition of done: Roadmap has a clear decision point after draft-save foundations. Priority: P1.
+Status: Complete.
+Finding: Added `docs/roadmap/ONBOARDING_DRAFT_SAVE_READINESS_CHECKPOINT_TASK_110.md`. The checkpoint confirms TASK-102 through TASK-109 completed draft persistence foundations, clean DB/static schema checks, repository primitives, idempotency hashing, draft validation, guarded admin draft save, company onboarding frontend draft-save integration, and safe reference-only draft-save audit evidence. Decision: implement a guarded no-op dry-run validation route before submit-for-review. Dry-run is the safer next step because it can harden permissions, redaction, safe errors, missing evidence, and no-mutation behavior before any review state transition exists. TASK-027 and TASK-028 remain blocked.
+Validation: Documentation/readback only. Confirmed the checkpoint preserves no-live-action boundaries and does not introduce backend routes, frontend code, services, tests, schema, migrations, DB access, secrets, production data, submit-for-review, dry-run implementation, live onboarding, credential lifecycle, webhook delivery, funding, wallet, fulfilment, settlement, retry, go-live, audit mutation beyond completed draft-save evidence, or money movement.
+
+## TASK-111: Add guarded onboarding dry-run validation route
+
+Objective: Expose no-op onboarding dry-run validation using the TASK-106 validation service and TASK-099 contract without persisting drafts, audit rows, events, or live platform state.
+Type: API/Tests.
+Dependencies: TASK-106; TASK-107; TASK-110; `docs/sa/ONBOARDING_DRY_RUN_VALIDATION_ENDPOINT_CONTRACT.md`.
+Stop conditions: Stop if implementation requires schema changes, migrations, live DB access, production data, secrets, draft writes, validation-result persistence, audit writes, event persistence, credential lifecycle, webhook delivery, go-live, funding, wallet, fulfilment, settlement, retry, or money movement.
+Validation expectation: Targeted API tests pass for authorized dry-run, malformed payloads, missing evidence, unknown references, no persistence, no audit write, no event dispatch, no `tenant_code` exposure, and no live actions.
+Explicit non-goals: Do not implement draft save, submit-for-review, account creation, user/member/invite creation, campaign publication, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Definition of done: Admin/operator users can request safe dry-run validation feedback without any persistence or live side effects. Priority: P1.
+
+## TASK-112: Add dry-run validation permission and no-mutation tests
+
+Objective: Lock the dry-run validation route to the intended permission, redaction, and no-mutation contract.
+Type: API/Tests.
+Dependencies: TASK-111; `docs/API_PERMISSION_MATRIX.md`.
+Stop conditions: Stop if tests require production data, live DB access, secrets, auth weakening, broad permission refactors, persistence, audit writes, event dispatch, webhook delivery, or money movement.
+Validation expectation: Tests confirm unauthenticated rejection, adjacent-role rejection, authorized admin/operator access, external-reference scope behavior, safe error responses, no persistence, no audit/event dispatch, no secret leakage, no `tenant_code` user-facing exposure, and no live action invocation.
+Explicit non-goals: Do not change auth behavior unless tests reveal a clear route contract bug; do not add mutation routes, schema, frontend code, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Definition of done: Dry-run validation has regression coverage for RBAC, scope, redaction, and no-side-effect guarantees. Priority: P1.
+
+## TASK-113: Integrate frontend dry-run validation preview
+
+Objective: Let onboarding shells preview dry-run validation and readiness feedback without saving, submitting, or enabling live actions.
+Type: Frontend/API integration.
+Dependencies: TASK-111; TASK-112; TASK-108.
+Stop conditions: Stop if integration requires backend mutations, schema changes, auth changes, secrets, live DB access, draft persistence beyond existing save, submit-for-review, credential lifecycle, webhook delivery, go-live, funding, wallet, fulfilment, settlement, retry, or money movement.
+Validation expectation: Frontend tests pass for loading, success, missing evidence, safe error fallback, disabled submit/go-live/live actions, external-reference query construction, no secret display, and no `tenant_code` user-facing exposure.
+Explicit non-goals: Do not implement submit-for-review, account creation, invite delivery, role assignment, campaign publication, credential generation, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Definition of done: Onboarding UI can preview read-only/no-op validation feedback while preserving shell fallback and disabled live actions. Priority: P1.
+
+## TASK-114: Submit-for-review contract final review
+
+Objective: Decide the minimal submit-for-review boundary after dry-run validation and frontend preview are proven.
+Type: Docs/checkpoint.
+Dependencies: TASK-111; TASK-112; TASK-113; TASK-110.
+Stop conditions: Stop if review requires implementation, schema changes, migrations, live DB access, secrets, production data, live onboarding, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, or money movement.
+Validation expectation: Documentation/readback confirms whether submit-for-review can proceed, required state transition semantics, permission posture, idempotency, audit evidence, rollback expectations, and no-live-action guardrails.
+Explicit non-goals: Do not implement submit-for-review, approval, go-live, account creation, campaign publication, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, or money movement.
+Definition of done: Roadmap has a clear, reviewed submit-for-review boundary or an explicit stop decision. Priority: P1.
+
+## TASK-115: Add submit-for-review repository state transition
+
+Objective: Add repository/service primitives for transitioning a saved draft to review state without route wiring or live activation.
+Type: Service/Repository/Tests.
+Dependencies: TASK-104; TASK-105; TASK-106; TASK-114.
+Stop conditions: Stop if work requires API route exposure, frontend changes, schema changes beyond existing draft tables, live DB access, secrets, account creation, campaign publication, credential lifecycle, webhook delivery, go-live, funding, fulfilment, settlement, retry, or money movement.
+Validation expectation: Tests cover valid transition, stale version behavior, invalid state, idempotency/replay posture, safe validation prerequisites, no audit/event dispatch, no live action, and no sensitive leakage.
+Explicit non-goals: Do not add API routes, frontend integration, approval workflow, account creation, invites, campaign publication, credentials, webhooks, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Definition of done: Submit-for-review transition primitives exist behind tests but are not externally exposed. Priority: P1.
+
+## TASK-116: Add guarded submit-for-review endpoint
+
+Objective: Expose a narrow admin/operator submit-for-review endpoint for saved drafts after repository transition and safety contracts pass.
+Type: API/Tests.
+Dependencies: TASK-115; TASK-109.
+Stop conditions: Stop if endpoint requires auth weakening, broad permission refactors, production data, live DB access, secrets, account creation, invite delivery, campaign publication, credential lifecycle, webhook delivery, go-live, funding, wallet, fulfilment, settlement, retry, or money movement.
+Validation expectation: API tests pass for auth, adjacent-role rejection, external-reference/draft scope, stale version, idempotency, validation blockers, safe errors, audit evidence reference, no `tenant_code` exposure, and no live action invocation.
+Explicit non-goals: Do not approve, activate, publish, invite, create credentials, deliver webhooks, fund, fulfil, settle, retry, create wallets, go-live, or move money.
+Definition of done: Saved drafts can be marked submitted for review under strict admin/operator guardrails only. Priority: P1.
+
+## TASK-117: Integrate frontend submit-for-review controls
+
+Objective: Add guarded frontend submit-for-review UI for saved drafts while preserving disabled live/go-live and no-money controls.
+Type: Frontend/API integration.
+Dependencies: TASK-116; TASK-113.
+Stop conditions: Stop if frontend work enables account creation, invite delivery, campaign publication, credential lifecycle, webhook delivery, funding, wallet, fulfilment, settlement, retry, go-live, or money movement.
+Validation expectation: Frontend tests pass for submitted-for-review flow, validation blockers, stale/conflict errors, safe fallback, disabled live actions, no secret display, and no `tenant_code` user-facing exposure.
+Explicit non-goals: Do not implement approval, go-live, account/user creation, role assignment, campaign publication, credential generation, webhook delivery, funding, fulfilment, settlement, retry, wallet, or money movement.
+Definition of done: Frontend can submit draft for review without enabling any live platform action. Priority: P1.
+
+## TASK-118: Add submit-for-review audit evidence
+
+Objective: Record safe reference-only evidence for submit-for-review transitions without webhook/event dispatch or raw sensitive payloads.
+Type: Service/Tests.
+Dependencies: TASK-116; TASK-109.
+Stop conditions: Stop if implementation dispatches webhooks/events, stores raw sensitive payloads, exposes secrets, mutates live platform entities, touches money domains, or enables go-live.
+Validation expectation: Tests cover actor, role, external references, draft ref/version, review operation/status, idempotency reference, before/after hash, changed state, redaction categories, correlation ID, and no dispatch/live-action behavior.
+Explicit non-goals: Do not add webhook delivery, event replay, approval, go-live, credential lifecycle, invite delivery, campaign publication, funding, fulfilment, settlement, retry, wallet, or money movement.
+Definition of done: Submit-for-review has safe audit evidence references only. Priority: P1.
+
+## TASK-119: Add review-flow permission and redaction regression tests
+
+Objective: Lock submit-for-review and related read/dry-run surfaces to intended RBAC, scope, redaction, and no-live-action contracts.
+Type: API/Tests.
+Dependencies: TASK-116; TASK-118.
+Stop conditions: Stop if tests require production data, live DB access, secrets, auth weakening, broad permission refactors, schema changes, live actions, webhook delivery, or money movement.
+Validation expectation: Tests confirm unauthorized and adjacent-role rejection, authorized admin/operator access, cross-scope rejection, safe errors, no `tenant_code` exposure, no secrets/raw payloads, no provider/audit/webhook/money internals, and no live mutation invocation.
+Explicit non-goals: Do not add routes, frontend code, schema, approval, go-live, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, or money movement.
+Definition of done: Review-flow permissions and safe response boundaries are regression-protected. Priority: P1.
+
+## TASK-120: Submit-for-review readiness checkpoint
+
+Objective: Checkpoint the dry-run and submit-for-review wave and decide whether approval/review workflow can be scoped next.
+Type: Docs.
+Dependencies: TASK-111; TASK-112; TASK-113; TASK-114; TASK-115; TASK-116; TASK-117; TASK-118; TASK-119.
+Stop conditions: Stop if checkpoint requires implementation, live DB access, secrets, schema changes, migrations, approval workflow, live onboarding, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, go-live, or money movement.
+Validation expectation: Documentation/readback confirms completed work, validation baseline, remaining blockers, no-live-action posture, TASK-027/TASK-028 status, and safe next priorities.
+Explicit non-goals: Do not implement approval, live onboarding, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Definition of done: Roadmap has a clear decision point after submit-for-review foundations. Priority: P1.
 
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
