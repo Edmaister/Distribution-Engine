@@ -1930,6 +1930,9 @@ Stop conditions: Stop if validation needs live DB access, secrets, route impleme
 Validation expectation: Tests cover field validation, cross-section validation, permission-shaped inputs, missing evidence, safe errors, redaction, and go-live disabled state.
 Explicit non-goals: Do not add API routes, create accounts, send invites, publish campaigns, generate credentials, deliver webhooks, write audit rows, fund, fulfil, settle, retry, activate go-live, or move money.
 Definition of done: Draft validation can produce safe readiness previews without live side effects. Priority: P1.
+Status: Complete.
+Finding: Added a pure onboarding draft validation service that accepts draft-like payloads, sanitizes unsafe fields, validates required section fields, checks cross-section reference consistency, applies permission-limited category context, and returns bounded safe errors, blockers, warnings, missing evidence, redactions, guardrails, and next actions. The service produces a read-only readiness preview by reusing the existing onboarding state projection and readiness aggregation helpers, keeps go-live disabled, confirms no persistence, and does not call repository, DB, route, audit, event, credential, webhook, funding, fulfilment, settlement, retry, wallet, go-live, or money-movement behavior.
+Validation: Added focused draft validation service tests for valid draft readiness preview, missing required fields, cross-section mismatch, permission-limited inputs, missing section evidence, unsafe secret/internal fields, blocked live-action attempts, disabled go-live controls, and money/retry/internal non-leakage. Local validation covered direct targeted draft validation tests, direct related projection/readiness/idempotency helper tests, Python compile checks, migration hygiene, and diff whitespace checks.
 
 ## TASK-107: Add admin draft save endpoint behind strict guardrails
 
