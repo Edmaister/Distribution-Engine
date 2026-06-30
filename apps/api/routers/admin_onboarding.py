@@ -6,6 +6,10 @@ from typing import Any
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from services.onboarding import onboarding_draft_repository as draft_repo
+from services.onboarding.onboarding_draft_audit_evidence_service import (
+    build_draft_save_audit_evidence,
+    build_draft_save_audit_link_fields,
+)
 from services.onboarding.onboarding_draft_idempotency_service import (
     STATUS_CONFLICT_DIFFERENT_PAYLOAD,
     STATUS_INVALID_IDEMPOTENCY_KEY,
@@ -266,7 +270,7 @@ async def save_admin_onboarding_draft(
         idempotency_status=decision.status,
         validation=validation,
     )
-    await draft_repo.record_idempotency_reference(
+    idempotency_record = await draft_repo.record_idempotency_reference(
         idempotency_key_hash=decision.idempotency_key_hash or "",
         scope_hash=decision.scope_hash or "",
         actor_ref=actor_ref,
@@ -284,6 +288,30 @@ async def save_admin_onboarding_draft(
         draft_id=draft_id,
         draft_ref=draft_ref,
         correlation_id=_optional_text(payload.get("correlation_id")) or None,
+    )
+    audit_evidence = build_draft_save_audit_evidence(
+        actor_ref=actor_ref,
+        actor_role=str(admin_identity.get("role") or "ADMIN").upper(),
+        permission_scope={
+            "route_family": "admin_onboarding",
+            "role_family": "admin_operator",
+        },
+        external_scope=supplied_scope,
+        draft_ref=draft_ref,
+        draft_version=draft.get("draft_version"),
+        action_status="SUCCESS",
+        idempotency_reference=decision.idempotency_key_hash,
+        correlation_id=_optional_text(payload.get("correlation_id")) or None,
+        current_sections=safe_sections,
+        validation=validation,
+    )
+    await draft_repo.create_audit_link_reference(
+        **build_draft_save_audit_link_fields(
+            draft_id=draft_id,
+            evidence=audit_evidence,
+            idempotency_id=_optional_text(idempotency_record.get("idempotency_id"))
+            or None,
+        )
     )
     return response
 

@@ -486,6 +486,7 @@ def _patch_draft_repo(monkeypatch, *, existing_idempotency=None, existing_draft=
         "upsert_draft_section": [],
         "record_validation_result": [],
         "record_idempotency_reference": [],
+        "create_audit_link_reference": [],
     }
 
     async def fake_get_idempotency_reference(**kwargs):
@@ -515,6 +516,10 @@ def _patch_draft_repo(monkeypatch, *, existing_idempotency=None, existing_draft=
 
     async def fake_record_idempotency_reference(**kwargs):
         calls["record_idempotency_reference"].append(kwargs)
+        return {"idempotency_id": "idem-uuid", **kwargs}
+
+    async def fake_create_audit_link_reference(**kwargs):
+        calls["create_audit_link_reference"].append(kwargs)
         return kwargs
 
     monkeypatch.setattr(
@@ -542,6 +547,11 @@ def _patch_draft_repo(monkeypatch, *, existing_idempotency=None, existing_draft=
         admin_onboarding.draft_repo,
         "record_idempotency_reference",
         fake_record_idempotency_reference,
+    )
+    monkeypatch.setattr(
+        admin_onboarding.draft_repo,
+        "create_audit_link_reference",
+        fake_create_audit_link_reference,
     )
     return calls
 
@@ -595,13 +605,12 @@ async def test_admin_onboarding_draft_save_rejects_adjacent_role(monkeypatch):
 
 async def test_admin_onboarding_draft_save_persists_draft_intent_only(monkeypatch):
     calls = _patch_draft_repo(monkeypatch)
+    payload = _complete_draft_payload()
 
     async with AsyncClient(
         app=app, base_url="http://test", headers=ADMIN_HEADERS
     ) as client:
-        response = await client.post(
-            "/admin/onboarding/drafts", json=_complete_draft_payload()
-        )
+        response = await client.post("/admin/onboarding/drafts", json=payload)
 
     assert response.status_code == 200
     body = response.json()
@@ -617,7 +626,33 @@ async def test_admin_onboarding_draft_save_persists_draft_intent_only(monkeypatc
     assert calls["upsert_draft_section"]
     assert calls["record_validation_result"]
     assert calls["record_idempotency_reference"]
+    assert calls["create_audit_link_reference"]
     assert calls["record_idempotency_reference"][0]["idempotency_key_hash"]
+    audit_link = calls["create_audit_link_reference"][0]
+    evidence_summary = audit_link["evidence_summary"]
+    assert audit_link["action_type"] == "ONBOARDING_DRAFT_CREATE"
+    assert audit_link["action_status"] == "SUCCESS"
+    assert audit_link["actor_ref"] == "ADMIN"
+    assert audit_link["actor_role"] == "ADMIN"
+    assert audit_link["event_ref"] is None
+    assert audit_link["idempotency_id"] == "idem-uuid"
+    assert audit_link["before_state_hash"]
+    assert audit_link["after_state_hash"]
+    assert sorted(audit_link["changed_sections"]) == sorted(payload["sections"])
+    assert evidence_summary["external_scope"] == {
+        "external_tenant_ref": "acme-distribution",
+        "organisation_ref": "org-acme",
+        "producer_ref": "prod-acme",
+        "sponsor_ref": "sponsor-acme",
+        "distributor_ref": "dist-acme",
+        "campaign_code": "CAMP-ACME",
+        "opportunity_ref": "opp-acme",
+    }
+    assert evidence_summary["dispatch"] == {
+        "event_dispatched": False,
+        "webhook_dispatched": False,
+        "event_ref": None,
+    }
     assert "draft-save-key-1" not in rendered
     assert "tenant_code" not in body["validation_result"]["validated_scope"]
     assert "create_tenant" not in rendered
@@ -646,6 +681,7 @@ async def test_admin_onboarding_draft_save_replays_same_idempotency_payload(
     assert body["idempotency_status"] == "REPLAY_SAME_PAYLOAD"
     assert calls["create_draft"] == []
     assert calls["record_idempotency_reference"] == []
+    assert calls["create_audit_link_reference"] == []
 
 
 async def test_admin_onboarding_draft_save_conflicts_on_different_payload(monkeypatch):
