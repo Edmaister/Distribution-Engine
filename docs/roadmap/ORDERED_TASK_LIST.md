@@ -1956,6 +1956,9 @@ Stop conditions: Stop if frontend work enables live actions, credential lifecycl
 Validation expectation: Frontend tests cover save draft, safe errors, fallback, disabled live actions, no secret display, external references, and no `tenant_code` user-facing dependency.
 Explicit non-goals: Do not implement submit-for-review, go-live, account creation, invite delivery, credential generation, webhook delivery, funding, fulfilment, settlement, retry, wallet, or money movement.
 Definition of done: Frontend can save draft intent without enabling live onboarding. Priority: P1.
+Status: Complete.
+Finding: Added the first frontend draft-save integration slice behind live-safe controls. The shared admin onboarding API helper now posts to `POST /admin/onboarding/drafts` with external-reference scope, sanitized draft sections, idempotency key, and correlation ID while filtering user-facing `tenant_code`, secrets, credentials, live-action fields, webhook delivery, wallet, settlement, fulfilment, funding, retry, and money-movement keys. The Company onboarding shell can save draft intent only, shows bounded saved/conflict/unavailable states, preserves read-only hydration and local fallback, and keeps account creation/go-live behavior disabled.
+Validation: Targeted frontend tests cover the admin onboarding helper, Company onboarding draft save success, safe endpoint failure fallback, idempotency/duplicate conflict fallback, disabled live actions, no secret fields, no user-facing `tenant_code`, and the onboarding demo smoke path. `npm.cmd test -- adminOnboarding.test.ts CompanyOnboardingPage.test.tsx OnboardingDemoJourneySmoke.test.tsx`, full `npm.cmd test`, `npm.cmd run build`, and `npm.cmd run lint` passed locally; lint completed with the existing repo warning baseline and no errors.
 
 ## TASK-109: Audit/event evidence implementation for draft save only
 

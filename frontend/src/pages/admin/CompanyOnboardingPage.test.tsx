@@ -11,6 +11,8 @@ import { createMemoryRouter, Outlet, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getAdminOnboardingState,
+  saveAdminOnboardingDraft,
+  type AdminOnboardingDraftSaveResponse,
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
 import { createAdminOnboardingStateResponse } from "../../api/endpoints/adminOnboarding.testFixtures";
@@ -18,9 +20,38 @@ import { CompanyOnboardingPage } from "./CompanyOnboardingPage";
 
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
   getAdminOnboardingState: vi.fn(),
+  saveAdminOnboardingDraft: vi.fn(),
 }));
 
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
+const mockedSaveAdminOnboardingDraft = vi.mocked(saveAdminOnboardingDraft);
+
+const draftSaveResponse: AdminOnboardingDraftSaveResponse = {
+  status: "saved",
+  draft_ref: "draft_acme_distribution",
+  draft_status: "DRAFT_CREATED",
+  idempotency_status: "NEW_REQUEST",
+  validation_summary: {
+    status: "WARNING",
+    safe_error_count: 0,
+    missing_evidence_count: 1,
+    blocker_count: 0,
+  },
+  missing_evidence: [
+    {
+      section: "company",
+      field: "industry",
+      code: "MISSING_EVIDENCE",
+      message: "Industry evidence is not complete.",
+      severity: "warning",
+    },
+  ],
+  blockers: [],
+  next_actions: ["Review company draft evidence before go-live review."],
+  guardrails: ["NO_LIVE_ACTIONS", "NO_MONEY_MOVEMENT"],
+  redactions: ["TENANT_CODE_INTERNAL", "SECRETS_REDACTED"],
+  no_live_action_confirmed: true,
+};
 
 function onboardingStateResponse(
   overrides: Partial<AdminOnboardingStateResponse["readiness"]> = {},
@@ -80,6 +111,7 @@ function readinessPanel() {
 describe("CompanyOnboardingPage", () => {
   beforeEach(() => {
     mockedGetAdminOnboardingState.mockResolvedValue(onboardingStateResponse());
+    mockedSaveAdminOnboardingDraft.mockResolvedValue(draftSaveResponse);
   });
 
   afterEach(() => {
@@ -180,6 +212,125 @@ describe("CompanyOnboardingPage", () => {
     expect(readinessPanel().getAllByText("Ready")).toHaveLength(3);
     expect(readinessPanel().getByText("Pending")).toBeInTheDocument();
     expect(screen.getByText("Backend account lifecycle")).toBeInTheDocument();
+  });
+
+  it("saves draft intent with external references and keeps live actions disabled", async () => {
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    fireEvent.change(screen.getByLabelText(/Organisation name/), {
+      target: { value: "Acme Distribution Ltd" },
+    });
+    fireEvent.change(screen.getByLabelText(/external_tenant_ref/), {
+      target: { value: "acme-distribution" },
+    });
+    fireEvent.change(screen.getByLabelText(/organisation_ref/), {
+      target: { value: "org-acme" },
+    });
+    fireEvent.change(screen.getByLabelText(/Country/), {
+      target: { value: "South Africa" },
+    });
+    fireEvent.change(screen.getByLabelText(/Industry/), {
+      target: { value: "Insurance" },
+    });
+    fireEvent.change(screen.getByLabelText(/Admin contact/), {
+      target: { value: "ops@example.test" },
+    });
+    fireEvent.change(screen.getByLabelText(/Intended role/), {
+      target: { value: "Producer admin" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+
+    await waitFor(() => {
+      expect(mockedSaveAdminOnboardingDraft).toHaveBeenCalledTimes(1);
+    });
+    const request = mockedSaveAdminOnboardingDraft.mock.calls[0][0];
+
+    expect(request).toMatchObject({
+      external_tenant_ref: "acme-distribution",
+      organisation_ref: "org-acme",
+      correlation_id: "company-onboarding-shell",
+      sections: {
+        company: {
+          organisation_name: "Acme Distribution Ltd",
+          external_tenant_ref: "acme-distribution",
+          organisation_ref: "org-acme",
+          country: "South Africa",
+          organisation_type: "Producer / sponsor",
+          industry: "Insurance",
+          admin_contact: "ops@example.test",
+          intended_role: "Producer admin",
+        },
+      },
+    });
+    expect(request.idempotency_key).toContain("company-onboarding-draft");
+    expect(JSON.stringify(request).toLowerCase()).not.toContain("tenant_code");
+    expect(JSON.stringify(request).toLowerCase()).not.toContain("api_key");
+    expect(JSON.stringify(request).toLowerCase()).not.toContain(
+      "client_secret",
+    );
+
+    expect(await screen.findByText("Draft saved for review.")).toBeInTheDocument();
+    expect(screen.getByText(/draft_acme_distribution/)).toBeInTheDocument();
+    expect(
+      screen.getByText("Review company draft evidence before go-live review."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create account later" }),
+    ).toBeDisabled();
+    expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
+  });
+
+  it("shows a safe fallback when draft save is unavailable", async () => {
+    mockedSaveAdminOnboardingDraft.mockRejectedValue({
+      status: 503,
+      message: "service unavailable",
+    });
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    fireEvent.change(screen.getByLabelText(/external_tenant_ref/), {
+      target: { value: "acme-distribution" },
+    });
+    fireEvent.change(screen.getByLabelText(/organisation_ref/), {
+      target: { value: "org-acme" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+
+    expect(await screen.findByText("Draft save fallback.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Draft save is unavailable, so the page is keeping local shell state only. No live action was taken.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create account later" }),
+    ).toBeDisabled();
+  });
+
+  it("shows a safe idempotency or duplicate draft fallback without live actions", async () => {
+    mockedSaveAdminOnboardingDraft.mockRejectedValue({
+      status: 409,
+      message: "IDEMPOTENCY_CONFLICT",
+    });
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    fireEvent.change(screen.getByLabelText(/external_tenant_ref/), {
+      target: { value: "acme-distribution" },
+    });
+    fireEvent.change(screen.getByLabelText(/organisation_ref/), {
+      target: { value: "org-acme" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+
+    expect(await screen.findByText("Draft save fallback.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "A matching draft already exists or the idempotency key needs review. No live action was taken.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create account later" }),
+    ).toBeDisabled();
   });
 
   it("links the company setup journey to future onboarding and monitoring surfaces", () => {
