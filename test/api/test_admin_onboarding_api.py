@@ -577,6 +577,194 @@ def _existing_idempotency_for(payload, *, request_hash=None):
     }
 
 
+def _assert_no_draft_repo_persistence(calls):
+    assert calls["create_draft"] == []
+    assert calls["upsert_draft_section"] == []
+    assert calls["record_validation_result"] == []
+    assert calls["record_idempotency_reference"] == []
+    assert calls["create_audit_link_reference"] == []
+    assert "get_idempotency_reference" not in calls
+    assert "get_draft_by_ref" not in calls
+
+
+async def test_admin_onboarding_dry_run_requires_auth(monkeypatch):
+    calls = _patch_draft_repo(monkeypatch)
+
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.post(
+            "/admin/onboarding/validate", json=_complete_draft_payload()
+        )
+
+    assert response.status_code == 401
+    _assert_no_draft_repo_persistence(calls)
+
+
+async def test_admin_onboarding_dry_run_rejects_adjacent_role(monkeypatch):
+    calls = _patch_draft_repo(monkeypatch)
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=FINANCE_ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/validate", json=_complete_draft_payload()
+        )
+
+    assert response.status_code == 403
+    _assert_no_draft_repo_persistence(calls)
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [ADMIN_HEADERS, DISTRIBUTION_ADMIN_HEADERS, SYSTEM_ADMIN_HEADERS],
+)
+async def test_admin_onboarding_dry_run_returns_validation_without_persistence(
+    headers,
+    monkeypatch,
+):
+    calls = _patch_draft_repo(monkeypatch)
+
+    def fail_audit_evidence(*args, **kwargs):  # pragma: no cover
+        raise AssertionError("dry-run must not build audit evidence")
+
+    monkeypatch.setattr(
+        admin_onboarding,
+        "build_draft_save_audit_evidence",
+        fail_audit_evidence,
+    )
+    monkeypatch.setattr(
+        admin_onboarding,
+        "build_draft_save_audit_link_fields",
+        fail_audit_evidence,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=headers) as client:
+        response = await client.post(
+            "/admin/onboarding/validate", json=_complete_draft_payload()
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    rendered = json.dumps(body)
+    assert body["status"] == "ok"
+    assert body["no_persistence_confirmed"] is True
+    assert body["no_live_action_confirmed"] is True
+    assert body["readiness_preview"]["overall_status"] == "GO_LIVE_DISABLED"
+    assert body["validation_result"]["validated_scope"]["external_tenant_ref"] == (
+        "acme-distribution"
+    )
+    assert "DRY_RUN_ONLY" in body["guardrails"]
+    assert "NO_PERSISTENCE" in body["guardrails"]
+    assert "NO_AUDIT_WRITE" in body["guardrails"]
+    assert "NO_EVENT_DISPATCH" in body["guardrails"]
+    assert "NO_WEBHOOK_DELIVERY" in body["guardrails"]
+    assert "NO_MONEY_MOVEMENT" in body["guardrails"]
+    assert "draft-save-key-1" not in rendered
+    assert "tenant_code" not in body["validation_result"]["validated_scope"]
+    assert "saved" not in rendered.lower()
+    assert "activated" not in rendered.lower()
+    _assert_no_draft_repo_persistence(calls)
+
+
+async def test_admin_onboarding_dry_run_missing_evidence_is_explicit(monkeypatch):
+    calls = _patch_draft_repo(monkeypatch)
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/validate",
+            json={
+                "external_tenant_ref": "unknown-demo-tenant",
+                "validation_scope": ["company", "readiness"],
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["validation_result"]["status"] == "MISSING_EVIDENCE"
+    assert body["missing_evidence"]
+    assert body["readiness_preview"]["overall_status"] == "GO_LIVE_DISABLED"
+    assert "traceback" not in json.dumps(body).lower()
+    assert "sql" not in json.dumps(body).lower()
+    _assert_no_draft_repo_persistence(calls)
+
+
+async def test_admin_onboarding_dry_run_reports_malformed_sections_safely(
+    monkeypatch,
+):
+    calls = _patch_draft_repo(monkeypatch)
+    payload = _complete_draft_payload()
+    payload["sections"]["campaign_opportunity"]["producer_ref"] = "different-producer"
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post("/admin/onboarding/validate", json=payload)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["validation_result"]["status"] == "INVALID"
+    assert any(item["code"] == "CROSS_SECTION_MISMATCH" for item in body["safe_errors"])
+    assert body["no_persistence_confirmed"] is True
+    _assert_no_draft_repo_persistence(calls)
+
+
+async def test_admin_onboarding_dry_run_rejects_tenant_code_without_exposure(
+    monkeypatch,
+):
+    calls = _patch_draft_repo(monkeypatch)
+    payload = _complete_draft_payload(tenant_code="INTERNAL_ACME")
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post("/admin/onboarding/validate", json=payload)
+
+    rendered = json.dumps(response.json())
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "UNSAFE_OPERATION_ATTEMPTED"
+    assert response.json()["detail"]["no_live_action_confirmed"] is True
+    assert "INTERNAL_ACME" not in rendered
+    assert "traceback" not in rendered.lower()
+    _assert_no_draft_repo_persistence(calls)
+
+
+async def test_admin_onboarding_dry_run_redacts_secret_and_live_action_payloads(
+    monkeypatch,
+):
+    calls = _patch_draft_repo(monkeypatch)
+    payload = _complete_draft_payload()
+    payload["sections"]["webhook_api"]["api_key"] = "SECRET-API-KEY"
+    payload["sections"]["webhook_api"]["client_secret"] = "SECRET-CLIENT"
+    payload["sections"]["webhook_api"]["deliver_webhook"] = True
+    payload["sections"]["campaign_opportunity"]["publish_campaign"] = True
+    payload["sections"]["campaign_opportunity"]["wallet_reference"] = "wallet-internal"
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post("/admin/onboarding/validate", json=payload)
+
+    assert response.status_code == 200
+    body = response.json()
+    rendered = json.dumps(body)
+    assert body["validation_result"]["status"] == "BLOCKED"
+    assert body["no_persistence_confirmed"] is True
+    assert body["no_live_action_confirmed"] is True
+    assert "secret_or_credential" in body["redactions"]
+    assert "webhook_internal" in body["redactions"]
+    assert "live_action" in body["redactions"]
+    assert "money_movement_internal" in body["redactions"]
+    assert "SECRET-API-KEY" not in rendered
+    assert "SECRET-CLIENT" not in rendered
+    assert "wallet-internal" not in rendered
+    assert "api_key" not in rendered
+    assert "client_secret" not in rendered
+    assert "event_dispatched" not in rendered
+    assert "webhook_dispatched" not in rendered
+    _assert_no_draft_repo_persistence(calls)
+
+
 async def test_admin_onboarding_draft_save_requires_auth(monkeypatch):
     calls = _patch_draft_repo(monkeypatch)
 
