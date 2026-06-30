@@ -1917,6 +1917,9 @@ Stop conditions: Stop if helper requires route wiring, live DB access, secrets, 
 Validation expectation: Tests cover same-key/same-payload replay, same-key/different-payload conflict, scoped keys, hash-only storage, and no sensitive leakage.
 Explicit non-goals: Do not make live commands idempotent, add routes, write audit rows, dispatch events, generate credentials, deliver webhooks, fund, fulfil, settle, retry, activate go-live, or move money.
 Definition of done: Draft idempotency behavior is reusable and tested without route exposure. Priority: P1.
+Status: Complete.
+Finding: Added a pure onboarding draft idempotency helper with deterministic SHA-256 hashing for raw idempotency keys, canonical request payloads, and draft-scoped identities. The helper returns repository-safe hash fields for `onboarding_draft_idempotency_keys`, classifies new requests, same-key/same-payload replays, same-key/different-payload conflicts, and invalid unsupported requests, and rejects non-draft/live operation types without route wiring, DB access, audit writes, event dispatch, credential lifecycle, webhook delivery, go-live activation, funding, fulfilment, settlement, retry, wallet, or money movement.
+Validation: Added focused helper tests for new-request fields, replay, conflict, scoped actor/external tenant/operation differences, deterministic payload hashing, sensitive-value non-leakage, blank keys, and unsupported live-action operations. Local validation covered targeted direct test execution, Python compile checks, migration hygiene, and diff whitespace checks where available.
 
 ## TASK-106: Add draft validation service using read-only readiness aggregation
 
