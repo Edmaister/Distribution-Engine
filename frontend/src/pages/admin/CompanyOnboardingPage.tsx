@@ -11,6 +11,8 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   getAdminOnboardingState,
+  saveAdminOnboardingDraft,
+  type AdminOnboardingDraftSaveResponse,
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
 import { StatusBadge } from "../../components/StatusBadge";
@@ -83,12 +85,18 @@ const readOnlyScope = {
 };
 
 type LoadState = "loading" | "success" | "fallback";
+type DraftSaveState = "idle" | "saving" | "saved" | "error";
 
 export function CompanyOnboardingPage() {
   const [form, setForm] = useState<FormState>(initialState);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [readOnlyState, setReadOnlyState] =
     useState<AdminOnboardingStateResponse | null>(null);
+  const [draftSaveState, setDraftSaveState] =
+    useState<DraftSaveState>("idle");
+  const [draftSaveResponse, setDraftSaveResponse] =
+    useState<AdminOnboardingDraftSaveResponse | null>(null);
+  const [draftSaveError, setDraftSaveError] = useState<string | null>(null);
   const requiredComplete = Boolean(
     form.organisationName.trim() &&
     form.externalTenantRef.trim() &&
@@ -133,9 +141,67 @@ export function CompanyOnboardingPage() {
   const organisationCategory = readOnlyState?.readiness.categories.find(
     (category) => category.category.toUpperCase().includes("ORGANISATION"),
   );
+  const draftSaveReady = Boolean(
+    form.externalTenantRef.trim() && form.organisationRef.trim(),
+  );
+  const draftIdempotencyKey = useMemo(
+    () =>
+      [
+        "company-onboarding-draft",
+        form.externalTenantRef.trim() || "missing-external-ref",
+        form.organisationRef.trim() || "missing-organisation-ref",
+        form.organisationName.trim() || "unnamed-organisation",
+        form.adminContact.trim() || "missing-admin-contact",
+      ].join(":"),
+    [form],
+  );
 
   function updateField(field: keyof FormState, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function handleSaveDraft() {
+    if (!draftSaveReady || draftSaveState === "saving") {
+      return;
+    }
+
+    setDraftSaveState("saving");
+    setDraftSaveError(null);
+    setDraftSaveResponse(null);
+
+    try {
+      const response = await saveAdminOnboardingDraft({
+        external_tenant_ref: form.externalTenantRef,
+        organisation_ref: form.organisationRef,
+        idempotency_key: draftIdempotencyKey,
+        correlation_id: "company-onboarding-shell",
+        sections: {
+          company: {
+            organisation_name: form.organisationName,
+            external_tenant_ref: form.externalTenantRef,
+            organisation_ref: form.organisationRef,
+            country: form.country,
+            organisation_type: form.organisationType,
+            industry: form.industry,
+            admin_contact: form.adminContact,
+            intended_role: form.intendedRole,
+          },
+        },
+      });
+      setDraftSaveResponse(response);
+      setDraftSaveState("saved");
+    } catch (error) {
+      const status =
+        typeof error === "object" && error && "status" in error
+          ? Number((error as { status?: number }).status)
+          : null;
+      setDraftSaveError(
+        status === 409
+          ? "A matching draft already exists or the idempotency key needs review. No live action was taken."
+          : "Draft save is unavailable, so the page is keeping local shell state only. No live action was taken.",
+      );
+      setDraftSaveState("error");
+    }
   }
 
   useEffect(() => {
@@ -382,6 +448,14 @@ export function CompanyOnboardingPage() {
               />
             </div>
             <div className="action-button-row">
+              <button
+                className="button secondary"
+                disabled={!draftSaveReady || draftSaveState === "saving"}
+                onClick={handleSaveDraft}
+                type="button"
+              >
+                {draftSaveState === "saving" ? "Saving draft" : "Save draft"}
+              </button>
               <button className="button" disabled type="button">
                 Create account later
               </button>
@@ -391,6 +465,50 @@ export function CompanyOnboardingPage() {
                   : "Complete required shell fields before a future create flow."}
               </span>
             </div>
+            <div className="table-subtext">
+              Draft save stores onboarding intent only. It does not create
+              accounts, invite users, create credentials, publish campaigns,
+              deliver webhooks, activate go-live, or move money.
+            </div>
+            {draftSaveState === "saved" && draftSaveResponse ? (
+              <div className="banner success" role="status">
+                <CheckCircle2 size={18} />
+                <div>
+                  <strong>Draft saved for review.</strong>
+                  <div className="table-subtext">
+                    {draftSaveResponse.draft_ref} -{" "}
+                    {draftSaveResponse.draft_status} -{" "}
+                    {draftSaveResponse.idempotency_status}
+                  </div>
+                  {draftSaveResponse.validation_summary ? (
+                    <div className="table-subtext">
+                      Validation:{" "}
+                      {draftSaveResponse.validation_summary.status}; blockers:{" "}
+                      {draftSaveResponse.validation_summary.blocker_count};
+                      missing evidence:{" "}
+                      {
+                        draftSaveResponse.validation_summary
+                          .missing_evidence_count
+                      }
+                    </div>
+                  ) : null}
+                  {draftSaveResponse.next_actions?.[0] ? (
+                    <div className="table-subtext">
+                      {draftSaveResponse.next_actions[0]}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            {draftSaveState === "error" && draftSaveError ? (
+              <div className="banner warning" role="status">
+                <ShieldCheck size={18} />
+                <div>
+                  <strong>Draft save fallback.</strong>
+                  <div className="table-subtext">{draftSaveError}</div>
+                </div>
+              </div>
+            ) : null}
           </div>
         </form>
 

@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   getAdminOnboardingState,
+  saveAdminOnboardingDraft,
+  type AdminOnboardingDraftSaveResponse,
   type AdminOnboardingStateResponse,
 } from "./adminOnboarding";
 
@@ -117,6 +119,41 @@ const successResponse: AdminOnboardingStateResponse = {
   },
   guardrail:
     "Read-only admin onboarding state. This endpoint does not create records or move money.",
+};
+
+const draftSaveResponse: AdminOnboardingDraftSaveResponse = {
+  status: "saved",
+  draft_ref: "draft_acme_distribution",
+  draft_status: "DRAFT_CREATED",
+  idempotency_status: "NEW_REQUEST",
+  validation_result: {
+    status: "WARNING",
+    validated_scope: {
+      external_tenant_ref: "acme-distribution",
+      organisation_ref: "org-acme",
+    },
+  },
+  validation_summary: {
+    status: "WARNING",
+    safe_error_count: 0,
+    missing_evidence_count: 1,
+    blocker_count: 0,
+  },
+  readiness_preview: successResponse.readiness,
+  missing_evidence: [
+    {
+      section: "company",
+      field: "industry",
+      code: "MISSING_EVIDENCE",
+      message: "Industry evidence is not complete.",
+      severity: "warning",
+    },
+  ],
+  blockers: [],
+  next_actions: ["Review company draft evidence before go-live review."],
+  guardrails: ["NO_LIVE_ACTIONS", "NO_MONEY_MOVEMENT"],
+  redactions: ["TENANT_CODE_INTERNAL", "SECRETS_REDACTED"],
+  no_live_action_confirmed: true,
 };
 
 describe("admin onboarding api helper", () => {
@@ -306,6 +343,104 @@ describe("admin onboarding api helper", () => {
     expect(rendered).not.toContain("fulfilment-internal-value");
     expect(rendered).not.toContain("retry-internal-value");
     expect(rendered).not.toContain("money-movement-value");
+  });
+
+  it("saves onboarding draft intent with external references and sanitized sections only", async () => {
+    const fetchMock = mockFetch(draftSaveResponse);
+
+    const result = await saveAdminOnboardingDraft({
+      external_tenant_ref: " acme-distribution ",
+      organisation_ref: " org-acme ",
+      producer_ref: " ",
+      idempotency_key: " company-draft-key ",
+      correlation_id: " company-onboarding-shell ",
+      tenant_code: "INTERNAL-SHOULD-NOT-BE-SENT",
+      sections: {
+        company: {
+          organisation_name: "Acme Distribution Ltd",
+          external_tenant_ref: "acme-distribution",
+          organisation_ref: "org-acme",
+          admin_contact: "ops@example.test",
+          tenant_code: "INTERNAL-SHOULD-NOT-BE-SENT",
+          api_key: "SECRET-API-KEY",
+          client_secret: "SECRET-CLIENT",
+          publish_campaign: true,
+          activate_go_live: true,
+        },
+      },
+    } as Parameters<typeof saveAdminOnboardingDraft>[0] & {
+      tenant_code: string;
+    });
+
+    expect(result).toMatchObject({
+      status: "saved",
+      draft_ref: "draft_acme_distribution",
+      draft_status: "DRAFT_CREATED",
+      idempotency_status: "NEW_REQUEST",
+      no_live_action_confirmed: true,
+    });
+
+    const [url, options] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    const requestUrl = new URL(url);
+    const body = JSON.parse(String(options.body));
+    const renderedBody = JSON.stringify(body).toLowerCase();
+
+    expect(requestUrl.pathname).toBe("/admin/onboarding/drafts");
+    expect(options.method).toBe("POST");
+    expect(body).toMatchObject({
+      external_tenant_ref: "acme-distribution",
+      organisation_ref: "org-acme",
+      idempotency_key: "company-draft-key",
+      correlation_id: "company-onboarding-shell",
+      sections: {
+        company: {
+          organisation_name: "Acme Distribution Ltd",
+          external_tenant_ref: "acme-distribution",
+          organisation_ref: "org-acme",
+          admin_contact: "ops@example.test",
+        },
+      },
+    });
+    expect(body).not.toHaveProperty("tenant_code");
+    expect(body).not.toHaveProperty("producer_ref");
+    expect(renderedBody).not.toContain("tenant_code");
+    expect(renderedBody).not.toContain("secret-api-key");
+    expect(renderedBody).not.toContain("secret-client");
+    expect(renderedBody).not.toContain("publish_campaign");
+    expect(renderedBody).not.toContain("activate_go_live");
+  });
+
+  it("surfaces safe draft-save conflicts through the shared API error contract", async () => {
+    mockFetch(
+      {
+        detail: {
+          code: "IDEMPOTENCY_CONFLICT",
+          message:
+            "The onboarding draft request conflicts with an earlier request.",
+          no_live_action_confirmed: true,
+        },
+      },
+      409,
+    );
+
+    await expect(
+      saveAdminOnboardingDraft({
+        external_tenant_ref: "acme-distribution",
+        organisation_ref: "org-acme",
+        idempotency_key: "company-draft-key",
+        sections: {
+          company: {
+            organisation_name: "Acme Distribution Ltd",
+          },
+        },
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringContaining("IDEMPOTENCY_CONFLICT"),
+    });
   });
 });
 
