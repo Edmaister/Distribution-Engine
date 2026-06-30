@@ -316,6 +316,57 @@ async def save_admin_onboarding_draft(
     return response
 
 
+@router.post("/validate")
+async def validate_admin_onboarding_dry_run(
+    payload: dict[str, Any] = Body(default_factory=dict),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_onboarding_admin(identity)
+    if _contains_user_tenant_code(payload):
+        raise _safe_http_error(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="UNSAFE_OPERATION_ATTEMPTED",
+            message=(
+                "tenant_code is internal and cannot be supplied as validation scope."
+            ),
+            details=[_safe_detail("scope", None, "UNSAFE_FIELD")],
+            redactions=["internal_identifier"],
+        )
+
+    supplied_scope = _scope_from_payload(payload)
+    raw_sections = _raw_sections_from_payload(payload)
+    validation = validate_onboarding_draft(
+        {
+            "scope": supplied_scope,
+            "sections": raw_sections,
+        },
+        actor_context=_actor_context(admin_identity),
+    )
+    guardrails = sorted(
+        set(validation["guardrails"]).union(
+            {
+                "NO_AUDIT_WRITE",
+                "NO_EVENT_PERSISTENCE",
+                "NO_EVENT_DISPATCH",
+            }
+        )
+    )
+    return {
+        "status": validation["status"],
+        "validation_result": validation["validation_result"],
+        "readiness_preview": validation["readiness_preview"],
+        "missing_evidence": validation["missing_evidence"],
+        "blockers": validation["blockers"],
+        "warnings": validation["warnings"],
+        "safe_errors": validation["safe_errors"],
+        "next_actions": validation["next_actions"],
+        "guardrails": guardrails,
+        "redactions": validation["redactions"],
+        "no_persistence_confirmed": True,
+        "no_live_action_confirmed": True,
+    }
+
+
 @router.get("/state")
 async def get_admin_onboarding_state(
     external_tenant_ref: str | None = Query(default=None),
