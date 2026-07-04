@@ -590,6 +590,11 @@ def _assert_no_draft_repo_persistence(calls):
 async def test_admin_onboarding_dry_run_requires_auth(monkeypatch):
     calls = _patch_draft_repo(monkeypatch)
 
+    def fail_validation(*args, **kwargs):  # pragma: no cover
+        raise AssertionError("validation should not be called")
+
+    monkeypatch.setattr(admin_onboarding, "validate_onboarding_draft", fail_validation)
+
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.post(
             "/admin/onboarding/validate", json=_complete_draft_payload()
@@ -599,17 +604,38 @@ async def test_admin_onboarding_dry_run_requires_auth(monkeypatch):
     _assert_no_draft_repo_persistence(calls)
 
 
-async def test_admin_onboarding_dry_run_rejects_adjacent_role(monkeypatch):
+@pytest.mark.parametrize(
+    "headers",
+    [
+        FINANCE_ADMIN_HEADERS,
+        PARTNER_HEADERS,
+        PRODUCER_HEADERS,
+        DISTRIBUTOR_HEADERS,
+        CONSUMER_HEADERS,
+    ],
+)
+async def test_admin_onboarding_dry_run_rejects_adjacent_roles(
+    headers,
+    monkeypatch,
+):
     calls = _patch_draft_repo(monkeypatch)
 
-    async with AsyncClient(
-        app=app, base_url="http://test", headers=FINANCE_ADMIN_HEADERS
-    ) as client:
+    def fail_validation(*args, **kwargs):  # pragma: no cover
+        raise AssertionError("validation should not be called")
+
+    monkeypatch.setattr(admin_onboarding, "validate_onboarding_draft", fail_validation)
+
+    async with AsyncClient(app=app, base_url="http://test", headers=headers) as client:
         response = await client.post(
             "/admin/onboarding/validate", json=_complete_draft_payload()
         )
 
     assert response.status_code == 403
+    rendered = json.dumps(response.json()).lower()
+    assert "permission_denied" in rendered
+    assert "tenant_code" not in rendered
+    assert "traceback" not in rendered
+    assert "sql" not in rendered
     _assert_no_draft_repo_persistence(calls)
 
 
@@ -662,6 +688,42 @@ async def test_admin_onboarding_dry_run_returns_validation_without_persistence(
     assert "tenant_code" not in body["validation_result"]["validated_scope"]
     assert "saved" not in rendered.lower()
     assert "activated" not in rendered.lower()
+    _assert_no_draft_repo_persistence(calls)
+
+
+async def test_admin_onboarding_dry_run_trims_external_scope(monkeypatch):
+    calls = _patch_draft_repo(monkeypatch)
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=DISTRIBUTION_ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/validate",
+            json={
+                "scope": {
+                    "external_tenant_ref": " acme-distribution ",
+                    "organisation_ref": " org-acme ",
+                    "producer_ref": " prod-acme ",
+                    "sponsor_ref": " sponsor-acme ",
+                    "distributor_ref": " dist-acme ",
+                    "campaign_code": " CAMP-ACME ",
+                    "opportunity_ref": " opp-acme ",
+                },
+                "validation_scope": ["company", "readiness"],
+                "sections": {},
+            },
+        )
+
+    assert response.status_code == 200
+    scope = response.json()["validation_result"]["validated_scope"]
+    assert scope["external_tenant_ref"] == "acme-distribution"
+    assert scope["organisation_ref"] == "org-acme"
+    assert scope["producer_ref"] == "prod-acme"
+    assert scope["sponsor_ref"] == "sponsor-acme"
+    assert scope["distributor_ref"] == "dist-acme"
+    assert scope["campaign_code"] == "CAMP-ACME"
+    assert scope["opportunity_ref"] == "opp-acme"
+    assert "tenant_code" not in scope
     _assert_no_draft_repo_persistence(calls)
 
 
@@ -736,9 +798,27 @@ async def test_admin_onboarding_dry_run_redacts_secret_and_live_action_payloads(
     payload = _complete_draft_payload()
     payload["sections"]["webhook_api"]["api_key"] = "SECRET-API-KEY"
     payload["sections"]["webhook_api"]["client_secret"] = "SECRET-CLIENT"
+    payload["sections"]["webhook_api"]["access_token"] = "ACCESS-TOKEN"
+    payload["sections"]["webhook_api"]["signing_secret"] = "SIGNING-SECRET"
+    payload["sections"]["webhook_api"]["private_key"] = "PRIVATE-KEY"
+    payload["sections"]["webhook_api"]["provider_payload"] = "PROVIDER-PAYLOAD"
+    payload["sections"]["webhook_api"]["audit_payload"] = "AUDIT-PAYLOAD"
+    payload["sections"]["webhook_api"]["raw_audit_payload"] = "RAW-AUDIT"
     payload["sections"]["webhook_api"]["deliver_webhook"] = True
+    payload["sections"]["webhook_api"]["webhook_delivery_state"] = "DELIVERY-STATE"
     payload["sections"]["campaign_opportunity"]["publish_campaign"] = True
+    payload["sections"]["campaign_opportunity"]["create_tenant"] = True
+    payload["sections"]["campaign_opportunity"]["create_user"] = True
+    payload["sections"]["campaign_opportunity"]["send_invite"] = True
+    payload["sections"]["campaign_opportunity"]["activate_go_live"] = True
+    payload["sections"]["campaign_opportunity"]["funding_internal"] = "funding-value"
     payload["sections"]["campaign_opportunity"]["wallet_reference"] = "wallet-internal"
+    payload["sections"]["campaign_opportunity"]["settlement_batch"] = "settlement-value"
+    payload["sections"]["campaign_opportunity"][
+        "fulfilment_provider"
+    ] = "fulfilment-value"
+    payload["sections"]["campaign_opportunity"]["retry_payload"] = "retry-value"
+    payload["sections"]["campaign_opportunity"]["money_movement"] = "money-value"
 
     async with AsyncClient(
         app=app, base_url="http://test", headers=ADMIN_HEADERS
@@ -755,13 +835,40 @@ async def test_admin_onboarding_dry_run_redacts_secret_and_live_action_payloads(
     assert "webhook_internal" in body["redactions"]
     assert "live_action" in body["redactions"]
     assert "money_movement_internal" in body["redactions"]
+    assert "provider_internal" in body["redactions"]
+    assert "raw_internal" in body["redactions"]
+    assert "audit_internal" in body["redactions"]
+    assert "retry_internal" in body["redactions"]
     assert "SECRET-API-KEY" not in rendered
     assert "SECRET-CLIENT" not in rendered
+    assert "ACCESS-TOKEN" not in rendered
+    assert "SIGNING-SECRET" not in rendered
+    assert "PRIVATE-KEY" not in rendered
+    assert "PROVIDER-PAYLOAD" not in rendered
+    assert "AUDIT-PAYLOAD" not in rendered
+    assert "RAW-AUDIT" not in rendered
+    assert "DELIVERY-STATE" not in rendered
+    assert "funding-value" not in rendered
     assert "wallet-internal" not in rendered
+    assert "settlement-value" not in rendered
+    assert "fulfilment-value" not in rendered
+    assert "retry-value" not in rendered
+    assert "money-value" not in rendered
     assert "api_key" not in rendered
     assert "client_secret" not in rendered
+    assert "access_token" not in rendered
+    assert "private_key" not in rendered
+    assert "provider_payload" not in rendered
+    assert "audit_payload" not in rendered
+    assert "raw_audit_payload" not in rendered
+    assert "funding_internal" not in rendered
     assert "event_dispatched" not in rendered
     assert "webhook_dispatched" not in rendered
+    assert "create_tenant" not in rendered
+    assert "create_user" not in rendered
+    assert "send_invite" not in rendered
+    assert "publish_campaign" not in rendered
+    assert "activate_go_live" not in rendered
     _assert_no_draft_repo_persistence(calls)
 
 
