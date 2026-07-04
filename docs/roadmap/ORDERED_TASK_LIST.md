@@ -2009,6 +2009,14 @@ Validation expectation: Tests confirm unauthenticated rejection, adjacent-role r
 Explicit non-goals: Do not change auth behavior unless tests reveal a clear route contract bug; do not add mutation routes, schema, frontend code, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
 Definition of done: Dry-run validation has regression coverage for RBAC, scope, redaction, and no-side-effect guarantees. Priority: P1.
 
+Status: Complete.
+
+Finding:
+TASK-112 added dry-run validation API contract coverage for `POST /admin/onboarding/validate`, including unauthenticated rejection, adjacent-role rejection, authorized read-only validation, trimmed external-reference scope forwarding, safe malformed/missing/unknown evidence handling, no repository persistence, and no validation invocation for rejected identities. The regression tests also expanded redaction/no-leakage coverage for secret-like, provider, audit, webhook delivery, retry, funding, settlement, fulfilment, and money-movement internals. A narrow redaction gap was fixed by treating `private_key` and `funding_internal` as unsafe keys while preserving valid dry-run fields such as `funding_model_intention`.
+
+Validation:
+Targeted validation passed with `.venv_codex`: `pytest test/api/test_admin_onboarding_api.py` (38 passed), `pytest test/test_onboarding_draft_validation_service.py` (9 passed), `py_compile` for changed Python files, Ruff check for changed Python files, `scripts/check_migrations.py`, and `git diff --check`. Black check was attempted twice for the changed Python files and timed out locally; no formatting issues were reported by Ruff or diff checks. No production data, live DB access, secrets, backend mutations, auth weakening, broad permission refactors, mutation routes, schema, migrations, frontend code, onboarding writes, account creation, invitations, campaign publication, credential writes, webhook delivery, funding, fulfilment, settlement, retry, audit mutation, or money movement were introduced.
+
 ## TASK-113: Integrate frontend dry-run validation preview
 
 Objective: Let onboarding shells preview dry-run validation and readiness feedback without saving, submitting, or enabling live actions.
