@@ -12,7 +12,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getAdminOnboardingState,
   saveAdminOnboardingDraft,
+  validateAdminOnboardingDryRun,
   type AdminOnboardingDraftSaveResponse,
+  type AdminOnboardingDryRunValidationResponse,
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
 import { createAdminOnboardingStateResponse } from "../../api/endpoints/adminOnboarding.testFixtures";
@@ -21,10 +23,14 @@ import { CompanyOnboardingPage } from "./CompanyOnboardingPage";
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
   getAdminOnboardingState: vi.fn(),
   saveAdminOnboardingDraft: vi.fn(),
+  validateAdminOnboardingDryRun: vi.fn(),
 }));
 
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
 const mockedSaveAdminOnboardingDraft = vi.mocked(saveAdminOnboardingDraft);
+const mockedValidateAdminOnboardingDryRun = vi.mocked(
+  validateAdminOnboardingDryRun,
+);
 
 const draftSaveResponse: AdminOnboardingDraftSaveResponse = {
   status: "saved",
@@ -50,6 +56,85 @@ const draftSaveResponse: AdminOnboardingDraftSaveResponse = {
   next_actions: ["Review company draft evidence before go-live review."],
   guardrails: ["NO_LIVE_ACTIONS", "NO_MONEY_MOVEMENT"],
   redactions: ["TENANT_CODE_INTERNAL", "SECRETS_REDACTED"],
+  no_live_action_confirmed: true,
+};
+
+const dryRunValidationResponse: AdminOnboardingDryRunValidationResponse = {
+  status: "ok",
+  validation_result: {
+    status: "MISSING_EVIDENCE",
+    validated_scope: {
+      external_tenant_ref: "acme-distribution",
+      organisation_ref: "org-acme",
+    },
+    validated_sections: ["company"],
+    checks: [],
+  },
+  readiness_preview: {
+    contract_version: "onboarding.v1",
+    overall_status: "GO_LIVE_DISABLED",
+    categories: [
+      {
+        category: "company",
+        display_label: "Company profile",
+        status: "MISSING_EVIDENCE",
+        safe_display_status: {
+          status: "NEEDS_ATTENTION",
+          label: "Needs evidence",
+          action_required: true,
+          go_live_enabled: false,
+        },
+        evidence_summary: "Company profile needs one more evidence check.",
+        blockers: ["Missing industry evidence"],
+        next_actions: ["Review company profile before go-live review."],
+      },
+    ],
+    summary: {
+      ready_count: 0,
+      in_progress_count: 0,
+      blocked_count: 0,
+      missing_evidence_count: 1,
+      permission_limited_count: 0,
+      go_live_disabled_count: 1,
+      total_count: 1,
+    },
+    guardrails: ["NO_LIVE_MUTATION"],
+    missing_evidence: [],
+    source_warnings: [],
+    redactions: ["TENANT_CODE_INTERNAL"],
+  },
+  missing_evidence: [
+    {
+      section: "company",
+      field: "industry",
+      code: "MISSING_EVIDENCE",
+      message: "Industry evidence is not complete.",
+      severity: "warning",
+    },
+  ],
+  blockers: [
+    {
+      section: "company",
+      field: "industry",
+      code: "READINESS_BLOCKED",
+      message: "Company profile cannot move to review yet.",
+      severity: "BLOCKER",
+    },
+  ],
+  warnings: [
+    {
+      section: "readiness",
+      field: null,
+      code: "GO_LIVE_DISABLED",
+      message: "Dry-run validation cannot enable go-live.",
+      severity: "info",
+    },
+  ],
+  safe_errors: [],
+  next_actions: ["Review company profile before go-live review."],
+  guardrails: ["DRY_RUN_ONLY", "NO_PERSISTENCE", "NO_LIVE_MUTATION"],
+  redactions: ["TENANT_CODE_INTERNAL"],
+  no_persistence_confirmed: true,
   no_live_action_confirmed: true,
 };
 
@@ -112,6 +197,9 @@ describe("CompanyOnboardingPage", () => {
   beforeEach(() => {
     mockedGetAdminOnboardingState.mockResolvedValue(onboardingStateResponse());
     mockedSaveAdminOnboardingDraft.mockResolvedValue(draftSaveResponse);
+    mockedValidateAdminOnboardingDryRun.mockResolvedValue(
+      dryRunValidationResponse,
+    );
   });
 
   afterEach(() => {
@@ -139,6 +227,9 @@ describe("CompanyOnboardingPage", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Create account later" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Preview validation" }),
     ).toBeDisabled();
     expect(
       await screen.findByText("Read-only platform state"),
@@ -279,6 +370,121 @@ describe("CompanyOnboardingPage", () => {
       screen.getByRole("button", { name: "Create account later" }),
     ).toBeDisabled();
     expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
+  });
+
+  it("previews dry-run validation with external references without saving draft intent", async () => {
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    fireEvent.change(screen.getByLabelText(/Organisation name/), {
+      target: { value: "Acme Distribution Ltd" },
+    });
+    fireEvent.change(screen.getByLabelText(/external_tenant_ref/), {
+      target: { value: "acme-distribution" },
+    });
+    fireEvent.change(screen.getByLabelText(/organisation_ref/), {
+      target: { value: "org-acme" },
+    });
+    fireEvent.change(screen.getByLabelText(/Country/), {
+      target: { value: "South Africa" },
+    });
+    fireEvent.change(screen.getByLabelText(/Industry/), {
+      target: { value: "Insurance" },
+    });
+    fireEvent.change(screen.getByLabelText(/Admin contact/), {
+      target: { value: "ops@example.test" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Preview validation" }));
+
+    await waitFor(() => {
+      expect(mockedValidateAdminOnboardingDryRun).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockedSaveAdminOnboardingDraft).not.toHaveBeenCalled();
+    const request = mockedValidateAdminOnboardingDryRun.mock.calls[0][0];
+    const renderedRequest = JSON.stringify(request).toLowerCase();
+
+    expect(request).toMatchObject({
+      external_tenant_ref: "acme-distribution",
+      organisation_ref: "org-acme",
+      validation_scope: ["company", "readiness"],
+      correlation_id: "company-onboarding-validation-preview",
+      sections: {
+        company: {
+          organisation_name: "Acme Distribution Ltd",
+          external_tenant_ref: "acme-distribution",
+          organisation_ref: "org-acme",
+          country: "South Africa",
+          organisation_type: "Producer / sponsor",
+          industry: "Insurance",
+          admin_contact: "ops@example.test",
+          intended_role: "Company admin",
+        },
+      },
+    });
+    expect(renderedRequest).not.toContain("tenant_code");
+    expect(renderedRequest).not.toContain("api_key");
+    expect(renderedRequest).not.toContain("client_secret");
+
+    expect(
+      await screen.findByText("Dry-run validation preview."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Status: MISSING_EVIDENCE; readiness: GO_LIVE_DISABLED/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Company profile: Company profile needs one more evidence check.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Missing evidence: MISSING_EVIDENCE/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Blockers: READINESS_BLOCKED/)).toBeInTheDocument();
+    expect(screen.getByText(/Warnings: GO_LIVE_DISABLED/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Next actions: Review company profile before go-live review.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create account later" }),
+    ).toBeDisabled();
+    expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/SECRET-API-KEY/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/SECRET-CLIENT/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/SIGNING-SECRET/i)).not.toBeInTheDocument();
+  });
+
+  it("shows safe fallback when dry-run validation preview is unavailable", async () => {
+    mockedValidateAdminOnboardingDryRun.mockRejectedValue({
+      status: 503,
+      message: "service unavailable",
+    });
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    fireEvent.change(screen.getByLabelText(/external_tenant_ref/), {
+      target: { value: "acme-distribution" },
+    });
+    fireEvent.change(screen.getByLabelText(/organisation_ref/), {
+      target: { value: "org-acme" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Preview validation" }));
+
+    expect(
+      await screen.findByText("Validation preview fallback."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Dry-run validation is unavailable, so the page is keeping local shell feedback only. No draft was saved and no live action was taken.",
+      ),
+    ).toBeInTheDocument();
+    expect(mockedSaveAdminOnboardingDraft).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Create account later" }),
+    ).toBeDisabled();
   });
 
   it("shows a safe fallback when draft save is unavailable", async () => {

@@ -122,6 +122,19 @@ export type AdminOnboardingDraftSaveRequest = AdminOnboardingStateParams & {
   correlation_id?: string;
 };
 
+export type AdminOnboardingDryRunValidationRequest = AdminOnboardingStateParams & {
+  draft_ref?: string;
+  validation_scope?: AdminOnboardingDraftSectionKey[] | string[];
+  sections?: Partial<
+    Record<AdminOnboardingDraftSectionKey, Record<string, unknown>>
+  >;
+  draft_sections?: Partial<
+    Record<AdminOnboardingDraftSectionKey, Record<string, unknown>>
+  >;
+  idempotency_key?: string;
+  correlation_id?: string;
+};
+
 export type AdminOnboardingValidationItem = {
   code: string;
   message: string;
@@ -151,6 +164,21 @@ export type AdminOnboardingDraftSaveResponse = {
   no_live_action_confirmed: boolean;
 };
 
+export type AdminOnboardingDryRunValidationResponse = {
+  status: string;
+  validation_result: Record<string, unknown>;
+  readiness_preview: AdminOnboardingReadiness;
+  missing_evidence: AdminOnboardingValidationItem[];
+  blockers: AdminOnboardingValidationItem[];
+  warnings: AdminOnboardingValidationItem[];
+  safe_errors: AdminOnboardingValidationItem[];
+  next_actions: string[];
+  guardrails: string[];
+  redactions: string[];
+  no_persistence_confirmed: boolean;
+  no_live_action_confirmed: boolean;
+};
+
 export function getAdminOnboardingState(
   params: AdminOnboardingStateParams = {},
 ): Promise<AdminOnboardingStateResponse> {
@@ -166,6 +194,18 @@ export function saveAdminOnboardingDraft(
     method: "POST",
     body: buildAdminOnboardingDraftSaveBody(request),
   });
+}
+
+export function validateAdminOnboardingDryRun(
+  request: AdminOnboardingDryRunValidationRequest,
+): Promise<AdminOnboardingDryRunValidationResponse> {
+  return apiRequest<AdminOnboardingDryRunValidationResponse>(
+    "admin/onboarding/validate",
+    {
+      method: "POST",
+      body: buildAdminOnboardingDryRunBody(request),
+    },
+  );
 }
 
 function buildAdminOnboardingStateQuery(
@@ -229,6 +269,59 @@ function buildAdminOnboardingDraftSaveBody(
   return body;
 }
 
+function buildAdminOnboardingDryRunBody(
+  request: AdminOnboardingDryRunValidationRequest,
+): AdminOnboardingDryRunValidationRequest {
+  const scope = ADMIN_ONBOARDING_DRAFT_SCOPE_KEYS.reduce<AdminOnboardingStateParams>(
+    (allowedScope, key) => {
+      const value = request[key];
+
+      if (typeof value !== "string") {
+        return allowedScope;
+      }
+
+      const trimmed = value.trim();
+      if (trimmed) {
+        allowedScope[key] = trimmed;
+      }
+
+      return allowedScope;
+    },
+    {},
+  );
+
+  const body: AdminOnboardingDryRunValidationRequest = { ...scope };
+
+  const draftRef = request.draft_ref?.trim();
+  if (draftRef) {
+    body.draft_ref = draftRef;
+  }
+
+  const validationScope = request.validation_scope?.filter(
+    (value) => typeof value === "string" && value.trim(),
+  );
+  if (validationScope?.length) {
+    body.validation_scope = validationScope.map((value) => value.trim());
+  }
+
+  const idempotencyKey = request.idempotency_key?.trim();
+  if (idempotencyKey) {
+    body.idempotency_key = idempotencyKey;
+  }
+
+  const correlationId = request.correlation_id?.trim();
+  if (correlationId) {
+    body.correlation_id = correlationId;
+  }
+
+  const sections = safeSections(request.sections || request.draft_sections);
+  if (Object.keys(sections).length > 0) {
+    body.sections = sections;
+  }
+
+  return body;
+}
+
 function safeSections(
   sections:
     | Partial<Record<AdminOnboardingDraftSectionKey, Record<string, unknown>>>
@@ -270,6 +363,7 @@ function isUnsafeDraftField(key: string): boolean {
     "credential",
     "signing",
     "certificate",
+    "private_key",
     "provider",
     "raw",
     "audit",
@@ -278,6 +372,7 @@ function isUnsafeDraftField(key: string): boolean {
     "wallet",
     "settlement",
     "fulfilment",
+    "funding_internal",
     "funding_reservation",
     "funding_transaction",
     "retry",

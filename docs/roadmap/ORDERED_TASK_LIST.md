@@ -2027,6 +2027,14 @@ Validation expectation: Frontend tests pass for loading, success, missing eviden
 Explicit non-goals: Do not implement submit-for-review, account creation, invite delivery, role assignment, campaign publication, credential generation, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
 Definition of done: Onboarding UI can preview read-only/no-op validation feedback while preserving shell fallback and disabled live actions. Priority: P1.
 
+Status: Complete.
+
+Finding:
+TASK-113 added a frontend dry-run validation helper for `POST /admin/onboarding/validate` and integrated the first safe slice into the company / organisation onboarding shell only. The helper trims and sends external-reference scope, supports validation scope, correlation ID, optional draft/idempotency references, and sanitizes section payloads before sending. The company shell now offers a clearly no-op validation preview that shows readiness status, missing evidence, blockers, warnings, next actions, and guardrails while preserving read-only hydration, draft-save behavior, local fallback, disabled account creation, and no submit/go-live/live-action controls.
+
+Validation:
+Frontend validation passed: `npm test -- adminOnboarding.test.ts` (9 passed), `npm test -- CompanyOnboardingPage.test.tsx` (11 passed), `npm test -- OnboardingDemoJourneySmoke.test.tsx` (5 passed), full `npm test` (112 passed), `npm run build`, and `npm run lint` with the existing warning baseline and no errors. No backend mutation, auth change, schema, migration, secrets, production data, live DB access, submit-for-review, go-live, account creation, invite delivery, role assignment, campaign publication, credential lifecycle, webhook delivery, funding, wallet, fulfilment, settlement, retry, or money movement was introduced.
+
 ## TASK-114: Submit-for-review contract final review
 
 Objective: Decide the minimal submit-for-review boundary after dry-run validation and frontend preview are proven.
