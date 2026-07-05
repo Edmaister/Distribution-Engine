@@ -2143,6 +2143,110 @@ Validation expectation: Documentation/readback confirms completed work, validati
 Explicit non-goals: Do not implement approval, live onboarding, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
 Definition of done: Roadmap has a clear decision point after submit-for-review foundations. Priority: P1.
 
+Status: Complete (2026-07-05). Output: `docs/roadmap/ONBOARDING_SUBMIT_FOR_REVIEW_READINESS_CHECKPOINT_TASK_120.md`.
+Finding: Added the TASK-120 submit-for-review readiness checkpoint covering TASK-111 through TASK-119 outcomes, completed dry-run validation, draft-save, submit-for-review, frontend control, safe audit evidence, RBAC/redaction regression coverage, validation baseline, permission/safety posture, explicit not-live boundaries, and TASK-027/TASK-028 blockers. Decision: the next wave may scope internal review decision workflow foundations only; review decisions must remain state classifications and must not imply approval-to-launch, go-live, live onboarding, provisioning, account creation, campaign publication, credential lifecycle, webhook delivery, funding, wallet, fulfilment, settlement, retry, billing, ledger, or money movement.
+Validation: Documentation/readback only. Confirmed TASK-120 changed docs only; no backend code, frontend code, services, routes, tests, schema, migrations, DB access, secrets, approval implementation, live onboarding, credential lifecycle, webhook delivery, event dispatch, funding, wallet, fulfilment, settlement, retry, go-live, or money movement were introduced. Readback confirms completed capabilities, remaining gaps, blockers, and next priorities are explicit and guarded.
+
+## TASK-121: Review decision workflow contract final review
+
+Objective: Define the minimal internal review-decision boundary after submit-for-review without enabling go-live or downstream activation.
+Type: Docs/checkpoint.
+Dependencies: TASK-120.
+Stop conditions: Stop if review requires implementation, schema changes, migrations, live DB access, secrets, live onboarding, approval-to-launch, account creation, invite delivery, campaign publication, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Validation expectation: Documentation/readback confirms allowed review outcomes, state transition boundaries, permission posture, idempotency posture, audit evidence expectations, safe errors, rollback posture, and no-live-action guardrails.
+Explicit non-goals: Do not implement review decisions, approval-to-launch, go-live, live onboarding, credentials, webhooks, funding, fulfilment, settlement, retry, wallet, or money movement.
+Definition of done: Roadmap has a clear reviewed boundary for review-decision primitives or an explicit stop decision. Priority: P1.
+
+## TASK-122: Add review decision service primitives
+
+Objective: Add service/repository primitives for internal review decisions on submitted onboarding drafts without route wiring or live activation.
+Type: Service/Repository/Tests.
+Dependencies: TASK-121; TASK-115; TASK-118.
+Stop conditions: Stop if work requires API route exposure, frontend changes, schema changes, live DB access, secrets, auth weakening, account creation, invite delivery, campaign publication, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Validation expectation: Tests cover valid review decisions, invalid source state, stale version, idempotency replay/conflict, validation prerequisites, safe errors, no dispatch, no live action, and no sensitive leakage.
+Explicit non-goals: Do not add routes, frontend integration, approval-to-launch, account creation, invites, campaign publication, credentials, webhooks, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Definition of done: Review decision primitives are tested but not externally exposed. Priority: P1.
+
+## TASK-123: Add review decision validation and eligibility tests
+
+Objective: Lock review-decision eligibility, validation blocker, stale-version, and safe-error behavior before route exposure.
+Type: Tests.
+Dependencies: TASK-122.
+Stop conditions: Stop if tests require production data, live DB access, secrets, auth weakening, schema changes, live actions, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Validation expectation: Targeted service tests pass for each allowed and rejected review decision, including no-live-action and redaction expectations.
+Explicit non-goals: Do not add API routes, frontend code, schema, migrations, approval-to-launch, live onboarding, credentials, webhooks, funding, fulfilment, settlement, retry, wallet, or money movement.
+Definition of done: Review-decision service behavior is regression-protected before API exposure. Priority: P1.
+
+## TASK-124: Add guarded admin review decision endpoint
+
+Objective: Expose a narrow admin/operator endpoint for internal review decisions on submitted onboarding drafts after service and validation contracts pass.
+Type: API/Tests.
+Dependencies: TASK-122; TASK-123.
+Stop conditions: Stop if endpoint requires auth weakening, broad permission refactors, production data, live DB access, secrets, schema changes, account creation, invite delivery, campaign publication, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Validation expectation: API tests pass for auth, adjacent-role rejection, external-reference/draft scope, stale version, idempotency, validation blockers, safe errors, audit evidence reference posture, no `tenant_code` exposure, and no live action invocation.
+Explicit non-goals: Do not approve-to-launch, activate, publish, invite, create credentials, deliver webhooks, fund, fulfil, settle, retry, create wallets, go-live, or move money.
+Definition of done: Submitted drafts can receive internal review decisions under strict admin/operator guardrails only. Priority: P1.
+
+## TASK-125: Add review decision audit evidence references
+
+Objective: Record safe reference-only evidence for review decisions without webhook/event dispatch or raw sensitive payloads.
+Type: Service/Tests.
+Dependencies: TASK-124; TASK-118.
+Stop conditions: Stop if implementation dispatches webhooks/events, stores raw sensitive payloads, exposes secrets, mutates live platform entities, touches money domains, or enables go-live.
+Validation expectation: Tests cover actor, role, external references, draft ref/version, review decision/status, idempotency reference, before/after hash, changed state, redaction categories, correlation ID, and no dispatch/live-action behavior.
+Explicit non-goals: Do not add webhook delivery, event replay, approval-to-launch, go-live, credential lifecycle, invite delivery, campaign publication, funding, fulfilment, settlement, retry, wallet, or money movement.
+Definition of done: Review decisions have safe audit evidence references only. Priority: P1.
+
+## TASK-126: Integrate frontend review decision controls
+
+Objective: Add guarded frontend review decision controls for submitted drafts while preserving disabled live/go-live and no-money controls.
+Type: Frontend/API integration.
+Dependencies: TASK-124; TASK-125; TASK-117.
+Stop conditions: Stop if frontend work enables account creation, invite delivery, campaign publication, credential lifecycle, webhook delivery, funding, wallet, fulfilment, settlement, retry, go-live, or money movement.
+Validation expectation: Frontend tests pass for review decision success, validation blockers, stale/conflict errors, safe fallback, disabled live actions, no secret display, and no `tenant_code` user-facing exposure.
+Explicit non-goals: Do not implement approval-to-launch, go-live, account/user creation, role assignment, campaign publication, credential generation, webhook delivery, funding, fulfilment, settlement, retry, wallet, or money movement.
+Definition of done: Frontend can record internal review decisions without enabling any live platform action. Priority: P1.
+
+## TASK-127: Add review decision RBAC and redaction regression tests
+
+Objective: Lock review-decision routes and related onboarding review surfaces to intended RBAC, scope, redaction, and no-live-action contracts.
+Type: API/Tests.
+Dependencies: TASK-124; TASK-125.
+Stop conditions: Stop if tests require production data, live DB access, secrets, auth weakening, broad permission refactors, schema changes, live actions, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Validation expectation: Tests confirm unauthorized and adjacent-role rejection, authorized admin/operator access, cross-scope rejection, safe errors, no `tenant_code` exposure, no secrets/raw payloads, no provider/audit/webhook/money internals, and no live mutation invocation.
+Explicit non-goals: Do not add routes, frontend code, schema, approval-to-launch, go-live, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, or money movement.
+Definition of done: Review-decision permissions and safe response boundaries are regression-protected. Priority: P1.
+
+## TASK-128: Document approval-to-go-live separation
+
+Objective: Document the boundary between internal onboarding review decisions and any future go-live or downstream activation workflow.
+Type: Docs.
+Dependencies: TASK-127.
+Stop conditions: Stop if documentation requires implementation, live DB access, secrets, schema changes, migrations, live onboarding, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Validation expectation: Documentation/readback confirms review approval does not trigger launch, provisioning, credentials, webhooks, funding, fulfilment, settlement, retry, wallet, or money movement.
+Explicit non-goals: Do not implement go-live, approval-to-launch, live onboarding, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, or money movement.
+Definition of done: Future go-live work has a clearly separated boundary from review decisions. Priority: P1.
+
+## TASK-129: Add pre-go-live safety checkpoint
+
+Objective: Checkpoint review workflow readiness before any go-live or downstream activation work is considered.
+Type: Docs/checkpoint.
+Dependencies: TASK-128.
+Stop conditions: Stop if checkpoint requires implementation, live DB access, secrets, schema changes, migrations, production data, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Validation expectation: Documentation/readback confirms review capabilities, blockers, TASK-027/TASK-028 status, live verification posture, and explicit stop conditions before go-live planning.
+Explicit non-goals: Do not implement go-live, live onboarding, credentials, webhooks, funding, fulfilment, settlement, retry, wallet, or money movement.
+Definition of done: Roadmap has a clear stop point before any live activation planning begins. Priority: P1.
+
+## TASK-130: Review workflow readiness checkpoint
+
+Objective: Summarize the review-decision wave and decide whether any further implementation is safe without TASK-027/TASK-028 live DB verification.
+Type: Docs/checkpoint.
+Dependencies: TASK-121; TASK-122; TASK-123; TASK-124; TASK-125; TASK-126; TASK-127; TASK-128; TASK-129.
+Stop conditions: Stop if checkpoint requires implementation, live DB access, secrets, schema changes, migrations, production data, live onboarding, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, or money movement.
+Validation expectation: Documentation/readback confirms completed review workflow capabilities, remaining blockers, no-live-action posture, TASK-027/TASK-028 status, and safe next priorities.
+Explicit non-goals: Do not implement go-live, live onboarding, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, or money movement.
+Definition of done: Roadmap has a clear decision point after review workflow foundations. Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
