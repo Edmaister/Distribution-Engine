@@ -3,8 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getAdminOnboardingState,
   saveAdminOnboardingDraft,
+  submitAdminOnboardingDraftForReview,
   validateAdminOnboardingDryRun,
   type AdminOnboardingDraftSaveResponse,
+  type AdminOnboardingSubmitForReviewResponse,
   type AdminOnboardingDryRunValidationResponse,
   type AdminOnboardingStateResponse,
 } from "./adminOnboarding";
@@ -195,6 +197,38 @@ const dryRunValidationResponse: AdminOnboardingDryRunValidationResponse = {
   guardrails: ["DRY_RUN_ONLY", "NO_PERSISTENCE", "NO_LIVE_MUTATION"],
   redactions: ["TENANT_CODE_INTERNAL", "SECRETS_REDACTED"],
   no_persistence_confirmed: true,
+  no_live_action_confirmed: true,
+};
+
+const submitForReviewResponse: AdminOnboardingSubmitForReviewResponse = {
+  status: "submitted_for_review",
+  draft_ref: "draft_acme_distribution",
+  draft_status: "READY_FOR_REVIEW",
+  draft_version: 2,
+  idempotency_status: "NEW_REQUEST",
+  validation_summary: {
+    status: "READY",
+    safe_error_count: 0,
+    missing_evidence_count: 0,
+    blocker_count: 0,
+  },
+  readiness_summary: {
+    overall_status: "READY_FOR_REVIEW",
+    ready_count: 1,
+    blocked_count: 0,
+    missing_evidence_count: 0,
+    go_live_disabled_count: 1,
+    total_count: 1,
+    go_live_enabled: false,
+  },
+  missing_evidence: [],
+  blockers: [],
+  next_actions: ["Review submitted draft evidence before any later approval."],
+  guardrails: ["SUBMIT_FOR_REVIEW_ONLY", "NO_VALUE_TRANSFER"],
+  redactions: ["internal_identifier"],
+  audit_evidence_ref: null,
+  audit_link_ref: null,
+  audit_evidence_status: "NOT_RECORDED_IN_TASK_116",
   no_live_action_confirmed: true,
 };
 
@@ -582,6 +616,89 @@ describe("admin onboarding api helper", () => {
     ).rejects.toMatchObject({
       status: 422,
       message: expect.stringContaining("UNSAFE_OPERATION_ATTEMPTED"),
+    });
+  });
+
+  it("submits a saved draft for review with external references and optimistic version only", async () => {
+    const fetchMock = mockFetch(submitForReviewResponse);
+
+    const result = await submitAdminOnboardingDraftForReview(
+      " draft_acme_distribution ",
+      {
+        external_tenant_ref: " acme-distribution ",
+        organisation_ref: " org-acme ",
+        producer_ref: " ",
+        expected_version: 1,
+        idempotency_key: " submit-review-key ",
+        correlation_id: " company-submit-review ",
+        tenant_code: "INTERNAL-SHOULD-NOT-BE-SENT",
+      } as Parameters<typeof submitAdminOnboardingDraftForReview>[1] & {
+        tenant_code: string;
+      },
+    );
+
+    expect(result).toMatchObject({
+      status: "submitted_for_review",
+      draft_ref: "draft_acme_distribution",
+      draft_status: "READY_FOR_REVIEW",
+      idempotency_status: "NEW_REQUEST",
+      no_live_action_confirmed: true,
+    });
+
+    const [url, options] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    const requestUrl = new URL(url);
+    const body = JSON.parse(String(options.body));
+    const renderedBody = JSON.stringify(body).toLowerCase();
+
+    expect(requestUrl.pathname).toBe(
+      "/admin/onboarding/drafts/draft_acme_distribution/submit-for-review",
+    );
+    expect(options.method).toBe("POST");
+    expect(body).toMatchObject({
+      external_tenant_ref: "acme-distribution",
+      organisation_ref: "org-acme",
+      expected_version: 1,
+      idempotency_key: "submit-review-key",
+      correlation_id: "company-submit-review",
+    });
+    expect(body).not.toHaveProperty("tenant_code");
+    expect(body).not.toHaveProperty("producer_ref");
+    expect(renderedBody).not.toContain("tenant_code");
+    expect(renderedBody).not.toContain("secret");
+    expect(renderedBody).not.toContain("api_key");
+    expect(renderedBody).not.toContain("client_secret");
+    expect(renderedBody).not.toContain("wallet");
+    expect(renderedBody).not.toContain("settlement");
+    expect(renderedBody).not.toContain("fulfilment");
+    expect(renderedBody).not.toContain("retry");
+    expect(renderedBody).not.toContain("money_movement");
+  });
+
+  it("surfaces safe submit-for-review conflicts through the shared API error contract", async () => {
+    mockFetch(
+      {
+        detail: {
+          code: "STALE_DRAFT",
+          message: "Draft changed before it could be submitted for review.",
+          no_live_action_confirmed: true,
+        },
+      },
+      409,
+    );
+
+    await expect(
+      submitAdminOnboardingDraftForReview("draft_acme_distribution", {
+        external_tenant_ref: "acme-distribution",
+        organisation_ref: "org-acme",
+        expected_version: 1,
+        idempotency_key: "submit-review-key",
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringContaining("STALE_DRAFT"),
     });
   });
 });

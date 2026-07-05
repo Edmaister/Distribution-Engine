@@ -12,10 +12,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getAdminOnboardingState,
   saveAdminOnboardingDraft,
+  submitAdminOnboardingDraftForReview,
   validateAdminOnboardingDryRun,
   type AdminOnboardingDraftSaveResponse,
   type AdminOnboardingDryRunValidationResponse,
   type AdminOnboardingStateResponse,
+  type AdminOnboardingSubmitForReviewResponse,
 } from "../../api/endpoints/adminOnboarding";
 import { createAdminOnboardingStateResponse } from "../../api/endpoints/adminOnboarding.testFixtures";
 import { CompanyOnboardingPage } from "./CompanyOnboardingPage";
@@ -23,11 +25,15 @@ import { CompanyOnboardingPage } from "./CompanyOnboardingPage";
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
   getAdminOnboardingState: vi.fn(),
   saveAdminOnboardingDraft: vi.fn(),
+  submitAdminOnboardingDraftForReview: vi.fn(),
   validateAdminOnboardingDryRun: vi.fn(),
 }));
 
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
 const mockedSaveAdminOnboardingDraft = vi.mocked(saveAdminOnboardingDraft);
+const mockedSubmitAdminOnboardingDraftForReview = vi.mocked(
+  submitAdminOnboardingDraftForReview,
+);
 const mockedValidateAdminOnboardingDryRun = vi.mocked(
   validateAdminOnboardingDryRun,
 );
@@ -36,6 +42,7 @@ const draftSaveResponse: AdminOnboardingDraftSaveResponse = {
   status: "saved",
   draft_ref: "draft_acme_distribution",
   draft_status: "DRAFT_CREATED",
+  draft_version: 1,
   idempotency_status: "NEW_REQUEST",
   validation_summary: {
     status: "WARNING",
@@ -56,6 +63,38 @@ const draftSaveResponse: AdminOnboardingDraftSaveResponse = {
   next_actions: ["Review company draft evidence before go-live review."],
   guardrails: ["NO_LIVE_ACTIONS", "NO_MONEY_MOVEMENT"],
   redactions: ["TENANT_CODE_INTERNAL", "SECRETS_REDACTED"],
+  no_live_action_confirmed: true,
+};
+
+const submitForReviewResponse: AdminOnboardingSubmitForReviewResponse = {
+  status: "submitted_for_review",
+  draft_ref: "draft_acme_distribution",
+  draft_status: "READY_FOR_REVIEW",
+  draft_version: 2,
+  idempotency_status: "NEW_REQUEST",
+  validation_summary: {
+    status: "READY",
+    safe_error_count: 0,
+    missing_evidence_count: 0,
+    blocker_count: 0,
+  },
+  readiness_summary: {
+    overall_status: "READY_FOR_REVIEW",
+    ready_count: 1,
+    blocked_count: 0,
+    missing_evidence_count: 0,
+    go_live_disabled_count: 1,
+    total_count: 1,
+    go_live_enabled: false,
+  },
+  missing_evidence: [],
+  blockers: [],
+  next_actions: ["Review submitted draft evidence before any later approval."],
+  guardrails: ["SUBMIT_FOR_REVIEW_ONLY", "NO_VALUE_TRANSFER"],
+  redactions: ["internal_identifier"],
+  audit_evidence_ref: null,
+  audit_link_ref: null,
+  audit_evidence_status: "NOT_RECORDED_IN_TASK_116",
   no_live_action_confirmed: true,
 };
 
@@ -197,6 +236,9 @@ describe("CompanyOnboardingPage", () => {
   beforeEach(() => {
     mockedGetAdminOnboardingState.mockResolvedValue(onboardingStateResponse());
     mockedSaveAdminOnboardingDraft.mockResolvedValue(draftSaveResponse);
+    mockedSubmitAdminOnboardingDraftForReview.mockResolvedValue(
+      submitForReviewResponse,
+    );
     mockedValidateAdminOnboardingDryRun.mockResolvedValue(
       dryRunValidationResponse,
     );
@@ -232,6 +274,9 @@ describe("CompanyOnboardingPage", () => {
       screen.getByRole("button", { name: "Preview validation" }),
     ).toBeDisabled();
     expect(
+      screen.getByRole("button", { name: "Submit for review" }),
+    ).toBeDisabled();
+    expect(
       await screen.findByText("Read-only platform state"),
     ).toBeInTheDocument();
     expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
@@ -265,6 +310,9 @@ describe("CompanyOnboardingPage", () => {
     expect(screen.getByText("Missing evidence")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Create account later" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Submit for review" }),
     ).toBeDisabled();
   });
 
@@ -370,6 +418,128 @@ describe("CompanyOnboardingPage", () => {
       screen.getByRole("button", { name: "Create account later" }),
     ).toBeDisabled();
     expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
+  });
+
+  it("submits a saved company draft for review with external refs only", async () => {
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    fillRequiredCompanyFields();
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+
+    expect(await screen.findByText("Draft saved for review.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+
+    await waitFor(() => {
+      expect(mockedSubmitAdminOnboardingDraftForReview).toHaveBeenCalledTimes(1);
+    });
+    const [draftRef, request] =
+      mockedSubmitAdminOnboardingDraftForReview.mock.calls[0];
+    const renderedRequest = JSON.stringify(request).toLowerCase();
+
+    expect(draftRef).toBe("draft_acme_distribution");
+    expect(request).toMatchObject({
+      external_tenant_ref: "acme-distribution",
+      organisation_ref: "org-acme",
+      expected_version: 1,
+      correlation_id: "company-onboarding-submit-review",
+    });
+    expect(request.idempotency_key).toContain(
+      "company-onboarding-submit-review",
+    );
+    expect(renderedRequest).not.toContain("tenant_code");
+    expect(renderedRequest).not.toContain("secret");
+    expect(renderedRequest).not.toContain("api_key");
+    expect(renderedRequest).not.toContain("client_secret");
+    expect(renderedRequest).not.toContain("wallet");
+    expect(renderedRequest).not.toContain("settlement");
+    expect(renderedRequest).not.toContain("fulfilment");
+    expect(renderedRequest).not.toContain("retry");
+    expect(renderedRequest).not.toContain("money_movement");
+
+    expect(
+      await screen.findByText("Draft submitted for review."),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/READY_FOR_REVIEW/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Validation: READY/)).toBeInTheDocument();
+    expect(screen.getByText(/go-live: disabled/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Next actions: Review submitted draft evidence before any later approval.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create account later" }),
+    ).toBeDisabled();
+    expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/SECRET-API-KEY/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/SIGNING-SECRET/i)).not.toBeInTheDocument();
+  });
+
+  it("shows validation blockers from submit-for-review safely", async () => {
+    mockedSubmitAdminOnboardingDraftForReview.mockRejectedValue({
+      status: 422,
+      message: "VALIDATION_BLOCKED",
+    });
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    fillRequiredCompanyFields();
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    expect(await screen.findByText("Draft saved for review.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+
+    expect(
+      await screen.findByText("Submit for review fallback."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "The saved draft has validation blockers and cannot be submitted for review yet. No approval or live action was taken.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create account later" }),
+    ).toBeDisabled();
+  });
+
+  it("shows stale or idempotency submit errors safely", async () => {
+    mockedSubmitAdminOnboardingDraftForReview.mockRejectedValue({
+      status: 409,
+      message: "STALE_DRAFT",
+    });
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    fillRequiredCompanyFields();
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    expect(await screen.findByText("Draft saved for review.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+
+    expect(
+      await screen.findByText(
+        "The saved draft changed or the submit request conflicts with a previous review request. No approval or live action was taken.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
+  });
+
+  it("shows safe fallback when submit-for-review is unavailable", async () => {
+    mockedSubmitAdminOnboardingDraftForReview.mockRejectedValue({
+      status: 503,
+      message: "service unavailable",
+    });
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    fillRequiredCompanyFields();
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    expect(await screen.findByText("Draft saved for review.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+
+    expect(
+      await screen.findByText(
+        "Submit for review is unavailable, so the page is keeping the saved draft in local review-only state. No approval or live action was taken.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create account later" }),
+    ).toBeDisabled();
   });
 
   it("previews dry-run validation with external references without saving draft intent", async () => {
@@ -575,3 +745,24 @@ describe("CompanyOnboardingPage", () => {
     ).toBeDisabled();
   });
 });
+
+function fillRequiredCompanyFields() {
+  fireEvent.change(screen.getByLabelText(/Organisation name/), {
+    target: { value: "Acme Distribution Ltd" },
+  });
+  fireEvent.change(screen.getByLabelText(/external_tenant_ref/), {
+    target: { value: "acme-distribution" },
+  });
+  fireEvent.change(screen.getByLabelText(/organisation_ref/), {
+    target: { value: "org-acme" },
+  });
+  fireEvent.change(screen.getByLabelText(/Country/), {
+    target: { value: "South Africa" },
+  });
+  fireEvent.change(screen.getByLabelText(/Industry/), {
+    target: { value: "Insurance" },
+  });
+  fireEvent.change(screen.getByLabelText(/Admin contact/), {
+    target: { value: "ops@example.test" },
+  });
+}

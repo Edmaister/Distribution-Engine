@@ -147,6 +147,7 @@ export type AdminOnboardingDraftSaveResponse = {
   status: string;
   draft_ref: string;
   draft_status: string;
+  draft_version?: number;
   idempotency_status: string;
   validation_result?: Record<string, unknown>;
   validation_summary?: {
@@ -161,6 +162,45 @@ export type AdminOnboardingDraftSaveResponse = {
   next_actions?: string[];
   guardrails?: string[];
   redactions?: string[];
+  no_live_action_confirmed: boolean;
+};
+
+export type AdminOnboardingSubmitForReviewRequest = AdminOnboardingStateParams & {
+  expected_version: number;
+  idempotency_key: string;
+  correlation_id?: string;
+};
+
+export type AdminOnboardingSubmitForReviewResponse = {
+  status: string;
+  draft_ref: string;
+  draft_status: string;
+  draft_version?: number;
+  idempotency_status: string;
+  validation_result?: Record<string, unknown>;
+  validation_summary?: {
+    status: string;
+    safe_error_count: number;
+    missing_evidence_count: number;
+    blocker_count: number;
+  };
+  readiness_summary?: {
+    overall_status?: string;
+    ready_count: number;
+    blocked_count: number;
+    missing_evidence_count: number;
+    go_live_disabled_count: number;
+    total_count: number;
+    go_live_enabled: boolean;
+  };
+  missing_evidence?: AdminOnboardingValidationItem[];
+  blockers?: AdminOnboardingValidationItem[];
+  next_actions?: string[];
+  guardrails?: string[];
+  redactions?: string[];
+  audit_evidence_ref?: string | null;
+  audit_link_ref?: string | null;
+  audit_evidence_status?: string;
   no_live_action_confirmed: boolean;
 };
 
@@ -204,6 +244,19 @@ export function validateAdminOnboardingDryRun(
     {
       method: "POST",
       body: buildAdminOnboardingDryRunBody(request),
+    },
+  );
+}
+
+export function submitAdminOnboardingDraftForReview(
+  draftRef: string,
+  request: AdminOnboardingSubmitForReviewRequest,
+): Promise<AdminOnboardingSubmitForReviewResponse> {
+  return apiRequest<AdminOnboardingSubmitForReviewResponse>(
+    `admin/onboarding/drafts/${encodeURIComponent(draftRef.trim())}/submit-for-review`,
+    {
+      method: "POST",
+      body: buildAdminOnboardingSubmitForReviewBody(request),
     },
   );
 }
@@ -317,6 +370,41 @@ function buildAdminOnboardingDryRunBody(
   const sections = safeSections(request.sections || request.draft_sections);
   if (Object.keys(sections).length > 0) {
     body.sections = sections;
+  }
+
+  return body;
+}
+
+function buildAdminOnboardingSubmitForReviewBody(
+  request: AdminOnboardingSubmitForReviewRequest,
+): AdminOnboardingSubmitForReviewRequest {
+  const scope = ADMIN_ONBOARDING_DRAFT_SCOPE_KEYS.reduce<AdminOnboardingStateParams>(
+    (allowedScope, key) => {
+      const value = request[key];
+
+      if (typeof value !== "string") {
+        return allowedScope;
+      }
+
+      const trimmed = value.trim();
+      if (trimmed) {
+        allowedScope[key] = trimmed;
+      }
+
+      return allowedScope;
+    },
+    {},
+  );
+
+  const body: AdminOnboardingSubmitForReviewRequest = {
+    ...scope,
+    expected_version: Math.max(1, Math.trunc(request.expected_version)),
+    idempotency_key: request.idempotency_key.trim(),
+  };
+
+  const correlationId = request.correlation_id?.trim();
+  if (correlationId) {
+    body.correlation_id = correlationId;
   }
 
   return body;
