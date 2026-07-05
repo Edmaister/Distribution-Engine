@@ -2045,6 +2045,14 @@ Validation expectation: Documentation/readback confirms whether submit-for-revie
 Explicit non-goals: Do not implement submit-for-review, approval, go-live, account creation, campaign publication, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, or money movement.
 Definition of done: Roadmap has a clear, reviewed submit-for-review boundary or an explicit stop decision. Priority: P1.
 
+Status: Complete.
+
+Finding:
+Added `docs/roadmap/ONBOARDING_SUBMIT_FOR_REVIEW_CONTRACT_FINAL_REVIEW_TASK_114.md`. The checkpoint confirms TASK-111 through TASK-113 proved the no-op dry-run validation route, dry-run permission/no-mutation coverage, and frontend company validation preview after the draft-save readiness checkpoint. Decision: submit-for-review may proceed only as saved-draft repository/service transition primitives in TASK-115, with no API route, frontend controls, approval, go-live, account creation, invite delivery, campaign publication, credential lifecycle, webhook delivery, funding, wallet, fulfilment, settlement, retry, or money movement. The boundary defines allowed source statuses, target status direction, stale version behavior, replay/conflict idempotency posture, validation blocker handling, admin/operator permission posture, safe audit evidence expectations, bounded safe errors, rollback expectations, and TASK-115 guardrails.
+
+Validation:
+Documentation/readback only. Confirmed only roadmap documentation changed, TASK-027/TASK-028 remain blocked, and the checkpoint does not introduce backend routes, frontend code, services, tests, schema, migrations, live DB access, secrets, production data, submit-for-review implementation, approval, go-live, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, or money movement.
+
 ## TASK-115: Add submit-for-review repository state transition
 
 Objective: Add repository/service primitives for transitioning a saved draft to review state without route wiring or live activation.
