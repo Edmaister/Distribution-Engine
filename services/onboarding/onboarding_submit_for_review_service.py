@@ -4,6 +4,10 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Final
 
 from services.onboarding import onboarding_draft_repository as draft_repo
+from services.onboarding.onboarding_draft_audit_evidence_service import (
+    build_submit_for_review_audit_evidence,
+    build_submit_for_review_audit_link_fields,
+)
 from services.onboarding.onboarding_draft_idempotency_service import (
     STATUS_CONFLICT_DIFFERENT_PAYLOAD,
     STATUS_INVALID_IDEMPOTENCY_KEY,
@@ -232,13 +236,38 @@ async def submit_onboarding_draft_for_review(
     }
     idempotency_fields = decision.repository_fields()
     idempotency_fields["draft_ref"] = _safe_text(draft_ref)
-    await draft_repo.record_idempotency_reference(
+    idempotency_record = await draft_repo.record_idempotency_reference(
         **idempotency_fields,
         draft_id=_safe_text(updated.get("draft_id")) or None,
         result_status="SUCCESS",
         response_hash=hash_payload(response),
         correlation_id=correlation_id,
     )
+    audit_evidence = build_submit_for_review_audit_evidence(
+        actor_ref=actor_ref,
+        actor_role=role,
+        permission_scope={
+            "route_family": "admin_onboarding",
+            "role_family": "admin_operator",
+        },
+        prior_draft=draft,
+        updated_draft=updated,
+        action_status="SUCCESS",
+        idempotency_reference=decision.idempotency_key_hash,
+        correlation_id=correlation_id,
+        validation=validation,
+        target_status=TARGET_REVIEW_STATUS,
+    )
+    audit_link = await draft_repo.create_audit_link_reference(
+        **build_submit_for_review_audit_link_fields(
+            draft_id=_safe_text(updated.get("draft_id")) or "",
+            evidence=audit_evidence,
+            idempotency_id=_safe_text(idempotency_record.get("idempotency_id")) or None,
+        )
+    )
+    response["audit_evidence_status"] = "RECORDED_REFERENCE"
+    response["audit_evidence_ref"] = _safe_text(audit_link.get("evidence_type"))
+    response["audit_link_ref"] = _safe_text(audit_link.get("audit_link_id"))
     return response
 
 

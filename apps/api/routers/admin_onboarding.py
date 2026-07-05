@@ -724,9 +724,9 @@ def _submit_for_review_response(
             result["guardrails"], validation["guardrails"]
         ),
         "redactions": _submit_redactions(validation.get("redactions")),
-        "audit_evidence_ref": None,
-        "audit_link_ref": None,
-        "audit_evidence_status": "NOT_RECORDED_IN_TASK_116",
+        "audit_evidence_ref": result.get("audit_evidence_ref"),
+        "audit_link_ref": result.get("audit_link_ref"),
+        "audit_evidence_status": result.get("audit_evidence_status") or "NOT_RECORDED",
         "no_live_action_confirmed": True,
     }
 
