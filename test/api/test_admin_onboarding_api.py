@@ -7,9 +7,11 @@ from httpx import AsyncClient
 
 from apps.api.main import app
 from apps.api.routers import admin_onboarding
+from services.onboarding import onboarding_submit_for_review_service as submit_service
 from services.onboarding.onboarding_draft_idempotency_service import (
     evaluate_draft_idempotency,
 )
+from services.onboarding.onboarding_draft_repository import StaleDraftVersionError
 
 pytestmark = pytest.mark.asyncio
 
@@ -480,13 +482,22 @@ def _complete_draft_payload(**overrides):
     return payload
 
 
-def _patch_draft_repo(monkeypatch, *, existing_idempotency=None, existing_draft=None):
+def _patch_draft_repo(
+    monkeypatch,
+    *,
+    existing_idempotency=None,
+    existing_draft=None,
+    draft_sections=None,
+    stale_update=False,
+):
     calls = {
         "create_draft": [],
         "upsert_draft_section": [],
         "record_validation_result": [],
         "record_idempotency_reference": [],
         "create_audit_link_reference": [],
+        "get_draft_sections": [],
+        "update_draft_metadata_or_status": [],
     }
 
     async def fake_get_idempotency_reference(**kwargs):
@@ -496,6 +507,10 @@ def _patch_draft_repo(monkeypatch, *, existing_idempotency=None, existing_draft=
     async def fake_get_draft_by_ref(draft_ref):
         calls["get_draft_by_ref"] = draft_ref
         return existing_draft
+
+    async def fake_get_draft_sections(draft_id):
+        calls["get_draft_sections"].append(draft_id)
+        return list(draft_sections or [])
 
     async def fake_create_draft(**kwargs):
         calls["create_draft"].append(kwargs)
@@ -522,6 +537,16 @@ def _patch_draft_repo(monkeypatch, *, existing_idempotency=None, existing_draft=
         calls["create_audit_link_reference"].append(kwargs)
         return kwargs
 
+    async def fake_update_draft_metadata_or_status(**kwargs):
+        calls["update_draft_metadata_or_status"].append(kwargs)
+        if stale_update:
+            raise StaleDraftVersionError("stale")
+        return {
+            **(existing_draft or {}),
+            "draft_version": int((existing_draft or {}).get("draft_version") or 1) + 1,
+            "status": kwargs.get("status"),
+        }
+
     monkeypatch.setattr(
         admin_onboarding.draft_repo,
         "get_idempotency_reference",
@@ -531,6 +556,11 @@ def _patch_draft_repo(monkeypatch, *, existing_idempotency=None, existing_draft=
         admin_onboarding.draft_repo,
         "get_draft_by_ref",
         fake_get_draft_by_ref,
+    )
+    monkeypatch.setattr(
+        admin_onboarding.draft_repo,
+        "get_draft_sections",
+        fake_get_draft_sections,
     )
     monkeypatch.setattr(admin_onboarding.draft_repo, "create_draft", fake_create_draft)
     monkeypatch.setattr(
@@ -553,6 +583,11 @@ def _patch_draft_repo(monkeypatch, *, existing_idempotency=None, existing_draft=
         "create_audit_link_reference",
         fake_create_audit_link_reference,
     )
+    monkeypatch.setattr(
+        admin_onboarding.draft_repo,
+        "update_draft_metadata_or_status",
+        fake_update_draft_metadata_or_status,
+    )
     return calls
 
 
@@ -574,6 +609,82 @@ def _existing_idempotency_for(payload, *, request_hash=None):
         "request_hash": request_hash or fields["request_hash"],
         "result_status": "SUCCESS",
         "response_hash": "prior-response-hash",
+    }
+
+
+def _saved_draft(**overrides):
+    draft = {
+        "draft_id": "draft-uuid",
+        "draft_ref": "draft-submit-1",
+        "draft_version": 2,
+        "status": "DRAFT_UPDATED",
+        "external_tenant_ref": "acme-distribution",
+        "organisation_ref": "org-acme",
+        "producer_ref": "prod-acme",
+        "sponsor_ref": "sponsor-acme",
+        "distributor_ref": "dist-acme",
+        "campaign_code": "CAMP-ACME",
+        "opportunity_ref": "opp-acme",
+        "tenant_code": "INTERNAL-ACME",
+    }
+    draft.update(overrides)
+    return draft
+
+
+def _saved_draft_sections(payload=None):
+    source = payload or _complete_draft_payload()
+    return [
+        {
+            "draft_id": "draft-uuid",
+            "section_key": section_key,
+            "section_payload": section_payload,
+        }
+        for section_key, section_payload in source["sections"].items()
+    ]
+
+
+def _submit_payload(**overrides):
+    payload = {
+        "expected_version": 2,
+        "idempotency_key": "submit-review-key-1",
+        "correlation_id": "corr-submit-1",
+        "external_tenant_ref": "acme-distribution",
+        "organisation_ref": "org-acme",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _existing_submit_idempotency_for(payload, *, request_hash=None):
+    validation = admin_onboarding.validate_onboarding_draft(
+        {
+            "scope": admin_onboarding._scope_from_draft(_saved_draft()),
+            "sections": {
+                row["section_key"]: row["section_payload"]
+                for row in _saved_draft_sections()
+            },
+        },
+        actor_context={"actor_ref": "ADMIN", "actor_role": "ADMIN"},
+    )
+    request_payload = submit_service.build_submit_for_review_request_payload(
+        draft_ref="draft-submit-1",
+        expected_draft_version=payload["expected_version"],
+        validation=validation,
+    )
+    decision = submit_service.evaluate_draft_idempotency(
+        idempotency_key=payload["idempotency_key"],
+        actor_ref="ADMIN",
+        external_tenant_ref="acme-distribution",
+        operation_type=submit_service.OPERATION_SUBMIT_FOR_REVIEW,
+        request_payload=request_payload,
+        draft_ref="draft-submit-1",
+    )
+    fields = decision.repository_fields()
+    return {
+        **fields,
+        "request_hash": request_hash or fields["request_hash"],
+        "result_status": "SUCCESS",
+        "response_hash": "prior-submit-response-hash",
     }
 
 
@@ -1068,3 +1179,258 @@ async def test_admin_onboarding_draft_save_rejects_live_action_payload(monkeypat
     assert response.json()["detail"]["code"] == "UNSAFE_OPERATION_ATTEMPTED"
     assert calls["create_draft"] == []
     assert calls["record_validation_result"] == []
+
+
+async def test_submit_for_review_requires_auth(monkeypatch):
+    calls = _patch_draft_repo(monkeypatch, existing_draft=_saved_draft())
+
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/draft-submit-1/submit-for-review",
+            json=_submit_payload(),
+        )
+
+    assert response.status_code == 401
+    assert calls["update_draft_metadata_or_status"] == []
+
+
+async def test_submit_for_review_rejects_adjacent_role(monkeypatch):
+    calls = _patch_draft_repo(monkeypatch, existing_draft=_saved_draft())
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=FINANCE_ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/draft-submit-1/submit-for-review",
+            json=_submit_payload(),
+        )
+
+    assert response.status_code == 403
+    assert calls["update_draft_metadata_or_status"] == []
+
+
+async def test_submit_for_review_transitions_saved_draft_only(monkeypatch):
+    calls = _patch_draft_repo(
+        monkeypatch,
+        existing_draft=_saved_draft(),
+        draft_sections=_saved_draft_sections(),
+    )
+
+    def fail_audit_evidence(*args, **kwargs):  # pragma: no cover
+        raise AssertionError("TASK-116 must not build submit audit evidence")
+
+    monkeypatch.setattr(
+        admin_onboarding,
+        "build_draft_save_audit_evidence",
+        fail_audit_evidence,
+    )
+    monkeypatch.setattr(
+        admin_onboarding,
+        "build_draft_save_audit_link_fields",
+        fail_audit_evidence,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/draft-submit-1/submit-for-review",
+            json=_submit_payload(),
+        )
+
+    body = response.json()
+    rendered = json.dumps(body).lower()
+    assert response.status_code == 200
+    assert body["status"] == "submitted_for_review"
+    assert body["draft_ref"] == "draft-submit-1"
+    assert body["draft_status"] == "READY_FOR_REVIEW"
+    assert body["idempotency_status"] == "NEW_REQUEST"
+    assert body["no_live_action_confirmed"] is True
+    assert body["audit_evidence_ref"] is None
+    assert body["audit_link_ref"] is None
+    assert body["audit_evidence_status"] == "NOT_RECORDED_IN_TASK_116"
+    assert calls["update_draft_metadata_or_status"][0]["status"] == "READY_FOR_REVIEW"
+    assert calls["update_draft_metadata_or_status"][0]["expected_draft_version"] == 2
+    assert calls["record_idempotency_reference"][0]["operation_type"] == (
+        "ONBOARDING_DRAFT_SUBMIT_FOR_REVIEW"
+    )
+    assert calls["create_audit_link_reference"] == []
+    assert "submit-review-key-1" not in rendered
+    assert "tenant_code" not in rendered
+    assert "internal-acme" not in rendered
+    assert "secret" not in rendered
+    assert "api_key" not in rendered
+    assert "client_secret" not in rendered
+    assert "provider_payload" not in rendered
+    assert "wallet" not in rendered
+    assert "settlement" not in rendered
+    assert "fulfilment" not in rendered
+    assert "retry" not in rendered
+    assert "money_movement" not in rendered
+    assert "approved" not in rendered
+    assert "activated" not in rendered
+
+
+async def test_submit_for_review_enforces_external_scope(monkeypatch):
+    calls = _patch_draft_repo(
+        monkeypatch,
+        existing_draft=_saved_draft(),
+        draft_sections=_saved_draft_sections(),
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/draft-submit-1/submit-for-review",
+            json=_submit_payload(external_tenant_ref="wrong-tenant"),
+        )
+
+    rendered = json.dumps(response.json()).lower()
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "DRAFT_NOT_FOUND"
+    assert calls["update_draft_metadata_or_status"] == []
+    assert "wrong-tenant" not in rendered
+    assert "tenant_code" not in rendered
+
+
+async def test_submit_for_review_rejects_user_facing_tenant_code(monkeypatch):
+    calls = _patch_draft_repo(monkeypatch, existing_draft=_saved_draft())
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/draft-submit-1/submit-for-review",
+            json=_submit_payload(tenant_code="INTERNAL_ACME"),
+        )
+
+    rendered = json.dumps(response.json())
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "UNSAFE_OPERATION_ATTEMPTED"
+    assert "INTERNAL_ACME" not in rendered
+    assert calls["update_draft_metadata_or_status"] == []
+
+
+async def test_submit_for_review_stale_version_returns_safe_error(monkeypatch):
+    calls = _patch_draft_repo(
+        monkeypatch,
+        existing_draft=_saved_draft(),
+        draft_sections=_saved_draft_sections(),
+        stale_update=True,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/draft-submit-1/submit-for-review",
+            json=_submit_payload(expected_version=1),
+        )
+
+    body = response.json()
+    rendered = json.dumps(body).lower()
+    assert response.status_code == 409
+    assert body["detail"]["code"] == "STALE_DRAFT"
+    assert calls["record_idempotency_reference"] == []
+    assert "traceback" not in rendered
+    assert "sql" not in rendered
+
+
+async def test_submit_for_review_invalid_state_returns_safe_error(monkeypatch):
+    calls = _patch_draft_repo(
+        monkeypatch,
+        existing_draft=_saved_draft(status="DISCARDED"),
+        draft_sections=_saved_draft_sections(),
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/draft-submit-1/submit-for-review",
+            json=_submit_payload(),
+        )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "INVALID_STATE"
+    assert calls["update_draft_metadata_or_status"] == []
+
+
+async def test_submit_for_review_validation_blockers_prevent_transition(monkeypatch):
+    payload = _complete_draft_payload()
+    payload["sections"]["campaign_opportunity"]["publish_campaign"] = True
+    calls = _patch_draft_repo(
+        monkeypatch,
+        existing_draft=_saved_draft(status="VALIDATION_FAILED"),
+        draft_sections=_saved_draft_sections(payload),
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/draft-submit-1/submit-for-review",
+            json=_submit_payload(),
+        )
+
+    body = response.json()
+    rendered = json.dumps(body)
+    assert response.status_code == 422
+    assert body["detail"]["code"] == "VALIDATION_BLOCKED"
+    assert body["detail"]["validation_summary"]["status"] == "BLOCKED"
+    assert calls["update_draft_metadata_or_status"] == []
+    assert "publish_campaign" not in rendered
+
+
+async def test_submit_for_review_replays_same_idempotency_payload(monkeypatch):
+    payload = _submit_payload()
+    calls = _patch_draft_repo(
+        monkeypatch,
+        existing_draft=_saved_draft(status="READY_FOR_REVIEW"),
+        draft_sections=_saved_draft_sections(),
+        existing_idempotency=_existing_submit_idempotency_for(payload),
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/draft-submit-1/submit-for-review",
+            json=payload,
+        )
+
+    body = response.json()
+    assert response.status_code == 200
+    assert body["status"] == "replayed"
+    assert body["idempotency_status"] == "REPLAY_SAME_PAYLOAD"
+    assert calls["update_draft_metadata_or_status"] == []
+    assert calls["record_idempotency_reference"] == []
+    assert calls["create_audit_link_reference"] == []
+
+
+async def test_submit_for_review_conflicts_on_different_idempotency_payload(
+    monkeypatch,
+):
+    payload = _submit_payload()
+    calls = _patch_draft_repo(
+        monkeypatch,
+        existing_draft=_saved_draft(),
+        draft_sections=_saved_draft_sections(),
+        existing_idempotency=_existing_submit_idempotency_for(
+            payload,
+            request_hash="different-request-hash",
+        ),
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/draft-submit-1/submit-for-review",
+            json=payload,
+        )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "IDEMPOTENCY_CONFLICT"
+    assert calls["update_draft_metadata_or_status"] == []

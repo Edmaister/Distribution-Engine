@@ -2081,6 +2081,10 @@ Validation expectation: API tests pass for auth, adjacent-role rejection, extern
 Explicit non-goals: Do not approve, activate, publish, invite, create credentials, deliver webhooks, fund, fulfil, settle, retry, create wallets, go-live, or move money.
 Definition of done: Saved drafts can be marked submitted for review under strict admin/operator guardrails only. Priority: P1.
 
+Status: Complete.
+Finding: Added `POST /admin/onboarding/drafts/{draft_ref}/submit-for-review` as a guarded admin/operator-only endpoint backed by the TASK-115 submit-for-review service primitive. The route reads the saved draft and sections, validates persisted evidence, enforces external-reference scope matching, requires optimistic `expected_version` and idempotency key, rejects user-facing `tenant_code`, and returns safe bounded responses with no submit audit evidence/event dispatch in this task.
+Validation: `test/api/test_admin_onboarding_api.py` passed, `test/test_onboarding_submit_for_review_service.py` passed, `test/test_onboarding_draft_audit_evidence_service.py` passed, `scripts/check_migrations.py` passed, Ruff passed on changed Python files, and Python compile passed on changed Python files. Black check on the changed Python files timed out locally after 120 seconds. No production data, live DB access, secrets, backend mutations beyond the guarded draft status transition, auth weakening, broad permission refactors, mutation routes beyond submit-for-review, schema, migrations, frontend code, onboarding writes outside submit transition, account creation, invitations, campaign publication, credential writes, webhook delivery, funding, fulfilment, settlement, retry, audit mutation, wallet, go-live, or money movement were introduced.
+
 ## TASK-117: Integrate frontend submit-for-review controls
 
 Objective: Add guarded frontend submit-for-review UI for saved drafts while preserving disabled live/go-live and no-money controls.
