@@ -56,6 +56,7 @@ vi.mock("../../auth/useBackendSession", () => ({
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
   getAdminOnboardingState: vi.fn(),
   saveAdminOnboardingDraft: vi.fn(),
+  submitAdminOnboardingDraftForReview: vi.fn(),
   validateAdminOnboardingDryRun: vi.fn(),
 }));
 

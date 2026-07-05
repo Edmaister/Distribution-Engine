@@ -12,10 +12,12 @@ import { Link } from "react-router-dom";
 import {
   getAdminOnboardingState,
   saveAdminOnboardingDraft,
+  submitAdminOnboardingDraftForReview,
   validateAdminOnboardingDryRun,
   type AdminOnboardingDraftSaveResponse,
   type AdminOnboardingDryRunValidationResponse,
   type AdminOnboardingStateResponse,
+  type AdminOnboardingSubmitForReviewResponse,
 } from "../../api/endpoints/adminOnboarding";
 import { StatusBadge } from "../../components/StatusBadge";
 import { SummaryItem } from "../../components/SummaryItem";
@@ -89,6 +91,7 @@ const readOnlyScope = {
 type LoadState = "loading" | "success" | "fallback";
 type DraftSaveState = "idle" | "saving" | "saved" | "error";
 type ValidationPreviewState = "idle" | "loading" | "success" | "error";
+type SubmitForReviewState = "idle" | "submitting" | "submitted" | "error";
 
 export function CompanyOnboardingPage() {
   const [form, setForm] = useState<FormState>(initialState);
@@ -105,6 +108,13 @@ export function CompanyOnboardingPage() {
   const [validationPreview, setValidationPreview] =
     useState<AdminOnboardingDryRunValidationResponse | null>(null);
   const [validationPreviewError, setValidationPreviewError] = useState<
+    string | null
+  >(null);
+  const [submitForReviewState, setSubmitForReviewState] =
+    useState<SubmitForReviewState>("idle");
+  const [submitForReviewResponse, setSubmitForReviewResponse] =
+    useState<AdminOnboardingSubmitForReviewResponse | null>(null);
+  const [submitForReviewError, setSubmitForReviewError] = useState<
     string | null
   >(null);
   const requiredComplete = Boolean(
@@ -165,6 +175,17 @@ export function CompanyOnboardingPage() {
       ].join(":"),
     [form],
   );
+  const submitForReviewReady = Boolean(draftSaveResponse?.draft_ref);
+  const submitForReviewIdempotencyKey = useMemo(
+    () =>
+      [
+        "company-onboarding-submit-review",
+        draftSaveResponse?.draft_ref || "missing-draft-ref",
+        form.externalTenantRef.trim() || "missing-external-ref",
+        form.organisationRef.trim() || "missing-organisation-ref",
+      ].join(":"),
+    [draftSaveResponse?.draft_ref, form.externalTenantRef, form.organisationRef],
+  );
 
   function updateField(field: keyof FormState, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -200,6 +221,9 @@ export function CompanyOnboardingPage() {
       });
       setDraftSaveResponse(response);
       setDraftSaveState("saved");
+      setSubmitForReviewState("idle");
+      setSubmitForReviewResponse(null);
+      setSubmitForReviewError(null);
     } catch (error) {
       const status =
         typeof error === "object" && error && "status" in error
@@ -211,6 +235,41 @@ export function CompanyOnboardingPage() {
           : "Draft save is unavailable, so the page is keeping local shell state only. No live action was taken.",
       );
       setDraftSaveState("error");
+    }
+  }
+
+  async function handleSubmitForReview() {
+    if (
+      !draftSaveResponse?.draft_ref ||
+      submitForReviewState === "submitting"
+    ) {
+      return;
+    }
+
+    setSubmitForReviewState("submitting");
+    setSubmitForReviewResponse(null);
+    setSubmitForReviewError(null);
+
+    try {
+      const response = await submitAdminOnboardingDraftForReview(
+        draftSaveResponse.draft_ref,
+        {
+          external_tenant_ref: form.externalTenantRef,
+          organisation_ref: form.organisationRef,
+          expected_version: draftSaveResponse.draft_version ?? 1,
+          idempotency_key: submitForReviewIdempotencyKey,
+          correlation_id: "company-onboarding-submit-review",
+        },
+      );
+      setSubmitForReviewResponse(response);
+      setSubmitForReviewState("submitted");
+    } catch (error) {
+      const status =
+        typeof error === "object" && error && "status" in error
+          ? Number((error as { status?: number }).status)
+          : null;
+      setSubmitForReviewError(safeSubmitForReviewError(status));
+      setSubmitForReviewState("error");
     }
   }
 
@@ -507,6 +566,19 @@ export function CompanyOnboardingPage() {
               >
                 {draftSaveState === "saving" ? "Saving draft" : "Save draft"}
               </button>
+              <button
+                className="button secondary"
+                disabled={
+                  !submitForReviewReady ||
+                  submitForReviewState === "submitting"
+                }
+                onClick={handleSubmitForReview}
+                type="button"
+              >
+                {submitForReviewState === "submitting"
+                  ? "Submitting for review"
+                  : "Submit for review"}
+              </button>
               <button className="button" disabled type="button">
                 Create account later
               </button>
@@ -577,6 +649,25 @@ export function CompanyOnboardingPage() {
                       {draftSaveResponse.next_actions[0]}
                     </div>
                   ) : null}
+                </div>
+              </div>
+            ) : null}
+            <div className="table-subtext">
+              Submit for review only marks the saved draft for human review. It
+              does not approve, activate, create accounts, invite users, create
+              credentials, publish campaigns, deliver webhooks, activate
+              go-live, or move money.
+            </div>
+            {submitForReviewState === "submitted" &&
+            submitForReviewResponse ? (
+              <SubmitForReviewPanel response={submitForReviewResponse} />
+            ) : null}
+            {submitForReviewState === "error" && submitForReviewError ? (
+              <div className="banner warning" role="status">
+                <ShieldCheck size={18} />
+                <div>
+                  <strong>Submit for review fallback.</strong>
+                  <div className="table-subtext">{submitForReviewError}</div>
                 </div>
               </div>
             ) : null}
@@ -691,6 +782,65 @@ function companySectionPayload(form: FormState): Record<string, unknown> {
     admin_contact: form.adminContact,
     intended_role: form.intendedRole,
   };
+}
+
+function safeSubmitForReviewError(status: number | null): string {
+  if (status === 409) {
+    return "The saved draft changed or the submit request conflicts with a previous review request. No approval or live action was taken.";
+  }
+  if (status === 422) {
+    return "The saved draft has validation blockers and cannot be submitted for review yet. No approval or live action was taken.";
+  }
+  return "Submit for review is unavailable, so the page is keeping the saved draft in local review-only state. No approval or live action was taken.";
+}
+
+function SubmitForReviewPanel({
+  response,
+}: {
+  response: AdminOnboardingSubmitForReviewResponse;
+}) {
+  const validationStatus = response.validation_summary?.status ?? "Unavailable";
+  const blockers = response.blockers?.slice(0, 3) ?? [];
+  const nextActions = response.next_actions?.slice(0, 3) ?? [];
+  const guardrails = response.guardrails?.slice(0, 4) ?? [];
+
+  return (
+    <div className="banner success" role="status">
+      <CheckCircle2 size={18} />
+      <div>
+        <strong>Draft submitted for review.</strong>
+        <div className="table-subtext">
+          {response.draft_ref} - {response.draft_status} -{" "}
+          {response.idempotency_status}; no live action:{" "}
+          {response.no_live_action_confirmed ? "confirmed" : "unavailable"}.
+        </div>
+        <div className="table-subtext">
+          Validation: {validationStatus}; blockers:{" "}
+          {response.validation_summary?.blocker_count ?? 0}; missing evidence:{" "}
+          {response.validation_summary?.missing_evidence_count ?? 0}.
+        </div>
+        {response.readiness_summary ? (
+          <div className="table-subtext">
+            Readiness: {response.readiness_summary.overall_status}; go-live:{" "}
+            {response.readiness_summary.go_live_enabled
+              ? "enabled"
+              : "disabled"}.
+          </div>
+        ) : null}
+        <ValidationItemList label="Review blockers" items={blockers} />
+        {nextActions.length > 0 ? (
+          <div className="table-subtext">
+            Next actions: {nextActions.join("; ")}
+          </div>
+        ) : null}
+        {guardrails.length > 0 ? (
+          <div className="table-subtext">
+            Guardrails: {guardrails.join(", ")}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 function ValidationPreviewPanel({

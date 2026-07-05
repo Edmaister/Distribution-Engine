@@ -2095,6 +2095,12 @@ Validation expectation: Frontend tests pass for submitted-for-review flow, valid
 Explicit non-goals: Do not implement approval, go-live, account/user creation, role assignment, campaign publication, credential generation, webhook delivery, funding, fulfilment, settlement, retry, wallet, or money movement.
 Definition of done: Frontend can submit draft for review without enabling any live platform action. Priority: P1.
 
+Status: Complete.
+
+Finding: Added a frontend submit-for-review helper and Company Onboarding review-only control. The UI only enables submit after a saved draft reference exists, sends external references plus expected version, idempotency key, and correlation ID, preserves draft-save and dry-run validation behavior, and shows safe success, blocker, stale/conflict, and unavailable states without exposing `tenant_code` or raw unsafe values.
+
+Validation: `npm.cmd test -- adminOnboarding.test.ts` passed, `npm.cmd test -- CompanyOnboardingPage.test.tsx` passed, `npm.cmd test -- OnboardingDemoJourneySmoke.test.tsx` passed, full `npm.cmd test` passed with 21 files and 118 tests, `npm.cmd run build` passed, and `npm.cmd run lint` passed with 42 existing warnings and 0 errors. No backend routes, backend mutations, auth changes, schema, migrations, secrets, production data, live DB access, approval, go-live, account/user creation, invite delivery, role assignment, campaign publication, credential lifecycle, webhook delivery, funding, wallet, fulfilment, settlement, retry, or money movement were introduced.
+
 ## TASK-118: Add submit-for-review audit evidence
 
 Objective: Record safe reference-only evidence for submit-for-review transitions without webhook/event dispatch or raw sensitive payloads.
