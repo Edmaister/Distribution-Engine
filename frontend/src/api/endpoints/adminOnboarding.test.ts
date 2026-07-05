@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getAdminOnboardingState,
   saveAdminOnboardingDraft,
+  validateAdminOnboardingDryRun,
   type AdminOnboardingDraftSaveResponse,
+  type AdminOnboardingDryRunValidationResponse,
   type AdminOnboardingStateResponse,
 } from "./adminOnboarding";
 
@@ -153,6 +155,46 @@ const draftSaveResponse: AdminOnboardingDraftSaveResponse = {
   next_actions: ["Review company draft evidence before go-live review."],
   guardrails: ["NO_LIVE_ACTIONS", "NO_MONEY_MOVEMENT"],
   redactions: ["TENANT_CODE_INTERNAL", "SECRETS_REDACTED"],
+  no_live_action_confirmed: true,
+};
+
+const dryRunValidationResponse: AdminOnboardingDryRunValidationResponse = {
+  status: "ok",
+  validation_result: {
+    status: "MISSING_EVIDENCE",
+    validated_scope: {
+      external_tenant_ref: "acme-distribution",
+      organisation_ref: "org-acme",
+      resolved_tenant: { status: "UNAVAILABLE" },
+    },
+    validated_sections: ["company"],
+    checks: [],
+  },
+  readiness_preview: successResponse.readiness,
+  missing_evidence: [
+    {
+      section: "company",
+      field: "industry",
+      code: "MISSING_EVIDENCE",
+      message: "Industry evidence is not complete.",
+      severity: "warning",
+    },
+  ],
+  blockers: [],
+  warnings: [
+    {
+      section: "readiness",
+      field: null,
+      code: "GO_LIVE_DISABLED",
+      message: "Dry-run validation does not enable go-live.",
+      severity: "info",
+    },
+  ],
+  safe_errors: [],
+  next_actions: ["Review company draft evidence before go-live review."],
+  guardrails: ["DRY_RUN_ONLY", "NO_PERSISTENCE", "NO_LIVE_MUTATION"],
+  redactions: ["TENANT_CODE_INTERNAL", "SECRETS_REDACTED"],
+  no_persistence_confirmed: true,
   no_live_action_confirmed: true,
 };
 
@@ -440,6 +482,106 @@ describe("admin onboarding api helper", () => {
     ).rejects.toMatchObject({
       status: 409,
       message: expect.stringContaining("IDEMPOTENCY_CONFLICT"),
+    });
+  });
+
+  it("runs dry-run validation with external refs and sanitized sections only", async () => {
+    const fetchMock = mockFetch(dryRunValidationResponse);
+
+    const result = await validateAdminOnboardingDryRun({
+      external_tenant_ref: " acme-distribution ",
+      organisation_ref: " org-acme ",
+      producer_ref: " ",
+      draft_ref: " draft-acme ",
+      validation_scope: [" company ", "readiness"],
+      idempotency_key: " client-preview-key ",
+      correlation_id: " company-validation-preview ",
+      tenant_code: "INTERNAL-SHOULD-NOT-BE-SENT",
+      sections: {
+        company: {
+          organisation_name: "Acme Distribution Ltd",
+          external_tenant_ref: "acme-distribution",
+          organisation_ref: "org-acme",
+          admin_contact: "ops@example.test",
+          tenant_code: "INTERNAL-SHOULD-NOT-BE-SENT",
+          api_key: "SECRET-API-KEY",
+          client_secret: "SECRET-CLIENT",
+          access_token: "SECRET-TOKEN",
+          private_key: "SECRET-PRIVATE-KEY",
+          funding_internal: "funding-internal",
+          publish_campaign: true,
+          activate_go_live: true,
+        },
+      },
+    } as Parameters<typeof validateAdminOnboardingDryRun>[0] & {
+      tenant_code: string;
+    });
+
+    expect(result).toMatchObject({
+      status: "ok",
+      no_persistence_confirmed: true,
+      no_live_action_confirmed: true,
+    });
+
+    const [url, options] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    const requestUrl = new URL(url);
+    const body = JSON.parse(String(options.body));
+    const renderedBody = JSON.stringify(body).toLowerCase();
+
+    expect(requestUrl.pathname).toBe("/admin/onboarding/validate");
+    expect(options.method).toBe("POST");
+    expect(body).toMatchObject({
+      external_tenant_ref: "acme-distribution",
+      organisation_ref: "org-acme",
+      draft_ref: "draft-acme",
+      validation_scope: ["company", "readiness"],
+      idempotency_key: "client-preview-key",
+      correlation_id: "company-validation-preview",
+      sections: {
+        company: {
+          organisation_name: "Acme Distribution Ltd",
+          external_tenant_ref: "acme-distribution",
+          organisation_ref: "org-acme",
+          admin_contact: "ops@example.test",
+        },
+      },
+    });
+    expect(body).not.toHaveProperty("tenant_code");
+    expect(body).not.toHaveProperty("producer_ref");
+    expect(renderedBody).not.toContain("tenant_code");
+    expect(renderedBody).not.toContain("secret-api-key");
+    expect(renderedBody).not.toContain("secret-client");
+    expect(renderedBody).not.toContain("secret-token");
+    expect(renderedBody).not.toContain("secret-private-key");
+    expect(renderedBody).not.toContain("funding_internal");
+    expect(renderedBody).not.toContain("publish_campaign");
+    expect(renderedBody).not.toContain("activate_go_live");
+  });
+
+  it("surfaces safe dry-run validation errors through the shared API error contract", async () => {
+    mockFetch(
+      {
+        detail: {
+          code: "UNSAFE_OPERATION_ATTEMPTED",
+          message: "The validation request contains unsafe fields.",
+          no_live_action_confirmed: true,
+        },
+      },
+      422,
+    );
+
+    await expect(
+      validateAdminOnboardingDryRun({
+        external_tenant_ref: "acme-distribution",
+        organisation_ref: "org-acme",
+        validation_scope: ["company"],
+      }),
+    ).rejects.toMatchObject({
+      status: 422,
+      message: expect.stringContaining("UNSAFE_OPERATION_ATTEMPTED"),
     });
   });
 });

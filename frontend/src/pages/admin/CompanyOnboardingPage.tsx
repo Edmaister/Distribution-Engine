@@ -12,7 +12,9 @@ import { Link } from "react-router-dom";
 import {
   getAdminOnboardingState,
   saveAdminOnboardingDraft,
+  validateAdminOnboardingDryRun,
   type AdminOnboardingDraftSaveResponse,
+  type AdminOnboardingDryRunValidationResponse,
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
 import { StatusBadge } from "../../components/StatusBadge";
@@ -86,6 +88,7 @@ const readOnlyScope = {
 
 type LoadState = "loading" | "success" | "fallback";
 type DraftSaveState = "idle" | "saving" | "saved" | "error";
+type ValidationPreviewState = "idle" | "loading" | "success" | "error";
 
 export function CompanyOnboardingPage() {
   const [form, setForm] = useState<FormState>(initialState);
@@ -97,6 +100,13 @@ export function CompanyOnboardingPage() {
   const [draftSaveResponse, setDraftSaveResponse] =
     useState<AdminOnboardingDraftSaveResponse | null>(null);
   const [draftSaveError, setDraftSaveError] = useState<string | null>(null);
+  const [validationPreviewState, setValidationPreviewState] =
+    useState<ValidationPreviewState>("idle");
+  const [validationPreview, setValidationPreview] =
+    useState<AdminOnboardingDryRunValidationResponse | null>(null);
+  const [validationPreviewError, setValidationPreviewError] = useState<
+    string | null
+  >(null);
   const requiredComplete = Boolean(
     form.organisationName.trim() &&
     form.externalTenantRef.trim() &&
@@ -201,6 +211,35 @@ export function CompanyOnboardingPage() {
           : "Draft save is unavailable, so the page is keeping local shell state only. No live action was taken.",
       );
       setDraftSaveState("error");
+    }
+  }
+
+  async function handlePreviewValidation() {
+    if (!draftSaveReady || validationPreviewState === "loading") {
+      return;
+    }
+
+    setValidationPreviewState("loading");
+    setValidationPreview(null);
+    setValidationPreviewError(null);
+
+    try {
+      const response = await validateAdminOnboardingDryRun({
+        external_tenant_ref: form.externalTenantRef,
+        organisation_ref: form.organisationRef,
+        validation_scope: ["company", "readiness"],
+        correlation_id: "company-onboarding-validation-preview",
+        sections: {
+          company: companySectionPayload(form),
+        },
+      });
+      setValidationPreview(response);
+      setValidationPreviewState("success");
+    } catch {
+      setValidationPreviewError(
+        "Dry-run validation is unavailable, so the page is keeping local shell feedback only. No draft was saved and no live action was taken.",
+      );
+      setValidationPreviewState("error");
     }
   }
 
@@ -450,6 +489,18 @@ export function CompanyOnboardingPage() {
             <div className="action-button-row">
               <button
                 className="button secondary"
+                disabled={
+                  !draftSaveReady || validationPreviewState === "loading"
+                }
+                onClick={handlePreviewValidation}
+                type="button"
+              >
+                {validationPreviewState === "loading"
+                  ? "Previewing validation"
+                  : "Preview validation"}
+              </button>
+              <button
+                className="button secondary"
                 disabled={!draftSaveReady || draftSaveState === "saving"}
                 onClick={handleSaveDraft}
                 type="button"
@@ -465,6 +516,35 @@ export function CompanyOnboardingPage() {
                   : "Complete required shell fields before a future create flow."}
               </span>
             </div>
+            <div className="table-subtext">
+              Validation preview is a no-op dry-run. It does not save draft
+              data, submit for review, create records, create credentials,
+              deliver webhooks, activate go-live, or move money.
+            </div>
+            {validationPreviewState === "loading" ? (
+              <div className="banner info" role="status">
+                <CircleDashed size={18} />
+                <div>
+                  <strong>Previewing validation.</strong>
+                  <div className="table-subtext">
+                    The shell is checking company readiness without saving or
+                    launching anything.
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            {validationPreviewState === "success" && validationPreview ? (
+              <ValidationPreviewPanel preview={validationPreview} />
+            ) : null}
+            {validationPreviewState === "error" && validationPreviewError ? (
+              <div className="banner warning" role="status">
+                <ShieldCheck size={18} />
+                <div>
+                  <strong>Validation preview fallback.</strong>
+                  <div className="table-subtext">{validationPreviewError}</div>
+                </div>
+              </div>
+            ) : null}
             <div className="table-subtext">
               Draft save stores onboarding intent only. It does not create
               accounts, invite users, create credentials, publish campaigns,
@@ -597,6 +677,98 @@ export function CompanyOnboardingPage() {
         </div>
       </section>
     </>
+  );
+}
+
+function companySectionPayload(form: FormState): Record<string, unknown> {
+  return {
+    organisation_name: form.organisationName,
+    external_tenant_ref: form.externalTenantRef,
+    organisation_ref: form.organisationRef,
+    country: form.country,
+    organisation_type: form.organisationType,
+    industry: form.industry,
+    admin_contact: form.adminContact,
+    intended_role: form.intendedRole,
+  };
+}
+
+function ValidationPreviewPanel({
+  preview,
+}: {
+  preview: AdminOnboardingDryRunValidationResponse;
+}) {
+  const validationStatus =
+    typeof preview.validation_result.status === "string"
+      ? preview.validation_result.status
+      : preview.status;
+  const firstReadinessCategory = preview.readiness_preview.categories[0];
+  const missingEvidence = preview.missing_evidence.slice(0, 3);
+  const blockers = preview.blockers.slice(0, 3);
+  const warnings = preview.warnings.slice(0, 2);
+  const safeErrors = preview.safe_errors.slice(0, 2);
+  const nextActions = preview.next_actions.slice(0, 3);
+
+  return (
+    <div className="banner info" role="status">
+      <ShieldCheck size={18} />
+      <div>
+        <strong>Dry-run validation preview.</strong>
+        <div className="table-subtext">
+          Status: {validationStatus}; readiness:{" "}
+          {preview.readiness_preview.overall_status}; no persistence:{" "}
+          {preview.no_persistence_confirmed ? "confirmed" : "unavailable"}; no
+          live action:{" "}
+          {preview.no_live_action_confirmed ? "confirmed" : "unavailable"}.
+        </div>
+        {firstReadinessCategory ? (
+          <div className="table-subtext">
+            {firstReadinessCategory.display_label}:{" "}
+            {firstReadinessCategory.evidence_summary}
+          </div>
+        ) : null}
+        <ValidationItemList label="Missing evidence" items={missingEvidence} />
+        <ValidationItemList label="Blockers" items={blockers} />
+        <ValidationItemList label="Warnings" items={warnings} />
+        <ValidationItemList label="Safe errors" items={safeErrors} />
+        {nextActions.length > 0 ? (
+          <div className="table-subtext">
+            Next actions: {nextActions.join("; ")}
+          </div>
+        ) : null}
+        {preview.guardrails.length > 0 ? (
+          <div className="table-subtext">
+            Guardrails: {preview.guardrails.slice(0, 4).join(", ")}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ValidationItemList({
+  label,
+  items,
+}: {
+  label: string;
+  items: Array<{
+    code: string;
+    message: string;
+    section?: string | null;
+    severity: string;
+  }>;
+}) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="table-subtext">
+      {label}:{" "}
+      {items
+        .map((item) => `${item.code} - ${item.message}`)
+        .join("; ")}
+    </div>
   );
 }
 
