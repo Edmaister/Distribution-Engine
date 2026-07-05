@@ -24,6 +24,50 @@ PRODUCER_HEADERS = {"x-api-key": "test-fnb-producer-insureco-key"}
 DISTRIBUTOR_HEADERS = {"x-api-key": "test-fnb-distributor-insurance-advocate-key"}
 CONSUMER_HEADERS = {"x-api-key": "test-fnb-consumer-key"}
 
+ADJACENT_ROLE_HEADERS = [
+    FINANCE_ADMIN_HEADERS,
+    PARTNER_HEADERS,
+    PRODUCER_HEADERS,
+    DISTRIBUTOR_HEADERS,
+    CONSUMER_HEADERS,
+]
+
+RAW_LEAK_TERMS = (
+    "INTERNAL_ACME",
+    "INTERNAL-ACME",
+    "SECRET-API-KEY",
+    "SECRET-CLIENT",
+    "ACCESS-TOKEN",
+    "SIGNING-SECRET",
+    "PRIVATE-KEY",
+    "PROVIDER-PAYLOAD",
+    "AUDIT-PAYLOAD",
+    "RAW-AUDIT",
+    "DELIVERY-STATE",
+    "funding-value",
+    "wallet-internal",
+    "settlement-value",
+    "fulfilment-value",
+    "retry-value",
+    "money-value",
+    "api_key",
+    "client_secret",
+    "access_token",
+    "signing_secret",
+    "private_key",
+    "provider_payload",
+    "audit_payload",
+    "raw_audit_payload",
+    "webhook_delivery_state",
+    "funding_internal",
+    "wallet_internal",
+    "settlement_internal",
+    "fulfilment_internal",
+    "money_movement_detail",
+    "traceback",
+    "sql",
+)
+
 
 async def test_admin_onboarding_state_returns_401_without_credentials(monkeypatch):
     def fake_project_onboarding_state(*args, **kwargs):  # pragma: no cover
@@ -697,8 +741,155 @@ def _assert_no_draft_repo_persistence(calls):
     assert calls["record_validation_result"] == []
     assert calls["record_idempotency_reference"] == []
     assert calls["create_audit_link_reference"] == []
+    assert calls["get_draft_sections"] == []
+    assert calls["update_draft_metadata_or_status"] == []
     assert "get_idempotency_reference" not in calls
     assert "get_draft_by_ref" not in calls
+
+
+def _assert_no_raw_leaks(payload):
+    rendered = json.dumps(payload)
+    rendered_lower = rendered.lower()
+    for term in RAW_LEAK_TERMS:
+        assert term.lower() not in rendered_lower
+    assert '"tenant_code":' not in rendered_lower
+
+
+def _assert_submit_did_not_invoke_live_actions(calls):
+    assert calls["create_draft"] == []
+    assert calls["upsert_draft_section"] == []
+    assert calls["record_validation_result"] == []
+    assert len(calls["update_draft_metadata_or_status"]) <= 1
+    assert len(calls["record_idempotency_reference"]) <= 1
+    assert len(calls["create_audit_link_reference"]) <= 1
+
+
+def _assert_review_route_helpers_not_called(calls, helper_calls):
+    _assert_no_draft_repo_persistence(calls)
+    assert helper_calls == []
+
+
+def _patch_review_flow_helpers_to_fail(monkeypatch):
+    calls = []
+
+    def fail_project(*args, **kwargs):  # pragma: no cover
+        calls.append("project")
+        raise AssertionError("projection should not be called")
+
+    def fail_aggregate(*args, **kwargs):  # pragma: no cover
+        calls.append("aggregate")
+        raise AssertionError("readiness aggregation should not be called")
+
+    def fail_validation(*args, **kwargs):  # pragma: no cover
+        calls.append("validate")
+        raise AssertionError("validation should not be called")
+
+    async def fail_submit(*args, **kwargs):  # pragma: no cover
+        calls.append("submit")
+        raise AssertionError("submit transition should not be called")
+
+    monkeypatch.setattr(admin_onboarding, "project_onboarding_state", fail_project)
+    monkeypatch.setattr(
+        admin_onboarding,
+        "aggregate_onboarding_readiness",
+        fail_aggregate,
+    )
+    monkeypatch.setattr(admin_onboarding, "validate_onboarding_draft", fail_validation)
+    monkeypatch.setattr(
+        admin_onboarding,
+        "submit_onboarding_draft_for_review",
+        fail_submit,
+    )
+    return calls
+
+
+def _review_flow_route_cases():
+    return [
+        (
+            "state",
+            "GET",
+            "/admin/onboarding/state",
+            {"external_tenant_ref": "acme-distribution"},
+            None,
+        ),
+        (
+            "validate",
+            "POST",
+            "/admin/onboarding/validate",
+            None,
+            _complete_draft_payload(),
+        ),
+        (
+            "draft_save",
+            "POST",
+            "/admin/onboarding/drafts",
+            None,
+            _complete_draft_payload(),
+        ),
+        (
+            "submit_for_review",
+            "POST",
+            "/admin/onboarding/drafts/draft-submit-1/submit-for-review",
+            None,
+            _submit_payload(),
+        ),
+    ]
+
+
+async def _call_review_flow_route(client, method, path, params, body):
+    if method == "GET":
+        return await client.get(path, params=params)
+    return await client.post(path, json=body)
+
+
+@pytest.mark.parametrize(
+    "route_name,method,path,params,body",
+    _review_flow_route_cases(),
+)
+async def test_review_flow_routes_reject_unauthenticated_before_helpers(
+    route_name,
+    method,
+    path,
+    params,
+    body,
+    monkeypatch,
+):
+    calls = _patch_draft_repo(monkeypatch, existing_draft=_saved_draft())
+    helper_calls = _patch_review_flow_helpers_to_fail(monkeypatch)
+
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await _call_review_flow_route(client, method, path, params, body)
+
+    assert response.status_code == 401, route_name
+    _assert_review_route_helpers_not_called(calls, helper_calls)
+
+
+@pytest.mark.parametrize("headers", ADJACENT_ROLE_HEADERS)
+@pytest.mark.parametrize(
+    "route_name,method,path,params,body",
+    _review_flow_route_cases(),
+)
+async def test_review_flow_routes_reject_adjacent_roles_before_helpers(
+    route_name,
+    method,
+    path,
+    params,
+    body,
+    headers,
+    monkeypatch,
+):
+    calls = _patch_draft_repo(monkeypatch, existing_draft=_saved_draft())
+    helper_calls = _patch_review_flow_helpers_to_fail(monkeypatch)
+
+    async with AsyncClient(app=app, base_url="http://test", headers=headers) as client:
+        response = await _call_review_flow_route(client, method, path, params, body)
+
+    assert response.status_code == 403, route_name
+    rendered = json.dumps(response.json()).lower()
+    assert "permission_denied" in rendered
+    assert "acme-distribution" not in rendered
+    _assert_no_raw_leaks(response.json())
+    _assert_review_route_helpers_not_called(calls, helper_calls)
 
 
 async def test_admin_onboarding_dry_run_requires_auth(monkeypatch):
@@ -1282,6 +1473,9 @@ async def test_submit_for_review_transitions_saved_draft_only(monkeypatch):
     assert "money_movement" not in rendered
     assert "approved" not in rendered
     assert "activated" not in rendered
+    _assert_no_raw_leaks(body)
+    _assert_no_raw_leaks(audit_link)
+    _assert_submit_did_not_invoke_live_actions(calls)
 
 
 async def test_submit_for_review_enforces_external_scope(monkeypatch):
@@ -1303,8 +1497,75 @@ async def test_submit_for_review_enforces_external_scope(monkeypatch):
     assert response.status_code == 404
     assert response.json()["detail"]["code"] == "DRAFT_NOT_FOUND"
     assert calls["update_draft_metadata_or_status"] == []
+    assert calls["get_draft_sections"] == []
+    assert calls["record_idempotency_reference"] == []
+    assert calls["create_audit_link_reference"] == []
     assert "wrong-tenant" not in rendered
     assert "tenant_code" not in rendered
+    _assert_no_raw_leaks(response.json())
+
+
+@pytest.mark.parametrize(
+    ("payload_overrides", "leaked_value"),
+    [
+        ({"organisation_ref": "wrong-org"}, "wrong-org"),
+        ({"producer_ref": "wrong-producer"}, "wrong-producer"),
+        ({"distributor_ref": "wrong-distributor"}, "wrong-distributor"),
+        ({"campaign_code": "WRONG-CAMPAIGN"}, "wrong-campaign"),
+    ],
+)
+async def test_submit_for_review_rejects_cross_scope_references_safely(
+    payload_overrides,
+    leaked_value,
+    monkeypatch,
+):
+    calls = _patch_draft_repo(
+        monkeypatch,
+        existing_draft=_saved_draft(),
+        draft_sections=_saved_draft_sections(),
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/draft-submit-1/submit-for-review",
+            json=_submit_payload(**payload_overrides),
+        )
+
+    rendered = json.dumps(response.json()).lower()
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "DRAFT_NOT_FOUND"
+    assert calls["get_draft_by_ref"] == "draft-submit-1"
+    assert calls["get_draft_sections"] == []
+    assert calls["update_draft_metadata_or_status"] == []
+    assert calls["record_idempotency_reference"] == []
+    assert calls["create_audit_link_reference"] == []
+    assert leaked_value not in rendered
+    _assert_no_raw_leaks(response.json())
+
+
+async def test_submit_for_review_missing_draft_is_safe_and_non_mutating(
+    monkeypatch,
+):
+    calls = _patch_draft_repo(monkeypatch, existing_draft=None)
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/missing-draft/submit-for-review",
+            json=_submit_payload(),
+        )
+
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "DRAFT_NOT_FOUND"
+    assert calls["get_draft_by_ref"] == "missing-draft"
+    assert calls["get_draft_sections"] == []
+    assert calls["update_draft_metadata_or_status"] == []
+    assert calls["record_idempotency_reference"] == []
+    assert calls["create_audit_link_reference"] == []
+    _assert_no_raw_leaks(response.json())
 
 
 async def test_submit_for_review_rejects_user_facing_tenant_code(monkeypatch):
@@ -1323,6 +1584,10 @@ async def test_submit_for_review_rejects_user_facing_tenant_code(monkeypatch):
     assert response.json()["detail"]["code"] == "UNSAFE_OPERATION_ATTEMPTED"
     assert "INTERNAL_ACME" not in rendered
     assert calls["update_draft_metadata_or_status"] == []
+    assert calls["get_draft_sections"] == []
+    assert calls["record_idempotency_reference"] == []
+    assert calls["create_audit_link_reference"] == []
+    _assert_no_raw_leaks(response.json())
 
 
 async def test_submit_for_review_stale_version_returns_safe_error(monkeypatch):
@@ -1393,7 +1658,63 @@ async def test_submit_for_review_validation_blockers_prevent_transition(monkeypa
     assert body["detail"]["code"] == "VALIDATION_BLOCKED"
     assert body["detail"]["validation_summary"]["status"] == "BLOCKED"
     assert calls["update_draft_metadata_or_status"] == []
+    assert calls["record_idempotency_reference"] == []
+    assert calls["create_audit_link_reference"] == []
     assert "publish_campaign" not in rendered
+    _assert_no_raw_leaks(body)
+
+
+async def test_submit_for_review_redacts_unsafe_saved_evidence_and_no_dispatch(
+    monkeypatch,
+):
+    payload = _complete_draft_payload()
+    payload["sections"]["webhook_api"]["api_key"] = "SECRET-API-KEY"
+    payload["sections"]["webhook_api"]["client_secret"] = "SECRET-CLIENT"
+    payload["sections"]["webhook_api"]["access_token"] = "ACCESS-TOKEN"
+    payload["sections"]["webhook_api"]["signing_secret"] = "SIGNING-SECRET"
+    payload["sections"]["webhook_api"]["private_key"] = "PRIVATE-KEY"
+    payload["sections"]["webhook_api"]["provider_payload"] = "PROVIDER-PAYLOAD"
+    payload["sections"]["webhook_api"]["audit_payload"] = "AUDIT-PAYLOAD"
+    payload["sections"]["webhook_api"]["raw_audit_payload"] = "RAW-AUDIT"
+    payload["sections"]["webhook_api"]["webhook_delivery_state"] = "DELIVERY-STATE"
+    payload["sections"]["campaign_opportunity"]["publish_campaign"] = True
+    payload["sections"]["campaign_opportunity"]["activate_go_live"] = True
+    payload["sections"]["campaign_opportunity"]["funding_internal"] = "funding-value"
+    payload["sections"]["campaign_opportunity"]["wallet_internal"] = "wallet-internal"
+    payload["sections"]["campaign_opportunity"][
+        "settlement_internal"
+    ] = "settlement-value"
+    payload["sections"]["campaign_opportunity"][
+        "fulfilment_internal"
+    ] = "fulfilment-value"
+    payload["sections"]["campaign_opportunity"]["retry_internal"] = "retry-value"
+    payload["sections"]["campaign_opportunity"]["money_movement_detail"] = "money-value"
+    calls = _patch_draft_repo(
+        monkeypatch,
+        existing_draft=_saved_draft(status="VALIDATION_FAILED"),
+        draft_sections=_saved_draft_sections(payload),
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/draft-submit-1/submit-for-review",
+            json=_submit_payload(),
+        )
+
+    body = response.json()
+    assert response.status_code == 422
+    assert body["detail"]["code"] == "VALIDATION_BLOCKED"
+    assert body["detail"]["audit_evidence_ref"] is None
+    assert body["detail"]["audit_link_ref"] is None
+    assert body["detail"]["no_live_action_confirmed"] is True
+    assert "NO_WEBHOOK_DISPATCH" in body["detail"]["guardrails"]
+    assert "NO_VALUE_TRANSFER" in body["detail"]["guardrails"]
+    assert calls["update_draft_metadata_or_status"] == []
+    assert calls["record_idempotency_reference"] == []
+    assert calls["create_audit_link_reference"] == []
+    _assert_no_raw_leaks(body)
 
 
 async def test_submit_for_review_replays_same_idempotency_payload(monkeypatch):
