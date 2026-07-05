@@ -2111,6 +2111,12 @@ Validation expectation: Tests cover actor, role, external references, draft ref/
 Explicit non-goals: Do not add webhook delivery, event replay, approval, go-live, credential lifecycle, invite delivery, campaign publication, funding, fulfilment, settlement, retry, wallet, or money movement.
 Definition of done: Submit-for-review has safe audit evidence references only. Priority: P1.
 
+Status: Complete.
+
+Finding: Added safe reference-only submit-for-review audit evidence. Successful new submit transitions now record an `onboarding_draft_audit_links` reference with actor, role, permission scope, external references, draft reference/version, submit-for-review operation/status, hashed idempotency reference, correlation ID, before/after state hashes, changed state, validation/readiness summaries, redaction categories, and `no_live_action_confirmed`. Replay and rejection paths do not create additional audit links. Evidence keeps `audit_ref` and `event_ref` empty and records dispatch flags as false.
+
+Validation: `.venv_codex\Scripts\python.exe -m pytest test/test_onboarding_draft_audit_evidence_service.py` passed with 11 tests, `.venv_codex\Scripts\python.exe -m pytest test/test_onboarding_submit_for_review_service.py` passed with 9 tests, `.venv_codex\Scripts\python.exe -m pytest test/api/test_admin_onboarding_api.py` passed with 48 tests, `scripts/check_migrations.py` passed, Ruff passed on changed Python files, and `py_compile` passed on changed Python files. Black check against the changed Python files timed out twice in the local environment before producing a result; no formatting error was reported. No frontend code, migrations, schema changes, live DB access, secrets, production data, webhook dispatch, event dispatch, replay/repair, approval, go-live, credential lifecycle, invite delivery, campaign publication, funding, fulfilment, settlement, retry, wallet, or money movement were introduced.
+
 ## TASK-119: Add review-flow permission and redaction regression tests
 
 Objective: Lock submit-for-review and related read/dry-run surfaces to intended RBAC, scope, redaction, and no-live-action contracts.

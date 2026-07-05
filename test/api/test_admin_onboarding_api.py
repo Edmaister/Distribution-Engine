@@ -535,7 +535,10 @@ def _patch_draft_repo(
 
     async def fake_create_audit_link_reference(**kwargs):
         calls["create_audit_link_reference"].append(kwargs)
-        return kwargs
+        return {
+            "audit_link_id": "audit-link-uuid",
+            **kwargs,
+        }
 
     async def fake_update_draft_metadata_or_status(**kwargs):
         calls["update_draft_metadata_or_status"].append(kwargs)
@@ -1216,20 +1219,6 @@ async def test_submit_for_review_transitions_saved_draft_only(monkeypatch):
         draft_sections=_saved_draft_sections(),
     )
 
-    def fail_audit_evidence(*args, **kwargs):  # pragma: no cover
-        raise AssertionError("TASK-116 must not build submit audit evidence")
-
-    monkeypatch.setattr(
-        admin_onboarding,
-        "build_draft_save_audit_evidence",
-        fail_audit_evidence,
-    )
-    monkeypatch.setattr(
-        admin_onboarding,
-        "build_draft_save_audit_link_fields",
-        fail_audit_evidence,
-    )
-
     async with AsyncClient(
         app=app, base_url="http://test", headers=ADMIN_HEADERS
     ) as client:
@@ -1246,15 +1235,39 @@ async def test_submit_for_review_transitions_saved_draft_only(monkeypatch):
     assert body["draft_status"] == "READY_FOR_REVIEW"
     assert body["idempotency_status"] == "NEW_REQUEST"
     assert body["no_live_action_confirmed"] is True
-    assert body["audit_evidence_ref"] is None
-    assert body["audit_link_ref"] is None
-    assert body["audit_evidence_status"] == "NOT_RECORDED_IN_TASK_116"
+    assert body["audit_evidence_ref"] == "SUBMIT_FOR_REVIEW_AUDIT_EVIDENCE"
+    assert body["audit_link_ref"] == "audit-link-uuid"
+    assert body["audit_evidence_status"] == "RECORDED_REFERENCE"
     assert calls["update_draft_metadata_or_status"][0]["status"] == "READY_FOR_REVIEW"
     assert calls["update_draft_metadata_or_status"][0]["expected_draft_version"] == 2
     assert calls["record_idempotency_reference"][0]["operation_type"] == (
         "ONBOARDING_DRAFT_SUBMIT_FOR_REVIEW"
     )
-    assert calls["create_audit_link_reference"] == []
+    assert len(calls["create_audit_link_reference"]) == 1
+    audit_link = calls["create_audit_link_reference"][0]
+    assert audit_link["action_type"] == "ONBOARDING_DRAFT_SUBMIT_FOR_REVIEW"
+    assert audit_link["action_status"] == "SUCCESS"
+    assert audit_link["evidence_type"] == "SUBMIT_FOR_REVIEW_AUDIT_EVIDENCE"
+    assert audit_link["audit_ref"] is None
+    assert audit_link["event_ref"] is None
+    assert audit_link["actor_ref"] == "ADMIN"
+    assert audit_link["actor_role"] == "ADMIN"
+    assert audit_link["correlation_id"] == "corr-submit-1"
+    assert audit_link["changed_sections"] == ["draft_status", "draft_version"]
+    assert audit_link["evidence_summary"]["operation_type"] == (
+        "ONBOARDING_DRAFT_SUBMIT_FOR_REVIEW"
+    )
+    assert audit_link["evidence_summary"]["review_status"] == "READY_FOR_REVIEW"
+    assert audit_link["evidence_summary"]["dispatch"] == {
+        "event_dispatched": False,
+        "webhook_dispatched": False,
+        "event_ref": None,
+    }
+    assert audit_link["evidence_summary"]["no_live_action_confirmed"] is True
+    rendered_audit = json.dumps(audit_link).lower()
+    assert "submit-review-key-1" not in rendered_audit
+    assert "tenant_code" not in rendered_audit
+    assert "internal-acme" not in rendered_audit
     assert "submit-review-key-1" not in rendered
     assert "tenant_code" not in rendered
     assert "internal-acme" not in rendered

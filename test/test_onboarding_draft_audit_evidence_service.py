@@ -4,6 +4,8 @@ from services.onboarding.onboarding_draft_audit_evidence_service import (
     EMPTY_STATE_HASH,
     build_draft_save_audit_evidence,
     build_draft_save_audit_link_fields,
+    build_submit_for_review_audit_evidence,
+    build_submit_for_review_audit_link_fields,
 )
 
 
@@ -265,3 +267,157 @@ def test_helper_module_exposes_no_dispatch_or_live_action_functions():
     for name in public_names:
         for forbidden in forbidden_parts:
             assert forbidden not in name
+
+
+def test_submit_for_review_evidence_is_reference_only_and_state_scoped():
+    evidence = build_submit_for_review_audit_evidence(
+        actor_ref="operator-1",
+        actor_role="system_admin",
+        permission_scope={
+            "route_family": "admin_onboarding",
+            "role_family": "admin_operator",
+        },
+        prior_draft={
+            "draft_id": "draft-uuid",
+            "draft_ref": "draft-submit-1",
+            "draft_version": 2,
+            "status": "DRAFT_UPDATED",
+            "external_tenant_ref": "acme-distribution",
+            "organisation_ref": "org-acme",
+            "producer_ref": "prod-acme",
+            "tenant_code": "INTERNAL-ACME",
+        },
+        updated_draft={
+            "draft_id": "draft-uuid",
+            "draft_ref": "draft-submit-1",
+            "draft_version": 3,
+            "status": "READY_FOR_REVIEW",
+            "external_tenant_ref": "acme-distribution",
+            "organisation_ref": "org-acme",
+            "producer_ref": "prod-acme",
+            "tenant_code": "INTERNAL-ACME",
+        },
+        action_status="SUCCESS",
+        idempotency_reference="hashed-submit-key",
+        correlation_id="corr-submit-1",
+        validation=_validation(validation_result={"status": "VALID"}),
+    )
+    rendered = json.dumps(evidence, sort_keys=True).lower()
+
+    assert evidence["actor_ref"] == "operator-1"
+    assert evidence["actor_role"] == "SYSTEM_ADMIN"
+    assert evidence["operation_type"] == "ONBOARDING_DRAFT_SUBMIT_FOR_REVIEW"
+    assert evidence["action_status"] == "SUCCESS"
+    assert evidence["review_status"] == "READY_FOR_REVIEW"
+    assert evidence["external_scope"] == {
+        "external_tenant_ref": "acme-distribution",
+        "organisation_ref": "org-acme",
+        "producer_ref": "prod-acme",
+    }
+    assert evidence["draft_ref"] == "draft-submit-1"
+    assert evidence["draft_version"] == 3
+    assert evidence["idempotency_reference"] == "hashed-submit-key"
+    assert evidence["correlation_id"] == "corr-submit-1"
+    assert len(evidence["before_state_hash"]) == 64
+    assert len(evidence["after_state_hash"]) == 64
+    assert evidence["before_state_hash"] != evidence["after_state_hash"]
+    assert evidence["changed_state"] == ["draft_status", "draft_version"]
+    assert evidence["changed_sections"] == ["draft_status", "draft_version"]
+    assert evidence["validation_summary"]["status"] == "VALID"
+    assert evidence["no_live_action_confirmed"] is True
+    assert "internal-acme" not in rendered
+    assert '"tenant_code":' not in rendered
+    assert "submit-review-key-1" not in rendered
+
+
+def test_submit_for_review_evidence_redacts_unsafe_validation_categories():
+    evidence = build_submit_for_review_audit_evidence(
+        actor_ref="operator-1",
+        actor_role="system_admin",
+        permission_scope=None,
+        prior_draft={
+            "draft_ref": "draft-submit-1",
+            "draft_version": 2,
+            "status": "DRAFT_UPDATED",
+            "external_tenant_ref": "acme-distribution",
+        },
+        updated_draft={
+            "draft_ref": "draft-submit-1",
+            "draft_version": 3,
+            "status": "READY_FOR_REVIEW",
+            "external_tenant_ref": "acme-distribution",
+        },
+        action_status="SUCCESS",
+        idempotency_reference="hashed-submit-key",
+        correlation_id="corr-submit-1",
+        validation=_validation(
+            redactions=[
+                "secret_or_credential",
+                "webhook_internal",
+                "money_movement_internal",
+            ]
+        ),
+    )
+    rendered = json.dumps(evidence, sort_keys=True).lower()
+
+    assert evidence["redaction_summary"] == {
+        "categories": [
+            "money_movement_internal",
+            "secret_or_credential",
+            "webhook_internal",
+        ],
+        "redacted": True,
+    }
+    forbidden = (
+        "api_key",
+        "client_secret",
+        "webhook_delivery",
+        "provider_payload",
+        "wallet",
+        "settlement",
+        "fulfilment",
+        "retry_payload",
+    )
+    assert all(term not in rendered for term in forbidden)
+
+
+def test_submit_for_review_audit_link_fields_do_not_dispatch():
+    evidence = build_submit_for_review_audit_evidence(
+        actor_ref="operator-1",
+        actor_role="system_admin",
+        permission_scope=None,
+        prior_draft={
+            "draft_ref": "draft-submit-1",
+            "draft_version": 2,
+            "status": "DRAFT_UPDATED",
+            "external_tenant_ref": "acme-distribution",
+        },
+        updated_draft={
+            "draft_ref": "draft-submit-1",
+            "draft_version": 3,
+            "status": "READY_FOR_REVIEW",
+            "external_tenant_ref": "acme-distribution",
+        },
+        action_status="SUCCESS",
+        idempotency_reference="hashed-submit-key",
+        correlation_id="corr-submit-1",
+        validation=_validation(validation_result={"status": "VALID"}),
+    )
+
+    fields = build_submit_for_review_audit_link_fields(
+        draft_id="draft-uuid",
+        evidence=evidence,
+        idempotency_id="idem-uuid",
+    )
+
+    assert fields["action_type"] == "ONBOARDING_DRAFT_SUBMIT_FOR_REVIEW"
+    assert fields["action_status"] == "SUCCESS"
+    assert fields["evidence_type"] == "SUBMIT_FOR_REVIEW_AUDIT_EVIDENCE"
+    assert fields["audit_ref"] is None
+    assert fields["event_ref"] is None
+    assert fields["idempotency_id"] == "idem-uuid"
+    assert fields["evidence_summary"]["dispatch"] == {
+        "event_dispatched": False,
+        "webhook_dispatched": False,
+        "event_ref": None,
+    }

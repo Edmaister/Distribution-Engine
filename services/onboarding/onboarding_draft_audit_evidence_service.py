@@ -6,7 +6,9 @@ from typing import Any, Final
 from services.onboarding.onboarding_draft_idempotency_service import hash_payload
 
 OPERATION_DRAFT_CREATE: Final = "ONBOARDING_DRAFT_CREATE"
+OPERATION_SUBMIT_FOR_REVIEW: Final = "ONBOARDING_DRAFT_SUBMIT_FOR_REVIEW"
 EVIDENCE_TYPE_DRAFT_SAVE: Final = "DRAFT_SAVE_AUDIT_EVIDENCE"
+EVIDENCE_TYPE_SUBMIT_FOR_REVIEW: Final = "SUBMIT_FOR_REVIEW_AUDIT_EVIDENCE"
 EMPTY_STATE_HASH: Final = hash_payload({"state": "empty_onboarding_draft"})
 
 SCOPE_FIELDS: Final = (
@@ -151,13 +153,111 @@ def build_draft_save_audit_link_fields(
     }
 
 
+def build_submit_for_review_audit_evidence(
+    *,
+    actor_ref: str,
+    actor_role: str,
+    permission_scope: Mapping[str, Any] | None,
+    prior_draft: Mapping[str, Any],
+    updated_draft: Mapping[str, Any],
+    action_status: str,
+    idempotency_reference: str | None,
+    correlation_id: str | None,
+    validation: Mapping[str, Any] | None = None,
+    target_status: str = "READY_FOR_REVIEW",
+) -> dict[str, Any]:
+    safe_scope = _safe_scope(prior_draft)
+    redactions = set(_string_set(_as_mapping(validation).get("redactions")))
+    validation_summary = _validation_summary(validation)
+    readiness_summary = _readiness_summary(validation)
+    before_state = _submit_state_summary(
+        draft=prior_draft,
+        scope=safe_scope,
+        operation_type=OPERATION_SUBMIT_FOR_REVIEW,
+        action_status=action_status,
+        validation_summary=validation_summary,
+        readiness_summary=readiness_summary,
+    )
+    after_state = _submit_state_summary(
+        draft=updated_draft,
+        scope=safe_scope,
+        operation_type=OPERATION_SUBMIT_FOR_REVIEW,
+        action_status=action_status,
+        validation_summary=validation_summary,
+        readiness_summary=readiness_summary,
+        target_status=target_status,
+    )
+    changed_state = _changed_submit_state(before_state, after_state)
+
+    evidence = {
+        "actor_ref": _safe_text(actor_ref) or "UNKNOWN_ACTOR",
+        "actor_role": _safe_text(actor_role).upper() or "UNKNOWN_ROLE",
+        "permission_scope": _safe_permission_scope(permission_scope, safe_scope),
+        "external_scope": safe_scope,
+        "draft_ref": _safe_text(
+            updated_draft.get("draft_ref") or prior_draft.get("draft_ref")
+        ),
+        "draft_version": _safe_int(updated_draft.get("draft_version")),
+        "operation_type": OPERATION_SUBMIT_FOR_REVIEW,
+        "action_status": _safe_text(action_status).upper(),
+        "review_status": _safe_text(target_status).upper(),
+        "idempotency_reference": _safe_text(idempotency_reference),
+        "correlation_id": _safe_text(correlation_id),
+        "before_state_hash": hash_payload(before_state),
+        "after_state_hash": hash_payload(after_state),
+        "changed_state": changed_state,
+        "changed_sections": changed_state,
+        "validation_summary": validation_summary,
+        "readiness_summary": readiness_summary,
+        "redaction_summary": {
+            "categories": sorted(redactions),
+            "redacted": bool(redactions),
+        },
+        "no_live_action_confirmed": True,
+    }
+    return _drop_blank_values(evidence)
+
+
+def build_submit_for_review_audit_link_fields(
+    *,
+    draft_id: str,
+    evidence: Mapping[str, Any],
+    idempotency_id: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "draft_id": _safe_text(draft_id),
+        "draft_ref": _safe_text(evidence.get("draft_ref")),
+        "draft_version": evidence.get("draft_version"),
+        "action_type": _safe_text(evidence.get("operation_type")),
+        "action_status": _safe_text(evidence.get("action_status")),
+        "actor_ref": _safe_text(evidence.get("actor_ref")),
+        "actor_role": _safe_text(evidence.get("actor_role")),
+        "correlation_id": _safe_text(evidence.get("correlation_id")),
+        "evidence_type": EVIDENCE_TYPE_SUBMIT_FOR_REVIEW,
+        "audit_ref": None,
+        "event_ref": None,
+        "idempotency_id": _safe_text(idempotency_id) or None,
+        "before_state_hash": _safe_text(evidence.get("before_state_hash")),
+        "after_state_hash": _safe_text(evidence.get("after_state_hash")),
+        "changed_sections": list(_as_sequence(evidence.get("changed_sections"))),
+        "redactions": list(
+            _as_sequence(
+                _as_mapping(evidence.get("redaction_summary")).get("categories")
+            )
+        ),
+        "evidence_summary": _evidence_summary(evidence),
+    }
+
+
 def _evidence_summary(evidence: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "operation_type": _safe_text(evidence.get("operation_type")),
         "action_status": _safe_text(evidence.get("action_status")),
+        "review_status": _safe_text(evidence.get("review_status")),
         "external_scope": _as_mapping(evidence.get("external_scope")),
         "idempotency_reference": _safe_text(evidence.get("idempotency_reference")),
         "correlation_id": _safe_text(evidence.get("correlation_id")),
+        "changed_state": list(_as_sequence(evidence.get("changed_state"))),
         "changed_sections": list(_as_sequence(evidence.get("changed_sections"))),
         "validation_summary": _as_mapping(evidence.get("validation_summary")),
         "readiness_summary": _as_mapping(evidence.get("readiness_summary")),
@@ -230,6 +330,40 @@ def _changed_sections(
     return changed
 
 
+def _submit_state_summary(
+    *,
+    draft: Mapping[str, Any],
+    scope: Mapping[str, Any],
+    operation_type: str,
+    action_status: str,
+    validation_summary: Mapping[str, Any],
+    readiness_summary: Mapping[str, Any],
+    target_status: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "draft_ref": _safe_text(draft.get("draft_ref")),
+        "draft_version": _safe_int(draft.get("draft_version")),
+        "draft_status": _safe_text(target_status or draft.get("status")).upper(),
+        "operation_type": _safe_text(operation_type).upper(),
+        "action_status": _safe_text(action_status).upper(),
+        "scope": dict(scope),
+        "validation_summary": dict(validation_summary),
+        "readiness_summary": dict(readiness_summary),
+        "no_live_action_confirmed": True,
+    }
+
+
+def _changed_submit_state(
+    before_state: Mapping[str, Any],
+    after_state: Mapping[str, Any],
+) -> list[str]:
+    changed: list[str] = []
+    for key in ("draft_status", "draft_version"):
+        if before_state.get(key) != after_state.get(key):
+            changed.append(key)
+    return changed
+
+
 def _validation_summary(validation: Mapping[str, Any] | None) -> dict[str, Any]:
     source = _as_mapping(validation)
     validation_result = _as_mapping(source.get("validation_result"))
@@ -291,6 +425,16 @@ def _safe_value(value: Any) -> Any:
     if isinstance(value, bool | int | float):
         return value
     return _safe_text(value)
+
+
+def _safe_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return None
 
 
 def _safe_text(value: Any) -> str:

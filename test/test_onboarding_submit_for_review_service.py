@@ -65,6 +65,7 @@ class DraftRepoStub:
         self.updated_kwargs = None
         self.idempotency_lookup_kwargs = None
         self.recorded_idempotency_kwargs = None
+        self.audit_link_kwargs = None
 
     async def get_draft_by_ref(self, draft_ref):
         assert draft_ref == "draft_001"
@@ -91,13 +92,15 @@ class DraftRepoStub:
             **kwargs,
         }
 
+    async def create_audit_link_reference(self, **kwargs):
+        self.audit_link_kwargs = kwargs
+        return {
+            "audit_link_id": "audit-link-uuid",
+            **kwargs,
+        }
+
 
 def _patch_repo(monkeypatch, stub):
-    async def fail_audit_link_reference(**_kwargs):
-        raise AssertionError(
-            "submit-for-review must not create audit links in TASK-115"
-        )
-
     monkeypatch.setattr(service.draft_repo, "get_draft_by_ref", stub.get_draft_by_ref)
     monkeypatch.setattr(
         service.draft_repo,
@@ -117,7 +120,7 @@ def _patch_repo(monkeypatch, stub):
     monkeypatch.setattr(
         service.draft_repo,
         "create_audit_link_reference",
-        fail_audit_link_reference,
+        stub.create_audit_link_reference,
     )
 
 
@@ -170,6 +173,35 @@ async def test_submit_for_review_transitions_valid_draft(monkeypatch):
         draft_ref="draft_001",
     )
     assert "review-key-1" not in json.dumps(stub.recorded_idempotency_kwargs)
+    assert result["audit_evidence_status"] == "RECORDED_REFERENCE"
+    assert result["audit_evidence_ref"] == "SUBMIT_FOR_REVIEW_AUDIT_EVIDENCE"
+    assert result["audit_link_ref"] == "audit-link-uuid"
+    assert stub.audit_link_kwargs["action_type"] == (
+        service.OPERATION_SUBMIT_FOR_REVIEW
+    )
+    assert stub.audit_link_kwargs["action_status"] == "SUCCESS"
+    assert stub.audit_link_kwargs["evidence_type"] == (
+        "SUBMIT_FOR_REVIEW_AUDIT_EVIDENCE"
+    )
+    assert stub.audit_link_kwargs["audit_ref"] is None
+    assert stub.audit_link_kwargs["event_ref"] is None
+    assert stub.audit_link_kwargs["idempotency_id"] == "idem-uuid"
+    assert stub.audit_link_kwargs["actor_ref"] == "operator-1"
+    assert stub.audit_link_kwargs["actor_role"] == "SYSTEM_ADMIN"
+    assert stub.audit_link_kwargs["correlation_id"] == "corr-1"
+    assert stub.audit_link_kwargs["changed_sections"] == [
+        "draft_status",
+        "draft_version",
+    ]
+    assert stub.audit_link_kwargs["evidence_summary"]["dispatch"] == {
+        "event_dispatched": False,
+        "webhook_dispatched": False,
+        "event_ref": None,
+    }
+    rendered_audit = json.dumps(stub.audit_link_kwargs, sort_keys=True).lower()
+    assert "tenant_code" not in rendered_audit
+    assert "internal-tenant" not in rendered_audit
+    assert "review-key-1" not in rendered_audit
 
 
 @pytest.mark.asyncio
@@ -183,6 +215,7 @@ async def test_submit_for_review_rejects_missing_draft(monkeypatch):
     assert result["error"]["code"] == service.ERROR_DRAFT_NOT_FOUND
     assert stub.updated_kwargs is None
     assert stub.recorded_idempotency_kwargs is None
+    assert stub.audit_link_kwargs is None
 
 
 @pytest.mark.asyncio
@@ -197,6 +230,7 @@ async def test_submit_for_review_rejects_invalid_source_status(monkeypatch):
     assert result["error"]["current_status"] == "DISCARDED"
     assert stub.updated_kwargs is None
     assert stub.recorded_idempotency_kwargs is None
+    assert stub.audit_link_kwargs is None
 
 
 @pytest.mark.asyncio
@@ -210,6 +244,7 @@ async def test_submit_for_review_rejects_stale_version(monkeypatch):
     assert result["error"]["code"] == service.ERROR_STALE_DRAFT
     assert stub.updated_kwargs["expected_draft_version"] == 1
     assert stub.recorded_idempotency_kwargs is None
+    assert stub.audit_link_kwargs is None
 
 
 @pytest.mark.asyncio
@@ -238,6 +273,7 @@ async def test_submit_for_review_replays_same_idempotency_payload(monkeypatch):
     assert result["draft_status"] == service.TARGET_REVIEW_STATUS
     assert stub.updated_kwargs is None
     assert stub.recorded_idempotency_kwargs is None
+    assert stub.audit_link_kwargs is None
 
 
 @pytest.mark.asyncio
@@ -262,6 +298,7 @@ async def test_submit_for_review_rejects_idempotency_conflict(monkeypatch):
     assert result["error"]["code"] == service.ERROR_IDEMPOTENCY_CONFLICT
     assert stub.updated_kwargs is None
     assert stub.recorded_idempotency_kwargs is None
+    assert stub.audit_link_kwargs is None
 
 
 @pytest.mark.asyncio
@@ -280,6 +317,7 @@ async def test_submit_for_review_rejects_validation_blockers(monkeypatch):
     assert result["error"]["code"] == service.ERROR_VALIDATION_BLOCKED
     assert stub.updated_kwargs is None
     assert stub.recorded_idempotency_kwargs is None
+    assert stub.audit_link_kwargs is None
 
 
 @pytest.mark.asyncio
@@ -292,6 +330,7 @@ async def test_submit_for_review_rejects_adjacent_role(monkeypatch):
     assert result["status"] == service.RESULT_REJECTED
     assert result["error"]["code"] == service.ERROR_PERMISSION_DENIED_SUBMIT
     assert stub.updated_kwargs is None
+    assert stub.audit_link_kwargs is None
     assert stub.recorded_idempotency_kwargs is None
 
 
