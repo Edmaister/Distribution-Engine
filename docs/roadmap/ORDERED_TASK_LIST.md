@@ -2055,6 +2055,14 @@ Documentation/readback only. Confirmed only roadmap documentation changed, TASK-
 
 ## TASK-115: Add submit-for-review repository state transition
 
+Status: Complete (2026-07-05). Output: `services/onboarding/onboarding_submit_for_review_service.py`; `test/test_onboarding_submit_for_review_service.py`.
+
+Finding:
+Added a focused submit-for-review service primitive that wraps the existing onboarding draft repository and hashed idempotency helper. The primitive transitions eligible saved drafts from `DRAFT_CREATED`, `DRAFT_UPDATED`, or validation-cleared `VALIDATION_FAILED` to the schema-backed `READY_FOR_REVIEW` status only when supplied validation evidence is unambiguously `VALID`. It returns safe results for success, replay, idempotency conflict, stale draft version, missing draft, invalid state, validation blockers, and unauthorized adjacent roles. No API route, frontend integration, schema, migration, audit/event dispatch, approval workflow, live action, credential lifecycle, webhook delivery, funding, wallet, fulfilment, settlement, retry, go-live, or money movement was added.
+
+Validation:
+`pytest test/test_onboarding_submit_for_review_service.py test/test_onboarding_draft_repository.py test/test_onboarding_draft_idempotency_service.py test/test_onboarding_draft_validation_service.py` passed (39 tests). `scripts/check_migrations.py` passed. Ruff passed for the changed Python files after import ordering fix. `py_compile` passed for the changed Python files. `git diff --check` passed. Black check was attempted but timed out locally on the changed service file; no formatting issues were reported by Ruff.
+
 Objective: Add repository/service primitives for transitioning a saved draft to review state without route wiring or live activation.
 Type: Service/Repository/Tests.
 Dependencies: TASK-104; TASK-105; TASK-106; TASK-114.
