@@ -2346,6 +2346,33 @@ Rollback notes: Revert documentation-only additions and this roadmap entry.
 Explicit non-goals: Do not implement schema, migrations, account services, membership services, external reference resolver, APIs, frontend, campaign setup, referral code changes, progress API changes, attribution trace, billing, funding, fulfilment, settlement, sponsor billing, marketplace expansion, white-label/embed, or live DB checks.
 Definition of done: Referral SaaS has a bounded account setup contract ready to drive narrow implementation planning without duplicating source code or exposing internal `tenant_code` as the product identifier. Priority: P0.
 
+## TASK-135: Productize Referral SaaS campaign setup and readiness contract
+
+Status: Complete (2026-07-11). Output: `docs/sa/referral-saas/REFERRAL_SAAS_CAMPAIGN_SETUP_READINESS_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Campaign setup; campaign readiness; campaign policy; campaign validation; campaign track lifecycle; Referral SaaS campaign workflow.
+Objective: Define the campaign setup and readiness contract needed to package existing campaign create, policy, validation, track, and readiness capabilities as a coherent Referral SaaS workflow.
+Why now: TASK-134 defines the account setup boundary. The next product wedge needs a campaign setup contract that composes existing campaign services without changing current behavior or pulling in broad DLaaS marketplace/money scope.
+Current source-of-truth files inspected: `docs/sa/CAMPAIGN_OPPORTUNITY_LIFECYCLE_MAP.md`; `docs/sa/CAMPAIGN_READINESS_SERVICE_CONTRACT.md`; `docs/sa/LINK_CODE_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `dp/migrations/002_campaigns.sql`; `dp/migrations/003_policies.sql`; `dp/migrations/014_campaign_referral_links.sql`; `services/campaign_service.py`; `services/campaign_policy_service.py`; `services/campaign_readiness_service.py`; `apps/api/routers/campaigns.py`; `apps/api/routers/admin_campaign_readiness.py`; `apps/api/schemas/campaigns.py`; `test/test_campaign_service.py`; `test/test_campaign_policy_service.py`; `test/test_campaign_readiness_service.py`; `test/test_campaigns.py`; `test/api/test_campaign_readiness_api.py`.
+Shared primitive impact: No implementation impact. Future implementation will compose shared campaign, policy, readiness, account, and link/code primitives without duplicating source code.
+Source duplication allowed: No.
+Files likely involved: `docs/sa/referral-saas/*`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: No runtime tests required for this docs-only contract.
+Validation method: Readback confirms the contract keeps `campaign_code` and `campaign_track_id` semantics distinct, defines Referral SaaS campaign concepts, setup states, setup checklist, candidate API direction, response shape, idempotency/audit expectations, permissions, future tests, implementation slices, explicit non-goals, and readiness decision.
+Acceptance criteria: Contract exists under `docs/sa/referral-saas/`; roadmap references the completed output; ordered task list records TASK-135; marketplace distribution and money flows remain deferred; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-134; campaign lifecycle/readiness SA docs TASK-006/TASK-007; link/code contract TASK-009.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Explicit non-goals: Do not implement schema, migrations, campaign setup services, routes, frontend, campaign lifecycle mutation, activation/pause/archive commands, current `/campaigns` behavior changes, campaign validation changes, campaign attribution trace, referral code/link issue changes, marketplace opportunity routing, commissions, funding, fulfilment, settlement, sponsor billing, white-label/embed, or live DB checks.
+Definition of done: Referral SaaS has a bounded campaign setup/readiness contract ready to drive narrow implementation planning without duplicating source code or merging in broad DLaaS distribution/money scope. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
