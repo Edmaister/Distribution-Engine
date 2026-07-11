@@ -2319,6 +2319,33 @@ Rollback notes: Revert documentation-only additions and this roadmap entry.
 Explicit non-goals: Do not implement account setup, campaign workflow, referral code changes, validation changes, progress API changes, attribution trace services, frontend changes, schema, migrations, live DB checks, money movement, fulfilment, settlement, funding, sponsor billing, marketplace expansion, or white-label/embed.
 Definition of done: Referral SaaS has a focused 10/10 gap matrix and ordered next-task candidates grounded in current source truth. Priority: P0.
 
+## TASK-134: Define Referral SaaS account setup contract
+
+Status: Complete (2026-07-11). Output: `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: SaaS account setup; tenant/account boundary; external tenant reference; membership setup; setup readiness; Referral SaaS packaging.
+Objective: Define the narrow account setup contract needed to wrap existing tenant-scoped referral, campaign, progress, link/code, and attribution capabilities as a Referral SaaS product.
+Why now: Existing referral and campaign capabilities are substantial, but the product cannot become SaaS-ready without a setup boundary above internal `tenant_code`.
+Current source-of-truth files inspected: `docs/sa/TENANT_IDENTIFIER_BOUNDARY_DECISION.md`; `docs/sa/TENANT_ACCOUNT_BOUNDARY_MAP.md`; `docs/sa/TENANT_ACCOUNT_LIFECYCLE_MEMBERSHIP_MODEL.md`; `docs/sa/LIVE_CRITICAL_STATE_INVENTORY.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `dp/migrations/031_tenent.sql`; `services/tenant_service.py`; `apps/api/routers/admin_tenants.py`; `apps/api/routers/session.py`; `utils/security.py`; `utils/permissions.py`; `test/test_tenant_service.py`; `test/test_admin_tenant.py`.
+Shared primitive impact: No implementation impact. Future implementation will touch shared tenant/account/auth primitives and must preserve current `tenant_code` compatibility.
+Source duplication allowed: No.
+Files likely involved: `docs/sa/referral-saas/*`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: No runtime tests required for this docs-only contract.
+Validation method: Readback confirms the contract keeps `tenant_code` internal, defines Referral SaaS account concepts, setup checklist, setup states, candidate API direction, response shape, idempotency/audit expectations, permissions, future tests, implementation slices, explicit non-goals, and readiness decision.
+Acceptance criteria: Contract exists under `docs/sa/referral-saas/`; roadmap references the completed output; ordered task list records TASK-134; broad DLaaS account/billing/money/white-label scope remains deferred; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-133; tenant/account SA docs TASK-004/TASK-005/TASK-048.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Explicit non-goals: Do not implement schema, migrations, account services, membership services, external reference resolver, APIs, frontend, campaign setup, referral code changes, progress API changes, attribution trace, billing, funding, fulfilment, settlement, sponsor billing, marketplace expansion, white-label/embed, or live DB checks.
+Definition of done: Referral SaaS has a bounded account setup contract ready to drive narrow implementation planning without duplicating source code or exposing internal `tenant_code` as the product identifier. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
