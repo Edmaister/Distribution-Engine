@@ -2157,6 +2157,10 @@ Validation expectation: Documentation/readback confirms allowed review outcomes,
 Explicit non-goals: Do not implement review decisions, approval-to-launch, go-live, live onboarding, credentials, webhooks, funding, fulfilment, settlement, retry, wallet, or money movement.
 Definition of done: Roadmap has a clear reviewed boundary for review-decision primitives or an explicit stop decision. Priority: P1.
 
+Status: Complete (2026-07-11). Output: `docs/roadmap/ONBOARDING_REVIEW_DECISION_WORKFLOW_CONTRACT_FINAL_REVIEW_TASK_121.md`.
+Finding: Added the TASK-121 onboarding review decision workflow contract final review. The checkpoint classifies review decisions as Shared Platform work, confirms current submit-for-review behavior transitions eligible drafts to `READY_FOR_REVIEW`, documents the current schema-backed draft statuses, and records that separate persisted approval/rejection/changes-requested statuses do not exist today. Decision: TASK-122 may proceed only as narrow internal service/repository primitives for review-state classification, and must either use existing schema-backed status/metadata safely or stop for reviewed schema/migration work rather than inventing persisted statuses.
+Validation: Documentation/readback only. Confirmed TASK-121 changed docs only; no backend code, frontend code, services, routes, tests, schema, migrations, live DB access, secrets, review decision implementation, approval-to-launch, live onboarding, credential lifecycle, webhook delivery, event dispatch, funding, wallet, fulfilment, settlement, retry, go-live, billing, ledger, or money movement were introduced. Readback confirms allowed review outcomes, state transition boundaries, permission posture, idempotency posture, audit evidence expectations, safe errors, rollback posture, no-live-action guardrails, and TASK-027/TASK-028 blockers are explicit.
+
 ## TASK-122: Add review decision service primitives
 
 Objective: Add service/repository primitives for internal review decisions on submitted onboarding drafts without route wiring or live activation.
