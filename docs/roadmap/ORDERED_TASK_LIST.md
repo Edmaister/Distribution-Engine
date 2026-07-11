@@ -2648,6 +2648,31 @@ Rollback notes: Revert documentation-only additions and this roadmap entry.
 Explicit non-goals: Do not implement schema, migrations, services, routes, permissions, frontend, BFFs, tests, support-case tables, repair/replay/retry/requeue/resolve/override commands, code lifecycle commands, campaign activation/publish commands, export APIs, webhook delivery, notifications, live DB checks, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
 Definition of done: Referral SaaS has a bounded operator support workflow contract that organizes existing diagnostics into safe support cases while keeping repair/replay mutations, audit/idempotency hardening, and broader DLaaS money workflows out of scope. Priority: P1.
 
+## TASK-146: Inventory Referral SaaS audit and idempotency posture
+
+Status: Complete (2026-07-11). Output: `docs/sa/referral-saas/REFERRAL_SAAS_AUDIT_IDEMPOTENCY_POSTURE.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REFERRAL_CODE_ISSUE_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_VALIDATION_RECOVERY_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_EVENT_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md`; `docs/sa/AUDIT_RETRY_POLICY_STANDARD.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Audit posture; idempotency; duplicate handling; retry/failure evidence; support repair guardrails; launch-readiness gaps.
+Objective: Inventory the current Referral SaaS audit, idempotency, retry, duplicate, and failure posture from source truth without implementing new behavior or inventing fields/statuses.
+Why now: TASK-145 defined operator support workflows and mutation guardrails. The next product wedge needs a source-backed inventory of which commands and events are already duplicate-safe/auditable and which gaps still block a 10/10 production claim.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_AUDIT_IDEMPOTENCY_POSTURE.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `apps/api/routers/referrals.py`; `apps/api/routers/progress.py`; `apps/api/routers/campaigns.py`; `apps/api/routers/admin_onboarding.py`; `services/referral_code.py`; `services/progress_service.py`; `services/campaign_readiness_service.py`; `services/admin_audit_service.py`; `services/failure_admin_service.py`; `services/onboarding/onboarding_draft_idempotency_service.py`; `services/onboarding/onboarding_draft_audit_evidence_service.py`; `dp/migrations/001_init.sql`; `dp/migrations/006_qr_scans.sql`; `dp/migrations/013_progress_events.sql`; `dp/migrations/018_add_referral_processing_audit.sql`; `dp/migrations/020_referral_event_failures.sql`; `dp/migrations/061_enterprise_event_inbox.sql`; `dp/migrations/071_admin_audit_log.sql`; `dp/migrations/080_onboarding_draft_persistence.sql`.
+Database/schema impact: None. Existing uniqueness, idempotency, audit, progress, failure, and onboarding draft persistence posture is documented only.
+Backend impact: None.
+Frontend impact: None.
+API impact: None. No fields, statuses, routes, idempotency keys, audit writes, repair/replay actions, or retry behavior are implemented.
+Tests to add/update: No runtime tests required for this docs-only inventory.
+Validation method: Readback confirms the inventory captures current posture for account setup, referral code issue, validation, referee UCN capture, progress ingestion, campaign setup/readiness, read-only diagnostics, reporting, operator failures, replay paths, launch-critical gaps, future tests, explicit non-goals, and readiness decision.
+Acceptance criteria: Inventory exists under `docs/sa/referral-saas/`; roadmap references the completed output; ordered task list records TASK-146; no backend/frontend/API/schema behavior changes; money flows remain deferred; launch-critical audit/idempotency gaps are explicit.
+Dependencies: TASK-134 through TASK-145; audit/retry policy TASK-002; current schema/service inventory.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Explicit non-goals: Do not implement schema, migrations, services, routes, permissions, frontend, tests, audit writes, idempotency behavior, retry behavior, repair/replay/requeue/resolve/override commands, public API wrappers, support-case tables, export APIs, live DB checks, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
+Definition of done: Referral SaaS has a source-backed audit/idempotency posture inventory that separates current duplicate/audit facts from launch-blocking gaps and preserves the boundary between first-launch Referral SaaS and broader DLaaS money workflows. Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
