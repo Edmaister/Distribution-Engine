@@ -138,6 +138,7 @@ greenfield referral construction.
 ## Completed Contract Outputs
 
 - TASK-134: `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_CONTRACT.md`
+- TASK-135: `docs/sa/referral-saas/REFERRAL_SAAS_CAMPAIGN_SETUP_READINESS_CONTRACT.md`
 
 ## Explicit Deferrals
 
