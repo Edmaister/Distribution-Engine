@@ -28,3 +28,5 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   status contract.
 - `REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md` - TASK-142 reporting and export
   contract.
+- `REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md` - TASK-143 public API contract
+  map.

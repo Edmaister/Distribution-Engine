@@ -2573,6 +2573,31 @@ Rollback notes: Revert documentation-only additions and this roadmap entry.
 Explicit non-goals: Do not implement schema, migrations, services, routes, permissions, frontend, tests, export APIs, export storage, materialized views, rollups, live DB checks, reward/funding/fulfilment/settlement/commission/sponsor billing reporting, marketplace-depth reporting, raw operator trace exports, mutation/repair/retry/replay workflows, webhook dispatch, notifications, payouts, invoices, or scheduled delivery.
 Definition of done: Referral SaaS has a bounded reporting and export contract that reuses the shared tenant-safe analytics foundation, defines first-launch SaaS report/export rules, and keeps broader DLaaS money/reporting scope separate. Priority: P1.
 
+## TASK-143: Create Referral SaaS public API contract map
+
+Status: Complete (2026-07-11). Output: `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/API_PERMISSION_MATRIX.md`; `docs/sa/API_SURFACE_MAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CAMPAIGN_SETUP_READINESS_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REFERRAL_CODE_ISSUE_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_VALIDATION_RECOVERY_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_EVENT_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ATTRIBUTION_TRACE_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SAFE_STATUS_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Public API contracts; auth and tenant scope; idempotency; safe errors; route packaging; product namespace mapping.
+Objective: Map existing referral, campaign, progress, safe-status, reporting, and operator route primitives into a future versioned Referral SaaS API surface without adding routes or exposing internal/admin APIs as public contracts.
+Why now: TASK-142 defined reporting and export boundaries. The next product wedge needs a route-family map and API rules before frontend IA, operator support workflow, and implementation planning continue.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `apps/api/main.py`; `apps/api/routers/referrals.py`; `apps/api/routers/campaigns.py`; `apps/api/routers/progress.py`; `apps/api/routers/admin_campaign_readiness.py`; `apps/api/routers/admin_links.py`; `apps/api/routers/admin_outcomes.py`; `apps/api/routers/admin_analytics.py`; `apps/api/routers/consumer_experience.py`; `apps/api/routers/reward_summary.py`; `apps/api/schemas/referrals.py`; `apps/api/schemas/campaigns.py`; `apps/api/schemas/progress.py`.
+Database/schema impact: None.
+Backend impact: None. Current routes and schemas are documented as source facts, not changed.
+Frontend impact: None. Future frontend route consumption and IA are documented only.
+API impact: Documentation-only. Future `/v1/referral-saas/*` route families, auth, tenant, idempotency, and safe error rules are mapped but not implemented.
+Tests to add/update: No runtime tests required for this docs-only contract map.
+Validation method: Readback confirms the map captures current mounted route facts, target route families, auth and tenant scope rules, idempotency rules, safe error shape, productization gaps, future contract tests, explicit non-goals, and readiness decision.
+Acceptance criteria: Contract map exists under `docs/sa/referral-saas/`; roadmap references the completed output; ordered task list records TASK-143; frontend IA, operator support workflow, audit/idempotency inventory, and money flows remain deferred; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-134 through TASK-142; API permission matrix TASK-019; current referral, campaign, progress, admin diagnostic, consumer experience, reward summary, and analytics route inventory.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Explicit non-goals: Do not implement schema, migrations, services, routes, auth helpers, OpenAPI, frontend, tests, public API namespaces, account membership, exports, lifecycle commands, repair/retry/replay workflows, fulfilment, settlement, payouts, invoices, webhook dispatch, marketplace-depth behavior, funding, commissions, sponsor billing, white-label/embed, or SaaS billing.
+Definition of done: Referral SaaS has a bounded public API contract map that distinguishes current route facts from future product wrappers and defines auth, tenant-scope, idempotency, and safe-error rules for implementation planning. Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
