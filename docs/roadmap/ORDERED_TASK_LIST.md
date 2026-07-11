@@ -2473,6 +2473,31 @@ Rollback notes: Revert documentation-only additions and this roadmap entry.
 Explicit non-goals: Do not implement schema, migrations, services, routes, frontend, attribution mutation, campaign validation changes, progress ingestion changes, operator link/code investigation workflow, reporting/export, customer/referrer safe status, reward/commission/funding/fulfilment/settlement/sponsor billing behavior, or live DB checks.
 Definition of done: Referral SaaS has a bounded attribution trace contract ready to drive narrow implementation planning while reusing existing outcome trace capability and keeping operator workflow, reporting, safe status, and broad DLaaS money scope separate. Priority: P0.
 
+## TASK-147: Define Referral SaaS E2E and live verification plan
+
+Status: Complete (2026-07-11). Output: `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/LIVE_DB_STATE_VERIFICATION_CHECKLIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: E2E launch confidence; live DB/state verification; migration replay; route smoke classification; tenant isolation; redaction; attribution evidence.
+Objective: Define the E2E and live verification evidence required to prove the existing Referral SaaS wedge from account context through campaign, referral code/link, validation, progress ingestion, attribution trace, and later reporting/safe status without mixing in broader DLaaS money or marketplace scope.
+Why now: TASK-139 completed the attribution trace contract. TASK-147 is intentionally pulled forward because live DB/state uncertainty and missing focused E2E proof can cap production confidence even when individual referral, progress, campaign, and attribution components already exist.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `docs/sa/LIVE_DB_STATE_VERIFICATION_CHECKLIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `dp/migrations/001_init.sql`; `dp/migrations/002_campaigns.sql`; `dp/migrations/006_qr_scans.sql`; `dp/migrations/013_progress_events.sql`; `dp/migrations/014_campaign_referral_links.sql`; `dp/migrations/017_fix_referral_progress_event_type_constraint.sql`; `dp/migrations/018_add_referral_processing_audit.sql`; `dp/migrations/020_referral_event_failures.sql`; `dp/migrations/061_enterprise_event_inbox.sql`; `dp/migrations/070_distribution_route_referral_links.sql`; `dp/migrations/071_admin_audit_log.sql`; current referral, progress, campaign, outcome trace, link/code, enterprise event, and distribution reporting test inventory.
+Database/schema impact: None. The plan documents the launch-critical tables, statuses, constraints, and indexes to verify later.
+Backend impact: None.
+Frontend impact: None.
+API impact: None. Candidate smoke routes are documented for later verification only and must be selected from mounted routers before execution.
+Tests to add/update: No runtime tests required for this docs-only plan.
+Validation method: Readback confirms the plan covers golden-path E2E, negative/cross-tenant cases, redaction, route smoke classification, live DB/state verification, migration replay, launch exit criteria, implementation slices, explicit non-goals, and the separation between Referral SaaS proof and broader DLaaS money/marketplace capabilities.
+Acceptance criteria: Plan exists under `docs/sa/referral-saas/`; roadmap references the completed output; ordered task list records TASK-147; TASK-140 through TASK-146 remain available for operator workflow, safe status, reporting, public API, frontend IA, support workflow, and audit/idempotency posture; no backend/frontend/API/schema behavior changes; no live DB access is performed.
+Dependencies: TASK-139; live DB/state checklist TASK-003; current referral, campaign, progress, link/code, outcome trace, enterprise event, and distribution reporting test inventory.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Explicit non-goals: Do not implement schema, migrations, services, routes, frontend, tests, smoke scripts, live DB queries, production checks, production writes, repair/replay/retry actions, reward/funding/fulfilment/settlement/commission/sponsor billing verification, or marketplace-depth verification.
+Definition of done: Referral SaaS has a source-backed plan for proving production readiness through focused E2E coverage, route smoke checks, migration replay, and read-only live DB/state verification while keeping broader DLaaS expansion scope separate. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
