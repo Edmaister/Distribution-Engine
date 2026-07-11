@@ -135,6 +135,10 @@ greenfield referral construction.
 - Live DB/state verification has been completed for all launch-critical tables,
   constraints, statuses, and smoke routes.
 
+## Completed Contract Outputs
+
+- TASK-134: `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_CONTRACT.md`
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:
