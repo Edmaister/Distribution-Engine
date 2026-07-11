@@ -1,0 +1,1244 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Referral + Campaign Attribution SaaS to DLaaS Roadmap</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #18212f;
+        --muted: #5d6878;
+        --line: #d8dee8;
+        --paper: #f7f9fc;
+        --panel: #ffffff;
+        --navy: #16324f;
+        --teal: #0f766e;
+        --green: #2f855a;
+        --amber: #b7791f;
+        --red: #b42318;
+        --blue: #2f5fbb;
+        --violet: #6941c6;
+        --cyan: #087ea4;
+        --shadow: 0 18px 48px rgba(22, 50, 79, 0.12);
+        --radius: 8px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        background: var(--paper);
+        color: var(--ink);
+      }
+
+      main {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 44px;
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: var(--radius);
+        min-height: 430px;
+        background:
+          linear-gradient(120deg, rgba(10, 29, 48, 0.92), rgba(15, 118, 110, 0.82)),
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='520' viewBox='0 0 1200 520'%3E%3Crect width='1200' height='520' fill='%2316324f'/%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='.24' stroke-width='2'%3E%3Cpath d='M120 360 C220 250 310 220 420 260 S650 380 760 290 930 120 1080 170'/%3E%3Cpath d='M70 180 C210 110 330 130 460 190 S670 310 820 230 980 70 1140 100'/%3E%3Cpath d='M160 430 C310 350 440 360 560 410 S780 510 930 390 1030 280 1160 300'/%3E%3C/g%3E%3Cg fill='%23ffffff' fill-opacity='.72'%3E%3Ccircle cx='120' cy='360' r='6'/%3E%3Ccircle cx='420' cy='260' r='8'/%3E%3Ccircle cx='760' cy='290' r='7'/%3E%3Ccircle cx='1080' cy='170' r='9'/%3E%3Ccircle cx='70' cy='180' r='5'/%3E%3Ccircle cx='460' cy='190' r='7'/%3E%3Ccircle cx='820' cy='230' r='6'/%3E%3Ccircle cx='1140' cy='100' r='8'/%3E%3Ccircle cx='160' cy='430' r='5'/%3E%3Ccircle cx='560' cy='410' r='7'/%3E%3Ccircle cx='930' cy='390' r='6'/%3E%3C/g%3E%3C/svg%3E");
+        background-size: cover;
+        box-shadow: var(--shadow);
+      }
+
+      .hero-inner {
+        width: min(760px, 100%);
+        padding: 42px;
+      }
+
+      .eyebrow {
+        margin: 0 0 14px;
+        color: #b7f7ed;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        color: #ffffff;
+        font-size: clamp(34px, 5vw, 62px);
+        line-height: 1.03;
+        letter-spacing: 0;
+      }
+
+      .hero-copy {
+        max-width: 670px;
+        margin: 20px 0 0;
+        color: #edf7f6;
+        font-size: 18px;
+        line-height: 1.55;
+      }
+
+      .score-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 30px;
+      }
+
+      .score {
+        min-height: 108px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: var(--radius);
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        backdrop-filter: blur(8px);
+      }
+
+      .score strong {
+        display: block;
+        font-size: 30px;
+        line-height: 1;
+      }
+
+      .score span {
+        display: block;
+        margin-top: 8px;
+        color: #dff5f1;
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .status-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .status-pill {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 13px 14px;
+        background: #ffffff;
+      }
+
+      .status-pill b {
+        display: block;
+        color: var(--navy);
+        font-size: 14px;
+      }
+
+      .status-pill span {
+        display: block;
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      section {
+        margin-top: 24px;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 14px;
+      }
+
+      h2 {
+        margin: 0;
+        color: var(--navy);
+        font-size: 25px;
+        line-height: 1.2;
+        letter-spacing: 0;
+      }
+
+      .section-head p {
+        max-width: 520px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .two {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .four {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .panel,
+      .capability,
+      .phase,
+      .guardrail {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--panel);
+        box-shadow: 0 8px 22px rgba(22, 50, 79, 0.06);
+      }
+
+      .panel {
+        padding: 20px;
+      }
+
+      .panel h3,
+      .capability h3,
+      .phase h3,
+      .guardrail h3 {
+        margin: 0;
+        color: var(--ink);
+        font-size: 17px;
+        line-height: 1.25;
+      }
+
+      .panel p,
+      .capability p,
+      .phase p,
+      .guardrail p {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .spine {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(120px, 1fr));
+        gap: 10px;
+        align-items: stretch;
+      }
+
+      .spine-step {
+        position: relative;
+        min-height: 118px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: #ffffff;
+      }
+
+      .spine-step::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        right: -10px;
+        width: 10px;
+        border-top: 2px solid var(--teal);
+      }
+
+      .spine-step:last-child::after {
+        display: none;
+      }
+
+      .step-num {
+        display: inline-grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--teal);
+        color: #ffffff;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .spine-step b {
+        display: block;
+        margin-top: 10px;
+        color: var(--navy);
+        font-size: 14px;
+      }
+
+      .spine-step span {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .capability {
+        position: relative;
+        overflow: hidden;
+        padding: 18px;
+        min-height: 190px;
+      }
+
+      .capability::before,
+      .phase::before,
+      .guardrail::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 5px;
+        background: var(--blue);
+      }
+
+      .capability[data-tone="teal"]::before {
+        background: var(--teal);
+      }
+
+      .capability[data-tone="green"]::before {
+        background: var(--green);
+      }
+
+      .capability[data-tone="amber"]::before {
+        background: var(--amber);
+      }
+
+      .capability[data-tone="violet"]::before {
+        background: var(--violet);
+      }
+
+      .capability[data-tone="cyan"]::before {
+        background: var(--cyan);
+      }
+
+      .tag-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 14px;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 25px;
+        border-radius: 999px;
+        padding: 4px 9px;
+        background: #eef4ff;
+        color: #29477c;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .tag.dlaas {
+        background: #e6fbf6;
+        color: #0f655e;
+      }
+
+      .tag.risk {
+        background: #fff4e5;
+        color: #8a5a13;
+      }
+
+      .tag.done {
+        background: #e8f7ef;
+        color: #226544;
+      }
+
+      .tag.next {
+        background: #e9f5fb;
+        color: #0d5f7b;
+      }
+
+      .phase {
+        position: relative;
+        padding: 18px;
+        min-height: 238px;
+      }
+
+      .phase:nth-child(2)::before {
+        background: var(--teal);
+      }
+
+      .phase:nth-child(3)::before {
+        background: var(--green);
+      }
+
+      .phase:nth-child(4)::before {
+        background: var(--amber);
+      }
+
+      .phase ol {
+        margin: 12px 0 0;
+        padding-left: 21px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .phase li + li {
+        margin-top: 5px;
+      }
+
+      .matrix {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--panel);
+      }
+
+      .matrix-row {
+        display: grid;
+        grid-template-columns: 1.1fr 1.2fr 1.2fr;
+        border-top: 1px solid var(--line);
+      }
+
+      .matrix-row:first-child {
+        border-top: 0;
+        background: #edf2f7;
+        color: var(--navy);
+        font-weight: 800;
+      }
+
+      .matrix-cell {
+        padding: 14px;
+        border-left: 1px solid var(--line);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .matrix-cell:first-child {
+        border-left: 0;
+        font-weight: 800;
+        color: var(--navy);
+      }
+
+      .guardrail {
+        position: relative;
+        padding: 18px;
+        min-height: 170px;
+      }
+
+      .guardrail:nth-child(2)::before {
+        background: var(--red);
+      }
+
+      .guardrail:nth-child(3)::before {
+        background: var(--amber);
+      }
+
+      .guardrail:nth-child(4)::before {
+        background: var(--green);
+      }
+
+      .metric-band {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .metric {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 16px;
+        background: #ffffff;
+        min-height: 132px;
+      }
+
+      .metric b {
+        display: block;
+        color: var(--teal);
+        font-size: 26px;
+      }
+
+      .metric span {
+        display: block;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .footer-note {
+        margin-top: 24px;
+        border-left: 5px solid var(--teal);
+        border-radius: var(--radius);
+        padding: 18px 20px;
+        background: #ffffff;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 980px) {
+        .score-row,
+        .status-strip,
+        .three,
+        .four,
+        .metric-band,
+        .spine {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .spine-step::after {
+          display: none;
+        }
+      }
+
+      @media (max-width: 680px) {
+        main {
+          width: min(100% - 20px, 1180px);
+          padding-top: 10px;
+        }
+
+        .hero-inner {
+          padding: 26px;
+        }
+
+        .score-row,
+        .status-strip,
+        .two,
+        .three,
+        .four,
+        .metric-band,
+        .spine,
+        .matrix-row {
+          grid-template-columns: 1fr;
+        }
+
+        .section-head {
+          display: block;
+        }
+
+        .section-head p {
+          margin-top: 8px;
+        }
+
+        .matrix-cell,
+        .matrix-cell:first-child {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+        }
+
+        .matrix-row:first-child {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <div class="hero-inner">
+          <p class="eyebrow">First productized DLaaS wedge</p>
+          <h1>Referral Management + Campaign Attribution SaaS</h1>
+          <p class="hero-copy">
+            Productize the focused SaaS first. The repo already has referral
+            code creation, validation, terms acceptance, progress checks,
+            campaign attribution, link inspection, readiness checks, and tests.
+            The latest work completed the Referral SaaS contract wave through
+            account setup, campaign readiness, code issue, validation,
+            progress, attribution trace, operator workflow, reporting, public
+            API, frontend IA, support, audit/idempotency, and E2E/live
+            verification planning.
+          </p>
+          <div class="score-row" aria-label="Current position">
+            <div class="score">
+              <strong>8/10</strong>
+              <span>Referral management foundation after contract wave</span>
+            </div>
+            <div class="score">
+              <strong>7.5/10</strong>
+              <span>Campaign attribution foundation after trace contracts</span>
+            </div>
+            <div class="score">
+              <strong>10/10</strong>
+              <span>Target for the first commercial SaaS wedge</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section>
+        <div class="section-head">
+          <h2>Current Status Snapshot</h2>
+          <p>
+            Updated after TASK-134 through TASK-147 and the Shared Platform
+            onboarding review-decision work through TASK-122.
+          </p>
+        </div>
+        <div class="status-strip" aria-label="Roadmap status snapshot">
+          <div class="status-pill">
+            <b>14/14 Referral SaaS contracts</b>
+            <span>Account, campaign, code, validation, progress, attribution, support, reporting, API, IA, audit, and E2E plan are documented.</span>
+          </div>
+          <div class="status-pill">
+            <b>Implementation still selective</b>
+            <span>Core primitives exist, but the SaaS wrapper and unified product workflows are not fully shipped.</span>
+          </div>
+          <div class="status-pill">
+            <b>Live confidence still capped</b>
+            <span>TASK-027 and TASK-028 remain blocked, so production/live DB claims stay bounded.</span>
+          </div>
+          <div class="status-pill">
+            <b>Shared review flow started</b>
+            <span>TASK-121 and TASK-122 added onboarding review boundaries and service primitives, separate from Referral SaaS.</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>What Already Exists</h2>
+          <p>
+            The starting point is not blank. These are current backend
+            capabilities found in services, routers, migrations, and tests.
+          </p>
+        </div>
+        <div class="grid three">
+          <article class="capability" data-tone="green">
+            <h3>Referral Code Lifecycle</h3>
+            <p>
+              Code creation, terms acceptance, existing-code reuse, referral
+              validation, referral instance creation, QR scan logging, referee
+              UCN capture, and tenant-scoped lookup already exist.
+            </p>
+            <div class="tag-row">
+              <span class="tag">services/referral_code.py</span>
+              <span class="tag done">TASK-136</span>
+              <span class="tag dlaas">Keep and harden</span>
+            </div>
+          </article>
+          <article class="capability" data-tone="teal">
+            <h3>Progress and Journey Checks</h3>
+            <p>
+              Progress events validate required identifiers, product and
+              sub-product bindings, journey compatibility, self-referral
+              rejection, dedupe keys, event payload hashes, and queue emission.
+            </p>
+            <div class="tag-row">
+              <span class="tag">services/progress_service.py</span>
+              <span class="tag done">TASK-138</span>
+              <span class="tag dlaas">Event primitive</span>
+            </div>
+          </article>
+          <article class="capability" data-tone="blue">
+            <h3>Campaign and Link Evidence</h3>
+            <p>
+              Campaign attribution tables, campaign track events, campaign
+              referral links, distribution route referral links, canonical link
+              inspection, and campaign readiness checks already exist.
+            </p>
+            <div class="tag-row">
+              <span class="tag">link/code/readiness</span>
+              <span class="tag done">TASK-135/139/140</span>
+              <span class="tag dlaas">Outcome spine input</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>The Product Spine</h2>
+          <p>
+            This is the minimum SaaS lifecycle that should become the first
+            canonical DLaaS spine. Later DLaaS domains plug into the same trace.
+          </p>
+        </div>
+        <div class="spine">
+          <div class="spine-step">
+            <span class="step-num">1</span>
+            <b>Tenant Account</b>
+            <span>Company, users, roles, setup state, limits, external refs.</span>
+          </div>
+          <div class="spine-step">
+            <span class="step-num">2</span>
+            <b>Campaign</b>
+            <span>Lifecycle, readiness, policy, attribution window, limits.</span>
+          </div>
+          <div class="spine-step">
+            <span class="step-num">3</span>
+            <b>Participant</b>
+            <span>Referrer, partner, distributor, customer, source identity.</span>
+          </div>
+          <div class="spine-step">
+            <span class="step-num">4</span>
+            <b>Link or Code</b>
+            <span>Issue, validate, expire, revoke, and resolve safely.</span>
+          </div>
+          <div class="spine-step">
+            <span class="step-num">5</span>
+            <b>Event</b>
+            <span>Click, signup, conversion, qualification, and external events.</span>
+          </div>
+          <div class="spine-step">
+            <span class="step-num">6</span>
+            <b>Attribution</b>
+            <span>Decision, evidence, dedupe, precedence, trace completeness.</span>
+          </div>
+          <div class="spine-step">
+            <span class="step-num">7</span>
+            <b>Status + Report</b>
+            <span>Safe portal state, operator trace, analytics, webhook events.</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>Build Workstreams</h2>
+          <p>
+            Each workstream ships referral and attribution SaaS value now while
+            deliberately leaving a clean expansion path to DLaaS.
+          </p>
+        </div>
+        <div class="grid three">
+          <article class="capability" data-tone="teal">
+            <h3>1. SaaS Tenant Packaging</h3>
+            <p>
+              Add the missing SaaS wrapper around existing tenant-scoped flows:
+              account, users, membership, setup state, external refs, limits,
+              and plan gates. TASK-134 defines the contract; implementation is
+              still the gap.
+            </p>
+            <div class="tag-row">
+              <span class="tag done">Contract done</span>
+              <span class="tag next">Implementation next</span>
+              <span class="tag dlaas">DLaaS tenant primitive</span>
+            </div>
+          </article>
+          <article class="capability" data-tone="green">
+            <h3>2. Campaign Productization</h3>
+            <p>
+              Consolidate existing campaign creation, validation, policy, track,
+              readiness, and attribution pieces into one SaaS campaign workflow.
+              TASK-135 and TASK-139 define the product boundary.
+            </p>
+            <div class="tag-row">
+              <span class="tag done">Contracts done</span>
+              <span class="tag next">UX/API packaging</span>
+              <span class="tag dlaas">Reusable campaign model</span>
+            </div>
+          </article>
+          <article class="capability" data-tone="blue">
+            <h3>3. Referral Link and Code Hardening</h3>
+            <p>
+              Preserve existing issue, validate, resolve, and trace behavior;
+              add missing product boundaries such as stable public contracts,
+              expiration/revocation UX, and audit consistency where needed.
+            </p>
+            <div class="tag-row">
+              <span class="tag">Core referral SaaS</span>
+              <span class="tag done">TASK-136/137/143</span>
+              <span class="tag dlaas">Distribution link primitive</span>
+            </div>
+          </article>
+          <article class="capability" data-tone="violet">
+            <h3>4. Attribution Event Packaging</h3>
+            <p>
+              Productize existing progress and enterprise event ingestion into
+              stable external contracts with dedupe, retry, validation,
+              diagnostics, and tenant-safe error shapes. TASK-138 and TASK-147
+              define the launch-readiness checks.
+            </p>
+            <div class="tag-row">
+              <span class="tag">API product</span>
+              <span class="tag done">TASK-138/147</span>
+              <span class="tag dlaas">Event ingestion primitive</span>
+            </div>
+          </article>
+          <article class="capability" data-tone="amber">
+            <h3>5. Attribution Trace Unification</h3>
+            <p>
+              Connect existing campaign attribution, referral progress, campaign
+              links, route links, and reporting evidence into one explainable
+              attribution trace. TASK-139 defines the trace contract.
+            </p>
+            <div class="tag-row">
+              <span class="tag">Campaign attribution</span>
+              <span class="tag done">TASK-139</span>
+              <span class="tag dlaas">Outcome spine</span>
+            </div>
+          </article>
+          <article class="capability" data-tone="green">
+            <h3>6. Safe Status and Reporting Product</h3>
+            <p>
+              Turn existing role-specific status, progress, reporting, and
+              admin views into tenant-safe SaaS reporting and support workflows.
+              TASK-141 through TASK-146 define the packaging boundary.
+            </p>
+            <div class="tag-row">
+              <span class="tag">Customer value</span>
+              <span class="tag done">TASK-141-146</span>
+              <span class="tag dlaas">Portal status primitive</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>Phased Roadmap</h2>
+          <p>
+            The sequence keeps scope narrow enough to ship, while preventing the
+            platform from drifting away from DLaaS.
+          </p>
+        </div>
+        <div class="grid four">
+          <article class="phase">
+            <h3>Phase 1: Contracts Complete</h3>
+            <p>Referral SaaS boundaries are now documented and ordered.</p>
+            <ol>
+              <li>TASK-134 through TASK-147 completed as contract outputs.</li>
+              <li>Referral, validation, progress, attribution, API, IA, reporting, and support boundaries are explicit.</li>
+              <li>Money-depth and broad DLaaS scope remain deliberately separate.</li>
+              <li>Next work should turn contracts into thin product wrappers.</li>
+            </ol>
+          </article>
+          <article class="phase">
+            <h3>Phase 2: Product Wrappers</h3>
+            <p>Implement the focused SaaS shell around proven primitives.</p>
+            <ol>
+              <li>Account setup and onboarding checklist.</li>
+              <li>Campaign setup/readiness workflow.</li>
+              <li>Referral link/code issue, validation, recovery, and safe status UX.</li>
+              <li>Public API wrappers without duplicating backend primitives.</li>
+            </ol>
+          </article>
+          <article class="phase">
+            <h3>Phase 3: Attribution Operations</h3>
+            <p>Make attribution explainable and supportable end to end.</p>
+            <ol>
+              <li>Unified attribution trace from code/link to outcome.</li>
+              <li>Operator investigation and support-case workflow.</li>
+              <li>Tenant-safe reporting and exports.</li>
+              <li>Audit/idempotency hardening for every exposed command.</li>
+            </ol>
+          </article>
+          <article class="phase">
+            <h3>Phase 4: Production + DLaaS</h3>
+            <p>Prove live confidence, then expand distribution depth.</p>
+            <ol>
+              <li>Complete live DB/state verification and migration drift checks.</li>
+              <li>Golden-path and failure-path SaaS E2E tests.</li>
+              <li>Then attach commissions, funding, fulfilment, settlement, and billing.</li>
+              <li>Keep marketplace, white-label, and broad partner depth as DLaaS expansion.</li>
+            </ol>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>Referral SaaS vs DLaaS Alignment</h2>
+          <p>
+            The first product should be narrow in market promise, but broad
+            enough in architecture to become the DLaaS control spine.
+          </p>
+        </div>
+        <div class="matrix" role="table" aria-label="SaaS to DLaaS alignment">
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell" role="columnheader">Capability</div>
+            <div class="matrix-cell" role="columnheader">10/10 Referral + Attribution SaaS</div>
+            <div class="matrix-cell" role="columnheader">How It Moves Toward DLaaS</div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Tenant setup</div>
+            <div class="matrix-cell">Self-serve company, users, roles, limits, API access.</div>
+            <div class="matrix-cell">Becomes account, membership, entitlement, and isolation layer.</div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Campaigns</div>
+            <div class="matrix-cell">Referral campaign setup, lifecycle, readiness, reporting.</div>
+            <div class="matrix-cell">Becomes reusable campaign primitive for partners and distributors.</div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Links and codes</div>
+            <div class="matrix-cell">Traceable referral links, invite codes, QR, revoke, expire.</div>
+            <div class="matrix-cell">Becomes distribution link/code primitive for any channel.</div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Attribution</div>
+            <div class="matrix-cell">Explainable campaign attribution with dedupe and evidence.</div>
+            <div class="matrix-cell">Becomes canonical outcome spine for rewards and settlement.</div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Status UX</div>
+            <div class="matrix-cell">Safe referral, referrer, customer, campaign, and event status.</div>
+            <div class="matrix-cell">Becomes partner/customer portal status contract.</div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">APIs and webhooks</div>
+            <div class="matrix-cell">Versioned campaign, link, event, status, and webhook APIs.</div>
+            <div class="matrix-cell">Becomes the first stable public DLaaS API surface.</div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>Code Assessment to 10/10 SaaS</h2>
+          <p>
+            This table is only for the referral management and campaign
+            attribution SaaS wedge. It avoids treating DLaaS expansion work as
+            a requirement for this first product to be excellent.
+          </p>
+        </div>
+        <div class="matrix" role="table" aria-label="Current code to SaaS gap">
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell" role="columnheader">Area</div>
+            <div class="matrix-cell" role="columnheader">Already Built</div>
+            <div class="matrix-cell" role="columnheader">Needed for 10/10 SaaS</div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Referral code creation</div>
+            <div class="matrix-cell">
+              Tenant-scoped code creation, preferred handle handling, existing
+              code reuse, terms acceptance, and tests.
+            </div>
+            <div class="matrix-cell">
+              Public product contract, user-facing setup flow, stronger audit
+              consistency, and explicit code lifecycle actions such as revoke,
+              expire, and reissue where product requires them.
+            </div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Referral validation</div>
+            <div class="matrix-cell">
+              Terms enforcement, code lookup, alias validation, referral
+              instance creation, QR scan evidence, and safe failed responses.
+            </div>
+            <div class="matrix-cell">
+              Stable external API shape, idempotent validation behavior where
+              duplicate submits are expected, better operator trace for failed
+              validation, and frontend recovery states.
+            </div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Progress checks</div>
+            <div class="matrix-cell">
+              Progress events, required identifier checks, product binding,
+              journey compatibility, self-referral rejection, dedupe keys,
+              payload hashes, and queue emission.
+            </div>
+            <div class="matrix-cell">
+              Productized event catalog, tenant-facing diagnostics, replay
+              posture, clear retry/error classes, and full E2E proof from event
+              ingest to visible referral status.
+            </div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Campaign management</div>
+            <div class="matrix-cell">
+              Campaign create, validation, track update, policy read/write,
+              attribution tables, campaign track events, and readiness service.
+            </div>
+            <div class="matrix-cell">
+              Coherent campaign setup UX, activation readiness gates, tenant
+              setup defaults, reporting-friendly lifecycle states, and explicit
+              campaign attribution settings.
+            </div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Link and code inspection</div>
+            <div class="matrix-cell">
+              Canonical inspection across referral codes, campaign codes,
+              campaign referral links, route referral links, and composite-code
+              compatibility with redacted evidence.
+            </div>
+            <div class="matrix-cell">
+              Operator investigation workflow, customer-safe status mapping,
+              clearer missing-evidence categories, and direct links from UI
+              investigation to source events.
+            </div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Campaign attribution</div>
+            <div class="matrix-cell">
+              Campaign attribution records, campaign track events, campaign
+              referral links, progress events, route referral links, and
+              attribution journey tests.
+            </div>
+            <div class="matrix-cell">
+              One explainable attribution trace, precedence rules, attribution
+              windows, override policy, conflict handling, and tenant-safe
+              attribution reports.
+            </div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">SaaS packaging</div>
+            <div class="matrix-cell">
+              Tenant code is already used across important flows, admin tenant
+              APIs exist, and TASK-134 defines the Referral SaaS account setup
+              contract.
+            </div>
+            <div class="matrix-cell">
+              Account, users, memberships, roles, setup checklist, usage limits,
+              basic plan gates, onboarding flow, and production tenant isolation
+              verification.
+            </div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Production confidence</div>
+            <div class="matrix-cell">
+              Strong unit and API coverage exists across referral, progress,
+              campaign, link/code, reward summary, and attribution-related
+              journeys. TASK-147 defines the focused E2E/live verification plan.
+            </div>
+            <div class="matrix-cell">
+              Live DB/state verification, migration replay confidence, full
+              SaaS golden-path E2E tests, security review, observability checks,
+              and deployment smoke tests.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>Completed Referral SaaS Contract Wave</h2>
+          <p>
+            These outputs are complete documentation contracts. They reduce
+            ambiguity, but they do not by themselves ship every SaaS workflow.
+          </p>
+        </div>
+        <div class="grid three">
+          <article class="capability" data-tone="green">
+            <h3>Product Setup Contracts</h3>
+            <p>
+              TASK-134 to TASK-137 cover account setup, campaign readiness,
+              referral code issue, and validation/recovery.
+            </p>
+            <div class="tag-row">
+              <span class="tag done">134</span>
+              <span class="tag done">135</span>
+              <span class="tag done">136</span>
+              <span class="tag done">137</span>
+            </div>
+          </article>
+          <article class="capability" data-tone="teal">
+            <h3>Attribution Contracts</h3>
+            <p>
+              TASK-138, TASK-139, and TASK-147 cover progress events,
+              attribution trace, and E2E/live verification planning.
+            </p>
+            <div class="tag-row">
+              <span class="tag done">138</span>
+              <span class="tag done">139</span>
+              <span class="tag done">147</span>
+            </div>
+          </article>
+          <article class="capability" data-tone="cyan">
+            <h3>Operate and Package Contracts</h3>
+            <p>
+              TASK-140 to TASK-146 cover investigation, safe status, reporting,
+              public API map, frontend IA, support workflow, audit, and
+              idempotency posture.
+            </p>
+            <div class="tag-row">
+              <span class="tag done">140</span>
+              <span class="tag done">141</span>
+              <span class="tag done">142</span>
+              <span class="tag done">143</span>
+              <span class="tag done">144</span>
+              <span class="tag done">145</span>
+              <span class="tag done">146</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>Still Blocking 10/10</h2>
+          <p>
+            These are the remaining gaps before the focused SaaS can honestly
+            be called productionalized and world-class.
+          </p>
+        </div>
+        <div class="matrix" role="table" aria-label="Remaining blockers">
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell" role="columnheader">Gap</div>
+            <div class="matrix-cell" role="columnheader">Why It Matters</div>
+            <div class="matrix-cell" role="columnheader">Next Proof</div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">SaaS workflow implementation</div>
+            <div class="matrix-cell">Contracts exist, but the account, campaign, referral, validation, attribution, reporting, and support UX still need cohesive product wrappers.</div>
+            <div class="matrix-cell">Thin SaaS routes/UI around existing primitives with tests and no source duplication.</div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Live DB/state verification</div>
+            <div class="matrix-cell">TASK-027 and TASK-028 remain blocked, so production confidence cannot be claimed against live state.</div>
+            <div class="matrix-cell">Read-only live verification, drift review, migration replay, and smoke evidence.</div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Command audit/idempotency gaps</div>
+            <div class="matrix-cell">Some primitives are strong, but every exposed SaaS command needs duplicate protection, safe evidence, reason capture, and rollback posture.</div>
+            <div class="matrix-cell">Implement from TASK-146 inventory, starting with launch-critical write paths.</div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">End-to-end proof</div>
+            <div class="matrix-cell">Unit/API tests are strong, but the SaaS needs golden-path and failure-path proof from tenant setup to report/export.</div>
+            <div class="matrix-cell">Execute the TASK-147 E2E plan and record evidence in CI and smoke checks.</div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Public API and frontend packaging</div>
+            <div class="matrix-cell">The API map and IA exist, but customers still need coherent product surfaces and stable external contracts.</div>
+            <div class="matrix-cell">Ship TASK-143/TASK-144 implementation slices with auth, safe errors, and redaction tests.</div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>SaaS Guardrails</h2>
+          <p>
+            These prevent the focused SaaS from becoming a brittle one-off app.
+          </p>
+        </div>
+        <div class="grid four">
+          <article class="guardrail">
+            <h3>Do Not Invent State</h3>
+            <p>
+              Use database schema and service-layer code as source of truth.
+              New statuses need migration, service, API, UI, and tests.
+            </p>
+          </article>
+          <article class="guardrail">
+            <h3>Separate Money Depth</h3>
+            <p>
+              Rewards can be visible as status, but deep funding, fulfilment,
+              settlement, and wallet operations should stay bounded at first.
+            </p>
+          </article>
+          <article class="guardrail">
+            <h3>Make Every Command Idempotent</h3>
+            <p>
+              Campaign creation, link issuance, event ingestion, attribution,
+              replay, and webhook delivery need duplicate protection.
+            </p>
+          </article>
+          <article class="guardrail">
+            <h3>Audit the Spine</h3>
+            <p>
+              Sensitive setup, state transitions, overrides, replays, and
+              attribution decisions need actor, reason, before, after, and trace.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>Separate DLaaS Compatibility Notes</h2>
+          <p>
+            These are not launch requirements for the first SaaS wedge. They are
+            naming and boundary choices that keep the code reusable later.
+          </p>
+        </div>
+        <div class="grid three">
+          <article class="panel">
+            <h3>Use Portable Names</h3>
+            <p>
+              Prefer account, campaign, participant, link/code, event,
+              attribution trace, and status report over page-specific concepts.
+            </p>
+          </article>
+          <article class="panel">
+            <h3>Keep Money Optional</h3>
+            <p>
+              Referral reward summaries can stay visible, but funding,
+              fulfilment, settlement, wallets, and commissions should not block
+              the referral and attribution SaaS launch.
+            </p>
+          </article>
+          <article class="panel">
+            <h3>Expose Stable Contracts</h3>
+            <p>
+              Public APIs, webhooks, audit evidence, and event contracts should
+              be narrow enough for the SaaS wedge and stable enough to expand.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>Separate Shared Platform Update</h2>
+          <p>
+            This is not Referral SaaS documentation. It is included only to show
+            how the broader DLaaS foundation is moving in parallel.
+          </p>
+        </div>
+        <div class="grid two">
+          <article class="panel">
+            <h3>Onboarding Review Boundary</h3>
+            <p>
+              TASK-121 documents that review decisions are internal
+              classifications only. They do not imply approval-to-launch,
+              go-live, provisioning, credentials, webhooks, funding,
+              fulfilment, settlement, retry, billing, ledger, or money movement.
+            </p>
+          </article>
+          <article class="panel">
+            <h3>Review Decision Primitive</h3>
+            <p>
+              TASK-122 adds a service primitive for `READY_FOR_REVIEW` drafts.
+              Internal approval stays metadata-only, `BLOCKED` uses the current
+              schema, and unsupported persisted outcomes stop safely instead of
+              inventing statuses.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>10/10 Exit Criteria</h2>
+          <p>
+            These are the practical proof points before calling the first SaaS
+            wedge world-class.
+          </p>
+        </div>
+        <div class="metric-band">
+          <div class="metric">
+            <b>100%</b>
+            <span>Tenant-scoped APIs, queries, reports, exports, and portal views.</span>
+          </div>
+          <div class="metric">
+            <b>0</b>
+            <span>Unaudited manual attribution overrides or sensitive transitions.</span>
+          </div>
+          <div class="metric">
+            <b>1</b>
+            <span>Canonical outcome trace from link or code to attributed result.</span>
+          </div>
+          <div class="metric">
+            <b>All</b>
+            <span>Public commands covered by idempotency, retry, and safe errors.</span>
+          </div>
+          <div class="metric">
+            <b>E2E</b>
+            <span>Tenant to campaign to link to event to attribution to report tested.</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="footer-note">
+        Recommendation: move from completed contracts into narrow implementation
+        slices for the referral and campaign attribution SaaS first. Keep the
+        code single-source, keep DLaaS money/marketplace depth separate, and
+        use live verification plus E2E proof before upgrading the score to
+        10/10.
+      </div>
+    </main>
+  </body>
+</html>
