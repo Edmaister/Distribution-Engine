@@ -1,0 +1,119 @@
+# Referral Management and Campaign Attribution SaaS Gap Matrix
+
+Product boundary: Referral SaaS.
+
+Required boundary docs checked:
+
+- `docs/product/README.md`
+- `docs/product/referral-saas/PRODUCT_BRIEF.md`
+- `docs/roadmap/README.md`
+- `docs/roadmap/referral-saas/ROADMAP.md`
+
+Supporting source docs checked:
+
+- `docs/sa/CURRENT_STATE_MAP.md`
+- `docs/sa/CAPABILITY_GAP_MATRIX.md`
+
+## Purpose
+
+This matrix converts the current code assessment into a focused path to a
+10/10 Referral Management and Campaign Attribution SaaS product.
+
+This is not a DLaaS-wide matrix. Funding, fulfilment, settlement, commissions,
+sponsor billing, white-label/embed, and broad DLaaS marketplace expansion are
+explicitly deferred unless required to support the focused SaaS wedge.
+
+## Current Assessment Summary
+
+The product is not greenfield. Core referral and attribution-adjacent
+capabilities already exist:
+
+- referral code creation and reuse
+- accepted-terms enforcement
+- referral code validation
+- referral instance creation
+- QR scan evidence
+- referee UCN capture
+- progress event ingestion
+- journey and identifier validation
+- dedupe keys and event payload hashes
+- campaign creation and validation
+- campaign track updates
+- campaign policy read/write
+- campaign attribution records and track events
+- campaign readiness checks
+- canonical link/code inspection
+- role-specific frontend and API surfaces
+- relevant unit, service, API, and journey tests
+
+The remaining work is mainly SaaS packaging, contract hardening, attribution
+trace unification, safe reporting, operator workflow, frontend coherence, E2E
+coverage, and live DB/state verification.
+
+## Gap Matrix
+
+| Area | Current code capability | 10/10 SaaS requirement | Gap | Priority | Next task candidate | Tests/validation |
+| --- | --- | --- | --- | --- | --- | --- |
+| SaaS account packaging | `tenant_code` is used across important flows; admin tenant APIs and permission helpers exist. | SaaS customer can onboard company/account, users, roles, setup state, limits, and external references without exposing internal `tenant_code`. | Account/user/membership/seat/setup model is not productized for Referral SaaS. | P0 | TASK-134: Define Referral SaaS account setup contract | Tenant/account contract tests; role/membership tests; external-reference tests; tenant isolation tests. |
+| Campaign setup and readiness | Campaign create/validate, track update, policy read/write, attribution tables, campaign readiness service, and tests exist. | One coherent campaign setup workflow with readiness gates, lifecycle states, attribution settings, policy visibility, and activation guardrails. | Existing pieces are not yet packaged as one Referral SaaS campaign workflow. | P0 | TASK-135: Productize Referral SaaS campaign setup and readiness contract | Campaign setup API tests; readiness blocker tests; lifecycle/status tests; frontend workflow tests. |
+| Referral code creation | Code creation, preferred handle handling, existing-code reuse, and accepted-terms enforcement exist. | Tenant-scoped, documented, auditable issue/reuse flow with clear product API and setup UX. | Core exists; public contract, audit consistency, and UX packaging need hardening. | P0 | TASK-136: Harden Referral SaaS referral code issue contract | Duplicate issue tests; terms-required tests; tenant-scope tests; audit/readback tests. |
+| Referral validation and terms | Validation enforces terms, alias rules, referral instance creation, QR scan evidence, and safe failures. | Public validation API has stable errors, idempotency posture, operator trace, recovery UX, and no sensitive leakage. | Validation exists but product API/error/idempotency/operator trace need formalization. | P0 | TASK-137: Harden Referral SaaS validation and recovery contract | Validation contract tests; duplicate submit tests; safe error tests; QR evidence tests; frontend recovery tests. |
+| Progress and journey checks | Progress events validate identifiers, product/sub-product binding, journey compatibility, self-referral, dedupe key, payload hash, and queue emission. | Productized event catalog, clear retry/error classes, tenant diagnostics, replay posture, and visible status updates. | Event ingestion is strong but needs SaaS event contract and support-facing diagnostics. | P0 | TASK-138: Productize Referral SaaS progress event contract | Event contract tests; dedupe/idempotency tests; invalid payload tests; replay/diagnostic tests; E2E status tests. |
+| Campaign attribution trace | Campaign attribution records, track events, referral instances, progress events, campaign referral links, route referral links, and journey tests exist. | One explainable trace from campaign/link/code/event to attributed outcome, including missing evidence and conflict handling. | Attribution exists in several flows, but not as one product trace/read model. | P0 | TASK-139: Define Referral SaaS attribution trace contract | Golden-path trace tests; missing-evidence tests; conflict tests; cross-tenant tests. |
+| Link/code inspection | Canonical inspection covers referral codes, campaign codes, campaign referral links, route referral links, composite-code compatibility, redactions, and missing evidence. | Operator can investigate any SaaS link/code source from safe evidence and jump to related campaign, referral, progress, and attribution state. | Inspection exists; operator workflow and source-to-trace linking need packaging. | P1 | TASK-140: Add Referral SaaS operator link/code investigation contract | Admin inspection tests; redaction tests; missing source tests; UI workflow tests. |
+| Referrer/customer safe status | Consumer, distributor, reward summary, and experience routes exist; progress summaries exist for referrers. | Referrer/customer views show safe current status, next action, and progress without leaking internal fraud, audit, provider, or money details. | Role surfaces exist but SaaS safe status copy and contracts are not unified. | P1 | TASK-141: Define Referral SaaS safe status contract | Safe status tests; privacy/no-leak tests; role-scope tests; frontend status tests. |
+| Tenant-safe reporting | Distribution reporting, materialized views, finance/admin metrics, and tenant-safe analytics service exist in broader repo. | SaaS tenant can report on campaigns, referrals, links/codes, progress events, attribution, conversion, and exports with freshness rules. | Reporting exists by domain, but Referral SaaS reporting package and export contract need focus. | P1 | TASK-142: Define Referral SaaS reporting and export contract | Reporting accuracy tests; tenant filter tests; export tests; freshness tests. |
+| Public API contracts | Referral, progress, campaign, reward summary, partner-ish APIs exist. | Versioned Referral SaaS public API with auth, schemas, idempotency, errors, examples, and contract tests. | Existing routes are useful but not packaged as one stable Referral SaaS API product. | P1 | TASK-143: Create Referral SaaS public API contract map | OpenAPI/schema tests; auth tests; idempotency tests; error-shape tests. |
+| Frontend SaaS workflow | Role-specific React pages and tests exist for admin, onboarding, distributor, sponsor, partner, and consumer surfaces. | Coherent Referral SaaS workflow: account setup, campaign setup, referral link/code management, event/attribution investigation, reporting, safe status. | Frontend has useful surfaces but needs a focused Referral SaaS IA and workflow path. | P1 | TASK-144: Define Referral SaaS frontend IA and workflow contract | Frontend route tests; accessibility tests; no-internal-leak tests; workflow smoke tests. |
+| Operator support workflow | Admin audit, failure, DLQ, enterprise events, campaign readiness, and link inspection routes exist. | Operator can resolve validation, progress, link/code, attribution, and reporting issues through safe evidence without DB access. | Operational surfaces exist but are not assembled around Referral SaaS support workflows. | P1 | TASK-145: Define Referral SaaS operator support workflow | Support workflow tests; permission tests; redaction tests; evidence-link tests. |
+| Audit and idempotency posture | Domain-specific audit and idempotency exist; progress dedupe is concrete. | Every SaaS command/event has a stated idempotency, retry, audit, and failure posture. | Coverage is uneven by command type. | P1 | TASK-146: Inventory Referral SaaS audit and idempotency posture | Static inventory; duplicate request tests; audit evidence tests; retry/failure tests. |
+| E2E and live DB confidence | Broad domain tests exist; static migrations exist; live DB verification remains unavailable. | Full tenant-to-campaign-to-code-to-validation-to-progress-to-attribution-to-report E2E suite and live DB/state verification for launch-critical tables/routes. | No focused Referral SaaS golden-path suite and no live DB/state result for this wedge. | P0 | TASK-147: Define Referral SaaS E2E and live verification plan | E2E plan; migration replay; live schema/status/index checklist; route smoke checklist. |
+
+## Recommended Ordered Task Sequence
+
+1. TASK-134: Define Referral SaaS account setup contract.
+2. TASK-135: Productize Referral SaaS campaign setup and readiness contract.
+3. TASK-136: Harden Referral SaaS referral code issue contract.
+4. TASK-137: Harden Referral SaaS validation and recovery contract.
+5. TASK-138: Productize Referral SaaS progress event contract.
+6. TASK-139: Define Referral SaaS attribution trace contract.
+7. TASK-147: Define Referral SaaS E2E and live verification plan.
+8. TASK-140: Add Referral SaaS operator link/code investigation contract.
+9. TASK-141: Define Referral SaaS safe status contract.
+10. TASK-142: Define Referral SaaS reporting and export contract.
+11. TASK-143: Create Referral SaaS public API contract map.
+12. TASK-144: Define Referral SaaS frontend IA and workflow contract.
+13. TASK-145: Define Referral SaaS operator support workflow.
+14. TASK-146: Inventory Referral SaaS audit and idempotency posture.
+
+TASK-147 is intentionally pulled forward before lower-priority product polish
+because live DB/state uncertainty can cap production confidence even when code
+coverage is strong.
+
+## First Implementation Recommendation
+
+After this matrix, the next concrete task should be TASK-134. The account/setup
+contract is the commercial packaging layer that lets existing referral,
+campaign, and attribution capabilities become a SaaS product instead of a set
+of strong internal flows.
+
+TASK-134 should remain contract/design first unless it discovers a small,
+well-contained implementation path that does not require schema, auth, or
+membership changes beyond its scope.
+
+## Explicit Deferrals
+
+These are not blockers for the 10/10 Referral SaaS wedge:
+
+- distributor marketplace expansion
+- distributor commission settlement
+- funding account operations
+- fulfilment provider routing
+- settlement batches, reversals, exceptions, and certifications
+- sponsor billing
+- white-label/embed infrastructure
+- advanced platform SaaS billing beyond basic product limits
+
+If any deferred item becomes necessary for Referral SaaS launch, it must be
+rescoped as a separate task with money/audit/live-state guardrails.
+
