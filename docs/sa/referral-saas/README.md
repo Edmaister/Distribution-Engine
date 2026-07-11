@@ -18,3 +18,5 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   recovery contract.
 - `REFERRAL_SAAS_PROGRESS_EVENT_CONTRACT.md` - TASK-138 progress event
   ingestion contract.
+- `REFERRAL_SAAS_ATTRIBUTION_TRACE_CONTRACT.md` - TASK-139 attribution trace
+  contract.

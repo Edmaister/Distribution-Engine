@@ -2448,6 +2448,31 @@ Rollback notes: Revert documentation-only additions and this roadmap entry.
 Explicit non-goals: Do not implement schema, migrations, services, routes, frontend, new event names, enterprise ingestion changes, reward/mission/funding/fulfilment/settlement/sponsor billing behavior, attribution trace composition, operator repair/replay UI, reporting/export, or live DB checks.
 Definition of done: Referral SaaS has a bounded progress event contract ready to drive narrow implementation planning while preserving shared platform ingestion and keeping attribution, operator repair, reporting, and broad DLaaS scope separate. Priority: P0.
 
+## TASK-139: Define Referral SaaS attribution trace contract
+
+Status: Complete (2026-07-11). Output: `docs/sa/referral-saas/REFERRAL_SAAS_ATTRIBUTION_TRACE_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Attribution trace; outcome trace; campaign/referral link evidence; route attribution evidence; progress-event evidence; missing-evidence taxonomy; redaction.
+Objective: Define the Referral SaaS attribution trace contract around the existing `outcome_trace_service` and admin outcome trace route without creating a parallel attribution system.
+Why now: TASK-138 defined progress event ingestion. The next product wedge needs attribution trace semantics that connect referral outcome, campaign/link/route evidence, progress events, and missing-evidence diagnostics before operator workflow, safe status, reporting, and public API mapping.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_ATTRIBUTION_TRACE_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `services/outcome_trace_service.py`; `apps/api/routers/admin_outcomes.py`; `services/link_code_service.py`; `dp/migrations/002_campaigns.sql`; `dp/migrations/014_campaign_referral_links.sql`; `dp/migrations/070_distribution_route_referral_links.sql`; `test/test_outcome_trace_service.py`; `test/test_distribution_attribution_journey_contract.py`.
+Database/schema impact: None. The contract documents current attribution evidence sources and joins without changing schema.
+Backend impact: None. Existing `get_outcome_trace`, `/admin/outcomes/{referral_track_id}/trace`, and link/code inspection behavior are documented as source facts, not changed.
+Frontend impact: None.
+API impact: None. Future product projection/API direction is documented only.
+Tests to add/update: No runtime tests required for this docs-only contract.
+Validation method: Readback confirms the contract captures current outcome trace implementation, admin route permissions, prioritized Referral SaaS trace sections, source evidence, trace completeness, missing-evidence taxonomy, attribution decision rules, privacy/redaction, reporting relationship, future tests, implementation slices, explicit non-goals, and readiness decision.
+Acceptance criteria: Contract exists under `docs/sa/referral-saas/`; roadmap references the completed output; ordered task list records TASK-139; operator workflow, safe status, reporting, public API mapping, and money flows remain deferred; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-138; outcome trace contract TASK-010; link/code contract TASK-009; current outcome trace service and tests.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Explicit non-goals: Do not implement schema, migrations, services, routes, frontend, attribution mutation, campaign validation changes, progress ingestion changes, operator link/code investigation workflow, reporting/export, customer/referrer safe status, reward/commission/funding/fulfilment/settlement/sponsor billing behavior, or live DB checks.
+Definition of done: Referral SaaS has a bounded attribution trace contract ready to drive narrow implementation planning while reusing existing outcome trace capability and keeping operator workflow, reporting, safe status, and broad DLaaS money scope separate. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
