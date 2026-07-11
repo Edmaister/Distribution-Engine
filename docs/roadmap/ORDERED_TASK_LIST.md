@@ -2398,6 +2398,31 @@ Rollback notes: Revert documentation-only additions and this roadmap entry.
 Explicit non-goals: Do not implement schema, migrations, services, routes, frontend, referral validation, validation recovery, referee UCN capture, progress events, attribution trace, operator investigation, reporting/export, rewards, funding, fulfilment, settlement, sponsor billing, or live DB checks.
 Definition of done: Referral SaaS has a bounded referral code issue/get-or-create contract ready to drive narrow implementation planning while preserving existing service behavior and keeping validation, attribution, and broad DLaaS scope separate. Priority: P0.
 
+## TASK-137: Harden Referral SaaS validation and recovery contract
+
+Status: Complete (2026-07-11). Output: `docs/sa/referral-saas/REFERRAL_SAAS_VALIDATION_RECOVERY_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Public referral validation; referral instance golden thread; QR scan evidence; accepted terms enforcement; alias rules; validation recovery; referee UCN capture boundary.
+Objective: Define the product contract for public validation and immediate recovery without rebuilding the existing validation service or pulling in progress, attribution, reporting, or DLaaS money flows.
+Why now: TASK-136 defined referral code issue/reuse. The next product wedge needs validation and recovery states to be stable before progress events and attribution traces are productized.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_VALIDATION_RECOVERY_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `services/referral_code.py`; `apps/api/routers/referrals.py`; `apps/api/schemas/referrals.py`; `dp/migrations/001_init.sql`; `dp/migrations/006_qr_scans.sql`; `dp/migrations/013_progress_events.sql`; `dp/migrations/015_add_ucn_captured_at.sql`; `dp/migrations/016_fix_referral_instances_status_constraint.sql`; `dp/migrations/031_tenent.sql`; `test/test_referral_code.py`; `test/test_referrals_api.py`.
+Database/schema impact: None. The contract documents the current `referral_instances` and `referral_qr_scans` validation evidence posture.
+Backend impact: None. Existing `POST /public/referrals/validate`, `validate_referral_code`, `POST /referrals/referees/ucn`, and `capture_referee_ucn` behavior are documented as source facts, not changed.
+Frontend impact: None.
+API impact: None. Future product API and recovery-state direction are documented only.
+Tests to add/update: No runtime tests required for this docs-only contract.
+Validation method: Readback confirms the contract captures current route, schema, service behavior, terms enforcement, alias rules, response statuses, QR scan evidence, UCN capture boundary, recovery states, idempotency gap, privacy requirements, audit expectations, future tests, implementation slices, explicit non-goals, and readiness decision.
+Acceptance criteria: Contract exists under `docs/sa/referral-saas/`; roadmap references the completed output; ordered task list records TASK-137; progress events, attribution trace, operator investigation, reporting, and money flows remain deferred; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-136; current referral validation service and API tests.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Explicit non-goals: Do not implement schema, migrations, services, routes, frontend, referral code issue/reissue/revoke/expire behavior, progress event productization, campaign attribution trace, operator investigation, reporting/export, rewards, funding, fulfilment, settlement, sponsor billing, or live DB checks.
+Definition of done: Referral SaaS has a bounded validation and recovery contract ready to drive narrow implementation planning while preserving existing validation behavior and keeping progress, attribution, and broad DLaaS scope separate. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
