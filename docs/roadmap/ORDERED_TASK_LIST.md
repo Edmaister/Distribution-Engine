@@ -2423,6 +2423,31 @@ Rollback notes: Revert documentation-only additions and this roadmap entry.
 Explicit non-goals: Do not implement schema, migrations, services, routes, frontend, referral code issue/reissue/revoke/expire behavior, progress event productization, campaign attribution trace, operator investigation, reporting/export, rewards, funding, fulfilment, settlement, sponsor billing, or live DB checks.
 Definition of done: Referral SaaS has a bounded validation and recovery contract ready to drive narrow implementation planning while preserving existing validation behavior and keeping progress, attribution, and broad DLaaS scope separate. Priority: P0.
 
+## TASK-138: Productize Referral SaaS progress event contract
+
+Status: Complete (2026-07-11). Output: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_EVENT_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Progress event ingestion; event dedupe; payload hashing; journey validation; identifier validation; referral progress read model; queue/retry diagnostics.
+Objective: Define the Referral SaaS product contract for recording progress events without forking the shared `/v1/progress` primitive or pulling in attribution trace, reporting, operator repair, or DLaaS money flows.
+Why now: TASK-137 defined validation and recovery. The next product wedge needs progress events to have stable product states, idempotency expectations, retry posture, redaction rules, and launch-readiness checks before attribution trace work.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_EVENT_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `apps/api/routers/progress.py`; `apps/api/schemas/progress.py`; `services/progress_service.py`; `services/journey_definitions.py`; `services/progress_definitions.py`; `services/journey_orchestrator.py`; `dp/migrations/013_progress_events.sql`; `dp/migrations/017_fix_referral_progress_event_type_constraint.sql`; `dp/migrations/018_add_referral_processing_audit.sql`; `dp/migrations/019_dedup_update_for_testfile.sql`; `dp/migrations/020_referral_event_failures.sql`; `test/test_progress_service.py`; `test/test_progress_api.py`.
+Database/schema impact: None. The contract documents the current `referral_progress_events`, `referral_processing_audit`, and `referral_event_failures` posture, including dedupe/source-event uniqueness and the event-name constraint alignment warning.
+Backend impact: None. Existing `POST /v1/progress`, `handle_progress_event`, and downstream `REFERRAL_PROGRESS_RECORDED` orchestration behavior are documented as source facts, not changed.
+Frontend impact: None.
+API impact: None. Future product API and diagnostic direction are documented only.
+Tests to add/update: No runtime tests required for this docs-only contract.
+Validation method: Readback confirms the contract captures current route, schema, service behavior, event and journey coverage, dedupe and payload hash posture, queueing behavior, orchestration boundary, product outcome states, retry/recovery classes, privacy rules, future tests, implementation slices, explicit non-goals, and readiness decision.
+Acceptance criteria: Contract exists under `docs/sa/referral-saas/`; roadmap references the completed output; ordered task list records TASK-138; attribution trace, operator repair/replay, reporting, and money flows remain deferred; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-137; current progress service, event ingestion public contract TASK-012, and audit/retry standard TASK-002.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Explicit non-goals: Do not implement schema, migrations, services, routes, frontend, new event names, enterprise ingestion changes, reward/mission/funding/fulfilment/settlement/sponsor billing behavior, attribution trace composition, operator repair/replay UI, reporting/export, or live DB checks.
+Definition of done: Referral SaaS has a bounded progress event contract ready to drive narrow implementation planning while preserving shared platform ingestion and keeping attribution, operator repair, reporting, and broad DLaaS scope separate. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

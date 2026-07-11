@@ -16,3 +16,5 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   issue/get-or-create contract.
 - `REFERRAL_SAAS_VALIDATION_RECOVERY_CONTRACT.md` - TASK-137 validation and
   recovery contract.
+- `REFERRAL_SAAS_PROGRESS_EVENT_CONTRACT.md` - TASK-138 progress event
+  ingestion contract.
