@@ -2523,6 +2523,31 @@ Rollback notes: Revert documentation-only additions and this roadmap entry.
 Explicit non-goals: Do not implement schema, migrations, services, routes, permissions, frontend, tests, public resolve APIs, code issue/reissue/revoke/expire behavior, void commands, track creation, accepted-terms changes, mutation/repair/retry/replay workflows, queueing, webhooks, rewards, funding, fulfilment, settlement, commissions, sponsor billing, or marketplace-depth behavior.
 Definition of done: Referral SaaS has a bounded operator link/code investigation contract that packages the existing read-only inspection primitive and defines safe navigation into attribution trace and later support workflows while keeping shared platform source ownership intact. Priority: P1.
 
+## TASK-141: Define Referral SaaS safe status contract
+
+Status: Complete (2026-07-11). Output: `docs/sa/referral-saas/REFERRAL_SAAS_SAFE_STATUS_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_VALIDATION_RECOVERY_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_EVENT_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ATTRIBUTION_TRACE_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_LINK_CODE_INVESTIGATION_CONTRACT.md`; `docs/sa/PARTNER_CUSTOMER_SAFE_STATUS_CONTRACT.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Referrer/customer safe status; next action; role-scoped privacy; progress status projection; reward summary projection; internal-state redaction.
+Objective: Define the Referral SaaS referrer/customer safe status contract over existing partner/customer safe-status projection, consumer experience, reward summary, validation, progress, and attribution foundations without exposing operator diagnostics or broader DLaaS money internals.
+Why now: TASK-140 packaged operator link/code investigation. The next product wedge needs customer/referrer-facing status and next-action rules so public and portal surfaces do not consume raw referral, progress, reward, trace, or failure states.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_SAFE_STATUS_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `services/partner_customer_safe_status_service.py`; `services/reward_summary_service.py`; `services/progress_service.py`; `apps/api/routers/consumer_experience.py`; `apps/api/routers/reward_summary.py`; `test/test_partner_customer_safe_status_service.py`; `test/test_consumer_experience_api.py`; `test/test_reward_summary_api.py`; `test/test_progress_service.py`; `test/test_progress_api.py`.
+Database/schema impact: None. The contract documents safe projection over existing referral, progress, campaign, attribution, and reward evidence.
+Backend impact: None. Existing safe-status helper, consumer experience, reward summary, and progress behavior are documented as source facts, not changed.
+Frontend impact: None. Future product labels, copy, and UI behavior are documented only.
+API impact: None. Future Referral SaaS safe-status response shape is documented only; no route, auth, payload, or permission behavior changes.
+Tests to add/update: No runtime tests required for this docs-only contract.
+Validation method: Readback confirms the contract captures current safe-status helper behavior, current consumer/reward/progress surfaces, first-launch source-family scope, product vocabulary, source-state mappings, response shape, current surface gaps, future tests, explicit non-goals, and readiness decision.
+Acceptance criteria: Contract exists under `docs/sa/referral-saas/`; roadmap references the completed output; ordered task list records TASK-141; reporting, public API mapping, frontend IA, operator support workflow, audit/idempotency inventory, and money flows remain deferred; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-137; TASK-138; TASK-139; TASK-140; partner/customer safe status contract TASK-023; current safe-status helper and consumer/reward tests.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Explicit non-goals: Do not implement schema, migrations, services, routes, permissions, frontend, tests, public API wrappers, reward/funding/fulfilment/settlement/commission/sponsor billing behavior, marketplace-depth behavior, operator trace exposure, link/code inspect exposure to customers/referrers, raw state exposure, mutation/repair/retry/replay workflows, webhook dispatch, notifications, payouts, invoices, or live DB checks.
+Definition of done: Referral SaaS has a bounded referrer/customer safe-status contract that reuses the shared role-safe projection foundation and defines how validation, progress, attribution, campaign/link, and reward evidence should become safe product status and next action. Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
