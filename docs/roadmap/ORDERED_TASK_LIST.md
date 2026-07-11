@@ -2623,6 +2623,31 @@ Rollback notes: Revert documentation-only additions and this roadmap entry.
 Explicit non-goals: Do not implement React routes, components, CSS, API wrappers, schemas, backend routes, permissions, tests, public API wrappers, export APIs, mutation/repair/retry/replay controls, campaign activation, publish/revoke/expire/reissue commands, fulfilment, settlement, payouts, invoices, webhook dispatch, marketplace-depth behavior, funding, commissions, sponsor billing, wallets, white-label/embed, or SaaS billing.
 Definition of done: Referral SaaS has a bounded frontend IA and workflow contract that packages existing frontend foundations into a coherent SaaS direction while keeping broader DLaaS marketplace and money workflows separate. Priority: P1.
 
+## TASK-145: Define Referral SaaS operator support workflow
+
+Status: Complete (2026-07-11). Output: `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_LINK_CODE_INVESTIGATION_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ATTRIBUTION_TRACE_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_EVENT_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SAFE_STATUS_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `docs/sa/AUDIT_RETRY_POLICY_STANDARD.md`; `docs/sa/API_SURFACE_MAP.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Operator support workflow; link/code investigation; validation recovery; progress diagnostics; attribution review; reporting freshness; audit evidence; repair/replay guardrails.
+Objective: Define the Referral SaaS operator support workflow over existing admin/operator primitives without implementing new support UI, BFF behavior, repair/replay actions, or broader DLaaS money support.
+Why now: TASK-144 defined the frontend IA and named support as a product area. The next product wedge needs a bounded support-case taxonomy, evidence sequence, safe next actions, and mutation guardrails before implementation exposes diagnostics in a focused SaaS workflow.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `apps/api/routers/admin_links.py`; `apps/api/routers/admin_outcomes.py`; `apps/api/routers/admin_campaign_readiness.py`; `apps/api/routers/progress.py`; `apps/api/routers/admin_audit.py`; `apps/api/routers/admin_analytics.py`; `apps/api/routers/admin_failure.py`; `apps/api/routers/admin_dlq_replay.py`; `apps/api/routers/internal_replay.py`; `apps/api/routers/enterprise_events.py`; `services/link_code_service.py`; `services/outcome_trace_service.py`; `services/failure_admin_service.py`; `services/dlq_replay_service.py`; `services/replay_service.py`; `services/admin_audit_service.py`; `frontend/src/pages/admin/OperatorDemoHomePage.tsx`.
+Database/schema impact: None.
+Backend impact: None. Existing read-only diagnostics and existing admin repair/replay-capable routes are documented as source facts, not changed.
+Frontend impact: None. Future support UI and BFF behavior are documented only.
+API impact: None. No support-case route, API wrapper, permission, payload, repair, retry, replay, or mutation behavior is implemented.
+Tests to add/update: No runtime tests required for this docs-only contract.
+Validation method: Readback confirms the contract captures current support primitives, first-launch support case types, evidence sequence, safe next actions, response-shape direction, mutation boundaries, permission/redaction rules, future tests, explicit non-goals, and readiness decision.
+Acceptance criteria: Contract exists under `docs/sa/referral-saas/`; roadmap references the completed output; ordered task list records TASK-145; audit/idempotency inventory and money flows remain deferred; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-134 through TASK-144; audit/retry policy TASK-002; current admin link/code, outcome trace, campaign readiness, progress, failure, audit, analytics, replay, and operator demo surface inventory.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Explicit non-goals: Do not implement schema, migrations, services, routes, permissions, frontend, BFFs, tests, support-case tables, repair/replay/retry/requeue/resolve/override commands, code lifecycle commands, campaign activation/publish commands, export APIs, webhook delivery, notifications, live DB checks, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
+Definition of done: Referral SaaS has a bounded operator support workflow contract that organizes existing diagnostics into safe support cases while keeping repair/replay mutations, audit/idempotency hardening, and broader DLaaS money workflows out of scope. Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
