@@ -26,3 +26,5 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   operator link/code investigation contract.
 - `REFERRAL_SAAS_SAFE_STATUS_CONTRACT.md` - TASK-141 referrer/customer safe
   status contract.
+- `REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md` - TASK-142 reporting and export
+  contract.
