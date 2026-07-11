@@ -1,0 +1,330 @@
+# Referral SaaS Frontend IA And Workflow Contract
+
+TASK ID: TASK-144
+
+Product boundary: Referral Management and Campaign Attribution SaaS.
+
+Status: Contract only. No runtime behavior, route, component, CSS, API wrapper,
+permission, schema, or test changes are made by this task.
+
+## Boundary
+
+This contract defines the focused Referral SaaS information architecture and
+workflow path that should package existing frontend surfaces into a coherent
+SaaS product experience.
+
+Required boundary docs checked:
+
+- `docs/product/README.md`
+- `docs/product/referral-saas/PRODUCT_BRIEF.md`
+- `docs/roadmap/README.md`
+- `docs/roadmap/referral-saas/ROADMAP.md`
+- `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`
+- `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`
+- `docs/sa/referral-saas/REFERRAL_SAAS_SAFE_STATUS_CONTRACT.md`
+- `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`
+- `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_LINK_CODE_INVESTIGATION_CONTRACT.md`
+
+Source files inspected:
+
+- `frontend/src/app/App.tsx`
+- `frontend/src/layout/AppShell.tsx`
+- `frontend/src/layout/Sidebar.tsx`
+- `frontend/src/api/endpoints/adminOnboarding.ts`
+- `frontend/src/api/endpoints/consumerPortal.ts`
+- `frontend/src/api/endpoints/distribution.ts`
+- `frontend/src/api/experienceQueries.ts`
+- `frontend/src/pages/admin/CampaignOpportunitySetupPage.tsx`
+- `frontend/src/pages/admin/DistributionCommandCentrePage.tsx`
+- `frontend/src/pages/admin/OperatorDemoHomePage.tsx`
+- `frontend/src/pages/admin/OnboardingReadinessChecklistPage.tsx`
+- `frontend/src/pages/admin/WebhookApiSetupPage.tsx`
+- `frontend/src/pages/partner/PartnerIntegrationPage.tsx`
+- `frontend/src/pages/consumer/ConsumerPortalPage.tsx`
+- `frontend/src/pages/distributor/DistributorPortalPage.tsx`
+- related frontend tests listed in `frontend/src/pages/**`
+
+## Purpose
+
+Referral SaaS already has meaningful frontend foundations. The gap is not a
+missing UI from scratch; it is that the available pages are currently organized
+around broader admin, onboarding, distributor, sponsor, partner, and consumer
+workspaces.
+
+This contract defines how those foundations should become a focused product IA
+for:
+
+1. account setup
+2. campaign setup and readiness
+3. referral link/code issue and management
+4. public validation and recovery
+5. progress/status visibility
+6. attribution trace and investigation
+7. tenant-safe reports and exports
+8. integration setup
+9. operator support entry points
+
+It keeps broader DLaaS distribution marketplace, wallets, settlements, funding,
+commissions, sponsor billing, and white-label/embed surfaces outside first
+launch unless a later task scopes them explicitly.
+
+## Current Frontend Facts
+
+Current route foundations in `frontend/src/app/App.tsx`:
+
+| Current route | Current page | Referral SaaS relevance |
+|---|---|---|
+| `/admin/onboarding/company` | `CompanyOnboardingPage` | Account/company setup shell. |
+| `/admin/onboarding/members-roles` | `MemberRoleOnboardingPage` | Membership and role setup shell. |
+| `/admin/onboarding/campaign-opportunity` | `CampaignOpportunitySetupPage` | Campaign/opportunity setup and readiness-adjacent shell. |
+| `/admin/onboarding/webhook-api` | `WebhookApiSetupPage` | Integration, credential, callback, and payload preview shell. |
+| `/admin/onboarding/readiness` | `OnboardingReadinessChecklistPage` | Go-live readiness checklist and blockers. |
+| `/admin/demo-home` | `OperatorDemoHomePage` | Demo-safe journey and monitoring entry point. |
+| `/partner` | `PartnerIntegrationPage` | Partner/integration operations surface. |
+| `/consumer` | `ConsumerPortalPage` | Referrer/customer journey, referral code, validation, terms, progress, and reward-adjacent surface. |
+| `/distributor` | `DistributorPortalPage` | Route/link/code and conversion journey evidence in broader distribution context. |
+| `/admin/distribution` | `DistributionCommandCentrePage` | Marketplace/demand operations with attribution and route evidence, broader than first-launch SaaS. |
+| `/admin/audit` | `AdminAuditPage` | Trust and audit visibility. |
+| `/admin/events` | `EnterpriseEventsPage` | Event intake monitoring. |
+| `/admin/health` | `HealthPage` | Runtime readiness signals. |
+
+Current API/client foundations:
+
+- `adminOnboarding.ts` already uses external setup refs, readiness projections,
+  draft validation, idempotency keys, safe redaction, and no-live-action
+  guardrails.
+- `consumerPortal.ts` already calls referral code issue, public validation,
+  referee UCN capture, consumer experience, reward summary, missions, and
+  leaderboard endpoints.
+- `distribution.ts` includes broader route, offer, conversion, reporting, and
+  wallet calls. Some are useful evidence for attribution and link/code status;
+  money and marketplace depth remain outside first-launch Referral SaaS.
+- `experienceQueries.ts` already composes admin, consumer, distributor, and
+  sponsor experience queries.
+
+Current frontend gaps:
+
+- No dedicated Referral SaaS app shell or route family exists.
+- Current navigation labels and grouping are broader Distribution OS/DLaaS
+  oriented.
+- Current consumer-facing calls still pass `tenantCode`, `referrerUcn`, and
+  sometimes `referralTrackId` directly.
+- Link/code issue, validation, progress, status, attribution trace, and reports
+  are not yet presented as one SaaS workflow.
+- Reporting/export screens are not yet a focused Referral SaaS report catalog.
+- Operator diagnostics are scattered across admin, distribution, events, audit,
+  and health surfaces.
+
+## Target IA
+
+Future Referral SaaS frontend packaging should use a focused workspace such as
+`/referral-saas` or an equivalent product shell. The implementation task may
+choose the exact route after API/auth packaging is ready.
+
+Recommended top-level IA:
+
+| Product area | User intent | Current foundation | First-launch rule |
+|---|---|---|---|
+| Home | See setup state, campaign health, referral volume, and open support items. | Admin overview, readiness, health. | Product summary only; no generic dashboard. |
+| Account setup | Configure company, members, roles, external refs, and readiness. | Company/member onboarding and readiness pages. | Hide internal tenant code behind safe account refs. |
+| Campaigns | Create campaign draft, review readiness, policy, and activation blockers. | Campaign setup and readiness pages. | Use TASK-135 product states and blockers. |
+| Links and codes | Issue, inspect, reuse, validate, and explain referral codes/links. | Consumer referral code actions; operator link/code contract. | Do not expose operator evidence to public users. |
+| Validation | Validate referral/campaign code and recover safely from terms/alias/evidence gaps. | Consumer portal validation actions. | Use TASK-137 recovery states and safe copy. |
+| Progress and status | Show referral journey progress, dedupe-safe status, and next action. | Consumer experience, progress queries, safe-status contract. | Use TASK-141 labels, not raw backend state names. |
+| Attribution | Explain how campaign/link/event evidence produced the attribution outcome. | Outcome trace contract; distribution attribution evidence. | Account/support view only; referrer/customer gets summary status. |
+| Reports | Show campaign, funnel, link/code, progress, attribution, and safe-status reports. | Tenant-safe analytics and distribution reporting foundations. | Use TASK-142 report catalog and redaction rules. |
+| Integrations | Manage credential setup, webhooks, event payloads, and API readiness. | Webhook/API setup and partner integration pages. | Pair with TASK-143 API contract map. |
+| Support | Investigate failed validation, missing progress, stuck status, and attribution gaps. | Operator demo, admin links, audit, events, health. | Read-only diagnostics first; mutation/replay requires later task. |
+
+## Workflow Contracts
+
+### Account Setup
+
+Use TASK-134 as the source contract.
+
+Workflow:
+
+1. account/admin lands on setup state
+2. company and external refs are captured
+3. members and roles are configured
+4. integration readiness is checked
+5. readiness blockers are displayed with safe next actions
+
+UI rules:
+
+- prefer safe account refs over internal `tenant_code`
+- show incomplete, blocked, ready, and permission-limited states
+- keep draft validation separate from live activation
+
+### Campaign Setup And Readiness
+
+Use TASK-135 as the source contract.
+
+Workflow:
+
+1. create or continue campaign draft
+2. define campaign/referral journey settings
+3. review policy and attribution settings
+4. run readiness
+5. show blockers before any go-live action
+
+UI rules:
+
+- keep campaign setup distinct from marketplace opportunity routing
+- do not imply campaign activation until backend activation contract exists
+- show readiness blockers as product-safe categories
+
+### Referral Links And Codes
+
+Use TASK-136, TASK-137, and TASK-140 as source contracts.
+
+Workflow:
+
+1. issue or reuse referral code/link
+2. confirm accepted terms requirement
+3. validate code/link publicly
+4. recover from terms, alias, missing-code, or evidence failures
+5. let operators inspect source evidence from a separate support surface
+
+UI rules:
+
+- show issue/reuse outcomes with product labels
+- public validation must not expose raw UCNs, tenant internals, hashes, QR
+  evidence internals, or operator trace details
+- operator inspect views remain read-only until a later support task authorizes
+  repair/retry/replay actions
+
+### Progress And Safe Status
+
+Use TASK-138 and TASK-141 as source contracts.
+
+Workflow:
+
+1. progress event is ingested by the integration/API
+2. product status updates show recorded, deduped, queued, waiting, action
+   needed, unavailable, or completed outcomes as safe copy
+3. public/referrer/customer views show next action without internal error
+   details
+4. support views may link to diagnostic evidence
+
+UI rules:
+
+- do not show event queue errors, DLQ payloads, worker errors, audit payloads,
+  or raw event rejection internals to public users
+- customer/referrer copy maps through TASK-141 product labels
+- support diagnostics must be visibly separated from public status
+
+### Attribution Trace
+
+Use TASK-139 as the source contract.
+
+Workflow:
+
+1. account/support user searches by safe referral/campaign/link context
+2. trace view shows source evidence, completeness, warnings, and missing
+   evidence categories
+3. user can navigate to related code/link, progress, campaign, and report
+   context
+
+UI rules:
+
+- account/support views may show product-safe trace sections
+- public/referrer/customer views only receive a bounded status summary
+- do not expose raw table names, raw UCNs, operator-only missing-evidence
+  joins, or money-operation internals
+
+### Reports And Exports
+
+Use TASK-142 as the source contract.
+
+Workflow:
+
+1. select a first-launch report type
+2. apply account/campaign/date filters
+3. show freshness, redactions, source warnings, and operational metric class
+4. optionally request JSON/CSV export when export implementation exists
+
+UI rules:
+
+- first-launch reports are operational and tenant-safe
+- reports must show partial, stale, and unavailable source states
+- export actions are disabled or absent until API/storage/audit behavior exists
+
+### Integrations
+
+Use TASK-143 as the source contract.
+
+Workflow:
+
+1. show credential and API readiness state
+2. display allowed event/API payload examples
+3. explain idempotency and safe error behavior for integration developers
+4. link to progress/event and campaign/referral API setup
+
+UI rules:
+
+- product API wrappers must not require callers to provide internal tenant code
+- do not display secrets, signing material, tokens, or raw payload failures
+- current routes may be documented as implementation facts, but future UI
+  should orient around `/v1/referral-saas/*` product APIs when implemented
+
+## Role Boundaries
+
+| Role | Allowed first-launch surfaces | Must not see |
+|---|---|---|
+| Account admin | Account setup, campaigns, links/codes, reports, integrations, support summaries. | Other tenants, raw secrets, DLQ payloads, money internals unless later scoped. |
+| Campaign manager | Campaigns, readiness, link/code performance, attribution summaries, reports. | Account credentials, operator-only raw evidence, settlement/funding internals. |
+| Integration developer | API setup, payload examples, progress ingestion health, safe errors. | Customer PII, raw UCNs, operator trace details, admin billing/funding. |
+| Support/operator | Link/code inspect, validation recovery, progress diagnostics, attribution trace, audit links. | Mutation/replay/repair controls unless a later task authorizes them. |
+| Referrer/customer | Own safe status, next action, public validation/recovery, visible rewards where supported. | Tenant code, raw UCNs, audit/provider/DLQ payloads, operator evidence, broader money operations. |
+
+## Copy And State Rules
+
+- UI copy must distinguish current facts from unavailable future behavior.
+- Do not invent backend statuses. Map backend/source states through the product
+  states already defined in TASK-135 through TASK-143.
+- Use safe labels such as `Ready`, `Blocked`, `Action needed`, `Waiting`,
+  `In progress`, `Completed`, `Unavailable`, and `Expired` where contracts
+  allow them.
+- Do not show raw `tenant_code`, raw UCNs, raw referral hashes, provider
+  payloads, audit payloads, DLQ payloads, secrets, tokens, funding internals,
+  settlement internals, commission internals, wallet internals, invoices, or
+  payout details on first-launch SaaS surfaces.
+- Operator-only evidence must stay visually and permission-wise separate from
+  public/referrer/customer status.
+
+## Future Frontend Tests
+
+When implementation starts, add or preserve tests for:
+
+- product shell route rendering and sidebar/navigation grouping
+- account setup to campaign setup workflow smoke path
+- campaign readiness blocker rendering
+- referral code issue/reuse and validation recovery UI states
+- progress/safe-status label mapping with no raw internal states
+- attribution trace access only for account/support roles
+- report catalog rendering, freshness, redactions, and disabled export states
+- public/referrer/customer no-leak assertions for tenant code, UCN, audit,
+  provider, DLQ, secrets, tokens, and money internals
+- mobile layout and accessibility for the main workflow
+
+## Explicit Non-Goals
+
+- no React route, component, CSS, API wrapper, schema, backend, permission, or
+  test implementation
+- no generic dashboard implementation
+- no marketing landing page
+- no public API wrapper implementation
+- no export API/storage implementation
+- no mutation, repair, retry, replay, activation, publish, revoke, expire,
+  reissue, fulfil, settle, payout, invoice, or webhook dispatch controls
+- no broader DLaaS marketplace, commission, funding, fulfilment, settlement,
+  sponsor billing, wallet, white-label/embed, or SaaS billing implementation
+
+## Readiness Decision
+
+Referral SaaS has enough frontend foundation to support a strong product
+workflow, but it is not yet packaged as a focused Referral SaaS IA. TASK-144
+defines the product shell, navigation, role boundaries, workflow contracts, copy
+rules, and test expectations needed before implementation changes reorganize
+the existing pages into a coherent SaaS experience.
