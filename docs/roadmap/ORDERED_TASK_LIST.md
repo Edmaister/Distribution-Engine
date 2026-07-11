@@ -2548,6 +2548,31 @@ Rollback notes: Revert documentation-only additions and this roadmap entry.
 Explicit non-goals: Do not implement schema, migrations, services, routes, permissions, frontend, tests, public API wrappers, reward/funding/fulfilment/settlement/commission/sponsor billing behavior, marketplace-depth behavior, operator trace exposure, link/code inspect exposure to customers/referrers, raw state exposure, mutation/repair/retry/replay workflows, webhook dispatch, notifications, payouts, invoices, or live DB checks.
 Definition of done: Referral SaaS has a bounded referrer/customer safe-status contract that reuses the shared role-safe projection foundation and defines how validation, progress, attribution, campaign/link, and reward evidence should become safe product status and next action. Priority: P1.
 
+## TASK-142: Define Referral SaaS reporting and export contract
+
+Status: Complete (2026-07-11). Output: `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ATTRIBUTION_TRACE_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SAFE_STATUS_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/sa/TENANT_SAFE_ANALYTICS_REPORTING_CONTRACT.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Tenant-safe reporting; export validation; freshness; redaction; campaign/referral/progress/attribution metrics; operational-vs-ledger classification.
+Objective: Define the Referral SaaS reporting and export contract over existing tenant-safe analytics and distribution reporting foundations without creating a parallel reporting stack or pulling in broader DLaaS money reporting scope.
+Why now: TASK-141 defined safe referrer/customer status. The next product wedge needs tenant-safe report types, dimensions, metrics, freshness, export rules, and redaction boundaries before public API mapping and frontend IA work.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `services/tenant_safe_analytics_service.py`; `apps/api/routers/admin_analytics.py`; `services/distribution/reporting_service.py`; `apps/api/routers/distribution/admin_reporting.py`; `test/test_tenant_safe_analytics_service.py`; `test/api/test_admin_analytics_api.py`; `test/api/distribution/test_admin_reporting_api.py`.
+Database/schema impact: None. The contract documents safe report and export projection over existing referral, campaign, link/code, progress, attribution, safe-status, and optional reward-summary evidence.
+Backend impact: None. Existing tenant-safe analytics and distribution reporting behavior are documented as source facts, not changed.
+Frontend impact: None. Future reporting screens and export UX are documented only.
+API impact: None. Future Referral SaaS reporting/export route direction is documented only; no route, auth, payload, permission, export, or storage behavior changes.
+Tests to add/update: No runtime tests required for this docs-only contract.
+Validation method: Readback confirms the contract captures current analytics/reporting behavior, first-launch report types, approved dimensions, core metrics, freshness rules, export rules, candidate API direction, current surface gaps, future tests, explicit non-goals, and readiness decision.
+Acceptance criteria: Contract exists under `docs/sa/referral-saas/`; roadmap references the completed output; ordered task list records TASK-142; public API mapping, frontend IA, operator support workflow, audit/idempotency inventory, and money flows remain deferred; no backend/frontend/API/schema/export behavior changes.
+Dependencies: TASK-139; TASK-141; tenant-safe analytics reporting contract TASK-024; current tenant-safe analytics and distribution reporting tests.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Explicit non-goals: Do not implement schema, migrations, services, routes, permissions, frontend, tests, export APIs, export storage, materialized views, rollups, live DB checks, reward/funding/fulfilment/settlement/commission/sponsor billing reporting, marketplace-depth reporting, raw operator trace exports, mutation/repair/retry/replay workflows, webhook dispatch, notifications, payouts, invoices, or scheduled delivery.
+Definition of done: Referral SaaS has a bounded reporting and export contract that reuses the shared tenant-safe analytics foundation, defines first-launch SaaS report/export rules, and keeps broader DLaaS money/reporting scope separate. Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
