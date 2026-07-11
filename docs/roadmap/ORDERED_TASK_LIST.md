@@ -2598,6 +2598,31 @@ Rollback notes: Revert documentation-only additions and this roadmap entry.
 Explicit non-goals: Do not implement schema, migrations, services, routes, auth helpers, OpenAPI, frontend, tests, public API namespaces, account membership, exports, lifecycle commands, repair/retry/replay workflows, fulfilment, settlement, payouts, invoices, webhook dispatch, marketplace-depth behavior, funding, commissions, sponsor billing, white-label/embed, or SaaS billing.
 Definition of done: Referral SaaS has a bounded public API contract map that distinguishes current route facts from future product wrappers and defines auth, tenant-scope, idempotency, and safe-error rules for implementation planning. Priority: P1.
 
+## TASK-144: Define Referral SaaS frontend IA and workflow contract
+
+Status: Complete (2026-07-11). Output: `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SAFE_STATUS_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_LINK_CODE_INVESTIGATION_CONTRACT.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Frontend information architecture; workflow packaging; account setup; campaign readiness; referral link/code UX; validation recovery; safe status; attribution trace; reporting; integration setup; operator support entry points.
+Objective: Define the focused Referral SaaS frontend IA and workflow contract over existing role-specific React surfaces without implementing routes or mixing the product shell with broader DLaaS marketplace and money workflows.
+Why now: TASK-143 mapped the future public API surface. The next product wedge needs a frontend IA contract so implementation can organize existing account, campaign, referral, validation, progress, attribution, reporting, integration, and support surfaces into one SaaS workflow without treating the product as greenfield.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/app/App.tsx`; `frontend/src/layout/AppShell.tsx`; `frontend/src/layout/Sidebar.tsx`; `frontend/src/api/endpoints/adminOnboarding.ts`; `frontend/src/api/endpoints/consumerPortal.ts`; `frontend/src/api/endpoints/distribution.ts`; `frontend/src/api/experienceQueries.ts`; `frontend/src/pages/admin/CampaignOpportunitySetupPage.tsx`; `frontend/src/pages/admin/DistributionCommandCentrePage.tsx`; `frontend/src/pages/admin/OperatorDemoHomePage.tsx`; `frontend/src/pages/admin/OnboardingReadinessChecklistPage.tsx`; `frontend/src/pages/admin/WebhookApiSetupPage.tsx`; `frontend/src/pages/partner/PartnerIntegrationPage.tsx`; `frontend/src/pages/consumer/ConsumerPortalPage.tsx`; `frontend/src/pages/distributor/DistributorPortalPage.tsx`; related frontend tests in `frontend/src/pages/**`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: None. Existing React routes, navigation, API clients, and pages are documented as source facts, not changed.
+API impact: None. Future frontend consumption of product API wrappers is documented only.
+Tests to add/update: No runtime tests required for this docs-only contract.
+Validation method: Readback confirms the contract captures current frontend route/page/API-client foundations, target IA, workflow contracts, role boundaries, copy/state rules, current gaps, future tests, explicit non-goals, and readiness decision.
+Acceptance criteria: Contract exists under `docs/sa/referral-saas/`; roadmap references the completed output; ordered task list records TASK-144; operator support workflow, audit/idempotency inventory, and money flows remain deferred; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-134 through TASK-143; current frontend route/page/test inventory.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Explicit non-goals: Do not implement React routes, components, CSS, API wrappers, schemas, backend routes, permissions, tests, public API wrappers, export APIs, mutation/repair/retry/replay controls, campaign activation, publish/revoke/expire/reissue commands, fulfilment, settlement, payouts, invoices, webhook dispatch, marketplace-depth behavior, funding, commissions, sponsor billing, wallets, white-label/embed, or SaaS billing.
+Definition of done: Referral SaaS has a bounded frontend IA and workflow contract that packages existing frontend foundations into a coherent SaaS direction while keeping broader DLaaS marketplace and money workflows separate. Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
