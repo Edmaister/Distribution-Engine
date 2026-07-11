@@ -2498,6 +2498,31 @@ Rollback notes: Revert documentation-only additions and this roadmap entry.
 Explicit non-goals: Do not implement schema, migrations, services, routes, frontend, tests, smoke scripts, live DB queries, production checks, production writes, repair/replay/retry actions, reward/funding/fulfilment/settlement/commission/sponsor billing verification, or marketplace-depth verification.
 Definition of done: Referral SaaS has a source-backed plan for proving production readiness through focused E2E coverage, route smoke checks, migration replay, and read-only live DB/state verification while keeping broader DLaaS expansion scope separate. Priority: P0.
 
+## TASK-140: Add Referral SaaS operator link/code investigation contract
+
+Status: Complete (2026-07-11). Output: `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_LINK_CODE_INVESTIGATION_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ATTRIBUTION_TRACE_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/sa/LINK_CODE_CONTRACT.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Operator link/code investigation; canonical link/code inspection; redaction; missing-evidence diagnostics; attribution-trace navigation.
+Objective: Define the Referral SaaS operator investigation contract around the existing canonical `inspect_link_code` service and `/admin/links/inspect` route without rebuilding link/code inspection or adding mutation workflows.
+Why now: TASK-139 defined attribution trace and TASK-147 defined E2E/live verification. Operators now need a bounded contract for starting from a code/link and safely navigating to campaign, referral, route, progress, and attribution evidence.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_LINK_CODE_INVESTIGATION_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `services/link_code_service.py`; `apps/api/routers/admin_links.py`; `apps/api/main.py`; `test/test_link_code_service.py`; `test/api/test_admin_links_api.py`; `docs/roadmap/OPERATOR_DEMO_READINESS_SMOKE_CHECKLIST.md`; `docs/roadmap/ORDERED_TASK_LIST.md` TASK-053 and TASK-054 entries.
+Database/schema impact: None. The contract documents current source evidence from `referrer_codes`, `marketing_campaigns`, `campaign_referral_links`, `distribution_route_referral_links`, and compatibility `composite_code_service`.
+Backend impact: None. Existing `inspect_link_code` and `GET /admin/links/inspect` behavior are documented as source facts, not changed.
+Frontend impact: None. Future operator UI behavior is documented only.
+API impact: None. The current read-only admin route is documented; no route, auth, payload, or permission behavior changes.
+Tests to add/update: No runtime tests required for this docs-only contract.
+Validation method: Readback confirms the contract captures current source types, derived statuses, route inputs, response shape, read-only guardrails, permission posture, redaction rules, missing-evidence taxonomy, investigation next links, future tests, explicit non-goals, and readiness decision.
+Acceptance criteria: Contract exists under `docs/sa/referral-saas/`; roadmap references the completed output; ordered task list records TASK-140; support workflow, safe status, reporting, public API mapping, frontend IA, audit/idempotency inventory, and money flows remain deferred; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-139; TASK-147; canonical link/code contract TASK-009; link/code facade TASK-053; admin inspect endpoint TASK-054.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Explicit non-goals: Do not implement schema, migrations, services, routes, permissions, frontend, tests, public resolve APIs, code issue/reissue/revoke/expire behavior, void commands, track creation, accepted-terms changes, mutation/repair/retry/replay workflows, queueing, webhooks, rewards, funding, fulfilment, settlement, commissions, sponsor billing, or marketplace-depth behavior.
+Definition of done: Referral SaaS has a bounded operator link/code investigation contract that packages the existing read-only inspection primitive and defines safe navigation into attribution trace and later support workflows while keeping shared platform source ownership intact. Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

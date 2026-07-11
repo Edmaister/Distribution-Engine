@@ -22,3 +22,5 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   contract.
 - `REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md` - TASK-147 E2E and live
   verification plan.
+- `REFERRAL_SAAS_OPERATOR_LINK_CODE_INVESTIGATION_CONTRACT.md` - TASK-140
+  operator link/code investigation contract.
