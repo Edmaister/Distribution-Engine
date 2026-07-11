@@ -2247,6 +2247,78 @@ Validation expectation: Documentation/readback confirms completed review workflo
 Explicit non-goals: Do not implement go-live, live onboarding, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, or money movement.
 Definition of done: Roadmap has a clear decision point after review workflow foundations. Priority: P1.
 
+## TASK-131: Split product and roadmap documentation boundaries for referral SaaS and DLaaS
+
+Status: Complete (2026-07-11). Output: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/dlaas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/dlaas/ROADMAP.md`; `docs/product/README.md`; `docs/roadmap/README.md`.
+Linked enhancement: DLaaS platform productization and referral SaaS first-wedge packaging.
+Linked platform capability: Product boundary management; roadmap traceability; platform reuse.
+Goal: Separate product and roadmap documentation for Referral Management and Campaign Attribution SaaS from broader DLaaS expansion without copying or forking source code.
+Why now: The project needs a focused commercial SaaS wedge while preserving DLaaS as the broader platform direction. Product clarity should come from documentation and module boundaries, not duplicated source trees.
+Files likely involved: `docs/product/*`; `docs/roadmap/*`; existing SA docs and ordered task list for traceability.
+Database/schema impact: None.
+Backend impact: None. No service, router, schema, or API behavior changed.
+Frontend impact: None. No frontend behavior changed.
+API impact: None.
+Tests to add/update: No runtime tests required for this docs-only boundary split.
+Validation method: Readback confirms product docs and roadmap docs are separated, existing referral/campaign attribution capabilities are treated as current implementation, DLaaS expansion is not mixed into first SaaS launch requirements, and source duplication is explicitly rejected.
+Acceptance criteria: Product folders exist for `referral-saas` and `dlaas`; roadmap folders exist for `referral-saas` and `dlaas`; docs state shared implementation primitives must remain single-source; first SaaS launch scope is separated from DLaaS expansion scope.
+Dependencies: Current code assessment of referral code, progress, campaign readiness, link/code inspection, and attribution-related tests.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Definition of done: The repository has clear documentation boundaries for the referral/campaign attribution SaaS wedge and DLaaS expansion without source-code forking. Priority: P1.
+
+## TASK-132: Add mandatory product boundary gate to agent and roadmap workflow
+
+Status: Complete (2026-07-11). Output: `AGENTS.md`; `docs/product/README.md`; `docs/roadmap/README.md`; `docs/roadmap/TASK_TEMPLATE.md`.
+Product boundary: Shared Platform.
+Required boundary docs checked: `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/dlaas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/dlaas/ROADMAP.md`.
+Linked enhancement: DLaaS platform productization and referral SaaS first-wedge packaging.
+Linked platform capability: Agent workflow guardrails; product boundary management; roadmap traceability; platform reuse.
+Goal: Require future tasks to classify their product boundary and read the relevant boundary docs before implementation.
+Why now: Future implementation should not depend on repeated prompting to separate Referral SaaS work from broader DLaaS work or to avoid source-code duplication.
+Files likely involved: `AGENTS.md`; `docs/product/README.md`; `docs/roadmap/README.md`; `docs/roadmap/TASK_TEMPLATE.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: No runtime tests required for documentation/workflow guardrails.
+Validation method: Readback confirms `AGENTS.md` includes a Product Boundary Gate, required boundary docs by task type, no source-code forking rule, updated required workflow chain, and required task metadata. Readback also confirms roadmap/product READMEs route tasks and `TASK_TEMPLATE.md` includes product boundary fields.
+Acceptance criteria: Every future task has a documented mechanism to identify `Referral SaaS`, `DLaaS`, or `Shared Platform`; future implementation tasks must read the correct boundary docs first; source duplication remains explicitly disallowed.
+Dependencies: TASK-131.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Explicit non-goals: Do not modify backend code, frontend code, APIs, schema, migrations, tests, or product behavior.
+Definition of done: The repo-level workflow itself enforces product boundary reading and classification before implementation. Priority: P1.
+
+## TASK-133: Build Referral SaaS 10/10 gap matrix
+
+Status: Complete (2026-07-11). Output: `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Referral code lifecycle; campaign setup/readiness; progress/event ingestion; campaign attribution trace; tenant-safe reporting; public API productization; Referral SaaS E2E and live verification.
+Goal: Convert the current code assessment into a focused 10/10 gap matrix for the Referral Management and Campaign Attribution SaaS product boundary.
+Why now: The repository already contains substantial referral, progress, campaign, link/code, and attribution capabilities. The next step is to identify packaging and hardening work without duplicating source code or mixing in broad DLaaS scope.
+Current source-of-truth files inspected: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/CURRENT_STATE_MAP.md`; `docs/sa/CAPABILITY_GAP_MATRIX.md`; current referral/campaign/progress/link/attribution service, router, frontend, and test file inventory by static inspection.
+Shared primitive impact: No implementation impact. The matrix identifies future shared primitive impact areas.
+Source duplication allowed: No.
+Files likely involved: `docs/sa/referral-saas/*`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: No runtime tests required for this docs-only gap matrix.
+Validation method: Readback confirms the matrix separates current built capabilities from 10/10 SaaS requirements, identifies gaps, priorities, task candidates, tests/validation, ordered sequence, first implementation recommendation, and explicit DLaaS deferrals.
+Acceptance criteria: Matrix exists under `docs/sa/referral-saas/`; roadmap links to it and includes the recommended ordered task sequence; broad DLaaS work is explicitly deferred; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-131; TASK-132.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation-only additions and this roadmap entry.
+Explicit non-goals: Do not implement account setup, campaign workflow, referral code changes, validation changes, progress API changes, attribution trace services, frontend changes, schema, migrations, live DB checks, money movement, fulfilment, settlement, funding, sponsor billing, marketplace expansion, or white-label/embed.
+Definition of done: Referral SaaS has a focused 10/10 gap matrix and ordered next-task candidates grounded in current source truth. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
