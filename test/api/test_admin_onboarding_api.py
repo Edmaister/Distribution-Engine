@@ -1953,6 +1953,157 @@ async def test_review_decision_records_schema_backed_blocked_status(monkeypatch)
     assert "policy sign-off" not in rendered_update
 
 
+@pytest.mark.parametrize(
+    "headers,expected_actor_role",
+    [
+        (ADMIN_HEADERS, "ADMIN"),
+        (DISTRIBUTION_ADMIN_HEADERS, "DISTRIBUTION_ADMIN"),
+        (SYSTEM_ADMIN_HEADERS, "SYSTEM_ADMIN"),
+    ],
+)
+async def test_review_decision_allows_only_admin_operator_roles_with_safe_audit(
+    headers,
+    expected_actor_role,
+    monkeypatch,
+):
+    calls = _patch_draft_repo(
+        monkeypatch,
+        existing_draft=_saved_draft(status="READY_FOR_REVIEW"),
+        draft_sections=_saved_draft_sections(),
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=headers) as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/draft-submit-1/review-decision",
+            json=_review_payload(
+                idempotency_key=f"review-decision-{expected_actor_role.lower()}",
+            ),
+        )
+
+    body = response.json()
+    rendered = json.dumps(body).lower()
+    assert response.status_code == 200
+    assert body["status"] == "review_decision_recorded"
+    assert body["approval_to_launch"] is False
+    assert body["go_live_enabled"] is False
+    assert body["audit_evidence_ref"] == "REVIEW_DECISION_AUDIT_EVIDENCE"
+    assert len(calls["create_audit_link_reference"]) == 1
+    audit_link = calls["create_audit_link_reference"][0]
+    assert audit_link["actor_role"] == expected_actor_role
+    assert audit_link["evidence_summary"]["dispatch"] == {
+        "event_dispatched": False,
+        "webhook_dispatched": False,
+        "event_ref": None,
+    }
+    assert "tenant_code" not in rendered
+    assert "internal-acme" not in rendered
+    assert "approval_to_launch\": true" not in rendered
+    _assert_no_raw_leaks(body)
+    _assert_no_raw_leaks(audit_link)
+    _assert_submit_did_not_invoke_live_actions(calls)
+
+
+async def test_review_decision_rejects_nested_tenant_code_before_lookup(monkeypatch):
+    calls = _patch_draft_repo(
+        monkeypatch,
+        existing_draft=_saved_draft(status="READY_FOR_REVIEW"),
+        draft_sections=_saved_draft_sections(),
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/draft-submit-1/review-decision",
+            json=_review_payload(
+                scope={
+                    "tenant_code": "INTERNAL-ACME",
+                    "external_tenant_ref": "acme-distribution",
+                }
+            ),
+        )
+
+    rendered = json.dumps(response.json()).lower()
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "UNSAFE_OPERATION_ATTEMPTED"
+    assert calls["get_draft_sections"] == []
+    assert calls["update_draft_metadata_or_status"] == []
+    assert calls["record_idempotency_reference"] == []
+    assert calls["create_audit_link_reference"] == []
+    assert "internal-acme" not in rendered
+    _assert_no_raw_leaks(response.json())
+
+
+async def test_review_decision_redacts_hostile_saved_evidence_and_no_dispatch(
+    monkeypatch,
+):
+    payload = _complete_draft_payload()
+    payload["sections"]["webhook_api"]["api_key"] = "SECRET-API-KEY"
+    payload["sections"]["webhook_api"]["client_secret"] = "SECRET-CLIENT"
+    payload["sections"]["webhook_api"]["access_token"] = "ACCESS-TOKEN"
+    payload["sections"]["webhook_api"]["signing_secret"] = "SIGNING-SECRET"
+    payload["sections"]["webhook_api"]["private_key"] = "PRIVATE-KEY"
+    payload["sections"]["webhook_api"]["provider_payload"] = "PROVIDER-PAYLOAD"
+    payload["sections"]["webhook_api"]["audit_payload"] = "AUDIT-PAYLOAD"
+    payload["sections"]["webhook_api"]["raw_audit_payload"] = "RAW-AUDIT"
+    payload["sections"]["webhook_api"]["webhook_delivery_state"] = "DELIVERY-STATE"
+    payload["sections"]["campaign_opportunity"]["funding_internal"] = "funding-value"
+    payload["sections"]["campaign_opportunity"]["wallet_internal"] = "wallet-internal"
+    payload["sections"]["campaign_opportunity"][
+        "settlement_internal"
+    ] = "settlement-value"
+    payload["sections"]["campaign_opportunity"][
+        "fulfilment_internal"
+    ] = "fulfilment-value"
+    payload["sections"]["campaign_opportunity"]["retry_internal"] = "retry-value"
+    payload["sections"]["campaign_opportunity"]["money_movement_detail"] = (
+        "money-value"
+    )
+    calls = _patch_draft_repo(
+        monkeypatch,
+        existing_draft=_saved_draft(
+            status="READY_FOR_REVIEW",
+            provider_payload="PROVIDER-PAYLOAD",
+            audit_payload="AUDIT-PAYLOAD",
+            webhook_delivery_state="DELIVERY-STATE",
+            wallet_ref="wallet-internal",
+            settlement_ref="settlement-internal",
+        ),
+        draft_sections=_saved_draft_sections(payload),
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/admin/onboarding/drafts/draft-submit-1/review-decision",
+            json=_review_payload(
+                reason=(
+                    "Evidence looks complete, but this reason must remain "
+                    "hash-only in audit evidence."
+                )
+            ),
+        )
+
+    body = response.json()
+    assert response.status_code == 422
+    assert body["detail"]["code"] == "VALIDATION_BLOCKED"
+    assert body["detail"]["audit_evidence_ref"] is None
+    assert body["detail"]["audit_link_ref"] is None
+    assert body["detail"]["approval_to_launch"] is False
+    assert body["detail"]["go_live_enabled"] is False
+    assert body["detail"]["no_live_action_confirmed"] is True
+    assert "NO_WEBHOOK_DISPATCH" in body["detail"]["guardrails"]
+    assert "NO_VALUE_TRANSFER" in body["detail"]["guardrails"]
+    assert calls["update_draft_metadata_or_status"] == []
+    assert calls["record_idempotency_reference"] == []
+    assert calls["create_audit_link_reference"] == []
+    rendered = json.dumps(body).lower()
+    assert "evidence looks complete" not in rendered
+    _assert_no_raw_leaks(body)
+    _assert_submit_did_not_invoke_live_actions(calls)
+
+
 async def test_review_decision_enforces_external_scope(monkeypatch):
     calls = _patch_draft_repo(
         monkeypatch,
