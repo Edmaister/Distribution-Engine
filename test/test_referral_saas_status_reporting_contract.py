@@ -5,6 +5,7 @@ from decimal import Decimal
 import pytest
 
 from services import tenant_safe_analytics_service as analytics
+from services.referral_saas_reporting_service import get_referral_saas_report
 from services.referral_saas_safe_status_service import (
     project_referral_saas_safe_status,
 )
@@ -149,9 +150,40 @@ async def test_referral_saas_reporting_contract_stays_operational_and_redacted(
 
 
 @pytest.mark.asyncio
-async def test_referral_saas_future_report_catalog_gaps_remain_explicit():
+async def test_referral_saas_report_catalog_supports_campaign_performance_only(
+    monkeypatch,
+):
+    async def fake_get_marketplace_overview(**kwargs):
+        return _overview()
+
+    monkeypatch.setattr(
+        analytics,
+        "get_marketplace_overview",
+        fake_get_marketplace_overview,
+    )
+
+    report = await get_referral_saas_report(
+        tenant_code="FNB",
+        report_type="campaign_performance",
+        filters={"campaign_code": "CAMP001"},
+    )
+
+    assert report["report_type"] == "campaign_performance"
+    assert report["source_report_type"] == "distribution_overview"
+    assert report["metric_class"] == "OPERATIONAL"
+    assert report["export_status"] == "NOT_IMPLEMENTED"
+
     with pytest.raises(ValueError, match="Unsupported analytics report_type"):
         await analytics.get_tenant_safe_analytics_report(
             tenant_code="FNB",
             report_type="campaign_performance",
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="Referral SaaS report_type not implemented: referral_funnel",
+    ):
+        await get_referral_saas_report(
+            tenant_code="FNB",
+            report_type="referral_funnel",
         )

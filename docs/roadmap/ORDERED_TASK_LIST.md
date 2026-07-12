@@ -2954,6 +2954,31 @@ Rollback notes: Revert the helper, test updates, and this roadmap entry.
 Explicit non-goals: Do not implement product wrapper routes, frontend, schema, migrations, auth changes, report catalog entries, exports, live DB checks, route smoke execution, command idempotency implementation, audit writes, repair/replay/retry actions, campaign activation, webhook delivery, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
 Definition of done: Referral SaaS has a CI-tested product status projection helper that turns current referral source evidence into safe customer/referrer product status while preserving shared primitives and product boundaries. Priority: P0.
 
+## TASK-156: Add Referral SaaS report catalog helper
+
+Status: Complete (2026-07-12). Output: `services/referral_saas_reporting_service.py`; `test/test_referral_saas_reporting_service.py`; `test/test_referral_saas_status_reporting_contract.py`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/README.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Tenant-safe Referral SaaS report catalog; campaign performance reporting; redaction; export gap visibility.
+Objective: Add a narrow Referral SaaS report catalog helper that supports the first product report type, `campaign_performance`, over the existing tenant-safe analytics foundation without adding routes, exports, schema, or a parallel analytics stack.
+Why now: TASK-154 proved reporting boundaries but kept `campaign_performance` unsupported, and TASK-155 completed the safe-status projection helper. The next 10/10 blocker is turning the report catalog from contract-only into executable service behavior while preserving product boundaries.
+Files involved: `services/referral_saas_reporting_service.py`; `test/test_referral_saas_reporting_service.py`; `test/test_referral_saas_status_reporting_contract.py`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `services/tenant_safe_analytics_service.py`; `test/test_tenant_safe_analytics_service.py`; `test/test_referral_saas_status_reporting_contract.py`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`.
+Database/schema impact: None.
+Backend impact: Added a service-layer Referral SaaS report catalog adapter. It maps `campaign_performance` to the current `distribution_overview` tenant-safe analytics source, filters to product-safe operational metrics, preserves freshness/source warnings, and keeps future report types explicit as not implemented.
+Frontend impact: None.
+API impact: None. No `/v1/referral-saas/*` route or export API was added.
+Tests to add/update: Added report catalog tests for available/future report types, campaign performance mapping, sensitive filter redaction, exclusion of broader DLaaS money/governance metrics, unsupported report rejection, unsupported dimension/filter rejection, and updated the safe-status/reporting contract test.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q --no-cov test\test_referral_saas_reporting_service.py test\test_referral_saas_status_reporting_contract.py --tb=short`; `.venv_codex\Scripts\python.exe -m py_compile services\referral_saas_reporting_service.py test\test_referral_saas_reporting_service.py test\test_referral_saas_status_reporting_contract.py`; `ruff check services\referral_saas_reporting_service.py test\test_referral_saas_reporting_service.py test\test_referral_saas_status_reporting_contract.py`.
+Acceptance criteria: `campaign_performance` is available through a Referral SaaS helper; future report catalog entries remain explicit and blocked until implemented; sensitive filters are redacted; broader DLaaS money, wallet, commission, settlement, funding, and governance metrics are not exposed; exports remain unavailable; no schema, route, frontend, auth, or live DB behavior changes.
+Dependencies: TASK-142; TASK-154; TASK-155.
+Blocked by: None for the service helper. Product API wrapper, export API/storage/audit, frontend report screens, and live route smoke execution remain separate implementation work.
+Risk level: Low.
+Rollback notes: Revert the helper, tests, and roadmap/doc updates.
+Explicit non-goals: Do not implement product wrapper routes, OpenAPI, frontend, export API/storage, persisted/scheduled exports, schema, migrations, auth changes, live DB checks, route smoke execution, command idempotency implementation, audit writes, repair/replay/retry actions, campaign activation, webhook delivery, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
+Definition of done: Referral SaaS has a CI-tested report catalog helper for the first product report type and keeps remaining report/export gaps visible without duplicating analytics primitives. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

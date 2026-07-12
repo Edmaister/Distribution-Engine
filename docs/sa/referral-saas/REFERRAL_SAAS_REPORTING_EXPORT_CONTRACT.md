@@ -4,8 +4,9 @@ TASK ID: TASK-142
 
 Product boundary: Referral Management and Campaign Attribution SaaS.
 
-Status: Contract only. No runtime behavior, schema, route, export job,
-frontend, permission, or test changes are made by this task.
+Status: Contract complete. TASK-156 adds the first service-layer report catalog
+helper for `campaign_performance`; product routes, export jobs, frontend,
+permission changes, and storage remain unimplemented.
 
 ## Boundary
 
@@ -304,9 +305,10 @@ Required future behavior:
 Current code gives useful reporting foundations, but not the complete Referral
 SaaS reporting product:
 
-- `tenant_safe_analytics_service` does not yet define Referral SaaS report types
-  such as `campaign_performance`, `referral_funnel`, `progress_event_health`, or
-  `attribution_quality`.
+- TASK-156 defines the first Referral SaaS report catalog helper for
+  `campaign_performance`; other report types such as `referral_funnel`,
+  `progress_event_health`, `attribution_quality`, and
+  `safe_status_distribution` remain unimplemented.
 - `admin_analytics` is admin/internal and requires explicit `tenant_code`; it is
   not a SaaS account-facing report API.
 - distribution reporting includes useful attribution and conversion metrics, but
@@ -357,3 +359,10 @@ distribution reporting, but first-launch SaaS reporting still needs a focused
 report catalog, product route/API wrapper, export validation, and redaction
 tests. TASK-142 defines that contract while preserving the shared analytics
 foundation and keeping broader DLaaS money/reporting scope separate.
+
+TASK-156 implementation update: `services/referral_saas_reporting_service.py`
+now defines the first report catalog helper and supports
+`campaign_performance` by adapting the existing `distribution_overview`
+tenant-safe analytics source into product-safe operational metrics. Other
+first-launch report types, product routes, exports, retention, scheduling,
+storage, and frontend screens remain explicit follow-up work.
