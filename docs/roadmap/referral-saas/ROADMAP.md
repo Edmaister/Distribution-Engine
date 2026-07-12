@@ -127,6 +127,7 @@ greenfield referral construction.
 19. TASK-153: Add Referral SaaS route smoke plan generator.
 20. TASK-154: Add Referral SaaS safe-status/reporting contract test.
 21. TASK-155: Add Referral SaaS safe-status projection helper.
+22. TASK-156: Add Referral SaaS report catalog helper.
 
 ## 10/10 Exit Criteria
 
@@ -172,6 +173,8 @@ greenfield referral construction.
 - TASK-154: `test/test_referral_saas_status_reporting_contract.py`
 - TASK-155: `services/referral_saas_safe_status_service.py`;
   `test/test_referral_saas_safe_status_service.py`
+- TASK-156: `services/referral_saas_reporting_service.py`;
+  `test/test_referral_saas_reporting_service.py`
 
 ## Explicit Deferrals
 

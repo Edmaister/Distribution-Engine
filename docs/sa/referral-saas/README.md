@@ -38,3 +38,10 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   idempotency posture inventory.
 - `REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md` - TASK-151 source-backed route
   smoke inventory.
+
+## Implementation Notes
+
+- TASK-156 adds `services/referral_saas_reporting_service.py` as the first
+  Referral SaaS report catalog helper. It supports `campaign_performance` over
+  the existing tenant-safe analytics foundation and keeps future report types
+  and exports explicitly unimplemented.
