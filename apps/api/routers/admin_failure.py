@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from typing import Optional
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from services.failure_admin_service import (
-    list_failures,
-    resolve_failure,
-    reprocess_failure,
     get_failure_summary,
+    list_failures,
+    reprocess_failure,
+    resolve_failure,
 )
 from utils.security import require_admin_key
 
@@ -28,7 +28,7 @@ class ResolveFailureRequest(BaseModel):
 
 
 @router.get("")
-def get_failures(
+async def get_failures(
     status: Optional[str] = Query(default="OPEN"),
     failureCategory: Optional[str] = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
@@ -40,7 +40,7 @@ def get_failures(
         else None
     )
 
-    items = list_failures(
+    items = await list_failures(
         status=normalized_status,
         failure_category=normalized_failure_category,
         limit=limit,
@@ -53,11 +53,11 @@ def get_failures(
 
 
 @router.post("/{failure_id}/resolve")
-def resolve_failure_endpoint(
+async def resolve_failure_endpoint(
     failure_id: int,
     request: ResolveFailureRequest,
 ):
-    updated = resolve_failure(
+    updated = await resolve_failure(
         failure_id=failure_id,
         resolution_note=request.resolutionNote,
     )
@@ -76,9 +76,9 @@ def resolve_failure_endpoint(
 
 
 @router.post("/{failure_id}/reprocess")
-def reprocess_failure_endpoint(failure_id: int):
+async def reprocess_failure_endpoint(failure_id: int):
     try:
-        return reprocess_failure(failure_id=failure_id)
+        return await reprocess_failure(failure_id=failure_id)
     except ValueError as exc:
         logger.warning("Failure reprocess rejected: %s", exc)
         raise HTTPException(
@@ -88,5 +88,5 @@ def reprocess_failure_endpoint(failure_id: int):
 
 
 @router.get("/summary")
-def get_failures_summary():
-    return get_failure_summary()
+async def get_failures_summary():
+    return await get_failure_summary()
