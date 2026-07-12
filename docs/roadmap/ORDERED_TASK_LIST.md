@@ -2319,6 +2319,14 @@ Definition of done: Future go-live work has a clearly separated boundary from re
 
 ## TASK-129: Add pre-go-live safety checkpoint
 
+Status: Complete (2026-07-12). Output: `docs/roadmap/ONBOARDING_PRE_GO_LIVE_SAFETY_CHECKPOINT_TASK_129.md`.
+Product boundary: Shared Platform.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/roadmap/README.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/roadmap/ONBOARDING_REVIEW_DECISION_WORKFLOW_CONTRACT_FINAL_REVIEW_TASK_121.md`; `docs/roadmap/ONBOARDING_APPROVAL_TO_GO_LIVE_SEPARATION_TASK_128.md`; `docs/roadmap/TASK_027_LOCAL_DB_VERIFICATION_RESULTS.md`; `docs/roadmap/TASK_028_SCHEMA_UNCERTAINTY_RESOLUTION.md`.
+Shared primitive impact: Review-decision readiness now has an explicit stop gate before approval-to-launch, live onboarding, downstream activation, dispatch, or money-domain planning.
+Source duplication: No.
+Finding: Added the pre-go-live safety checkpoint. The checkpoint records current review workflow capabilities, confirms `APPROVED_FOR_INTERNAL_REVIEW` is still review classification only, preserves `approval_to_launch: false`, `go_live_enabled: false`, and `no_live_action_confirmed: true`, captures TASK-027 local-only verification and TASK-028 local schema-resolution posture, and requires a future separate task chain before go-live planning can begin.
+Validation: Documentation/readback only. Confirmed no backend code, frontend code, services, routes, tests, schema, migrations, live DB access, secrets, production data, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, billing, ledger, or money movement was introduced.
+
 Objective: Checkpoint review workflow readiness before any go-live or downstream activation work is considered.
 Type: Docs/checkpoint.
 Dependencies: TASK-128.
