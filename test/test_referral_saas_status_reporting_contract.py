@@ -1,0 +1,149 @@
+from __future__ import annotations
+
+from decimal import Decimal
+
+import pytest
+
+from services import tenant_safe_analytics_service as analytics
+from services.partner_customer_safe_status_service import (
+    project_partner_customer_safe_status,
+    project_safe_statuses,
+)
+
+SAFE_REFERRAL_SUBJECT = {
+    "type": "referral",
+    "safe_ref": "referral:track:11111111-1111-4111-8111-111111111111",
+}
+
+
+def _overview() -> dict:
+    return {
+        "tenant_code": "FNB",
+        "sponsor_code": "BOXER",
+        "campaign_code": "CAMP001",
+        "distributors": {"total_count": 0, "active_count": 0},
+        "opportunities": {"total_count": 1, "published_count": 1},
+        "routes": {
+            "total_count": 3,
+            "accepted_count": 2,
+            "acceptance_rate": Decimal("0.6667"),
+        },
+        "commissions": {
+            "event_count": 4,
+            "total_commission_amount": Decimal("250.00"),
+        },
+        "conversions": {
+            "linked_count": 2,
+            "completed_count": 1,
+            "completion_rate": Decimal("0.5000"),
+            "attribution_rate": Decimal("0.7500"),
+        },
+        "wallets": {
+            "wallet_count": 1,
+            "current_balance": Decimal("999.99"),
+        },
+        "governance": {"open_dispute_count": 0},
+    }
+
+
+def test_referral_saas_referrer_customer_safe_status_contract():
+    referrer_statuses = project_safe_statuses(
+        viewer_role="referrer",
+        subject=SAFE_REFERRAL_SUBJECT,
+        evidence_items=[
+            {
+                "source_family": "outcome",
+                "status": "ACCOUNT_OPENED",
+                "source_confidence": "MEDIUM",
+            },
+            {
+                "source_family": "reward",
+                "status": "PENDING_FULFILMENT",
+                "source_confidence": "LOW",
+            },
+        ],
+        redactions=["referrer_ucn", "tenant_code"],
+    )
+
+    assert [item["safe_status"]["status"] for item in referrer_statuses] == [
+        "UNAVAILABLE",
+        "IN_PROGRESS",
+    ]
+    assert all(
+        item["subject"]["safe_ref"] == SAFE_REFERRAL_SUBJECT["safe_ref"]
+        for item in referrer_statuses
+    )
+    assert "ACCOUNT_OPENED" not in str(referrer_statuses)
+    assert "PENDING_FULFILMENT" not in str(referrer_statuses)
+    assert "tenant_code" in referrer_statuses[0]["safe_status"]["redactions"]
+    assert "referrer_ucn" in referrer_statuses[0]["safe_status"]["redactions"]
+
+    customer_status = project_partner_customer_safe_status(
+        viewer_role="customer",
+        subject=SAFE_REFERRAL_SUBJECT,
+        evidence={"source_family": "settlement", "status": "SETTLED"},
+    )
+
+    assert customer_status["safe_status"]["status"] == "UNAVAILABLE"
+    assert customer_status["safe_status"]["action_category"] == "NOT_AVAILABLE"
+    assert "SETTLED" not in str(customer_status)
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_reporting_contract_stays_operational_and_redacted(
+    monkeypatch,
+):
+    calls: list[dict] = []
+
+    async def fake_get_marketplace_overview(**kwargs):
+        calls.append(kwargs)
+        return _overview()
+
+    monkeypatch.setattr(
+        analytics,
+        "get_marketplace_overview",
+        fake_get_marketplace_overview,
+    )
+
+    report = await analytics.get_tenant_safe_analytics_report(
+        tenant_code="fnb",
+        report_type="distribution_overview",
+        dimensions=["tenant_code", "campaign_code", "metric_name"],
+        filters={
+            "campaign_code": "CAMP001",
+            "referrer_ucn": "900001",
+            "raw_customer_identifier": "secret-customer",
+        },
+    )
+
+    assert calls == [
+        {
+            "tenant_code": "FNB",
+            "sponsor_code": None,
+            "campaign_code": "CAMP001",
+        }
+    ]
+    assert report["tenant_scope"] == "FNB"
+    assert report["metric_class"] == "OPERATIONAL"
+    assert report["reconciliation_status"] == "NOT_APPLICABLE"
+    assert set(report["redactions"]) == {
+        "raw_customer_identifier",
+        "referrer_ucn",
+    }
+
+    metric_names = {metric["name"] for metric in report["metrics"]}
+    assert "conversions.linked_count" in metric_names
+    assert "conversions.attribution_rate" in metric_names
+    assert "commissions.total_commission_amount" not in metric_names
+    assert "wallets.current_balance" not in metric_names
+    assert "900001" not in str(report)
+    assert "secret-customer" not in str(report)
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_future_report_catalog_gaps_remain_explicit():
+    with pytest.raises(ValueError, match="Unsupported analytics report_type"):
+        await analytics.get_tenant_safe_analytics_report(
+            tenant_code="FNB",
+            report_type="campaign_performance",
+        )
