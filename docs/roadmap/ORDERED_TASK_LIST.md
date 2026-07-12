@@ -2223,6 +2223,9 @@ Validation: `.venv_codex\Scripts\python.exe -m pytest test\test_onboarding_revie
 
 ## TASK-123: Add review decision validation and eligibility tests
 
+Status: Complete (2026-07-12). Output: `test/test_onboarding_review_decision_service.py`.
+Finding: Added focused regression coverage for review-decision eligibility before route exposure. Tests now lock unsupported schema outcomes including `CHANGES_REQUESTED`/`REJECTED`, unknown launch-like outcomes, all non-`READY_FOR_REVIEW` source states, missing external scope, invalid idempotency key, validation blockers, missing evidence, unsafe safe-error shapes, readiness permission limits, adjacent-role rejection, stale version behavior, no-live-action guardrails, idempotency replay/conflict behavior, and redaction/no secret leakage. No service code, routes, frontend code, schema, migrations, live DB access, audit/event dispatch, credential lifecycle, webhook delivery, funding, wallet, fulfilment, settlement, retry, go-live, billing, ledger, or money movement was introduced.
+Validation: `.venv_codex\Scripts\python.exe -m pytest test\test_onboarding_review_decision_service.py` passed with 24 tests. `.venv_codex\Scripts\python.exe -m ruff check test\test_onboarding_review_decision_service.py` passed with only the existing top-level Ruff settings deprecation warning. `.venv_codex\Scripts\python.exe -m py_compile test\test_onboarding_review_decision_service.py` passed.
 Objective: Lock review-decision eligibility, validation blocker, stale-version, and safe-error behavior before route exposure.
 Type: Tests.
 Dependencies: TASK-122.

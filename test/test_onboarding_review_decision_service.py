@@ -226,6 +226,36 @@ async def test_review_decision_rejects_unsupported_schema_outcome(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_review_decision_rejects_changes_requested_until_schema_backed(
+    monkeypatch,
+):
+    stub = DraftRepoStub()
+    _patch_repo(monkeypatch, stub)
+
+    result = await _review(review_outcome=service.OUTCOME_CHANGES_REQUESTED)
+
+    assert result["status"] == service.RESULT_REJECTED
+    assert result["error"]["code"] == service.ERROR_UNSUPPORTED_SCHEMA_STATE
+    assert result["review_outcome"] == service.OUTCOME_CHANGES_REQUESTED
+    assert stub.updated_kwargs is None
+    assert stub.recorded_idempotency_kwargs is None
+
+
+@pytest.mark.asyncio
+async def test_review_decision_rejects_unknown_review_outcome(monkeypatch):
+    stub = DraftRepoStub()
+    _patch_repo(monkeypatch, stub)
+
+    result = await _review(review_outcome="approve and launch")
+
+    assert result["status"] == service.RESULT_REJECTED
+    assert result["error"]["code"] == service.ERROR_UNSUPPORTED_REVIEW_OUTCOME
+    assert result["review_outcome"] == "APPROVE_AND_LAUNCH"
+    assert stub.updated_kwargs is None
+    assert stub.recorded_idempotency_kwargs is None
+
+
+@pytest.mark.asyncio
 async def test_review_decision_rejects_missing_draft(monkeypatch):
     stub = DraftRepoStub(draft=None)
     _patch_repo(monkeypatch, stub)
@@ -238,16 +268,43 @@ async def test_review_decision_rejects_missing_draft(monkeypatch):
     assert stub.recorded_idempotency_kwargs is None
 
 
+@pytest.mark.parametrize(
+    "source_status",
+    [
+        "DRAFT_CREATED",
+        "DRAFT_UPDATED",
+        "VALIDATION_FAILED",
+        "BLOCKED",
+        "DISCARDED",
+    ],
+)
 @pytest.mark.asyncio
-async def test_review_decision_rejects_invalid_source_status(monkeypatch):
-    stub = DraftRepoStub(draft=_draft(status="DRAFT_UPDATED"))
+async def test_review_decision_rejects_all_non_review_source_statuses(
+    monkeypatch,
+    source_status,
+):
+    stub = DraftRepoStub(draft=_draft(status=source_status))
     _patch_repo(monkeypatch, stub)
 
     result = await _review()
 
     assert result["status"] == service.RESULT_REJECTED
     assert result["error"]["code"] == service.ERROR_INVALID_STATE
-    assert result["error"]["current_status"] == "DRAFT_UPDATED"
+    assert result["error"]["current_status"] == source_status
+    assert stub.updated_kwargs is None
+    assert stub.recorded_idempotency_kwargs is None
+
+
+@pytest.mark.asyncio
+async def test_review_decision_rejects_missing_external_scope(monkeypatch):
+    stub = DraftRepoStub(draft=_draft(external_tenant_ref=""))
+    _patch_repo(monkeypatch, stub)
+
+    result = await _review()
+
+    assert result["status"] == service.RESULT_REJECTED
+    assert result["error"]["code"] == service.ERROR_VALIDATION_BLOCKED
+    assert stub.idempotency_lookup_kwargs is None
     assert stub.updated_kwargs is None
     assert stub.recorded_idempotency_kwargs is None
 
@@ -316,6 +373,20 @@ async def test_review_decision_rejects_idempotency_conflict(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_review_decision_rejects_invalid_idempotency_key(monkeypatch):
+    stub = DraftRepoStub()
+    _patch_repo(monkeypatch, stub)
+
+    result = await _review(idempotency_key="")
+
+    assert result["status"] == service.RESULT_REJECTED
+    assert result["error"]["code"] == service.ERROR_VALIDATION_BLOCKED
+    assert stub.idempotency_lookup_kwargs is None
+    assert stub.updated_kwargs is None
+    assert stub.recorded_idempotency_kwargs is None
+
+
+@pytest.mark.asyncio
 async def test_review_decision_rejects_validation_blockers(monkeypatch):
     stub = DraftRepoStub()
     _patch_repo(monkeypatch, stub)
@@ -329,6 +400,45 @@ async def test_review_decision_rejects_validation_blockers(monkeypatch):
 
     assert result["status"] == service.RESULT_REJECTED
     assert result["error"]["code"] == service.ERROR_VALIDATION_BLOCKED
+    assert stub.updated_kwargs is None
+    assert stub.recorded_idempotency_kwargs is None
+
+
+@pytest.mark.parametrize(
+    ("validation", "expected_message"),
+    [
+        (
+            _valid_validation(missing_evidence=[{"code": "MISSING_SIGNOFF"}]),
+            "Missing evidence prevents review decision.",
+        ),
+        (
+            _valid_validation(safe_errors=[{"code": "UNSAFE_FIELD"}]),
+            "Unsafe or permission-limited validation evidence prevents review decision.",
+        ),
+        (
+            _valid_validation(safe_errors=["unsafe"]),
+            "Validation safe errors prevent review decision.",
+        ),
+        (
+            _valid_validation(readiness_preview={"status": "PERMISSION_LIMITED"}),
+            "Readiness preview prevents review decision.",
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_review_decision_rejects_validation_and_readiness_blocker_shapes(
+    monkeypatch,
+    validation,
+    expected_message,
+):
+    stub = DraftRepoStub()
+    _patch_repo(monkeypatch, stub)
+
+    result = await _review(validation=validation)
+
+    assert result["status"] == service.RESULT_REJECTED
+    assert result["error"]["code"] == service.ERROR_VALIDATION_BLOCKED
+    assert result["error"]["message"] == expected_message
     assert stub.updated_kwargs is None
     assert stub.recorded_idempotency_kwargs is None
 
