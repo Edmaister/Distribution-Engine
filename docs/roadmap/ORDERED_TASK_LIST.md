@@ -2804,6 +2804,31 @@ Rollback notes: Revert the test file and this roadmap entry.
 Explicit non-goals: Do not add product wrapper routes, frontend, schema, migrations, live DB checks, production data access, auth changes, command idempotency implementation, audit writes, repair/replay/retry actions, export APIs, campaign activation, webhook delivery, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
 Definition of done: Referral SaaS has its first executable local golden-path contract test over existing shared primitives, moving beyond contract docs while preserving product and DLaaS boundaries. Priority: P0.
 
+## TASK-150: Add Referral SaaS negative contract test coverage
+
+Status: Complete (2026-07-12). Output: `test/test_referral_saas_golden_path_contract.py`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_AUDIT_IDEMPOTENCY_POSTURE.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Negative-path launch confidence; safe validation failures; tenant-mismatch diagnostics; progress self-referral rejection; journey mismatch rejection; tenant-scoped attribution trace lookup.
+Objective: Add local/CI-safe negative contract coverage for the focused Referral SaaS journey using existing shared primitives without adding product wrapper routes.
+Why now: TASK-149 proved the local golden path. The next production-confidence gap is proving core bad-path inputs fail safely and remain tenant-scoped before broader E2E, route smoke, or product wrapper work is introduced.
+Files involved: `test/test_referral_saas_golden_path_contract.py`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `services/referral_code.py`; `services/progress_service.py`; `services/link_code_service.py`; `services/outcome_trace_service.py`; nearby referral, progress, link/code, and outcome trace tests.
+Database/schema impact: None. The test uses local fake connections only; no live DB access, migrations, schema changes, or runtime data changes.
+Backend impact: Test-only. No services, routers, auth helpers, fields, statuses, or payload contracts changed.
+Frontend impact: None.
+API impact: None. No `/v1/referral-saas/*` product wrapper route was added.
+Tests to add/update: Added negative contract assertions for accepted-terms rejection, tenant-mismatch link/code inspection, progress self-referral rejection, journey mismatch rejection, queue non-emission on rejected progress, and tenant-scoped missing attribution trace lookup.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q --no-cov test\test_referral_saas_golden_path_contract.py --tb=short`; focused referral/progress/link/trace suite; `.venv_codex\Scripts\python.exe -m py_compile test\test_referral_saas_golden_path_contract.py`; `ruff check test\test_referral_saas_golden_path_contract.py`.
+Acceptance criteria: Test proves selected Referral SaaS negative paths return stable, safe outcomes; tenant-mismatch inspection does not leak the other tenant in diagnostic evidence; rejected progress paths do not enqueue downstream events; missing trace remains tenant-scoped; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-147; TASK-149.
+Blocked by: None for local/CI test coverage. Non-local/live verification remains separately gated by approved access.
+Risk level: Low.
+Rollback notes: Revert the test additions and this roadmap entry.
+Explicit non-goals: Do not add product wrapper routes, frontend, schema, migrations, live DB checks, production data access, auth changes, command idempotency implementation, audit writes, repair/replay/retry actions, export APIs, campaign activation, webhook delivery, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
+Definition of done: Referral SaaS has executable negative contract coverage for launch-critical safe-failure and tenant-scope behavior while preserving shared platform primitives and product boundaries. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

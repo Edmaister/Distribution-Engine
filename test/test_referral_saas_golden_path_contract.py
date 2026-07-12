@@ -35,10 +35,12 @@ class FakeAsyncConn:
         fetchrow_values: list[dict | None] | None = None,
         fetch_values: list[list[dict]] | None = None,
         progress_inserted: bool = True,
+        progress_instance_row: dict | None = None,
     ):
         self.fetchrow_values = list(fetchrow_values or [])
         self.fetch_values = list(fetch_values or [])
         self.progress_inserted = progress_inserted
+        self.progress_instance_row = progress_instance_row
         self.executed: list[tuple[str, tuple]] = []
 
     def transaction(self):
@@ -47,7 +49,7 @@ class FakeAsyncConn:
     async def fetchrow(self, sql, *params):
         self.executed.append((sql, params))
         if "FROM referral_instances" in sql and "referrer_ucn" in sql:
-            return {
+            return self.progress_instance_row or {
                 "referrer_ucn": "5555555555",
                 "product": "Transactional",
                 "sub_product": "DDA13",
@@ -110,20 +112,22 @@ def _policy_row(**overrides):
     return row
 
 
-def _progress_request(*, source_event_id="evt-account-opened-1"):
-    return SimpleNamespace(
-        referralTrackId="11111111-1111-4111-8111-111111111111",
-        product="Transactional",
-        subProduct="DDA13",
-        eventType="ACCOUNT_OPENED",
-        journeyCode="BANKING_TRANSACTIONAL",
-        journeyVersion="v1",
-        sourceSystem="CORE_BANKING",
-        sourceEventId=source_event_id,
-        refereeUCN="1234567890",
-        accountNumber="123456789012",
-        meta={"channel": "api"},
-    )
+def _progress_request(*, source_event_id="evt-account-opened-1", **overrides):
+    request = {
+        "referralTrackId": "11111111-1111-4111-8111-111111111111",
+        "product": "Transactional",
+        "subProduct": "DDA13",
+        "eventType": "ACCOUNT_OPENED",
+        "journeyCode": "BANKING_TRANSACTIONAL",
+        "journeyVersion": "v1",
+        "sourceSystem": "CORE_BANKING",
+        "sourceEventId": source_event_id,
+        "refereeUCN": "1234567890",
+        "accountNumber": "123456789012",
+        "meta": {"channel": "api"},
+    }
+    request.update(overrides)
+    return SimpleNamespace(**request)
 
 
 def _outcome_row():
@@ -336,3 +340,98 @@ async def test_referral_saas_local_golden_path_uses_shared_primitives(monkeypatc
     assert "funding" not in trace["sections"]
     assert "settlement" not in trace["sections"]
     assert "go_live" not in str(trace).lower()
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_negative_contract_paths_fail_safely(monkeypatch):
+    issue, issue_status = await referral_code.get_or_create_referrer_code(
+        referrer_ucn="5555555555",
+        tenant="FNB",
+        sticker="QR001",
+        segment="PERSONAL",
+        preferred_handle="SafeHandle",
+        accepted_terms=False,
+    )
+
+    assert issue_status == 400
+    assert issue["created"] is False
+    assert issue["error_code"] == "ACCEPTED_TERMS_REQUIRED"
+    assert "5555555555" not in str(issue)
+
+    inspect_conn = FakeAsyncConn(fetchrow_values=[None, {"tenant_code": "PNP"}])
+    _patch_db(monkeypatch, link_code_service, inspect_conn)
+
+    inspected = await link_code_service.inspect_link_code(
+        tenant_code="FNB",
+        source_type="REFERRAL_CODE",
+        code_or_ref="REF123",
+    )
+
+    assert inspected["status"] == "INVALID"
+    assert inspected["tenant_code"] == "FNB"
+    assert inspected["missing_evidence"][0]["code"] == "TENANT_MISMATCH"
+    assert inspected["evidence"] == {}
+    assert "PNP" not in str(inspected["missing_evidence"])
+
+    progress_conn = FakeAsyncConn(
+        progress_instance_row={
+            "referrer_ucn": "1234567890",
+            "product": "Transactional",
+            "sub_product": "DDA13",
+            "referee_ucn": "1234567890",
+            "referee_ucn_hash": ucn_lookup_key("1234567890"),
+            "journey_code": "BANKING_TRANSACTIONAL",
+            "journey_version": "v1",
+        }
+    )
+    enqueued: list[dict] = []
+    _patch_db(monkeypatch, progress_service, progress_conn)
+    monkeypatch.setattr(
+        progress_service,
+        "enqueue_event",
+        lambda payload: enqueued.append(payload),
+    )
+
+    self_referral, self_referral_status = await progress_service.handle_progress_event(
+        _progress_request(),
+        tenant_code="FNB",
+    )
+
+    assert self_referral_status == 409
+    assert self_referral["status"] == "error"
+    assert self_referral["errorCode"] == "SELF_REFERRAL_NOT_ALLOWED"
+    assert self_referral["deduped"] is False
+    assert enqueued == []
+
+    journey_conn = FakeAsyncConn()
+    _patch_db(monkeypatch, progress_service, journey_conn)
+
+    journey_mismatch, journey_status = await progress_service.handle_progress_event(
+        _progress_request(
+            eventType="QUOTE_REQUESTED",
+            journeyCode="INSURANCE_POLICY",
+            journeyVersion="v1",
+            refereeUCN=None,
+            accountNumber=None,
+        ),
+        tenant_code="FNB",
+    )
+
+    assert journey_status == 400
+    assert journey_mismatch["status"] == "error"
+    assert journey_mismatch["journeyCode"] == "INSURANCE_POLICY"
+    assert "Journey mismatch" in journey_mismatch["message"]
+    assert enqueued == []
+
+    trace_conn = FakeAsyncConn(fetchrow_values=[None])
+    _patch_db(monkeypatch, outcome_trace_service, trace_conn)
+
+    with pytest.raises(outcome_trace_service.OutcomeTraceNotFound) as exc:
+        await outcome_trace_service.get_outcome_trace(
+            tenant_code="PNP",
+            referral_track_id="11111111-1111-4111-8111-111111111111",
+            identity={"role": "ADMIN"},
+            include_sections=["attribution", "events"],
+        )
+
+    assert "tenant PNP" in str(exc.value)
