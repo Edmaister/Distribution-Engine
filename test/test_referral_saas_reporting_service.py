@@ -15,6 +15,7 @@ class FakeConnection:
         *,
         recorded_rows: list[dict] | None = None,
         failure_rows: list[dict] | None = None,
+        quality_rows: list[dict] | None = None,
     ):
         self.recorded_rows = recorded_rows or [
             {
@@ -41,6 +42,48 @@ class FakeConnection:
                 "retry_attempt_count": 1,
             },
         ]
+        self.quality_rows = quality_rows or [
+            {
+                "trace_status": "COMPLETE",
+                "source_confidence": "HIGH",
+                "warning_code": None,
+                "attribution_source": "CAMPAIGN_REFERRAL_LINK",
+                "campaign_code": "CAMP001",
+                "outcome_count": 4,
+            },
+            {
+                "trace_status": "PARTIAL",
+                "source_confidence": "MEDIUM",
+                "warning_code": None,
+                "attribution_source": "ROUTE_REFERRAL_LINK",
+                "campaign_code": "CAMP001",
+                "outcome_count": 2,
+            },
+            {
+                "trace_status": "MISSING_EVIDENCE",
+                "source_confidence": "LOW",
+                "warning_code": "NO_SOURCE_EVIDENCE",
+                "attribution_source": "NONE",
+                "campaign_code": None,
+                "outcome_count": 1,
+            },
+            {
+                "trace_status": "INCONSISTENT",
+                "source_confidence": "CONFLICT",
+                "warning_code": "SOURCE_CONFLICT",
+                "attribution_source": "MULTIPLE",
+                "campaign_code": "CAMP002",
+                "outcome_count": 1,
+            },
+            {
+                "trace_status": "UNATTRIBUTED",
+                "source_confidence": "LOW",
+                "warning_code": None,
+                "attribution_source": "NONE",
+                "campaign_code": None,
+                "outcome_count": 3,
+            },
+        ]
         self.fetch_calls: list[tuple[str, tuple]] = []
 
     async def fetch(self, query, *params):
@@ -49,6 +92,8 @@ class FakeConnection:
             return self.recorded_rows
         if "FROM referral_event_failures" in query:
             return self.failure_rows
+        if "WITH base AS" in query:
+            return self.quality_rows
         raise AssertionError(f"unexpected query: {query}")
 
 
@@ -108,6 +153,10 @@ def test_referral_saas_report_catalog_exposes_available_and_future_reports():
     assert by_type["progress_event_health"]["status"] == "AVAILABLE"
     assert by_type["progress_event_health"]["source_report_type"] == (
         svc.SOURCE_PROGRESS_EVENT_HEALTH
+    )
+    assert by_type["attribution_quality"]["status"] == "AVAILABLE"
+    assert by_type["attribution_quality"]["source_report_type"] == (
+        svc.SOURCE_ATTRIBUTION_QUALITY
     )
     assert by_type["safe_status_distribution"]["metric_class"] == "DERIVED_STATUS"
 
@@ -334,14 +383,104 @@ async def test_progress_event_health_returns_unavailable_when_source_fails(monke
 
 
 @pytest.mark.asyncio
+async def test_attribution_quality_maps_current_trace_evidence(monkeypatch):
+    conn = FakeConnection()
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+    start = datetime(2026, 7, 1, tzinfo=timezone.utc)
+    end = datetime(2026, 7, 12, tzinfo=timezone.utc)
+
+    report = await svc.get_referral_saas_report(
+        tenant_code="fnb",
+        report_type="attribution_quality",
+        dimensions=["trace_status", "source_confidence", "metric_name"],
+        filters={
+            "campaign_ref": "CAMP001",
+            "source_confidence": "HIGH",
+            "trace_status": "COMPLETE",
+            "raw_customer_identifier": "secret-customer",
+        },
+        data_window_start=start,
+        data_window_end=end,
+    )
+
+    assert len(conn.fetch_calls) == 1
+    query, params = conn.fetch_calls[0]
+    assert "FROM referral_instances ri" in query
+    assert "LEFT JOIN campaign_referral_links crl" in query
+    assert "LEFT JOIN distribution_route_referral_links drl" in query
+    assert "ri.tenant_code = $1" in query
+    assert params == ("FNB", "CAMP001", start, end, "COMPLETE", "HIGH")
+    assert report["report_type"] == "attribution_quality"
+    assert report["source_report_type"] == "referral_attribution_quality"
+    assert report["tenant_scope"] == "FNB"
+    assert report["metric_class"] == "DERIVED_STATUS"
+    assert report["filters"] == {
+        "tenant_code": "FNB",
+        "campaign_ref": "CAMP001",
+        "campaign_code": "CAMP001",
+        "source_confidence": "HIGH",
+        "trace_status": "COMPLETE",
+    }
+    assert report["dimensions"] == [
+        "trace_status",
+        "source_confidence",
+        "metric_name",
+    ]
+    assert report["data_window_start"] == start.isoformat()
+    assert report["data_window_end"] == end.isoformat()
+    assert report["export_status"] == "NOT_IMPLEMENTED"
+    assert report["redactions"] == ["raw_customer_identifier"]
+    assert report["source_warnings"] == [
+        {
+            "code": "DERIVED_TRACE_STATUS",
+            "message": (
+                "Attribution quality uses current referral, campaign-link, "
+                "and route-link evidence to derive aggregate trace status; "
+                "it does not expose raw outcome trace payloads."
+            ),
+        }
+    ]
+
+    metrics_by_name = {metric["name"]: metric for metric in report["metrics"]}
+    assert metrics_by_name["attribution.complete_count"]["value"] == 4
+    assert metrics_by_name["attribution.partial_count"]["value"] == 2
+    assert metrics_by_name["attribution.missing_evidence_count"]["value"] == 1
+    assert metrics_by_name["attribution.inconsistent_count"]["value"] == 1
+    assert metrics_by_name["attribution.unattributed_count"]["value"] == 3
+    assert all(
+        metric["metric_class"] == "DERIVED_STATUS" for metric in report["metrics"]
+    )
+    assert "secret-customer" not in str(report)
+
+
+@pytest.mark.asyncio
+async def test_attribution_quality_returns_unavailable_when_source_fails(monkeypatch):
+    class BrokenConnection:
+        async def fetch(self, query, *params):
+            raise RuntimeError("database unavailable")
+
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(BrokenConnection()))
+
+    report = await svc.get_referral_saas_report(
+        tenant_code="FNB",
+        report_type="attribution_quality",
+    )
+
+    assert report["metrics"] == []
+    assert report["freshness"]["status"] == "UNAVAILABLE"
+    assert report["source_warnings"][0]["code"] == "SOURCE_UNAVAILABLE"
+    assert report["source_warnings"][1]["code"] == "DERIVED_TRACE_STATUS"
+
+
+@pytest.mark.asyncio
 async def test_future_referral_saas_report_types_remain_explicitly_unimplemented():
     with pytest.raises(
         ValueError,
-        match="Referral SaaS report_type not implemented: attribution_quality",
+        match="Referral SaaS report_type not implemented: safe_status_distribution",
     ):
         await svc.get_referral_saas_report(
             tenant_code="FNB",
-            report_type="attribution_quality",
+            report_type="safe_status_distribution",
         )
 
 

@@ -9,7 +9,9 @@ helper for `campaign_performance`; TASK-157 adds the first read-only product
 route wrapper; TASK-158 adds bounded identity-derived tenant scope for that
 route; TASK-159 adds `referral_funnel` as the second bounded report type with
 partial-source coverage warnings; TASK-160 adds `progress_event_health` over
-tenant-scoped progress event and failure evidence. Export jobs, frontend, full
+tenant-scoped progress event and failure evidence; TASK-161 adds
+`attribution_quality` as a derived aggregate report over tenant-scoped
+referral, campaign-link, and route-link evidence. Export jobs, frontend, full
 SaaS account membership resolution, permission changes, and storage remain
 unimplemented.
 
@@ -316,8 +318,10 @@ SaaS reporting product:
   code-issued, validation-state, and progress milestones still need dedicated
   report sources. TASK-160 adds `progress_event_health` using
   `referral_progress_events` and tenant-scoped `referral_event_failures` rows,
-  with partial coverage for deduped/rejected states. `attribution_quality` and
-  `safe_status_distribution` remain unimplemented.
+  with partial coverage for deduped/rejected states. TASK-161 adds
+  `attribution_quality` as an aggregate derived-status report. It does not
+  expose raw outcome trace payloads. `safe_status_distribution` remains
+  unimplemented.
 - `admin_analytics` is admin/internal and requires explicit `tenant_code`; it is
   not a SaaS account-facing report API.
 - distribution reporting includes useful attribution and conversion metrics, but
@@ -395,5 +399,13 @@ through the same report helper and read-only route. It reads tenant-scoped
 failed, retry-attempt, open-failure, and resolved-failure counts, excludes
 failure rows that cannot be tenant-scoped, and returns partial-source warnings
 for deduped/rejected counts until those states are persisted in reportable
-form. Other first-launch report types, exports, retention, scheduling, storage,
-and frontend screens remain explicit follow-up work.
+form.
+
+TASK-161 implementation update: `attribution_quality` is now available through
+the same report helper and read-only route. It derives aggregate
+`COMPLETE`, `PARTIAL`, `MISSING_EVIDENCE`, `INCONSISTENT`, and `UNATTRIBUTED`
+trace-status counts from tenant-scoped `referral_instances`,
+`campaign_referral_links`, `campaign_attributions`, and
+`distribution_route_referral_links` evidence. Raw outcome trace payloads,
+operator-only evidence, exports, retention, scheduling, storage, and frontend
+screens remain explicit follow-up work.
