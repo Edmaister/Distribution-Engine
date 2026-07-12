@@ -569,8 +569,8 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-147 and the Shared Platform
-            onboarding review-decision work through TASK-122.
+            Updated after TASK-134 through TASK-148 and the Shared Platform
+            onboarding review-decision work through TASK-123.
           </p>
         </div>
         <div class="status-strip" aria-label="Roadmap status snapshot">
@@ -584,11 +584,15 @@
           </div>
           <div class="status-pill">
             <b>Live confidence still capped</b>
-            <span>TASK-027 and TASK-028 remain blocked, so production/live DB claims stay bounded.</span>
+            <span>TASK-028 resolved local schema uncertainty, but TASK-027 staging/production verification is still gated, so production/live DB claims stay bounded.</span>
           </div>
           <div class="status-pill">
-            <b>Shared review flow started</b>
-            <span>TASK-121 and TASK-122 added onboarding review boundaries and service primitives, separate from Referral SaaS.</span>
+            <b>Shared review flow hardened</b>
+            <span>TASK-121 through TASK-123 added onboarding review boundaries, service primitives, and validation/eligibility regression tests.</span>
+          </div>
+          <div class="status-pill">
+            <b>Schema drift reduced</b>
+            <span>TASK-148 added guarded migration 081 for funding reconciliation correlation evidence, a DLaaS/shared-platform fix outside the Referral SaaS launch path.</span>
           </div>
         </div>
       </section>
@@ -1076,8 +1080,8 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Live DB/state verification</div>
-            <div class="matrix-cell">TASK-027 and TASK-028 remain blocked, so production confidence cannot be claimed against live state.</div>
-            <div class="matrix-cell">Read-only live verification, drift review, migration replay, and smoke evidence.</div>
+            <div class="matrix-cell">TASK-028 resolved local uncertainty and TASK-148 fixed confirmed reconciliation schema drift, but TASK-027 staging/production verification remains gated.</div>
+            <div class="matrix-cell">Approved read-only staging/production verification, drift review, migration replay, and smoke evidence.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Command audit/idempotency gaps</div>
@@ -1178,23 +1182,34 @@
             how the broader DLaaS foundation is moving in parallel.
           </p>
         </div>
-        <div class="grid two">
+        <div class="grid three">
           <article class="panel">
             <h3>Onboarding Review Boundary</h3>
             <p>
               TASK-121 documents that review decisions are internal
-              classifications only. They do not imply approval-to-launch,
-              go-live, provisioning, credentials, webhooks, funding,
-              fulfilment, settlement, retry, billing, ledger, or money movement.
+              classifications only. TASK-123 now regression-protects
+              eligibility, validation blockers, stale-version handling, safe
+              errors, redaction, idempotency, and no-live-action behavior before
+              route exposure.
             </p>
           </article>
           <article class="panel">
             <h3>Review Decision Primitive</h3>
             <p>
-              TASK-122 adds a service primitive for `READY_FOR_REVIEW` drafts.
-              Internal approval stays metadata-only, `BLOCKED` uses the current
+              TASK-122 adds a service primitive for READY_FOR_REVIEW drafts.
+              Internal approval stays metadata-only, BLOCKED uses the current
               schema, and unsupported persisted outcomes stop safely instead of
               inventing statuses.
+            </p>
+          </article>
+          <article class="panel">
+            <h3>Reconciliation Correlation Drift</h3>
+            <p>
+              TASK-148 adds guarded migration 081 for
+              funding_reconciliation_runs.correlation_id and preserves
+              reconciliation run_date insertion. This improves DLaaS finance
+              traceability without adding money movement or changing the
+              Referral SaaS launch boundary.
             </p>
           </article>
         </div>
