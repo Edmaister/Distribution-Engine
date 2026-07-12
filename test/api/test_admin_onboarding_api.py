@@ -1872,9 +1872,9 @@ async def test_review_decision_records_internal_approval_without_live_actions(
     )
     assert body["approval_to_launch"] is False
     assert body["go_live_enabled"] is False
-    assert body["audit_evidence_ref"] is None
-    assert body["audit_link_ref"] is None
-    assert body["audit_evidence_status"] == "NOT_RECORDED_IN_TASK_124"
+    assert body["audit_evidence_ref"] == "REVIEW_DECISION_AUDIT_EVIDENCE"
+    assert body["audit_link_ref"] == "audit-link-uuid"
+    assert body["audit_evidence_status"] == "RECORDED_REFERENCE"
     assert body["no_live_action_confirmed"] is True
     assert "NO_APPROVAL_TO_LAUNCH" in body["guardrails"]
     assert "NO_WEBHOOK_DISPATCH" in body["guardrails"]
@@ -1886,7 +1886,30 @@ async def test_review_decision_records_internal_approval_without_live_actions(
     assert calls["record_idempotency_reference"][0]["operation_type"] == (
         review_service.OPERATION_REVIEW_DECISION
     )
-    assert calls["create_audit_link_reference"] == []
+    assert len(calls["create_audit_link_reference"]) == 1
+    audit_link = calls["create_audit_link_reference"][0]
+    assert audit_link["action_type"] == review_service.OPERATION_REVIEW_DECISION
+    assert audit_link["action_status"] == "SUCCESS"
+    assert audit_link["evidence_type"] == "REVIEW_DECISION_AUDIT_EVIDENCE"
+    assert audit_link["audit_ref"] is None
+    assert audit_link["event_ref"] is None
+    assert audit_link["actor_ref"] == "ADMIN"
+    assert audit_link["actor_role"] == "ADMIN"
+    assert audit_link["correlation_id"] == "corr-review-1"
+    assert audit_link["evidence_summary"]["review_outcome"] == (
+        review_service.OUTCOME_APPROVED_FOR_INTERNAL_REVIEW
+    )
+    assert audit_link["evidence_summary"]["reason_reference"]
+    assert audit_link["evidence_summary"]["dispatch"] == {
+        "event_dispatched": False,
+        "webhook_dispatched": False,
+        "event_ref": None,
+    }
+    rendered_audit = json.dumps(audit_link).lower()
+    assert "review-decision-key-1" not in rendered_audit
+    assert "evidence is complete" not in rendered_audit
+    assert "tenant_code" not in rendered_audit
+    assert "internal-acme" not in rendered_audit
     assert "review-decision-key-1" not in rendered
     assert "evidence is complete" not in rendered
     assert "tenant_code" not in rendered
@@ -1922,6 +1945,10 @@ async def test_review_decision_records_schema_backed_blocked_status(monkeypatch)
     assert body["draft_status"] == "BLOCKED"
     assert body["review_outcome"] == review_service.OUTCOME_BLOCKED
     assert calls["update_draft_metadata_or_status"][0]["status"] == "BLOCKED"
+    assert len(calls["create_audit_link_reference"]) == 1
+    assert calls["create_audit_link_reference"][0]["evidence_summary"][
+        "review_status"
+    ] == "BLOCKED"
     rendered_update = json.dumps(calls["update_draft_metadata_or_status"][0]).lower()
     assert "policy sign-off" not in rendered_update
 

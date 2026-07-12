@@ -2249,6 +2249,13 @@ Definition of done: Submitted drafts can receive internal review decisions under
 
 ## TASK-125: Add review decision audit evidence references
 
+Status: Complete (2026-07-12). Output: `services/onboarding/onboarding_draft_audit_evidence_service.py`; `services/onboarding/onboarding_review_decision_service.py`; `apps/api/routers/admin_onboarding.py`; `test/test_onboarding_draft_audit_evidence_service.py`; `test/test_onboarding_review_decision_service.py`; `test/api/test_admin_onboarding_api.py`.
+Product boundary: Shared Platform.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/roadmap/README.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/roadmap/ONBOARDING_REVIEW_DECISION_WORKFLOW_CONTRACT_FINAL_REVIEW_TASK_121.md`.
+Shared primitive impact: onboarding review-decision audit evidence now uses the existing `onboarding_draft_audit_links` reference primitive and shared audit evidence helper shape.
+Source duplication: No.
+Finding: Added safe reference-only review-decision audit evidence for successful new review decisions. The evidence records actor reference, actor role, permission scope, external onboarding references, draft reference/version, review-decision operation/status, review outcome, reason hash reference, hashed idempotency reference, correlation ID, before/after state hashes, changed state, validation/readiness summaries, redaction categories, and `no_live_action_confirmed`. The review-decision service now creates the audit-link reference after the successful idempotency record and returns `audit_evidence_ref`, `audit_link_ref`, and `RECORDED_REFERENCE` to the existing guarded admin endpoint. Replay, conflict, stale, validation-blocked, unsupported-outcome, missing-draft, and permission-denied paths do not create audit-link references.
+Validation: `.venv_codex` validation passed for `python -m pytest test/test_onboarding_draft_audit_evidence_service.py test/test_onboarding_review_decision_service.py test/api/test_admin_onboarding_api.py` with 130 tests. Python compile checks passed for changed Python files. `ruff check` passed for changed Python files. Default Windows `python` remains broken and could not launch, so validation used the repo virtual environment.
 Objective: Record safe reference-only evidence for review decisions without webhook/event dispatch or raw sensitive payloads.
 Type: Service/Tests.
 Dependencies: TASK-124; TASK-118.

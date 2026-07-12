@@ -4,6 +4,8 @@ from services.onboarding.onboarding_draft_audit_evidence_service import (
     EMPTY_STATE_HASH,
     build_draft_save_audit_evidence,
     build_draft_save_audit_link_fields,
+    build_review_decision_audit_evidence,
+    build_review_decision_audit_link_fields,
     build_submit_for_review_audit_evidence,
     build_submit_for_review_audit_link_fields,
 )
@@ -416,6 +418,121 @@ def test_submit_for_review_audit_link_fields_do_not_dispatch():
     assert fields["audit_ref"] is None
     assert fields["event_ref"] is None
     assert fields["idempotency_id"] == "idem-uuid"
+    assert fields["evidence_summary"]["dispatch"] == {
+        "event_dispatched": False,
+        "webhook_dispatched": False,
+        "event_ref": None,
+    }
+
+
+def test_review_decision_evidence_is_reference_only_and_state_scoped():
+    evidence = build_review_decision_audit_evidence(
+        actor_ref="operator-1",
+        actor_role="system_admin",
+        permission_scope={
+            "route_family": "admin_onboarding",
+            "role_family": "admin_operator",
+        },
+        prior_draft={
+            "draft_id": "draft-uuid",
+            "draft_ref": "draft-review-1",
+            "draft_version": 4,
+            "status": "READY_FOR_REVIEW",
+            "external_tenant_ref": "acme-distribution",
+            "organisation_ref": "org-acme",
+            "tenant_code": "INTERNAL-ACME",
+        },
+        updated_draft={
+            "draft_id": "draft-uuid",
+            "draft_ref": "draft-review-1",
+            "draft_version": 5,
+            "status": "BLOCKED",
+            "external_tenant_ref": "acme-distribution",
+            "organisation_ref": "org-acme",
+            "tenant_code": "INTERNAL-ACME",
+        },
+        action_status="SUCCESS",
+        review_outcome="BLOCKED",
+        reason_category="MISSING_POLICY_SIGNOFF",
+        reason_reference="hashed-reason-reference",
+        idempotency_reference="hashed-review-key",
+        correlation_id="corr-review-1",
+        validation=_validation(validation_result={"status": "VALID"}),
+        target_status="BLOCKED",
+    )
+    rendered = json.dumps(evidence, sort_keys=True).lower()
+
+    assert evidence["actor_ref"] == "operator-1"
+    assert evidence["actor_role"] == "SYSTEM_ADMIN"
+    assert evidence["operation_type"] == "ONBOARDING_DRAFT_REVIEW_DECISION"
+    assert evidence["action_status"] == "SUCCESS"
+    assert evidence["review_status"] == "BLOCKED"
+    assert evidence["review_outcome"] == "BLOCKED"
+    assert evidence["reason_category"] == "MISSING_POLICY_SIGNOFF"
+    assert evidence["reason_reference"] == "hashed-reason-reference"
+    assert evidence["idempotency_reference"] == "hashed-review-key"
+    assert len(evidence["before_state_hash"]) == 64
+    assert len(evidence["after_state_hash"]) == 64
+    assert evidence["before_state_hash"] != evidence["after_state_hash"]
+    assert evidence["changed_state"] == [
+        "draft_status",
+        "draft_version",
+        "review_outcome",
+        "reason_category",
+        "reason_reference",
+    ]
+    assert "internal-acme" not in rendered
+    assert '"tenant_code":' not in rendered
+    assert "review-decision-key-1" not in rendered
+    assert "policy sign-off" not in rendered
+    assert evidence["no_live_action_confirmed"] is True
+
+
+def test_review_decision_audit_link_fields_do_not_dispatch():
+    evidence = build_review_decision_audit_evidence(
+        actor_ref="operator-1",
+        actor_role="system_admin",
+        permission_scope=None,
+        prior_draft={
+            "draft_ref": "draft-review-1",
+            "draft_version": 4,
+            "status": "READY_FOR_REVIEW",
+            "external_tenant_ref": "acme-distribution",
+        },
+        updated_draft={
+            "draft_ref": "draft-review-1",
+            "draft_version": 5,
+            "status": "READY_FOR_REVIEW",
+            "external_tenant_ref": "acme-distribution",
+        },
+        action_status="SUCCESS",
+        review_outcome="APPROVED_FOR_INTERNAL_REVIEW",
+        reason_category="OPERATOR_REVIEW",
+        reason_reference="hashed-reason-reference",
+        idempotency_reference="hashed-review-key",
+        correlation_id="corr-review-1",
+        validation=_validation(validation_result={"status": "VALID"}),
+        target_status="READY_FOR_REVIEW",
+    )
+
+    fields = build_review_decision_audit_link_fields(
+        draft_id="draft-uuid",
+        evidence=evidence,
+        idempotency_id="idem-uuid",
+    )
+
+    assert fields["action_type"] == "ONBOARDING_DRAFT_REVIEW_DECISION"
+    assert fields["action_status"] == "SUCCESS"
+    assert fields["evidence_type"] == "REVIEW_DECISION_AUDIT_EVIDENCE"
+    assert fields["audit_ref"] is None
+    assert fields["event_ref"] is None
+    assert fields["idempotency_id"] == "idem-uuid"
+    assert fields["evidence_summary"]["review_outcome"] == (
+        "APPROVED_FOR_INTERNAL_REVIEW"
+    )
+    assert fields["evidence_summary"]["reason_reference"] == (
+        "hashed-reason-reference"
+    )
     assert fields["evidence_summary"]["dispatch"] == {
         "event_dispatched": False,
         "webhook_dispatched": False,
