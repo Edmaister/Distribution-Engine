@@ -41,14 +41,18 @@ def _filters(
     *,
     campaign_ref: str | None,
     campaign_code: str | None,
+    link_code_status: str | None,
     sponsor_code: str | None,
+    source_type: str | None,
 ) -> dict[str, str]:
     return {
         key: value.strip()
         for key, value in {
             "campaign_ref": campaign_ref,
             "campaign_code": campaign_code,
+            "link_code_status": link_code_status,
             "sponsor_code": sponsor_code,
+            "source_type": source_type,
         }.items()
         if value is not None and value.strip()
     }
@@ -74,7 +78,9 @@ async def get_referral_saas_product_report(
     ] = None,
     campaign_ref: str | None = Query(default=None),
     campaign_code: str | None = Query(default=None),
+    link_code_status: str | None = Query(default=None),
     sponsor_code: str | None = Query(default=None),
+    source_type: str | None = Query(default=None),
     data_window_start: datetime | None = Query(default=None),
     data_window_end: datetime | None = Query(default=None),
     identity: dict = Depends(require_session_key),
@@ -93,7 +99,9 @@ async def get_referral_saas_product_report(
             filters=_filters(
                 campaign_ref=campaign_ref,
                 campaign_code=campaign_code,
+                link_code_status=link_code_status,
                 sponsor_code=sponsor_code,
+                source_type=source_type,
             ),
             data_window_start=data_window_start,
             data_window_end=data_window_end,

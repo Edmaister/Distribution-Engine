@@ -12,9 +12,11 @@ partial-source coverage warnings; TASK-160 adds `progress_event_health` over
 tenant-scoped progress event and failure evidence; TASK-161 adds
 `attribution_quality` as a derived aggregate report over tenant-scoped
 referral, campaign-link, and route-link evidence; TASK-162 adds
-`safe_status_distribution` over tenant-scoped referral outcome evidence. Export
-jobs, frontend, full SaaS account membership resolution, permission changes,
-and storage remain unimplemented.
+`safe_status_distribution` over tenant-scoped referral outcome evidence.
+TASK-163 adds `link_code_performance` over durable referral code, campaign
+code, campaign-referral link, and route-referral link evidence. Export jobs,
+frontend, full SaaS account membership resolution, permission changes, and
+storage remain unimplemented.
 
 ## Boundary
 
@@ -316,14 +318,19 @@ SaaS reporting product:
 - TASK-156 defines the first Referral SaaS report catalog helper for
   `campaign_performance`; TASK-159 adds `referral_funnel` using current
   tenant-safe distribution overview evidence. Deeper stage metrics for
-  code-issued, validation-state, and progress milestones still need dedicated
-  report sources. TASK-160 adds `progress_event_health` using
+  validation-state and progress milestones still need dedicated report sources.
+  TASK-160 adds `progress_event_health` using
   `referral_progress_events` and tenant-scoped `referral_event_failures` rows,
   with partial coverage for deduped/rejected states. TASK-161 adds
   `attribution_quality` as an aggregate derived-status report. It does not
   expose raw outcome trace payloads. TASK-162 adds
   `safe_status_distribution` as an aggregate derived-status report without
   exposing raw viewer, UCN, reward, audit, provider, or money evidence.
+  TASK-163 adds `link_code_performance` as an aggregate operational report
+  across durable referral code, campaign code, campaign-referral link, and
+  route-referral link sources. Composite-code compatibility evidence remains a
+  partial-source warning because it is not persisted as durable aggregate
+  report evidence.
 - `admin_analytics` is admin/internal and requires explicit `tenant_code`; it is
   not a SaaS account-facing report API.
 - distribution reporting includes useful attribution and conversion metrics, but
@@ -392,8 +399,8 @@ SaaS account membership scope exists.
 TASK-159 implementation update: `referral_funnel` is now available through the
 same report helper and read-only route. It maps the current tenant-safe
 distribution overview source to safe funnel metrics and returns a
-`PARTIAL_SOURCE_COVERAGE` warning until dedicated code-issued,
-validation-state, and progress-milestone stage sources are implemented.
+`PARTIAL_SOURCE_COVERAGE` warning until dedicated validation-state and
+progress-milestone stage sources are implemented.
 
 TASK-160 implementation update: `progress_event_health` is now available
 through the same report helper and read-only route. It reads tenant-scoped
@@ -419,3 +426,11 @@ tenant-scoped `referral_instances` outcome evidence using the Referral SaaS
 safe-status vocabulary. Reward visibility, exports, retention, scheduling,
 storage, full account references, and frontend screens remain explicit
 follow-up work.
+
+TASK-163 implementation update: `link_code_performance` is now available
+through the same report helper and read-only route. It derives aggregate
+issued, active, linked, expired, invalid, and voided counts from tenant-scoped
+`referrer_codes`, `marketing_campaigns`, `campaign_referral_links`, and
+`distribution_route_referral_links` evidence. Composite-code compatibility
+evidence, reward visibility, exports, retention, scheduling, storage, full
+account references, and frontend screens remain explicit follow-up work.

@@ -4,6 +4,7 @@ from decimal import Decimal
 
 import pytest
 
+from services import referral_saas_reporting_service as reporting
 from services import tenant_safe_analytics_service as analytics
 from services.referral_saas_reporting_service import get_referral_saas_report
 from services.referral_saas_safe_status_service import (
@@ -14,6 +15,17 @@ SAFE_REFERRAL_SUBJECT = {
     "type": "referral",
     "safe_ref": "referral:track:11111111-1111-4111-8111-111111111111",
 }
+
+
+class FakeDbConnection:
+    def __init__(self, conn):
+        self.conn = conn
+
+    async def __aenter__(self):
+        return self.conn
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
 
 
 def _overview() -> dict:
@@ -195,12 +207,44 @@ async def test_referral_saas_report_catalog_supports_initial_operational_reports
             "code": "PARTIAL_SOURCE_COVERAGE",
             "message": (
                 "Referral funnel currently uses tenant-safe distribution "
-                "overview metrics; code-issued, validation-state, and "
+                "overview metrics; validation-state and "
                 "progress-milestone stage counts need dedicated follow-up "
                 "report sources before they can be promised."
             ),
         }
     ]
+
+    class LinkCodeConnection:
+        async def fetch(self, query, *params):
+            assert "WITH link_sources AS" in query
+            assert params[:4] == ("FNB", "CAMP001", None, None)
+            return [
+                {
+                    "source_type": "CAMPAIGN_REFERRAL_LINK",
+                    "link_code_status": "LINKED",
+                    "campaign_code": "CAMP001",
+                    "issued_period": "2026-07-12",
+                    "resolved_period": "2026-07-12",
+                    "link_code_count": 2,
+                }
+            ]
+
+    monkeypatch.setattr(
+        reporting, "db_connection", lambda: FakeDbConnection(LinkCodeConnection())
+    )
+
+    link_report = await get_referral_saas_report(
+        tenant_code="FNB",
+        report_type="link_code_performance",
+        filters={"campaign_code": "CAMP001"},
+    )
+
+    assert link_report["report_type"] == "link_code_performance"
+    assert link_report["source_report_type"] == "referral_link_code_performance"
+    assert link_report["metric_class"] == "OPERATIONAL"
+    assert link_report["export_status"] == "NOT_IMPLEMENTED"
+    assert link_report["metrics"][0]["name"] == "link_codes.linked_count"
+    assert link_report["source_warnings"][0]["code"] == "PARTIAL_SOURCE_COVERAGE"
 
     with pytest.raises(ValueError, match="Unsupported analytics report_type"):
         await analytics.get_tenant_safe_analytics_report(

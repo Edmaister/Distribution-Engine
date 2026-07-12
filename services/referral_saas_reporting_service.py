@@ -19,6 +19,7 @@ STATUS_NOT_IMPLEMENTED = "NOT_IMPLEMENTED"
 SOURCE_PROGRESS_EVENT_HEALTH = "referral_progress_event_health"
 SOURCE_ATTRIBUTION_QUALITY = "referral_attribution_quality"
 SOURCE_SAFE_STATUS_DISTRIBUTION = "referral_safe_status_distribution"
+SOURCE_LINK_CODE_PERFORMANCE = "referral_link_code_performance"
 
 REPORT_METRIC_NAME_MAPS = {
     REPORT_CAMPAIGN_PERFORMANCE: {
@@ -87,7 +88,7 @@ REFERRAL_SAAS_REPORT_CATALOG: dict[str, dict[str, Any]] = {
                 "code": "PARTIAL_SOURCE_COVERAGE",
                 "message": (
                     "Referral funnel currently uses tenant-safe distribution "
-                    "overview metrics; code-issued, validation-state, and "
+                    "overview metrics; validation-state and "
                     "progress-milestone stage counts need dedicated follow-up "
                     "report sources before they can be promised."
                 ),
@@ -95,8 +96,31 @@ REFERRAL_SAAS_REPORT_CATALOG: dict[str, dict[str, Any]] = {
         ],
     },
     REPORT_LINK_CODE_PERFORMANCE: {
-        "status": STATUS_NOT_IMPLEMENTED,
+        "status": STATUS_AVAILABLE,
+        "source_report_type": SOURCE_LINK_CODE_PERFORMANCE,
         "metric_class": analytics.METRIC_OPERATIONAL,
+        "allowed_dimensions": {
+            "campaign_ref",
+            "campaign_code",
+            "issued_period",
+            "link_code_status",
+            "metric_name",
+            "resolved_period",
+            "source_type",
+        },
+        "default_dimensions": ["source_type", "link_code_status", "metric_name"],
+        "allowed_filters": {"campaign_ref", "campaign_code", "link_code_status", "source_type"},
+        "source_warnings": [
+            {
+                "code": "PARTIAL_SOURCE_COVERAGE",
+                "message": (
+                    "Link/code performance uses durable referral code, campaign "
+                    "code, campaign-referral link, and route-referral link "
+                    "sources. Composite-code compatibility evidence is not "
+                    "durable enough for aggregate reporting yet."
+                ),
+            }
+        ],
     },
     REPORT_PROGRESS_EVENT_HEALTH: {
         "status": STATUS_AVAILABLE,
@@ -301,6 +325,21 @@ def _progress_health_filters(filters: dict[str, str]) -> dict[str, str]:
     }
 
 
+def _link_code_performance_filters(filters: dict[str, str]) -> dict[str, str]:
+    if "campaign_ref" in filters and "campaign_code" not in filters:
+        filters = {**filters, "campaign_code": filters["campaign_ref"]}
+    return {
+        key: value
+        for key, value in {
+            "campaign_ref": filters.get("campaign_ref"),
+            "campaign_code": filters.get("campaign_code"),
+            "link_code_status": filters.get("link_code_status"),
+            "source_type": filters.get("source_type"),
+        }.items()
+        if value
+    }
+
+
 def _attribution_quality_filters(filters: dict[str, str]) -> dict[str, str]:
     if "campaign_ref" in filters and "campaign_code" not in filters:
         filters = {**filters, "campaign_code": filters["campaign_ref"]}
@@ -379,6 +418,211 @@ def _product_metric(report_type: str, metric: dict[str, Any]) -> dict[str, Any] 
 def _source_warnings(report_type: str, source_report: dict[str, Any]) -> list[Any]:
     configured = REFERRAL_SAAS_REPORT_CATALOG[report_type].get("source_warnings", [])
     return [*source_report["source_warnings"], *configured]
+
+
+async def _link_code_performance_report(
+    *,
+    tenant_code: str,
+    dimensions: list[str],
+    filters: dict[str, str],
+    redactions: list[str],
+    data_window_start: datetime | None,
+    data_window_end: datetime | None,
+) -> dict[str, Any]:
+    generated_at = analytics._utcnow()
+    safe_filters = {
+        "tenant_code": tenant_code,
+        **_link_code_performance_filters(filters),
+    }
+    source_warnings = REFERRAL_SAAS_REPORT_CATALOG[REPORT_LINK_CODE_PERFORMANCE].get(
+        "source_warnings", []
+    )
+
+    try:
+        async with db_connection() as conn:
+            link_rows = await conn.fetch(
+                """
+                WITH link_sources AS (
+                    SELECT
+                        'REFERRAL_CODE' AS source_type,
+                        'ISSUED' AS link_code_status,
+                        NULL::text AS campaign_code,
+                        date_trunc('day', rc.created_at)::date::text AS issued_period,
+                        NULL::text AS resolved_period,
+                        rc.created_at AS source_created_at
+                    FROM referrer_codes rc
+                    WHERE rc.tenant_code = $1
+
+                    UNION ALL
+
+                    SELECT
+                        'CAMPAIGN_CODE' AS source_type,
+                        CASE
+                            WHEN mc.is_active IS NOT TRUE THEN 'INVALID'
+                            WHEN mc.ends_at IS NOT NULL AND mc.ends_at < NOW()
+                                THEN 'EXPIRED'
+                            WHEN mc.max_uses IS NOT NULL
+                             AND mc.uses_count >= mc.max_uses THEN 'INVALID'
+                            ELSE 'ISSUED'
+                        END AS link_code_status,
+                        mc.campaign_code,
+                        date_trunc('day', mc.created_at)::date::text AS issued_period,
+                        NULL::text AS resolved_period,
+                        mc.created_at AS source_created_at
+                    FROM marketing_campaigns mc
+                    WHERE mc.tenant_code = $1
+
+                    UNION ALL
+
+                    SELECT
+                        'CAMPAIGN_REFERRAL_LINK' AS source_type,
+                        'LINKED' AS link_code_status,
+                        ca.campaign_code,
+                        date_trunc('day', crl.created_at)::date::text AS issued_period,
+                        date_trunc('day', crl.created_at)::date::text AS resolved_period,
+                        crl.created_at AS source_created_at
+                    FROM campaign_referral_links crl
+                    JOIN campaign_attributions ca
+                      ON ca.campaign_track_id = crl.campaign_track_id
+                    WHERE ca.tenant_code = $1
+
+                    UNION ALL
+
+                    SELECT
+                        'ROUTE_REFERRAL_LINK' AS source_type,
+                        CASE
+                            WHEN drl.link_status = 'VOIDED' THEN 'VOIDED'
+                            ELSE 'ACTIVE'
+                        END AS link_code_status,
+                        o.campaign_code,
+                        date_trunc('day', drl.created_at)::date::text AS issued_period,
+                        CASE
+                            WHEN drl.link_status = 'VOIDED'
+                                THEN date_trunc('day', drl.updated_at)::date::text
+                            ELSE NULL::text
+                        END AS resolved_period,
+                        drl.created_at AS source_created_at
+                    FROM distribution_route_referral_links drl
+                    LEFT JOIN distribution_opportunities o
+                      ON o.opportunity_id = drl.opportunity_id
+                     AND o.tenant_code = drl.tenant_code
+                    WHERE drl.tenant_code = $1
+                )
+                SELECT
+                    source_type,
+                    link_code_status,
+                    campaign_code,
+                    issued_period,
+                    resolved_period,
+                    COUNT(*)::int AS link_code_count
+                FROM link_sources
+                WHERE ($2::text IS NULL OR campaign_code = $2)
+                  AND ($3::text IS NULL OR source_type = $3)
+                  AND ($4::text IS NULL OR link_code_status = $4)
+                  AND ($5::timestamptz IS NULL OR source_created_at >= $5)
+                  AND ($6::timestamptz IS NULL OR source_created_at < $6)
+                GROUP BY
+                    source_type,
+                    link_code_status,
+                    campaign_code,
+                    issued_period,
+                    resolved_period
+                ORDER BY source_type, link_code_status, campaign_code
+                """,
+                tenant_code,
+                safe_filters.get("campaign_code"),
+                safe_filters.get("source_type"),
+                safe_filters.get("link_code_status"),
+                data_window_start,
+                data_window_end,
+            )
+    except Exception:
+        return {
+            "report_type": SOURCE_LINK_CODE_PERFORMANCE,
+            "tenant_scope": tenant_code,
+            "external_tenant_ref": None,
+            "filters": safe_filters,
+            "dimensions": dimensions,
+            "metric_class": analytics.METRIC_OPERATIONAL,
+            "metrics": [],
+            "data_window_start": analytics._iso(data_window_start),
+            "data_window_end": analytics._iso(data_window_end),
+            "generated_at": analytics._iso(generated_at),
+            "freshness": analytics._freshness(
+                status=analytics.FRESHNESS_UNAVAILABLE,
+                generated_at=generated_at,
+                source_family=SOURCE_LINK_CODE_PERFORMANCE,
+                data_window_start=data_window_start,
+                data_window_end=data_window_end,
+            ),
+            "source_warnings": [
+                {
+                    "code": "SOURCE_UNAVAILABLE",
+                    "severity": "WARNING",
+                    "source": SOURCE_LINK_CODE_PERFORMANCE,
+                    "message": "Link/code performance source could not be read safely.",
+                },
+                *source_warnings,
+            ],
+            "redactions": redactions,
+            "reconciliation_status": "NOT_APPLICABLE",
+        }
+
+    metric_name_by_status = {
+        "ACTIVE": "link_codes.active_count",
+        "EXPIRED": "link_codes.expired_count",
+        "INVALID": "link_codes.invalid_count",
+        "ISSUED": "link_codes.issued_count",
+        "LINKED": "link_codes.linked_count",
+        "VOIDED": "link_codes.voided_count",
+    }
+    metrics: list[dict[str, Any]] = []
+    for row in link_rows:
+        row_data = dict(row)
+        link_code_status = row_data.get("link_code_status")
+        metric_name = metric_name_by_status.get(
+            link_code_status, "link_codes.unknown_count"
+        )
+        campaign_code = row_data.get("campaign_code")
+        metrics.append(
+            _report_metric(
+                name=metric_name,
+                value=row_data.get("link_code_count"),
+                source=SOURCE_LINK_CODE_PERFORMANCE,
+                dimensions={
+                    "campaign_code": campaign_code,
+                    "campaign_ref": campaign_code,
+                    "issued_period": row_data.get("issued_period"),
+                    "link_code_status": link_code_status,
+                    "metric_name": metric_name,
+                    "resolved_period": row_data.get("resolved_period"),
+                    "source_type": row_data.get("source_type"),
+                },
+            )
+        )
+
+    return {
+        "report_type": SOURCE_LINK_CODE_PERFORMANCE,
+        "tenant_scope": tenant_code,
+        "external_tenant_ref": None,
+        "filters": safe_filters,
+        "dimensions": dimensions,
+        "metric_class": analytics.METRIC_OPERATIONAL,
+        "metrics": metrics,
+        "data_window_start": analytics._iso(data_window_start),
+        "data_window_end": analytics._iso(data_window_end),
+        "generated_at": analytics._iso(generated_at),
+        "freshness": analytics._freshness(
+            status=analytics.FRESHNESS_FRESH,
+            generated_at=generated_at,
+            source_family=SOURCE_LINK_CODE_PERFORMANCE,
+            data_window_start=data_window_start,
+            data_window_end=data_window_end,
+        ),
+        "source_warnings": source_warnings,
+        "redactions": redactions,
+        "reconciliation_status": "NOT_APPLICABLE",
+    }
 
 
 async def _progress_event_health_report(
@@ -1009,6 +1253,34 @@ async def get_referral_saas_report(
     safe_filters, redactions = _safe_filters(report_type=report, filters=filters)
     config = REFERRAL_SAAS_REPORT_CATALOG[report]
 
+    if report == REPORT_LINK_CODE_PERFORMANCE:
+        source_report = await _link_code_performance_report(
+            tenant_code=tenant,
+            dimensions=resolved_dimensions,
+            filters=safe_filters,
+            redactions=redactions,
+            data_window_start=data_window_start,
+            data_window_end=data_window_end,
+        )
+        return {
+            "report_type": report,
+            "source_report_type": source_report["report_type"],
+            "tenant_scope": source_report["tenant_scope"],
+            "external_tenant_ref": source_report.get("external_tenant_ref"),
+            "filters": source_report["filters"],
+            "dimensions": resolved_dimensions,
+            "metric_class": config["metric_class"],
+            "metrics": source_report["metrics"],
+            "data_window_start": source_report["data_window_start"],
+            "data_window_end": source_report["data_window_end"],
+            "generated_at": source_report["generated_at"],
+            "freshness": source_report["freshness"],
+            "source_warnings": source_report["source_warnings"],
+            "redactions": source_report["redactions"],
+            "reconciliation_status": source_report["reconciliation_status"],
+            "catalog_status": config["status"],
+            "export_status": STATUS_NOT_IMPLEMENTED,
+        }
     if report == REPORT_PROGRESS_EVENT_HEALTH:
         source_report = await _progress_event_health_report(
             tenant_code=tenant,
