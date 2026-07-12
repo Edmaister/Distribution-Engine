@@ -2904,6 +2904,31 @@ Rollback notes: Revert the smoke plan script, test file, script README update, r
 Explicit non-goals: Do not execute route smoke calls, connect to production, discover credentials, write data, add product wrapper routes, change routers, schema, migrations, frontend, auth, command idempotency implementation, audit writes, repair/replay/retry actions, export APIs, campaign activation, webhook delivery, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
 Definition of done: Referral SaaS has CI-tested route smoke command planning with safe read-only defaults and explicit local/staging write boundaries, preparing the next verification slice without crossing live-data safety gates. Priority: P0.
 
+## TASK-154: Add Referral SaaS safe-status/reporting contract test
+
+Status: Complete (2026-07-12). Output: `test/test_referral_saas_status_reporting_contract.py`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SAFE_STATUS_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Safe referrer/customer status; tenant-safe reporting; redaction; operational metric boundary; product report catalog gap evidence.
+Objective: Add a local/CI-safe Referral SaaS contract test proving the current safe-status and tenant-safe analytics foundations remain bounded and redacted while future product report/status wrapper gaps stay explicit.
+Why now: TASK-149 through TASK-153 established golden-path, negative-path, route smoke, schema/status, and smoke-plan verification. The E2E plan also requires safe-status and reporting assertions after TASK-141 and TASK-142; this task adds the first executable coverage for that handoff without implementing new product routes.
+Files involved: `test/test_referral_saas_status_reporting_contract.py`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `services/partner_customer_safe_status_service.py`; `services/tenant_safe_analytics_service.py`; `test/test_partner_customer_safe_status_service.py`; `test/test_tenant_safe_analytics_service.py`; `docs/sa/referral-saas/REFERRAL_SAAS_SAFE_STATUS_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`.
+Database/schema impact: None. The test uses monkeypatched service inputs only; no live DB access, migrations, schema changes, or runtime data changes.
+Backend impact: Test-only. No services, routers, auth helpers, fields, statuses, report catalog entries, or payload contracts changed.
+Frontend impact: None.
+API impact: None. No route behavior changed and no `/v1/referral-saas/*` wrapper route was added.
+Tests to add/update: Added safe-status/reporting contract assertions for referrer/customer-safe projection, adjacent-role settlement redaction, tenant-safe operational reporting, sensitive filter redaction, exclusion of commission/wallet money metrics, and explicit rejection of future Referral SaaS report types such as `campaign_performance` until implemented.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q --no-cov test\test_referral_saas_status_reporting_contract.py --tb=short`; focused Referral SaaS verification suite; `.venv_codex\Scripts\python.exe -m py_compile test\test_referral_saas_status_reporting_contract.py`; `ruff check test\test_referral_saas_status_reporting_contract.py`.
+Acceptance criteria: Test proves current safe-status and reporting foundations can support bounded Referral SaaS assertions; raw source statuses and sensitive filters are not leaked; operational reporting excludes broader DLaaS money metrics; missing Referral SaaS report catalog remains explicit; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-141; TASK-142; TASK-147; TASK-149 through TASK-153.
+Blocked by: None for local contract coverage. Product API wrappers, dedicated Referral SaaS report catalog, and customer/referrer safe-status wrapper remain separate implementation work.
+Risk level: Low.
+Rollback notes: Revert the test file and this roadmap entry.
+Explicit non-goals: Do not implement product wrapper routes, report catalog entries, exports, schema, migrations, frontend, auth changes, live DB checks, route smoke execution, command idempotency implementation, audit writes, repair/replay/retry actions, campaign activation, webhook delivery, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
+Definition of done: Referral SaaS has executable safe-status/reporting handoff coverage that proves current foundations are bounded and redacted while keeping product-wrapper and report-catalog gaps visible. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
