@@ -210,9 +210,9 @@ async def test_referral_saas_report_catalog_supports_initial_operational_reports
 
     with pytest.raises(
         ValueError,
-        match="Referral SaaS report_type not implemented: progress_event_health",
+        match="Referral SaaS report_type not implemented: attribution_quality",
     ):
         await get_referral_saas_report(
             tenant_code="FNB",
-            report_type="progress_event_health",
+            report_type="attribution_quality",
         )

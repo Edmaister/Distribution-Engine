@@ -8,8 +8,10 @@ Status: Contract complete. TASK-156 adds the first service-layer report catalog
 helper for `campaign_performance`; TASK-157 adds the first read-only product
 route wrapper; TASK-158 adds bounded identity-derived tenant scope for that
 route; TASK-159 adds `referral_funnel` as the second bounded report type with
-partial-source coverage warnings. Export jobs, frontend, full SaaS account
-membership resolution, permission changes, and storage remain unimplemented.
+partial-source coverage warnings; TASK-160 adds `progress_event_health` over
+tenant-scoped progress event and failure evidence. Export jobs, frontend, full
+SaaS account membership resolution, permission changes, and storage remain
+unimplemented.
 
 ## Boundary
 
@@ -312,7 +314,9 @@ SaaS reporting product:
   `campaign_performance`; TASK-159 adds `referral_funnel` using current
   tenant-safe distribution overview evidence. Deeper stage metrics for
   code-issued, validation-state, and progress milestones still need dedicated
-  report sources, and `progress_event_health`, `attribution_quality`, and
+  report sources. TASK-160 adds `progress_event_health` using
+  `referral_progress_events` and tenant-scoped `referral_event_failures` rows,
+  with partial coverage for deduped/rejected states. `attribution_quality` and
   `safe_status_distribution` remain unimplemented.
 - `admin_analytics` is admin/internal and requires explicit `tenant_code`; it is
   not a SaaS account-facing report API.
@@ -383,6 +387,13 @@ TASK-159 implementation update: `referral_funnel` is now available through the
 same report helper and read-only route. It maps the current tenant-safe
 distribution overview source to safe funnel metrics and returns a
 `PARTIAL_SOURCE_COVERAGE` warning until dedicated code-issued,
-validation-state, and progress-milestone stage sources are implemented. Other
-first-launch report types, exports, retention, scheduling, storage, and
-frontend screens remain explicit follow-up work.
+validation-state, and progress-milestone stage sources are implemented.
+
+TASK-160 implementation update: `progress_event_health` is now available
+through the same report helper and read-only route. It reads tenant-scoped
+`referral_progress_events` and `referral_event_failures`, reports recorded,
+failed, retry-attempt, open-failure, and resolved-failure counts, excludes
+failure rows that cannot be tenant-scoped, and returns partial-source warnings
+for deduped/rejected counts until those states are persisted in reportable
+form. Other first-launch report types, exports, retention, scheduling, storage,
+and frontend screens remain explicit follow-up work.
