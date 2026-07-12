@@ -210,9 +210,9 @@ async def test_referral_saas_report_catalog_supports_initial_operational_reports
 
     with pytest.raises(
         ValueError,
-        match="Referral SaaS report_type not implemented: safe_status_distribution",
+        match="Referral SaaS report_type not implemented: reward_visibility_summary",
     ):
         await get_referral_saas_report(
             tenant_code="FNB",
-            report_type="safe_status_distribution",
+            report_type="reward_visibility_summary",
         )

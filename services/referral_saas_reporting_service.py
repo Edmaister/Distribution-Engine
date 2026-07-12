@@ -18,6 +18,7 @@ STATUS_AVAILABLE = "AVAILABLE"
 STATUS_NOT_IMPLEMENTED = "NOT_IMPLEMENTED"
 SOURCE_PROGRESS_EVENT_HEALTH = "referral_progress_event_health"
 SOURCE_ATTRIBUTION_QUALITY = "referral_attribution_quality"
+SOURCE_SAFE_STATUS_DISTRIBUTION = "referral_safe_status_distribution"
 
 REPORT_METRIC_NAME_MAPS = {
     REPORT_CAMPAIGN_PERFORMANCE: {
@@ -163,8 +164,35 @@ REFERRAL_SAAS_REPORT_CATALOG: dict[str, dict[str, Any]] = {
         ],
     },
     REPORT_SAFE_STATUS_DISTRIBUTION: {
-        "status": STATUS_NOT_IMPLEMENTED,
+        "status": STATUS_AVAILABLE,
+        "source_report_type": SOURCE_SAFE_STATUS_DISTRIBUTION,
         "metric_class": "DERIVED_STATUS",
+        "allowed_dimensions": {
+            "action_category",
+            "metric_name",
+            "product_status",
+            "safe_status",
+            "source_family",
+            "viewer_role",
+        },
+        "default_dimensions": ["viewer_role", "product_status", "metric_name"],
+        "allowed_filters": {
+            "action_category",
+            "product_status",
+            "safe_status",
+            "viewer_role",
+        },
+        "source_warnings": [
+            {
+                "code": "DERIVED_SAFE_STATUS",
+                "message": (
+                    "Safe-status distribution is derived from tenant-scoped "
+                    "referral outcome evidence using the Referral SaaS safe "
+                    "status projection vocabulary; it does not expose raw "
+                    "viewer, UCN, reward, audit, provider, or money evidence."
+                ),
+            }
+        ],
     },
     REPORT_REWARD_VISIBILITY_SUMMARY: {
         "status": STATUS_NOT_IMPLEMENTED,
@@ -283,6 +311,19 @@ def _attribution_quality_filters(filters: dict[str, str]) -> dict[str, str]:
             "campaign_code": filters.get("campaign_code"),
             "source_confidence": filters.get("source_confidence"),
             "trace_status": filters.get("trace_status"),
+        }.items()
+        if value
+    }
+
+
+def _safe_status_distribution_filters(filters: dict[str, str]) -> dict[str, str]:
+    return {
+        key: value
+        for key, value in {
+            "action_category": filters.get("action_category"),
+            "product_status": filters.get("product_status"),
+            "safe_status": filters.get("safe_status"),
+            "viewer_role": filters.get("viewer_role"),
         }.items()
         if value
     }
@@ -765,6 +806,194 @@ async def _attribution_quality_report(
     }
 
 
+async def _safe_status_distribution_report(
+    *,
+    tenant_code: str,
+    dimensions: list[str],
+    filters: dict[str, str],
+    redactions: list[str],
+    data_window_start: datetime | None,
+    data_window_end: datetime | None,
+) -> dict[str, Any]:
+    generated_at = analytics._utcnow()
+    safe_filters = {
+        "tenant_code": tenant_code,
+        **_safe_status_distribution_filters(filters),
+    }
+    source_warnings = REFERRAL_SAAS_REPORT_CATALOG[
+        REPORT_SAFE_STATUS_DISTRIBUTION
+    ].get("source_warnings", [])
+
+    try:
+        async with db_connection() as conn:
+            status_rows = await conn.fetch(
+                """
+                WITH base AS (
+                    SELECT
+                        COALESCE(NULLIF($2::text, ''), 'referrer') AS viewer_role,
+                        'outcome' AS source_family,
+                        CASE
+                            WHEN COALESCE(ri.is_complete, false)
+                              OR ri.status IN ('COMPLETED', 'COMPLETE')
+                                THEN 'FULFILLED'
+                            WHEN ri.status = 'VALIDATED'
+                                THEN 'PENDING'
+                            WHEN ri.status IN (
+                                'UCN_CAPTURED',
+                                'ACCOUNT_OPENED',
+                                'ACCOUNT_ACTIVATED'
+                            )
+                                THEN 'IN_PROGRESS'
+                            WHEN ri.status IN (
+                                'FUNDED',
+                                'DEBIT_ORDER_SWITCHED',
+                                'SALARY_SWITCHED',
+                                'FIRST_TRANSACTION_COMPLETED'
+                            )
+                                THEN 'QUALIFIED'
+                            WHEN ri.status IN ('CANCELLED', 'FAILED')
+                                THEN 'ACTION_REQUIRED'
+                            ELSE 'UNAVAILABLE'
+                        END AS safe_status,
+                        CASE
+                            WHEN COALESCE(ri.is_complete, false)
+                              OR ri.status IN ('COMPLETED', 'COMPLETE')
+                                THEN 'COMPLETED'
+                            WHEN ri.status = 'VALIDATED'
+                                THEN 'WAITING'
+                            WHEN ri.status IN (
+                                'UCN_CAPTURED',
+                                'ACCOUNT_OPENED',
+                                'ACCOUNT_ACTIVATED'
+                            )
+                                THEN 'IN_PROGRESS'
+                            WHEN ri.status IN (
+                                'FUNDED',
+                                'DEBIT_ORDER_SWITCHED',
+                                'SALARY_SWITCHED',
+                                'FIRST_TRANSACTION_COMPLETED'
+                            )
+                                THEN 'QUALIFIED'
+                            WHEN ri.status = 'CANCELLED'
+                                THEN 'ACTION_NEEDED'
+                            ELSE 'UNAVAILABLE'
+                        END AS product_status,
+                        CASE
+                            WHEN ri.status = 'VALIDATED'
+                                THEN 'WAITING_FOR_EVENT'
+                            WHEN ri.status IN ('CANCELLED', 'FAILED')
+                                THEN 'CONTACT_SUPPORT'
+                            WHEN ri.status IS NULL
+                                THEN 'NOT_AVAILABLE'
+                            ELSE 'NONE'
+                        END AS action_category,
+                        ri.created_at
+                    FROM referral_instances ri
+                    WHERE ri.tenant_code = $1
+                      AND ($6::timestamptz IS NULL OR ri.created_at >= $6)
+                      AND ($7::timestamptz IS NULL OR ri.created_at < $7)
+                )
+                SELECT
+                    viewer_role,
+                    source_family,
+                    safe_status,
+                    product_status,
+                    action_category,
+                    COUNT(*)::int AS status_count
+                FROM base
+                WHERE ($3::text IS NULL OR safe_status = $3)
+                  AND ($4::text IS NULL OR product_status = $4)
+                  AND ($5::text IS NULL OR action_category = $5)
+                GROUP BY
+                    viewer_role,
+                    source_family,
+                    safe_status,
+                    product_status,
+                    action_category
+                ORDER BY product_status, safe_status, action_category
+                """,
+                tenant_code,
+                safe_filters.get("viewer_role"),
+                safe_filters.get("safe_status"),
+                safe_filters.get("product_status"),
+                safe_filters.get("action_category"),
+                data_window_start,
+                data_window_end,
+            )
+    except Exception:
+        return {
+            "report_type": SOURCE_SAFE_STATUS_DISTRIBUTION,
+            "tenant_scope": tenant_code,
+            "external_tenant_ref": None,
+            "filters": safe_filters,
+            "dimensions": dimensions,
+            "metric_class": "DERIVED_STATUS",
+            "metrics": [],
+            "data_window_start": analytics._iso(data_window_start),
+            "data_window_end": analytics._iso(data_window_end),
+            "generated_at": analytics._iso(generated_at),
+            "freshness": analytics._freshness(
+                status=analytics.FRESHNESS_UNAVAILABLE,
+                generated_at=generated_at,
+                source_family=SOURCE_SAFE_STATUS_DISTRIBUTION,
+                data_window_start=data_window_start,
+                data_window_end=data_window_end,
+            ),
+            "source_warnings": [
+                {
+                    "code": "SOURCE_UNAVAILABLE",
+                    "severity": "WARNING",
+                    "source": SOURCE_SAFE_STATUS_DISTRIBUTION,
+                    "message": (
+                        "Safe-status distribution source could not be read safely."
+                    ),
+                },
+                *source_warnings,
+            ],
+            "redactions": redactions,
+            "reconciliation_status": "NOT_APPLICABLE",
+        }
+
+    metrics = [
+        _report_metric(
+            name="status.safe_status_count",
+            value=dict(row).get("status_count"),
+            source=SOURCE_SAFE_STATUS_DISTRIBUTION,
+            metric_class="DERIVED_STATUS",
+            dimensions={
+                "action_category": dict(row).get("action_category"),
+                "metric_name": "status.safe_status_count",
+                "product_status": dict(row).get("product_status"),
+                "safe_status": dict(row).get("safe_status"),
+                "source_family": dict(row).get("source_family"),
+                "viewer_role": dict(row).get("viewer_role"),
+            },
+        )
+        for row in status_rows
+    ]
+
+    return {
+        "report_type": SOURCE_SAFE_STATUS_DISTRIBUTION,
+        "tenant_scope": tenant_code,
+        "external_tenant_ref": None,
+        "filters": safe_filters,
+        "dimensions": dimensions,
+        "metric_class": "DERIVED_STATUS",
+        "metrics": metrics,
+        "data_window_start": analytics._iso(data_window_start),
+        "data_window_end": analytics._iso(data_window_end),
+        "generated_at": analytics._iso(generated_at),
+        "freshness": analytics._freshness(
+            status=analytics.FRESHNESS_FRESH,
+            generated_at=generated_at,
+            source_family=SOURCE_SAFE_STATUS_DISTRIBUTION,
+            data_window_start=data_window_start,
+            data_window_end=data_window_end,
+        ),
+        "source_warnings": source_warnings,
+        "redactions": redactions,
+        "reconciliation_status": "NOT_APPLICABLE",
+    }
 async def get_referral_saas_report(
     *,
     tenant_code: str,
@@ -810,6 +1039,34 @@ async def get_referral_saas_report(
         }
     if report == REPORT_ATTRIBUTION_QUALITY:
         source_report = await _attribution_quality_report(
+            tenant_code=tenant,
+            dimensions=resolved_dimensions,
+            filters=safe_filters,
+            redactions=redactions,
+            data_window_start=data_window_start,
+            data_window_end=data_window_end,
+        )
+        return {
+            "report_type": report,
+            "source_report_type": source_report["report_type"],
+            "tenant_scope": source_report["tenant_scope"],
+            "external_tenant_ref": source_report.get("external_tenant_ref"),
+            "filters": source_report["filters"],
+            "dimensions": resolved_dimensions,
+            "metric_class": config["metric_class"],
+            "metrics": source_report["metrics"],
+            "data_window_start": source_report["data_window_start"],
+            "data_window_end": source_report["data_window_end"],
+            "generated_at": source_report["generated_at"],
+            "freshness": source_report["freshness"],
+            "source_warnings": source_report["source_warnings"],
+            "redactions": source_report["redactions"],
+            "reconciliation_status": source_report["reconciliation_status"],
+            "catalog_status": config["status"],
+            "export_status": STATUS_NOT_IMPLEMENTED,
+        }
+    if report == REPORT_SAFE_STATUS_DISTRIBUTION:
+        source_report = await _safe_status_distribution_report(
             tenant_code=tenant,
             dimensions=resolved_dimensions,
             filters=safe_filters,

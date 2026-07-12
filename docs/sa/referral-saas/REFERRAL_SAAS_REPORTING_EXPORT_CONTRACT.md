@@ -11,9 +11,10 @@ route; TASK-159 adds `referral_funnel` as the second bounded report type with
 partial-source coverage warnings; TASK-160 adds `progress_event_health` over
 tenant-scoped progress event and failure evidence; TASK-161 adds
 `attribution_quality` as a derived aggregate report over tenant-scoped
-referral, campaign-link, and route-link evidence. Export jobs, frontend, full
-SaaS account membership resolution, permission changes, and storage remain
-unimplemented.
+referral, campaign-link, and route-link evidence; TASK-162 adds
+`safe_status_distribution` over tenant-scoped referral outcome evidence. Export
+jobs, frontend, full SaaS account membership resolution, permission changes,
+and storage remain unimplemented.
 
 ## Boundary
 
@@ -320,8 +321,9 @@ SaaS reporting product:
   `referral_progress_events` and tenant-scoped `referral_event_failures` rows,
   with partial coverage for deduped/rejected states. TASK-161 adds
   `attribution_quality` as an aggregate derived-status report. It does not
-  expose raw outcome trace payloads. `safe_status_distribution` remains
-  unimplemented.
+  expose raw outcome trace payloads. TASK-162 adds
+  `safe_status_distribution` as an aggregate derived-status report without
+  exposing raw viewer, UCN, reward, audit, provider, or money evidence.
 - `admin_analytics` is admin/internal and requires explicit `tenant_code`; it is
   not a SaaS account-facing report API.
 - distribution reporting includes useful attribution and conversion metrics, but
@@ -409,3 +411,11 @@ trace-status counts from tenant-scoped `referral_instances`,
 `distribution_route_referral_links` evidence. Raw outcome trace payloads,
 operator-only evidence, exports, retention, scheduling, storage, and frontend
 screens remain explicit follow-up work.
+
+TASK-162 implementation update: `safe_status_distribution` is now available
+through the same report helper and read-only route. It derives aggregate
+`safe_status`, `product_status`, and `action_category` counts from
+tenant-scoped `referral_instances` outcome evidence using the Referral SaaS
+safe-status vocabulary. Reward visibility, exports, retention, scheduling,
+storage, full account references, and frontend screens remain explicit
+follow-up work.

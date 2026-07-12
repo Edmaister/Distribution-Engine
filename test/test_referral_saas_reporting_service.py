@@ -16,6 +16,7 @@ class FakeConnection:
         recorded_rows: list[dict] | None = None,
         failure_rows: list[dict] | None = None,
         quality_rows: list[dict] | None = None,
+        status_rows: list[dict] | None = None,
     ):
         self.recorded_rows = recorded_rows or [
             {
@@ -84,6 +85,40 @@ class FakeConnection:
                 "outcome_count": 3,
             },
         ]
+        self.status_rows = status_rows or [
+            {
+                "viewer_role": "referrer",
+                "source_family": "outcome",
+                "safe_status": "PENDING",
+                "product_status": "WAITING",
+                "action_category": "WAITING_FOR_EVENT",
+                "status_count": 5,
+            },
+            {
+                "viewer_role": "referrer",
+                "source_family": "outcome",
+                "safe_status": "IN_PROGRESS",
+                "product_status": "IN_PROGRESS",
+                "action_category": "NONE",
+                "status_count": 3,
+            },
+            {
+                "viewer_role": "referrer",
+                "source_family": "outcome",
+                "safe_status": "FULFILLED",
+                "product_status": "COMPLETED",
+                "action_category": "NONE",
+                "status_count": 2,
+            },
+            {
+                "viewer_role": "referrer",
+                "source_family": "outcome",
+                "safe_status": "ACTION_REQUIRED",
+                "product_status": "ACTION_NEEDED",
+                "action_category": "CONTACT_SUPPORT",
+                "status_count": 1,
+            },
+        ]
         self.fetch_calls: list[tuple[str, tuple]] = []
 
     async def fetch(self, query, *params):
@@ -92,6 +127,8 @@ class FakeConnection:
             return self.recorded_rows
         if "FROM referral_event_failures" in query:
             return self.failure_rows
+        if "status_count" in query:
+            return self.status_rows
         if "WITH base AS" in query:
             return self.quality_rows
         raise AssertionError(f"unexpected query: {query}")
@@ -158,7 +195,10 @@ def test_referral_saas_report_catalog_exposes_available_and_future_reports():
     assert by_type["attribution_quality"]["source_report_type"] == (
         svc.SOURCE_ATTRIBUTION_QUALITY
     )
-    assert by_type["safe_status_distribution"]["metric_class"] == "DERIVED_STATUS"
+    assert by_type["safe_status_distribution"]["status"] == "AVAILABLE"
+    assert by_type["safe_status_distribution"]["source_report_type"] == (
+        svc.SOURCE_SAFE_STATUS_DISTRIBUTION
+    )
 
 
 @pytest.mark.asyncio
@@ -473,14 +513,107 @@ async def test_attribution_quality_returns_unavailable_when_source_fails(monkeyp
 
 
 @pytest.mark.asyncio
+async def test_safe_status_distribution_maps_current_outcome_evidence(monkeypatch):
+    conn = FakeConnection()
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+    start = datetime(2026, 7, 1, tzinfo=timezone.utc)
+    end = datetime(2026, 7, 12, tzinfo=timezone.utc)
+
+    report = await svc.get_referral_saas_report(
+        tenant_code="fnb",
+        report_type="safe_status_distribution",
+        dimensions=["viewer_role", "product_status", "metric_name"],
+        filters={
+            "viewer_role": "referrer",
+            "product_status": "WAITING",
+            "safe_status": "PENDING",
+            "raw_ucn": "900001",
+        },
+        data_window_start=start,
+        data_window_end=end,
+    )
+
+    assert len(conn.fetch_calls) == 1
+    query, params = conn.fetch_calls[0]
+    assert "FROM referral_instances ri" in query
+    assert "ri.tenant_code = $1" in query
+    assert params == ("FNB", "referrer", "PENDING", "WAITING", None, start, end)
+    assert report["report_type"] == "safe_status_distribution"
+    assert report["source_report_type"] == "referral_safe_status_distribution"
+    assert report["tenant_scope"] == "FNB"
+    assert report["metric_class"] == "DERIVED_STATUS"
+    assert report["filters"] == {
+        "tenant_code": "FNB",
+        "viewer_role": "referrer",
+        "product_status": "WAITING",
+        "safe_status": "PENDING",
+    }
+    assert report["dimensions"] == ["viewer_role", "product_status", "metric_name"]
+    assert report["data_window_start"] == start.isoformat()
+    assert report["data_window_end"] == end.isoformat()
+    assert report["export_status"] == "NOT_IMPLEMENTED"
+    assert report["redactions"] == ["raw_ucn"]
+    assert report["source_warnings"] == [
+        {
+            "code": "DERIVED_SAFE_STATUS",
+            "message": (
+                "Safe-status distribution is derived from tenant-scoped "
+                "referral outcome evidence using the Referral SaaS safe "
+                "status projection vocabulary; it does not expose raw "
+                "viewer, UCN, reward, audit, provider, or money evidence."
+            ),
+        }
+    ]
+
+    counts = {
+        metric["dimensions"]["product_status"]: metric["value"]
+        for metric in report["metrics"]
+    }
+    assert counts == {
+        "ACTION_NEEDED": 1,
+        "COMPLETED": 2,
+        "IN_PROGRESS": 3,
+        "WAITING": 5,
+    }
+    assert all(metric["name"] == "status.safe_status_count" for metric in report["metrics"])
+    assert all(
+        metric["metric_class"] == "DERIVED_STATUS" for metric in report["metrics"]
+    )
+    assert "900001" not in str(report)
+
+
+@pytest.mark.asyncio
+async def test_safe_status_distribution_returns_unavailable_when_source_fails(
+    monkeypatch,
+):
+    class BrokenConnection:
+        async def fetch(self, query, *params):
+            raise RuntimeError("database unavailable")
+
+    monkeypatch.setattr(
+        svc, "db_connection", lambda: FakeDbConnection(BrokenConnection())
+    )
+
+    report = await svc.get_referral_saas_report(
+        tenant_code="FNB",
+        report_type="safe_status_distribution",
+    )
+
+    assert report["metrics"] == []
+    assert report["freshness"]["status"] == "UNAVAILABLE"
+    assert report["source_warnings"][0]["code"] == "SOURCE_UNAVAILABLE"
+    assert report["source_warnings"][1]["code"] == "DERIVED_SAFE_STATUS"
+
+
+@pytest.mark.asyncio
 async def test_future_referral_saas_report_types_remain_explicitly_unimplemented():
     with pytest.raises(
         ValueError,
-        match="Referral SaaS report_type not implemented: safe_status_distribution",
+        match="Referral SaaS report_type not implemented: reward_visibility_summary",
     ):
         await svc.get_referral_saas_report(
             tenant_code="FNB",
-            report_type="safe_status_distribution",
+            report_type="reward_visibility_summary",
         )
 
 

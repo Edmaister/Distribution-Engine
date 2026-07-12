@@ -232,6 +232,36 @@ async def test_referral_saas_report_reader_can_fetch_attribution_quality(
     assert calls[0]["filters"] == {"campaign_ref": "CAMP001"}
 
 
+async def test_referral_saas_report_reader_can_fetch_safe_status_distribution(
+    monkeypatch,
+):
+    calls: list[dict] = []
+
+    async def fake_get_referral_saas_report(**kwargs):
+        calls.append(kwargs)
+        return _report(report_type="safe_status_distribution")
+
+    monkeypatch.setattr(
+        referral_saas_reports,
+        "get_referral_saas_report",
+        fake_get_referral_saas_report,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            "/v1/referral-saas/reports/safe_status_distribution",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["report"]["report_type"] == "safe_status_distribution"
+    assert calls[0]["tenant_code"] == "FNB"
+    assert calls[0]["report_type"] == "safe_status_distribution"
+
+
 async def test_referral_saas_report_rejects_internal_reader_without_scope(monkeypatch):
     async def fake_get_referral_saas_report(**kwargs):  # pragma: no cover
         raise AssertionError("service should not be called")
@@ -338,7 +368,7 @@ async def test_referral_saas_report_rejects_partner_identity(monkeypatch):
 async def test_referral_saas_report_returns_safe_validation_error(monkeypatch):
     async def fake_get_referral_saas_report(**kwargs):
         raise ValueError(
-            "Referral SaaS report_type not implemented: safe_status_distribution"
+            "Referral SaaS report_type not implemented: reward_visibility_summary"
         )
 
     monkeypatch.setattr(
@@ -351,12 +381,12 @@ async def test_referral_saas_report_returns_safe_validation_error(monkeypatch):
         app=app, base_url="http://test", headers=ADMIN_HEADERS
     ) as client:
         response = await client.get(
-            "/v1/referral-saas/reports/safe_status_distribution",
+            "/v1/referral-saas/reports/reward_visibility_summary",
             params={"tenant_code": "FNB"},
         )
 
     assert response.status_code == 400
     assert response.json()["detail"] == {
         "code": "validation_error",
-        "message": "Referral SaaS report_type not implemented: safe_status_distribution",
+        "message": "Referral SaaS report_type not implemented: reward_visibility_summary",
     }

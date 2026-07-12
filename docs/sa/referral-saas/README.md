@@ -64,3 +64,7 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   derives aggregate complete, partial, missing-evidence, inconsistent, and
   unattributed counts from tenant-scoped referral, campaign-link, and route-link
   evidence without exposing raw trace payloads.
+- TASK-162 adds `safe_status_distribution` as the fifth bounded report type. It
+  derives aggregate product/safe status counts from tenant-scoped referral
+  outcome evidence using the Referral SaaS safe-status vocabulary without
+  exposing raw viewer, UCN, reward, audit, provider, or money evidence.
