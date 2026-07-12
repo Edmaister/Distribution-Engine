@@ -28,6 +28,8 @@ initialization, seeding, backfilling, nightly refreshes, and health checks.
 - `admin_audit_smoke.py` - Smoke-test that sensitive admin actions write audit rows.
 - `core_role_journey_smoke.py` - Smoke-test consumer, producer, distributor, and admin workspace sessions, read paths, and scope rejection.
 - `target_state_smoke.py` - Run a target-state smoke pack across readiness, enterprise events, role journeys, multi-currency, distribution, admin audit, and metrics.
+- `referral_saas_schema_status_check.py` - Build or run read-only Referral SaaS
+  schema, status, constraint, and index verification checks.
 
 ## Usage
 
@@ -45,6 +47,8 @@ python scripts/admin_audit_smoke.py
 python scripts/core_role_journey_smoke.py
 python scripts/target_state_smoke.py
 python scripts/target_state_smoke.py --write-flow
+python scripts/referral_saas_schema_status_check.py
+python scripts/referral_saas_schema_status_check.py --database
 ```
 
 ## Migration Replay Contract

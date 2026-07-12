@@ -102,7 +102,8 @@ ready by itself.
 Remaining blockers before a 10/10 claim:
 
 - choose actual seeded subjects for local/staging route smoke
-- perform live or staging schema/status/index verification
+- perform live or staging schema/status/index verification using
+  `scripts/referral_saas_schema_status_check.py`
 - add product wrapper routes when the product API implementation begins
 - add safe-status and reporting E2E assertions over product-ready surfaces
 - keep production smoke read-only unless separately approved
