@@ -122,6 +122,7 @@ greenfield referral construction.
 14. TASK-146: Inventory Referral SaaS audit and idempotency posture.
 15. TASK-149: Add Referral SaaS local golden-path contract test.
 16. TASK-150: Add Referral SaaS negative contract test coverage.
+17. TASK-151: Inventory Referral SaaS mounted route smoke surface.
 
 ## 10/10 Exit Criteria
 
@@ -158,6 +159,8 @@ greenfield referral construction.
 
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`
+- TASK-151: `test/test_referral_saas_route_smoke_inventory.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`
 
 ## Explicit Deferrals
 

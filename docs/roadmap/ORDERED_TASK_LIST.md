@@ -2829,6 +2829,31 @@ Rollback notes: Revert the test additions and this roadmap entry.
 Explicit non-goals: Do not add product wrapper routes, frontend, schema, migrations, live DB checks, production data access, auth changes, command idempotency implementation, audit writes, repair/replay/retry actions, export APIs, campaign activation, webhook delivery, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
 Definition of done: Referral SaaS has executable negative contract coverage for launch-critical safe-failure and tenant-scope behavior while preserving shared platform primitives and product boundaries. Priority: P0.
 
+## TASK-151: Inventory Referral SaaS mounted route smoke surface
+
+Status: Complete (2026-07-12). Output: `test/test_referral_saas_route_smoke_inventory.py`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Route smoke planning; mounted route evidence; read-only smoke classification; seeded-write boundary; product wrapper gap tracking.
+Objective: Add source-backed Referral SaaS route smoke inventory and local contract coverage by introspecting the currently mounted FastAPI routes.
+Why now: TASK-149 and TASK-150 proved local golden and negative service-level contract paths. The next production-confidence gap is selecting route smoke surfaces from actual mounted routes without inventing `/v1/referral-saas/*` wrappers or performing live writes.
+Files involved: `test/test_referral_saas_route_smoke_inventory.py`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `apps/api/main.py`; `apps/api/routers/referrals.py`; `apps/api/routers/campaigns.py`; `apps/api/routers/progress.py`; `apps/api/routers/admin_campaign_readiness.py`; `apps/api/routers/admin_links.py`; `apps/api/routers/admin_outcomes.py`; `apps/api/routers/admin_analytics.py`; `apps/api/routers/consumer_experience.py`; `apps/api/routers/reward_summary.py`; route-focused tests.
+Database/schema impact: None. No live DB access, migrations, schema changes, or runtime data changes.
+Backend impact: Test/documentation only. No services, routers, auth helpers, fields, statuses, or payload contracts changed.
+Frontend impact: None.
+API impact: None. No `/v1/referral-saas/*` product wrapper route was added.
+Tests to add/update: Added a mounted-route inventory contract test that asserts current read-only and seeded-write Referral SaaS-relevant route families are mounted and that `/v1/referral-saas/*` product wrapper routes remain unimplemented.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q --no-cov test\test_referral_saas_route_smoke_inventory.py --tb=short`; focused Referral SaaS route/contract suite; `.venv_codex\Scripts\python.exe -m py_compile test\test_referral_saas_route_smoke_inventory.py`; `ruff check test\test_referral_saas_route_smoke_inventory.py`.
+Acceptance criteria: Route smoke inventory is source-backed; read-only versus seeded-write smoke route families are explicit; future product wrapper absence is executable evidence; no backend/frontend/API/schema behavior changes; no live or production DB access.
+Dependencies: TASK-143; TASK-147; TASK-149; TASK-150.
+Blocked by: None for local route inventory. Live/staging route execution remains separately gated by credentials, seeded subjects, and approval.
+Risk level: Low.
+Rollback notes: Revert the test file, route smoke inventory doc, SA index update, and this roadmap entry.
+Explicit non-goals: Do not add product wrapper routes, frontend, schema, migrations, live DB checks, production data access, auth changes, smoke execution against live services, command idempotency implementation, audit writes, repair/replay/retry actions, export APIs, campaign activation, webhook delivery, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
+Definition of done: Referral SaaS has an executable mounted-route smoke inventory that separates current shared primitives from future product wrapper routes and classifies route smoke safety for the next verification slice. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

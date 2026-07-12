@@ -36,3 +36,5 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   workflow contract.
 - `REFERRAL_SAAS_AUDIT_IDEMPOTENCY_POSTURE.md` - TASK-146 audit and
   idempotency posture inventory.
+- `REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md` - TASK-151 source-backed route
+  smoke inventory.
