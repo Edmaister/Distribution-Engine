@@ -15,6 +15,23 @@ def test_report_scope_can_derive_tenant_from_identity():
     assert scope.tenant_code == "FNB"
     assert scope.source == "identity_tenant"
     assert scope.external_tenant_ref is None
+    assert scope.account_ref is None
+
+
+def test_report_scope_carries_trusted_account_references_from_identity():
+    scope = resolve_referral_saas_account_scope(
+        identity={
+            "role": "ADMIN",
+            "tenant_code": "fnb",
+            "account_ref": "acct_fnb_referrals",
+            "external_tenant_ref": "org_fnb_referrals",
+        },
+    )
+
+    assert scope.tenant_code == "FNB"
+    assert scope.source == "identity_tenant"
+    assert scope.account_ref == "acct_fnb_referrals"
+    assert scope.external_tenant_ref == "org_fnb_referrals"
 
 
 def test_internal_report_reader_may_use_explicit_tenant_scope():
@@ -25,6 +42,25 @@ def test_internal_report_reader_may_use_explicit_tenant_scope():
 
     assert scope.tenant_code == "FNB"
     assert scope.source == "explicit_tenant_code"
+    assert scope.external_tenant_ref is None
+    assert scope.account_ref is None
+
+
+def test_explicit_tenant_scope_preserves_trusted_account_references():
+    scope = resolve_referral_saas_account_scope(
+        identity={
+            "role": "ADMIN",
+            "tenant_code": "FNB",
+            "account_ref": "acct_fnb_referrals",
+            "external_tenant_ref": "org_fnb_referrals",
+        },
+        requested_tenant_code="fnb",
+    )
+
+    assert scope.tenant_code == "FNB"
+    assert scope.source == "explicit_tenant_code"
+    assert scope.account_ref == "acct_fnb_referrals"
+    assert scope.external_tenant_ref == "org_fnb_referrals"
 
 
 def test_internal_report_reader_without_scope_is_rejected():

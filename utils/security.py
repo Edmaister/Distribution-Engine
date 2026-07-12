@@ -11,7 +11,6 @@ from fastapi import Header, HTTPException, status
 
 from apps.api.settings import get_settings
 
-
 TEST_ADMIN_KEYS = "test-admin-key"
 TEST_FINANCE_ADMIN_KEYS = "test-finance-admin-key"
 TEST_DISTRIBUTION_ADMIN_KEYS = "test-distribution-admin-key"
@@ -203,6 +202,14 @@ def _jwt_identity(authorization: str | None):
         ),
         client_id=_claim_value(
             payload, getattr(settings, "auth_jwt_client_claims", None), "client_id"
+        ),
+        account_ref=_claim_value(
+            payload, getattr(settings, "auth_jwt_account_claims", None), "account_ref"
+        ),
+        external_tenant_ref=_claim_value(
+            payload,
+            getattr(settings, "auth_jwt_external_tenant_claims", None),
+            "external_tenant_ref",
         ),
         scopes=_claim_value(
             payload, getattr(settings, "auth_jwt_scope_claims", None), "scopes,scope"

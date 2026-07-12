@@ -278,6 +278,40 @@ def test_session_accepts_configured_jwt_claim_names(monkeypatch):
     assert response.json()["recommended_workspace"]["code"] == "producer_supply"
 
 
+def test_jwt_identity_carries_referral_saas_account_reference_claims(monkeypatch):
+    monkeypatch.setattr(
+        security,
+        "get_settings",
+        lambda: SimpleNamespace(
+            auth_jwt_secret="jwt-secret",
+            auth_jwt_issuer="bank-idp",
+            auth_jwt_audience="referral-engine",
+            auth_jwt_account_claims="account_id",
+            auth_jwt_external_tenant_claims="organisation_id",
+            app_env="test",
+        ),
+    )
+    token = _jwt(
+        {
+            "sub": "account-admin-1",
+            "role": "ADMIN",
+            "tenant_code": "FNB",
+            "account_id": "acct_fnb_referrals",
+            "organisation_id": "org_fnb_referrals",
+            "iss": "bank-idp",
+            "aud": "referral-engine",
+            "exp": int(time.time()) + 300,
+        }
+    )
+
+    identity = security._jwt_identity(f"Bearer {token}")
+
+    assert identity["auth_source"] == "jwt"
+    assert identity["tenant_code"] == "FNB"
+    assert identity["account_ref"] == "acct_fnb_referrals"
+    assert identity["external_tenant_ref"] == "org_fnb_referrals"
+
+
 def test_session_rejects_jwt_wrong_audience(monkeypatch):
     monkeypatch.setattr(
         security,

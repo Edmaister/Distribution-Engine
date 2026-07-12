@@ -141,6 +141,7 @@ async def validate_referral_saas_product_report_export(
         "export_request": export_request,
         "account_scope": {
             "source": account_scope.source,
+            "account_ref": account_scope.account_ref,
             "external_tenant_ref": account_scope.external_tenant_ref,
         },
         "guardrail": (
@@ -235,6 +236,7 @@ async def get_referral_saas_product_report(
         "report": report,
         "account_scope": {
             "source": account_scope.source,
+            "account_ref": account_scope.account_ref,
             "external_tenant_ref": account_scope.external_tenant_ref,
         },
         "guardrail": (

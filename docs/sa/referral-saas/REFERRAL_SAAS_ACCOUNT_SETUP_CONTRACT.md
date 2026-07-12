@@ -327,6 +327,13 @@ implementation. Until then:
 - Existing tenant-scoped referral, progress, campaign, and attribution services
   continue to receive internal `tenant_code` only after boundary resolution.
 
+TASK-166 implementation note: report and export-validation account-scope
+envelopes can now carry trusted `account_ref` and `external_tenant_ref` values
+from authenticated identity/JWT claims. This is a bridge only. It does not add
+account setup tables, tenant-link persistence, membership authorization,
+disabled/suspended reference behavior, or caller-supplied account-reference
+lookup.
+
 ## Validation And Test Expectations
 
 Future implementation tasks should add tests in this order:

@@ -230,8 +230,9 @@ Rules:
 
 - TASK-157 adds the first bounded `/v1/referral-saas/*` route:
   `GET /v1/referral-saas/reports/{report_type}`.
-- No SaaS account membership wrapper currently resolves `accountRef` to
-  internal tenant scope.
+- TASK-166 lets report/export-validation envelopes carry trusted `account_ref`
+  and `external_tenant_ref` identity claims. No SaaS account membership wrapper
+  currently resolves caller-supplied `accountRef` to internal tenant scope.
 - Some current schemas expose raw `tenant_code`, `referrer_ucn`, or
   `referee_ucn`; future product APIs must use safe refs or credential-derived
   scope.
@@ -241,7 +242,9 @@ Rules:
   `campaign_performance`, `referral_funnel`, `progress_event_health`, and
   `attribution_quality`. TASK-158 lets tenant-scoped identities derive scope
   from identity claims, but internal report readers still need explicit
-  `tenant_code` until full SaaS account membership resolution exists. TASK-159
+  `tenant_code` until full SaaS account membership resolution exists. TASK-166
+  carries trusted account refs in the response envelope when identity claims
+  provide them. TASK-159
   keeps the referral funnel source warning visible until dedicated
   validation-state and progress-milestone report sources exist. TASK-160 keeps
   progress-health deduped/rejected counts as partial coverage until those
