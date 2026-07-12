@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from services.onboarding import onboarding_draft_repository as draft_repo
+from services.onboarding import onboarding_review_decision_service as review_service
 from services.onboarding.onboarding_draft_audit_evidence_service import (
     build_draft_save_audit_evidence,
     build_draft_save_audit_link_fields,
@@ -24,6 +25,16 @@ from services.onboarding.onboarding_draft_validation_service import (
 )
 from services.onboarding.onboarding_readiness_aggregation_service import (
     aggregate_onboarding_readiness,
+)
+from services.onboarding.onboarding_review_decision_service import (
+    RESULT_REJECTED as REVIEW_RESULT_REJECTED,
+)
+from services.onboarding.onboarding_review_decision_service import (
+    RESULT_REPLAYED as REVIEW_RESULT_REPLAYED,
+)
+from services.onboarding.onboarding_review_decision_service import (
+    RESULT_REVIEW_DECISION_RECORDED,
+    record_onboarding_draft_review_decision,
 )
 from services.onboarding.onboarding_state_projection_service import (
     SECTION_DEFINITIONS,
@@ -417,6 +428,96 @@ async def submit_admin_onboarding_draft_for_review(
     return _submit_for_review_response(result=result, validation=validation)
 
 
+@router.post("/drafts/{draft_ref}/review-decision")
+async def record_admin_onboarding_draft_review_decision(
+    draft_ref: str,
+    payload: dict[str, Any] = Body(default_factory=dict),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_onboarding_admin(identity)
+    if _contains_user_tenant_code(payload):
+        raise _safe_http_error(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="UNSAFE_OPERATION_ATTEMPTED",
+            message=(
+                "tenant_code is internal and cannot be supplied as review scope."
+            ),
+            details=[_safe_detail("scope", None, "UNSAFE_FIELD")],
+            redactions=["internal_identifier"],
+        )
+
+    expected_version = _expected_draft_version(payload)
+    if expected_version is None:
+        raise _safe_http_error(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_FAILED",
+            message="expected_version is required for review decision.",
+            details=[
+                _safe_detail("draft", "expected_version", "REQUIRED_FIELD_MISSING")
+            ],
+        )
+
+    idempotency_key = _optional_text(payload.get("idempotency_key"))
+    if not idempotency_key:
+        raise _safe_http_error(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code="VALIDATION_FAILED",
+            message="A valid idempotency key is required.",
+            details=[_safe_detail("idempotency", None, "REQUIRED_FIELD_MISSING")],
+        )
+
+    saved_draft = await draft_repo.get_draft_by_ref(draft_ref)
+    if not saved_draft:
+        raise _review_http_error(
+            status.HTTP_404_NOT_FOUND,
+            code=review_service.ERROR_DRAFT_NOT_FOUND,
+            message="Draft reference is missing or unavailable.",
+        )
+
+    supplied_scope = _scope_from_payload(payload)
+    if not _draft_matches_scope(saved_draft, supplied_scope):
+        raise _review_http_error(
+            status.HTTP_404_NOT_FOUND,
+            code=review_service.ERROR_DRAFT_NOT_FOUND,
+            message="Draft reference is missing or unavailable.",
+        )
+
+    section_rows = await draft_repo.get_draft_sections(str(saved_draft["draft_id"]))
+    saved_sections = _sections_from_saved_rows(section_rows)
+    validation = validate_onboarding_draft(
+        {
+            "scope": _scope_from_draft(saved_draft),
+            "sections": saved_sections,
+        },
+        actor_context=_actor_context(admin_identity),
+    )
+
+    result = await record_onboarding_draft_review_decision(
+        draft_ref=draft_ref,
+        expected_draft_version=expected_version,
+        idempotency_key=idempotency_key,
+        actor_ref=_actor_ref(admin_identity),
+        actor_role=str(admin_identity.get("role") or "ADMIN").upper(),
+        review_outcome=_optional_text(payload.get("review_outcome")),
+        reason_category=_optional_text(payload.get("reason_category")),
+        reason=_optional_text(payload.get("reason")),
+        validation=validation,
+        correlation_id=_optional_text(payload.get("correlation_id")) or None,
+    )
+    if result["status"] == REVIEW_RESULT_REJECTED:
+        code = result["error"]["code"]
+        raise _review_http_error(
+            _review_error_status(code),
+            code=code,
+            message=result["error"]["message"],
+            details=[_safe_detail("draft", None, code)],
+            result=result,
+            validation=validation,
+        )
+
+    return _review_decision_response(result=result, validation=validation)
+
+
 @router.post("/validate")
 async def validate_admin_onboarding_dry_run(
     payload: dict[str, Any] = Body(default_factory=dict),
@@ -731,6 +832,52 @@ def _submit_for_review_response(
     }
 
 
+def _review_decision_response(
+    *,
+    result: Mapping[str, Any],
+    validation: Mapping[str, Any],
+) -> dict[str, Any]:
+    return {
+        "status": _review_status_value(str(result["status"])),
+        "draft_ref": result.get("draft_ref"),
+        "previous_status": result.get("previous_status"),
+        "draft_status": result.get("draft_status"),
+        "draft_version": result.get("draft_version"),
+        "review_outcome": result.get("review_outcome"),
+        "reason_category": result.get("reason_category"),
+        "idempotency_status": result.get("idempotency_status"),
+        "validation_result": validation["validation_result"],
+        "validation_summary": {
+            "status": validation["validation_result"]["status"],
+            "safe_error_count": len(validation["safe_errors"]),
+            "missing_evidence_count": len(validation["missing_evidence"]),
+            "blocker_count": len(validation["blockers"]),
+        },
+        "readiness_summary": _submit_readiness_summary(validation),
+        "missing_evidence": validation["missing_evidence"],
+        "blockers": validation["blockers"],
+        "next_actions": _submit_next_actions(validation.get("next_actions")),
+        "guardrails": _submit_guardrails(
+            result["guardrails"], validation["guardrails"]
+        ),
+        "redactions": _submit_redactions(validation.get("redactions")),
+        "audit_evidence_ref": None,
+        "audit_link_ref": None,
+        "audit_evidence_status": "NOT_RECORDED_IN_TASK_124",
+        "approval_to_launch": False,
+        "go_live_enabled": False,
+        "no_live_action_confirmed": True,
+    }
+
+
+def _review_status_value(result_status: str) -> str:
+    if result_status == RESULT_REVIEW_DECISION_RECORDED:
+        return "review_decision_recorded"
+    if result_status == REVIEW_RESULT_REPLAYED:
+        return "replayed"
+    return result_status.lower()
+
+
 def _submit_status_value(result_status: str) -> str:
     if result_status == RESULT_SUBMITTED_FOR_REVIEW:
         return "submitted_for_review"
@@ -764,6 +911,63 @@ def _submit_error_status(code: str) -> int:
     }:
         return status.HTTP_422_UNPROCESSABLE_ENTITY
     return status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+def _review_error_status(code: str) -> int:
+    if code == review_service.ERROR_DRAFT_NOT_FOUND:
+        return status.HTTP_404_NOT_FOUND
+    if code in {
+        review_service.ERROR_IDEMPOTENCY_CONFLICT,
+        review_service.ERROR_INVALID_STATE,
+        review_service.ERROR_STALE_DRAFT,
+    }:
+        return status.HTTP_409_CONFLICT
+    return status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+def _review_http_error(
+    http_status: int,
+    *,
+    code: str,
+    message: str,
+    details: list[dict[str, Any]] | None = None,
+    result: Mapping[str, Any] | None = None,
+    validation: Mapping[str, Any] | None = None,
+) -> HTTPException:
+    detail: dict[str, Any] = {
+        "code": code,
+        "message": message,
+        "details": details or [_safe_detail("draft", None, code)],
+        "guardrails": _submit_guardrails(
+            _as_list(
+                _as_mapping(result).get("guardrails")
+                if isinstance(result, Mapping)
+                else []
+            ),
+            review_service.NO_LIVE_ACTION_GUARDRAILS,
+        ),
+        "audit_evidence_ref": None,
+        "audit_link_ref": None,
+        "audit_evidence_status": "NOT_RECORDED_IN_TASK_124",
+        "approval_to_launch": False,
+        "go_live_enabled": False,
+        "no_live_action_confirmed": True,
+    }
+    if isinstance(result, Mapping) and result.get("idempotency_status"):
+        detail["idempotency_status"] = result["idempotency_status"]
+    if isinstance(result, Mapping) and result.get("review_outcome"):
+        detail["review_outcome"] = result["review_outcome"]
+    if isinstance(validation, Mapping):
+        detail["validation_summary"] = {
+            "status": _as_mapping(validation.get("validation_result")).get("status"),
+            "safe_error_count": len(_as_list(validation.get("safe_errors"))),
+            "missing_evidence_count": len(_as_list(validation.get("missing_evidence"))),
+            "blocker_count": len(_as_list(validation.get("blockers"))),
+        }
+        detail["blockers"] = _as_list(validation.get("blockers"))
+        detail["next_actions"] = _submit_next_actions(validation.get("next_actions"))
+        detail["redactions"] = _submit_redactions(validation.get("redactions"))
+    return HTTPException(status_code=http_status, detail=detail)
 
 
 def _submit_http_error(
