@@ -14,6 +14,8 @@ Audit, idempotency, retry, and failure handling policy for future state-machine 
 | Campaign track | `campaign_track_events.status`; campaign services/routes | `SCANNED`, `VALIDATED`, `ATTRIBUTED`, `COMPLETED`, `BLOCKED`, `EXPIRED`, `INVALID` observed in implementation history. | Campaign validation, tracking, attribution, completion updates. |
 | QR/campaign scan | `referral_qr_scans.status`, `campaign_qr_scans.status` | Scan-specific statuses are defined by migration checks. | Public scan/validation flows. |
 | Reward | `rewards.status`; `services/reward_service.py` | `APPLIED`, `EARNED`, `PENDING_FULFILMENT`, `FULFILLED`, `FAILED`, `REVERSED` observed in service behavior. | Reward application, journey completion, fulfilment processing, reversal/repair actions. |
+| Referral event failure | `referral_event_failures.status`; `services/failure_admin_service.py` | `OPEN` default; `RESOLVED`, `REPROCESSED` service states. Local TASK-027 values were `RESOLVED` and `REPROCESSED`; no DB check constraint observed. | Failure capture, admin resolve, admin reprocess. |
+| Referral processing audit | `referral_processing_audit.processing_status` | `PROCESSED`, `IGNORED`, `FAILED` observed locally; no DB check constraint observed. | Progress/event processing audit. |
 | Distributor | `distribution_distributors.distributor_status` | `ONBOARDING`, `ACTIVE`, `SUSPENDED`, `TERMINATED` observed in distribution services/docs. | Distribution admin onboarding/governance actions. |
 | Distribution opportunity | `distribution_opportunities.opportunity_status` | `DRAFT`, `PUBLISHED`, `CLOSED` observed in distribution services/docs. | Distribution admin create/publish/close/reopen. |
 | Offer route | `distribution_offer_routes.route_status` | `ROUTED`, `ACCEPTED`, `DECLINED` observed in distribution services/docs. | Admin routing and distributor portal accept/decline. |
@@ -31,6 +33,7 @@ Audit, idempotency, retry, and failure handling policy for future state-machine 
 | Webhook subscription | `partner_webhook_subscriptions.status` | `ACTIVE`, `PAUSED`, `REVOKED` in `077_partner_seam.sql`. | Partner/admin webhook management. |
 | Webhook delivery | `partner_webhook_deliveries.delivery_status` | `PENDING`, `SENT`, `FAILED`, `CANCELLED` in `077_partner_seam.sql`. | Webhook worker, retry actions, admin/partner actions. |
 | Admin audit event | `admin_audit_log` | Audit rows are event records, not lifecycle entities. | Admin/audit service writes. |
+| Funding reconciliation run | `funding_reconciliation_runs.status`; `services/funding/reconciliation.py` | Service writes `MATCHED`, `EXCEPTION`; local TASK-027 table had no rows and no status check constraint. Local schema lacks service-used `correlation_id`; see TASK-148. | Finance reconciliation run service. |
 
 ## Target Canonical State Layers
 
@@ -61,3 +64,4 @@ Audit, idempotency, retry, and failure handling policy for future state-machine 
 | SM-GAP-03A | Liability states are derived from multiple money evidence sources. TASK-015 documents the source mapping in `docs/sa/LIABILITY_STATE_MODEL.md`. | Implementation must preserve source statuses and avoid counting funding, wallet, invoice, fulfilment, or settlement rows as new obligations. | GAP-09 |
 | SM-GAP-04 | Multiple audit tables exist without one canonical state-transition event taxonomy. | Operator investigations require domain-specific joins. | GAP-11 |
 | SM-GAP-05 | Customer/partner-safe status mapping was not the source of truth until TASK-023 defined the contract. Implementation helpers and APIs remain follow-up work. | Frontend may expose internal or confusing statuses if future portal APIs bypass the TASK-023 contract. | GAP-15 |
+| SM-GAP-06 | `funding_reconciliation_runs` service expects `correlation_id`, but local verified schema does not include it. | Finance reconciliation traceability and read APIs can fail or lose correlation evidence until schema/service drift is corrected. | TASK-148 |

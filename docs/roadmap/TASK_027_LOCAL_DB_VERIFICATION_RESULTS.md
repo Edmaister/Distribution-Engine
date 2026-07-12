@@ -113,7 +113,7 @@ lookup/idempotency/audit indexes were present.
 | `referral_rewards` | `status` | Field not present | Unique `(referral_track_id, reward_type)` evidence present |
 | `fulfilment_audit` | `status` | `SUCCESS` | Unique `idempotency_key` evidence present; no status check constraint observed |
 | `fulfilment_settlement_ledger` | `status` | `DISPUTED`, `FAILED`, `PENDING`, `PROCESSING`, `REVERSED`, `SETTLED` | `chk_fulfilment_settlement_status` present |
-| `funding_reconciliation_runs` | `status` | No rows observed | `correlation_id` exists in local DB despite earlier static uncertainty |
+| `funding_reconciliation_runs` | `status` | No rows observed | `correlation_id` is absent in local DB despite service reads/writes; assigned to TASK-148 |
 | `enterprise_event_inbox` | `processing_status` | `IGNORED`, `QUEUED` | `enterprise_event_inbox_status_chk` and `ux_enterprise_event_inbox_dedupe_key` present |
 | `partner_webhook_deliveries` | `delivery_status` | No rows observed | `partner_webhook_deliveries_status_chk` present |
 | `admin_audit_log` | `action_status` | `FAILED`, `SUCCESS` | No action-status check constraint observed |
@@ -160,9 +160,8 @@ The local results create these TASK-028 follow-up decisions:
   before continuing onboarding review workflow verification. Locally, the
   onboarding draft persistence gap was resolved by applying migration 080 and
   verifying the five expected tables.
-- Confirm whether `funding_reconciliation_runs.correlation_id` is now resolved
-  as present for the local environment and update source documentation if this
-  is accepted as verified local evidence.
+- Treat `funding_reconciliation_runs.correlation_id` as confirmed local
+  schema/service drift and resolve it through TASK-148.
 - Keep service-governed status fields explicit where no DB check constraint
   exists, especially `rewards.status`, `fulfilment_audit.status`,
   `admin_audit_log.action_status`, `referral_event_failures.status`, and
