@@ -163,7 +163,7 @@ Future Referral SaaS APIs should follow these rules:
 
 | Target route | Method | Current source/wrapper | Auth | Notes |
 |---|---|---|---|---|
-| `/v1/referral-saas/reports/{reportType}` | `GET` | TASK-156 report catalog helper plus TASK-157 route wrapper, TASK-158 scope resolver, TASK-159 referral funnel helper, TASK-160 progress event health helper, and TASK-161 attribution quality helper | Admin/report-reader bridge until SaaS account membership exists | Implemented for read-only `campaign_performance`, `referral_funnel`, `progress_event_health`, and `attribution_quality`; tenant-scoped identities may omit `tenant_code`, while internal report readers still need explicit tenant scope. |
+| `/v1/referral-saas/reports/{reportType}` | `GET` | TASK-156 report catalog helper plus TASK-157 route wrapper, TASK-158 scope resolver, TASK-159 referral funnel helper, TASK-160 progress event health helper, TASK-161 attribution quality helper, and TASK-162 safe-status distribution helper | Admin/report-reader bridge until SaaS account membership exists | Implemented for read-only `campaign_performance`, `referral_funnel`, `progress_event_health`, `attribution_quality`, and `safe_status_distribution`; tenant-scoped identities may omit `tenant_code`, while internal report readers still need explicit tenant scope. |
 | `/v1/referral-saas/reports/{reportType}/exports` | `POST` | TASK-142 future export contract | SaaS account admin/member | Export API/storage/audit not implemented. |
 | `/v1/referral-saas/exports/{exportId}` | `GET` | TASK-142 future export contract | SaaS account admin/member | Requires retention/expiry/access controls before implementation. |
 
@@ -245,7 +245,9 @@ Rules:
   validation-state, and progress-milestone report sources exist. TASK-160 keeps
   progress-health deduped/rejected counts as partial coverage until those
   states are persisted in reportable form. TASK-161 derives aggregate
-  attribution quality and does not expose raw outcome trace payloads.
+  attribution quality and does not expose raw outcome trace payloads. TASK-162
+  derives aggregate safe-status distribution without exposing raw viewer, UCN,
+  reward, audit, provider, or money evidence.
 - Export APIs are not implemented.
 - Lifecycle commands such as revoke, expire, reissue, repair, replay, or retry
   are not authorized by this map.
