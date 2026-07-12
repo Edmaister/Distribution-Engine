@@ -5,9 +5,8 @@ from decimal import Decimal
 import pytest
 
 from services import tenant_safe_analytics_service as analytics
-from services.partner_customer_safe_status_service import (
-    project_partner_customer_safe_status,
-    project_safe_statuses,
+from services.referral_saas_safe_status_service import (
+    project_referral_saas_safe_status,
 )
 
 SAFE_REFERRAL_SUBJECT = {
@@ -47,26 +46,35 @@ def _overview() -> dict:
 
 
 def test_referral_saas_referrer_customer_safe_status_contract():
-    referrer_statuses = project_safe_statuses(
-        viewer_role="referrer",
-        subject=SAFE_REFERRAL_SUBJECT,
-        evidence_items=[
-            {
+    referrer_statuses = [
+        project_referral_saas_safe_status(
+            viewer_role="referrer",
+            subject=SAFE_REFERRAL_SUBJECT,
+            evidence={
                 "source_family": "outcome",
                 "status": "ACCOUNT_OPENED",
                 "source_confidence": "MEDIUM",
             },
-            {
+            redactions=["referrer_ucn", "tenant_code"],
+        ),
+        project_referral_saas_safe_status(
+            viewer_role="referrer",
+            subject=SAFE_REFERRAL_SUBJECT,
+            evidence={
                 "source_family": "reward",
                 "status": "PENDING_FULFILMENT",
                 "source_confidence": "LOW",
             },
-        ],
-        redactions=["referrer_ucn", "tenant_code"],
-    )
+            redactions=["referrer_ucn", "tenant_code"],
+        ),
+    ]
 
     assert [item["safe_status"]["status"] for item in referrer_statuses] == [
-        "UNAVAILABLE",
+        "IN_PROGRESS",
+        "IN_PROGRESS",
+    ]
+    assert [item["safe_status"]["product_status"] for item in referrer_statuses] == [
+        "IN_PROGRESS",
         "IN_PROGRESS",
     ]
     assert all(
@@ -78,7 +86,7 @@ def test_referral_saas_referrer_customer_safe_status_contract():
     assert "tenant_code" in referrer_statuses[0]["safe_status"]["redactions"]
     assert "referrer_ucn" in referrer_statuses[0]["safe_status"]["redactions"]
 
-    customer_status = project_partner_customer_safe_status(
+    customer_status = project_referral_saas_safe_status(
         viewer_role="customer",
         subject=SAFE_REFERRAL_SUBJECT,
         evidence={"source_family": "settlement", "status": "SETTLED"},
