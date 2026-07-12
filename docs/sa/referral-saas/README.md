@@ -49,3 +49,6 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   bounded read-only product API wrapper over the report catalog helper. It does
   not implement exports, frontend screens, SaaS account membership resolution,
   or broader product route families.
+- TASK-158 adds a narrow account-scope resolver for the report API. Tenant-scoped
+  identities can omit `tenant_code`; internal report readers still need explicit
+  tenant scope until full SaaS account membership exists.

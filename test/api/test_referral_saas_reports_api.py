@@ -91,7 +91,7 @@ async def test_referral_saas_report_reader_can_fetch_campaign_performance(
     assert body["guardrail"].startswith("Read-only Referral SaaS report wrapper")
     assert "create exports" in body["guardrail"]
     assert len(calls) == 1
-    assert calls[0]["tenant_code"] == "fnb"
+    assert calls[0]["tenant_code"] == "FNB"
     assert calls[0]["report_type"] == "campaign_performance"
     assert calls[0]["dimensions"] == ["campaign_ref", "metric_name"]
     assert calls[0]["filters"] == {
@@ -100,6 +100,105 @@ async def test_referral_saas_report_reader_can_fetch_campaign_performance(
     }
     assert calls[0]["data_window_start"].isoformat().startswith("2026-07-01")
     assert calls[0]["data_window_end"].isoformat().startswith("2026-07-12")
+    assert body["account_scope"] == {
+        "source": "explicit_tenant_code",
+        "external_tenant_ref": None,
+    }
+
+
+async def test_referral_saas_report_can_use_identity_tenant_scope(monkeypatch):
+    calls: list[dict] = []
+
+    async def fake_get_referral_saas_report(**kwargs):
+        calls.append(kwargs)
+        return _report()
+
+    monkeypatch.setattr(
+        referral_saas_reports,
+        "get_referral_saas_report",
+        fake_get_referral_saas_report,
+    )
+
+    app.dependency_overrides[referral_saas_reports.require_session_key] = lambda: {
+        "authenticated": True,
+        "role": "ADMIN",
+        "tenant_code": "FNB",
+        "tenant": "FNB",
+    }
+    try:
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await client.get(
+                "/v1/referral-saas/reports/campaign_performance",
+                params={"campaign_code": "CAMP001"},
+            )
+    finally:
+        app.dependency_overrides.pop(referral_saas_reports.require_session_key, None)
+
+    assert response.status_code == 200
+    assert calls[0]["tenant_code"] == "FNB"
+    assert response.json()["account_scope"] == {
+        "source": "identity_tenant",
+        "external_tenant_ref": None,
+    }
+
+
+async def test_referral_saas_report_rejects_internal_reader_without_scope(monkeypatch):
+    async def fake_get_referral_saas_report(**kwargs):  # pragma: no cover
+        raise AssertionError("service should not be called")
+
+    monkeypatch.setattr(
+        referral_saas_reports,
+        "get_referral_saas_report",
+        fake_get_referral_saas_report,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            "/v1/referral-saas/reports/campaign_performance",
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "validation_error",
+        "message": (
+            "tenant_code is required until Referral SaaS account scope resolution "
+            "is implemented for internal report readers"
+        ),
+    }
+
+
+async def test_referral_saas_report_rejects_cross_tenant_scope(monkeypatch):
+    async def fake_get_referral_saas_report(**kwargs):  # pragma: no cover
+        raise AssertionError("service should not be called")
+
+    monkeypatch.setattr(
+        referral_saas_reports,
+        "get_referral_saas_report",
+        fake_get_referral_saas_report,
+    )
+
+    app.dependency_overrides[referral_saas_reports.require_session_key] = lambda: {
+        "authenticated": True,
+        "role": "ADMIN",
+        "tenant_code": "FNB",
+        "tenant": "FNB",
+    }
+    try:
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await client.get(
+                "/v1/referral-saas/reports/campaign_performance",
+                params={"tenant_code": "PNP"},
+            )
+    finally:
+        app.dependency_overrides.pop(referral_saas_reports.require_session_key, None)
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == {
+        "code": "permission_denied",
+        "message": "Requested tenant scope is not available.",
+    }
 
 
 async def test_referral_saas_report_requires_credentials(monkeypatch):

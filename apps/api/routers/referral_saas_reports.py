@@ -5,6 +5,9 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from services.referral_saas_account_scope_service import (
+    resolve_referral_saas_account_scope,
+)
 from services.referral_saas_reporting_service import get_referral_saas_report
 from utils.security import require_session_key
 
@@ -55,15 +58,16 @@ def _filters(
 async def get_referral_saas_product_report(
     report_type: str,
     tenant_code: Annotated[
-        str,
+        str | None,
         Query(
             min_length=1,
             description=(
-                "Temporary internal tenant scope until SaaS account resolution "
-                "is implemented."
+                "Optional internal tenant scope. Tenant-scoped identities may "
+                "omit this; internal report readers must provide it until SaaS "
+                "account resolution is implemented."
             ),
         ),
-    ],
+    ] = None,
     dimensions: Annotated[
         list[str] | None,
         Query(description="Repeatable approved Referral SaaS report dimensions."),
@@ -78,8 +82,12 @@ async def get_referral_saas_product_report(
     _require_referral_saas_report_reader(identity)
 
     try:
+        account_scope = resolve_referral_saas_account_scope(
+            identity=identity,
+            requested_tenant_code=tenant_code,
+        )
         report = await get_referral_saas_report(
-            tenant_code=tenant_code,
+            tenant_code=account_scope.tenant_code,
             report_type=report_type,
             dimensions=dimensions,
             filters=_filters(
@@ -90,6 +98,14 @@ async def get_referral_saas_product_report(
             data_window_start=data_window_start,
             data_window_end=data_window_end,
         )
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "permission_denied",
+                "message": str(exc),
+            },
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -102,6 +118,10 @@ async def get_referral_saas_product_report(
     return {
         "status": "ok",
         "report": report,
+        "account_scope": {
+            "source": account_scope.source,
+            "external_tenant_ref": account_scope.external_tenant_ref,
+        },
         "guardrail": (
             "Read-only Referral SaaS report wrapper. This endpoint does not "
             "create exports, resolve SaaS account membership, generate "

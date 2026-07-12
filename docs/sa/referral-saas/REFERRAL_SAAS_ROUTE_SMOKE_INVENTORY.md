@@ -73,7 +73,8 @@ TASK-157 introduces exactly one mounted `/v1/referral-saas/*` product wrapper:
 - `GET /v1/referral-saas/reports/{report_type}`
 
 This wrapper is read-only, currently supports the TASK-156
-`campaign_performance` report helper, and still requires explicit
+`campaign_performance` report helper, and TASK-158 can derive tenant scope from
+tenant-scoped identities. Internal report readers still require explicit
 `tenant_code` until SaaS account resolution is implemented. No export, account
 membership, frontend, or write command wrapper is implied.
 

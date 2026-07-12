@@ -129,6 +129,7 @@ greenfield referral construction.
 21. TASK-155: Add Referral SaaS safe-status projection helper.
 22. TASK-156: Add Referral SaaS report catalog helper.
 23. TASK-157: Add Referral SaaS report API wrapper.
+24. TASK-158: Add Referral SaaS report account-scope resolver.
 
 ## 10/10 Exit Criteria
 
@@ -178,6 +179,8 @@ greenfield referral construction.
   `test/test_referral_saas_reporting_service.py`
 - TASK-157: `apps/api/routers/referral_saas_reports.py`;
   `test/api/test_referral_saas_reports_api.py`
+- TASK-158: `services/referral_saas_account_scope_service.py`;
+  `test/test_referral_saas_account_scope_service.py`
 
 ## Explicit Deferrals
 
