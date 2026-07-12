@@ -2266,6 +2266,13 @@ Definition of done: Review decisions have safe audit evidence references only. P
 
 ## TASK-126: Integrate frontend review decision controls
 
+Status: Complete (2026-07-12). Output: `frontend/src/api/endpoints/adminOnboarding.ts`; `frontend/src/api/endpoints/adminOnboarding.test.ts`; `frontend/src/pages/admin/CompanyOnboardingPage.tsx`; `frontend/src/pages/admin/CompanyOnboardingPage.test.tsx`; `frontend/src/pages/admin/OnboardingDemoJourneySmoke.test.tsx`.
+Product boundary: Shared Platform.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/roadmap/README.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/roadmap/ONBOARDING_REVIEW_DECISION_WORKFLOW_CONTRACT_FINAL_REVIEW_TASK_121.md`.
+Shared primitive impact: frontend onboarding review workflow now consumes the guarded review-decision API while preserving shared external-reference, idempotency, audit-reference, and no-live-action guardrails.
+Source duplication: No.
+Finding: Added a typed frontend review-decision API client for `POST /admin/onboarding/drafts/{draft_ref}/review-decision` and guarded company onboarding controls that appear only after a saved draft is submitted to `READY_FOR_REVIEW`. The UI supports `APPROVED_FOR_INTERNAL_REVIEW` and `BLOCKED`, requires a bounded review reason, sends external references plus expected version/idempotency only, displays audit evidence references, and keeps account creation, approval-to-launch, go-live, credential lifecycle, webhook dispatch, publishing, funding, fulfilment, settlement, retry, wallet, and money movement disabled/out of scope. Safe fallback copy covers missing reason, stale/conflict, validation-blocked, and unavailable review-decision cases.
+Validation: Frontend validation passed for `npm.cmd run test -- adminOnboarding.test.ts CompanyOnboardingPage.test.tsx OnboardingDemoJourneySmoke.test.tsx` with 37 tests; `npx.cmd tsc --noEmit -p tsconfig.json`; and targeted `npx.cmd eslint` on changed frontend files. PowerShell blocked the npm/npx `.ps1` shims, so validation used the `.cmd` entry points without changing machine policy.
 Objective: Add guarded frontend review decision controls for submitted drafts while preserving disabled live/go-live and no-money controls.
 Type: Frontend/API integration.
 Dependencies: TASK-124; TASK-125; TASK-117.

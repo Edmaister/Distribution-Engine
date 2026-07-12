@@ -2,10 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   getAdminOnboardingState,
+  recordAdminOnboardingReviewDecision,
   saveAdminOnboardingDraft,
   submitAdminOnboardingDraftForReview,
   validateAdminOnboardingDryRun,
   type AdminOnboardingDraftSaveResponse,
+  type AdminOnboardingReviewDecisionResponse,
   type AdminOnboardingSubmitForReviewResponse,
   type AdminOnboardingDryRunValidationResponse,
   type AdminOnboardingStateResponse,
@@ -229,6 +231,48 @@ const submitForReviewResponse: AdminOnboardingSubmitForReviewResponse = {
   audit_evidence_ref: null,
   audit_link_ref: null,
   audit_evidence_status: "NOT_RECORDED_IN_TASK_116",
+  no_live_action_confirmed: true,
+};
+
+const reviewDecisionResponse: AdminOnboardingReviewDecisionResponse = {
+  status: "review_decision_recorded",
+  draft_ref: "draft_acme_distribution",
+  previous_status: "READY_FOR_REVIEW",
+  draft_status: "READY_FOR_REVIEW",
+  draft_version: 3,
+  review_outcome: "APPROVED_FOR_INTERNAL_REVIEW",
+  reason_category: "OPERATOR_REVIEW",
+  idempotency_status: "NEW_REQUEST",
+  validation_summary: {
+    status: "READY",
+    safe_error_count: 0,
+    missing_evidence_count: 0,
+    blocker_count: 0,
+  },
+  readiness_summary: {
+    overall_status: "READY_FOR_REVIEW",
+    ready_count: 1,
+    blocked_count: 0,
+    missing_evidence_count: 0,
+    go_live_disabled_count: 1,
+    total_count: 1,
+    go_live_enabled: false,
+  },
+  missing_evidence: [],
+  blockers: [],
+  next_actions: [],
+  guardrails: [
+    "REVIEW_DECISION_ONLY",
+    "NO_APPROVAL_TO_LAUNCH",
+    "NO_WEBHOOK_DISPATCH",
+    "NO_VALUE_TRANSFER",
+  ],
+  redactions: ["internal_identifier"],
+  audit_evidence_ref: "REVIEW_DECISION_AUDIT_EVIDENCE",
+  audit_link_ref: "audit-link-uuid",
+  audit_evidence_status: "RECORDED_REFERENCE",
+  approval_to_launch: false,
+  go_live_enabled: false,
   no_live_action_confirmed: true,
 };
 
@@ -699,6 +743,103 @@ describe("admin onboarding api helper", () => {
     ).rejects.toMatchObject({
       status: 409,
       message: expect.stringContaining("STALE_DRAFT"),
+    });
+  });
+
+  it("records a review decision with external references and no live-action fields", async () => {
+    const fetchMock = mockFetch(reviewDecisionResponse);
+
+    const result = await recordAdminOnboardingReviewDecision(
+      " draft_acme_distribution ",
+      {
+        external_tenant_ref: " acme-distribution ",
+        organisation_ref: " org-acme ",
+        producer_ref: " ",
+        expected_version: 2,
+        idempotency_key: " review-decision-key ",
+        review_outcome: "APPROVED_FOR_INTERNAL_REVIEW",
+        reason_category: " OPERATOR_REVIEW ",
+        reason: " Evidence is complete enough for internal review. ",
+        correlation_id: " company-review-decision ",
+        tenant_code: "INTERNAL-SHOULD-NOT-BE-SENT",
+      } as Parameters<typeof recordAdminOnboardingReviewDecision>[1] & {
+        tenant_code: string;
+      },
+    );
+
+    expect(result).toMatchObject({
+      status: "review_decision_recorded",
+      draft_ref: "draft_acme_distribution",
+      review_outcome: "APPROVED_FOR_INTERNAL_REVIEW",
+      audit_evidence_ref: "REVIEW_DECISION_AUDIT_EVIDENCE",
+      approval_to_launch: false,
+      go_live_enabled: false,
+      no_live_action_confirmed: true,
+    });
+
+    const [url, options] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    const requestUrl = new URL(url);
+    const body = JSON.parse(String(options.body));
+    const renderedBody = JSON.stringify(body).toLowerCase();
+
+    expect(requestUrl.pathname).toBe(
+      "/admin/onboarding/drafts/draft_acme_distribution/review-decision",
+    );
+    expect(options.method).toBe("POST");
+    expect(body).toMatchObject({
+      external_tenant_ref: "acme-distribution",
+      organisation_ref: "org-acme",
+      expected_version: 2,
+      idempotency_key: "review-decision-key",
+      review_outcome: "APPROVED_FOR_INTERNAL_REVIEW",
+      reason_category: "OPERATOR_REVIEW",
+      reason: "Evidence is complete enough for internal review.",
+      correlation_id: "company-review-decision",
+    });
+    expect(body).not.toHaveProperty("tenant_code");
+    expect(body).not.toHaveProperty("producer_ref");
+    expect(renderedBody).not.toContain("tenant_code");
+    expect(renderedBody).not.toContain("secret");
+    expect(renderedBody).not.toContain("api_key");
+    expect(renderedBody).not.toContain("client_secret");
+    expect(renderedBody).not.toContain("wallet");
+    expect(renderedBody).not.toContain("settlement");
+    expect(renderedBody).not.toContain("fulfilment");
+    expect(renderedBody).not.toContain("retry");
+    expect(renderedBody).not.toContain("money_movement");
+    expect(renderedBody).not.toContain("approval_to_launch");
+    expect(renderedBody).not.toContain("go_live_enabled");
+  });
+
+  it("surfaces safe review-decision conflicts through the shared API error contract", async () => {
+    mockFetch(
+      {
+        detail: {
+          code: "IDEMPOTENCY_CONFLICT",
+          message:
+            "Idempotency key was reused with a different review-decision payload.",
+          no_live_action_confirmed: true,
+        },
+      },
+      409,
+    );
+
+    await expect(
+      recordAdminOnboardingReviewDecision("draft_acme_distribution", {
+        external_tenant_ref: "acme-distribution",
+        organisation_ref: "org-acme",
+        expected_version: 2,
+        idempotency_key: "review-decision-key",
+        review_outcome: "APPROVED_FOR_INTERNAL_REVIEW",
+        reason_category: "OPERATOR_REVIEW",
+        reason: "Evidence is complete enough for internal review.",
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringContaining("IDEMPOTENCY_CONFLICT"),
     });
   });
 });

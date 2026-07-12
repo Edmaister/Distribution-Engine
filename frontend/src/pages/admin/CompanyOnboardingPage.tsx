@@ -11,11 +11,14 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   getAdminOnboardingState,
+  recordAdminOnboardingReviewDecision,
   saveAdminOnboardingDraft,
   submitAdminOnboardingDraftForReview,
   validateAdminOnboardingDryRun,
   type AdminOnboardingDraftSaveResponse,
   type AdminOnboardingDryRunValidationResponse,
+  type AdminOnboardingReviewDecisionResponse,
+  type AdminOnboardingReviewOutcome,
   type AdminOnboardingStateResponse,
   type AdminOnboardingSubmitForReviewResponse,
 } from "../../api/endpoints/adminOnboarding";
@@ -92,14 +95,14 @@ type LoadState = "loading" | "success" | "fallback";
 type DraftSaveState = "idle" | "saving" | "saved" | "error";
 type ValidationPreviewState = "idle" | "loading" | "success" | "error";
 type SubmitForReviewState = "idle" | "submitting" | "submitted" | "error";
+type ReviewDecisionState = "idle" | "recording" | "recorded" | "error";
 
 export function CompanyOnboardingPage() {
   const [form, setForm] = useState<FormState>(initialState);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [readOnlyState, setReadOnlyState] =
     useState<AdminOnboardingStateResponse | null>(null);
-  const [draftSaveState, setDraftSaveState] =
-    useState<DraftSaveState>("idle");
+  const [draftSaveState, setDraftSaveState] = useState<DraftSaveState>("idle");
   const [draftSaveResponse, setDraftSaveResponse] =
     useState<AdminOnboardingDraftSaveResponse | null>(null);
   const [draftSaveError, setDraftSaveError] = useState<string | null>(null);
@@ -117,6 +120,14 @@ export function CompanyOnboardingPage() {
   const [submitForReviewError, setSubmitForReviewError] = useState<
     string | null
   >(null);
+  const [reviewReason, setReviewReason] = useState("");
+  const [reviewDecisionState, setReviewDecisionState] =
+    useState<ReviewDecisionState>("idle");
+  const [reviewDecisionResponse, setReviewDecisionResponse] =
+    useState<AdminOnboardingReviewDecisionResponse | null>(null);
+  const [reviewDecisionError, setReviewDecisionError] = useState<string | null>(
+    null,
+  );
   const requiredComplete = Boolean(
     form.organisationName.trim() &&
     form.externalTenantRef.trim() &&
@@ -176,6 +187,10 @@ export function CompanyOnboardingPage() {
     [form],
   );
   const submitForReviewReady = Boolean(draftSaveResponse?.draft_ref);
+  const reviewDecisionReady = Boolean(
+    submitForReviewResponse?.draft_ref &&
+    submitForReviewResponse.draft_status === "READY_FOR_REVIEW",
+  );
   const submitForReviewIdempotencyKey = useMemo(
     () =>
       [
@@ -184,7 +199,27 @@ export function CompanyOnboardingPage() {
         form.externalTenantRef.trim() || "missing-external-ref",
         form.organisationRef.trim() || "missing-organisation-ref",
       ].join(":"),
-    [draftSaveResponse?.draft_ref, form.externalTenantRef, form.organisationRef],
+    [
+      draftSaveResponse?.draft_ref,
+      form.externalTenantRef,
+      form.organisationRef,
+    ],
+  );
+  const reviewDecisionIdempotencyKey = useMemo(
+    () =>
+      [
+        "company-onboarding-review-decision",
+        submitForReviewResponse?.draft_ref || "missing-draft-ref",
+        submitForReviewResponse?.draft_version ?? "missing-version",
+        form.externalTenantRef.trim() || "missing-external-ref",
+        form.organisationRef.trim() || "missing-organisation-ref",
+      ].join(":"),
+    [
+      submitForReviewResponse?.draft_ref,
+      submitForReviewResponse?.draft_version,
+      form.externalTenantRef,
+      form.organisationRef,
+    ],
   );
 
   function updateField(field: keyof FormState, value: string) {
@@ -224,6 +259,9 @@ export function CompanyOnboardingPage() {
       setSubmitForReviewState("idle");
       setSubmitForReviewResponse(null);
       setSubmitForReviewError(null);
+      setReviewDecisionState("idle");
+      setReviewDecisionResponse(null);
+      setReviewDecisionError(null);
     } catch (error) {
       const status =
         typeof error === "object" && error && "status" in error
@@ -263,6 +301,9 @@ export function CompanyOnboardingPage() {
       );
       setSubmitForReviewResponse(response);
       setSubmitForReviewState("submitted");
+      setReviewDecisionState("idle");
+      setReviewDecisionResponse(null);
+      setReviewDecisionError(null);
     } catch (error) {
       const status =
         typeof error === "object" && error && "status" in error
@@ -270,6 +311,55 @@ export function CompanyOnboardingPage() {
           : null;
       setSubmitForReviewError(safeSubmitForReviewError(status));
       setSubmitForReviewState("error");
+    }
+  }
+
+  async function handleReviewDecision(outcome: AdminOnboardingReviewOutcome) {
+    if (
+      !submitForReviewResponse?.draft_ref ||
+      !reviewDecisionReady ||
+      reviewDecisionState === "recording"
+    ) {
+      return;
+    }
+
+    const reason = reviewReason.trim();
+    if (!reason) {
+      setReviewDecisionError(
+        "A bounded review reason is required before a review decision can be recorded. No approval or live action was taken.",
+      );
+      setReviewDecisionState("error");
+      return;
+    }
+
+    setReviewDecisionState("recording");
+    setReviewDecisionResponse(null);
+    setReviewDecisionError(null);
+
+    try {
+      const response = await recordAdminOnboardingReviewDecision(
+        submitForReviewResponse.draft_ref,
+        {
+          external_tenant_ref: form.externalTenantRef,
+          organisation_ref: form.organisationRef,
+          expected_version: submitForReviewResponse.draft_version ?? 1,
+          idempotency_key: `${reviewDecisionIdempotencyKey}:${outcome}`,
+          review_outcome: outcome,
+          reason_category:
+            outcome === "BLOCKED" ? "REVIEW_BLOCKER" : "OPERATOR_REVIEW",
+          reason,
+          correlation_id: "company-onboarding-review-decision",
+        },
+      );
+      setReviewDecisionResponse(response);
+      setReviewDecisionState("recorded");
+    } catch (error) {
+      const status =
+        typeof error === "object" && error && "status" in error
+          ? Number((error as { status?: number }).status)
+          : null;
+      setReviewDecisionError(safeReviewDecisionError(status));
+      setReviewDecisionState("error");
     }
   }
 
@@ -569,8 +659,7 @@ export function CompanyOnboardingPage() {
               <button
                 className="button secondary"
                 disabled={
-                  !submitForReviewReady ||
-                  submitForReviewState === "submitting"
+                  !submitForReviewReady || submitForReviewState === "submitting"
                 }
                 onClick={handleSubmitForReview}
                 type="button"
@@ -634,8 +723,8 @@ export function CompanyOnboardingPage() {
                   </div>
                   {draftSaveResponse.validation_summary ? (
                     <div className="table-subtext">
-                      Validation:{" "}
-                      {draftSaveResponse.validation_summary.status}; blockers:{" "}
+                      Validation: {draftSaveResponse.validation_summary.status};
+                      blockers:{" "}
                       {draftSaveResponse.validation_summary.blocker_count};
                       missing evidence:{" "}
                       {
@@ -658,9 +747,63 @@ export function CompanyOnboardingPage() {
               credentials, publish campaigns, deliver webhooks, activate
               go-live, or move money.
             </div>
-            {submitForReviewState === "submitted" &&
-            submitForReviewResponse ? (
+            {submitForReviewState === "submitted" && submitForReviewResponse ? (
               <SubmitForReviewPanel response={submitForReviewResponse} />
+            ) : null}
+            <div className="table-subtext">
+              Review decisions are internal review classifications only. They do
+              not approve launch, activate go-live, create accounts, invite
+              users, publish campaigns, deliver webhooks, or move money.
+            </div>
+            <div className="field">
+              <label htmlFor="company-review-reason">Review reason</label>
+              <textarea
+                className="input"
+                disabled={!reviewDecisionReady}
+                id="company-review-reason"
+                onChange={(event) => setReviewReason(event.target.value)}
+                placeholder="Bounded internal review reason"
+                rows={3}
+                value={reviewReason}
+              />
+            </div>
+            <div className="action-button-row">
+              <button
+                className="button secondary"
+                disabled={
+                  !reviewDecisionReady || reviewDecisionState === "recording"
+                }
+                onClick={() =>
+                  handleReviewDecision("APPROVED_FOR_INTERNAL_REVIEW")
+                }
+                type="button"
+              >
+                {reviewDecisionState === "recording"
+                  ? "Recording review"
+                  : "Accept internal review"}
+              </button>
+              <button
+                className="button secondary"
+                disabled={
+                  !reviewDecisionReady || reviewDecisionState === "recording"
+                }
+                onClick={() => handleReviewDecision("BLOCKED")}
+                type="button"
+              >
+                Mark review blocked
+              </button>
+            </div>
+            {reviewDecisionState === "recorded" && reviewDecisionResponse ? (
+              <ReviewDecisionPanel response={reviewDecisionResponse} />
+            ) : null}
+            {reviewDecisionState === "error" && reviewDecisionError ? (
+              <div className="banner warning" role="status">
+                <ShieldCheck size={18} />
+                <div>
+                  <strong>Review decision fallback.</strong>
+                  <div className="table-subtext">{reviewDecisionError}</div>
+                </div>
+              </div>
             ) : null}
             {submitForReviewState === "error" && submitForReviewError ? (
               <div className="banner warning" role="status">
@@ -794,6 +937,54 @@ function safeSubmitForReviewError(status: number | null): string {
   return "Submit for review is unavailable, so the page is keeping the saved draft in local review-only state. No approval or live action was taken.";
 }
 
+function safeReviewDecisionError(status: number | null): string {
+  if (status === 409) {
+    return "The submitted draft changed or the review decision conflicts with an earlier request. No approval, go-live, or live action was taken.";
+  }
+  if (status === 422) {
+    return "The submitted draft cannot receive that review decision yet. No approval, go-live, or live action was taken.";
+  }
+  return "Review decision recording is unavailable, so the page is keeping local review-only state. No approval, go-live, or live action was taken.";
+}
+
+function ReviewDecisionPanel({
+  response,
+}: {
+  response: AdminOnboardingReviewDecisionResponse;
+}) {
+  const validationStatus = response.validation_summary?.status ?? "Unavailable";
+  const guardrails = response.guardrails?.slice(0, 5) ?? [];
+
+  return (
+    <div className="banner success" role="status">
+      <CheckCircle2 size={18} />
+      <div>
+        <strong>Review decision recorded.</strong>
+        <div className="table-subtext">
+          {response.draft_ref} - {response.review_outcome} -{" "}
+          {response.draft_status}; no live action:{" "}
+          {response.no_live_action_confirmed ? "confirmed" : "unavailable"}.
+        </div>
+        <div className="table-subtext">
+          Validation: {validationStatus}; audit evidence:{" "}
+          {response.audit_evidence_status ?? "unavailable"}; go-live:{" "}
+          {response.go_live_enabled ? "enabled." : "disabled."}
+        </div>
+        {response.audit_evidence_ref ? (
+          <div className="table-subtext">
+            Audit reference: {response.audit_evidence_ref}
+          </div>
+        ) : null}
+        {guardrails.length > 0 ? (
+          <div className="table-subtext">
+            Guardrails: {guardrails.join(", ")}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function SubmitForReviewPanel({
   response,
 }: {
@@ -823,8 +1014,8 @@ function SubmitForReviewPanel({
           <div className="table-subtext">
             Readiness: {response.readiness_summary.overall_status}; go-live:{" "}
             {response.readiness_summary.go_live_enabled
-              ? "enabled"
-              : "disabled"}.
+              ? "enabled."
+              : "disabled."}
           </div>
         ) : null}
         <ValidationItemList label="Review blockers" items={blockers} />
@@ -915,9 +1106,7 @@ function ValidationItemList({
   return (
     <div className="table-subtext">
       {label}:{" "}
-      {items
-        .map((item) => `${item.code} - ${item.message}`)
-        .join("; ")}
+      {items.map((item) => `${item.code} - ${item.message}`).join("; ")}
     </div>
   );
 }
