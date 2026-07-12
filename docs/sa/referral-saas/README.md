@@ -92,3 +92,6 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   outputs. It returns JSON rows or CSV text plus metadata without creating
   export IDs, files, storage records, delivery jobs, audit rows, retention
   records, download URLs, or scheduled exports.
+- TASK-168 adds the first frontend API client seam for Referral SaaS report,
+  export validation, and export preview calls. It does not add a report screen,
+  persisted export UX, account membership UI, or new backend behavior.
