@@ -5,9 +5,9 @@ TASK ID: TASK-151
 Product boundary: Referral Management and Campaign Attribution SaaS.
 
 Status: Source-backed route inventory and local contract test. TASK-157 adds
-the first bounded read-only product wrapper route for Referral SaaS reporting.
-No schema, frontend, live database, export, or write behavior is introduced by
-this inventory.
+the first bounded read-only product wrapper route for Referral SaaS reporting;
+TASK-165 adds the validation-only report export gate. No schema, frontend, live
+database, persisted export, or write behavior is introduced by this inventory.
 
 ## Boundary
 
@@ -52,7 +52,8 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Read-only diagnostic | GET | `/admin/links/inspect` | Operator link/code investigation |
 | Read-only diagnostic | GET | `/admin/outcomes/{referral_track_id}/trace` | Attribution trace evidence |
 | Read-only reporting | GET | `/admin/analytics/reports/{report_type}` | Tenant-safe analytics foundation |
-| Read-only product report | GET | `/v1/referral-saas/reports/{report_type}` | Referral SaaS campaign performance report wrapper |
+| Read-only product report | GET | `/v1/referral-saas/reports/{report_type}` | Referral SaaS report wrapper |
+| Validation-only product export | POST | `/v1/referral-saas/reports/{report_type}/exports/validate` | Referral SaaS export request validation gate |
 | Read-only status | GET | `/v1/experience/consumer` | Consumer/referrer experience foundation |
 | Read-only status | GET | `/v1/rewards/summary/{referral_track_id}` | Reward summary foundation |
 | Read-only status | GET | `/v1/rewards/summary/referrers/{referrer_ucn}` | Referrer reward summary foundation |
@@ -68,15 +69,21 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 
 ## Product Wrapper Fact
 
-TASK-157 introduces exactly one mounted `/v1/referral-saas/*` product wrapper:
+TASK-157 and TASK-165 introduce exactly two mounted `/v1/referral-saas/*`
+product wrappers:
 
 - `GET /v1/referral-saas/reports/{report_type}`
+- `POST /v1/referral-saas/reports/{report_type}/exports/validate`
 
-This wrapper is read-only, currently supports the TASK-156
-`campaign_performance` report helper, and TASK-158 can derive tenant scope from
-tenant-scoped identities. Internal report readers still require explicit
-`tenant_code` until SaaS account resolution is implemented. No export, account
-membership, frontend, or write command wrapper is implied.
+The report wrapper is read-only and currently supports the TASK-156 through
+TASK-164 report helpers. TASK-158 can derive tenant scope from tenant-scoped
+identities. The export validation wrapper is side-effect free: it validates
+report type, format, redaction profile, dimensions, filters, row limits, and
+date windows without creating export files, storage records, delivery jobs,
+audit rows, retention records, or download URLs. Internal report readers still
+require explicit `tenant_code` until SaaS account resolution is implemented. No
+account membership, frontend, persisted export, or write command wrapper is
+implied.
 
 ## Smoke Safety Classification
 
@@ -87,7 +94,8 @@ auth permits and test subjects are known:
 - link/code inspection
 - attribution trace
 - tenant-safe analytics
-- Referral SaaS campaign performance report wrapper
+- Referral SaaS report wrapper
+- Referral SaaS export validation wrapper
 - consumer/referrer status summaries
 - reward summaries
 
@@ -113,7 +121,8 @@ Remaining blockers before a 10/10 claim:
   `scripts/referral_saas_route_smoke_plan.py`
 - perform live or staging schema/status/index verification using
   `scripts/referral_saas_schema_status_check.py`
-- keep product wrapper expansion bounded beyond the first read-only report route
+- keep product wrapper expansion bounded beyond the report route and
+  validation-only export gate
 - add safe-status and reporting E2E assertions over product-ready surfaces
 - keep production smoke read-only unless separately approved
 
@@ -121,8 +130,8 @@ Remaining blockers before a 10/10 claim:
 
 `test/test_referral_saas_route_smoke_inventory.py` asserts that the current
 read-only and seeded-write smoke route families are mounted, and that the
-`/v1/referral-saas/*` route surface remains bounded to the first read-only
-report wrapper.
+`/v1/referral-saas/*` route surface remains bounded to the report wrapper and
+validation-only export gate.
 
 `scripts/referral_saas_route_smoke_plan.py` builds dry-run command templates
 for the read-only smoke routes by default. Local/staging write-route templates
