@@ -21,7 +21,22 @@ Confirmed source folders inspected:
 
 Confirmed path correction: migration files live under `dp/migrations/`; no `db/migrations` path was used.
 
-Static inspection only: no live database connection was used for this task, so deployed schema drift remains unknown.
+Static inspection only: no live database connection was used for TASK-001.
+TASK-027/TASK-028 later added local read-only verification evidence; staging and
+production schema drift remain unknown until those environments are approved.
+
+Local verification update, 2026-07-12:
+
+- Local database `referrals` was inspected with strict read-only role
+  `referral_readonly_verifier`.
+- Local public base table count was 106 after applying migration 080 for
+  onboarding draft persistence.
+- Local protected read-only API smoke checks passed for health, OpenAPI, admin
+  audit summary, admin failure summary, and admin funding dashboard.
+- `funding_reconciliation_runs.correlation_id` is confirmed absent locally even
+  though the funding reconciliation service reads/writes it. This is assigned to
+  TASK-148.
+- Staging and production were not accessed.
 
 ## 1. State Fields Inventory
 
@@ -30,8 +45,8 @@ Static inspection only: no live database connection was used for this task, so d
 | `referral_instances` | `status` | `VALIDATED`, `UCN_CAPTURED`, `ACCOUNT_OPENED`, `ACCOUNT_ACTIVATED`, `FUNDED`, `COMPLETED`, `CANCELLED`; default originally `VALIDATED` | `dp/migrations/001_init.sql`; `dp/migrations/016_fix_referral_instances_status_constraint.sql`; `services/progress_service.py` | Migration history expands initial constraint. Current live constraint must be verified. |
 | `referral_instances` | `is_complete` | boolean default `FALSE` | `dp/migrations/001_init.sql`; `services/progress_service.py` | Customer-safe completion view is derived from this plus timestamps/status. |
 | `referral_progress_events` | `event_type` | `VALIDATED`, `UCN_CAPTURED`, `ACCOUNT_OPENED`, `ACCOUNT_ACTIVATED`, `FUNDED`, `DEBIT_ORDER_SWITCHED`, `SALARY_SWITCHED`, `FIRST_TRANSACTION_COMPLETED` | `dp/migrations/013_progress_events.sql`; `dp/migrations/017_fix_referral_progress_event_type_constraint.sql`; `services/progress_service.py` | Used as event history and idempotency source for progress ingestion. |
-| `referral_event_failures` | `status` | default `OPEN`; service writes `RESOLVED`, `REPROCESSED` | `dp/migrations/020_referral_event_failures.sql`; `services/failure_admin_service.py`; `apps/api/routers/admin_failure.py` | No status check constraint found in migration. |
-| `referral_processing_audit` | `processing_status` | comment says `PROCESSED`, `IGNORED`, `FAILED` | `dp/migrations/018_add_referral_processing_audit.sql` | Comment-only states; no check constraint found in inspected migration. |
+| `referral_event_failures` | `status` | default `OPEN`; service writes `RESOLVED`, `REPROCESSED` | `dp/migrations/020_referral_event_failures.sql`; `services/failure_admin_service.py`; `apps/api/routers/admin_failure.py`; TASK-027 local verification | No status check constraint found. Local values observed: `REPROCESSED`, `RESOLVED`. |
+| `referral_processing_audit` | `processing_status` | comment says `PROCESSED`, `IGNORED`, `FAILED` | `dp/migrations/018_add_referral_processing_audit.sql`; TASK-027 local verification | Comment-only states; no check constraint found. Local values observed: `FAILED`, `IGNORED`, `PROCESSED`. |
 | `marketing_campaigns` | `is_active` | boolean default `TRUE` | `dp/migrations/002_campaigns.sql`; `services/campaign_service.py` | Not a full campaign lifecycle state. |
 | `marketing_campaign_policies` | `is_active` | boolean default `TRUE` | `dp/migrations/002_campaigns.sql`; `services/campaign_policy_service.py` | Policy lifecycle is boolean, not canonical version-state workflow. |
 | `campaign_attributions` | `status` | `SCANNED`, `VALIDATED`, `ATTRIBUTED`, `COMPLETED`, `BLOCKED`, `EXPIRED`, `INVALID`; default `SCANNED` | `dp/migrations/002_campaigns.sql` | Attribution state source for campaign track. |
@@ -39,8 +54,8 @@ Static inspection only: no live database connection was used for this task, so d
 | `referral_qr_scans` | `status` | `SCANNED`, `VALIDATED`, `COMPLETED`, `BLOCKED`, `INVALID`, `EXPIRED`; default `SCANNED` | `dp/migrations/006_qr_scans.sql` | Telemetry/audit table. |
 | `campaign_qr_scans` | `status` | `SCANNED`, `VALIDATED`, `ATTRIBUTED`, `COMPLETED`, `BLOCKED`, `INVALID`, `EXPIRED`; default `SCANNED` | `dp/migrations/008_campaign_qr_scans.sql` | Campaign scan telemetry. |
 | `composite_scan_attempts` | `status` | `SCANNED`, `VALIDATED`, `INVALID`, `EXPIRED`, `BLOCKED`; default `SCANNED` | `dp/migrations/012_composit_scan_attempts.sql` | Filename spelling is `composit`; keep exact path until renamed intentionally. |
-| `rewards` | `status` | schema default `EARNED`; service allows `APPLIED`, `EARNED`, `PENDING_FULFILMENT`, `FULFILLED`, `FAILED`, `REVERSED` | `dp/migrations/022_reward.sql`; `dp/migrations/034_reward_update.sql`; `services/reward_service.py` | Static mismatch: service permits more states than schema constrains. No status check constraint found in reward migration. |
-| `fulfilment_audit` | `status` | default `PENDING`; service enum: `PENDING`, `PROCESSING`, `SUCCESS`, `FAILED_RETRYABLE`, `FAILED_FINAL`, `DLQ`, `SKIPPED_DUPLICATE` | `dp/migrations/035_add_fulfilment_audit.sql`; `services/fulfilment_status.py`; `services/fulfilment_audit_service.py`; `services/fulfilment/service.py` | No status check constraint found in migration. Admin dashboard counts all enum values. |
+| `rewards` | `status` | local default `APPLIED`; service allows `APPLIED`, `EARNED`, `PENDING_FULFILMENT`, `FULFILLED`, `FAILED`, `REVERSED` | `dp/migrations/022_reward.sql`; `dp/migrations/034_reward_update.sql`; `services/reward_service.py`; TASK-027/TASK-028 local verification | Local DB has no status check constraint and current rows are `APPLIED`. Reward status remains service-governed. |
+| `fulfilment_audit` | `status` | local default `PENDING`; service enum: `PENDING`, `PROCESSING`, `SUCCESS`, `FAILED_RETRYABLE`, `FAILED_FINAL`, `DLQ`, `SKIPPED_DUPLICATE` | `dp/migrations/035_add_fulfilment_audit.sql`; `services/fulfilment_status.py`; `services/fulfilment_audit_service.py`; `services/fulfilment/service.py`; TASK-027 local verification | No status check constraint found. Local value observed: `SUCCESS`. Admin dashboard counts all enum values. |
 | `fulfilment_settlement_ledger` | `status` | `PENDING`, `PROCESSING`, `SETTLED`, `FAILED`, `REVERSED`, `DISPUTED`; default `PENDING` | `dp/migrations/037_phase_7_1_fulfilment_settlement_ledger.sql`; `services/fulfilment/settlement/status.py` | Has DB check constraint. |
 | `settlement_batches` | `status` | service constants: `DRAFT`, `READY_FOR_APPROVAL`, `APPROVED`, `PROCESSING`, `SETTLED` | `dp/migrations/050_settlement_batches.sql`; `services/fulfilment/settlement/batches.py` | No DB check constraint found. |
 | `settlement_batch_items` | `status` | service constants: `ADDED`, `SETTLED` | `dp/migrations/051_settlement_batch_items.sql`; `services/fulfilment/settlement/batches.py` | No DB check constraint found. |
@@ -54,7 +69,7 @@ Static inspection only: no live database connection was used for this task, so d
 | `funding_limits` | `is_active` | boolean default `TRUE` | `dp/migrations/043_create_funding_limits.sql`; `services/funding/limits.py` | Limit activity is boolean. |
 | `funding_reservations` | `status` | `RESERVED`, `RELEASED`, `SETTLED` | `dp/migrations/042_funding_reservations.sql`; `services/funding/reservations.py` | Has DB check constraint; release/settle updates only apply from `RESERVED`. |
 | `funding_alerts` | `status` | service constants: `OPEN`, `ACKNOWLEDGED`, `RESOLVED`; default `OPEN` | `dp/migrations/047_funding_alerts.sql`; `services/funding/alerts.py` | No DB check constraint found. |
-| `funding_reconciliation_runs` | `status` | service writes `MATCHED`, `EXCEPTION` | `dp/migrations/048_funding_reconciliation_runs.sql`; `services/funding/reconciliation.py` | Migration lacks `correlation_id`, but service reads/writes it. Schema uncertainty needs live verification. |
+| `funding_reconciliation_runs` | `status` | service writes `MATCHED`, `EXCEPTION` | `dp/migrations/048_funding_reconciliation_runs.sql`; `services/funding/reconciliation.py`; TASK-027/TASK-028 local verification | Local table has `status` but no rows and no `correlation_id`; service/schema drift is confirmed locally and assigned to TASK-148. |
 | `funding_reconciliation_exceptions` | `status` | `OPEN`, `RESOLVED`; default `OPEN` | `dp/migrations/049_funding_reconciliation_exceptions.sql`; `services/funding/reconciliation.py` | No DB check constraint found. |
 | `marketplace_funding_allocations` | `status` | `RESERVED`, `RELEASED`, `DEBITED`, `REVERSED`; default `RESERVED` | `dp/migrations/058_marketplace_funding_allocations.sql`; `services/marketplace_funding/sponsor_funding_service.py` | Has DB check constraint and unique `reward_id`. |
 | `funding_contracts` | `status` | default `ACTIVE`; service/docs reference `ACTIVE`, `SUSPENDED`, `CANCELLED` | `dp/migrations/059_funding_contracts.sql`; `services/marketplace_funding/funding_contract_service.py` | No DB check constraint found. |
@@ -79,7 +94,7 @@ Static inspection only: no live database connection was used for this task, so d
 | `partner_webhook_subscriptions` | `status` | `ACTIVE`, `PAUSED`, `REVOKED`; default `ACTIVE` | `dp/migrations/077_partner_seam.sql`; `services/partner_seam_service.py` | Has DB check constraint and HTTPS URL check. |
 | `partner_webhook_deliveries` | `delivery_status` | `PENDING`, `SENT`, `FAILED`, `CANCELLED`; default `PENDING` | `dp/migrations/077_partner_seam.sql`; `services/partner_seam_service.py` | Has DB check constraint and retry fields. |
 | `partner_webhook_alert_notifications` | `notification_status` | `QUEUED`, `SENT`, `FAILED`; default `SENT` | `dp/migrations/079_partner_webhook_alert_notifications.sql`; `services/partner_seam_service.py` | Has DB check constraint. |
-| `admin_audit_log` | `action_status` | default `SUCCESS`; tests use `SUCCESS` | `dp/migrations/071_admin_audit_log.sql`; `services/admin_audit_service.py`; `test/test_admin_audit_service.py` | No DB check constraint found. |
+| `admin_audit_log` | `action_status` | default `SUCCESS`; tests use `SUCCESS` | `dp/migrations/071_admin_audit_log.sql`; `services/admin_audit_service.py`; `test/test_admin_audit_service.py`; TASK-027 local verification | No DB check constraint found. Local values observed: `FAILED`, `SUCCESS`. |
 | `privacy_erasure_audit` | `status` | `erased`, `not_found`, `blocked`, `failed` | `dp/migrations/032_privacy_tables.sql`; `services/privacy_service.py` | Has DB check constraint. |
 
 ## 2. Identifier Inventory
@@ -95,7 +110,7 @@ Static inspection only: no live database connection was used for this task, so d
 | `campaign_code` | text PK/stable campaign identity | Marketing campaigns, policies, distribution opportunity link | `dp/migrations/002_campaigns.sql`; `services/campaign_service.py` |
 | `campaign_id` | UUID unique surrogate | Marketing campaigns | `dp/migrations/002_campaigns.sql` |
 | `campaign_track_id` | UUID PK/golden thread after campaign validation | Campaign attribution/event stream | `dp/migrations/002_campaigns.sql` |
-| `reward_id` | mixed: UUID in `referral_rewards`; BIGSERIAL `id` in `rewards`; text in `funding_reservations.reward_id` | Reward, fulfilment, funding, settlement | `dp/migrations/001_init.sql`; `dp/migrations/022_reward.sql`; `dp/migrations/042_funding_reservations.sql`; `services/reward_service.py` |
+| `reward_id` | mixed: UUID in `referral_rewards`; BIGSERIAL `id` in `rewards`; text in `funding_reservations.reward_id`; UUID in `fulfilment_settlement_ledger.reward_id` | Reward, fulfilment, funding, settlement | `dp/migrations/001_init.sql`; `dp/migrations/022_reward.sql`; `dp/migrations/042_funding_reservations.sql`; `dp/migrations/037_phase_7_1_fulfilment_settlement_ledger.sql`; `services/reward_service.py`; TASK-028 local verification |
 | `rewards.id` | BIGSERIAL PK | Current reward service returns `id` | `dp/migrations/022_reward.sql`; `services/reward_service.py` |
 | `business_key` | deterministic UUIDv5 string, not persisted directly by inspected reward insert | Reward event payload/idempotency evidence | `services/reward_service.py` |
 | `audit_id` | UUID PK | Fulfilment audit, funding resolution audit, admin audit, distribution governance audit | `dp/migrations/035_add_fulfilment_audit.sql`; `046_funding_resolution_audit.sql`; `071_admin_audit_log.sql`; `069_distribution_governance.sql` |
@@ -127,8 +142,10 @@ Confirmed:
 
 Assumptions requiring verification:
 
-- Runtime database may contain additional constraints or columns not represented by static migrations.
-- `reward_id` is not a single canonical type across all reward/money flows.
+- Local runtime database may contain additional constraints or columns not
+  represented by static migrations; staging and production remain unverified.
+- `reward_id` is confirmed locally as not a single canonical type across all
+  reward/money flows.
 - `correlation_id` is not a guaranteed UUID; services use text and sometimes store reward IDs, audit IDs, or referral track IDs as correlation evidence.
 
 ## 4. Idempotency Key Inventory
@@ -287,10 +304,16 @@ Routers/tests:
 
 Confirmed risks:
 
-- Static migrations and service code do not always agree. Example: `rewards.status` has a schema default of `EARNED`, while service accepts `APPLIED`, `EARNED`, `PENDING_FULFILMENT`, `FULFILLED`, `FAILED`, and `REVERSED`.
+- Static migrations, services, and local runtime schema do not always agree.
+  Example: local `rewards.status` defaults to `APPLIED` and has no status check
+  constraint, while service accepts `APPLIED`, `EARNED`,
+  `PENDING_FULFILMENT`, `FULFILLED`, `FAILED`, and `REVERSED`.
 - Some migration files define state columns without DB check constraints, leaving actual allowed statuses service-governed.
-- `funding_reconciliation_runs` service reads/writes `correlation_id`, but the inspected migration does not define that column.
-- `reward_id` is not a single consistent type across `referral_rewards`, `rewards`, `funding_reservations`, and settlement references.
+- `funding_reconciliation_runs` service reads/writes `correlation_id`, but
+  migration 048 and local runtime schema do not define that column. This is
+  confirmed drift assigned to TASK-148.
+- `reward_id` is not a single consistent type across `referral_rewards`,
+  `rewards`, `funding_reservations`, and settlement references.
 - `correlation_id` is important but not semantically standardized across event, reward, funding, fulfilment, settlement, webhook, and audit paths.
 - Partner webhook retry has delivery-row idempotency, but no payload/event-level uniqueness was found for duplicate queueing.
 - Sponsor billing state vocabulary needs a focused pass before exposing billing-grade SaaS or finance UX.
@@ -298,10 +321,14 @@ Confirmed risks:
 
 Unknowns requiring follow-up:
 
-- Live DB schema and deployed constraints were not inspected.
+- Local live DB schema and constraints were inspected under TASK-027/TASK-028;
+  staging and production remain uninspected.
 - Whether all migrations replay cleanly in order was not verified in this task.
-- Whether live environments include additional columns/check constraints/indexes beyond static migrations is unknown.
-- Whether `fulfilment_audit.status` can contain values outside service enum is unknown because no DB check constraint was found.
+- Whether staging/production include additional columns/check constraints/indexes
+  beyond static migrations is unknown.
+- Whether `fulfilment_audit.status` can contain values outside service enum is
+  not DB-enforced locally because no DB check constraint was found; staging and
+  production remain unverified.
 - Whether old `referral_rewards` is still actively used alongside `rewards` needs confirmation before canonical reward/liability work.
 - Whether all manual repair/retry actions consistently write `admin_audit_log` needs an audit coverage task.
 

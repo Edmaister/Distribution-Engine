@@ -574,21 +574,25 @@ Definition of done: TASK-004 can proceed without deciding tenant identifier sema
 
 ## TASK-028: Resolve schema uncertainty from TASK-001 inventory
 
-Status: Blocked.
+Status: Complete (2026-07-12). Output: `docs/roadmap/TASK_028_SCHEMA_UNCERTAINTY_RESOLUTION.md`; `docs/sa/LIVE_CRITICAL_STATE_INVENTORY.md`; `docs/sa/STATE_MACHINE_MAP.md`.
 
 Finding:
-TASK-028 cannot execute because TASK-027 live DB verification is blocked and no verified drift results exist. TASK-028 should only resolve confirmed live/schema mismatches or explicitly deferred unknowns.
+TASK-028 resolved the local TASK-001 schema uncertainties using TASK-027 local read-only evidence. Local runtime facts are now separated from staging/production unknowns, and confirmed drift is assigned to TASK-148.
 
 Blocked by:
-TASK-027 completion, or an explicit decision to defer specific TASK-001 unknowns without live DB verification.
+None for local resolution. Staging and production verification remain separately gated by approved environment access.
 
 Validation:
-Readiness inspection only; no files changed beyond this roadmap update, no DB access attempted, no secrets inspected, and no downstream tasks started.
+Documentation/readback plus local read-only metadata evidence only. No schema or data write succeeded, no secrets were recorded, and no replay, repair, retry, funding, fulfilment, settlement, wallet, go-live, or money movement was attempted.
 
 Targeted TASK-028 drift resolution update (2026-07-11):
 Output: `apps/api/routers/admin_failure.py`; `test/test_admin_failure.py`; `docs/roadmap/TASK_027_LOCAL_DB_VERIFICATION_RESULTS.md`.
 Finding: TASK-027 protected local API smoke testing confirmed `GET /admin/failures/summary` authenticated with the local admin test key but returned 500 because the admin failure router used synchronous route handlers while calling async failure admin service functions without awaiting them. The route fix converted failure list, resolve, reprocess, and summary handlers to async and awaited the existing service calls. This preserves the existing auth, route paths, response contracts, DB schema, service logic, and mutation boundaries; no replay, resolve, repair, funding, fulfilment, settlement, wallet, go-live, or money movement behavior changed. After the fix, protected local read-only smoke returned 200 for failure summary and 401 without a key.
 Validation: `.venv_codex\Scripts\python.exe -m pytest test\test_admin_failure.py test\test_failure_admin_service.py` passed with 31 tests. `.venv_codex\Scripts\python.exe -m ruff check apps\api\routers\admin_failure.py test\test_admin_failure.py` passed with only the existing top-level Ruff settings deprecation warning. `.venv_codex\Scripts\python.exe -m py_compile apps\api\routers\admin_failure.py test\test_admin_failure.py` passed. Local read-only smoke returned 200 for `GET /admin/audit/summary`, `GET /admin/failures/summary`, and `GET /admin/funding/dashboard`, and 401 for unauthenticated `GET /admin/failures/summary`.
+
+Local schema uncertainty resolution update (2026-07-12):
+Finding: Added TASK-028 resolution evidence and updated the live-critical inventory/state-machine map. Local verification confirms `rewards.status`, `fulfilment_audit.status`, `admin_audit_log.action_status`, `referral_event_failures.status`, and `referral_processing_audit.processing_status` are service-governed where no DB check constraint exists. Local reward identifier types remain mixed: `rewards.id` is `bigint`, `referral_rewards.reward_id` is `uuid`, `funding_reservations.reward_id` is `text`, and `fulfilment_settlement_ledger.reward_id` is `uuid`. Local `funding_reconciliation_runs.correlation_id` is absent even though `services/funding/reconciliation.py` reads/writes it; this confirmed drift is assigned to TASK-148. Staging and production were not accessed.
+Validation: Documentation/readback and local read-only metadata evidence only. No schema, service, API, frontend, seed, runtime data, replay, repair, retry, funding, fulfilment, settlement, wallet, go-live, or money movement change was made.
 
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
 Linked platform capability: 14. Audit trail; 28. Idempotency/retry handling; 30. Live DB/state verification
@@ -607,6 +611,31 @@ Blocked by: Live DB verification results or explicit decision to defer an unknow
 Risk level: Medium.
 Rollback notes: Revert documentation/task updates only.
 Definition of done: No TASK-001 unknown remains implicit; every uncertainty is either confirmed, intentionally deferred, or represented as a reviewable follow-up task. Priority: P1.
+
+## TASK-148: Fix funding reconciliation run correlation_id schema drift
+
+Status: Ready.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
+Linked platform capability: 14. Audit trail; 27. Observability; 30. Live DB/state verification
+Product boundary: Shared Platform.
+Required boundary docs checked: `docs/product/README.md`; `docs/roadmap/README.md`; `docs/sa/LIVE_DB_STATE_VERIFICATION_CHECKLIST.md`; `docs/roadmap/TASK_028_SCHEMA_UNCERTAINTY_RESOLUTION.md`.
+Shared primitive impact: Finance reconciliation traceability and correlation evidence.
+Source duplication: No.
+Goal: Align `funding_reconciliation_runs` schema with `services/funding/reconciliation.py` by adding the service-used `correlation_id` evidence field safely.
+Why now: TASK-028 confirmed local schema/service drift: the service inserts/selects `funding_reconciliation_runs.correlation_id`, but migration 048 and the local runtime table do not define the column.
+Files likely involved: `dp/migrations/*`; `services/funding/reconciliation.py`; `test/services/funding/test_funding_reconciliation.py`; `test/api/test_admin_funding_reconciliation_api.py`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/LIVE_CRITICAL_STATE_INVENTORY.md`.
+Database/schema impact: Additive migration only; no destructive schema changes and no data backfill unless explicitly reviewed.
+Backend impact: Existing funding reconciliation service should stop relying on a column absent from clean/local schemas.
+Frontend impact: None.
+API impact: Read-only/admin funding reconciliation APIs may include `correlation_id` once schema is aligned; preserve existing response shape expected by tests.
+Tests to add/update: Migration/static schema test for the added column, funding reconciliation service tests, admin funding reconciliation API tests, and migration hygiene checks.
+Validation method: Run migration checks and focused funding reconciliation tests. If local DB validation is performed, use read-only checks after applying the reviewed migration locally.
+Acceptance criteria: Clean schema includes `funding_reconciliation_runs.correlation_id`; funding reconciliation insert/list/get paths work without undefined-column errors; docs record the drift as resolved; no money movement, reconciliation run execution against live data, repair, replay, settlement, wallet, fulfilment, or go-live behavior is introduced.
+Dependencies: TASK-028.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert the additive migration and docs if not yet deployed; if deployed, use a reviewed forward migration rather than destructive rollback.
+Definition of done: Funding reconciliation run correlation evidence is schema-backed and tested without changing money state. Priority: P0.
 
 ## TASK-004: Map tenant references and account boundary
 
