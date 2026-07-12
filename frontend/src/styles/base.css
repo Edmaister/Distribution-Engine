@@ -363,6 +363,12 @@ a {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.grid-4 {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .grid-2 {
   display: grid;
   gap: 14px;
@@ -819,6 +825,45 @@ a {
   min-height: 38px;
   padding: 8px 10px;
   white-space: nowrap;
+}
+
+.segmented-filter-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.segmented-filter-chip {
+  background: var(--color-white);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-control);
+  color: var(--color-ink);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  min-height: 34px;
+  padding: 7px 10px;
+}
+
+.segmented-filter-chip.active {
+  background: var(--color-signal);
+  border-color: var(--color-signal);
+  color: var(--color-white);
+}
+
+.referral-report-controls {
+  align-items: end;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(180px, 0.35fr) minmax(0, 1fr);
+}
+
+.referral-report-controls .field > span {
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
 }
 
 .tooltip-wrap {
@@ -3909,6 +3954,7 @@ textarea.input {
   }
 
   .grid-3,
+  .grid-4,
   .grid-2,
   .earnings-command-header,
   .consumer-principle-grid,
@@ -3968,7 +4014,8 @@ textarea.input {
   .portal-statement-form,
   .settlement-batch-form,
   .settlement-item-form,
-  .settlement-approval-form {
+  .settlement-approval-form,
+  .referral-report-controls {
     grid-template-columns: 1fr;
   }
 

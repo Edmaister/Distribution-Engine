@@ -54,6 +54,11 @@ const ChannelOperationsPage = lazy(() =>
     default: module.ChannelOperationsPage,
   })),
 );
+const ReferralSaasReportsPage = lazy(() =>
+  import("../pages/admin/ReferralSaasReportsPage").then((module) => ({
+    default: module.ReferralSaasReportsPage,
+  })),
+);
 const EnterpriseEventsPage = lazy(() =>
   import("../pages/admin/EnterpriseEventsPage").then((module) => ({ default: module.EnterpriseEventsPage })),
 );
@@ -151,6 +156,7 @@ export function App() {
         <Route path="/admin/health" element={lazyWorkspace(<HealthPage />)} />
         <Route path="/admin/audit" element={lazyWorkspace(<AdminAuditPage />)} />
         <Route path="/admin/channels" element={lazyWorkspace(<ChannelOperationsPage />)} />
+        <Route path="/admin/referral-saas/reports" element={lazyWorkspace(<ReferralSaasReportsPage />)} />
         <Route path="/admin/events" element={lazyWorkspace(<EnterpriseEventsPage />)} />
         <Route path="/admin/distribution" element={lazyWorkspace(<DistributionCommandCentrePage />)} />
         <Route path="/admin/distribution/operations" element={lazyWorkspace(<DistributionOperationsPage />)} />

@@ -39,6 +39,7 @@ const titles: Record<string, [string, string]> = {
   "/admin/health": ["Runtime Health", "Platform readiness and dependency signals"],
   "/admin/audit": ["Trust & Audit", "Platform-sensitive action visibility"],
   "/admin/channels": ["Channel Operations", "Messaging delivery, retries, and channel audit evidence"],
+  "/admin/referral-saas/reports": ["Referral SaaS Reports", "Tenant-safe report catalog and export preview readiness"],
   "/admin/events": ["Event Fabric", "Hogan and enterprise event intake"],
   "/admin/distribution": ["Demand Marketplace", "Company-created demand and campaign discovery"],
   "/admin/distribution/operations": ["Demand Operations", "Distributor eligibility, producer demand, routing, wallets, and governance controls"],

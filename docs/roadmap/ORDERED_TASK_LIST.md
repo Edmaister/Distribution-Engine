@@ -3297,6 +3297,33 @@ Rollback notes: Revert the frontend endpoint/test and docs updates.
 Explicit non-goals: Do not implement a Referral SaaS product shell, report page, charting, export download UI, persisted export workflow, account setup UI, membership UI, frontend navigation, backend routes, schema, migrations, account membership, external-reference persistence, live DB checks, command idempotency implementation, campaign activation, webhook delivery, reward application, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
 Definition of done: Referral SaaS frontend has a CI-tested report/export API client seam ready for a later focused report UI. Priority: P0.
 
+## TASK-169: Add Referral SaaS report catalog frontend surface
+
+Status: Complete (2026-07-12). Output: `frontend/src/pages/admin/ReferralSaasReportsPage.tsx`; `frontend/src/pages/admin/ReferralSaasReportsPage.test.tsx`; `frontend/src/api/referralSaasQueries.ts`; `frontend/src/api/queryKeys.ts`; `frontend/src/app/App.tsx`; `frontend/src/layout/AppShell.tsx`; `frontend/src/layout/Sidebar.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `services/referral_saas_reporting_service.py`; `test/api/test_referral_saas_reports_api.py`.
+Shared primitive impact: Adds a focused frontend surface over the existing Referral SaaS report client and React Query primitives; no duplicated report store, export store, backend route, account model, or product shell.
+Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Frontend report catalog; tenant-safe metric rendering; report freshness/warning/redaction visibility.
+Objective: Add the first focused Referral SaaS report catalog UI that consumes the TASK-168 client and current report API without adding persisted export UX, account membership UI, backend behavior, schema, or money flows.
+Why now: TASK-168 added the frontend API seam. The next product gap is a visible, tested report surface that proves the catalog can be consumed safely while keeping export persistence and account membership explicit future work.
+Files involved: `frontend/src/pages/admin/ReferralSaasReportsPage.tsx`; `frontend/src/pages/admin/ReferralSaasReportsPage.test.tsx`; `frontend/src/api/referralSaasQueries.ts`; `frontend/src/api/queryKeys.ts`; `frontend/src/app/App.tsx`; `frontend/src/layout/AppShell.tsx`; `frontend/src/layout/Sidebar.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Implementation/source files inspected: `frontend/src/api/endpoints/referralSaasReports.ts`; `frontend/src/api/endpoints/referralSaasReports.test.ts`; `frontend/src/app/App.tsx`; `frontend/src/layout/Sidebar.tsx`; `frontend/src/layout/AppShell.tsx`; `frontend/src/pages/admin/ChannelOperationsPage.tsx`; `frontend/src/pages/admin/ChannelOperationsPage.test.tsx`; `frontend/src/api/queryKeys.ts`; `frontend/src/api/operationalQueries.ts`; `frontend/src/pages/pageUtils.ts`; `frontend/src/styles/base.css`; `services/referral_saas_reporting_service.py`; `test/api/test_referral_saas_reports_api.py`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Added `/admin/referral-saas/reports`, navigation, top-bar labeling, a React Query wrapper, and a tested report catalog page that renders metrics, freshness, warnings, redactions, account-scope posture, and guardrails over the existing report API.
+API impact: None.
+Tests to add/update: Added Vitest coverage for report rendering, report selector calls, display-only account references, and no account-ref leakage in requests.
+Validation method: `npm.cmd test -- ReferralSaasReportsPage.test.tsx referralSaasReports.test.ts` from `frontend`; `npm.cmd run build` from `frontend`.
+Acceptance criteria: The frontend route renders the current report catalog safely; report selection calls the typed report client; tenant code remains transitional; account refs are display-only response evidence; warnings/redactions/freshness/export guardrails are visible; persisted exports, download URLs, scheduled delivery, account membership UX, backend routes, schema, money, and DLaaS expansion behavior are not added.
+Dependencies: TASK-144; TASK-168.
+Blocked by: None for the focused report surface. Persisted export storage/audit/download UX, account setup/membership UX, live route smoke execution, and full product shell remain separate work.
+Risk level: Low.
+Rollback notes: Revert the frontend route/page/query/style/test and docs updates.
+Explicit non-goals: Do not implement persisted exports, export IDs, export files, export storage, download URLs, scheduled exports, export audit writes, account setup tables, account membership UX, external-reference persistence, backend routes, schema, migrations, live DB checks, command idempotency implementation, campaign activation, webhook delivery, reward application, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
+Definition of done: Referral SaaS has a CI-tested frontend report catalog surface over the current tenant-safe report API, with persisted exports and account membership still explicit future work. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
