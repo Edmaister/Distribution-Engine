@@ -2301,6 +2301,14 @@ Definition of done: Review-decision permissions and safe response boundaries are
 
 ## TASK-128: Document approval-to-go-live separation
 
+Status: Complete (2026-07-12). Output: `docs/roadmap/ONBOARDING_APPROVAL_TO_GO_LIVE_SEPARATION_TASK_128.md`.
+Product boundary: Shared Platform.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/roadmap/README.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/roadmap/ONBOARDING_SUBMIT_FOR_REVIEW_READINESS_CHECKPOINT_TASK_120.md`; `docs/roadmap/ONBOARDING_REVIEW_DECISION_WORKFLOW_CONTRACT_FINAL_REVIEW_TASK_121.md`.
+Shared primitive impact: Internal onboarding review decisions are explicitly separated from any future approval-to-go-live or downstream activation workflow.
+Source duplication: No.
+Finding: Documented that `APPROVED_FOR_INTERNAL_REVIEW` is review classification only, current responses keep `approval_to_launch` and `go_live_enabled` false, audit evidence is reference-only/no-dispatch, and future go-live work requires a separate reviewed task chain covering schema, permissions, idempotency, audit, rollback, live DB/state verification, redaction, downstream dependencies, and no-dispatch/no-money gates.
+Validation: Documentation/readback only. Confirmed no backend code, frontend code, services, routes, tests, schema, migrations, live DB access, secrets, live onboarding, credential lifecycle, webhook delivery, funding, fulfilment, settlement, retry, wallet, go-live, billing, ledger, or money movement was introduced.
+
 Objective: Document the boundary between internal onboarding review decisions and any future go-live or downstream activation workflow.
 Type: Docs.
 Dependencies: TASK-127.
