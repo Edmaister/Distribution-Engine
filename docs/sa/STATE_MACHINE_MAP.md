@@ -33,7 +33,7 @@ Audit, idempotency, retry, and failure handling policy for future state-machine 
 | Webhook subscription | `partner_webhook_subscriptions.status` | `ACTIVE`, `PAUSED`, `REVOKED` in `077_partner_seam.sql`. | Partner/admin webhook management. |
 | Webhook delivery | `partner_webhook_deliveries.delivery_status` | `PENDING`, `SENT`, `FAILED`, `CANCELLED` in `077_partner_seam.sql`. | Webhook worker, retry actions, admin/partner actions. |
 | Admin audit event | `admin_audit_log` | Audit rows are event records, not lifecycle entities. | Admin/audit service writes. |
-| Funding reconciliation run | `funding_reconciliation_runs.status`; `services/funding/reconciliation.py` | Service writes `MATCHED`, `EXCEPTION`; local TASK-027 table had no rows and no status check constraint. Local schema lacks service-used `correlation_id`; see TASK-148. | Finance reconciliation run service. |
+| Funding reconciliation run | `funding_reconciliation_runs.status`; `services/funding/reconciliation.py` | Service writes `MATCHED`, `EXCEPTION`; local TASK-027 table had no rows and no status check constraint. Pre-081 local schema lacked service-used `correlation_id`; TASK-148 adds guarded migration 081 for clean/updated schemas. | Finance reconciliation run service. |
 
 ## Target Canonical State Layers
 
@@ -64,4 +64,4 @@ Audit, idempotency, retry, and failure handling policy for future state-machine 
 | SM-GAP-03A | Liability states are derived from multiple money evidence sources. TASK-015 documents the source mapping in `docs/sa/LIABILITY_STATE_MODEL.md`. | Implementation must preserve source statuses and avoid counting funding, wallet, invoice, fulfilment, or settlement rows as new obligations. | GAP-09 |
 | SM-GAP-04 | Multiple audit tables exist without one canonical state-transition event taxonomy. | Operator investigations require domain-specific joins. | GAP-11 |
 | SM-GAP-05 | Customer/partner-safe status mapping was not the source of truth until TASK-023 defined the contract. Implementation helpers and APIs remain follow-up work. | Frontend may expose internal or confusing statuses if future portal APIs bypass the TASK-023 contract. | GAP-15 |
-| SM-GAP-06 | `funding_reconciliation_runs` service expects `correlation_id`, but local verified schema does not include it. | Finance reconciliation traceability and read APIs can fail or lose correlation evidence until schema/service drift is corrected. | TASK-148 |
+| SM-GAP-06 | `funding_reconciliation_runs` service expects `correlation_id`; TASK-028 confirmed pre-081 local schema did not include it. TASK-148 adds guarded migration 081. | Finance reconciliation traceability and read APIs remain drifted only in environments that have not applied migration 081. | TASK-148 |

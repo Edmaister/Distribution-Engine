@@ -33,9 +33,11 @@ Local verification update, 2026-07-12:
   onboarding draft persistence.
 - Local protected read-only API smoke checks passed for health, OpenAPI, admin
   audit summary, admin failure summary, and admin funding dashboard.
-- `funding_reconciliation_runs.correlation_id` is confirmed absent locally even
-  though the funding reconciliation service reads/writes it. This is assigned to
-  TASK-148.
+- `funding_reconciliation_runs.correlation_id` was confirmed absent in the
+  pre-081 local schema even though the funding reconciliation service reads/writes
+  it. TASK-148 adds guarded additive migration 081 to resolve this on clean or
+  updated schemas; pre-081 environments remain drifted until that migration is
+  applied.
 - Staging and production were not accessed.
 
 ## 1. State Fields Inventory
@@ -69,7 +71,7 @@ Local verification update, 2026-07-12:
 | `funding_limits` | `is_active` | boolean default `TRUE` | `dp/migrations/043_create_funding_limits.sql`; `services/funding/limits.py` | Limit activity is boolean. |
 | `funding_reservations` | `status` | `RESERVED`, `RELEASED`, `SETTLED` | `dp/migrations/042_funding_reservations.sql`; `services/funding/reservations.py` | Has DB check constraint; release/settle updates only apply from `RESERVED`. |
 | `funding_alerts` | `status` | service constants: `OPEN`, `ACKNOWLEDGED`, `RESOLVED`; default `OPEN` | `dp/migrations/047_funding_alerts.sql`; `services/funding/alerts.py` | No DB check constraint found. |
-| `funding_reconciliation_runs` | `status` | service writes `MATCHED`, `EXCEPTION` | `dp/migrations/048_funding_reconciliation_runs.sql`; `services/funding/reconciliation.py`; TASK-027/TASK-028 local verification | Local table has `status` but no rows and no `correlation_id`; service/schema drift is confirmed locally and assigned to TASK-148. |
+| `funding_reconciliation_runs` | `status` | service writes `MATCHED`, `EXCEPTION` | `dp/migrations/048_funding_reconciliation_runs.sql`; `dp/migrations/081_funding_reconciliation_run_correlation.sql`; `services/funding/reconciliation.py`; TASK-027/TASK-028/TASK-148 verification | Pre-081 local table had `status` but no rows and no `correlation_id`; TASK-148 adds the missing correlation evidence column and index for clean/updated schemas. |
 | `funding_reconciliation_exceptions` | `status` | `OPEN`, `RESOLVED`; default `OPEN` | `dp/migrations/049_funding_reconciliation_exceptions.sql`; `services/funding/reconciliation.py` | No DB check constraint found. |
 | `marketplace_funding_allocations` | `status` | `RESERVED`, `RELEASED`, `DEBITED`, `REVERSED`; default `RESERVED` | `dp/migrations/058_marketplace_funding_allocations.sql`; `services/marketplace_funding/sponsor_funding_service.py` | Has DB check constraint and unique `reward_id`. |
 | `funding_contracts` | `status` | default `ACTIVE`; service/docs reference `ACTIVE`, `SUSPENDED`, `CANCELLED` | `dp/migrations/059_funding_contracts.sql`; `services/marketplace_funding/funding_contract_service.py` | No DB check constraint found. |
@@ -309,9 +311,9 @@ Confirmed risks:
   constraint, while service accepts `APPLIED`, `EARNED`,
   `PENDING_FULFILMENT`, `FULFILLED`, `FAILED`, and `REVERSED`.
 - Some migration files define state columns without DB check constraints, leaving actual allowed statuses service-governed.
-- `funding_reconciliation_runs` service reads/writes `correlation_id`, but
-  migration 048 and local runtime schema do not define that column. This is
-  confirmed drift assigned to TASK-148.
+- `funding_reconciliation_runs` service reads/writes `correlation_id`. Migration
+  048 and the pre-081 local runtime schema did not define that column; TASK-148
+  adds migration 081 to resolve the drift once applied.
 - `reward_id` is not a single consistent type across `referral_rewards`,
   `rewards`, `funding_reservations`, and settlement references.
 - `correlation_id` is important but not semantically standardized across event, reward, funding, fulfilment, settlement, webhook, and audit paths.

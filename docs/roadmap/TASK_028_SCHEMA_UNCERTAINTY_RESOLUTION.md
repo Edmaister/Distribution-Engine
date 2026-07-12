@@ -38,6 +38,10 @@ TASK-148 is added to fix the confirmed
 separate implementation task because it changes schema and affects finance
 reconciliation evidence.
 
+Implementation update (2026-07-12): TASK-148 adds guarded additive migration 081
+for `funding_reconciliation_runs.correlation_id` plus a correlation lookup index.
+Pre-081 environments remain drifted until the reviewed migration is applied.
+
 ## Still Not Resolved Globally
 
 - Staging and production schema were not accessed.
