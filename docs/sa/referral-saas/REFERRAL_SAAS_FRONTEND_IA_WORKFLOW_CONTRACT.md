@@ -101,6 +101,11 @@ Current API/client foundations:
   It keeps `account_ref` and `external_tenant_ref` response-only and uses the
   existing internal `tenant_code` bridge only as an optional transitional query
   until full account membership exists.
+- `/admin/referral-saas/reports` now provides the TASK-169 focused report
+  catalog surface. It consumes the TASK-168 report client through React Query
+  and renders tenant-safe metrics, freshness, warnings, redactions,
+  account-scope posture, and export-preview guardrails without adding persisted
+  exports or account membership UX.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.
@@ -116,8 +121,9 @@ Current frontend gaps:
   sometimes `referralTrackId` directly.
 - Link/code issue, validation, progress, status, attribution trace, and reports
   are not yet presented as one SaaS workflow.
-- Reporting/export screens are not yet a focused Referral SaaS report catalog,
-  but TASK-168 provides the typed client seam they should consume.
+- Reporting/export screens now have an initial focused Referral SaaS report
+  catalog surface, but persisted exports, download URLs, scheduled delivery,
+  and account membership UX remain future work.
 - Operator diagnostics are scattered across admin, distribution, events, audit,
   and health surfaces.
 

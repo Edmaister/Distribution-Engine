@@ -95,3 +95,7 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
 - TASK-168 adds the first frontend API client seam for Referral SaaS report,
   export validation, and export preview calls. It does not add a report screen,
   persisted export UX, account membership UI, or new backend behavior.
+- TASK-169 adds a focused admin frontend surface for the Referral SaaS report
+  catalog. It renders tenant-safe metrics, freshness, warnings, redactions,
+  account-scope posture, and export-preview guardrails without adding persisted
+  export UX, account membership UI, backend behavior, schema, or money flows.
