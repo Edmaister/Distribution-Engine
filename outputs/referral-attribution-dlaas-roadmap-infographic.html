@@ -553,16 +553,17 @@
             distribution reporting, link/code performance reporting, and
             count-only reward visibility reporting through TASK-164, and a
             validation-only export gate through TASK-165, and trusted account
-            reference propagation through TASK-166.
+            reference propagation through TASK-166, and inline JSON/CSV export
+            preview through TASK-167.
           </p>
           <div class="score-row" aria-label="Current position">
             <div class="score">
-              <strong>9.15/10</strong>
-              <span>Referral management foundation after TASK-166 account-reference proof</span>
+              <strong>9.2/10</strong>
+              <span>Referral management foundation after TASK-167 export-preview proof</span>
             </div>
             <div class="score">
-              <strong>8.75/10</strong>
-              <span>Campaign attribution foundation with account-scoped reporting depth</span>
+              <strong>8.8/10</strong>
+              <span>Campaign attribution foundation with account-scoped export preview depth</span>
             </div>
             <div class="score">
               <strong>10/10</strong>
@@ -576,7 +577,7 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-166 for Referral SaaS, with
+            Updated after TASK-134 through TASK-167 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
@@ -586,8 +587,8 @@
             <span>Account, campaign, code, validation, progress, attribution, support, reporting, API, IA, audit, and E2E plan are documented.</span>
           </div>
           <div class="status-pill">
-            <b>18 implementation proofs added</b>
-            <span>TASK-149 through TASK-166 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, safe-status, report-catalog, report-API, account-scope, referral-funnel, progress-health, attribution-quality, safe-status distribution, link/code performance, reward visibility, export validation, and account-reference proof.</span>
+            <b>19 implementation proofs added</b>
+            <span>TASK-149 through TASK-167 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, safe-status, report-catalog, report-API, account-scope, referral-funnel, progress-health, attribution-quality, safe-status distribution, link/code performance, reward visibility, export validation, account-reference, and export-preview proof.</span>
           </div>
           <div class="status-pill">
             <b>Live confidence still capped</b>
@@ -791,8 +792,9 @@
               TASK-161 adds attribution quality, TASK-162 adds safe-status
               distribution, TASK-163 adds link/code performance, TASK-164
               adds count-only reward visibility, TASK-165 validates export
-              requests without creating files or jobs, and TASK-166 carries
-              trusted account references through report/export scope.
+              requests without creating files or jobs, TASK-166 carries
+              trusted account references through report/export scope, and
+              TASK-167 returns inline JSON/CSV export previews.
             </p>
             <div class="tag-row">
               <span class="tag">Customer value</span>
@@ -806,7 +808,7 @@
               <span class="tag done">TASK-161</span>
               <span class="tag done">TASK-162</span>
               <span class="tag done">TASK-163</span>
-              <span class="tag done">TASK-166</span>
+              <span class="tag done">TASK-167</span>
               <span class="tag dlaas">Portal status primitive</span>
             </div>
           </article>
@@ -829,7 +831,7 @@
               <li>TASK-134 through TASK-147 completed as contract outputs.</li>
               <li>Referral, validation, progress, attribution, API, IA, reporting, and support boundaries are explicit.</li>
               <li>Money-depth and broad DLaaS scope remain deliberately separate.</li>
-              <li>The contracts are now backed by TASK-149 through TASK-166 implementation proof.</li>
+              <li>The contracts are now backed by TASK-149 through TASK-167 implementation proof.</li>
             </ol>
           </article>
           <article class="phase">
@@ -1115,8 +1117,9 @@
               health reporting, TASK-161 adds attribution quality, TASK-162
               adds safe-status distribution, TASK-163 adds link/code
               performance, TASK-164 adds count-only reward visibility, and
-              TASK-165 adds validation-only export gating, and TASK-166 carries
-              trusted account references through report/export account scope.
+              TASK-165 adds validation-only export gating, TASK-166 carries
+              trusted account references through report/export account scope,
+              and TASK-167 returns inline JSON/CSV preview payloads.
             </p>
             <div class="tag-row">
               <span class="tag done">154</span>
@@ -1172,7 +1175,7 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Product report/export catalog</div>
-            <div class="matrix-cell">TASK-156 adds `campaign_performance`, TASK-157 exposes it through a read-only product route, TASK-158 derives scope from tenant-scoped identities, TASK-159 adds `referral_funnel`, TASK-160 adds `progress_event_health`, TASK-161 adds `attribution_quality`, TASK-162 adds `safe_status_distribution`, TASK-163 adds `link_code_performance`, TASK-164 adds count-only `reward_visibility_summary`, TASK-165 adds validation-only export gating, and TASK-166 carries trusted account references through report/export scope. Persisted exports and full account setup/membership remain open.</div>
+            <div class="matrix-cell">TASK-156 adds `campaign_performance`, TASK-157 exposes it through a read-only product route, TASK-158 derives scope from tenant-scoped identities, TASK-159 adds `referral_funnel`, TASK-160 adds `progress_event_health`, TASK-161 adds `attribution_quality`, TASK-162 adds `safe_status_distribution`, TASK-163 adds `link_code_performance`, TASK-164 adds count-only `reward_visibility_summary`, TASK-165 adds validation-only export gating, TASK-166 carries trusted account references through report/export scope, and TASK-167 returns inline JSON/CSV export previews. Persisted exports and full account setup/membership remain open.</div>
             <div class="matrix-cell">Implement persisted export storage/audit, external account references, frontend report surfaces, and live redaction/export checks.</div>
           </div>
           <div class="matrix-row" role="row">
@@ -1340,7 +1343,7 @@
       </section>
 
       <div class="footer-note">
-        Recommendation: continue from TASK-166 into narrow product-wrapper
+        Recommendation: continue from TASK-167 into narrow product-wrapper
         implementation slices for the referral and campaign attribution SaaS.
         Keep the code single-source, keep DLaaS money/marketplace depth
         separate, and use live verification plus E2E proof before upgrading the

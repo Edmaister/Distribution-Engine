@@ -522,6 +522,104 @@ async def test_referral_saas_export_validation_carries_trusted_account_refs(
     }
 
 
+async def test_referral_saas_report_reader_can_preview_export_payload(monkeypatch):
+    calls: list[dict] = []
+
+    async def fake_build_referral_saas_report_export_preview(**kwargs):
+        calls.append(kwargs)
+        return {
+            "export_request": {
+                "tenant_scope": kwargs["tenant_code"],
+                "report_type": kwargs["report_type"],
+                "export_format": kwargs["export_format"],
+                "redaction_profile": kwargs["redaction_profile"],
+                "row_limit": kwargs["row_limit"],
+            },
+            "report": _report(report_type=kwargs["report_type"]),
+            "preview": {
+                "status": "PREVIEW_READY",
+                "export_format": kwargs["export_format"],
+                "content_type": "text/csv",
+                "file_extension": "csv",
+                "metadata": {"row_count": 1, "redactions": ["raw_ucn"]},
+                "payload": "metric_name,value\nconversion.attribution_rate,0.9000\n",
+            },
+            "creation_status": "NOT_IMPLEMENTED",
+            "storage_status": "NOT_IMPLEMENTED",
+            "delivery_status": "NOT_IMPLEMENTED",
+            "audit_status": "NOT_IMPLEMENTED",
+            "guardrail": "Inline export preview only.",
+        }
+
+    monkeypatch.setattr(
+        referral_saas_reports,
+        "build_referral_saas_report_export_preview",
+        fake_build_referral_saas_report_export_preview,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/v1/referral-saas/reports/campaign_performance/exports/preview",
+            params={"tenant_code": "FNB"},
+            json={
+                "format": "csv",
+                "redaction_profile": "tenant_safe",
+                "dimensions": ["campaign_ref", "metric_name"],
+                "filters": {"campaign_ref": "CAMP001", "raw_ucn": "12345"},
+                "row_limit": 1,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["export_preview"]["preview"]["status"] == "PREVIEW_READY"
+    assert body["export_preview"]["creation_status"] == "NOT_IMPLEMENTED"
+    assert "does not create export files" in body["guardrail"]
+    assert calls[0]["tenant_code"] == "FNB"
+    assert calls[0]["report_type"] == "campaign_performance"
+    assert calls[0]["export_format"] == "csv"
+    assert calls[0]["redaction_profile"] == "tenant_safe"
+    assert calls[0]["dimensions"] == ["campaign_ref", "metric_name"]
+    assert calls[0]["filters"] == {"campaign_ref": "CAMP001", "raw_ucn": "12345"}
+    assert calls[0]["row_limit"] == 1
+    assert body["account_scope"] == {
+        "source": "explicit_tenant_code",
+        "account_ref": None,
+        "external_tenant_ref": None,
+    }
+
+
+async def test_referral_saas_export_preview_returns_safe_validation_error(
+    monkeypatch,
+):
+    async def fake_build_referral_saas_report_export_preview(**kwargs):
+        raise ValueError("Unsupported Referral SaaS export format: xlsx")
+
+    monkeypatch.setattr(
+        referral_saas_reports,
+        "build_referral_saas_report_export_preview",
+        fake_build_referral_saas_report_export_preview,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/v1/referral-saas/reports/campaign_performance/exports/preview",
+            params={"tenant_code": "FNB"},
+            json={"format": "xlsx"},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "validation_error",
+        "message": "Unsupported Referral SaaS export format: xlsx",
+    }
+
+
 async def test_referral_saas_export_validation_returns_safe_validation_error(
     monkeypatch,
 ):

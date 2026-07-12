@@ -24,6 +24,7 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("GET", "/admin/outcomes/{referral_track_id}/trace"),
         ("GET", "/admin/analytics/reports/{report_type}"),
         ("GET", "/v1/referral-saas/reports/{report_type}"),
+        ("POST", "/v1/referral-saas/reports/{report_type}/exports/preview"),
         ("POST", "/v1/referral-saas/reports/{report_type}/exports/validate"),
         ("GET", "/v1/experience/consumer"),
         ("GET", "/v1/rewards/summary/{referral_track_id}"),
@@ -52,5 +53,6 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         item for item in mounted if item[1].startswith("/v1/referral-saas")
     } == {
         ("GET", "/v1/referral-saas/reports/{report_type}"),
+        ("POST", "/v1/referral-saas/reports/{report_type}/exports/preview"),
         ("POST", "/v1/referral-saas/reports/{report_type}/exports/validate"),
     }

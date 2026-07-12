@@ -165,6 +165,7 @@ Future Referral SaaS APIs should follow these rules:
 |---|---|---|---|---|
 | `/v1/referral-saas/reports/{reportType}` | `GET` | TASK-156 report catalog helper plus TASK-157 route wrapper, TASK-158 scope resolver, TASK-159 referral funnel helper, TASK-160 progress event health helper, TASK-161 attribution quality helper, TASK-162 safe-status distribution helper, TASK-163 link/code performance helper, and TASK-164 reward visibility helper | Admin/report-reader bridge until SaaS account membership exists | Implemented for read-only `campaign_performance`, `referral_funnel`, `link_code_performance`, `progress_event_health`, `attribution_quality`, `safe_status_distribution`, and `reward_visibility_summary`; tenant-scoped identities may omit `tenant_code`, while internal report readers still need explicit tenant scope. |
 | `/v1/referral-saas/reports/{reportType}/exports/validate` | `POST` | TASK-165 export validation gate over TASK-156/TASK-164 report catalog | Admin/report-reader bridge until SaaS account membership exists | Implemented as validation-only. Accepts supported report types, `json`/`csv`, `tenant_safe` redaction, approved dimensions/filters, row limits, and data windows; returns `VALIDATED_NOT_CREATED` and does not create export files, IDs, storage, delivery jobs, audit rows, retention records, or download URLs. |
+| `/v1/referral-saas/reports/{reportType}/exports/preview` | `POST` | TASK-167 inline export preview over TASK-156/TASK-164 report catalog | Admin/report-reader bridge until SaaS account membership exists | Implemented as side-effect-free inline JSON/CSV preview. Does not create export IDs, files, storage records, delivery jobs, audit rows, retention records, or download URLs. |
 | `/v1/referral-saas/reports/{reportType}/exports` | `POST` | TASK-142 future export contract | SaaS account admin/member | Export API/storage/audit not implemented. |
 | `/v1/referral-saas/exports/{exportId}` | `GET` | TASK-142 future export contract | SaaS account admin/member | Requires retention/expiry/access controls before implementation. |
 
@@ -244,7 +245,8 @@ Rules:
   from identity claims, but internal report readers still need explicit
   `tenant_code` until full SaaS account membership resolution exists. TASK-166
   carries trusted account refs in the response envelope when identity claims
-  provide them. TASK-159
+  provide them. TASK-167 adds inline export preview for JSON/CSV payload shape
+  without persisted export storage or audit writes. TASK-159
   keeps the referral funnel source warning visible until dedicated
   validation-state and progress-milestone report sources exist. TASK-160 keeps
   progress-health deduped/rejected counts as partial coverage until those
@@ -258,7 +260,7 @@ Rules:
   counts only from persisted rewards and pending mission bonus evidence while
   excluding reward amount totals, beneficiary references, fulfilment, funding,
   settlement, wallet, commission, invoice, payout, and broader money evidence.
-- Export APIs are not implemented.
+- Persisted export APIs/storage/downloads are not implemented.
 - Lifecycle commands such as revoke, expire, reissue, repair, replay, or retry
   are not authorized by this map.
 

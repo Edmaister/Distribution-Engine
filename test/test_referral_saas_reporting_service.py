@@ -1040,3 +1040,122 @@ def test_referral_saas_report_export_validation_rejects_invalid_data_window():
             data_window_start=datetime(2026, 7, 12, tzinfo=timezone.utc),
             data_window_end=datetime(2026, 7, 1, tzinfo=timezone.utc),
         )
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_report_export_preview_builds_json_payload(monkeypatch):
+    async def fake_get_referral_saas_report(**kwargs):
+        return {
+            "report_type": kwargs["report_type"],
+            "source_report_type": "distribution_overview",
+            "tenant_scope": kwargs["tenant_code"],
+            "external_tenant_ref": None,
+            "filters": kwargs["filters"],
+            "dimensions": kwargs["dimensions"],
+            "metric_class": "OPERATIONAL",
+            "metrics": [
+                {
+                    "name": "conversion.attribution_rate",
+                    "value": "0.9000",
+                    "unit": "ratio",
+                    "metric_class": "OPERATIONAL",
+                    "source": "referral_saas_report_catalog",
+                    "dimensions": {
+                        "campaign_ref": "CAMP001",
+                        "metric_name": "conversion.attribution_rate",
+                    },
+                }
+            ],
+            "data_window_start": "2026-07-01T00:00:00+00:00",
+            "data_window_end": "2026-07-12T00:00:00+00:00",
+            "generated_at": "2026-07-12T12:00:00+00:00",
+            "freshness": {"status": "FRESH", "sources": []},
+            "source_warnings": [],
+            "redactions": ["raw_ucn"],
+            "reconciliation_status": "NOT_APPLICABLE",
+            "catalog_status": "AVAILABLE",
+            "export_status": "NOT_IMPLEMENTED",
+        }
+
+    monkeypatch.setattr(svc, "get_referral_saas_report", fake_get_referral_saas_report)
+
+    preview = await svc.build_referral_saas_report_export_preview(
+        tenant_code="FNB",
+        report_type="campaign_performance",
+        export_format="json",
+        dimensions=["campaign_ref", "metric_name"],
+        filters={"campaign_ref": "CAMP001", "raw_ucn": "12345"},
+        row_limit=10,
+    )
+
+    assert preview["preview"]["status"] == "PREVIEW_READY"
+    assert preview["preview"]["content_type"] == "application/json"
+    assert preview["preview"]["metadata"]["row_count"] == 1
+    assert preview["preview"]["metadata"]["redactions"] == ["raw_ucn"]
+    assert preview["preview"]["payload"]["rows"] == [
+        {
+            "metric_name": "conversion.attribution_rate",
+            "value": "0.9000",
+            "unit": "ratio",
+            "metric_class": "OPERATIONAL",
+            "source": "referral_saas_report_catalog",
+            "dimensions": {
+                "campaign_ref": "CAMP001",
+                "metric_name": "conversion.attribution_rate",
+            },
+        }
+    ]
+    assert preview["creation_status"] == "NOT_IMPLEMENTED"
+    assert preview["storage_status"] == "NOT_IMPLEMENTED"
+    assert preview["delivery_status"] == "NOT_IMPLEMENTED"
+    assert preview["audit_status"] == "NOT_IMPLEMENTED"
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_report_export_preview_builds_csv_payload(monkeypatch):
+    async def fake_get_referral_saas_report(**kwargs):
+        return {
+            "report_type": kwargs["report_type"],
+            "source_report_type": "distribution_overview",
+            "tenant_scope": kwargs["tenant_code"],
+            "external_tenant_ref": None,
+            "filters": kwargs["filters"],
+            "dimensions": kwargs["dimensions"],
+            "metric_class": "OPERATIONAL",
+            "metrics": [
+                {
+                    "name": "campaigns.ready_count",
+                    "value": 2,
+                    "unit": "count",
+                    "metric_class": "OPERATIONAL",
+                    "source": "referral_saas_report_catalog",
+                    "dimensions": {"campaign_code": "CAMP001"},
+                }
+            ],
+            "data_window_start": None,
+            "data_window_end": None,
+            "generated_at": "2026-07-12T12:00:00+00:00",
+            "freshness": {"status": "FRESH", "sources": []},
+            "source_warnings": [],
+            "redactions": [],
+            "reconciliation_status": "NOT_APPLICABLE",
+            "catalog_status": "AVAILABLE",
+            "export_status": "NOT_IMPLEMENTED",
+        }
+
+    monkeypatch.setattr(svc, "get_referral_saas_report", fake_get_referral_saas_report)
+
+    preview = await svc.build_referral_saas_report_export_preview(
+        tenant_code="FNB",
+        report_type="campaign_performance",
+        export_format="csv",
+        filters={"campaign_code": "CAMP001"},
+        row_limit=1,
+    )
+
+    assert preview["preview"]["content_type"] == "text/csv"
+    assert preview["preview"]["file_extension"] == "csv"
+    assert preview["preview"]["payload"].splitlines() == [
+        "metric_name,value,unit,metric_class,source,dimensions",
+        'campaigns.ready_count,2,count,OPERATIONAL,referral_saas_report_catalog,"{""campaign_code"": ""CAMP001""}"',
+    ]

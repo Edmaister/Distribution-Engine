@@ -88,3 +88,7 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   claims through the report/export account-scope envelope. It does not add
   account tables, membership resolution, external-reference persistence, or
   caller-supplied account-ref authorization.
+- TASK-167 adds side-effect-free inline export previews for current report
+  outputs. It returns JSON rows or CSV text plus metadata without creating
+  export IDs, files, storage records, delivery jobs, audit rows, retention
+  records, download URLs, or scheduled exports.
