@@ -861,9 +861,10 @@ def _review_decision_response(
             result["guardrails"], validation["guardrails"]
         ),
         "redactions": _submit_redactions(validation.get("redactions")),
-        "audit_evidence_ref": None,
-        "audit_link_ref": None,
-        "audit_evidence_status": "NOT_RECORDED_IN_TASK_124",
+        "audit_evidence_ref": result.get("audit_evidence_ref"),
+        "audit_link_ref": result.get("audit_link_ref"),
+        "audit_evidence_status": result.get("audit_evidence_status")
+        or "NOT_RECORDED_FOR_REPLAY",
         "approval_to_launch": False,
         "go_live_enabled": False,
         "no_live_action_confirmed": True,
@@ -948,7 +949,7 @@ def _review_http_error(
         ),
         "audit_evidence_ref": None,
         "audit_link_ref": None,
-        "audit_evidence_status": "NOT_RECORDED_IN_TASK_124",
+        "audit_evidence_status": "NOT_RECORDED_FOR_REJECTION",
         "approval_to_launch": False,
         "go_live_enabled": False,
         "no_live_action_confirmed": True,

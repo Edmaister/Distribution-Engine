@@ -104,6 +104,13 @@ class DraftRepoStub:
             **kwargs,
         }
 
+    async def create_audit_link_reference(self, **kwargs):
+        self.audit_link_kwargs = kwargs
+        return {
+            "audit_link_id": "audit-link-uuid",
+            **kwargs,
+        }
+
 
 def _patch_repo(monkeypatch, stub):
     monkeypatch.setattr(service.draft_repo, "get_draft_by_ref", stub.get_draft_by_ref)
@@ -121,6 +128,11 @@ def _patch_repo(monkeypatch, stub):
         service.draft_repo,
         "record_idempotency_reference",
         stub.record_idempotency_reference,
+    )
+    monkeypatch.setattr(
+        service.draft_repo,
+        "create_audit_link_reference",
+        stub.create_audit_link_reference,
     )
 
 
@@ -157,6 +169,9 @@ async def test_review_decision_records_internal_approval_as_metadata_only(
     assert result["review_outcome"] == service.OUTCOME_APPROVED_FOR_INTERNAL_REVIEW
     assert result["approval_to_launch"] is False
     assert result["go_live_enabled"] is False
+    assert result["audit_evidence_ref"] == "REVIEW_DECISION_AUDIT_EVIDENCE"
+    assert result["audit_link_ref"] == "audit-link-uuid"
+    assert result["audit_evidence_status"] == "RECORDED_REFERENCE"
     assert result["no_live_action_confirmed"] is True
     assert "tenant_code" not in rendered
     assert "internal-tenant" not in rendered
@@ -189,6 +204,28 @@ async def test_review_decision_records_internal_approval_as_metadata_only(
         draft_ref="draft_001",
     )
     assert "decision-key-1" not in json.dumps(stub.recorded_idempotency_kwargs)
+    assert stub.audit_link_kwargs["action_type"] == service.OPERATION_REVIEW_DECISION
+    assert stub.audit_link_kwargs["action_status"] == "SUCCESS"
+    assert stub.audit_link_kwargs["evidence_type"] == (
+        "REVIEW_DECISION_AUDIT_EVIDENCE"
+    )
+    assert stub.audit_link_kwargs["audit_ref"] is None
+    assert stub.audit_link_kwargs["event_ref"] is None
+    assert stub.audit_link_kwargs["idempotency_id"] == "idem-uuid"
+    assert stub.audit_link_kwargs["evidence_summary"]["review_outcome"] == (
+        service.OUTCOME_APPROVED_FOR_INTERNAL_REVIEW
+    )
+    assert stub.audit_link_kwargs["evidence_summary"]["reason_reference"]
+    assert stub.audit_link_kwargs["evidence_summary"]["dispatch"] == {
+        "event_dispatched": False,
+        "webhook_dispatched": False,
+        "event_ref": None,
+    }
+    rendered_audit = json.dumps(stub.audit_link_kwargs, sort_keys=True).lower()
+    assert "decision-key-1" not in rendered_audit
+    assert "evidence is complete" not in rendered_audit
+    assert "tenant_code" not in rendered_audit
+    assert "internal-tenant" not in rendered_audit
 
 
 @pytest.mark.asyncio
@@ -208,6 +245,9 @@ async def test_review_decision_records_schema_backed_blocked_outcome(monkeypatch
     assert stub.updated_kwargs["status"] == service.TARGET_BLOCKED
     assert stub.updated_kwargs["metadata"]["review_decision"]["review_outcome"] == (
         service.OUTCOME_BLOCKED
+    )
+    assert stub.audit_link_kwargs["evidence_summary"]["review_status"] == (
+        service.TARGET_BLOCKED
     )
 
 
@@ -346,6 +386,7 @@ async def test_review_decision_replays_same_idempotency_payload(monkeypatch):
     assert result["review_outcome"] == service.OUTCOME_APPROVED_FOR_INTERNAL_REVIEW
     assert stub.updated_kwargs is None
     assert stub.recorded_idempotency_kwargs is None
+    assert stub.audit_link_kwargs is None
 
 
 @pytest.mark.asyncio
@@ -370,6 +411,7 @@ async def test_review_decision_rejects_idempotency_conflict(monkeypatch):
     assert result["error"]["code"] == service.ERROR_IDEMPOTENCY_CONFLICT
     assert stub.updated_kwargs is None
     assert stub.recorded_idempotency_kwargs is None
+    assert stub.audit_link_kwargs is None
 
 
 @pytest.mark.asyncio
