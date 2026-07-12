@@ -16,15 +16,26 @@ REPORT_REWARD_VISIBILITY_SUMMARY = "reward_visibility_summary"
 STATUS_AVAILABLE = "AVAILABLE"
 STATUS_NOT_IMPLEMENTED = "NOT_IMPLEMENTED"
 
-METRIC_NAME_MAP = {
-    "opportunities.published_count": "campaigns.ready_count",
-    "routes.total_count": "referrals.linked_route_count",
-    "routes.accepted_count": "referrals.accepted_route_count",
-    "routes.acceptance_rate": "conversion.validation_rate",
-    "conversions.linked_count": "attribution.linked_count",
-    "conversions.completed_count": "referrals.completed_count",
-    "conversions.completion_rate": "conversion.completion_rate",
-    "conversions.attribution_rate": "conversion.attribution_rate",
+REPORT_METRIC_NAME_MAPS = {
+    REPORT_CAMPAIGN_PERFORMANCE: {
+        "opportunities.published_count": "campaigns.ready_count",
+        "routes.total_count": "referrals.linked_route_count",
+        "routes.accepted_count": "referrals.accepted_route_count",
+        "routes.acceptance_rate": "conversion.validation_rate",
+        "conversions.linked_count": "attribution.linked_count",
+        "conversions.completed_count": "referrals.completed_count",
+        "conversions.completion_rate": "conversion.completion_rate",
+        "conversions.attribution_rate": "conversion.attribution_rate",
+    },
+    REPORT_REFERRAL_FUNNEL: {
+        "routes.total_count": "funnel.linked_route_count",
+        "routes.accepted_count": "funnel.accepted_route_count",
+        "routes.acceptance_rate": "funnel.acceptance_rate",
+        "conversions.linked_count": "funnel.attributed_referral_count",
+        "conversions.completed_count": "funnel.completed_referral_count",
+        "conversions.completion_rate": "funnel.completion_rate",
+        "conversions.attribution_rate": "funnel.attribution_rate",
+    },
 }
 
 SENSITIVE_FILTER_PARTS = (
@@ -55,8 +66,27 @@ REFERRAL_SAAS_REPORT_CATALOG: dict[str, dict[str, Any]] = {
         "allowed_filters": {"campaign_ref", "campaign_code", "sponsor_code"},
     },
     REPORT_REFERRAL_FUNNEL: {
-        "status": STATUS_NOT_IMPLEMENTED,
+        "status": STATUS_AVAILABLE,
+        "source_report_type": analytics.REPORT_DISTRIBUTION_OVERVIEW,
         "metric_class": analytics.METRIC_OPERATIONAL,
+        "allowed_dimensions": {
+            "campaign_ref",
+            "campaign_code",
+            "metric_name",
+            "progress_band",
+        },
+        "allowed_filters": {"campaign_ref", "campaign_code", "sponsor_code"},
+        "source_warnings": [
+            {
+                "code": "PARTIAL_SOURCE_COVERAGE",
+                "message": (
+                    "Referral funnel currently uses tenant-safe distribution "
+                    "overview metrics; code-issued, validation-state, and "
+                    "progress-milestone stage counts need dedicated follow-up "
+                    "report sources before they can be promised."
+                ),
+            }
+        ],
     },
     REPORT_LINK_CODE_PERFORMANCE: {
         "status": STATUS_NOT_IMPLEMENTED,
@@ -165,9 +195,9 @@ def _analytics_filters(filters: dict[str, str]) -> dict[str, str]:
     }
 
 
-def _product_metric(metric: dict[str, Any]) -> dict[str, Any] | None:
+def _product_metric(report_type: str, metric: dict[str, Any]) -> dict[str, Any] | None:
     source_name = metric.get("name")
-    product_name = METRIC_NAME_MAP.get(source_name)
+    product_name = REPORT_METRIC_NAME_MAPS.get(report_type, {}).get(source_name)
     if not product_name:
         return None
 
@@ -189,6 +219,11 @@ def _product_metric(metric: dict[str, Any]) -> dict[str, Any] | None:
         "source_metric": source_name,
         "dimensions": dimensions,
     }
+
+
+def _source_warnings(report_type: str, source_report: dict[str, Any]) -> list[Any]:
+    configured = REFERRAL_SAAS_REPORT_CATALOG[report_type].get("source_warnings", [])
+    return [*source_report["source_warnings"], *configured]
 
 
 async def get_referral_saas_report(
@@ -217,7 +252,9 @@ async def get_referral_saas_report(
 
     metrics = [
         metric
-        for metric in (_product_metric(metric) for metric in source_report["metrics"])
+        for metric in (
+            _product_metric(report, metric) for metric in source_report["metrics"]
+        )
         if metric is not None
     ]
     product_filters = {
@@ -239,7 +276,7 @@ async def get_referral_saas_report(
         "data_window_end": source_report["data_window_end"],
         "generated_at": source_report["generated_at"],
         "freshness": source_report["freshness"],
-        "source_warnings": source_report["source_warnings"],
+        "source_warnings": _source_warnings(report, source_report),
         "redactions": sorted(set([*redactions, *source_report["redactions"]])),
         "reconciliation_status": "NOT_APPLICABLE",
         "catalog_status": config["status"],

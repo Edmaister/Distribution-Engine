@@ -52,3 +52,7 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
 - TASK-158 adds a narrow account-scope resolver for the report API. Tenant-scoped
   identities can omit `tenant_code`; internal report readers still need explicit
   tenant scope until full SaaS account membership exists.
+- TASK-159 adds `referral_funnel` as the second bounded report type over the
+  same tenant-safe analytics foundation. It exposes safe funnel metrics with a
+  partial-source warning until dedicated code-issued, validation-state, and
+  progress-milestone report sources are implemented.
