@@ -2283,6 +2283,14 @@ Definition of done: Frontend can record internal review decisions without enabli
 
 ## TASK-127: Add review decision RBAC and redaction regression tests
 
+Status: Complete (2026-07-12). Output: `test/api/test_admin_onboarding_api.py`.
+Product boundary: Shared Platform.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/roadmap/README.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/roadmap/ONBOARDING_REVIEW_DECISION_WORKFLOW_CONTRACT_FINAL_REVIEW_TASK_121.md`.
+Shared primitive impact: Review-decision API route permissions, safe response redaction, scope rejection, audit-link dispatch flags, and no-live-action behavior are now regression-protected.
+Source duplication: No.
+Finding: Added regression coverage for the authorized admin/operator role matrix, nested `tenant_code` rejection before draft lookup, hostile saved-evidence validation blocking/redaction, absence of raw reason text/secrets/provider/audit/webhook/value-transfer internals, and no live mutation calls.
+Validation: Passed `.venv_codex\Scripts\python.exe -m pytest -q --no-cov test\api\test_admin_onboarding_api.py --tb=short`; passed `.venv_codex\Scripts\python.exe -m py_compile test\api\test_admin_onboarding_api.py`; passed `ruff check test\api\test_admin_onboarding_api.py`.
+
 Objective: Lock review-decision routes and related onboarding review surfaces to intended RBAC, scope, redaction, and no-live-action contracts.
 Type: API/Tests.
 Dependencies: TASK-124; TASK-125.
