@@ -284,7 +284,10 @@ Export rules:
 - persisted, scheduled, or externally delivered exports require audit,
   retention, expiry, and access-control behavior in a later implementation task
 
-TASK-142 does not implement export APIs or storage.
+TASK-142 did not implement export APIs or storage. TASK-165 adds only
+validation for export requests across the current report catalog; it does not
+create exports, files, storage records, delivery jobs, scheduled exports, audit
+rows, retention records, or download URLs.
 
 ## Candidate API Direction
 
@@ -292,6 +295,7 @@ Future product route family:
 
 ```text
 GET /referral-saas/reports/{report_type}
+POST /referral-saas/reports/{report_type}/exports/validate
 POST /referral-saas/reports/{report_type}/exports
 GET /referral-saas/exports/{export_id}
 ```
@@ -335,15 +339,20 @@ SaaS reporting product:
   report evidence. TASK-164 adds `reward_visibility_summary` as an aggregate
   operational count-only report. It does not expose reward amount totals,
   beneficiary references, fulfilment, funding, settlement, wallet, commission,
-  invoice, payout, or broader money evidence.
+  invoice, payout, or broader money evidence. TASK-165 adds validation-only
+  export gating for the current catalog. It accepts `json` and `csv`, enforces
+  the `tenant_safe` redaction profile, approved dimensions/filters, row limits,
+  and valid date windows, and returns `VALIDATED_NOT_CREATED` with explicit
+  `NOT_IMPLEMENTED` creation/storage/delivery/audit statuses.
 - `admin_analytics` is admin/internal and requires explicit `tenant_code`; it is
   not a SaaS account-facing report API.
 - distribution reporting includes useful attribution and conversion metrics, but
   it also includes broader DLaaS distributor, commission, wallet, governance,
   budget, dispute, and opportunity fields that are outside first-launch Referral
   SaaS reporting.
-- export APIs, export storage, audit, retention, and scheduled delivery are not
-  implemented by the current reporting foundation.
+- public export creation, export IDs, export files, export storage, audit
+  writes, retention, download URLs, and scheduled delivery are not implemented
+  by the current reporting foundation.
 
 These are product packaging and report-catalog gaps, not evidence that the
 underlying referral/campaign/progress/attribution data is missing.
@@ -362,13 +371,15 @@ When this contract becomes implementation work, add or preserve tests for:
 - redaction of raw UCNs, provider payloads, audit payloads, secrets, tokens,
   DLQ payloads, funding account fields, and settlement internals
 - export format validation, export redaction, and export row limits
+- export validation remains side-effect free until persisted export creation is
+  explicitly implemented
 - attribution/source-warning counts do not disappear as zeroes
 - operational metrics remain separate from ledger-backed money totals
 
 ## Explicit Non-Goals
 
-- no schema, migration, service, route, export, frontend, permission, or test
-  implementation
+- no schema, migration, persisted export, frontend, permission-model, or
+  download implementation
 - no materialized view or rollup job implementation
 - no live DB access
 - no billing, invoice, payout, settlement, funding, fulfilment, commission, or
@@ -447,3 +458,12 @@ mission progress with active bonus definitions. Reward amount totals,
 beneficiary references, fulfilment, funding, settlement, wallet, commission,
 invoice, payout, exports, retention, scheduling, storage, full account
 references, and frontend screens remain explicit follow-up work.
+
+TASK-165 implementation update: `POST
+/v1/referral-saas/reports/{report_type}/exports/validate` now validates export
+requests for the current report catalog through the same report-reader and
+account-scope boundary. It supports `json` and `csv`, enforces `tenant_safe`
+redaction, approved dimensions/filters, row limits, and valid data windows, and
+returns `VALIDATED_NOT_CREATED`. Export creation, export IDs, files, storage,
+delivery, scheduling, retention, audit writes, full account references, and
+frontend screens remain explicit follow-up work.

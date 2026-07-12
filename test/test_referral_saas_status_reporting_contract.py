@@ -6,7 +6,10 @@ import pytest
 
 from services import referral_saas_reporting_service as reporting
 from services import tenant_safe_analytics_service as analytics
-from services.referral_saas_reporting_service import get_referral_saas_report
+from services.referral_saas_reporting_service import (
+    get_referral_saas_report,
+    validate_referral_saas_report_export_request,
+)
 from services.referral_saas_safe_status_service import (
     project_referral_saas_safe_status,
 )
@@ -296,6 +299,21 @@ async def test_referral_saas_report_catalog_supports_initial_operational_reports
         "PENDING_MISSION_BONUS_DERIVED",
     }
     assert "999.99" not in str(reward_report)
+
+    export_request = validate_referral_saas_report_export_request(
+        tenant_code="FNB",
+        report_type="campaign_performance",
+        export_format="csv",
+        dimensions=["campaign_ref", "metric_name"],
+        filters={"campaign_ref": "CAMP001", "raw_ucn": "12345"},
+    )
+
+    assert export_request["export_status"] == "VALIDATED_NOT_CREATED"
+    assert export_request["creation_status"] == "NOT_IMPLEMENTED"
+    assert export_request["storage_status"] == "NOT_IMPLEMENTED"
+    assert export_request["delivery_status"] == "NOT_IMPLEMENTED"
+    assert export_request["audit_status"] == "NOT_IMPLEMENTED"
+    assert export_request["redactions"] == ["raw_ucn"]
 
     with pytest.raises(ValueError, match="Unsupported analytics report_type"):
         await analytics.get_tenant_safe_analytics_report(

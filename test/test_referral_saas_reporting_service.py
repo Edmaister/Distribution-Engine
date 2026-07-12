@@ -945,3 +945,98 @@ async def test_referral_saas_report_rejects_unsupported_dimensions_and_filters()
             report_type="campaign_performance",
             filters={"opportunity_id": "OPP-1"},
         )
+
+
+def test_referral_saas_report_export_request_validation_is_metadata_only():
+    export_request = svc.validate_referral_saas_report_export_request(
+        tenant_code="fnb",
+        report_type="campaign_performance",
+        export_format="CSV",
+        redaction_profile="tenant_safe",
+        dimensions=["campaign_ref", "metric_name"],
+        filters={
+            "campaign_ref": "CAMP001",
+            "sponsor_code": "BOXER",
+            "raw_ucn": "12345",
+        },
+        row_limit=2500,
+        data_window_start=datetime(2026, 7, 1, tzinfo=timezone.utc),
+        data_window_end=datetime(2026, 7, 12, tzinfo=timezone.utc),
+    )
+
+    assert export_request == {
+        "tenant_scope": "FNB",
+        "report_type": "campaign_performance",
+        "source_report_type": "distribution_overview",
+        "metric_class": "OPERATIONAL",
+        "dimensions": ["campaign_ref", "metric_name"],
+        "filters": {
+            "campaign_ref": "CAMP001",
+            "campaign_code": "CAMP001",
+            "sponsor_code": "BOXER",
+        },
+        "redactions": ["raw_ucn"],
+        "export_format": "csv",
+        "redaction_profile": "tenant_safe",
+        "row_limit": 2500,
+        "data_window_start": datetime(2026, 7, 1, tzinfo=timezone.utc),
+        "data_window_end": datetime(2026, 7, 12, tzinfo=timezone.utc),
+        "catalog_status": "AVAILABLE",
+        "export_status": "VALIDATED_NOT_CREATED",
+        "creation_status": "NOT_IMPLEMENTED",
+        "storage_status": "NOT_IMPLEMENTED",
+        "delivery_status": "NOT_IMPLEMENTED",
+        "audit_status": "NOT_IMPLEMENTED",
+        "guardrail": (
+            "Export request validated only. No export file, storage record, "
+            "delivery job, scheduled export, audit row, invoice, billing event, "
+            "or reward/funding/fulfilment/settlement mutation was created."
+        ),
+    }
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        (
+            {"export_format": "xlsx"},
+            "Unsupported Referral SaaS export format",
+        ),
+        (
+            {"redaction_profile": "operator_trace"},
+            "Unsupported Referral SaaS export redaction_profile",
+        ),
+        (
+            {"row_limit": 50001},
+            "Referral SaaS export row_limit must be between 1 and 50000",
+        ),
+        (
+            {"dimensions": ["raw_ucn"]},
+            "Unsupported Referral SaaS report dimension",
+        ),
+        (
+            {"filters": {"opportunity_id": "OPP-1"}},
+            "Unsupported Referral SaaS report filter",
+        ),
+    ],
+)
+def test_referral_saas_report_export_validation_rejects_unsafe_requests(
+    kwargs,
+    message,
+):
+    with pytest.raises(ValueError, match=message):
+        svc.validate_referral_saas_report_export_request(
+            tenant_code="FNB",
+            report_type="campaign_performance",
+            **kwargs,
+        )
+
+
+def test_referral_saas_report_export_validation_rejects_invalid_data_window():
+    with pytest.raises(ValueError, match="data_window_end must be after"):
+        svc.validate_referral_saas_report_export_request(
+            tenant_code="FNB",
+            report_type="campaign_performance",
+            data_window_start=datetime(2026, 7, 12, tzinfo=timezone.utc),
+            data_window_end=datetime(2026, 7, 1, tzinfo=timezone.utc),
+        )

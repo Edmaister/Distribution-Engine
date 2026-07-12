@@ -16,6 +16,12 @@ REPORT_REWARD_VISIBILITY_SUMMARY = "reward_visibility_summary"
 
 STATUS_AVAILABLE = "AVAILABLE"
 STATUS_NOT_IMPLEMENTED = "NOT_IMPLEMENTED"
+STATUS_VALIDATED_NOT_CREATED = "VALIDATED_NOT_CREATED"
+EXPORT_FORMAT_CSV = "csv"
+EXPORT_FORMAT_JSON = "json"
+EXPORT_REDACTION_PROFILE_TENANT_SAFE = "tenant_safe"
+DEFAULT_EXPORT_ROW_LIMIT = 10000
+MAX_EXPORT_ROW_LIMIT = 50000
 SOURCE_PROGRESS_EVENT_HEALTH = "referral_progress_event_health"
 SOURCE_ATTRIBUTION_QUALITY = "referral_attribution_quality"
 SOURCE_SAFE_STATUS_DISTRIBUTION = "referral_safe_status_distribution"
@@ -317,6 +323,52 @@ def _normalise_dimensions(report_type: str, dimensions: list[str] | None) -> lis
     return requested
 
 
+def _normalise_export_format(export_format: str | None) -> str:
+    value = str(export_format or EXPORT_FORMAT_JSON).strip().lower()
+    if value not in {EXPORT_FORMAT_JSON, EXPORT_FORMAT_CSV}:
+        raise ValueError(f"Unsupported Referral SaaS export format: {export_format}")
+    return value
+
+
+def _normalise_redaction_profile(redaction_profile: str | None) -> str:
+    value = str(
+        redaction_profile or EXPORT_REDACTION_PROFILE_TENANT_SAFE
+    ).strip().lower()
+    if value != EXPORT_REDACTION_PROFILE_TENANT_SAFE:
+        raise ValueError(
+            f"Unsupported Referral SaaS export redaction_profile: {redaction_profile}"
+        )
+    return value
+
+
+def _normalise_export_row_limit(row_limit: int | None) -> int:
+    if row_limit is None:
+        return DEFAULT_EXPORT_ROW_LIMIT
+    try:
+        value = int(row_limit)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Referral SaaS export row_limit must be an integer") from exc
+    if value < 1 or value > MAX_EXPORT_ROW_LIMIT:
+        raise ValueError(
+            "Referral SaaS export row_limit must be between "
+            f"1 and {MAX_EXPORT_ROW_LIMIT}"
+        )
+    return value
+
+
+def _validate_data_window(
+    *,
+    data_window_start: datetime | None,
+    data_window_end: datetime | None,
+) -> None:
+    if (
+        data_window_start is not None
+        and data_window_end is not None
+        and data_window_end <= data_window_start
+    ):
+        raise ValueError("data_window_end must be after data_window_start")
+
+
 def _safe_filters(
     *,
     report_type: str,
@@ -341,6 +393,58 @@ def _safe_filters(
     if "campaign_ref" in safe and "campaign_code" not in safe:
         safe["campaign_code"] = safe["campaign_ref"]
     return safe, redactions
+
+
+def validate_referral_saas_report_export_request(
+    *,
+    tenant_code: str,
+    report_type: str,
+    export_format: str | None = None,
+    redaction_profile: str | None = None,
+    dimensions: list[str] | None = None,
+    filters: dict[str, Any] | None = None,
+    row_limit: int | None = None,
+    data_window_start: datetime | None = None,
+    data_window_end: datetime | None = None,
+) -> dict[str, Any]:
+    tenant = _normalise_tenant_code(tenant_code)
+    report = _normalise_report_type(report_type)
+    resolved_dimensions = _normalise_dimensions(report, dimensions)
+    safe_filters, redactions = _safe_filters(report_type=report, filters=filters)
+    resolved_format = _normalise_export_format(export_format)
+    resolved_redaction_profile = _normalise_redaction_profile(redaction_profile)
+    resolved_row_limit = _normalise_export_row_limit(row_limit)
+    _validate_data_window(
+        data_window_start=data_window_start,
+        data_window_end=data_window_end,
+    )
+    config = REFERRAL_SAAS_REPORT_CATALOG[report]
+
+    return {
+        "tenant_scope": tenant,
+        "report_type": report,
+        "source_report_type": config["source_report_type"],
+        "metric_class": config["metric_class"],
+        "dimensions": resolved_dimensions,
+        "filters": safe_filters,
+        "redactions": sorted(set(redactions)),
+        "export_format": resolved_format,
+        "redaction_profile": resolved_redaction_profile,
+        "row_limit": resolved_row_limit,
+        "data_window_start": data_window_start,
+        "data_window_end": data_window_end,
+        "catalog_status": config["status"],
+        "export_status": STATUS_VALIDATED_NOT_CREATED,
+        "creation_status": STATUS_NOT_IMPLEMENTED,
+        "storage_status": STATUS_NOT_IMPLEMENTED,
+        "delivery_status": STATUS_NOT_IMPLEMENTED,
+        "audit_status": STATUS_NOT_IMPLEMENTED,
+        "guardrail": (
+            "Export request validated only. No export file, storage record, "
+            "delivery job, scheduled export, audit row, invoice, billing event, "
+            "or reward/funding/fulfilment/settlement mutation was created."
+        ),
+    }
 
 
 def _analytics_filters(filters: dict[str, str]) -> dict[str, str]:
