@@ -348,6 +348,131 @@ async def test_referral_saas_report_reader_can_fetch_reward_visibility_summary(
     }
 
 
+async def test_referral_saas_report_reader_can_validate_export_request(monkeypatch):
+    calls: list[dict] = []
+
+    def fake_validate_referral_saas_report_export_request(**kwargs):
+        calls.append(kwargs)
+        return {
+            "tenant_scope": kwargs["tenant_code"],
+            "report_type": kwargs["report_type"],
+            "source_report_type": "distribution_overview",
+            "metric_class": "OPERATIONAL",
+            "dimensions": kwargs["dimensions"],
+            "filters": kwargs["filters"],
+            "redactions": ["raw_ucn"],
+            "export_format": kwargs["export_format"],
+            "redaction_profile": kwargs["redaction_profile"],
+            "row_limit": kwargs["row_limit"],
+            "data_window_start": kwargs["data_window_start"],
+            "data_window_end": kwargs["data_window_end"],
+            "catalog_status": "AVAILABLE",
+            "export_status": "VALIDATED_NOT_CREATED",
+            "creation_status": "NOT_IMPLEMENTED",
+            "storage_status": "NOT_IMPLEMENTED",
+            "delivery_status": "NOT_IMPLEMENTED",
+            "audit_status": "NOT_IMPLEMENTED",
+            "guardrail": "Export request validated only.",
+        }
+
+    monkeypatch.setattr(
+        referral_saas_reports,
+        "validate_referral_saas_report_export_request",
+        fake_validate_referral_saas_report_export_request,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/v1/referral-saas/reports/campaign_performance/exports/validate",
+            params={"tenant_code": "FNB"},
+            json={
+                "format": "csv",
+                "redaction_profile": "tenant_safe",
+                "dimensions": ["campaign_ref", "metric_name"],
+                "filters": {"campaign_ref": "CAMP001", "raw_ucn": "12345"},
+                "row_limit": 2500,
+                "data_window_start": "2026-07-01T00:00:00Z",
+                "data_window_end": "2026-07-12T00:00:00Z",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["export_request"]["export_status"] == "VALIDATED_NOT_CREATED"
+    assert body["export_request"]["creation_status"] == "NOT_IMPLEMENTED"
+    assert "does not create export files" in body["guardrail"]
+    assert calls[0]["tenant_code"] == "FNB"
+    assert calls[0]["report_type"] == "campaign_performance"
+    assert calls[0]["export_format"] == "csv"
+    assert calls[0]["redaction_profile"] == "tenant_safe"
+    assert calls[0]["dimensions"] == ["campaign_ref", "metric_name"]
+    assert calls[0]["filters"] == {"campaign_ref": "CAMP001", "raw_ucn": "12345"}
+    assert calls[0]["row_limit"] == 2500
+    assert calls[0]["data_window_start"].isoformat().startswith("2026-07-01")
+    assert calls[0]["data_window_end"].isoformat().startswith("2026-07-12")
+    assert body["account_scope"] == {
+        "source": "explicit_tenant_code",
+        "external_tenant_ref": None,
+    }
+
+
+async def test_referral_saas_export_validation_returns_safe_validation_error(
+    monkeypatch,
+):
+    def fake_validate_referral_saas_report_export_request(**kwargs):
+        raise ValueError("Unsupported Referral SaaS export format: xlsx")
+
+    monkeypatch.setattr(
+        referral_saas_reports,
+        "validate_referral_saas_report_export_request",
+        fake_validate_referral_saas_report_export_request,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.post(
+            "/v1/referral-saas/reports/campaign_performance/exports/validate",
+            params={"tenant_code": "FNB"},
+            json={"format": "xlsx"},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "validation_error",
+        "message": "Unsupported Referral SaaS export format: xlsx",
+    }
+
+
+async def test_referral_saas_export_validation_rejects_partner_identity(monkeypatch):
+    def fake_validate_referral_saas_report_export_request(**kwargs):  # pragma: no cover
+        raise AssertionError("service should not be called")
+
+    monkeypatch.setattr(
+        referral_saas_reports,
+        "validate_referral_saas_report_export_request",
+        fake_validate_referral_saas_report_export_request,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=PARTNER_HEADERS
+    ) as client:
+        response = await client.post(
+            "/v1/referral-saas/reports/campaign_performance/exports/validate",
+            params={"tenant_code": "FNB"},
+            json={"format": "csv"},
+        )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == {
+        "code": "permission_denied",
+        "message": "API key is not authorised for Referral SaaS reports.",
+    }
+
+
 async def test_referral_saas_report_rejects_internal_reader_without_scope(monkeypatch):
     async def fake_get_referral_saas_report(**kwargs):  # pragma: no cover
         raise AssertionError("service should not be called")

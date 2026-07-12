@@ -79,3 +79,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   tenant-safe status/source/beneficiary/product counts only. It deliberately
   excludes reward amount totals, beneficiary references, fulfilment, funding,
   settlement, wallet, commission, invoice, payout, and broader money evidence.
+- TASK-165 adds a validation-only export gate for current Referral SaaS report
+  requests. It validates supported report types, `json`/`csv` formats,
+  `tenant_safe` redaction, approved dimensions/filters, row limits, and data
+  windows without creating export files, storage records, delivery jobs, audit
+  rows, scheduled exports, or any money/reporting mutations.

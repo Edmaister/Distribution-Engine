@@ -551,16 +551,17 @@
             resolver, the second bounded referral funnel report, progress event
             health reporting, attribution quality reporting, and safe-status
             distribution reporting, link/code performance reporting, and
-            count-only reward visibility reporting through TASK-164.
+            count-only reward visibility reporting through TASK-164, and a
+            validation-only export gate through TASK-165.
           </p>
           <div class="score-row" aria-label="Current position">
             <div class="score">
-              <strong>9.0/10</strong>
-              <span>Referral management foundation after TASK-164 reward visibility proof</span>
+              <strong>9.1/10</strong>
+              <span>Referral management foundation after TASK-165 export validation proof</span>
             </div>
             <div class="score">
-              <strong>8.65/10</strong>
-              <span>Campaign attribution foundation with report catalog depth</span>
+              <strong>8.7/10</strong>
+              <span>Campaign attribution foundation with report catalog and export gate depth</span>
             </div>
             <div class="score">
               <strong>10/10</strong>
@@ -574,7 +575,7 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-164 for Referral SaaS, with
+            Updated after TASK-134 through TASK-165 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
@@ -584,8 +585,8 @@
             <span>Account, campaign, code, validation, progress, attribution, support, reporting, API, IA, audit, and E2E plan are documented.</span>
           </div>
           <div class="status-pill">
-            <b>16 implementation proofs added</b>
-            <span>TASK-149 through TASK-164 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, safe-status, report-catalog, report-API, account-scope, referral-funnel, progress-health, attribution-quality, safe-status distribution, link/code performance, and reward visibility proof.</span>
+            <b>17 implementation proofs added</b>
+            <span>TASK-149 through TASK-165 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, safe-status, report-catalog, report-API, account-scope, referral-funnel, progress-health, attribution-quality, safe-status distribution, link/code performance, reward visibility, and export validation proof.</span>
           </div>
           <div class="status-pill">
             <b>Live confidence still capped</b>
@@ -597,7 +598,7 @@
           </div>
           <div class="status-pill">
             <b>Wrappers still missing</b>
-            <span>The score stays below 10/10 until account-scoped product APIs, UI workflows, exports, and live smoke evidence ship.</span>
+            <span>The score stays below 10/10 until account-scoped product APIs, UI workflows, persisted exports, and live smoke evidence ship.</span>
           </div>
         </div>
       </section>
@@ -787,8 +788,9 @@
               TASK-158 adds identity-derived report scope, TASK-159 adds the
               referral funnel report, TASK-160 adds progress event health,
               TASK-161 adds attribution quality, TASK-162 adds safe-status
-              distribution, TASK-163 adds link/code performance, and TASK-164
-              adds count-only reward visibility.
+              distribution, TASK-163 adds link/code performance, TASK-164
+              adds count-only reward visibility, and TASK-165 validates export
+              requests without creating files or jobs.
             </p>
             <div class="tag-row">
               <span class="tag">Customer value</span>
@@ -802,7 +804,7 @@
               <span class="tag done">TASK-161</span>
               <span class="tag done">TASK-162</span>
               <span class="tag done">TASK-163</span>
-              <span class="tag done">TASK-164</span>
+              <span class="tag done">TASK-165</span>
               <span class="tag dlaas">Portal status primitive</span>
             </div>
           </article>
@@ -825,7 +827,7 @@
               <li>TASK-134 through TASK-147 completed as contract outputs.</li>
               <li>Referral, validation, progress, attribution, API, IA, reporting, and support boundaries are explicit.</li>
               <li>Money-depth and broad DLaaS scope remain deliberately separate.</li>
-              <li>The contracts are now backed by TASK-149 through TASK-164 implementation proof.</li>
+              <li>The contracts are now backed by TASK-149 through TASK-165 implementation proof.</li>
             </ol>
           </article>
           <article class="phase">
@@ -834,8 +836,8 @@
             <ol>
               <li>Golden-path and negative-path contract tests are in place.</li>
               <li>Route smoke and schema/status tooling is ready for controlled execution.</li>
-              <li>Referral safe-status projection and seven report catalog helpers are implemented in the service layer.</li>
-              <li>Next: full account references, exports, and customer/operator UI workflows.</li>
+              <li>Referral safe-status projection, seven report catalog helpers, and export request validation are implemented in the service layer/API wrapper.</li>
+              <li>Next: full account references, persisted exports, and customer/operator UI workflows.</li>
             </ol>
           </article>
           <article class="phase">
@@ -1110,7 +1112,8 @@
               partial-source coverage warnings, TASK-160 adds progress event
               health reporting, TASK-161 adds attribution quality, TASK-162
               adds safe-status distribution, TASK-163 adds link/code
-              performance, and TASK-164 adds count-only reward visibility.
+              performance, TASK-164 adds count-only reward visibility, and
+              TASK-165 adds validation-only export gating.
             </p>
             <div class="tag-row">
               <span class="tag done">154</span>
@@ -1128,7 +1131,7 @@
           <article class="capability" data-tone="amber">
             <h3>Still Not Shipped</h3>
             <p>
-              Full account references, SaaS frontend workflows, exports,
+              Full account references, SaaS frontend workflows, persisted exports,
               live/staging execution evidence, and
               full E2E proof remain open before a 10/10 claim.
             </p>
@@ -1166,8 +1169,8 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Product report/export catalog</div>
-            <div class="matrix-cell">TASK-156 adds `campaign_performance`, TASK-157 exposes it through a read-only product route, TASK-158 derives scope from tenant-scoped identities, TASK-159 adds `referral_funnel`, TASK-160 adds `progress_event_health`, TASK-161 adds `attribution_quality`, TASK-162 adds `safe_status_distribution`, TASK-163 adds `link_code_performance`, and TASK-164 adds count-only `reward_visibility_summary`. Exports and full account references remain open.</div>
-            <div class="matrix-cell">Implement export validation/storage/audit, external account references, frontend report surfaces, and redaction tests.</div>
+            <div class="matrix-cell">TASK-156 adds `campaign_performance`, TASK-157 exposes it through a read-only product route, TASK-158 derives scope from tenant-scoped identities, TASK-159 adds `referral_funnel`, TASK-160 adds `progress_event_health`, TASK-161 adds `attribution_quality`, TASK-162 adds `safe_status_distribution`, TASK-163 adds `link_code_performance`, TASK-164 adds count-only `reward_visibility_summary`, and TASK-165 adds validation-only export gating. Persisted exports and full account references remain open.</div>
+            <div class="matrix-cell">Implement persisted export storage/audit, external account references, frontend report surfaces, and live redaction/export checks.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">End-to-end proof</div>
@@ -1334,7 +1337,7 @@
       </section>
 
       <div class="footer-note">
-        Recommendation: continue from TASK-164 into narrow product-wrapper
+        Recommendation: continue from TASK-165 into narrow product-wrapper
         implementation slices for the referral and campaign attribution SaaS.
         Keep the code single-source, keep DLaaS money/marketplace depth
         separate, and use live verification plus E2E proof before upgrading the
