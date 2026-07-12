@@ -33,9 +33,11 @@ class FakeConnection:
         self.fetch_rows = fetch_rows or []
         self.fetchrow_result = fetchrow_result
         self.fetchrow_calls = 0
+        self.fetchrow_queries = []
 
     async def fetchrow(self, query, *args):
         self.fetchrow_calls += 1
+        self.fetchrow_queries.append((query, args))
 
         if "FROM funding_reservations" in query:
             return self.expected_row
@@ -84,24 +86,22 @@ def test_money_rounds_to_two_decimals():
 @pytest.mark.asyncio
 async def test_run_funding_reconciliation_matched(monkeypatch):
     run_id = uuid4()
-
-    patch_db(
-        monkeypatch,
-        FakeConnection(
-            expected_row={"expected_amount": Decimal("1000000.00")},
-            actual_row={"actual_amount": Decimal("1000000.00")},
-            insert_run_row={
-                "run_id": run_id,
-                "tenant_code": "FNB",
-                "expected_amount": Decimal("1000000.00"),
-                "actual_amount": Decimal("1000000.00"),
-                "variance_amount": Decimal("0.00"),
-                "status": "MATCHED",
-                "correlation_id": "corr-1",
-                "created_at": None,
-            },
-        ),
+    conn = FakeConnection(
+        expected_row={"expected_amount": Decimal("1000000.00")},
+        actual_row={"actual_amount": Decimal("1000000.00")},
+        insert_run_row={
+            "run_id": run_id,
+            "tenant_code": "FNB",
+            "expected_amount": Decimal("1000000.00"),
+            "actual_amount": Decimal("1000000.00"),
+            "variance_amount": Decimal("0.00"),
+            "status": "MATCHED",
+            "correlation_id": "corr-1",
+            "created_at": None,
+        },
     )
+
+    patch_db(monkeypatch, conn)
 
     result = await run_funding_reconciliation(
         tenant_code="FNB",
@@ -123,6 +123,12 @@ async def test_run_funding_reconciliation_matched(monkeypatch):
         "exception_count": 0,
         "exceptions": [],
     }
+    insert_query, insert_args = conn.fetchrow_queries[2]
+    assert "INSERT INTO funding_reconciliation_runs" in insert_query
+    assert "run_date" in insert_query
+    assert "correlation_id" in insert_query
+    assert "NOW()" in insert_query
+    assert insert_args[-1] == "corr-1"
 
 
 @pytest.mark.asyncio

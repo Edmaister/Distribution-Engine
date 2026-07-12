@@ -52,13 +52,14 @@ async def run_funding_reconciliation(
             INSERT INTO funding_reconciliation_runs (
                 run_id,
                 tenant_code,
+                run_date,
                 expected_amount,
                 actual_amount,
                 variance_amount,
                 status,
                 correlation_id
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7)
             RETURNING
                 run_id,
                 tenant_code,

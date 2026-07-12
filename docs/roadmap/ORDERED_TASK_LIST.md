@@ -614,7 +614,10 @@ Definition of done: No TASK-001 unknown remains implicit; every uncertainty is e
 
 ## TASK-148: Fix funding reconciliation run correlation_id schema drift
 
-Status: Ready.
+Status: Complete (2026-07-12).
+Output: `dp/migrations/081_funding_reconciliation_run_correlation.sql`; `services/funding/reconciliation.py`; `test/test_funding_reconciliation_run_correlation_migration.py`; `test/services/funding/test_funding_reconciliation.py`.
+Finding: Added guarded additive migration 081 to add `funding_reconciliation_runs.correlation_id` and a lookup index for finance correlation evidence. Funding reconciliation run creation now also supplies the required `run_date` with `NOW()` while preserving the service-used `correlation_id`. Focused service tests now assert the insert includes `run_date`, `correlation_id`, and the passed correlation value. No local live DB mutation, reconciliation run execution, replay, repair, settlement, wallet, fulfilment, go-live, or money movement was performed.
+Validation: `.venv_codex\Scripts\python.exe -m pytest test\services\funding\test_funding_reconciliation.py test\api\test_admin_funding_reconciliation_api.py test\test_funding_reconciliation_run_correlation_migration.py` passed with 20 tests. `.venv_codex\Scripts\python.exe scripts\check_migrations.py` passed. `.venv_codex\Scripts\python.exe -m ruff check services\funding\reconciliation.py test\services\funding\test_funding_reconciliation.py test\api\test_admin_funding_reconciliation_api.py test\test_funding_reconciliation_run_correlation_migration.py` passed with only the existing top-level Ruff settings deprecation warning. `.venv_codex\Scripts\python.exe -m py_compile services\funding\reconciliation.py test\services\funding\test_funding_reconciliation.py test\api\test_admin_funding_reconciliation_api.py test\test_funding_reconciliation_run_correlation_migration.py` passed.
 Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails
 Linked platform capability: 14. Audit trail; 27. Observability; 30. Live DB/state verification
 Product boundary: Shared Platform.
