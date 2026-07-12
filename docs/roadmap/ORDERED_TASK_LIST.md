@@ -2929,6 +2929,31 @@ Rollback notes: Revert the test file and this roadmap entry.
 Explicit non-goals: Do not implement product wrapper routes, report catalog entries, exports, schema, migrations, frontend, auth changes, live DB checks, route smoke execution, command idempotency implementation, audit writes, repair/replay/retry actions, campaign activation, webhook delivery, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
 Definition of done: Referral SaaS has executable safe-status/reporting handoff coverage that proves current foundations are bounded and redacted while keeping product-wrapper and report-catalog gaps visible. Priority: P0.
 
+## TASK-155: Add Referral SaaS safe-status projection helper
+
+Status: Complete (2026-07-12). Output: `services/referral_saas_safe_status_service.py`; `test/test_referral_saas_safe_status_service.py`; `test/test_referral_saas_status_reporting_contract.py`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SAFE_STATUS_CONTRACT.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Referrer/customer safe product status; progress/outcome status projection; redaction; product label and summary packaging.
+Objective: Add a narrow Referral SaaS safe-status projection helper over the existing shared partner/customer safe-status primitive so current referral statuses such as `ACCOUNT_OPENED` project to product-safe statuses without changing backend state names.
+Why now: TASK-154 proved the broad safe-status foundation was bounded but left Referral SaaS source statuses such as `ACCOUNT_OPENED` unavailable. This task closes that product projection gap while preserving shared primitive ownership and avoiding new routes.
+Files involved: `services/referral_saas_safe_status_service.py`; `test/test_referral_saas_safe_status_service.py`; `test/test_referral_saas_status_reporting_contract.py`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `services/partner_customer_safe_status_service.py`; `docs/sa/referral-saas/REFERRAL_SAAS_SAFE_STATUS_CONTRACT.md`; `test/test_partner_customer_safe_status_service.py`; `test/test_referral_saas_status_reporting_contract.py`.
+Database/schema impact: None.
+Backend impact: Added a small service-layer projection helper only. No shared backend states, routers, auth helpers, schemas, migrations, or durable payload contracts changed.
+Frontend impact: None.
+API impact: None. No route behavior changed and no `/v1/referral-saas/*` wrapper route was added.
+Tests to add/update: Added projection tests for outcome, validation, progress, attribution, link/code, adjacent-role money evidence, and sensitive evidence rejection; updated the safe-status/reporting contract test to use the Referral SaaS projection.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q --no-cov test\test_referral_saas_safe_status_service.py test\test_referral_saas_status_reporting_contract.py --tb=short`; focused Referral SaaS verification suite; `.venv_codex\Scripts\python.exe -m py_compile services\referral_saas_safe_status_service.py test\test_referral_saas_safe_status_service.py test\test_referral_saas_status_reporting_contract.py`; `ruff check services\referral_saas_safe_status_service.py test\test_referral_saas_safe_status_service.py test\test_referral_saas_status_reporting_contract.py`.
+Acceptance criteria: Referral SaaS statuses project to safe broad and product statuses; raw source statuses are not leaked except where they are the safe product status; adjacent-role money evidence remains unavailable to customer/referrer views; sensitive evidence is rejected; no backend/frontend/API/schema behavior changes beyond the new helper.
+Dependencies: TASK-141; TASK-154.
+Blocked by: None for local helper coverage. Product API wrapper and frontend consumption remain separate implementation work.
+Risk level: Low.
+Rollback notes: Revert the helper, test updates, and this roadmap entry.
+Explicit non-goals: Do not implement product wrapper routes, frontend, schema, migrations, auth changes, report catalog entries, exports, live DB checks, route smoke execution, command idempotency implementation, audit writes, repair/replay/retry actions, campaign activation, webhook delivery, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
+Definition of done: Referral SaaS has a CI-tested product status projection helper that turns current referral source evidence into safe customer/referrer product status while preserving shared primitives and product boundaries. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
