@@ -163,7 +163,7 @@ Future Referral SaaS APIs should follow these rules:
 
 | Target route | Method | Current source/wrapper | Auth | Notes |
 |---|---|---|---|---|
-| `/v1/referral-saas/reports/{reportType}` | `GET` | TASK-156 report catalog helper plus TASK-157 route wrapper, TASK-158 scope resolver, TASK-159 referral funnel helper, TASK-160 progress event health helper, TASK-161 attribution quality helper, TASK-162 safe-status distribution helper, and TASK-163 link/code performance helper | Admin/report-reader bridge until SaaS account membership exists | Implemented for read-only `campaign_performance`, `referral_funnel`, `link_code_performance`, `progress_event_health`, `attribution_quality`, and `safe_status_distribution`; tenant-scoped identities may omit `tenant_code`, while internal report readers still need explicit tenant scope. |
+| `/v1/referral-saas/reports/{reportType}` | `GET` | TASK-156 report catalog helper plus TASK-157 route wrapper, TASK-158 scope resolver, TASK-159 referral funnel helper, TASK-160 progress event health helper, TASK-161 attribution quality helper, TASK-162 safe-status distribution helper, TASK-163 link/code performance helper, and TASK-164 reward visibility helper | Admin/report-reader bridge until SaaS account membership exists | Implemented for read-only `campaign_performance`, `referral_funnel`, `link_code_performance`, `progress_event_health`, `attribution_quality`, `safe_status_distribution`, and `reward_visibility_summary`; tenant-scoped identities may omit `tenant_code`, while internal report readers still need explicit tenant scope. |
 | `/v1/referral-saas/reports/{reportType}/exports` | `POST` | TASK-142 future export contract | SaaS account admin/member | Export API/storage/audit not implemented. |
 | `/v1/referral-saas/exports/{exportId}` | `GET` | TASK-142 future export contract | SaaS account admin/member | Requires retention/expiry/access controls before implementation. |
 
@@ -250,7 +250,10 @@ Rules:
   reward, audit, provider, or money evidence. TASK-163 adds aggregate
   link/code performance across durable referral code, campaign code,
   campaign-referral link, and route-referral link sources while excluding
-  composite-code compatibility internals.
+  composite-code compatibility internals. TASK-164 adds reward visibility
+  counts only from persisted rewards and pending mission bonus evidence while
+  excluding reward amount totals, beneficiary references, fulfilment, funding,
+  settlement, wallet, commission, invoice, payout, and broader money evidence.
 - Export APIs are not implemented.
 - Lifecycle commands such as revoke, expire, reissue, repair, replay, or retry
   are not authorized by this map.

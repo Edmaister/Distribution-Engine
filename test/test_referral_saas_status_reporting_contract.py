@@ -246,17 +246,59 @@ async def test_referral_saas_report_catalog_supports_initial_operational_reports
     assert link_report["metrics"][0]["name"] == "link_codes.linked_count"
     assert link_report["source_warnings"][0]["code"] == "PARTIAL_SOURCE_COVERAGE"
 
+    class RewardVisibilityConnection:
+        async def fetch(self, query, *params):
+            assert "WITH reward_sources AS" in query
+            assert params[:7] == (
+                "FNB",
+                None,
+                "BASE",
+                "APPLIED",
+                None,
+                None,
+                None,
+            )
+            return [
+                {
+                    "source_family": "persisted_reward",
+                    "beneficiary_type": "REFERRER",
+                    "reward_source": "BASE",
+                    "reward_type": "CASH",
+                    "reward_status": "APPLIED",
+                    "product": "TRANSACTIONAL",
+                    "sub_product": "GOLD",
+                    "visibility_period": "2026-07-12",
+                    "reward_count": 1,
+                }
+            ]
+
+    monkeypatch.setattr(
+        reporting,
+        "db_connection",
+        lambda: FakeDbConnection(RewardVisibilityConnection()),
+    )
+
+    reward_report = await get_referral_saas_report(
+        tenant_code="FNB",
+        report_type="reward_visibility_summary",
+        filters={"reward_source": "BASE", "reward_status": "APPLIED"},
+    )
+
+    assert reward_report["report_type"] == "reward_visibility_summary"
+    assert reward_report["source_report_type"] == "referral_reward_visibility_summary"
+    assert reward_report["metric_class"] == "OPERATIONAL"
+    assert reward_report["export_status"] == "NOT_IMPLEMENTED"
+    assert reward_report["metrics"][0]["name"] == "rewards.applied_count"
+    assert {
+        warning["code"] for warning in reward_report["source_warnings"]
+    } == {
+        "COUNT_ONLY_REWARD_VISIBILITY",
+        "PENDING_MISSION_BONUS_DERIVED",
+    }
+    assert "999.99" not in str(reward_report)
+
     with pytest.raises(ValueError, match="Unsupported analytics report_type"):
         await analytics.get_tenant_safe_analytics_report(
             tenant_code="FNB",
             report_type="campaign_performance",
-        )
-
-    with pytest.raises(
-        ValueError,
-        match="Referral SaaS report_type not implemented: reward_visibility_summary",
-    ):
-        await get_referral_saas_report(
-            tenant_code="FNB",
-            report_type="reward_visibility_summary",
         )

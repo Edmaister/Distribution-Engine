@@ -74,3 +74,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   exposing raw UCNs, raw link payloads, composite-code compatibility internals,
   reward, funding, fulfilment, settlement, wallet, commission, or invoice
   evidence.
+- TASK-164 adds `reward_visibility_summary` as the seventh bounded report type.
+  It reads persisted reward rows and pending mission bonus evidence for
+  tenant-safe status/source/beneficiary/product counts only. It deliberately
+  excludes reward amount totals, beneficiary references, fulfilment, funding,
+  settlement, wallet, commission, invoice, payout, and broader money evidence.

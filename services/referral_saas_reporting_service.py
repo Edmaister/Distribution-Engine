@@ -20,6 +20,7 @@ SOURCE_PROGRESS_EVENT_HEALTH = "referral_progress_event_health"
 SOURCE_ATTRIBUTION_QUALITY = "referral_attribution_quality"
 SOURCE_SAFE_STATUS_DISTRIBUTION = "referral_safe_status_distribution"
 SOURCE_LINK_CODE_PERFORMANCE = "referral_link_code_performance"
+SOURCE_REWARD_VISIBILITY_SUMMARY = "referral_reward_visibility_summary"
 
 REPORT_METRIC_NAME_MAPS = {
     REPORT_CAMPAIGN_PERFORMANCE: {
@@ -51,6 +52,7 @@ SENSITIVE_FILTER_PARTS = (
     "provider_payload",
     "raw",
     "audit_payload",
+    "beneficiary_ref",
     "dlq",
     "settlement",
     "funding",
@@ -219,8 +221,48 @@ REFERRAL_SAAS_REPORT_CATALOG: dict[str, dict[str, Any]] = {
         ],
     },
     REPORT_REWARD_VISIBILITY_SUMMARY: {
-        "status": STATUS_NOT_IMPLEMENTED,
+        "status": STATUS_AVAILABLE,
+        "source_report_type": SOURCE_REWARD_VISIBILITY_SUMMARY,
         "metric_class": analytics.METRIC_OPERATIONAL,
+        "allowed_dimensions": {
+            "beneficiary_type",
+            "metric_name",
+            "product",
+            "reward_source",
+            "reward_status",
+            "reward_type",
+            "source_family",
+            "sub_product",
+            "visibility_period",
+        },
+        "default_dimensions": ["reward_status", "beneficiary_type", "metric_name"],
+        "allowed_filters": {
+            "beneficiary_type",
+            "product",
+            "reward_source",
+            "reward_status",
+            "reward_type",
+            "sub_product",
+        },
+        "source_warnings": [
+            {
+                "code": "COUNT_ONLY_REWARD_VISIBILITY",
+                "message": (
+                    "Reward visibility summary reports counts only. Reward "
+                    "amount totals, fulfilment, funding, settlement, wallet, "
+                    "commission, invoice, and payout evidence remain outside "
+                    "this Referral SaaS report."
+                ),
+            },
+            {
+                "code": "PENDING_MISSION_BONUS_DERIVED",
+                "message": (
+                    "Pending mission bonus counts are derived from incomplete "
+                    "mission progress with active bonus definitions; no money "
+                    "totals are exposed."
+                ),
+            },
+        ],
     },
 }
 
@@ -363,6 +405,21 @@ def _safe_status_distribution_filters(filters: dict[str, str]) -> dict[str, str]
             "product_status": filters.get("product_status"),
             "safe_status": filters.get("safe_status"),
             "viewer_role": filters.get("viewer_role"),
+        }.items()
+        if value
+    }
+
+
+def _reward_visibility_filters(filters: dict[str, str]) -> dict[str, str]:
+    return {
+        key: value
+        for key, value in {
+            "beneficiary_type": filters.get("beneficiary_type"),
+            "product": filters.get("product"),
+            "reward_source": filters.get("reward_source"),
+            "reward_status": filters.get("reward_status"),
+            "reward_type": filters.get("reward_type"),
+            "sub_product": filters.get("sub_product"),
         }.items()
         if value
     }
@@ -1238,6 +1295,200 @@ async def _safe_status_distribution_report(
         "redactions": redactions,
         "reconciliation_status": "NOT_APPLICABLE",
     }
+
+
+async def _reward_visibility_summary_report(
+    *,
+    tenant_code: str,
+    dimensions: list[str],
+    filters: dict[str, str],
+    redactions: list[str],
+    data_window_start: datetime | None,
+    data_window_end: datetime | None,
+) -> dict[str, Any]:
+    generated_at = analytics._utcnow()
+    safe_filters = {
+        "tenant_code": tenant_code,
+        **_reward_visibility_filters(filters),
+    }
+    source_warnings = REFERRAL_SAAS_REPORT_CATALOG[
+        REPORT_REWARD_VISIBILITY_SUMMARY
+    ].get("source_warnings", [])
+
+    try:
+        async with db_connection() as conn:
+            reward_rows = await conn.fetch(
+                """
+                WITH reward_sources AS (
+                    SELECT
+                        'persisted_reward' AS source_family,
+                        r.beneficiary_type,
+                        r.reward_source,
+                        r.reward_type,
+                        r.status AS reward_status,
+                        r.product,
+                        r.sub_product,
+                        date_trunc('day', r.created_at)::date::text
+                            AS visibility_period,
+                        r.created_at AS source_created_at
+                    FROM rewards r
+                    WHERE r.tenant_code = $1
+
+                    UNION ALL
+
+                    SELECT
+                        'pending_mission_bonus' AS source_family,
+                        ump.beneficiary_type,
+                        'MISSION_BONUS' AS reward_source,
+                        'BONUS' AS reward_type,
+                        'PENDING' AS reward_status,
+                        COALESCE(ri.product, md.product) AS product,
+                        COALESCE(ri.sub_product, md.sub_product) AS sub_product,
+                        date_trunc('day', ump.updated_at)::date::text
+                            AS visibility_period,
+                        ump.updated_at AS source_created_at
+                    FROM user_mission_progress ump
+                    JOIN mission_definitions md
+                      ON md.mission_code = ump.mission_code
+                    JOIN referral_instances ri
+                      ON ri.referral_track_id = ump.referral_track_id
+                    WHERE ri.tenant_code = $1
+                      AND ump.is_complete = FALSE
+                      AND ump.bonus_reward_applied = FALSE
+                      AND md.is_active = TRUE
+                      AND md.bonus_reward_amount > 0
+                )
+                SELECT
+                    source_family,
+                    beneficiary_type,
+                    reward_source,
+                    reward_type,
+                    reward_status,
+                    product,
+                    sub_product,
+                    visibility_period,
+                    COUNT(*)::int AS reward_count
+                FROM reward_sources
+                WHERE ($2::text IS NULL OR beneficiary_type = $2)
+                  AND ($3::text IS NULL OR reward_source = $3)
+                  AND ($4::text IS NULL OR reward_status = $4)
+                  AND ($5::text IS NULL OR reward_type = $5)
+                  AND ($6::text IS NULL OR product = $6)
+                  AND ($7::text IS NULL OR sub_product = $7)
+                  AND ($8::timestamptz IS NULL OR source_created_at >= $8)
+                  AND ($9::timestamptz IS NULL OR source_created_at < $9)
+                GROUP BY
+                    source_family,
+                    beneficiary_type,
+                    reward_source,
+                    reward_type,
+                    reward_status,
+                    product,
+                    sub_product,
+                    visibility_period
+                ORDER BY reward_status, beneficiary_type, reward_source
+                """,
+                tenant_code,
+                safe_filters.get("beneficiary_type"),
+                safe_filters.get("reward_source"),
+                safe_filters.get("reward_status"),
+                safe_filters.get("reward_type"),
+                safe_filters.get("product"),
+                safe_filters.get("sub_product"),
+                data_window_start,
+                data_window_end,
+            )
+    except Exception:
+        return {
+            "report_type": SOURCE_REWARD_VISIBILITY_SUMMARY,
+            "tenant_scope": tenant_code,
+            "external_tenant_ref": None,
+            "filters": safe_filters,
+            "dimensions": dimensions,
+            "metric_class": analytics.METRIC_OPERATIONAL,
+            "metrics": [],
+            "data_window_start": analytics._iso(data_window_start),
+            "data_window_end": analytics._iso(data_window_end),
+            "generated_at": analytics._iso(generated_at),
+            "freshness": analytics._freshness(
+                status=analytics.FRESHNESS_UNAVAILABLE,
+                generated_at=generated_at,
+                source_family=SOURCE_REWARD_VISIBILITY_SUMMARY,
+                data_window_start=data_window_start,
+                data_window_end=data_window_end,
+            ),
+            "source_warnings": [
+                {
+                    "code": "SOURCE_UNAVAILABLE",
+                    "severity": "WARNING",
+                    "source": SOURCE_REWARD_VISIBILITY_SUMMARY,
+                    "message": "Reward visibility source could not be read safely.",
+                },
+                *source_warnings,
+            ],
+            "redactions": redactions,
+            "reconciliation_status": "NOT_APPLICABLE",
+        }
+
+    metric_name_by_status = {
+        "APPLIED": "rewards.applied_count",
+        "EARNED": "rewards.earned_count",
+        "FAILED": "rewards.failed_count",
+        "FULFILLED": "rewards.fulfilled_count",
+        "PENDING": "rewards.pending_count",
+        "PENDING_FULFILMENT": "rewards.pending_fulfilment_count",
+        "REVERSED": "rewards.reversed_count",
+    }
+    metrics: list[dict[str, Any]] = []
+    for row in reward_rows:
+        row_data = dict(row)
+        reward_status = row_data.get("reward_status")
+        metric_name = metric_name_by_status.get(
+            reward_status, "rewards.visible_count"
+        )
+        metrics.append(
+            _report_metric(
+                name=metric_name,
+                value=row_data.get("reward_count"),
+                source=SOURCE_REWARD_VISIBILITY_SUMMARY,
+                dimensions={
+                    "beneficiary_type": row_data.get("beneficiary_type"),
+                    "metric_name": metric_name,
+                    "product": row_data.get("product"),
+                    "reward_source": row_data.get("reward_source"),
+                    "reward_status": reward_status,
+                    "reward_type": row_data.get("reward_type"),
+                    "source_family": row_data.get("source_family"),
+                    "sub_product": row_data.get("sub_product"),
+                    "visibility_period": row_data.get("visibility_period"),
+                },
+            )
+        )
+
+    return {
+        "report_type": SOURCE_REWARD_VISIBILITY_SUMMARY,
+        "tenant_scope": tenant_code,
+        "external_tenant_ref": None,
+        "filters": safe_filters,
+        "dimensions": dimensions,
+        "metric_class": analytics.METRIC_OPERATIONAL,
+        "metrics": metrics,
+        "data_window_start": analytics._iso(data_window_start),
+        "data_window_end": analytics._iso(data_window_end),
+        "generated_at": analytics._iso(generated_at),
+        "freshness": analytics._freshness(
+            status=analytics.FRESHNESS_FRESH,
+            generated_at=generated_at,
+            source_family=SOURCE_REWARD_VISIBILITY_SUMMARY,
+            data_window_start=data_window_start,
+            data_window_end=data_window_end,
+        ),
+        "source_warnings": source_warnings,
+        "redactions": redactions,
+        "reconciliation_status": "NOT_APPLICABLE",
+    }
+
+
 async def get_referral_saas_report(
     *,
     tenant_code: str,
@@ -1339,6 +1590,34 @@ async def get_referral_saas_report(
         }
     if report == REPORT_SAFE_STATUS_DISTRIBUTION:
         source_report = await _safe_status_distribution_report(
+            tenant_code=tenant,
+            dimensions=resolved_dimensions,
+            filters=safe_filters,
+            redactions=redactions,
+            data_window_start=data_window_start,
+            data_window_end=data_window_end,
+        )
+        return {
+            "report_type": report,
+            "source_report_type": source_report["report_type"],
+            "tenant_scope": source_report["tenant_scope"],
+            "external_tenant_ref": source_report.get("external_tenant_ref"),
+            "filters": source_report["filters"],
+            "dimensions": resolved_dimensions,
+            "metric_class": config["metric_class"],
+            "metrics": source_report["metrics"],
+            "data_window_start": source_report["data_window_start"],
+            "data_window_end": source_report["data_window_end"],
+            "generated_at": source_report["generated_at"],
+            "freshness": source_report["freshness"],
+            "source_warnings": source_report["source_warnings"],
+            "redactions": source_report["redactions"],
+            "reconciliation_status": source_report["reconciliation_status"],
+            "catalog_status": config["status"],
+            "export_status": STATUS_NOT_IMPLEMENTED,
+        }
+    if report == REPORT_REWARD_VISIBILITY_SUMMARY:
+        source_report = await _reward_visibility_summary_report(
             tenant_code=tenant,
             dimensions=resolved_dimensions,
             filters=safe_filters,
