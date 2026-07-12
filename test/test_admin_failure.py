@@ -32,7 +32,7 @@ def bypass_admin_auth(app):
 def test_get_failures_defaults(client, monkeypatch):
     calls = {}
 
-    def fake_list_failures(status, failure_category, limit):
+    async def fake_list_failures(status, failure_category, limit):
         calls["status"] = status
         calls["failure_category"] = failure_category
         calls["limit"] = limit
@@ -57,7 +57,7 @@ def test_get_failures_defaults(client, monkeypatch):
 def test_get_failures_normalizes_query_values(client, monkeypatch):
     calls = {}
 
-    def fake_list_failures(status, failure_category, limit):
+    async def fake_list_failures(status, failure_category, limit):
         calls["status"] = status
         calls["failure_category"] = failure_category
         calls["limit"] = limit
@@ -86,7 +86,7 @@ def test_get_failures_normalizes_query_values(client, monkeypatch):
 def test_get_failures_blank_status_and_category_become_none(client, monkeypatch):
     calls = {}
 
-    def fake_list_failures(status, failure_category, limit):
+    async def fake_list_failures(status, failure_category, limit):
         calls["status"] = status
         calls["failure_category"] = failure_category
         calls["limit"] = limit
@@ -121,7 +121,7 @@ def test_get_failures_limit_too_high_returns_422(client):
 def test_resolve_failure_success(client, monkeypatch):
     calls = {}
 
-    def fake_resolve_failure(failure_id, resolution_note):
+    async def fake_resolve_failure(failure_id, resolution_note):
         calls["failure_id"] = failure_id
         calls["resolution_note"] = resolution_note
         return True
@@ -148,7 +148,7 @@ def test_resolve_failure_success(client, monkeypatch):
 def test_resolve_failure_allows_null_note(client, monkeypatch):
     calls = {}
 
-    def fake_resolve_failure(failure_id, resolution_note):
+    async def fake_resolve_failure(failure_id, resolution_note):
         calls["failure_id"] = failure_id
         calls["resolution_note"] = resolution_note
         return True
@@ -165,7 +165,10 @@ def test_resolve_failure_allows_null_note(client, monkeypatch):
 
 
 def test_resolve_failure_not_found_returns_404(client, monkeypatch):
-    monkeypatch.setattr(mod, "resolve_failure", lambda failure_id, resolution_note: False)
+    async def fake_resolve_failure(failure_id, resolution_note):
+        return False
+
+    monkeypatch.setattr(mod, "resolve_failure", fake_resolve_failure)
 
     res = client.post(
         "/admin/failures/999/resolve",
@@ -186,7 +189,7 @@ def test_resolve_failure_note_too_long_returns_422(client):
 
 
 def test_reprocess_failure_success(client, monkeypatch):
-    def fake_reprocess_failure(failure_id):
+    async def fake_reprocess_failure(failure_id):
         return {
             "status": "ok",
             "failureId": failure_id,
@@ -206,7 +209,7 @@ def test_reprocess_failure_success(client, monkeypatch):
 
 
 def test_reprocess_failure_value_error_returns_400(client, monkeypatch):
-    def fake_reprocess_failure(failure_id):
+    async def fake_reprocess_failure(failure_id):
         raise ValueError("bad state")
 
     monkeypatch.setattr(mod, "reprocess_failure", fake_reprocess_failure)
@@ -218,13 +221,16 @@ def test_reprocess_failure_value_error_returns_400(client, monkeypatch):
 
 
 def test_get_failures_summary(client, monkeypatch):
+    async def fake_get_failure_summary():
+        return {
+            "open": 2,
+            "resolved": 3,
+        }
+
     monkeypatch.setattr(
         mod,
         "get_failure_summary",
-        lambda: {
-            "open": 2,
-            "resolved": 3,
-        },
+        fake_get_failure_summary,
     )
 
     res = client.get("/admin/failures/summary")

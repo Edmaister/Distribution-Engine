@@ -2,10 +2,11 @@
 
 Date: 2026-07-11
 
-Status: Partial local verification recorded. Local migration alignment for
-onboarding draft persistence is now verified. TASK-027 remains blocked for full
-completion until strict read-only credentials and matching API smoke credentials
-are available.
+Status: Partial local verification recorded. Local migration alignment and
+protected local API smoke checks are now verified. TASK-027 remains blocked for
+full completion until strict read-only credentials or an explicit local
+exception are available, and until any required non-local environment
+verification is approved.
 
 ## Scope
 
@@ -100,11 +101,15 @@ lookup/idempotency/audit indexes were present.
 | --- | --- |
 | `GET /health` | 200 |
 | `GET /openapi.json` | 200 |
-| `GET /admin/audit/summary` | 401, configured local key did not match running app |
-| `GET /admin/failures/summary` | 401, configured local key did not match running app |
-| `GET /admin/funding/dashboard` | Skipped, finance admin key unavailable in local settings |
+| `GET /admin/audit/summary` | 200 with local system-admin test key |
+| `GET /admin/failures/summary` | Initially 500 after successful admin authentication; fixed by awaiting the async failure admin service in `apps/api/routers/admin_failure.py`; retest returned 200 with local admin test key |
+| `GET /admin/failures/summary` without key | 401 |
+| `GET /admin/funding/dashboard` | 200 with local finance-admin test key |
 
 No mutating route was called.
+
+The protected smoke pass used local built-in test keys only. No real secrets
+were recorded.
 
 ## Drift And Blockers
 
@@ -115,8 +120,10 @@ No mutating route was called.
    applying `dp/migrations/080_onboarding_draft_persistence.sql`; staging and
    production still need environment-specific verification before this can be
    treated as broadly verified.
-3. The running app's admin API keys do not match the keys available through the
-   local settings file, so protected read-only API smoke checks could not pass.
+3. Protected local API smoke checks now pass for health, OpenAPI, audit summary,
+   failure summary, and funding dashboard. The failure summary route required a
+   narrow TASK-028 code fix because it was calling async service functions from
+   a sync route handler.
 4. No migration tracking table was found, so applied migration completeness must
    be inferred from table/column evidence unless the migration process records
    versions elsewhere.
@@ -136,8 +143,9 @@ The local results create these TASK-028 follow-up decisions:
   exists, especially `rewards.status`, `fulfilment_audit.status`,
   `admin_audit_log.action_status`, `referral_event_failures.status`, and
   `referral_processing_audit.processing_status`.
-- Re-run protected read-only API smoke checks after the app is started with
-  known local admin/system/finance keys.
+- Treat the local protected API smoke gap as resolved after the TASK-028 route
+  fix; repeat the same read-only smoke set in staging/production only with
+  approved credentials and access.
 
 ## What Is Needed Next
 
@@ -149,6 +157,5 @@ To complete TASK-027 rather than partial local verification, provide or approve:
 2. Confirmation that the local migration-alignment evidence is enough for the
    local environment, plus separate staging/production verification when those
    environments are in scope.
-3. Matching local API smoke keys for the running app, or a restart of the app
-   with the repo `.env` keys.
-4. Approval to run only read-only protected smoke routes after keys are aligned.
+3. Approval to repeat the same read-only protected smoke routes outside local
+   only when the target environment and credentials are approved.
