@@ -96,6 +96,11 @@ Current API/client foundations:
 - `consumerPortal.ts` already calls referral code issue, public validation,
   referee UCN capture, consumer experience, reward summary, missions, and
   leaderboard endpoints.
+- `referralSaasReports.ts` now provides the TASK-168 frontend API seam for
+  Referral SaaS report reads, export validation, and inline export previews.
+  It keeps `account_ref` and `external_tenant_ref` response-only and uses the
+  existing internal `tenant_code` bridge only as an optional transitional query
+  until full account membership exists.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.
@@ -111,7 +116,8 @@ Current frontend gaps:
   sometimes `referralTrackId` directly.
 - Link/code issue, validation, progress, status, attribution trace, and reports
   are not yet presented as one SaaS workflow.
-- Reporting/export screens are not yet a focused Referral SaaS report catalog.
+- Reporting/export screens are not yet a focused Referral SaaS report catalog,
+  but TASK-168 provides the typed client seam they should consume.
 - Operator diagnostics are scattered across admin, distribution, events, audit,
   and health surfaces.
 
@@ -248,7 +254,8 @@ UI rules:
 
 - first-launch reports are operational and tenant-safe
 - reports must show partial, stale, and unavailable source states
-- export actions are disabled or absent until API/storage/audit behavior exists
+- export preview can use TASK-167/TASK-168 inline payloads; persisted export
+  actions stay disabled or absent until API/storage/audit behavior exists
 
 ### Integrations
 
@@ -303,7 +310,8 @@ When implementation starts, add or preserve tests for:
 - referral code issue/reuse and validation recovery UI states
 - progress/safe-status label mapping with no raw internal states
 - attribution trace access only for account/support roles
-- report catalog rendering, freshness, redactions, and disabled export states
+- report catalog rendering, freshness, redactions, inline preview handling, and
+  disabled persisted export states
 - public/referrer/customer no-leak assertions for tenant code, UCN, audit,
   provider, DLQ, secrets, tokens, and money internals
 - mobile layout and accessibility for the main workflow
