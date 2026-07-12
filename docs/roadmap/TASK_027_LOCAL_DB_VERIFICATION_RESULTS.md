@@ -1,12 +1,11 @@
 # TASK-027 Local DB Verification Results
 
-Date: 2026-07-11
+Date: 2026-07-11; updated 2026-07-12
 
-Status: Partial local verification recorded. Local migration alignment and
-protected local API smoke checks are now verified. TASK-027 remains blocked for
-full completion until strict read-only credentials or an explicit local
-exception are available, and until any required non-local environment
-verification is approved.
+Status: Local TASK-027 verification recorded. Local migration alignment,
+protected local API smoke checks, and strict local read-only DB posture are now
+verified. Staging and production were not accessed and still require separate
+approval before any non-local verification.
 
 ## Scope
 
@@ -15,8 +14,10 @@ did not access staging or production. No write, update, delete, repair, replay,
 retry, fulfilment, settlement, funding, wallet, go-live, or money movement
 operation was attempted.
 
-The DB session was forced into read-only mode with
+Initial DB sessions were forced into read-only mode with
 `default_transaction_read_only = on` before metadata and state queries were run.
+A dedicated local read-only verifier role was then created and used to prove
+read-only posture without relying only on the session setting.
 
 ## Environment Evidence
 
@@ -26,11 +27,33 @@ The DB session was forced into read-only mode with
 | Database name | `referrals` |
 | PostgreSQL family | PostgreSQL 18.3 |
 | Public base table count | 106 |
-| Verification transaction mode | `default_transaction_read_only = on` |
-| DB role write posture | Current role can create in `public`; this is not a strict read-only DB role |
+| Initial verification transaction mode | `default_transaction_read_only = on` |
+| Initial DB role write posture | Current setup role can create in `public`; it was used only for initial local setup and migration alignment |
+| Strict read-only verifier role | `referral_readonly_verifier` |
+| Read-only verifier posture | Login allowed; not superuser; cannot create databases; cannot create roles; cannot create in `public`; cannot insert into `referral_event_failures`; can select from live-critical tables |
 | Migration tracking table | Not found |
 | App health route | `GET /health` returned 200 |
 | OpenAPI route | `GET /openapi.json` returned 200 |
+
+## Read-Only DB Role Verification
+
+A local-only role named `referral_readonly_verifier` was created for TASK-027
+verification. No password or secret value is recorded in this evidence.
+
+| Check | Result |
+| --- | --- |
+| Connected as verifier role | Pass |
+| Verifier current database | `referrals` |
+| Verifier role flags | Login only; not superuser; no createdb; no createrole |
+| `has_schema_privilege(current_user, 'public', 'CREATE')` | `false` |
+| `has_table_privilege(current_user, 'public.referral_event_failures', 'INSERT')` | `false` |
+| `has_table_privilege(current_user, 'public.referral_instances', 'SELECT')` | `true` |
+| Public base table count through verifier role | 106 |
+| Read sample count from `referral_instances` | Pass |
+| Read sample count from `referral_event_failures` | Pass |
+| `CREATE TABLE public.task027_readonly_probe_should_fail` without session read-only | Blocked with `permission denied for schema public` |
+| `INSERT INTO public.referral_event_failures` without session read-only | Blocked with `permission denied for table referral_event_failures` |
+| Same write probes with `default_transaction_read_only = on` | Blocked with read-only transaction errors |
 
 ## Live-Critical Table Verification Summary
 
@@ -113,9 +136,10 @@ were recorded.
 
 ## Drift And Blockers
 
-1. Local DB role is not a strict read-only role. The session was forced
-   read-only, but full TASK-027 completion should use a true read-only DB user
-   or an explicitly approved local exception.
+1. Strict local read-only DB posture is resolved through
+   `referral_readonly_verifier`. The original local setup role remains write
+   capable and should not be used for future verification evidence except for
+   explicitly approved local setup/migration work.
 2. Local onboarding draft persistence migration alignment is resolved after
    applying `dp/migrations/080_onboarding_draft_persistence.sql`; staging and
    production still need environment-specific verification before this can be
@@ -151,11 +175,8 @@ The local results create these TASK-028 follow-up decisions:
 
 To complete TASK-027 rather than partial local verification, provide or approve:
 
-1. A strict read-only DB user/DSN for the local database, or explicit permission
-   to treat the current local DB user as acceptable while forcing each session
-   into read-only mode.
-2. Confirmation that the local migration-alignment evidence is enough for the
-   local environment, plus separate staging/production verification when those
-   environments are in scope.
-3. Approval to repeat the same read-only protected smoke routes outside local
+1. Confirmation that the local migration-alignment and read-only verifier
+   evidence is enough for the local environment.
+2. Approval to repeat the same DB and read-only protected API smoke routes
+   outside local
    only when the target environment and credentials are approved.
