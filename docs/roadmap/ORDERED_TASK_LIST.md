@@ -2854,6 +2854,31 @@ Rollback notes: Revert the test file, route smoke inventory doc, SA index update
 Explicit non-goals: Do not add product wrapper routes, frontend, schema, migrations, live DB checks, production data access, auth changes, smoke execution against live services, command idempotency implementation, audit writes, repair/replay/retry actions, export APIs, campaign activation, webhook delivery, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
 Definition of done: Referral SaaS has an executable mounted-route smoke inventory that separates current shared primitives from future product wrapper routes and classifies route smoke safety for the next verification slice. Priority: P0.
 
+## TASK-152: Add Referral SaaS read-only schema/status checker
+
+Status: Complete (2026-07-12). Output: `scripts/referral_saas_schema_status_check.py`; `test/test_referral_saas_schema_status_check.py`; `scripts/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/LIVE_DB_STATE_VERIFICATION_CHECKLIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Read-only schema/status/index verification; live/staging evidence preparation; launch-critical table, state, constraint, and index checks.
+Objective: Add a Referral SaaS-specific read-only checker that can generate a dry-run SQL plan by default and optionally execute read-only schema/status/index checks against an explicitly configured database.
+Why now: TASK-151 selected the mounted smoke route surface. The next production-confidence gap is repeatable schema/status/index evidence for the Referral SaaS wedge before any live/staging route smoke execution or product-ready rating.
+Files involved: `scripts/referral_saas_schema_status_check.py`; `test/test_referral_saas_schema_status_check.py`; `scripts/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `docs/sa/LIVE_DB_STATE_VERIFICATION_CHECKLIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `dp/migrations/013_progress_events.sql`; `dp/migrations/017_fix_referral_progress_event_type_constraint.sql`; `dp/migrations/020_referral_event_failures.sql`; `dp/migrations/061_enterprise_event_inbox.sql`; `dp/migrations/070_distribution_route_referral_links.sql`; existing scripts.
+Database/schema impact: None. The script defaults to dry-run query-plan output and only executes SELECT metadata/count queries when `--database` and a DSN are explicitly supplied.
+Backend impact: Script/test only. No services, routers, auth helpers, fields, statuses, or payload contracts changed.
+Frontend impact: None.
+API impact: None. No route behavior changed.
+Tests to add/update: Added tests for dry-run query-plan contents, read-only SQL posture, static expectation findings, and unsafe schema identifier rejection.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q --no-cov test\test_referral_saas_schema_status_check.py --tb=short`; focused Referral SaaS verification suite; `.venv_codex\Scripts\python.exe -m py_compile scripts\referral_saas_schema_status_check.py test\test_referral_saas_schema_status_check.py`; `ruff check scripts\referral_saas_schema_status_check.py test\test_referral_saas_schema_status_check.py`.
+Acceptance criteria: Checker covers launch-critical Referral SaaS tables, state fields, expected constraints, and expected indexes; default mode does not require DB access; database mode is explicit and read-only; tests protect the generated query plan; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-147; TASK-151.
+Blocked by: None for local dry-run and CI tests. Live/staging execution remains separately gated by read-only credentials, seeded subjects, and approval.
+Risk level: Low.
+Rollback notes: Revert the checker script, test file, script README update, route smoke inventory note, and this roadmap entry.
+Explicit non-goals: Do not run live DB checks by default, connect to production, discover credentials, write data, repair schema, change migrations, add product wrapper routes, frontend, auth changes, smoke execution against live services, command idempotency implementation, audit writes, repair/replay/retry actions, export APIs, campaign activation, webhook delivery, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
+Definition of done: Referral SaaS has a CI-tested read-only schema/status/index checker that prepares live/staging evidence collection while preserving safety gates and product boundaries. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
