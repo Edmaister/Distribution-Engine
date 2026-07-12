@@ -6,7 +6,8 @@ Product boundary: Referral Management and Campaign Attribution SaaS.
 
 Status: Contract complete. TASK-156 adds the first service-layer report catalog
 helper for `campaign_performance`; TASK-157 adds the first read-only product
-route wrapper. Export jobs, frontend, SaaS account membership resolution,
+route wrapper; TASK-158 adds bounded identity-derived tenant scope for that
+route. Export jobs, frontend, full SaaS account membership resolution,
 permission changes, and storage remain unimplemented.
 
 ## Boundary
@@ -368,7 +369,11 @@ tenant-safe analytics source into product-safe operational metrics.
 
 TASK-157 implementation update: `GET /v1/referral-saas/reports/{report_type}`
 now exposes the report helper through a read-only product wrapper. It currently
-requires an approved report-reader/admin role and explicit `tenant_code` until
+requires an approved report-reader/admin role.
+
+TASK-158 implementation update: the report wrapper can derive tenant scope from
+the authenticated identity when the identity is already tenant-scoped. Internal
+report-reader/admin identities still require explicit `tenant_code` until full
 SaaS account membership scope exists. Other first-launch report types, exports,
 retention, scheduling, storage, and frontend screens remain explicit follow-up
 work.
