@@ -12,10 +12,16 @@ class ReferralSaasAccountScope:
     tenant_code: str
     source: str
     external_tenant_ref: str | None = None
+    account_ref: str | None = None
 
 
 def _normalise(value: Any) -> str:
     return str(value or "").strip().upper()
+
+
+def _safe_ref(value: Any) -> str | None:
+    ref = str(value or "").strip()
+    return ref or None
 
 
 def resolve_referral_saas_account_scope(
@@ -28,6 +34,8 @@ def resolve_referral_saas_account_scope(
     )
     requested_tenant = _normalise(requested_tenant_code)
     role = _normalise(identity.get("role"))
+    external_tenant_ref = _safe_ref(identity.get("external_tenant_ref"))
+    account_ref = _safe_ref(identity.get("account_ref"))
 
     if requested_tenant:
         if (
@@ -39,12 +47,16 @@ def resolve_referral_saas_account_scope(
         return ReferralSaasAccountScope(
             tenant_code=requested_tenant,
             source="explicit_tenant_code",
+            external_tenant_ref=external_tenant_ref,
+            account_ref=account_ref,
         )
 
     if identity_tenant and identity_tenant != INTERNAL_TENANT_SCOPE:
         return ReferralSaasAccountScope(
             tenant_code=identity_tenant,
             source="identity_tenant",
+            external_tenant_ref=external_tenant_ref,
+            account_ref=account_ref,
         )
 
     if role in INTERNAL_SCOPE_ROLES:

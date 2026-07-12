@@ -84,3 +84,7 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   `tenant_safe` redaction, approved dimensions/filters, row limits, and data
   windows without creating export files, storage records, delivery jobs, audit
   rows, scheduled exports, or any money/reporting mutations.
+- TASK-166 carries trusted `account_ref` and `external_tenant_ref` identity
+  claims through the report/export account-scope envelope. It does not add
+  account tables, membership resolution, external-reference persistence, or
+  caller-supplied account-ref authorization.

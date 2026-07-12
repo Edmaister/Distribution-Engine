@@ -102,6 +102,7 @@ async def test_referral_saas_report_reader_can_fetch_campaign_performance(
     assert calls[0]["data_window_end"].isoformat().startswith("2026-07-12")
     assert body["account_scope"] == {
         "source": "explicit_tenant_code",
+        "account_ref": None,
         "external_tenant_ref": None,
     }
 
@@ -138,7 +139,47 @@ async def test_referral_saas_report_can_use_identity_tenant_scope(monkeypatch):
     assert calls[0]["tenant_code"] == "FNB"
     assert response.json()["account_scope"] == {
         "source": "identity_tenant",
+        "account_ref": None,
         "external_tenant_ref": None,
+    }
+
+
+async def test_referral_saas_report_carries_trusted_account_refs(monkeypatch):
+    calls: list[dict] = []
+
+    async def fake_get_referral_saas_report(**kwargs):
+        calls.append(kwargs)
+        return _report()
+
+    monkeypatch.setattr(
+        referral_saas_reports,
+        "get_referral_saas_report",
+        fake_get_referral_saas_report,
+    )
+
+    app.dependency_overrides[referral_saas_reports.require_session_key] = lambda: {
+        "authenticated": True,
+        "role": "ADMIN",
+        "tenant_code": "FNB",
+        "tenant": "FNB",
+        "account_ref": "acct_fnb_referrals",
+        "external_tenant_ref": "org_fnb_referrals",
+    }
+    try:
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await client.get(
+                "/v1/referral-saas/reports/campaign_performance",
+                params={"campaign_code": "CAMP001"},
+            )
+    finally:
+        app.dependency_overrides.pop(referral_saas_reports.require_session_key, None)
+
+    assert response.status_code == 200
+    assert calls[0]["tenant_code"] == "FNB"
+    assert response.json()["account_scope"] == {
+        "source": "identity_tenant",
+        "account_ref": "acct_fnb_referrals",
+        "external_tenant_ref": "org_fnb_referrals",
     }
 
 
@@ -415,7 +456,69 @@ async def test_referral_saas_report_reader_can_validate_export_request(monkeypat
     assert calls[0]["data_window_end"].isoformat().startswith("2026-07-12")
     assert body["account_scope"] == {
         "source": "explicit_tenant_code",
+        "account_ref": None,
         "external_tenant_ref": None,
+    }
+
+
+async def test_referral_saas_export_validation_carries_trusted_account_refs(
+    monkeypatch,
+):
+    calls: list[dict] = []
+
+    def fake_validate_referral_saas_report_export_request(**kwargs):
+        calls.append(kwargs)
+        return {
+            "tenant_scope": kwargs["tenant_code"],
+            "report_type": kwargs["report_type"],
+            "source_report_type": "distribution_overview",
+            "metric_class": "OPERATIONAL",
+            "dimensions": ["campaign_code", "metric_name"],
+            "filters": {},
+            "redactions": [],
+            "export_format": "json",
+            "redaction_profile": "tenant_safe",
+            "row_limit": 10000,
+            "data_window_start": None,
+            "data_window_end": None,
+            "catalog_status": "AVAILABLE",
+            "export_status": "VALIDATED_NOT_CREATED",
+            "creation_status": "NOT_IMPLEMENTED",
+            "storage_status": "NOT_IMPLEMENTED",
+            "delivery_status": "NOT_IMPLEMENTED",
+            "audit_status": "NOT_IMPLEMENTED",
+            "guardrail": "Export request validated only.",
+        }
+
+    monkeypatch.setattr(
+        referral_saas_reports,
+        "validate_referral_saas_report_export_request",
+        fake_validate_referral_saas_report_export_request,
+    )
+
+    app.dependency_overrides[referral_saas_reports.require_session_key] = lambda: {
+        "authenticated": True,
+        "role": "ADMIN",
+        "tenant_code": "FNB",
+        "tenant": "FNB",
+        "account_ref": "acct_fnb_referrals",
+        "external_tenant_ref": "org_fnb_referrals",
+    }
+    try:
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await client.post(
+                "/v1/referral-saas/reports/campaign_performance/exports/validate",
+                json={"format": "json"},
+            )
+    finally:
+        app.dependency_overrides.pop(referral_saas_reports.require_session_key, None)
+
+    assert response.status_code == 200
+    assert calls[0]["tenant_code"] == "FNB"
+    assert response.json()["account_scope"] == {
+        "source": "identity_tenant",
+        "account_ref": "acct_fnb_referrals",
+        "external_tenant_ref": "org_fnb_referrals",
     }
 
 
