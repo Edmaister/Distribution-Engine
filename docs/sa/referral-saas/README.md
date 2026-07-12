@@ -45,3 +45,7 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   Referral SaaS report catalog helper. It supports `campaign_performance` over
   the existing tenant-safe analytics foundation and keeps future report types
   and exports explicitly unimplemented.
+- TASK-157 adds `GET /v1/referral-saas/reports/{report_type}` as the first
+  bounded read-only product API wrapper over the report catalog helper. It does
+  not implement exports, frontend screens, SaaS account membership resolution,
+  or broader product route families.

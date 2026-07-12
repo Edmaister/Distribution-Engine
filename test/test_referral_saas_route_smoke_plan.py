@@ -19,6 +19,7 @@ def test_referral_saas_route_smoke_plan_defaults_to_read_only():
         "/admin/links/inspect",
         "/admin/outcomes/{referral_track_id}/trace",
         "/admin/analytics/reports/{report_type}",
+        "/v1/referral-saas/reports/{report_type}",
     }
 
 
@@ -41,9 +42,11 @@ def test_referral_saas_route_smoke_plan_seeded_writes_are_explicit():
     assert all(route["expected_state_change"] != "none" for route in seeded_routes)
 
 
-def test_referral_saas_route_smoke_plan_does_not_invent_product_wrappers():
+def test_referral_saas_route_smoke_plan_product_wrapper_surface_is_bounded():
     plan = smoke_plan.build_plan(include_seeded_writes=True)
 
-    assert not any(
-        route["path"].startswith("/v1/referral-saas") for route in plan["routes"]
-    )
+    assert [
+        route["path"]
+        for route in plan["routes"]
+        if route["path"].startswith("/v1/referral-saas")
+    ] == ["/v1/referral-saas/reports/{report_type}"]

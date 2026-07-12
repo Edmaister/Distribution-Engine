@@ -546,17 +546,17 @@
             first implementation-proof wave through local golden-path checks,
             negative-path coverage, mounted-route inventory, schema/status
             verification tooling, route smoke planning, and safe-status
-            projection, and the first Referral SaaS report catalog helper
-            through TASK-156.
+            projection, the first Referral SaaS report catalog helper, and the
+            first read-only product report API wrapper through TASK-157.
           </p>
           <div class="score-row" aria-label="Current position">
             <div class="score">
-              <strong>8.4/10</strong>
-              <span>Referral management foundation after TASK-156 proof</span>
+              <strong>8.5/10</strong>
+              <span>Referral management foundation after TASK-157 proof</span>
             </div>
             <div class="score">
-              <strong>8.1/10</strong>
-              <span>Campaign attribution foundation with report catalog proof</span>
+              <strong>8.2/10</strong>
+              <span>Campaign attribution foundation with report API proof</span>
             </div>
             <div class="score">
               <strong>10/10</strong>
@@ -570,7 +570,7 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-156 for Referral SaaS, with
+            Updated after TASK-134 through TASK-157 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
@@ -580,8 +580,8 @@
             <span>Account, campaign, code, validation, progress, attribution, support, reporting, API, IA, audit, and E2E plan are documented.</span>
           </div>
           <div class="status-pill">
-            <b>8 implementation proofs added</b>
-            <span>TASK-149 through TASK-156 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, safe-status, and report-catalog proof.</span>
+            <b>9 implementation proofs added</b>
+            <span>TASK-149 through TASK-157 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, safe-status, report-catalog, and report-API proof.</span>
           </div>
           <div class="status-pill">
             <b>Live confidence still capped</b>
@@ -593,7 +593,7 @@
           </div>
           <div class="status-pill">
             <b>Wrappers still missing</b>
-            <span>The score stays below 10/10 until product APIs, UI workflows, remaining reports/exports, and live smoke evidence ship.</span>
+            <span>The score stays below 10/10 until account-scoped product APIs, UI workflows, remaining reports/exports, and live smoke evidence ship.</span>
           </div>
         </div>
       </section>
@@ -778,14 +778,15 @@
               Turn existing role-specific status, progress, reporting, and
               admin views into tenant-safe SaaS reporting and support workflows.
               TASK-154 proves the bounded reporting handoff, TASK-155 adds the
-              safe-status projection helper, and TASK-156 starts the product
-              report catalog.
+              safe-status projection helper, TASK-156 starts the product report
+              catalog, and TASK-157 exposes the first read-only report API.
             </p>
             <div class="tag-row">
               <span class="tag">Customer value</span>
               <span class="tag done">TASK-141-146</span>
               <span class="tag done">TASK-154/155</span>
               <span class="tag done">TASK-156</span>
+              <span class="tag done">TASK-157</span>
               <span class="tag dlaas">Portal status primitive</span>
             </div>
           </article>
@@ -808,7 +809,7 @@
               <li>TASK-134 through TASK-147 completed as contract outputs.</li>
               <li>Referral, validation, progress, attribution, API, IA, reporting, and support boundaries are explicit.</li>
               <li>Money-depth and broad DLaaS scope remain deliberately separate.</li>
-              <li>The contracts are now backed by TASK-149 through TASK-156 implementation proof.</li>
+              <li>The contracts are now backed by TASK-149 through TASK-157 implementation proof.</li>
             </ol>
           </article>
           <article class="phase">
@@ -818,7 +819,7 @@
               <li>Golden-path and negative-path contract tests are in place.</li>
               <li>Route smoke and schema/status tooling is ready for controlled execution.</li>
               <li>Referral safe-status projection and first report catalog helper are implemented in the service layer.</li>
-              <li>Next: product API wrappers, remaining reports/exports, and customer/operator UI workflows.</li>
+              <li>Next: account-scoped product APIs, remaining reports/exports, and customer/operator UI workflows.</li>
             </ol>
           </article>
           <article class="phase">
@@ -1086,19 +1087,21 @@
             <p>
               TASK-154 proves bounded safe-status/reporting behavior, TASK-155
               adds the Referral SaaS projection helper for statuses such as
-              ACCOUNT_OPENED, and TASK-156 adds the first report catalog helper.
+              ACCOUNT_OPENED, TASK-156 adds the first report catalog helper,
+              and TASK-157 adds the first read-only product report API wrapper.
             </p>
             <div class="tag-row">
               <span class="tag done">154</span>
               <span class="tag done">155</span>
               <span class="tag done">156</span>
+              <span class="tag done">157</span>
               <span class="tag dlaas">Shared primitive preserved</span>
             </div>
           </article>
           <article class="capability" data-tone="amber">
             <h3>Still Not Shipped</h3>
             <p>
-              Product API wrappers, SaaS frontend workflows, remaining
+              Account-scoped product APIs, SaaS frontend workflows, remaining
               report/export catalog entries, live/staging execution evidence,
               and full E2E proof remain open before a 10/10 claim.
             </p>
@@ -1136,8 +1139,8 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Product report/export catalog</div>
-            <div class="matrix-cell">TASK-156 adds the first service helper for `campaign_performance`, but referral funnel, attribution quality, safe-status distribution, exports, and product routes remain open.</div>
-            <div class="matrix-cell">Implement the remaining tenant-safe report types, export validation/storage/audit, and product API wrappers with redaction tests.</div>
+            <div class="matrix-cell">TASK-156 adds the first service helper for `campaign_performance`, and TASK-157 exposes it through a read-only product route. Referral funnel, attribution quality, safe-status distribution, exports, and account-scoped API packaging remain open.</div>
+            <div class="matrix-cell">Implement the remaining tenant-safe report types, export validation/storage/audit, account scope resolution, and redaction tests.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">End-to-end proof</div>
@@ -1304,7 +1307,7 @@
       </section>
 
       <div class="footer-note">
-        Recommendation: continue from TASK-156 into narrow product-wrapper
+        Recommendation: continue from TASK-157 into narrow product-wrapper
         implementation slices for the referral and campaign attribution SaaS.
         Keep the code single-source, keep DLaaS money/marketplace depth
         separate, and use live verification plus E2E proof before upgrading the
