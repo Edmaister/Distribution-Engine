@@ -101,7 +101,8 @@ ready by itself.
 
 Remaining blockers before a 10/10 claim:
 
-- choose actual seeded subjects for local/staging route smoke
+- choose actual seeded subjects for local/staging route smoke using
+  `scripts/referral_saas_route_smoke_plan.py`
 - perform live or staging schema/status/index verification using
   `scripts/referral_saas_schema_status_check.py`
 - add product wrapper routes when the product API implementation begins
@@ -113,3 +114,7 @@ Remaining blockers before a 10/10 claim:
 `test/test_referral_saas_route_smoke_inventory.py` asserts that the current
 read-only and seeded-write smoke route families are mounted, and that
 `/v1/referral-saas/*` product wrapper routes remain unimplemented.
+
+`scripts/referral_saas_route_smoke_plan.py` builds dry-run command templates
+for the read-only smoke routes by default. Local/staging write-route templates
+must be requested explicitly with `--include-seeded-writes`.

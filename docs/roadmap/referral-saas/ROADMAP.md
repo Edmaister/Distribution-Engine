@@ -124,6 +124,7 @@ greenfield referral construction.
 16. TASK-150: Add Referral SaaS negative contract test coverage.
 17. TASK-151: Inventory Referral SaaS mounted route smoke surface.
 18. TASK-152: Add Referral SaaS read-only schema/status checker.
+19. TASK-153: Add Referral SaaS route smoke plan generator.
 
 ## 10/10 Exit Criteria
 
@@ -164,6 +165,8 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`
 - TASK-152: `scripts/referral_saas_schema_status_check.py`;
   `test/test_referral_saas_schema_status_check.py`
+- TASK-153: `scripts/referral_saas_route_smoke_plan.py`;
+  `test/test_referral_saas_route_smoke_plan.py`
 
 ## Explicit Deferrals
 

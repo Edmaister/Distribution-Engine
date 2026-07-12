@@ -30,6 +30,8 @@ initialization, seeding, backfilling, nightly refreshes, and health checks.
 - `target_state_smoke.py` - Run a target-state smoke pack across readiness, enterprise events, role journeys, multi-currency, distribution, admin audit, and metrics.
 - `referral_saas_schema_status_check.py` - Build or run read-only Referral SaaS
   schema, status, constraint, and index verification checks.
+- `referral_saas_route_smoke_plan.py` - Build dry-run Referral SaaS route smoke
+  command templates with read-only defaults.
 
 ## Usage
 
@@ -49,6 +51,8 @@ python scripts/target_state_smoke.py
 python scripts/target_state_smoke.py --write-flow
 python scripts/referral_saas_schema_status_check.py
 python scripts/referral_saas_schema_status_check.py --database
+python scripts/referral_saas_route_smoke_plan.py
+python scripts/referral_saas_route_smoke_plan.py --include-seeded-writes
 ```
 
 ## Migration Replay Contract
