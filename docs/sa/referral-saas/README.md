@@ -60,3 +60,7 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   reads tenant-scoped `referral_progress_events` and `referral_event_failures`
   evidence, excludes unscoped failure rows, and keeps deduped/rejected counts
   as partial coverage until those states are persisted in reportable form.
+- TASK-161 adds `attribution_quality` as the fourth bounded report type. It
+  derives aggregate complete, partial, missing-evidence, inconsistent, and
+  unattributed counts from tenant-scoped referral, campaign-link, and route-link
+  evidence without exposing raw trace payloads.

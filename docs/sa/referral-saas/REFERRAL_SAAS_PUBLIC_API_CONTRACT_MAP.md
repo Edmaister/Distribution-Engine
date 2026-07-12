@@ -163,7 +163,7 @@ Future Referral SaaS APIs should follow these rules:
 
 | Target route | Method | Current source/wrapper | Auth | Notes |
 |---|---|---|---|---|
-| `/v1/referral-saas/reports/{reportType}` | `GET` | TASK-156 report catalog helper plus TASK-157 route wrapper, TASK-158 scope resolver, TASK-159 referral funnel helper, and TASK-160 progress event health helper | Admin/report-reader bridge until SaaS account membership exists | Implemented for read-only `campaign_performance`, `referral_funnel`, and `progress_event_health`; tenant-scoped identities may omit `tenant_code`, while internal report readers still need explicit tenant scope. |
+| `/v1/referral-saas/reports/{reportType}` | `GET` | TASK-156 report catalog helper plus TASK-157 route wrapper, TASK-158 scope resolver, TASK-159 referral funnel helper, TASK-160 progress event health helper, and TASK-161 attribution quality helper | Admin/report-reader bridge until SaaS account membership exists | Implemented for read-only `campaign_performance`, `referral_funnel`, `progress_event_health`, and `attribution_quality`; tenant-scoped identities may omit `tenant_code`, while internal report readers still need explicit tenant scope. |
 | `/v1/referral-saas/reports/{reportType}/exports` | `POST` | TASK-142 future export contract | SaaS account admin/member | Export API/storage/audit not implemented. |
 | `/v1/referral-saas/exports/{exportId}` | `GET` | TASK-142 future export contract | SaaS account admin/member | Requires retention/expiry/access controls before implementation. |
 
@@ -237,14 +237,15 @@ Rules:
 - Current admin/operator routes are useful diagnostics but are not public SaaS
   APIs.
 - Current Referral SaaS reporting route supports read-only
-  `campaign_performance`, `referral_funnel`, and `progress_event_health`.
-  TASK-158 lets tenant-scoped identities derive scope from identity claims, but
-  internal report readers still need explicit `tenant_code` until full SaaS
-  account membership resolution exists. TASK-159 keeps the referral funnel
-  source warning visible until dedicated code-issued, validation-state, and
-  progress-milestone report sources exist. TASK-160 keeps progress-health
-  deduped/rejected counts as partial coverage until those states are persisted
-  in reportable form.
+  `campaign_performance`, `referral_funnel`, `progress_event_health`, and
+  `attribution_quality`. TASK-158 lets tenant-scoped identities derive scope
+  from identity claims, but internal report readers still need explicit
+  `tenant_code` until full SaaS account membership resolution exists. TASK-159
+  keeps the referral funnel source warning visible until dedicated code-issued,
+  validation-state, and progress-milestone report sources exist. TASK-160 keeps
+  progress-health deduped/rejected counts as partial coverage until those
+  states are persisted in reportable form. TASK-161 derives aggregate
+  attribution quality and does not expose raw outcome trace payloads.
 - Export APIs are not implemented.
 - Lifecycle commands such as revoke, expire, reissue, repair, replay, or retry
   are not authorized by this map.
