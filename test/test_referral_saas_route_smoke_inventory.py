@@ -23,6 +23,7 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("GET", "/admin/links/inspect"),
         ("GET", "/admin/outcomes/{referral_track_id}/trace"),
         ("GET", "/admin/analytics/reports/{report_type}"),
+        ("GET", "/v1/referral-saas/reports/{report_type}"),
         ("GET", "/v1/experience/consumer"),
         ("GET", "/v1/rewards/summary/{referral_track_id}"),
         ("GET", "/v1/rewards/summary/referrers/{referrer_ucn}"),
@@ -43,7 +44,11 @@ def test_referral_saas_current_smoke_routes_are_mounted():
     assert seeded_write_smoke_routes <= mounted
 
 
-def test_referral_saas_product_wrapper_routes_remain_unimplemented():
-    mounted_paths = {path for _method, path in _mounted_routes()}
+def test_referral_saas_product_wrapper_route_surface_is_bounded():
+    mounted = _mounted_routes()
 
-    assert not any(path.startswith("/v1/referral-saas") for path in mounted_paths)
+    assert {
+        item for item in mounted if item[1].startswith("/v1/referral-saas")
+    } == {
+        ("GET", "/v1/referral-saas/reports/{report_type}"),
+    }

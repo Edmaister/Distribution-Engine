@@ -85,6 +85,26 @@ READ_ONLY_ROUTES = [
             '"{base_url}/admin/analytics/reports/{report_type}?tenant_code={tenant_code}"'
         ),
     ),
+    SmokeRoute(
+        name="referral_saas_campaign_performance_report",
+        method="GET",
+        path="/v1/referral-saas/reports/{report_type}",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS report reader role",
+        environment_rule="local/staging/production read-only where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "tenant_code",
+            "campaign_code",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -H "Authorization: Bearer {admin_token}" '
+            '"{base_url}/v1/referral-saas/reports/campaign_performance'
+            '?tenant_code={tenant_code}&campaign_code={campaign_code}"'
+        ),
+    ),
 ]
 
 

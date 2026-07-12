@@ -4,9 +4,10 @@ TASK ID: TASK-151
 
 Product boundary: Referral Management and Campaign Attribution SaaS.
 
-Status: Source-backed route inventory and local contract test. No route,
-schema, auth, frontend, live database, or runtime behavior changes are made by
-this task.
+Status: Source-backed route inventory and local contract test. TASK-157 adds
+the first bounded read-only product wrapper route for Referral SaaS reporting.
+No schema, frontend, live database, export, or write behavior is introduced by
+this inventory.
 
 ## Boundary
 
@@ -36,6 +37,7 @@ Source files inspected:
 - `apps/api/routers/admin_links.py`
 - `apps/api/routers/admin_outcomes.py`
 - `apps/api/routers/admin_analytics.py`
+- `apps/api/routers/referral_saas_reports.py`
 - `apps/api/routers/consumer_experience.py`
 - `apps/api/routers/reward_summary.py`
 - `test/test_referral_saas_route_smoke_inventory.py`
@@ -50,6 +52,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Read-only diagnostic | GET | `/admin/links/inspect` | Operator link/code investigation |
 | Read-only diagnostic | GET | `/admin/outcomes/{referral_track_id}/trace` | Attribution trace evidence |
 | Read-only reporting | GET | `/admin/analytics/reports/{report_type}` | Tenant-safe analytics foundation |
+| Read-only product report | GET | `/v1/referral-saas/reports/{report_type}` | Referral SaaS campaign performance report wrapper |
 | Read-only status | GET | `/v1/experience/consumer` | Consumer/referrer experience foundation |
 | Read-only status | GET | `/v1/rewards/summary/{referral_track_id}` | Reward summary foundation |
 | Read-only status | GET | `/v1/rewards/summary/referrers/{referrer_ucn}` | Referrer reward summary foundation |
@@ -65,11 +68,14 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 
 ## Product Wrapper Fact
 
-No mounted route currently starts with `/v1/referral-saas`.
+TASK-157 introduces exactly one mounted `/v1/referral-saas/*` product wrapper:
 
-That is expected for this stage. The current smoke surface is made of shared
-platform primitives. TASK-143 remains the product API map for future wrapper
-implementation.
+- `GET /v1/referral-saas/reports/{report_type}`
+
+This wrapper is read-only, currently supports the TASK-156
+`campaign_performance` report helper, and still requires explicit
+`tenant_code` until SaaS account resolution is implemented. No export, account
+membership, frontend, or write command wrapper is implied.
 
 ## Smoke Safety Classification
 
@@ -80,6 +86,7 @@ auth permits and test subjects are known:
 - link/code inspection
 - attribution trace
 - tenant-safe analytics
+- Referral SaaS campaign performance report wrapper
 - consumer/referrer status summaries
 - reward summaries
 
@@ -105,15 +112,16 @@ Remaining blockers before a 10/10 claim:
   `scripts/referral_saas_route_smoke_plan.py`
 - perform live or staging schema/status/index verification using
   `scripts/referral_saas_schema_status_check.py`
-- add product wrapper routes when the product API implementation begins
+- keep product wrapper expansion bounded beyond the first read-only report route
 - add safe-status and reporting E2E assertions over product-ready surfaces
 - keep production smoke read-only unless separately approved
 
 ## Validation
 
 `test/test_referral_saas_route_smoke_inventory.py` asserts that the current
-read-only and seeded-write smoke route families are mounted, and that
-`/v1/referral-saas/*` product wrapper routes remain unimplemented.
+read-only and seeded-write smoke route families are mounted, and that the
+`/v1/referral-saas/*` route surface remains bounded to the first read-only
+report wrapper.
 
 `scripts/referral_saas_route_smoke_plan.py` builds dry-run command templates
 for the read-only smoke routes by default. Local/staging write-route templates

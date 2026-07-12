@@ -163,7 +163,7 @@ Future Referral SaaS APIs should follow these rules:
 
 | Target route | Method | Current source/wrapper | Auth | Notes |
 |---|---|---|---|---|
-| `/v1/referral-saas/reports/{reportType}` | `GET` | `GET /admin/analytics/reports/{report_type}` plus TASK-142 contract | SaaS account admin/member | Product report catalog is not implemented yet. |
+| `/v1/referral-saas/reports/{reportType}` | `GET` | TASK-156 report catalog helper plus TASK-157 route wrapper | Admin/report-reader bridge until SaaS account membership exists | Implemented for read-only `campaign_performance`; still requires explicit `tenant_code` until account scope resolution exists. |
 | `/v1/referral-saas/reports/{reportType}/exports` | `POST` | TASK-142 future export contract | SaaS account admin/member | Export API/storage/audit not implemented. |
 | `/v1/referral-saas/exports/{exportId}` | `GET` | TASK-142 future export contract | SaaS account admin/member | Requires retention/expiry/access controls before implementation. |
 
@@ -227,7 +227,8 @@ Rules:
 
 ## Current Productization Gaps
 
-- No `/v1/referral-saas/*` route family exists today.
+- TASK-157 adds the first bounded `/v1/referral-saas/*` route:
+  `GET /v1/referral-saas/reports/{report_type}`.
 - No SaaS account membership wrapper currently resolves `accountRef` to
   internal tenant scope.
 - Some current schemas expose raw `tenant_code`, `referrer_ucn`, or
@@ -235,7 +236,9 @@ Rules:
   scope.
 - Current admin/operator routes are useful diagnostics but are not public SaaS
   APIs.
-- Current reporting route is not Referral SaaS report-catalog specific.
+- Current Referral SaaS reporting route is limited to read-only
+  `campaign_performance` and still uses explicit `tenant_code` as a temporary
+  internal bridge.
 - Export APIs are not implemented.
 - Lifecycle commands such as revoke, expire, reissue, repair, replay, or retry
   are not authorized by this map.
