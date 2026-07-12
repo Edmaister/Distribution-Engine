@@ -2879,6 +2879,31 @@ Rollback notes: Revert the checker script, test file, script README update, rout
 Explicit non-goals: Do not run live DB checks by default, connect to production, discover credentials, write data, repair schema, change migrations, add product wrapper routes, frontend, auth changes, smoke execution against live services, command idempotency implementation, audit writes, repair/replay/retry actions, export APIs, campaign activation, webhook delivery, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
 Definition of done: Referral SaaS has a CI-tested read-only schema/status/index checker that prepares live/staging evidence collection while preserving safety gates and product boundaries. Priority: P0.
 
+## TASK-153: Add Referral SaaS route smoke plan generator
+
+Status: Complete (2026-07-12). Output: `scripts/referral_saas_route_smoke_plan.py`; `test/test_referral_saas_route_smoke_plan.py`; `scripts/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Route smoke planning; read-only smoke defaults; seeded-write opt-in; local/staging smoke preparation; production write guardrails.
+Objective: Add a Referral SaaS route smoke plan generator that outputs dry-run command templates for current shared primitive routes without executing requests or inventing product wrapper routes.
+Why now: TASK-151 selected the mounted smoke route surface and TASK-152 added schema/status verification preparation. The next production-confidence gap is repeatable route smoke instructions with read-only defaults and explicit seeded-write opt-in before any local/staging smoke execution.
+Files involved: `scripts/referral_saas_route_smoke_plan.py`; `test/test_referral_saas_route_smoke_plan.py`; `scripts/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `apps/api/main.py`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; current route smoke inventory test.
+Database/schema impact: None. No live DB access, migrations, schema changes, or runtime data changes.
+Backend impact: Script/test only. No services, routers, auth helpers, fields, statuses, or payload contracts changed.
+Frontend impact: None.
+API impact: None. No route behavior changed and no `/v1/referral-saas/*` wrapper route was added.
+Tests to add/update: Added tests proving the plan defaults to read-only routes, seeded-write templates require explicit opt-in, and no product wrapper routes are invented.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q --no-cov test\test_referral_saas_route_smoke_plan.py --tb=short`; focused Referral SaaS verification suite; `.venv_codex\Scripts\python.exe -m py_compile scripts\referral_saas_route_smoke_plan.py test\test_referral_saas_route_smoke_plan.py`; `ruff check scripts\referral_saas_route_smoke_plan.py test\test_referral_saas_route_smoke_plan.py`; script dry-run execution.
+Acceptance criteria: Smoke plan generator emits only read-only route templates by default; local/staging write templates are explicit opt-in; production write guardrail is present; current shared routes are used; product wrapper routes are not invented; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-143; TASK-147; TASK-151; TASK-152.
+Blocked by: None for dry-run route smoke planning. Actual route execution remains separately gated by running app URL, credentials, seeded subjects, and approval.
+Risk level: Low.
+Rollback notes: Revert the smoke plan script, test file, script README update, route smoke inventory note, roadmap update, and this task entry.
+Explicit non-goals: Do not execute route smoke calls, connect to production, discover credentials, write data, add product wrapper routes, change routers, schema, migrations, frontend, auth, command idempotency implementation, audit writes, repair/replay/retry actions, export APIs, campaign activation, webhook delivery, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
+Definition of done: Referral SaaS has CI-tested route smoke command planning with safe read-only defaults and explicit local/staging write boundaries, preparing the next verification slice without crossing live-data safety gates. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
