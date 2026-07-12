@@ -122,18 +122,19 @@ export type AdminOnboardingDraftSaveRequest = AdminOnboardingStateParams & {
   correlation_id?: string;
 };
 
-export type AdminOnboardingDryRunValidationRequest = AdminOnboardingStateParams & {
-  draft_ref?: string;
-  validation_scope?: AdminOnboardingDraftSectionKey[] | string[];
-  sections?: Partial<
-    Record<AdminOnboardingDraftSectionKey, Record<string, unknown>>
-  >;
-  draft_sections?: Partial<
-    Record<AdminOnboardingDraftSectionKey, Record<string, unknown>>
-  >;
-  idempotency_key?: string;
-  correlation_id?: string;
-};
+export type AdminOnboardingDryRunValidationRequest =
+  AdminOnboardingStateParams & {
+    draft_ref?: string;
+    validation_scope?: AdminOnboardingDraftSectionKey[] | string[];
+    sections?: Partial<
+      Record<AdminOnboardingDraftSectionKey, Record<string, unknown>>
+    >;
+    draft_sections?: Partial<
+      Record<AdminOnboardingDraftSectionKey, Record<string, unknown>>
+    >;
+    idempotency_key?: string;
+    correlation_id?: string;
+  };
 
 export type AdminOnboardingValidationItem = {
   code: string;
@@ -165,11 +166,12 @@ export type AdminOnboardingDraftSaveResponse = {
   no_live_action_confirmed: boolean;
 };
 
-export type AdminOnboardingSubmitForReviewRequest = AdminOnboardingStateParams & {
-  expected_version: number;
-  idempotency_key: string;
-  correlation_id?: string;
-};
+export type AdminOnboardingSubmitForReviewRequest =
+  AdminOnboardingStateParams & {
+    expected_version: number;
+    idempotency_key: string;
+    correlation_id?: string;
+  };
 
 export type AdminOnboardingSubmitForReviewResponse = {
   status: string;
@@ -204,6 +206,58 @@ export type AdminOnboardingSubmitForReviewResponse = {
   no_live_action_confirmed: boolean;
 };
 
+export type AdminOnboardingReviewOutcome =
+  | "APPROVED_FOR_INTERNAL_REVIEW"
+  | "BLOCKED";
+
+export type AdminOnboardingReviewDecisionRequest =
+  AdminOnboardingStateParams & {
+    expected_version: number;
+    idempotency_key: string;
+    review_outcome: AdminOnboardingReviewOutcome;
+    reason_category: string;
+    reason: string;
+    correlation_id?: string;
+  };
+
+export type AdminOnboardingReviewDecisionResponse = {
+  status: string;
+  draft_ref: string;
+  previous_status?: string;
+  draft_status: string;
+  draft_version?: number;
+  review_outcome: AdminOnboardingReviewOutcome | string;
+  reason_category?: string;
+  idempotency_status: string;
+  validation_result?: Record<string, unknown>;
+  validation_summary?: {
+    status: string;
+    safe_error_count: number;
+    missing_evidence_count: number;
+    blocker_count: number;
+  };
+  readiness_summary?: {
+    overall_status?: string;
+    ready_count: number;
+    blocked_count: number;
+    missing_evidence_count: number;
+    go_live_disabled_count: number;
+    total_count: number;
+    go_live_enabled: boolean;
+  };
+  missing_evidence?: AdminOnboardingValidationItem[];
+  blockers?: AdminOnboardingValidationItem[];
+  next_actions?: string[];
+  guardrails?: string[];
+  redactions?: string[];
+  audit_evidence_ref?: string | null;
+  audit_link_ref?: string | null;
+  audit_evidence_status?: string;
+  approval_to_launch: boolean;
+  go_live_enabled: boolean;
+  no_live_action_confirmed: boolean;
+};
+
 export type AdminOnboardingDryRunValidationResponse = {
   status: string;
   validation_result: Record<string, unknown>;
@@ -230,10 +284,13 @@ export function getAdminOnboardingState(
 export function saveAdminOnboardingDraft(
   request: AdminOnboardingDraftSaveRequest,
 ): Promise<AdminOnboardingDraftSaveResponse> {
-  return apiRequest<AdminOnboardingDraftSaveResponse>("admin/onboarding/drafts", {
-    method: "POST",
-    body: buildAdminOnboardingDraftSaveBody(request),
-  });
+  return apiRequest<AdminOnboardingDraftSaveResponse>(
+    "admin/onboarding/drafts",
+    {
+      method: "POST",
+      body: buildAdminOnboardingDraftSaveBody(request),
+    },
+  );
 }
 
 export function validateAdminOnboardingDryRun(
@@ -257,6 +314,19 @@ export function submitAdminOnboardingDraftForReview(
     {
       method: "POST",
       body: buildAdminOnboardingSubmitForReviewBody(request),
+    },
+  );
+}
+
+export function recordAdminOnboardingReviewDecision(
+  draftRef: string,
+  request: AdminOnboardingReviewDecisionRequest,
+): Promise<AdminOnboardingReviewDecisionResponse> {
+  return apiRequest<AdminOnboardingReviewDecisionResponse>(
+    `admin/onboarding/drafts/${encodeURIComponent(draftRef.trim())}/review-decision`,
+    {
+      method: "POST",
+      body: buildAdminOnboardingReviewDecisionBody(request),
     },
   );
 }
@@ -286,23 +356,24 @@ function buildAdminOnboardingStateQuery(
 function buildAdminOnboardingDraftSaveBody(
   request: AdminOnboardingDraftSaveRequest,
 ): AdminOnboardingDraftSaveRequest {
-  const scope = ADMIN_ONBOARDING_DRAFT_SCOPE_KEYS.reduce<AdminOnboardingStateParams>(
-    (allowedScope, key) => {
-      const value = request[key];
+  const scope =
+    ADMIN_ONBOARDING_DRAFT_SCOPE_KEYS.reduce<AdminOnboardingStateParams>(
+      (allowedScope, key) => {
+        const value = request[key];
 
-      if (typeof value !== "string") {
+        if (typeof value !== "string") {
+          return allowedScope;
+        }
+
+        const trimmed = value.trim();
+        if (trimmed) {
+          allowedScope[key] = trimmed;
+        }
+
         return allowedScope;
-      }
-
-      const trimmed = value.trim();
-      if (trimmed) {
-        allowedScope[key] = trimmed;
-      }
-
-      return allowedScope;
-    },
-    {},
-  );
+      },
+      {},
+    );
 
   const body: AdminOnboardingDraftSaveRequest = {
     ...scope,
@@ -325,23 +396,24 @@ function buildAdminOnboardingDraftSaveBody(
 function buildAdminOnboardingDryRunBody(
   request: AdminOnboardingDryRunValidationRequest,
 ): AdminOnboardingDryRunValidationRequest {
-  const scope = ADMIN_ONBOARDING_DRAFT_SCOPE_KEYS.reduce<AdminOnboardingStateParams>(
-    (allowedScope, key) => {
-      const value = request[key];
+  const scope =
+    ADMIN_ONBOARDING_DRAFT_SCOPE_KEYS.reduce<AdminOnboardingStateParams>(
+      (allowedScope, key) => {
+        const value = request[key];
 
-      if (typeof value !== "string") {
+        if (typeof value !== "string") {
+          return allowedScope;
+        }
+
+        const trimmed = value.trim();
+        if (trimmed) {
+          allowedScope[key] = trimmed;
+        }
+
         return allowedScope;
-      }
-
-      const trimmed = value.trim();
-      if (trimmed) {
-        allowedScope[key] = trimmed;
-      }
-
-      return allowedScope;
-    },
-    {},
-  );
+      },
+      {},
+    );
 
   const body: AdminOnboardingDryRunValidationRequest = { ...scope };
 
@@ -378,28 +450,68 @@ function buildAdminOnboardingDryRunBody(
 function buildAdminOnboardingSubmitForReviewBody(
   request: AdminOnboardingSubmitForReviewRequest,
 ): AdminOnboardingSubmitForReviewRequest {
-  const scope = ADMIN_ONBOARDING_DRAFT_SCOPE_KEYS.reduce<AdminOnboardingStateParams>(
-    (allowedScope, key) => {
-      const value = request[key];
+  const scope =
+    ADMIN_ONBOARDING_DRAFT_SCOPE_KEYS.reduce<AdminOnboardingStateParams>(
+      (allowedScope, key) => {
+        const value = request[key];
 
-      if (typeof value !== "string") {
+        if (typeof value !== "string") {
+          return allowedScope;
+        }
+
+        const trimmed = value.trim();
+        if (trimmed) {
+          allowedScope[key] = trimmed;
+        }
+
         return allowedScope;
-      }
-
-      const trimmed = value.trim();
-      if (trimmed) {
-        allowedScope[key] = trimmed;
-      }
-
-      return allowedScope;
-    },
-    {},
-  );
+      },
+      {},
+    );
 
   const body: AdminOnboardingSubmitForReviewRequest = {
     ...scope,
     expected_version: Math.max(1, Math.trunc(request.expected_version)),
     idempotency_key: request.idempotency_key.trim(),
+  };
+
+  const correlationId = request.correlation_id?.trim();
+  if (correlationId) {
+    body.correlation_id = correlationId;
+  }
+
+  return body;
+}
+
+function buildAdminOnboardingReviewDecisionBody(
+  request: AdminOnboardingReviewDecisionRequest,
+): AdminOnboardingReviewDecisionRequest {
+  const scope =
+    ADMIN_ONBOARDING_DRAFT_SCOPE_KEYS.reduce<AdminOnboardingStateParams>(
+      (allowedScope, key) => {
+        const value = request[key];
+
+        if (typeof value !== "string") {
+          return allowedScope;
+        }
+
+        const trimmed = value.trim();
+        if (trimmed) {
+          allowedScope[key] = trimmed;
+        }
+
+        return allowedScope;
+      },
+      {},
+    );
+
+  const body: AdminOnboardingReviewDecisionRequest = {
+    ...scope,
+    expected_version: Math.max(1, Math.trunc(request.expected_version)),
+    idempotency_key: request.idempotency_key.trim(),
+    review_outcome: request.review_outcome,
+    reason_category: request.reason_category.trim(),
+    reason: request.reason.trim(),
   };
 
   const correlationId = request.correlation_id?.trim();
@@ -422,20 +534,22 @@ function safeSections(
   const allowed: Partial<
     Record<AdminOnboardingDraftSectionKey, Record<string, unknown>>
   > = {};
-  (Object.keys(sections) as AdminOnboardingDraftSectionKey[]).forEach((sectionKey) => {
-    const section = sections[sectionKey];
-    if (!section || typeof section !== "object") {
-      return;
-    }
+  (Object.keys(sections) as AdminOnboardingDraftSectionKey[]).forEach(
+    (sectionKey) => {
+      const section = sections[sectionKey];
+      if (!section || typeof section !== "object") {
+        return;
+      }
 
-    const safeEntries = Object.entries(section).filter(
-      ([key, value]) =>
-        !isUnsafeDraftField(key) && value !== undefined && value !== null,
-    );
-    if (safeEntries.length > 0) {
-      allowed[sectionKey] = Object.fromEntries(safeEntries);
-    }
-  });
+      const safeEntries = Object.entries(section).filter(
+        ([key, value]) =>
+          !isUnsafeDraftField(key) && value !== undefined && value !== null,
+      );
+      if (safeEntries.length > 0) {
+        allowed[sectionKey] = Object.fromEntries(safeEntries);
+      }
+    },
+  );
   return allowed;
 }
 

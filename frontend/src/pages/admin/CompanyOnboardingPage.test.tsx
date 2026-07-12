@@ -11,11 +11,13 @@ import { createMemoryRouter, Outlet, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getAdminOnboardingState,
+  recordAdminOnboardingReviewDecision,
   saveAdminOnboardingDraft,
   submitAdminOnboardingDraftForReview,
   validateAdminOnboardingDryRun,
   type AdminOnboardingDraftSaveResponse,
   type AdminOnboardingDryRunValidationResponse,
+  type AdminOnboardingReviewDecisionResponse,
   type AdminOnboardingStateResponse,
   type AdminOnboardingSubmitForReviewResponse,
 } from "../../api/endpoints/adminOnboarding";
@@ -24,12 +26,16 @@ import { CompanyOnboardingPage } from "./CompanyOnboardingPage";
 
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
   getAdminOnboardingState: vi.fn(),
+  recordAdminOnboardingReviewDecision: vi.fn(),
   saveAdminOnboardingDraft: vi.fn(),
   submitAdminOnboardingDraftForReview: vi.fn(),
   validateAdminOnboardingDryRun: vi.fn(),
 }));
 
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
+const mockedRecordAdminOnboardingReviewDecision = vi.mocked(
+  recordAdminOnboardingReviewDecision,
+);
 const mockedSaveAdminOnboardingDraft = vi.mocked(saveAdminOnboardingDraft);
 const mockedSubmitAdminOnboardingDraftForReview = vi.mocked(
   submitAdminOnboardingDraftForReview,
@@ -95,6 +101,48 @@ const submitForReviewResponse: AdminOnboardingSubmitForReviewResponse = {
   audit_evidence_ref: null,
   audit_link_ref: null,
   audit_evidence_status: "NOT_RECORDED_IN_TASK_116",
+  no_live_action_confirmed: true,
+};
+
+const reviewDecisionResponse: AdminOnboardingReviewDecisionResponse = {
+  status: "review_decision_recorded",
+  draft_ref: "draft_acme_distribution",
+  previous_status: "READY_FOR_REVIEW",
+  draft_status: "READY_FOR_REVIEW",
+  draft_version: 3,
+  review_outcome: "APPROVED_FOR_INTERNAL_REVIEW",
+  reason_category: "OPERATOR_REVIEW",
+  idempotency_status: "NEW_REQUEST",
+  validation_summary: {
+    status: "READY",
+    safe_error_count: 0,
+    missing_evidence_count: 0,
+    blocker_count: 0,
+  },
+  readiness_summary: {
+    overall_status: "READY_FOR_REVIEW",
+    ready_count: 1,
+    blocked_count: 0,
+    missing_evidence_count: 0,
+    go_live_disabled_count: 1,
+    total_count: 1,
+    go_live_enabled: false,
+  },
+  missing_evidence: [],
+  blockers: [],
+  next_actions: [],
+  guardrails: [
+    "REVIEW_DECISION_ONLY",
+    "NO_APPROVAL_TO_LAUNCH",
+    "NO_WEBHOOK_DISPATCH",
+    "NO_VALUE_TRANSFER",
+  ],
+  redactions: ["internal_identifier"],
+  audit_evidence_ref: "REVIEW_DECISION_AUDIT_EVIDENCE",
+  audit_link_ref: "audit-link-uuid",
+  audit_evidence_status: "RECORDED_REFERENCE",
+  approval_to_launch: false,
+  go_live_enabled: false,
   no_live_action_confirmed: true,
 };
 
@@ -236,6 +284,9 @@ describe("CompanyOnboardingPage", () => {
   beforeEach(() => {
     mockedGetAdminOnboardingState.mockResolvedValue(onboardingStateResponse());
     mockedSaveAdminOnboardingDraft.mockResolvedValue(draftSaveResponse);
+    mockedRecordAdminOnboardingReviewDecision.mockResolvedValue(
+      reviewDecisionResponse,
+    );
     mockedSubmitAdminOnboardingDraftForReview.mockResolvedValue(
       submitForReviewResponse,
     );
@@ -275,6 +326,12 @@ describe("CompanyOnboardingPage", () => {
     ).toBeDisabled();
     expect(
       screen.getByRole("button", { name: "Submit for review" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Accept internal review" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Mark review blocked" }),
     ).toBeDisabled();
     expect(
       await screen.findByText("Read-only platform state"),
@@ -409,7 +466,9 @@ describe("CompanyOnboardingPage", () => {
       "client_secret",
     );
 
-    expect(await screen.findByText("Draft saved for review.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Draft saved for review."),
+    ).toBeInTheDocument();
     expect(screen.getByText(/draft_acme_distribution/)).toBeInTheDocument();
     expect(
       screen.getByText("Review company draft evidence before go-live review."),
@@ -426,11 +485,15 @@ describe("CompanyOnboardingPage", () => {
     fillRequiredCompanyFields();
     fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
 
-    expect(await screen.findByText("Draft saved for review.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Draft saved for review."),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
 
     await waitFor(() => {
-      expect(mockedSubmitAdminOnboardingDraftForReview).toHaveBeenCalledTimes(1);
+      expect(mockedSubmitAdminOnboardingDraftForReview).toHaveBeenCalledTimes(
+        1,
+      );
     });
     const [draftRef, request] =
       mockedSubmitAdminOnboardingDraftForReview.mock.calls[0];
@@ -475,6 +538,183 @@ describe("CompanyOnboardingPage", () => {
     expect(screen.queryByText(/SIGNING-SECRET/i)).not.toBeInTheDocument();
   });
 
+  it("records an internal review decision only after submit-for-review", async () => {
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    fillRequiredCompanyFields();
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    expect(
+      await screen.findByText("Draft saved for review."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+    expect(
+      await screen.findByText("Draft submitted for review."),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Review reason"), {
+      target: { value: "Evidence is complete enough for internal review." },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Accept internal review" }),
+    );
+
+    await waitFor(() => {
+      expect(mockedRecordAdminOnboardingReviewDecision).toHaveBeenCalledTimes(
+        1,
+      );
+    });
+    const [draftRef, request] =
+      mockedRecordAdminOnboardingReviewDecision.mock.calls[0];
+    const renderedRequest = JSON.stringify(request).toLowerCase();
+
+    expect(draftRef).toBe("draft_acme_distribution");
+    expect(request).toMatchObject({
+      external_tenant_ref: "acme-distribution",
+      organisation_ref: "org-acme",
+      expected_version: 2,
+      review_outcome: "APPROVED_FOR_INTERNAL_REVIEW",
+      reason_category: "OPERATOR_REVIEW",
+      reason: "Evidence is complete enough for internal review.",
+      correlation_id: "company-onboarding-review-decision",
+    });
+    expect(request.idempotency_key).toContain(
+      "company-onboarding-review-decision",
+    );
+    expect(renderedRequest).not.toContain("tenant_code");
+    expect(renderedRequest).not.toContain("secret");
+    expect(renderedRequest).not.toContain("api_key");
+    expect(renderedRequest).not.toContain("client_secret");
+    expect(renderedRequest).not.toContain("wallet");
+    expect(renderedRequest).not.toContain("settlement");
+    expect(renderedRequest).not.toContain("fulfilment");
+    expect(renderedRequest).not.toContain("retry");
+    expect(renderedRequest).not.toContain("money_movement");
+    expect(renderedRequest).not.toContain("approval_to_launch");
+    expect(renderedRequest).not.toContain("go_live_enabled");
+
+    expect(
+      await screen.findByText("Review decision recorded."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/APPROVED_FOR_INTERNAL_REVIEW/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/audit evidence: RECORDED_REFERENCE/),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/go-live: disabled/).length).toBeGreaterThan(0);
+    expect(
+      screen.getByText("Audit reference: REVIEW_DECISION_AUDIT_EVIDENCE"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create account later" }),
+    ).toBeDisabled();
+    expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
+  });
+
+  it("requires a bounded reason before recording a review decision", async () => {
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    fillRequiredCompanyFields();
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    expect(
+      await screen.findByText("Draft saved for review."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+    expect(
+      await screen.findByText("Draft submitted for review."),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Accept internal review" }),
+    );
+
+    expect(
+      await screen.findByText("Review decision fallback."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "A bounded review reason is required before a review decision can be recorded. No approval or live action was taken.",
+      ),
+    ).toBeInTheDocument();
+    expect(mockedRecordAdminOnboardingReviewDecision).not.toHaveBeenCalled();
+  });
+
+  it("records a blocked review decision without enabling launch actions", async () => {
+    mockedRecordAdminOnboardingReviewDecision.mockResolvedValue({
+      ...reviewDecisionResponse,
+      draft_status: "BLOCKED",
+      review_outcome: "BLOCKED",
+      reason_category: "REVIEW_BLOCKER",
+    });
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    fillRequiredCompanyFields();
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    expect(
+      await screen.findByText("Draft saved for review."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+    expect(
+      await screen.findByText("Draft submitted for review."),
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Review reason"), {
+      target: { value: "Policy evidence is missing." },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark review blocked" }),
+    );
+
+    await waitFor(() => {
+      expect(mockedRecordAdminOnboardingReviewDecision).toHaveBeenCalledTimes(
+        1,
+      );
+    });
+    expect(
+      mockedRecordAdminOnboardingReviewDecision.mock.calls[0][1],
+    ).toMatchObject({
+      review_outcome: "BLOCKED",
+      reason_category: "REVIEW_BLOCKER",
+      reason: "Policy evidence is missing.",
+    });
+    expect(
+      await screen.findByText("Review decision recorded."),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/BLOCKED/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create account later" }),
+    ).toBeDisabled();
+  });
+
+  it("shows safe review-decision fallbacks", async () => {
+    mockedRecordAdminOnboardingReviewDecision.mockRejectedValue({
+      status: 409,
+      message: "IDEMPOTENCY_CONFLICT",
+    });
+    renderWorkspace(<CompanyOnboardingPage />);
+
+    fillRequiredCompanyFields();
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    expect(
+      await screen.findByText("Draft saved for review."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+    expect(
+      await screen.findByText("Draft submitted for review."),
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Review reason"), {
+      target: { value: "Evidence is complete enough for internal review." },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Accept internal review" }),
+    );
+
+    expect(
+      await screen.findByText(
+        "The submitted draft changed or the review decision conflicts with an earlier request. No approval, go-live, or live action was taken.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
+  });
+
   it("shows validation blockers from submit-for-review safely", async () => {
     mockedSubmitAdminOnboardingDraftForReview.mockRejectedValue({
       status: 422,
@@ -484,7 +724,9 @@ describe("CompanyOnboardingPage", () => {
 
     fillRequiredCompanyFields();
     fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
-    expect(await screen.findByText("Draft saved for review.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Draft saved for review."),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
 
     expect(
@@ -509,7 +751,9 @@ describe("CompanyOnboardingPage", () => {
 
     fillRequiredCompanyFields();
     fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
-    expect(await screen.findByText("Draft saved for review.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Draft saved for review."),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
 
     expect(
@@ -529,7 +773,9 @@ describe("CompanyOnboardingPage", () => {
 
     fillRequiredCompanyFields();
     fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
-    expect(await screen.findByText("Draft saved for review.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Draft saved for review."),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
 
     expect(
@@ -600,9 +846,7 @@ describe("CompanyOnboardingPage", () => {
       await screen.findByText("Dry-run validation preview."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /Status: MISSING_EVIDENCE; readiness: GO_LIVE_DISABLED/,
-      ),
+      screen.getByText(/Status: MISSING_EVIDENCE; readiness: GO_LIVE_DISABLED/),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
