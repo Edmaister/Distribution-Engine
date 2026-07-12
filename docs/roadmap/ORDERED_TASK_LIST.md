@@ -2236,6 +2236,9 @@ Definition of done: Review-decision service behavior is regression-protected bef
 
 ## TASK-124: Add guarded admin review decision endpoint
 
+Status: Complete (2026-07-12). Output: `apps/api/routers/admin_onboarding.py`; `test/api/test_admin_onboarding_api.py`.
+Finding: Added guarded `POST /admin/onboarding/drafts/{draft_ref}/review-decision` endpoint for internal admin/operator review decisions on submitted onboarding drafts. The endpoint reuses existing onboarding auth, external-reference scope checks, saved draft section validation, scoped idempotency, stale-version handling, and TASK-122 review-decision service primitives. Responses preserve safe external envelopes, no `tenant_code` exposure, no raw reason/idempotency leakage, no audit evidence creation in this task, no route-triggered live action, and explicit no approval-to-launch/go-live posture. API tests cover unauthenticated and adjacent-role rejection before helpers, successful metadata-only internal approval, schema-backed blocked status, cross-scope safety, stale version, invalid state, validation blockers, unsupported schema outcomes, idempotency replay/conflict, redaction, and no live/money side effects.
+Validation: `.venv_codex\Scripts\python.exe -m pytest test\api\test_admin_onboarding_api.py test\test_onboarding_review_decision_service.py` passed with 117 tests. `.venv_codex\Scripts\python.exe -m ruff check apps\api\routers\admin_onboarding.py test\api\test_admin_onboarding_api.py` passed after import ordering fix with only the existing top-level Ruff settings deprecation warning. `.venv_codex\Scripts\python.exe -m py_compile apps\api\routers\admin_onboarding.py test\api\test_admin_onboarding_api.py` passed.
 Objective: Expose a narrow admin/operator endpoint for internal review decisions on submitted onboarding drafts after service and validation contracts pass.
 Type: API/Tests.
 Dependencies: TASK-122; TASK-123.
