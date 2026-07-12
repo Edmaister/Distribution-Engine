@@ -14,9 +14,11 @@ tenant-scoped progress event and failure evidence; TASK-161 adds
 referral, campaign-link, and route-link evidence; TASK-162 adds
 `safe_status_distribution` over tenant-scoped referral outcome evidence.
 TASK-163 adds `link_code_performance` over durable referral code, campaign
-code, campaign-referral link, and route-referral link evidence. Export jobs,
-frontend, full SaaS account membership resolution, permission changes, and
-storage remain unimplemented.
+code, campaign-referral link, and route-referral link evidence. TASK-164 adds
+`reward_visibility_summary` as count-only operational visibility over persisted
+reward rows and pending mission bonus evidence. Export jobs, frontend, full
+SaaS account membership resolution, permission changes, and storage remain
+unimplemented.
 
 ## Boundary
 
@@ -330,7 +332,10 @@ SaaS reporting product:
   across durable referral code, campaign code, campaign-referral link, and
   route-referral link sources. Composite-code compatibility evidence remains a
   partial-source warning because it is not persisted as durable aggregate
-  report evidence.
+  report evidence. TASK-164 adds `reward_visibility_summary` as an aggregate
+  operational count-only report. It does not expose reward amount totals,
+  beneficiary references, fulfilment, funding, settlement, wallet, commission,
+  invoice, payout, or broader money evidence.
 - `admin_analytics` is admin/internal and requires explicit `tenant_code`; it is
   not a SaaS account-facing report API.
 - distribution reporting includes useful attribution and conversion metrics, but
@@ -432,5 +437,13 @@ through the same report helper and read-only route. It derives aggregate
 issued, active, linked, expired, invalid, and voided counts from tenant-scoped
 `referrer_codes`, `marketing_campaigns`, `campaign_referral_links`, and
 `distribution_route_referral_links` evidence. Composite-code compatibility
-evidence, reward visibility, exports, retention, scheduling, storage, full
-account references, and frontend screens remain explicit follow-up work.
+evidence, exports, retention, scheduling, storage, full account references, and
+frontend screens remain explicit follow-up work.
+
+TASK-164 implementation update: `reward_visibility_summary` is now available
+through the same report helper and read-only route. It derives tenant-safe
+reward status/source/beneficiary/product counts from `rewards` and incomplete
+mission progress with active bonus definitions. Reward amount totals,
+beneficiary references, fulfilment, funding, settlement, wallet, commission,
+invoice, payout, exports, retention, scheduling, storage, full account
+references, and frontend screens remain explicit follow-up work.

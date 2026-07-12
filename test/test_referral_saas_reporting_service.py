@@ -17,6 +17,7 @@ class FakeConnection:
         failure_rows: list[dict] | None = None,
         link_rows: list[dict] | None = None,
         quality_rows: list[dict] | None = None,
+        reward_rows: list[dict] | None = None,
         status_rows: list[dict] | None = None,
     ):
         self.recorded_rows = recorded_rows or [
@@ -128,6 +129,52 @@ class FakeConnection:
                 "outcome_count": 3,
             },
         ]
+        self.reward_rows = reward_rows or [
+            {
+                "source_family": "persisted_reward",
+                "beneficiary_type": "REFERRER",
+                "reward_source": "BASE",
+                "reward_type": "CASH",
+                "reward_status": "APPLIED",
+                "product": "TRANSACTIONAL",
+                "sub_product": "GOLD",
+                "visibility_period": "2026-07-01",
+                "reward_count": 3,
+            },
+            {
+                "source_family": "persisted_reward",
+                "beneficiary_type": "REFERRER",
+                "reward_source": "BASE",
+                "reward_type": "CASH",
+                "reward_status": "PENDING_FULFILMENT",
+                "product": "TRANSACTIONAL",
+                "sub_product": "GOLD",
+                "visibility_period": "2026-07-02",
+                "reward_count": 2,
+            },
+            {
+                "source_family": "pending_mission_bonus",
+                "beneficiary_type": "REFEREE",
+                "reward_source": "MISSION_BONUS",
+                "reward_type": "BONUS",
+                "reward_status": "PENDING",
+                "product": "TRANSACTIONAL",
+                "sub_product": None,
+                "visibility_period": "2026-07-03",
+                "reward_count": 4,
+            },
+            {
+                "source_family": "persisted_reward",
+                "beneficiary_type": "REFERRER",
+                "reward_source": "BASE",
+                "reward_type": "CASH",
+                "reward_status": "FAILED",
+                "product": "TRANSACTIONAL",
+                "sub_product": "GOLD",
+                "visibility_period": "2026-07-04",
+                "reward_count": 1,
+            },
+        ]
         self.status_rows = status_rows or [
             {
                 "viewer_role": "referrer",
@@ -172,6 +219,8 @@ class FakeConnection:
             return self.failure_rows
         if "WITH link_sources AS" in query:
             return self.link_rows
+        if "WITH reward_sources AS" in query:
+            return self.reward_rows
         if "status_count" in query:
             return self.status_rows
         if "WITH base AS" in query:
@@ -247,6 +296,10 @@ def test_referral_saas_report_catalog_exposes_available_and_future_reports():
     assert by_type["safe_status_distribution"]["status"] == "AVAILABLE"
     assert by_type["safe_status_distribution"]["source_report_type"] == (
         svc.SOURCE_SAFE_STATUS_DISTRIBUTION
+    )
+    assert by_type["reward_visibility_summary"]["status"] == "AVAILABLE"
+    assert by_type["reward_visibility_summary"]["source_report_type"] == (
+        svc.SOURCE_REWARD_VISIBILITY_SUMMARY
     )
 
 
@@ -755,15 +808,114 @@ async def test_safe_status_distribution_returns_unavailable_when_source_fails(
 
 
 @pytest.mark.asyncio
-async def test_future_referral_saas_report_types_remain_explicitly_unimplemented():
-    with pytest.raises(
-        ValueError,
-        match="Referral SaaS report_type not implemented: reward_visibility_summary",
-    ):
-        await svc.get_referral_saas_report(
-            tenant_code="FNB",
-            report_type="reward_visibility_summary",
-        )
+async def test_reward_visibility_summary_maps_count_only_reward_evidence(monkeypatch):
+    conn = FakeConnection()
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+    start = datetime(2026, 7, 1, tzinfo=timezone.utc)
+    end = datetime(2026, 7, 12, tzinfo=timezone.utc)
+
+    report = await svc.get_referral_saas_report(
+        tenant_code="fnb",
+        report_type="reward_visibility_summary",
+        dimensions=["reward_status", "beneficiary_type", "metric_name"],
+        filters={
+            "beneficiary_type": "REFERRER",
+            "product": "TRANSACTIONAL",
+            "reward_source": "BASE",
+            "reward_status": "APPLIED",
+            "reward_type": "CASH",
+            "sub_product": "GOLD",
+            "beneficiary_ref": "private-ref",
+            "wallet_id": "wallet-1",
+            "raw_amount": "999.99",
+        },
+        data_window_start=start,
+        data_window_end=end,
+    )
+
+    assert len(conn.fetch_calls) == 1
+    query, params = conn.fetch_calls[0]
+    assert "FROM rewards r" in query
+    assert "FROM user_mission_progress ump" in query
+    assert "JOIN referral_instances ri" in query
+    assert "ri.tenant_code = $1" in query
+    assert "amount" not in query.lower().replace("bonus_reward_amount > 0", "")
+    assert "beneficiary_ref" not in query
+    assert params == (
+        "FNB",
+        "REFERRER",
+        "BASE",
+        "APPLIED",
+        "CASH",
+        "TRANSACTIONAL",
+        "GOLD",
+        start,
+        end,
+    )
+    assert report["report_type"] == "reward_visibility_summary"
+    assert report["source_report_type"] == "referral_reward_visibility_summary"
+    assert report["tenant_scope"] == "FNB"
+    assert report["metric_class"] == "OPERATIONAL"
+    assert report["filters"] == {
+        "tenant_code": "FNB",
+        "beneficiary_type": "REFERRER",
+        "product": "TRANSACTIONAL",
+        "reward_source": "BASE",
+        "reward_status": "APPLIED",
+        "reward_type": "CASH",
+        "sub_product": "GOLD",
+    }
+    assert report["dimensions"] == [
+        "reward_status",
+        "beneficiary_type",
+        "metric_name",
+    ]
+    assert report["data_window_start"] == start.isoformat()
+    assert report["data_window_end"] == end.isoformat()
+    assert report["export_status"] == "NOT_IMPLEMENTED"
+    assert set(report["redactions"]) == {
+        "beneficiary_ref",
+        "raw_amount",
+        "wallet_id",
+    }
+    assert {warning["code"] for warning in report["source_warnings"]} == {
+        "COUNT_ONLY_REWARD_VISIBILITY",
+        "PENDING_MISSION_BONUS_DERIVED",
+    }
+
+    counts = {metric["name"]: metric["value"] for metric in report["metrics"]}
+    assert counts == {
+        "rewards.applied_count": 3,
+        "rewards.failed_count": 1,
+        "rewards.pending_count": 4,
+        "rewards.pending_fulfilment_count": 2,
+    }
+    assert all(metric["metric_class"] == "OPERATIONAL" for metric in report["metrics"])
+    assert "private-ref" not in str(report)
+    assert "999.99" not in str(report)
+
+
+@pytest.mark.asyncio
+async def test_reward_visibility_summary_returns_unavailable_when_source_fails(
+    monkeypatch,
+):
+    class BrokenConnection:
+        async def fetch(self, query, *params):
+            raise RuntimeError("database unavailable")
+
+    monkeypatch.setattr(
+        svc, "db_connection", lambda: FakeDbConnection(BrokenConnection())
+    )
+
+    report = await svc.get_referral_saas_report(
+        tenant_code="FNB",
+        report_type="reward_visibility_summary",
+    )
+
+    assert report["metrics"] == []
+    assert report["freshness"]["status"] == "UNAVAILABLE"
+    assert report["source_warnings"][0]["code"] == "SOURCE_UNAVAILABLE"
+    assert report["source_warnings"][1]["code"] == "COUNT_ONLY_REWARD_VISIBILITY"
 
 
 @pytest.mark.asyncio
