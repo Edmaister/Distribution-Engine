@@ -14,9 +14,9 @@ SYSTEM_ADMIN_HEADERS = {"x-api-key": "test-system-admin-key"}
 PARTNER_HEADERS = {"x-api-key": "test-partner-key"}
 
 
-def _report() -> dict:
+def _report(report_type: str = "campaign_performance") -> dict:
     return {
-        "report_type": "campaign_performance",
+        "report_type": report_type,
         "source_report_type": "distribution_overview",
         "tenant_scope": "FNB",
         "external_tenant_ref": None,
@@ -142,6 +142,35 @@ async def test_referral_saas_report_can_use_identity_tenant_scope(monkeypatch):
     }
 
 
+async def test_referral_saas_report_reader_can_fetch_referral_funnel(monkeypatch):
+    calls: list[dict] = []
+
+    async def fake_get_referral_saas_report(**kwargs):
+        calls.append(kwargs)
+        return _report(report_type="referral_funnel")
+
+    monkeypatch.setattr(
+        referral_saas_reports,
+        "get_referral_saas_report",
+        fake_get_referral_saas_report,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            "/v1/referral-saas/reports/referral_funnel",
+            params={"tenant_code": "FNB", "campaign_code": "CAMP001"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["report"]["report_type"] == "referral_funnel"
+    assert calls[0]["tenant_code"] == "FNB"
+    assert calls[0]["report_type"] == "referral_funnel"
+    assert calls[0]["filters"] == {"campaign_code": "CAMP001"}
+
+
 async def test_referral_saas_report_rejects_internal_reader_without_scope(monkeypatch):
     async def fake_get_referral_saas_report(**kwargs):  # pragma: no cover
         raise AssertionError("service should not be called")
@@ -247,7 +276,9 @@ async def test_referral_saas_report_rejects_partner_identity(monkeypatch):
 
 async def test_referral_saas_report_returns_safe_validation_error(monkeypatch):
     async def fake_get_referral_saas_report(**kwargs):
-        raise ValueError("Referral SaaS report_type not implemented: referral_funnel")
+        raise ValueError(
+            "Referral SaaS report_type not implemented: progress_event_health"
+        )
 
     monkeypatch.setattr(
         referral_saas_reports,
@@ -259,12 +290,12 @@ async def test_referral_saas_report_returns_safe_validation_error(monkeypatch):
         app=app, base_url="http://test", headers=ADMIN_HEADERS
     ) as client:
         response = await client.get(
-            "/v1/referral-saas/reports/referral_funnel",
+            "/v1/referral-saas/reports/progress_event_health",
             params={"tenant_code": "FNB"},
         )
 
     assert response.status_code == 400
     assert response.json()["detail"] == {
         "code": "validation_error",
-        "message": "Referral SaaS report_type not implemented: referral_funnel",
+        "message": "Referral SaaS report_type not implemented: progress_event_health",
     }

@@ -150,7 +150,7 @@ async def test_referral_saas_reporting_contract_stays_operational_and_redacted(
 
 
 @pytest.mark.asyncio
-async def test_referral_saas_report_catalog_supports_campaign_performance_only(
+async def test_referral_saas_report_catalog_supports_initial_operational_reports(
     monkeypatch,
 ):
     async def fake_get_marketplace_overview(**kwargs):
@@ -173,6 +173,35 @@ async def test_referral_saas_report_catalog_supports_campaign_performance_only(
     assert report["metric_class"] == "OPERATIONAL"
     assert report["export_status"] == "NOT_IMPLEMENTED"
 
+    funnel_report = await get_referral_saas_report(
+        tenant_code="FNB",
+        report_type="referral_funnel",
+        filters={"campaign_code": "CAMP001"},
+    )
+
+    assert funnel_report["report_type"] == "referral_funnel"
+    assert funnel_report["source_report_type"] == "distribution_overview"
+    assert funnel_report["metric_class"] == "OPERATIONAL"
+    assert funnel_report["export_status"] == "NOT_IMPLEMENTED"
+    assert {
+        metric["name"] for metric in funnel_report["metrics"]
+    } >= {
+        "funnel.linked_route_count",
+        "funnel.completed_referral_count",
+        "funnel.attribution_rate",
+    }
+    assert funnel_report["source_warnings"] == [
+        {
+            "code": "PARTIAL_SOURCE_COVERAGE",
+            "message": (
+                "Referral funnel currently uses tenant-safe distribution "
+                "overview metrics; code-issued, validation-state, and "
+                "progress-milestone stage counts need dedicated follow-up "
+                "report sources before they can be promised."
+            ),
+        }
+    ]
+
     with pytest.raises(ValueError, match="Unsupported analytics report_type"):
         await analytics.get_tenant_safe_analytics_report(
             tenant_code="FNB",
@@ -181,9 +210,9 @@ async def test_referral_saas_report_catalog_supports_campaign_performance_only(
 
     with pytest.raises(
         ValueError,
-        match="Referral SaaS report_type not implemented: referral_funnel",
+        match="Referral SaaS report_type not implemented: progress_event_health",
     ):
         await get_referral_saas_report(
             tenant_code="FNB",
-            report_type="referral_funnel",
+            report_type="progress_event_health",
         )

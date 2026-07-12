@@ -47,7 +47,10 @@ def test_referral_saas_report_catalog_exposes_available_and_future_reports():
     assert by_type["campaign_performance"]["source_report_type"] == (
         analytics.REPORT_DISTRIBUTION_OVERVIEW
     )
-    assert by_type["referral_funnel"]["status"] == "NOT_IMPLEMENTED"
+    assert by_type["referral_funnel"]["status"] == "AVAILABLE"
+    assert by_type["referral_funnel"]["source_report_type"] == (
+        analytics.REPORT_DISTRIBUTION_OVERVIEW
+    )
     assert by_type["safe_status_distribution"]["metric_class"] == "DERIVED_STATUS"
 
 
@@ -121,14 +124,75 @@ async def test_campaign_performance_maps_existing_analytics_to_referral_saas_rep
 
 
 @pytest.mark.asyncio
+async def test_referral_funnel_maps_existing_analytics_with_partial_source_warning(
+    monkeypatch,
+):
+    calls: list[dict] = []
+
+    async def fake_get_marketplace_overview(**kwargs):
+        calls.append(kwargs)
+        return _overview()
+
+    monkeypatch.setattr(
+        analytics,
+        "get_marketplace_overview",
+        fake_get_marketplace_overview,
+    )
+
+    report = await svc.get_referral_saas_report(
+        tenant_code="fnb",
+        report_type="referral_funnel",
+        dimensions=["campaign_ref", "metric_name", "progress_band"],
+        filters={"campaign_ref": "CAMP001"},
+    )
+
+    assert calls == [
+        {
+            "tenant_code": "FNB",
+            "sponsor_code": None,
+            "campaign_code": "CAMP001",
+        }
+    ]
+    assert report["report_type"] == "referral_funnel"
+    assert report["source_report_type"] == "distribution_overview"
+    assert report["filters"] == {
+        "campaign_ref": "CAMP001",
+        "campaign_code": "CAMP001",
+    }
+    assert report["dimensions"] == ["campaign_ref", "metric_name", "progress_band"]
+    assert report["export_status"] == "NOT_IMPLEMENTED"
+    assert report["source_warnings"] == [
+        {
+            "code": "PARTIAL_SOURCE_COVERAGE",
+            "message": (
+                "Referral funnel currently uses tenant-safe distribution "
+                "overview metrics; code-issued, validation-state, and "
+                "progress-milestone stage counts need dedicated follow-up "
+                "report sources before they can be promised."
+            ),
+        }
+    ]
+
+    metric_names = {metric["name"] for metric in report["metrics"]}
+    assert "funnel.linked_route_count" in metric_names
+    assert "funnel.accepted_route_count" in metric_names
+    assert "funnel.completed_referral_count" in metric_names
+    assert "funnel.attribution_rate" in metric_names
+    assert "campaigns.ready_count" not in metric_names
+    assert "wallets.wallet_count" not in metric_names
+    assert "governance.open_dispute_count" not in metric_names
+    assert "commissions.total_commission_amount" not in metric_names
+
+
+@pytest.mark.asyncio
 async def test_future_referral_saas_report_types_remain_explicitly_unimplemented():
     with pytest.raises(
         ValueError,
-        match="Referral SaaS report_type not implemented: referral_funnel",
+        match="Referral SaaS report_type not implemented: progress_event_health",
     ):
         await svc.get_referral_saas_report(
             tenant_code="FNB",
-            report_type="referral_funnel",
+            report_type="progress_event_health",
         )
 
 
