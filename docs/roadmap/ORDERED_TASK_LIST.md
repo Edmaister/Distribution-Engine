@@ -2779,6 +2779,31 @@ Rollback notes: Revert documentation-only additions and this roadmap entry.
 Explicit non-goals: Do not implement schema, migrations, services, routes, permissions, frontend, tests, audit writes, idempotency behavior, retry behavior, repair/replay/requeue/resolve/override commands, public API wrappers, support-case tables, export APIs, live DB checks, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
 Definition of done: Referral SaaS has a source-backed audit/idempotency posture inventory that separates current duplicate/audit facts from launch-blocking gaps and preserves the boundary between first-launch Referral SaaS and broader DLaaS money workflows. Priority: P1.
 
+## TASK-149: Add Referral SaaS local golden-path contract test
+
+Status: Complete (2026-07-12). Output: `test/test_referral_saas_golden_path_contract.py`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_AUDIT_IDEMPOTENCY_POSTURE.md`.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Local/CI golden-path confidence; campaign readiness; referral code issue; public validation; progress dedupe; link/code inspection; attribution trace.
+Objective: Add the first local/CI-safe Referral SaaS golden-path contract test over existing shared primitives without implementing product wrapper routes.
+Why now: TASK-147 defined the E2E/live verification plan and TASK-146 inventoried audit/idempotency gaps. The next productization step needs executable evidence that current shared primitives can support the first SaaS path before new API wrappers or frontend packaging are introduced.
+Files involved: `test/test_referral_saas_golden_path_contract.py`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `services/campaign_readiness_service.py`; `services/referral_code.py`; `services/progress_service.py`; `services/link_code_service.py`; `services/outcome_trace_service.py`; nearby referral, progress, campaign readiness, link/code, and outcome trace tests.
+Database/schema impact: None. The test uses local fake connections only; no live DB access, migrations, schema changes, or runtime data changes.
+Backend impact: Test-only. No services, routers, auth helpers, fields, statuses, or payload contracts changed.
+Frontend impact: None.
+API impact: None. No `/v1/referral-saas/*` product wrapper route was added.
+Tests to add/update: Added a focused golden-path contract test that stitches campaign readiness, referral code issue, validation, progress ingestion/dedupe, link/code inspection redaction, and attribution trace diagnostics through existing services.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q --no-cov test\test_referral_saas_golden_path_contract.py --tb=short`; `.venv_codex\Scripts\python.exe -m pytest -q --no-cov test\test_referral_saas_golden_path_contract.py test\test_referral_code.py test\test_progress_service.py test\test_campaign_readiness_service.py test\test_link_code_service.py test\test_outcome_trace_service.py --tb=short`; `.venv_codex\Scripts\python.exe -m py_compile test\test_referral_saas_golden_path_contract.py`; `ruff check test\test_referral_saas_golden_path_contract.py`.
+Acceptance criteria: Test proves a local/CI-safe path from campaign readiness through code issue, validation, progress insert/dedupe, link inspection, and attribution trace using shared primitives; no raw referrer UCN leaks from link inspection; funding/settlement/go-live sections remain outside the trace assertion; no backend/frontend/API/schema behavior changes.
+Dependencies: TASK-134 through TASK-147; TASK-130 readiness checkpoint.
+Blocked by: None for local/CI test coverage. Non-local/live verification remains separately gated by approved access.
+Risk level: Low.
+Rollback notes: Revert the test file and this roadmap entry.
+Explicit non-goals: Do not add product wrapper routes, frontend, schema, migrations, live DB checks, production data access, auth changes, command idempotency implementation, audit writes, repair/replay/retry actions, export APIs, campaign activation, webhook delivery, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
+Definition of done: Referral SaaS has its first executable local golden-path contract test over existing shared primitives, moving beyond contract docs while preserving product and DLaaS boundaries. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
