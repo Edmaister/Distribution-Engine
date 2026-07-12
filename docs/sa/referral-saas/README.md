@@ -56,3 +56,7 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   same tenant-safe analytics foundation. It exposes safe funnel metrics with a
   partial-source warning until dedicated code-issued, validation-state, and
   progress-milestone report sources are implemented.
+- TASK-160 adds `progress_event_health` as the third bounded report type. It
+  reads tenant-scoped `referral_progress_events` and `referral_event_failures`
+  evidence, excludes unscoped failure rows, and keeps deduped/rejected counts
+  as partial coverage until those states are persisted in reportable form.
