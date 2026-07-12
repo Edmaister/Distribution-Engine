@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import csv
+import io
+import json
 from datetime import datetime
 from typing import Any
 
@@ -16,6 +19,7 @@ REPORT_REWARD_VISIBILITY_SUMMARY = "reward_visibility_summary"
 
 STATUS_AVAILABLE = "AVAILABLE"
 STATUS_NOT_IMPLEMENTED = "NOT_IMPLEMENTED"
+STATUS_PREVIEW_READY = "PREVIEW_READY"
 STATUS_VALIDATED_NOT_CREATED = "VALIDATED_NOT_CREATED"
 EXPORT_FORMAT_CSV = "csv"
 EXPORT_FORMAT_JSON = "json"
@@ -443,6 +447,135 @@ def validate_referral_saas_report_export_request(
             "Export request validated only. No export file, storage record, "
             "delivery job, scheduled export, audit row, invoice, billing event, "
             "or reward/funding/fulfilment/settlement mutation was created."
+        ),
+    }
+
+
+def _export_rows(report: dict[str, Any], row_limit: int) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for metric in report.get("metrics", [])[:row_limit]:
+        rows.append(
+            {
+                "metric_name": metric.get("name"),
+                "value": metric.get("value"),
+                "unit": metric.get("unit"),
+                "metric_class": metric.get("metric_class"),
+                "source": metric.get("source"),
+                "dimensions": metric.get("dimensions") or {},
+            }
+        )
+    return rows
+
+
+def _csv_payload(rows: list[dict[str, Any]]) -> str:
+    buffer = io.StringIO()
+    writer = csv.DictWriter(
+        buffer,
+        fieldnames=[
+            "metric_name",
+            "value",
+            "unit",
+            "metric_class",
+            "source",
+            "dimensions",
+        ],
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(
+            {
+                **row,
+                "dimensions": json.dumps(row["dimensions"], sort_keys=True),
+            }
+        )
+    return buffer.getvalue()
+
+
+async def build_referral_saas_report_export_preview(
+    *,
+    tenant_code: str,
+    report_type: str,
+    export_format: str | None = None,
+    redaction_profile: str | None = None,
+    dimensions: list[str] | None = None,
+    filters: dict[str, Any] | None = None,
+    row_limit: int | None = None,
+    data_window_start: datetime | None = None,
+    data_window_end: datetime | None = None,
+) -> dict[str, Any]:
+    export_request = validate_referral_saas_report_export_request(
+        tenant_code=tenant_code,
+        report_type=report_type,
+        export_format=export_format,
+        redaction_profile=redaction_profile,
+        dimensions=dimensions,
+        filters=filters,
+        row_limit=row_limit,
+        data_window_start=data_window_start,
+        data_window_end=data_window_end,
+    )
+    report = await get_referral_saas_report(
+        tenant_code=export_request["tenant_scope"],
+        report_type=export_request["report_type"],
+        dimensions=export_request["dimensions"],
+        filters=export_request["filters"],
+        data_window_start=data_window_start,
+        data_window_end=data_window_end,
+    )
+    rows = _export_rows(report, export_request["row_limit"])
+    metadata = {
+        "tenant_scope": report["tenant_scope"],
+        "report_type": report["report_type"],
+        "source_report_type": report["source_report_type"],
+        "metric_class": report["metric_class"],
+        "dimensions": report["dimensions"],
+        "filters": report["filters"],
+        "data_window_start": report["data_window_start"],
+        "data_window_end": report["data_window_end"],
+        "generated_at": report["generated_at"],
+        "freshness": report["freshness"],
+        "source_warnings": report["source_warnings"],
+        "redactions": sorted(
+            set([*export_request["redactions"], *report.get("redactions", [])])
+        ),
+        "reconciliation_status": report["reconciliation_status"],
+        "row_limit": export_request["row_limit"],
+        "row_count": len(rows),
+    }
+
+    if export_request["export_format"] == EXPORT_FORMAT_CSV:
+        payload: Any = _csv_payload(rows)
+        content_type = "text/csv"
+        file_extension = "csv"
+    else:
+        payload = {
+            "metadata": metadata,
+            "rows": rows,
+        }
+        content_type = "application/json"
+        file_extension = "json"
+
+    return {
+        "export_request": export_request,
+        "report": report,
+        "preview": {
+            "status": STATUS_PREVIEW_READY,
+            "export_format": export_request["export_format"],
+            "content_type": content_type,
+            "file_extension": file_extension,
+            "metadata": metadata,
+            "payload": payload,
+        },
+        "creation_status": STATUS_NOT_IMPLEMENTED,
+        "storage_status": STATUS_NOT_IMPLEMENTED,
+        "delivery_status": STATUS_NOT_IMPLEMENTED,
+        "audit_status": STATUS_NOT_IMPLEMENTED,
+        "guardrail": (
+            "Inline export preview only. No export file, storage record, "
+            "delivery job, scheduled export, audit row, retention record, "
+            "download URL, invoice, billing event, or reward/funding/"
+            "fulfilment/settlement mutation was created."
         ),
     }
 

@@ -138,6 +138,7 @@ greenfield referral construction.
 30. TASK-164: Add Referral SaaS reward visibility summary report.
 31. TASK-165: Add Referral SaaS export validation gate.
 32. TASK-166: Carry Referral SaaS account references through report scope.
+33. TASK-167: Add Referral SaaS inline export preview payload.
 
 ## 10/10 Exit Criteria
 
@@ -208,6 +209,10 @@ greenfield referral construction.
 - TASK-166: `services/referral_saas_account_scope_service.py`;
   `apps/api/routers/referral_saas_reports.py`;
   `test/test_referral_saas_account_scope_service.py`;
+  `test/api/test_referral_saas_reports_api.py`
+- TASK-167: `services/referral_saas_reporting_service.py`;
+  `apps/api/routers/referral_saas_reports.py`;
+  `test/test_referral_saas_reporting_service.py`;
   `test/api/test_referral_saas_reports_api.py`
 
 ## Explicit Deferrals

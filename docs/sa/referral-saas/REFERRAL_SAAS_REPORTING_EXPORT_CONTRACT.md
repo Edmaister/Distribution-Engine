@@ -285,9 +285,10 @@ Export rules:
   retention, expiry, and access-control behavior in a later implementation task
 
 TASK-142 did not implement export APIs or storage. TASK-165 adds only
-validation for export requests across the current report catalog; it does not
-create exports, files, storage records, delivery jobs, scheduled exports, audit
-rows, retention records, or download URLs.
+validation for export requests across the current report catalog. TASK-167 adds
+inline JSON/CSV export preview payloads. Neither task creates persisted
+exports, files, storage records, delivery jobs, scheduled exports, audit rows,
+retention records, or download URLs.
 
 ## Candidate API Direction
 
@@ -296,6 +297,7 @@ Future product route family:
 ```text
 GET /referral-saas/reports/{report_type}
 POST /referral-saas/reports/{report_type}/exports/validate
+POST /referral-saas/reports/{report_type}/exports/preview
 POST /referral-saas/reports/{report_type}/exports
 GET /referral-saas/exports/{export_id}
 ```
@@ -343,7 +345,10 @@ SaaS reporting product:
   export gating for the current catalog. It accepts `json` and `csv`, enforces
   the `tenant_safe` redaction profile, approved dimensions/filters, row limits,
   and valid date windows, and returns `VALIDATED_NOT_CREATED` with explicit
-  `NOT_IMPLEMENTED` creation/storage/delivery/audit statuses.
+  `NOT_IMPLEMENTED` creation/storage/delivery/audit statuses. TASK-167 adds
+  inline preview generation for the same validated report catalog, returning
+  JSON rows or CSV text plus metadata while leaving persistence, delivery,
+  retention, download URLs, and audit writes unimplemented.
 - `admin_analytics` is admin/internal and requires explicit `tenant_code`; it is
   not a SaaS account-facing report API.
 - distribution reporting includes useful attribution and conversion metrics, but
@@ -467,3 +472,12 @@ redaction, approved dimensions/filters, row limits, and valid data windows, and
 returns `VALIDATED_NOT_CREATED`. Export creation, export IDs, files, storage,
 delivery, scheduling, retention, audit writes, full account references, and
 frontend screens remain explicit follow-up work.
+
+TASK-167 implementation update: `POST
+/v1/referral-saas/reports/{report_type}/exports/preview` now returns inline
+JSON or CSV preview payloads for the current report catalog through the same
+report-reader and account-scope boundary. It reuses export validation, applies
+row limits and redaction evidence, and returns report metadata with
+side-effect-free payload content. Export creation, export IDs, files, storage,
+delivery, scheduling, retention, audit writes, download URLs, full account
+membership, and frontend screens remain explicit follow-up work.

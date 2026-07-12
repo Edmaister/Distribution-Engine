@@ -105,6 +105,52 @@ READ_ONLY_ROUTES = [
             '?tenant_code={tenant_code}&campaign_code={campaign_code}"'
         ),
     ),
+    SmokeRoute(
+        name="referral_saas_campaign_performance_export_validate",
+        method="POST",
+        path="/v1/referral-saas/reports/{report_type}/exports/validate",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS report reader role",
+        environment_rule="local/staging/production side-effect-free where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "tenant_code",
+            "campaign_code",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"format":"json","redaction_profile":"tenant_safe",'
+            '"filters":{"campaign_code":"{campaign_code}"},"row_limit":10}\' '
+            '"{base_url}/v1/referral-saas/reports/campaign_performance'
+            '/exports/validate?tenant_code={tenant_code}"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_campaign_performance_export_preview",
+        method="POST",
+        path="/v1/referral-saas/reports/{report_type}/exports/preview",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS report reader role",
+        environment_rule="local/staging/production side-effect-free where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "tenant_code",
+            "campaign_code",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"format":"csv","redaction_profile":"tenant_safe",'
+            '"filters":{"campaign_code":"{campaign_code}"},"row_limit":10}\' '
+            '"{base_url}/v1/referral-saas/reports/campaign_performance'
+            '/exports/preview?tenant_code={tenant_code}"'
+        ),
+    ),
 ]
 
 
