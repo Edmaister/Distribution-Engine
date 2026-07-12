@@ -134,6 +134,7 @@ greenfield referral construction.
 26. TASK-160: Add Referral SaaS progress event health report.
 27. TASK-161: Add Referral SaaS attribution quality report.
 28. TASK-162: Add Referral SaaS safe-status distribution report.
+29. TASK-163: Add Referral SaaS link/code performance report.
 
 ## 10/10 Exit Criteria
 
@@ -192,6 +193,8 @@ greenfield referral construction.
 - TASK-161: `services/referral_saas_reporting_service.py`;
   `test/test_referral_saas_reporting_service.py`
 - TASK-162: `services/referral_saas_reporting_service.py`;
+  `test/test_referral_saas_reporting_service.py`
+- TASK-163: `services/referral_saas_reporting_service.py`;
   `test/test_referral_saas_reporting_service.py`
 
 ## Explicit Deferrals

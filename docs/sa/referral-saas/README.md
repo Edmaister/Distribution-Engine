@@ -54,7 +54,7 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   tenant scope until full SaaS account membership exists.
 - TASK-159 adds `referral_funnel` as the second bounded report type over the
   same tenant-safe analytics foundation. It exposes safe funnel metrics with a
-  partial-source warning until dedicated code-issued, validation-state, and
+  partial-source warning until dedicated validation-state and
   progress-milestone report sources are implemented.
 - TASK-160 adds `progress_event_health` as the third bounded report type. It
   reads tenant-scoped `referral_progress_events` and `referral_event_failures`
@@ -68,3 +68,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   derives aggregate product/safe status counts from tenant-scoped referral
   outcome evidence using the Referral SaaS safe-status vocabulary without
   exposing raw viewer, UCN, reward, audit, provider, or money evidence.
+- TASK-163 adds `link_code_performance` as the sixth bounded report type. It
+  reads durable referral code, campaign code, campaign-referral link, and
+  route-referral link evidence for tenant-safe aggregate counts without
+  exposing raw UCNs, raw link payloads, composite-code compatibility internals,
+  reward, funding, fulfilment, settlement, wallet, commission, or invoice
+  evidence.

@@ -171,6 +171,46 @@ async def test_referral_saas_report_reader_can_fetch_referral_funnel(monkeypatch
     assert calls[0]["filters"] == {"campaign_code": "CAMP001"}
 
 
+async def test_referral_saas_report_reader_can_fetch_link_code_performance(
+    monkeypatch,
+):
+    calls: list[dict] = []
+
+    async def fake_get_referral_saas_report(**kwargs):
+        calls.append(kwargs)
+        return _report(report_type="link_code_performance")
+
+    monkeypatch.setattr(
+        referral_saas_reports,
+        "get_referral_saas_report",
+        fake_get_referral_saas_report,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            "/v1/referral-saas/reports/link_code_performance",
+            params={
+                "tenant_code": "FNB",
+                "campaign_ref": "CAMP001",
+                "source_type": "ROUTE_REFERRAL_LINK",
+                "link_code_status": "ACTIVE",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["report"]["report_type"] == "link_code_performance"
+    assert calls[0]["tenant_code"] == "FNB"
+    assert calls[0]["report_type"] == "link_code_performance"
+    assert calls[0]["filters"] == {
+        "campaign_ref": "CAMP001",
+        "link_code_status": "ACTIVE",
+        "source_type": "ROUTE_REFERRAL_LINK",
+    }
+
+
 async def test_referral_saas_report_reader_can_fetch_progress_event_health(
     monkeypatch,
 ):

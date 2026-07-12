@@ -15,6 +15,7 @@ class FakeConnection:
         *,
         recorded_rows: list[dict] | None = None,
         failure_rows: list[dict] | None = None,
+        link_rows: list[dict] | None = None,
         quality_rows: list[dict] | None = None,
         status_rows: list[dict] | None = None,
     ):
@@ -41,6 +42,48 @@ class FakeConnection:
                 "status": "RESOLVED",
                 "failed_count": 1,
                 "retry_attempt_count": 1,
+            },
+        ]
+        self.link_rows = link_rows or [
+            {
+                "source_type": "REFERRAL_CODE",
+                "link_code_status": "ISSUED",
+                "campaign_code": None,
+                "issued_period": "2026-07-01",
+                "resolved_period": None,
+                "link_code_count": 7,
+            },
+            {
+                "source_type": "CAMPAIGN_CODE",
+                "link_code_status": "EXPIRED",
+                "campaign_code": "CAMP001",
+                "issued_period": "2026-07-02",
+                "resolved_period": None,
+                "link_code_count": 1,
+            },
+            {
+                "source_type": "CAMPAIGN_REFERRAL_LINK",
+                "link_code_status": "LINKED",
+                "campaign_code": "CAMP001",
+                "issued_period": "2026-07-03",
+                "resolved_period": "2026-07-03",
+                "link_code_count": 4,
+            },
+            {
+                "source_type": "ROUTE_REFERRAL_LINK",
+                "link_code_status": "ACTIVE",
+                "campaign_code": "CAMP001",
+                "issued_period": "2026-07-04",
+                "resolved_period": "2026-07-05",
+                "link_code_count": 3,
+            },
+            {
+                "source_type": "ROUTE_REFERRAL_LINK",
+                "link_code_status": "VOIDED",
+                "campaign_code": "CAMP002",
+                "issued_period": "2026-07-04",
+                "resolved_period": "2026-07-06",
+                "link_code_count": 2,
             },
         ]
         self.quality_rows = quality_rows or [
@@ -127,6 +170,8 @@ class FakeConnection:
             return self.recorded_rows
         if "FROM referral_event_failures" in query:
             return self.failure_rows
+        if "WITH link_sources AS" in query:
+            return self.link_rows
         if "status_count" in query:
             return self.status_rows
         if "WITH base AS" in query:
@@ -186,6 +231,10 @@ def test_referral_saas_report_catalog_exposes_available_and_future_reports():
     assert by_type["referral_funnel"]["status"] == "AVAILABLE"
     assert by_type["referral_funnel"]["source_report_type"] == (
         analytics.REPORT_DISTRIBUTION_OVERVIEW
+    )
+    assert by_type["link_code_performance"]["status"] == "AVAILABLE"
+    assert by_type["link_code_performance"]["source_report_type"] == (
+        svc.SOURCE_LINK_CODE_PERFORMANCE
     )
     assert by_type["progress_event_health"]["status"] == "AVAILABLE"
     assert by_type["progress_event_health"]["source_report_type"] == (
@@ -313,7 +362,7 @@ async def test_referral_funnel_maps_existing_analytics_with_partial_source_warni
             "code": "PARTIAL_SOURCE_COVERAGE",
             "message": (
                 "Referral funnel currently uses tenant-safe distribution "
-                "overview metrics; code-issued, validation-state, and "
+                "overview metrics; validation-state and "
                 "progress-milestone stage counts need dedicated follow-up "
                 "report sources before they can be promised."
             ),
@@ -329,6 +378,106 @@ async def test_referral_funnel_maps_existing_analytics_with_partial_source_warni
     assert "wallets.wallet_count" not in metric_names
     assert "governance.open_dispute_count" not in metric_names
     assert "commissions.total_commission_amount" not in metric_names
+
+
+@pytest.mark.asyncio
+async def test_link_code_performance_maps_current_link_code_evidence(monkeypatch):
+    conn = FakeConnection()
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+    start = datetime(2026, 7, 1, tzinfo=timezone.utc)
+    end = datetime(2026, 7, 12, tzinfo=timezone.utc)
+
+    report = await svc.get_referral_saas_report(
+        tenant_code="fnb",
+        report_type="link_code_performance",
+        dimensions=["source_type", "link_code_status", "metric_name"],
+        filters={
+            "campaign_ref": "CAMP001",
+            "source_type": "ROUTE_REFERRAL_LINK",
+            "link_code_status": "ACTIVE",
+            "referrer_ucn": "900001",
+            "raw_code_payload": "secret",
+        },
+        data_window_start=start,
+        data_window_end=end,
+    )
+
+    assert len(conn.fetch_calls) == 1
+    query, params = conn.fetch_calls[0]
+    assert "FROM referrer_codes rc" in query
+    assert "FROM marketing_campaigns mc" in query
+    assert "FROM campaign_referral_links crl" in query
+    assert "FROM distribution_route_referral_links drl" in query
+    assert "rc.tenant_code = $1" in query
+    assert "ca.tenant_code = $1" in query
+    assert "drl.tenant_code = $1" in query
+    assert params == ("FNB", "CAMP001", "ROUTE_REFERRAL_LINK", "ACTIVE", start, end)
+    assert report["report_type"] == "link_code_performance"
+    assert report["source_report_type"] == "referral_link_code_performance"
+    assert report["tenant_scope"] == "FNB"
+    assert report["metric_class"] == "OPERATIONAL"
+    assert report["filters"] == {
+        "tenant_code": "FNB",
+        "campaign_ref": "CAMP001",
+        "campaign_code": "CAMP001",
+        "link_code_status": "ACTIVE",
+        "source_type": "ROUTE_REFERRAL_LINK",
+    }
+    assert report["dimensions"] == [
+        "source_type",
+        "link_code_status",
+        "metric_name",
+    ]
+    assert report["data_window_start"] == start.isoformat()
+    assert report["data_window_end"] == end.isoformat()
+    assert report["export_status"] == "NOT_IMPLEMENTED"
+    assert set(report["redactions"]) == {"raw_code_payload", "referrer_ucn"}
+    assert report["source_warnings"] == [
+        {
+            "code": "PARTIAL_SOURCE_COVERAGE",
+            "message": (
+                "Link/code performance uses durable referral code, campaign "
+                "code, campaign-referral link, and route-referral link "
+                "sources. Composite-code compatibility evidence is not "
+                "durable enough for aggregate reporting yet."
+            ),
+        }
+    ]
+
+    counts = {metric["name"]: metric["value"] for metric in report["metrics"]}
+    assert counts == {
+        "link_codes.active_count": 3,
+        "link_codes.expired_count": 1,
+        "link_codes.issued_count": 7,
+        "link_codes.linked_count": 4,
+        "link_codes.voided_count": 2,
+    }
+    assert all(metric["metric_class"] == "OPERATIONAL" for metric in report["metrics"])
+    assert "900001" not in str(report)
+    assert "secret" not in str(report)
+
+
+@pytest.mark.asyncio
+async def test_link_code_performance_returns_unavailable_when_source_fails(
+    monkeypatch,
+):
+    class BrokenConnection:
+        async def fetch(self, query, *params):
+            raise RuntimeError("database unavailable")
+
+    monkeypatch.setattr(
+        svc, "db_connection", lambda: FakeDbConnection(BrokenConnection())
+    )
+
+    report = await svc.get_referral_saas_report(
+        tenant_code="FNB",
+        report_type="link_code_performance",
+    )
+
+    assert report["metrics"] == []
+    assert report["freshness"]["status"] == "UNAVAILABLE"
+    assert report["source_warnings"][0]["code"] == "SOURCE_UNAVAILABLE"
+    assert report["source_warnings"][1]["code"] == "PARTIAL_SOURCE_COVERAGE"
 
 
 @pytest.mark.asyncio
