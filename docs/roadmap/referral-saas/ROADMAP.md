@@ -120,6 +120,7 @@ greenfield referral construction.
 12. TASK-144: Define Referral SaaS frontend IA and workflow contract.
 13. TASK-145: Define Referral SaaS operator support workflow.
 14. TASK-146: Inventory Referral SaaS audit and idempotency posture.
+15. TASK-149: Add Referral SaaS local golden-path contract test.
 
 ## 10/10 Exit Criteria
 
@@ -151,6 +152,10 @@ greenfield referral construction.
 - TASK-144: `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`
 - TASK-145: `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md`
 - TASK-146: `docs/sa/referral-saas/REFERRAL_SAAS_AUDIT_IDEMPOTENCY_POSTURE.md`
+
+## Completed Implementation Outputs
+
+- TASK-149: `test/test_referral_saas_golden_path_contract.py`
 
 ## Explicit Deferrals
 
