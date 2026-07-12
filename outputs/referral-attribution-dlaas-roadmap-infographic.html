@@ -118,7 +118,7 @@
 
       .status-strip {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
         gap: 10px;
         margin-top: 18px;
       }
@@ -542,20 +542,20 @@
             Productize the focused SaaS first. The repo already has referral
             code creation, validation, terms acceptance, progress checks,
             campaign attribution, link inspection, readiness checks, and tests.
-            The latest work completed the Referral SaaS contract wave through
-            account setup, campaign readiness, code issue, validation,
-            progress, attribution trace, operator workflow, reporting, public
-            API, frontend IA, support, audit/idempotency, and E2E/live
-            verification planning.
+            The latest work completed the Referral SaaS contract wave and the
+            first implementation-proof wave through local golden-path checks,
+            negative-path coverage, mounted-route inventory, schema/status
+            verification tooling, route smoke planning, and safe-status
+            projection through TASK-155.
           </p>
           <div class="score-row" aria-label="Current position">
             <div class="score">
-              <strong>8/10</strong>
-              <span>Referral management foundation after contract wave</span>
+              <strong>8.3/10</strong>
+              <span>Referral management foundation after TASK-155 proof</span>
             </div>
             <div class="score">
-              <strong>7.5/10</strong>
-              <span>Campaign attribution foundation after trace contracts</span>
+              <strong>7.9/10</strong>
+              <span>Campaign attribution foundation with executable checks</span>
             </div>
             <div class="score">
               <strong>10/10</strong>
@@ -569,8 +569,8 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-148 and the Shared Platform
-            onboarding review-decision work through TASK-123.
+            Updated after TASK-134 through TASK-155 for Referral SaaS, with
+            shared-platform context kept separate from the first product wedge.
           </p>
         </div>
         <div class="status-strip" aria-label="Roadmap status snapshot">
@@ -579,20 +579,20 @@
             <span>Account, campaign, code, validation, progress, attribution, support, reporting, API, IA, audit, and E2E plan are documented.</span>
           </div>
           <div class="status-pill">
-            <b>Implementation still selective</b>
-            <span>Core primitives exist, but the SaaS wrapper and unified product workflows are not fully shipped.</span>
+            <b>7 implementation proofs added</b>
+            <span>TASK-149 through TASK-155 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, and safe-status proof.</span>
           </div>
           <div class="status-pill">
             <b>Live confidence still capped</b>
-            <span>TASK-028 resolved local schema uncertainty, but TASK-027 staging/production verification is still gated, so production/live DB claims stay bounded.</span>
+            <span>TASK-152 prepares read-only schema/status checks, but staging/production execution evidence is still gated.</span>
           </div>
           <div class="status-pill">
-            <b>Shared review flow hardened</b>
-            <span>TASK-121 through TASK-123 added onboarding review boundaries, service primitives, and validation/eligibility regression tests.</span>
+            <b>Safe status moved forward</b>
+            <span>TASK-155 projects current referral statuses into product-safe status without changing shared backend state names.</span>
           </div>
           <div class="status-pill">
-            <b>Schema drift reduced</b>
-            <span>TASK-148 added guarded migration 081 for funding reconciliation correlation evidence, a DLaaS/shared-platform fix outside the Referral SaaS launch path.</span>
+            <b>Wrappers still missing</b>
+            <span>The score stays below 10/10 until product APIs, UI workflows, reports/exports, and live smoke evidence ship.</span>
           </div>
         </div>
       </section>
@@ -776,11 +776,13 @@
             <p>
               Turn existing role-specific status, progress, reporting, and
               admin views into tenant-safe SaaS reporting and support workflows.
-              TASK-141 through TASK-146 define the packaging boundary.
+              TASK-154 proves the bounded reporting handoff, and TASK-155 adds
+              the Referral SaaS safe-status projection helper.
             </p>
             <div class="tag-row">
               <span class="tag">Customer value</span>
               <span class="tag done">TASK-141-146</span>
+              <span class="tag done">TASK-154/155</span>
               <span class="tag dlaas">Portal status primitive</span>
             </div>
           </article>
@@ -798,22 +800,22 @@
         <div class="grid four">
           <article class="phase">
             <h3>Phase 1: Contracts Complete</h3>
-            <p>Referral SaaS boundaries are now documented and ordered.</p>
+            <p>Referral SaaS boundaries are documented and ordered.</p>
             <ol>
               <li>TASK-134 through TASK-147 completed as contract outputs.</li>
               <li>Referral, validation, progress, attribution, API, IA, reporting, and support boundaries are explicit.</li>
               <li>Money-depth and broad DLaaS scope remain deliberately separate.</li>
-              <li>Next work should turn contracts into thin product wrappers.</li>
+              <li>The contracts are now backed by TASK-149 through TASK-155 implementation proof.</li>
             </ol>
           </article>
           <article class="phase">
-            <h3>Phase 2: Product Wrappers</h3>
-            <p>Implement the focused SaaS shell around proven primitives.</p>
+            <h3>Phase 2: Proof and Product Wrappers</h3>
+            <p>Keep adding thin SaaS layers around proven primitives.</p>
             <ol>
-              <li>Account setup and onboarding checklist.</li>
-              <li>Campaign setup/readiness workflow.</li>
-              <li>Referral link/code issue, validation, recovery, and safe status UX.</li>
-              <li>Public API wrappers without duplicating backend primitives.</li>
+              <li>Golden-path and negative-path contract tests are in place.</li>
+              <li>Route smoke and schema/status tooling is ready for controlled execution.</li>
+              <li>Referral safe-status projection is implemented in the service layer.</li>
+              <li>Next: product API wrappers and customer/operator UI workflows.</li>
             </ol>
           </article>
           <article class="phase">
@@ -930,7 +932,8 @@
             <div class="matrix-cell">
               Progress events, required identifier checks, product binding,
               journey compatibility, self-referral rejection, dedupe keys,
-              payload hashes, and queue emission.
+              payload hashes, queue emission, and TASK-149/TASK-150 contract
+              coverage for golden and negative paths.
             </div>
             <div class="matrix-cell">
               Productized event catalog, tenant-facing diagnostics, replay
@@ -955,7 +958,8 @@
             <div class="matrix-cell">
               Canonical inspection across referral codes, campaign codes,
               campaign referral links, route referral links, and composite-code
-              compatibility with redacted evidence.
+              compatibility with redacted evidence. TASK-151 identifies the
+              mounted route smoke surface for this area.
             </div>
             <div class="matrix-cell">
               Operator investigation workflow, customer-safe status mapping,
@@ -968,7 +972,8 @@
             <div class="matrix-cell">
               Campaign attribution records, campaign track events, campaign
               referral links, progress events, route referral links, and
-              attribution journey tests.
+              attribution journey tests. TASK-149 proves the local handoff
+              path through trace assertions.
             </div>
             <div class="matrix-cell">
               One explainable attribution trace, precedence rules, attribution
@@ -994,12 +999,14 @@
             <div class="matrix-cell">
               Strong unit and API coverage exists across referral, progress,
               campaign, link/code, reward summary, and attribution-related
-              journeys. TASK-147 defines the focused E2E/live verification plan.
+              journeys. TASK-147 defines the E2E/live plan; TASK-152 and
+              TASK-153 add read-only schema/status and route smoke planning
+              tools.
             </div>
             <div class="matrix-cell">
-              Live DB/state verification, migration replay confidence, full
-              SaaS golden-path E2E tests, security review, observability checks,
-              and deployment smoke tests.
+              Execute live/staging verification with approved credentials,
+              complete product-route smoke checks, add full SaaS E2E tests,
+              and record deployment evidence.
             </div>
           </div>
         </div>
@@ -1007,10 +1014,10 @@
 
       <section>
         <div class="section-head">
-          <h2>Completed Referral SaaS Contract Wave</h2>
+          <h2>Completed Referral SaaS Work</h2>
           <p>
-            These outputs are complete documentation contracts. They reduce
-            ambiguity, but they do not by themselves ship every SaaS workflow.
+            Contracts are complete, and the first implementation-proof tasks
+            now verify the current foundation without duplicating source code.
           </p>
         </div>
         <div class="grid three">
@@ -1056,6 +1063,46 @@
               <span class="tag done">146</span>
             </div>
           </article>
+          <article class="capability" data-tone="blue">
+            <h3>Executable Product Proof</h3>
+            <p>
+              TASK-149 through TASK-153 add golden-path coverage,
+              negative-path coverage, mounted-route inventory, read-only
+              schema/status checking, and route smoke planning.
+            </p>
+            <div class="tag-row">
+              <span class="tag done">149</span>
+              <span class="tag done">150</span>
+              <span class="tag done">151</span>
+              <span class="tag done">152</span>
+              <span class="tag done">153</span>
+            </div>
+          </article>
+          <article class="capability" data-tone="green">
+            <h3>Status and Reporting Proof</h3>
+            <p>
+              TASK-154 proves bounded safe-status/reporting behavior, and
+              TASK-155 adds the Referral SaaS projection helper for statuses
+              such as ACCOUNT_OPENED without leaking internal state.
+            </p>
+            <div class="tag-row">
+              <span class="tag done">154</span>
+              <span class="tag done">155</span>
+              <span class="tag dlaas">Shared primitive preserved</span>
+            </div>
+          </article>
+          <article class="capability" data-tone="amber">
+            <h3>Still Not Shipped</h3>
+            <p>
+              Product API wrappers, SaaS frontend workflows, report/export
+              catalog entries, live/staging execution evidence, and full E2E
+              proof remain open before a 10/10 claim.
+            </p>
+            <div class="tag-row">
+              <span class="tag next">Next implementation</span>
+              <span class="tag">No 10/10 yet</span>
+            </div>
+          </article>
         </div>
       </section>
 
@@ -1075,28 +1122,33 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">SaaS workflow implementation</div>
-            <div class="matrix-cell">Contracts exist, but the account, campaign, referral, validation, attribution, reporting, and support UX still need cohesive product wrappers.</div>
-            <div class="matrix-cell">Thin SaaS routes/UI around existing primitives with tests and no source duplication.</div>
+            <div class="matrix-cell">Contracts and early proof exist, but account, campaign, referral, validation, attribution, reporting, and support still need cohesive product wrappers.</div>
+            <div class="matrix-cell">Thin SaaS routes and UI around existing primitives with tests and no source duplication.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Live DB/state verification</div>
-            <div class="matrix-cell">TASK-028 resolved local uncertainty and TASK-148 fixed confirmed reconciliation schema drift, but TASK-027 staging/production verification remains gated.</div>
-            <div class="matrix-cell">Approved read-only staging/production verification, drift review, migration replay, and smoke evidence.</div>
+            <div class="matrix-cell">TASK-152 provides the read-only checker, but staging/production verification and seeded route smoke execution are still gated by environment access and approval.</div>
+            <div class="matrix-cell">Run the checker and route smoke plan against approved local/staging targets, then record drift, status, index, and smoke evidence.</div>
           </div>
           <div class="matrix-row" role="row">
-            <div class="matrix-cell">Command audit/idempotency gaps</div>
-            <div class="matrix-cell">Some primitives are strong, but every exposed SaaS command needs duplicate protection, safe evidence, reason capture, and rollback posture.</div>
-            <div class="matrix-cell">Implement from TASK-146 inventory, starting with launch-critical write paths.</div>
+            <div class="matrix-cell">Product report/export catalog</div>
+            <div class="matrix-cell">TASK-154 proves safe reporting boundaries, but dedicated Referral SaaS report types and export behavior are not yet productized.</div>
+            <div class="matrix-cell">Implement tenant-safe campaign performance, referral funnel, attribution trace, and export surfaces with redaction tests.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">End-to-end proof</div>
-            <div class="matrix-cell">Unit/API tests are strong, but the SaaS needs golden-path and failure-path proof from tenant setup to report/export.</div>
-            <div class="matrix-cell">Execute the TASK-147 E2E plan and record evidence in CI and smoke checks.</div>
+            <div class="matrix-cell">TASK-149/TASK-150 cover local contract paths, but the SaaS still needs full tenant setup to report/export proof through product surfaces.</div>
+            <div class="matrix-cell">Execute the TASK-147 E2E plan after product wrappers exist and record CI plus smoke evidence.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Public API and frontend packaging</div>
             <div class="matrix-cell">The API map and IA exist, but customers still need coherent product surfaces and stable external contracts.</div>
             <div class="matrix-cell">Ship TASK-143/TASK-144 implementation slices with auth, safe errors, and redaction tests.</div>
+          </div>
+          <div class="matrix-row" role="row">
+            <div class="matrix-cell">Lifecycle command hardening</div>
+            <div class="matrix-cell">Existing issue/validate behavior is strong, but exposed revoke, expire, reissue, override, or replay commands need explicit idempotency and audit posture before launch.</div>
+            <div class="matrix-cell">Implement from TASK-146 inventory, starting only with launch-critical write paths.</div>
           </div>
         </div>
       </section>
@@ -1248,11 +1300,11 @@
       </section>
 
       <div class="footer-note">
-        Recommendation: move from completed contracts into narrow implementation
-        slices for the referral and campaign attribution SaaS first. Keep the
-        code single-source, keep DLaaS money/marketplace depth separate, and
-        use live verification plus E2E proof before upgrading the score to
-        10/10.
+        Recommendation: continue from TASK-155 into narrow product-wrapper
+        implementation slices for the referral and campaign attribution SaaS.
+        Keep the code single-source, keep DLaaS money/marketplace depth
+        separate, and use live verification plus E2E proof before upgrading the
+        score to 10/10.
       </div>
     </main>
   </body>
