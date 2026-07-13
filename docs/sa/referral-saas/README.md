@@ -99,3 +99,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   catalog. It renders tenant-safe metrics, freshness, warnings, redactions,
   account-scope posture, and export-preview guardrails without adding persisted
   export UX, account membership UI, backend behavior, schema, or money flows.
+- TASK-170 adds a focused admin frontend surface for Referral SaaS account
+  setup readiness. It consumes existing onboarding readiness evidence through
+  external references and links the account, membership, campaign, and report
+  setup path without adding account tables, membership writes, backend routes,
+  schema, tenant-link persistence, or money flows.

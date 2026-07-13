@@ -106,6 +106,12 @@ Current API/client foundations:
   and renders tenant-safe metrics, freshness, warnings, redactions,
   account-scope posture, and export-preview guardrails without adding persisted
   exports or account membership UX.
+- `/admin/referral-saas/account-setup` now provides the TASK-170 focused
+  account setup readiness surface. It consumes existing onboarding readiness
+  evidence through external references and shows account profile, tenant-link,
+  membership, campaign-readiness, and report-baseline gates without creating
+  account records, memberships, tenant links, invitations, backend routes, or
+  schema.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.
@@ -114,9 +120,10 @@ Current API/client foundations:
 
 Current frontend gaps:
 
-- No dedicated Referral SaaS app shell or route family exists.
-- Current navigation labels and grouping are broader Distribution OS/DLaaS
-  oriented.
+- Dedicated Referral SaaS admin routes have started for account setup readiness
+  and reports, but a full product shell is still future work.
+- Current navigation is still broader Distribution OS/DLaaS oriented, though
+  focused Referral SaaS setup and report entries now exist.
 - Current consumer-facing calls still pass `tenantCode`, `referrerUcn`, and
   sometimes `referralTrackId` directly.
 - Link/code issue, validation, progress, status, attribution trace, and reports

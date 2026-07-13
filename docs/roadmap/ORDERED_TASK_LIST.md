@@ -3324,6 +3324,33 @@ Rollback notes: Revert the frontend route/page/query/style/test and docs updates
 Explicit non-goals: Do not implement persisted exports, export IDs, export files, export storage, download URLs, scheduled exports, export audit writes, account setup tables, account membership UX, external-reference persistence, backend routes, schema, migrations, live DB checks, command idempotency implementation, campaign activation, webhook delivery, reward application, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, or SaaS billing behavior.
 Definition of done: Referral SaaS has a CI-tested frontend report catalog surface over the current tenant-safe report API, with persisted exports and account membership still explicit future work. Priority: P0.
 
+## TASK-170: Add Referral SaaS account setup readiness frontend surface
+
+Status: Complete (2026-07-12). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `frontend/src/api/referralSaasAccountQueries.ts`; `frontend/src/api/queryKeys.ts`; `frontend/src/app/App.tsx`; `frontend/src/layout/AppShell.tsx`; `frontend/src/layout/Sidebar.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `frontend/src/pages/admin/CompanyOnboardingPage.tsx`; `frontend/src/api/endpoints/adminOnboarding.ts`.
+Shared primitive impact: Adds a focused frontend surface over existing onboarding readiness primitives and shared React Query/UI components; no duplicated onboarding, account, tenant-link, membership, campaign, or report stack.
+Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account setup readiness; external-reference setup posture; membership and campaign-readiness gate visibility.
+Objective: Add the first focused Referral SaaS account setup readiness UI that consumes current onboarding evidence through external references and links the account, membership, campaign, and report setup path without implementing account schema, membership writes, tenant-link persistence, backend routes, or money flows.
+Why now: TASK-169 moved reporting UI forward. The largest remaining product-packaging blocker is account setup/membership visibility. This task makes that setup path explicit in the frontend while staying inside existing safe onboarding primitives.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `frontend/src/api/referralSaasAccountQueries.ts`; `frontend/src/api/queryKeys.ts`; `frontend/src/app/App.tsx`; `frontend/src/layout/AppShell.tsx`; `frontend/src/layout/Sidebar.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Implementation/source files inspected: `frontend/src/pages/admin/CompanyOnboardingPage.tsx`; `frontend/src/pages/admin/CompanyOnboardingPage.test.tsx`; `frontend/src/api/endpoints/adminOnboarding.ts`; `frontend/src/app/App.tsx`; `frontend/src/layout/Sidebar.tsx`; `frontend/src/layout/AppShell.tsx`; `frontend/src/pages/admin/ReferralSaasReportsPage.tsx`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_CONTRACT.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Added `/admin/referral-saas/account-setup`, navigation, top-bar labeling, a React Query wrapper over `getAdminOnboardingState`, and a tested setup readiness page that renders account profile, tenant-link, membership, campaign-readiness, and report-baseline gates from safe onboarding evidence.
+API impact: None.
+Tests to add/update: Added Vitest coverage for external-reference readiness calls, checklist rendering, account/membership mutation guardrails, safe no-leak request assertions, and links to existing setup surfaces.
+Validation method: `npm.cmd test -- ReferralSaasAccountSetupPage.test.tsx ReferralSaasReportsPage.test.tsx` from `frontend`; `npm.cmd run build` from `frontend`; `npm.cmd run lint` from `frontend`.
+Acceptance criteria: The frontend route renders account setup readiness through external references; internal tenant identifiers are not sent or displayed; account creation and membership mutation controls are absent; existing onboarding/member/campaign/report surfaces are linked rather than forked; no backend, schema, account table, membership table, tenant-link write, invitation, activation, money, or DLaaS expansion behavior changes.
+Dependencies: TASK-134; TASK-144; TASK-169.
+Blocked by: None for setup-readiness UI. Actual account schema, tenant-link persistence, external-reference resolver, membership authorization, invite flows, activation flows, live route smoke execution, and full product shell remain separate work.
+Risk level: Low.
+Rollback notes: Revert the frontend route/page/query/style/test and docs updates.
+Explicit non-goals: Do not implement account schema, membership schema, tenant-link persistence, external-reference persistence, account setup APIs, membership APIs, invitation flows, activation/suspension/disable/archive commands, backend routes, migrations, live DB checks, command idempotency implementation, campaign activation, webhook delivery, reward application, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, persisted exports, or SaaS billing behavior.
+Definition of done: Referral SaaS has a CI-tested account setup readiness frontend surface over existing safe onboarding evidence, with real account/membership persistence still explicit future work. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
