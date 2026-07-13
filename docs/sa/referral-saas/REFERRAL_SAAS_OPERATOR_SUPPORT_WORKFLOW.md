@@ -301,6 +301,12 @@ Current frontend facts:
 - It explicitly marks outcome trace, campaign readiness, link/code diagnostics,
   tenant-safe analytics, and webhook/payload diagnostics as dedicated UI
   pending.
+- `/admin/referral-saas/operator-links` now gives operators a focused TASK-179
+  link/code inspection surface over the TASK-178 product wrapper. It renders
+  safe source summary, connected campaign/participant/attribution identifiers,
+  missing evidence, source warnings, redactions, and next diagnostics while
+  keeping raw source evidence, support-case writes, repair, retry, replay,
+  lifecycle commands, reward, money, and DLaaS controls absent.
 
 Implementation should therefore add support UI as a focused workflow, not as a
 generic admin dashboard.

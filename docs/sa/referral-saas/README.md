@@ -146,3 +146,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   validation errors, adds product `nextDiagnostics`, and does not issue,
   resolve, mutate, retry, replay, repair, reward, fund, fulfil, settle, or
   generate codes.
+- TASK-179 adds the focused Referral SaaS operator link/code inspection
+  frontend surface at `/admin/referral-saas/operator-links`. It calls the
+  TASK-178 product wrapper, renders safe source summary, campaign/participant
+  and attribution identifiers, missing evidence, source warnings, redactions,
+  and next diagnostics, and keeps raw evidence, support-case writes, mutation,
+  retry/replay/repair, reward, money, and DLaaS behavior out of scope.

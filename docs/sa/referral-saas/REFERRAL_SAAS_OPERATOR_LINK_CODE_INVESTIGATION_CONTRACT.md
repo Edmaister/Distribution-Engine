@@ -137,6 +137,13 @@ source warnings, redactions, and safe validation errors. It does not issue,
 resolve, void, rotate, mutate, retry, replay, repair, reward, fund, fulfil,
 settle, or generate codes.
 
+TASK-179 implements the focused operator frontend surface at
+`/admin/referral-saas/operator-links`. It calls the product wrapper, maps
+friendly source labels to canonical source types, supports code/reference and
+link-code-ID lookup modes, renders source summary, connected identifiers,
+missing evidence, source warnings, redactions, and next diagnostics, and keeps
+raw source evidence plus mutation/retry/replay/repair/money controls absent.
+
 Required query inputs:
 
 - `tenant_code`
@@ -309,8 +316,8 @@ This first-launch workflow remains diagnostic only.
 
 ## Future Tests
 
-When this contract expands beyond the TASK-178 product wrapper, add or preserve
-focused tests for:
+When this contract expands beyond the TASK-178 product wrapper and TASK-179 UI,
+add or preserve focused tests for:
 
 - UI source-type selection maps to canonical source types
 - operator lookup requires tenant and one lookup reference
