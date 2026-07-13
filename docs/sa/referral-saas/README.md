@@ -136,3 +136,7 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   product validation response. It states that successful duplicate submits
   currently create new validation journeys and that idempotency keys are not
   supported until a schema-backed duplicate/reuse contract is implemented.
+- TASK-177 shows product validation recovery and retry posture in the focused
+  Referral SaaS link/code workflow UI. It renders safe recovery next action and
+  non-idempotent retry evidence from the product wrapper without exposing raw
+  validation attributes, UCNs, hashes, reward, money, or DLaaS internals.

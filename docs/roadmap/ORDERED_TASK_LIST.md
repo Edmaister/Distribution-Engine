@@ -3513,6 +3513,33 @@ Rollback notes: Revert the idempotency posture field, tests, docs, and infograph
 Explicit non-goals: Do not implement idempotency keys, duplicate reuse, duplicate conflict detection, account schema, membership schema, tenant-link persistence, external-reference resolver, schema migrations, live DB checks, code reissue, revoke, expire, repair, replay, retry commands, audit writes, frontend recovery UX changes, campaign activation, webhook delivery, reward application, reward fulfilment, reward funding, reward settlement, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, SaaS billing, or broad DLaaS behavior.
 Definition of done: Referral SaaS validation responses make the current non-idempotent duplicate-submit posture explicit and CI-tested, with schema-backed idempotent validation still a clear future task. Priority: P0.
 
+## TASK-177: Add Referral SaaS validation recovery UI
+
+Status: Complete (2026-07-13). Output: `frontend/src/pages/admin/ReferralSaasLinkCodeWorkflowPage.tsx`; `frontend/src/pages/admin/ReferralSaasLinkCodeWorkflowPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_VALIDATION_RECOVERY_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_VALIDATION_RECOVERY_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Renders safe product validation recovery and retry-posture fields from the existing `/v1/referral-saas/public/referrals/validate` wrapper; no duplicated frontend client, backend route, schema, validation, idempotency, audit, repair/replay, reward, money, or DLaaS logic.
+Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Frontend validation recovery display; non-idempotent retry posture visibility; no-leak validation result rendering.
+Objective: Show product validation recovery next action and non-idempotent retry posture in the focused Referral SaaS link/code workflow UI while keeping retry commands, schema-backed idempotency, operator trace, lifecycle actions, audit writes, reward, money, and DLaaS expansion out of scope.
+Why now: TASK-175 and TASK-176 made validation recovery and retry posture explicit in the product API. The next user-facing gap was making those fields visible in the focused link/code workflow so operators do not infer safe retry behavior or miss recovery guidance.
+Files involved: `frontend/src/pages/admin/ReferralSaasLinkCodeWorkflowPage.tsx`; `frontend/src/pages/admin/ReferralSaasLinkCodeWorkflowPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_VALIDATION_RECOVERY_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasLinkCodeWorkflowPage.tsx`; `frontend/src/pages/admin/ReferralSaasLinkCodeWorkflowPage.test.tsx`; `frontend/src/api/endpoints/referralSaasLinks.ts`; `frontend/src/api/endpoints/referralSaasLinks.test.ts`; `services/referral_saas_validation_service.py`; `apps/api/routers/referral_saas_links.py`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: The focused link/code workflow now renders validation `recovery.safeMessage`, `recovery.action`, `idempotency.safeMessage`, and `idempotency.duplicateSubmitGuarantee` when returned by the product wrapper.
+API impact: None. This consumes the existing TASK-175/TASK-176 product response fields.
+Tests to add/update: Updated page tests to cover validation retry posture visibility, recovery next action visibility, and continued no-leak behavior for raw/internal validation attributes.
+Validation method: `npm.cmd test -- ReferralSaasLinkCodeWorkflowPage.test.tsx referralSaasLinks.test.ts`; `npm.cmd run build`; `npm.cmd run lint`; `git diff --check`.
+Acceptance criteria: The link/code workflow shows recovery next action when validation returns a recovery state; the workflow shows non-idempotent retry posture when the product wrapper returns idempotency evidence; raw validation attributes, tenant internals, raw UCNs, hashes, reward, funding, fulfilment, settlement, wallet, and money evidence remain absent from the UI; no backend route, schema, retry command, lifecycle action, audit write, repair/replay, operator trace, reward, money, or DLaaS behavior is added.
+Dependencies: TASK-173; TASK-174; TASK-175; TASK-176.
+Blocked by: None for UI display. Schema-backed duplicate validation reuse/conflict behavior, operator trace linkage, support workflow actions, account/membership persistence, live smoke execution, and full product E2E remain separate work.
+Risk level: Low.
+Rollback notes: Revert the link/code workflow page/test updates plus docs and infographic updates.
+Explicit non-goals: Do not implement validation idempotency keys, duplicate reuse, duplicate conflict detection, account schema, membership schema, tenant-link persistence, external-reference resolver, schema migrations, live DB checks, code reissue, revoke, expire, repair, replay, retry commands, audit writes, backend routes, frontend support-case workflow, campaign activation, webhook delivery, reward application, reward fulfilment, reward funding, reward settlement, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, SaaS billing, or broad DLaaS behavior.
+Definition of done: Referral SaaS link/code workflow users can see safe validation recovery and retry posture directly in the product UI, with deeper idempotency and operator support still explicit future work. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
