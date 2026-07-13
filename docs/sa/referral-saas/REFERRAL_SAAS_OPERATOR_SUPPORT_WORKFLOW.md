@@ -334,6 +334,11 @@ Current frontend facts:
   next diagnostics, links to adjacent read-only support surfaces, and keeps
   support-case writes, repair/replay/retry, progress mutation, reward, money,
   webhook evidence, and DLaaS controls absent.
+- `/admin/referral-saas/support` now gives operators a TASK-184 focused support
+  workflow hub. It maps first-launch support case types to the correct
+  read-only Referral SaaS diagnostic surface, shows the required evidence
+  order, and keeps support-case writes, repair/replay/retry, progress mutation,
+  reward, money, webhook evidence, and DLaaS controls absent.
 
 Implementation should therefore add support UI as a focused workflow, not as a
 generic admin dashboard.

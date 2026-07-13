@@ -58,6 +58,7 @@ const sections = [
       { to: "/admin/referral-saas/account-setup", label: "Referral SaaS Setup", icon: Building2, sub: "Account" },
       { to: "/admin/referral-saas/campaigns", label: "Referral SaaS Campaigns", icon: Target, sub: "Ready" },
       { to: "/admin/referral-saas/link-codes", label: "Referral SaaS Links", icon: Link2, sub: "Codes" },
+      { to: "/admin/referral-saas/support", label: "Referral SaaS Support", icon: ShieldCheck, sub: "Hub" },
       { to: "/admin/referral-saas/operator-links", label: "Referral SaaS Inspect", icon: ShieldCheck, sub: "Ops" },
       { to: "/admin/referral-saas/attribution-trace", label: "Referral SaaS Trace", icon: Split, sub: "Trace" },
       { to: "/admin/referral-saas/progress-status", label: "Referral SaaS Status", icon: ListChecks, sub: "Status" },

@@ -180,3 +180,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   missing evidence, redactions, and next diagnostics, links from adjacent
   operator support surfaces, and keeps progress mutation, support-case writes,
   repair/replay/retry, reward, money, and DLaaS behavior out of scope.
+- TASK-184 adds the focused Referral SaaS operator support workflow hub at
+  `/admin/referral-saas/support`. It routes common validation, progress,
+  link/code, attribution, readiness, and reporting support cases into existing
+  read-only product surfaces, shows evidence order and mutation guardrails, and
+  keeps support-case writes, repair/replay/retry, reward, money, and DLaaS
+  behavior out of scope.

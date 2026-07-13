@@ -421,6 +421,8 @@ This task does not implement:
 Referral SaaS now has a strong trace foundation through `outcome_trace_service`,
 `/admin/outcomes/{referral_track_id}/trace`, the TASK-180 product wrapper, and
 the TASK-181 focused trace UI. TASK-182 adds the first progress/status
-diagnostics API beside that trace surface. The next work should add focused
-progress/status UI and support workflow depth instead of creating a separate
-attribution system.
+diagnostics API beside that trace surface, TASK-183 adds the focused
+progress/status UI, and TASK-184 routes common support cases through the
+read-only diagnostics surfaces. The next work should add conflict/precedence UX,
+live E2E evidence, or support-case persistence guardrails instead of creating a
+separate attribution system.

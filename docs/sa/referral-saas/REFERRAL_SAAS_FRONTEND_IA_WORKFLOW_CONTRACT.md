@@ -152,6 +152,12 @@ Current API/client foundations:
   and next diagnostics, and does not render raw UCNs, provider payloads,
   support-case writes, progress mutation, repair, retry, replay, reward,
   money, or DLaaS controls.
+- `/admin/referral-saas/support` now provides the TASK-184 focused support
+  workflow hub. It routes first-launch support case types to the existing
+  read-only Referral SaaS setup, link/code, progress/status, attribution trace,
+  campaign readiness, and reporting surfaces, shows evidence order and
+  mutation guardrails, and does not render support-case write, repair, retry,
+  replay, reward, money, or DLaaS controls.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.
@@ -168,10 +174,9 @@ Current frontend gaps:
 - Current consumer-facing calls still pass `tenantCode`, `referrerUcn`, and
   sometimes `referralTrackId` directly.
 - Link/code issue, validation, identity capture, operator inspection, and
-  attribution trace now have focused admin workflow surfaces. Progress/status
-  now has a product API wrapper and focused operator UI, but account-safe
-  status and broader support workflows are not yet presented as one SaaS
-  workflow.
+  attribution trace, progress/status, and support triage now have focused
+  admin workflow surfaces. Account-safe status and support-case execution are
+  still future work.
 - Reporting/export screens now have a focused Referral SaaS report catalog
   surface with inline JSON/CSV preview handling, but persisted exports,
   download URLs, scheduled delivery, audit writes, and account membership UX
