@@ -60,6 +60,21 @@ Current public validation route:
   `deviceFingerprint`, `ipAddress`, and `qrCode`
 - normalizes default response fields when the service omits them
 
+Current product validation wrapper:
+
+- `POST /v1/referral-saas/public/referrals/validate`
+- implemented by TASK-174 in `apps/api/routers/referral_saas_links.py`
+- composes `validate_referral_code` without forking validation logic
+- returns product-shaped `validationStatus`, `valid`, `referralTrackId`,
+  `alias`, `errorCode`, `message`, and `recovery`
+- maps `REFERRAL_LOG_FAILED` to `RECOVERY_REQUIRED_LOGGING` with a safe
+  retry/contact-support recovery action
+- redacts raw UCN, UCN hash, and internal `attributes` evidence from the
+  response
+- does not implement duplicate-submit idempotency, operator trace linkage,
+  schema changes, repair/replay, audit writes, rewards, funding, fulfilment,
+  settlement, wallet, or DLaaS expansion behavior
+
 Current validation service:
 
 - `services/referral_code.py::validate_referral_code`
@@ -111,6 +126,19 @@ Current capture route:
 - protected by `require_partner_key`
 - derives `tenant_code` from authenticated partner identity
 - calls `services.referral_code.capture_referee_ucn`
+
+Current product capture wrapper:
+
+- `POST /v1/referral-saas/referrals/{referral_track_id}/referee-ucn`
+- implemented by TASK-174 in `apps/api/routers/referral_saas_links.py`
+- protected by `require_partner_key`
+- composes `capture_referee_ucn` without forking identity-capture logic
+- derives tenant scope from authenticated partner identity
+- returns product-shaped `captureStatus`, `referralTrackId`, `errorCode`, and
+  `message`
+- maps progress-event handoff failure to
+  `RECOVERY_REQUIRED_PROGRESS_EVENT`
+- redacts raw referee UCN and hash evidence from the response
 
 Current capture service:
 
@@ -206,9 +234,9 @@ Candidate public validation route:
 POST /referral-saas/public/referrals/validate
 ```
 
-The current route may remain while a versioned product wrapper is introduced.
-The wrapper must compose the existing validation service rather than duplicating
-validation logic.
+The current route remains in place. TASK-174 introduces the first bounded
+versioned product wrapper and composes the existing validation service rather
+than duplicating validation logic.
 
 Minimum product request:
 

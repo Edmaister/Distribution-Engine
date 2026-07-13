@@ -5,21 +5,21 @@ import { createMemoryRouter, Outlet, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  captureConsumerRefereeUcn,
-  issueConsumerReferralCode,
-  validateConsumerReferralCode,
-} from "../../api/endpoints/consumerPortal";
+  captureReferralSaasRefereeUcn,
+  issueReferralSaasCode,
+  validateReferralSaasCode,
+} from "../../api/endpoints/referralSaasLinks";
 import { ReferralSaasLinkCodeWorkflowPage } from "./ReferralSaasLinkCodeWorkflowPage";
 
-vi.mock("../../api/endpoints/consumerPortal", () => ({
-  issueConsumerReferralCode: vi.fn(),
-  validateConsumerReferralCode: vi.fn(),
-  captureConsumerRefereeUcn: vi.fn(),
+vi.mock("../../api/endpoints/referralSaasLinks", () => ({
+  issueReferralSaasCode: vi.fn(),
+  validateReferralSaasCode: vi.fn(),
+  captureReferralSaasRefereeUcn: vi.fn(),
 }));
 
-const mockedIssueConsumerReferralCode = vi.mocked(issueConsumerReferralCode);
-const mockedValidateConsumerReferralCode = vi.mocked(validateConsumerReferralCode);
-const mockedCaptureConsumerRefereeUcn = vi.mocked(captureConsumerRefereeUcn);
+const mockedIssueReferralSaasCode = vi.mocked(issueReferralSaasCode);
+const mockedValidateReferralSaasCode = vi.mocked(validateReferralSaasCode);
+const mockedCaptureReferralSaasRefereeUcn = vi.mocked(captureReferralSaasRefereeUcn);
 
 function renderWorkspace(ui: ReactElement) {
   const client = new QueryClient({
@@ -55,28 +55,35 @@ function panelByHeading(heading: string) {
 describe("ReferralSaasLinkCodeWorkflowPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedIssueConsumerReferralCode.mockResolvedValue({
-      referral_code: "REF123",
-      gaming_handle: "edwin",
-      created: true,
-      message: "Referral code created",
-      referrer_ucn: "9999999999",
-      referrer_ucn_hash: "raw-response-hash",
+    mockedIssueReferralSaasCode.mockResolvedValue({
+      issue: {
+        issueStatus: "CREATED",
+        referralCode: "REF123",
+        publicHandle: "edwin",
+        created: true,
+        message: "Referral code created",
+        errorCode: null,
+      },
+      account_scope: { source: "identity_tenant" },
     });
-    mockedValidateConsumerReferralCode.mockResolvedValue({
-      valid: true,
-      validation_outcome: "VALIDATED",
-      referral_track_id: "track-1",
-      alias: "customer-alias",
-      message: "Referral code validated",
-      attributes: {
-        tenant_code: "FNB",
-        referrer_ucn: "9999999999",
+    mockedValidateReferralSaasCode.mockResolvedValue({
+      validation: {
+        validationStatus: "VALIDATED",
+        valid: true,
+        referralTrackId: "track-1",
+        alias: "customer-alias",
+        message: "Referral code validated",
+        errorCode: null,
+        recovery: null,
       },
     });
-    mockedCaptureConsumerRefereeUcn.mockResolvedValue({
-      status: "ok",
-      message: "Referee UCN captured",
+    mockedCaptureReferralSaasRefereeUcn.mockResolvedValue({
+      identityCapture: {
+        captureStatus: "CAPTURED",
+        referralTrackId: "track-1",
+        message: "Referee UCN captured",
+        errorCode: null,
+      },
     });
   });
 
@@ -92,9 +99,8 @@ describe("ReferralSaasLinkCodeWorkflowPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Issue code" }));
 
     await waitFor(() =>
-      expect(mockedIssueConsumerReferralCode).toHaveBeenCalledWith({
+      expect(mockedIssueReferralSaasCode).toHaveBeenCalledWith({
         referrerUcn: "5555555555",
-        tenantCode: "FNB",
         sticker: "QR001",
         segment: "PERSONAL",
         preferredHandle: "edwin",
@@ -118,7 +124,7 @@ describe("ReferralSaasLinkCodeWorkflowPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Validate code" }));
 
     await waitFor(() =>
-      expect(mockedValidateConsumerReferralCode).toHaveBeenCalledWith({
+      expect(mockedValidateReferralSaasCode).toHaveBeenCalledWith({
         tenantCode: "FNB",
         referralCode: "REF123",
         acceptedTerms: true,
@@ -145,7 +151,7 @@ describe("ReferralSaasLinkCodeWorkflowPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Capture identity" }));
 
     await waitFor(() =>
-      expect(mockedCaptureConsumerRefereeUcn).toHaveBeenCalledWith("track-1", "7777777777"),
+      expect(mockedCaptureReferralSaasRefereeUcn).toHaveBeenCalledWith("track-1", "7777777777"),
     );
     expect(await screen.findByText("Referee UCN captured")).toBeInTheDocument();
   });
@@ -157,8 +163,8 @@ describe("ReferralSaasLinkCodeWorkflowPage", () => {
 
     expect(screen.getByRole("button", { name: "Issue code" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Validate code" })).toBeDisabled();
-    expect(mockedIssueConsumerReferralCode).not.toHaveBeenCalled();
-    expect(mockedValidateConsumerReferralCode).not.toHaveBeenCalled();
+    expect(mockedIssueReferralSaasCode).not.toHaveBeenCalled();
+    expect(mockedValidateReferralSaasCode).not.toHaveBeenCalled();
   });
 
   it("does not expose unsupported lifecycle, support replay, or money actions", () => {

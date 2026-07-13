@@ -62,6 +62,20 @@ Current route:
 - derives `tenant_code` from authenticated partner identity
 - ignores the request body `tenant` value for service routing
 
+Current product wrapper:
+
+- `POST /v1/referral-saas/referral-codes`
+- implemented by TASK-174 in `apps/api/routers/referral_saas_links.py`
+- protected by `require_partner_key`
+- composes `get_or_create_referrer_code` without forking issue logic
+- derives tenant scope from authenticated partner identity
+- returns product-shaped `issueStatus`, `referralCode`, `publicHandle`,
+  `created`, `sourceType`, `errorCode`, and `message`
+- redacts raw UCN and UCN hash evidence from the response
+- does not implement revoke, expire, reissue, schema changes, audit writes,
+  explicit idempotency keys, rewards, funding, fulfilment, settlement, wallet,
+  or DLaaS expansion behavior
+
 Current request schema:
 
 - `referrer_ucn`
@@ -179,8 +193,8 @@ Candidate product route:
 POST /referral-saas/accounts/{account_ref}/referral-codes
 ```
 
-The current implementation route can remain in place while a product wrapper is
-introduced later. The wrapper must compose existing service behavior rather than
+The current implementation route remains in place. TASK-174 introduces the
+first bounded product wrapper and composes existing service behavior rather than
 forking referral code creation logic.
 
 Minimum product request:

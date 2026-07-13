@@ -134,7 +134,7 @@ Future Referral SaaS APIs should follow these rules:
 
 | Target route | Method | Current source/wrapper | Auth | Notes |
 |---|---|---|---|---|
-| `/v1/referral-saas/referral-codes` | `POST` | `POST /referrals/codes` plus TASK-136 contract | SaaS account integration or partner/member role | Requires accepted terms and idempotency decision. |
+| `/v1/referral-saas/referral-codes` | `POST` | TASK-174 wrapper over `POST /referrals/codes` plus TASK-136 contract | SaaS account integration or partner/member role | Implemented as a bounded partner-identity scoped wrapper. It derives tenant scope from the credential, returns `issueStatus`, safe code/handle fields, and does not expose raw UCN/hash evidence. Schema uniqueness, explicit idempotency keys, lifecycle commands, and audit writes remain future work. |
 | `/v1/referral-saas/referral-codes/{code}` | `GET` | `inspect_link_code` wrapper | SaaS account admin/member | Safe read only; no raw UCN/hash evidence. |
 | `/v1/referral-saas/referral-codes/{code}/revoke` | `POST` | Future lifecycle task | SaaS account admin | Not currently implemented; do not imply available. |
 
@@ -142,8 +142,9 @@ Future Referral SaaS APIs should follow these rules:
 
 | Target route | Method | Current source/wrapper | Auth | Notes |
 |---|---|---|---|---|
-| `/v1/referral-saas/public/referrals/validate` | `POST` | `POST /public/referrals/validate` plus TASK-137 contract | Public validation | Request uses safe account/campaign/link context; still creates referral evidence. |
+| `/v1/referral-saas/public/referrals/validate` | `POST` | TASK-174 wrapper over `POST /public/referrals/validate` plus TASK-137 contract | Public validation | Implemented as a bounded product wrapper. It returns `validationStatus`, safe `referralTrackId`, alias, safe error/recovery fields, and redacts internal attributes. Duplicate-submit idempotency and operator trace linkage remain future work. |
 | `/v1/referral-saas/public/campaigns/validate` | `POST` | `POST /campaigns/validate` plus TASK-135 contract | Public validation | Must distinguish campaign code from campaign track ID. |
+| `/v1/referral-saas/referrals/{referral_track_id}/referee-ucn` | `POST` | TASK-174 wrapper over `POST /referrals/referees/ucn` plus TASK-137 contract | SaaS account integration or partner/member role | Implemented as a bounded partner-identity scoped wrapper. It derives tenant scope from the credential and returns `captureStatus` without exposing raw UCN/hash evidence. |
 
 ### Progress Events
 
@@ -231,11 +232,21 @@ Rules:
 
 - TASK-157 adds the first bounded `/v1/referral-saas/*` route:
   `GET /v1/referral-saas/reports/{report_type}`.
+- TASK-174 adds bounded link/code product wrapper routes:
+  `POST /v1/referral-saas/referral-codes`,
+  `POST /v1/referral-saas/public/referrals/validate`, and
+  `POST /v1/referral-saas/referrals/{referral_track_id}/referee-ucn`.
+  These compose existing referral primitives, return product-shaped safe
+  statuses, and redact raw UCN/hash/internal attribute evidence. They do not
+  implement lifecycle commands, schema changes, audit writes, explicit
+  validation idempotency, or account membership resolution.
 - TASK-166 lets report/export-validation envelopes carry trusted `account_ref`
   and `external_tenant_ref` identity claims. No SaaS account membership wrapper
   currently resolves caller-supplied `accountRef` to internal tenant scope.
-- Some current schemas expose raw `tenant_code`, `referrer_ucn`, or
-  `referee_ucn`; future product APIs must use safe refs or credential-derived
+- Some legacy current schemas expose raw `tenant_code`, `referrer_ucn`, or
+  `referee_ucn`; TASK-174 product link/code wrappers use credential-derived
+  scope for protected calls and product-shaped safe responses, while future
+  product APIs must continue moving toward safe refs or credential-derived
   scope.
 - Current admin/operator routes are useful diagnostics but are not public SaaS
   APIs.

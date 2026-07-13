@@ -180,6 +180,30 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_referral_code_issue",
+        method="POST",
+        path="/v1/referral-saas/referral-codes",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS partner/integration key",
+        environment_rule="local/staging seeded tenant only",
+        seeded_subjects=[
+            "base_url",
+            "partner_token",
+            "referrer_ucn",
+            "sticker",
+            "segment",
+        ],
+        expected_state_change="may create or reuse referrer_codes row through product wrapper",
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {partner_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"referrerUcn":"{referrer_ucn}",'
+            '"sticker":"{sticker}","segment":"{segment}",'
+            '"acceptedTerms":true}\' '
+            '"{base_url}/v1/referral-saas/referral-codes"'
+        ),
+    ),
+    SmokeRoute(
         name="public_referral_validate",
         method="POST",
         path="/public/referrals/validate",
@@ -192,6 +216,43 @@ SEEDED_WRITE_ROUTES = [
             'curl -sS -X POST -H "Content-Type: application/json" '
             '-d \'{"tenant_code":"{tenant_code}","referral_code":"{referral_code}",'
             '"accepted_terms":true}\' "{base_url}/public/referrals/validate"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_public_referral_validate",
+        method="POST",
+        path="/v1/referral-saas/public/referrals/validate",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS public validation request",
+        environment_rule="local/staging seeded tenant only",
+        seeded_subjects=["base_url", "tenant_code", "referral_code"],
+        expected_state_change="may create referral_instances and QR evidence through product wrapper",
+        curl_template=(
+            'curl -sS -X POST -H "Content-Type: application/json" '
+            '-d \'{"tenantCode":"{tenant_code}","referralCode":"{referral_code}",'
+            '"acceptedTerms":true}\' '
+            '"{base_url}/v1/referral-saas/public/referrals/validate"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_referee_ucn_capture",
+        method="POST",
+        path="/v1/referral-saas/referrals/{referral_track_id}/referee-ucn",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS partner/integration key",
+        environment_rule="local/staging seeded tenant only",
+        seeded_subjects=[
+            "base_url",
+            "partner_token",
+            "referral_track_id",
+            "referee_ucn",
+        ],
+        expected_state_change="may update referral_instances and enqueue UCN_CAPTURED progress event through product wrapper",
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {partner_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"refereeUcn":"{referee_ucn}"}\' '
+            '"{base_url}/v1/referral-saas/referrals/{referral_track_id}/referee-ucn"'
         ),
     ),
     SmokeRoute(
