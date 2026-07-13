@@ -211,6 +211,10 @@ describe("ReferralSaasAttributionTracePage", () => {
   it("links to adjacent read-only Referral SaaS support surfaces", () => {
     renderWorkspace(<ReferralSaasAttributionTracePage />);
 
+    expect(screen.getByRole("link", { name: /Support workflow hub/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/support",
+    );
     expect(screen.getByRole("link", { name: /Link\/code inspection/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/operator-links",

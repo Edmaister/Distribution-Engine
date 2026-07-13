@@ -568,17 +568,18 @@
             operator attribution trace API wrapper through TASK-180, the
             focused operator attribution trace UI through TASK-181, and the
             read-only operator progress/status diagnostics API wrapper through
-            TASK-182, and the focused operator progress/status UI through
-            TASK-183.
+            TASK-182, the focused operator progress/status UI through
+            TASK-183, and the focused operator support workflow hub through
+            TASK-184.
           </p>
           <div class="score-row" aria-label="Current position">
             <div class="score">
-              <strong>9.84/10</strong>
-              <span>Referral management foundation after TASK-183 progress/status UI</span>
+              <strong>9.85/10</strong>
+              <span>Referral management foundation after TASK-184 support hub</span>
             </div>
             <div class="score">
-              <strong>9.49/10</strong>
-              <span>Campaign attribution foundation with account, campaign readiness, product link/code, report, preview UI, validation recovery UI, explicit retry posture, operator inspection UI, attribution trace API/UI, and progress/status API/UI</span>
+              <strong>9.50/10</strong>
+              <span>Campaign attribution foundation with account, campaign readiness, product link/code, report, preview UI, validation recovery UI, explicit retry posture, operator inspection UI, attribution trace API/UI, progress/status API/UI, and support hub</span>
             </div>
             <div class="score">
               <strong>10/10</strong>
@@ -592,7 +593,7 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-183 for Referral SaaS, with
+            Updated after TASK-134 through TASK-184 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
@@ -602,8 +603,8 @@
             <span>Account, campaign, code, validation, progress, attribution, support, reporting, API, IA, audit, and E2E plan are documented.</span>
           </div>
           <div class="status-pill">
-            <b>35 implementation proofs added</b>
-            <span>TASK-149 through TASK-183 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, safe-status, report-catalog, report-API, account-scope, referral-funnel, progress-health, attribution-quality, safe-status distribution, link/code performance, reward visibility, export validation, account-reference, export-preview, frontend report-client, report-catalog UI, account-setup readiness UI, inline export-preview UI, campaign-readiness UI, link/code workflow UI, product link/code API wrapper proof, validation recovery mapper proof, validation idempotency posture proof, validation recovery UI proof, operator link/code inspection API proof, operator link/code inspection UI proof, operator attribution trace API proof, operator attribution trace UI proof, operator progress/status diagnostics API proof, and operator progress/status UI proof.</span>
+            <b>36 implementation proofs added</b>
+            <span>TASK-149 through TASK-184 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, safe-status, report-catalog, report-API, account-scope, referral-funnel, progress-health, attribution-quality, safe-status distribution, link/code performance, reward visibility, export validation, account-reference, export-preview, frontend report-client, report-catalog UI, account-setup readiness UI, inline export-preview UI, campaign-readiness UI, link/code workflow UI, product link/code API wrapper proof, validation recovery mapper proof, validation idempotency posture proof, validation recovery UI proof, operator link/code inspection API proof, operator link/code inspection UI proof, operator attribution trace API proof, operator attribution trace UI proof, operator progress/status diagnostics API proof, operator progress/status UI proof, and operator support workflow hub proof.</span>
           </div>
           <div class="status-pill">
             <b>Live confidence still capped</b>
@@ -615,7 +616,7 @@
           </div>
           <div class="status-pill">
             <b>Hardening still missing</b>
-            <span>The score stays below 10/10 until account/membership persistence, remaining product API/UI wrappers, schema-backed duplicate validation reuse or conflict behavior, persisted export storage/audit/downloads, broader support workflow depth, account-safe status surfaces, and live smoke evidence ship.</span>
+            <span>The score stays below 10/10 until account/membership persistence, remaining product API/UI wrappers, schema-backed duplicate validation reuse or conflict behavior, persisted export storage/audit/downloads, support-case persistence/repair guardrails, account-safe status surfaces, and live smoke evidence ship.</span>
           </div>
         </div>
       </section>
@@ -792,7 +793,8 @@
               the focused operator trace UI over that wrapper. TASK-182 adds
               the read-only operator progress/status diagnostics API over
               existing progress and safe-status primitives. TASK-183 adds the
-              focused progress/status operator UI.
+              focused progress/status operator UI. TASK-184 adds the
+              read-only support workflow hub across the diagnostic surfaces.
             </p>
             <div class="tag-row">
               <span class="tag">Campaign attribution</span>
@@ -801,6 +803,7 @@
               <span class="tag done">TASK-181</span>
               <span class="tag done">TASK-182</span>
               <span class="tag done">TASK-183</span>
+              <span class="tag done">TASK-184</span>
               <span class="tag dlaas">Outcome spine</span>
             </div>
           </article>
@@ -841,7 +844,8 @@
               operator progress/status diagnostics API wrapper with safe
               progress, safe status, missing evidence, redactions, and next
               diagnostics. TASK-183 adds the focused progress/status UI over
-              that wrapper.
+              that wrapper. TASK-184 adds the support hub that routes common
+              support case types into read-only product diagnostics.
             </p>
             <div class="tag-row">
               <span class="tag">Customer value</span>
@@ -871,6 +875,7 @@
               <span class="tag done">TASK-181</span>
               <span class="tag done">TASK-182</span>
               <span class="tag done">TASK-183</span>
+              <span class="tag done">TASK-184</span>
               <span class="tag dlaas">Portal status primitive</span>
             </div>
           </article>
@@ -893,7 +898,7 @@
               <li>TASK-134 through TASK-147 completed as contract outputs.</li>
               <li>Referral, validation, progress, attribution, API, IA, reporting, and support boundaries are explicit.</li>
               <li>Money-depth and broad DLaaS scope remain deliberately separate.</li>
-              <li>The contracts are now backed by TASK-149 through TASK-183 implementation proof.</li>
+              <li>The contracts are now backed by TASK-149 through TASK-184 implementation proof.</li>
             </ol>
           </article>
           <article class="phase">
@@ -1198,6 +1203,7 @@
               TASK-182 adds a read-only operator progress/status diagnostics
               API wrapper.
               TASK-183 adds the focused operator progress/status UI.
+              TASK-184 adds the focused operator support workflow hub.
             </p>
             <div class="tag-row">
               <span class="tag done">154</span>
@@ -1243,7 +1249,7 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">SaaS workflow implementation</div>
-            <div class="matrix-cell">Contracts and early proof exist, reporting has a focused UI with inline export preview, account setup readiness has a focused UI, campaign readiness has a focused UI, link/code issue-validation-capture now has product wrappers plus focused UI, tested validation recovery mapping, explicit non-idempotent retry posture, recovery UI, operator link/code inspection API proof, focused operator inspect UI, attribution trace API proof, attribution trace UI proof, progress/status diagnostics API proof, and progress/status UI proof, but broader support workflow, account membership, account-safe status surfaces, and lifecycle hardening still need cohesive product workflows.</div>
+            <div class="matrix-cell">Contracts and early proof exist, reporting has a focused UI with inline export preview, account setup readiness has a focused UI, campaign readiness has a focused UI, link/code issue-validation-capture now has product wrappers plus focused UI, tested validation recovery mapping, explicit non-idempotent retry posture, recovery UI, operator link/code inspection API proof, focused operator inspect UI, attribution trace API proof, attribution trace UI proof, progress/status diagnostics API proof, progress/status UI proof, and support workflow hub proof, but account membership, account-safe status surfaces, support-case persistence, and lifecycle hardening still need cohesive product workflows.</div>
             <div class="matrix-cell">Thin SaaS routes and UI around existing primitives with tests, account-scope resolution, idempotency/recovery posture, and no source duplication.</div>
           </div>
           <div class="matrix-row" role="row">
@@ -1253,7 +1259,7 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Product report/export catalog</div>
-            <div class="matrix-cell">TASK-156 adds `campaign_performance`, TASK-157 exposes it through a read-only product route, TASK-158 derives scope from tenant-scoped identities, TASK-159 adds `referral_funnel`, TASK-160 adds `progress_event_health`, TASK-161 adds `attribution_quality`, TASK-162 adds `safe_status_distribution`, TASK-163 adds `link_code_performance`, TASK-164 adds count-only `reward_visibility_summary`, TASK-165 adds validation-only export gating, TASK-166 carries trusted account references through report/export scope, TASK-167 returns inline JSON/CSV export previews, TASK-168 adds the frontend report/export client, TASK-169 adds the focused report catalog UI, TASK-170 adds account setup readiness UI, TASK-171 adds inline export preview UI, TASK-172 adds campaign readiness UI, TASK-173 adds link/code workflow UI, TASK-174 adds product link/code API wrappers, TASK-175 adds validation recovery mapper proof, TASK-176 adds explicit validation idempotency posture proof, TASK-177 adds validation recovery UI proof, TASK-178 adds operator link/code inspection API proof, TASK-179 adds operator inspection UI proof, TASK-180 adds attribution trace API proof, TASK-181 adds attribution trace UI proof, TASK-182 adds progress/status diagnostics API proof, and TASK-183 adds progress/status UI proof. Persisted exports, broader support workflow depth, account-safe status surfaces, and account/membership persistence remain open.</div>
+            <div class="matrix-cell">TASK-156 adds `campaign_performance`, TASK-157 exposes it through a read-only product route, TASK-158 derives scope from tenant-scoped identities, TASK-159 adds `referral_funnel`, TASK-160 adds `progress_event_health`, TASK-161 adds `attribution_quality`, TASK-162 adds `safe_status_distribution`, TASK-163 adds `link_code_performance`, TASK-164 adds count-only `reward_visibility_summary`, TASK-165 adds validation-only export gating, TASK-166 carries trusted account references through report/export scope, TASK-167 returns inline JSON/CSV export previews, TASK-168 adds the frontend report/export client, TASK-169 adds the focused report catalog UI, TASK-170 adds account setup readiness UI, TASK-171 adds inline export preview UI, TASK-172 adds campaign readiness UI, TASK-173 adds link/code workflow UI, TASK-174 adds product link/code API wrappers, TASK-175 adds validation recovery mapper proof, TASK-176 adds explicit validation idempotency posture proof, TASK-177 adds validation recovery UI proof, TASK-178 adds operator link/code inspection API proof, TASK-179 adds operator inspection UI proof, TASK-180 adds attribution trace API proof, TASK-181 adds attribution trace UI proof, TASK-182 adds progress/status diagnostics API proof, TASK-183 adds progress/status UI proof, and TASK-184 adds support workflow hub proof. Persisted exports, support-case persistence/repair guardrails, account-safe status surfaces, and account/membership persistence remain open.</div>
             <div class="matrix-cell">Implement persisted export storage/audit/downloads, account membership UX, live redaction/export checks, and deeper report workflow actions.</div>
           </div>
           <div class="matrix-row" role="row">
@@ -1421,7 +1427,7 @@
       </section>
 
       <div class="footer-note">
-        Recommendation: continue after TASK-183 into support workflow depth, schema-backed idempotency, and account
+        Recommendation: continue after TASK-184 into support-case persistence guardrails, schema-backed idempotency, and account
         implementation slices for the referral and campaign attribution SaaS.
         Keep the code single-source, keep DLaaS money/marketplace depth
         separate, and use live verification plus E2E proof before upgrading the

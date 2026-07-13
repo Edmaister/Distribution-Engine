@@ -155,6 +155,7 @@ greenfield referral construction.
 47. TASK-181: Add Referral SaaS operator attribution trace frontend surface.
 48. TASK-182: Add Referral SaaS operator progress/status diagnostics API wrapper.
 49. TASK-183: Add Referral SaaS operator progress/status frontend surface.
+50. TASK-184: Add Referral SaaS operator support workflow hub.
 
 ## 10/10 Exit Criteria
 
@@ -289,6 +290,16 @@ greenfield referral construction.
   `test/test_referral_saas_route_smoke_plan.py`
 - TASK-183: `frontend/src/api/endpoints/referralSaasLinks.ts`;
   `frontend/src/api/endpoints/referralSaasLinks.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasProgressStatusPage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasProgressStatusPage.test.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAttributionTracePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAttributionTracePage.test.tsx`;
+  `frontend/src/pages/admin/ReferralSaasOperatorLinkInspectPage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasOperatorLinkInspectPage.test.tsx`;
+  `frontend/src/app/App.tsx`;
+  `frontend/src/layout/Sidebar.tsx`
+- TASK-184: `frontend/src/pages/admin/ReferralSaasSupportHubPage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasSupportHubPage.test.tsx`;
   `frontend/src/pages/admin/ReferralSaasProgressStatusPage.tsx`;
   `frontend/src/pages/admin/ReferralSaasProgressStatusPage.test.tsx`;
   `frontend/src/pages/admin/ReferralSaasAttributionTracePage.tsx`;

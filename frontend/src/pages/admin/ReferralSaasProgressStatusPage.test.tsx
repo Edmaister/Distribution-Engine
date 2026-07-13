@@ -170,6 +170,10 @@ describe("ReferralSaasProgressStatusPage", () => {
   it("links to adjacent read-only Referral SaaS support surfaces", () => {
     renderWorkspace(<ReferralSaasProgressStatusPage />);
 
+    expect(screen.getByRole("link", { name: /Support workflow hub/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/support",
+    );
     expect(screen.getByRole("link", { name: /Attribution trace/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/attribution-trace",

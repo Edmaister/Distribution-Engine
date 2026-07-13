@@ -183,6 +183,10 @@ describe("ReferralSaasOperatorLinkInspectPage", () => {
   it("links to adjacent read-only Referral SaaS support surfaces", () => {
     renderWorkspace(<ReferralSaasOperatorLinkInspectPage />);
 
+    expect(screen.getByRole("link", { name: /Support workflow hub/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/support",
+    );
     expect(screen.getByRole("link", { name: /Campaign readiness/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/campaigns",
