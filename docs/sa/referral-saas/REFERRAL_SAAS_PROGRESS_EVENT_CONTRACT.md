@@ -276,6 +276,21 @@ Minimum product response:
 Product responses must not echo raw `refereeUCN`, raw account number, raw
 provider payloads, tokens, secrets, or stack traces.
 
+## Current Product Diagnostics Fact
+
+TASK-182 implements
+`GET /v1/referral-saas/operator/referrals/{referral_track_id}/progress-status`
+as a read-only operator diagnostics wrapper over the existing dashboard
+progress read and Referral SaaS safe-status projection helper.
+
+The wrapper returns safe progress fields, product safe status, missing
+evidence, redactions, and next diagnostics for next milestone, support triage,
+or attribution trace follow-up. It does not mutate progress ingestion,
+replay/retry/repair events, create support cases, write audit rows, expose raw
+UCNs, or touch reward, funding, fulfilment, settlement, commission, wallet,
+invoice, payout, sponsor billing, marketplace, white-label, or DLaaS expansion
+behavior.
+
 ## Idempotency
 
 Current idempotency posture is strong for event ingestion:

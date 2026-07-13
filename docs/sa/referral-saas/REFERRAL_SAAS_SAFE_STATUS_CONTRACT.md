@@ -308,6 +308,20 @@ Referral SaaS safe-status product surface:
 These gaps are packaging and projection gaps, not proof that the core referral
 or progress foundations are missing.
 
+## Current Product Wrapper Fact
+
+TASK-182 implements
+`GET /v1/referral-saas/operator/referrals/{referral_track_id}/progress-status`
+as an operator-scoped product wrapper that reuses the Referral SaaS
+safe-status projection helper over existing progress evidence.
+
+The route returns `safeStatus`, `missingEvidence`, `redactions`, safe progress
+fields, and bounded `nextDiagnostics` without exposing raw UCN values or
+adding customer/referrer-safe public status behavior. It remains read-only and
+does not add progress mutation, support-case writes, repair/replay/retry,
+reward, funding, fulfilment, settlement, commission, wallet, invoice, payout,
+or broad DLaaS behavior.
+
 ## Future Tests
 
 When this contract becomes implementation work, add or preserve tests for:

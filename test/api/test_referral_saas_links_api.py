@@ -129,6 +129,19 @@ def _operator_attribution_trace(*, completeness: str = "PARTIAL") -> dict:
     }
 
 
+def _operator_progress_status(*, status: str = "ACCOUNT_OPENED") -> dict:
+    return {
+        "referral_track_id": TRACE_REFERRAL_TRACK_ID,
+        "referrer_ucn": "900010",
+        "status": status,
+        "is_complete": False,
+        "progress_percent": 60,
+        "progress_band": "ACTIVE",
+        "display_status": "Account opened",
+        "next_milestone": "ACCOUNT_ACTIVATED",
+    }
+
+
 async def test_referral_saas_issue_wrapper_derives_tenant_and_redacts_response(monkeypatch):
     calls: list[dict] = []
 
@@ -190,6 +203,221 @@ async def test_referral_saas_issue_wrapper_derives_tenant_and_redacts_response(m
     ]
     assert "5555555555" not in response.text
     assert "secret-hash" not in response.text
+
+
+async def test_referral_saas_operator_progress_status_wraps_safe_status_projection(
+    monkeypatch,
+):
+    calls: list[dict] = []
+
+    async def fake_get_dashboard_referral_progress(referral_track_id, tenant_code):
+        calls.append(
+            {
+                "referral_track_id": referral_track_id,
+                "tenant_code": tenant_code,
+            }
+        )
+        return _operator_progress_status()
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "get_dashboard_referral_progress",
+        fake_get_dashboard_referral_progress,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=DISTRIBUTION_ADMIN_HEADERS,
+    ) as client:
+        response = await client.get(
+            f"/v1/referral-saas/operator/referrals/{TRACE_REFERRAL_TRACK_ID}/progress-status",
+            params={"tenant_code": "fnb"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    progress_status = body["progressStatus"]
+    assert body["status"] == "ok"
+    assert progress_status["lookup"] == {
+        "type": "REFERRAL_TRACK_ID",
+        "value": TRACE_REFERRAL_TRACK_ID,
+    }
+    assert progress_status["tenantCode"] == "FNB"
+    assert progress_status["progress"] == {
+        "referralTrackId": TRACE_REFERRAL_TRACK_ID,
+        "status": "ACCOUNT_OPENED",
+        "isComplete": False,
+        "progressPercent": 60,
+        "progressBand": "ACTIVE",
+        "displayStatus": "Account opened",
+        "nextMilestone": "ACCOUNT_ACTIVATED",
+    }
+    assert progress_status["safeStatus"]["product_status"] == "IN_PROGRESS"
+    assert progress_status["safeStatus"]["product_label"] == "In progress"
+    assert progress_status["nextDiagnostics"] == [
+        {
+            "type": "NEXT_MILESTONE",
+            "label": "Review next progress milestone",
+            "targetRef": "ACCOUNT_ACTIVATED",
+        }
+    ]
+    assert body["operator_scope"]["tenant_code"] == "FNB"
+    assert body["guardrail"].startswith(
+        "Referral SaaS operator progress/status wrapper"
+    )
+    assert calls == [
+        {
+            "referral_track_id": TRACE_REFERRAL_TRACK_ID,
+            "tenant_code": "FNB",
+        }
+    ]
+    assert "900010" not in response.text
+    assert "referrer_ucn" in progress_status["redactions"]
+
+
+async def test_referral_saas_operator_progress_status_marks_completed_for_trace_followup(
+    monkeypatch,
+):
+    async def fake_get_dashboard_referral_progress(referral_track_id, tenant_code):
+        result = _operator_progress_status(status="COMPLETED")
+        result["is_complete"] = True
+        result["progress_percent"] = 100
+        result["progress_band"] = "DONE"
+        result["display_status"] = "Complete"
+        result["next_milestone"] = None
+        return result
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "get_dashboard_referral_progress",
+        fake_get_dashboard_referral_progress,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=DISTRIBUTION_ADMIN_HEADERS,
+    ) as client:
+        response = await client.get(
+            f"/v1/referral-saas/operator/referrals/{TRACE_REFERRAL_TRACK_ID}/progress-status",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 200
+    progress_status = response.json()["progressStatus"]
+    assert progress_status["safeStatus"]["product_status"] == "COMPLETED"
+    assert progress_status["nextDiagnostics"] == [
+        {
+            "type": "ATTRIBUTION_TRACE",
+            "label": "Inspect attribution trace",
+            "targetRef": TRACE_REFERRAL_TRACK_ID,
+        }
+    ]
+
+
+async def test_referral_saas_operator_progress_status_returns_safe_not_found(
+    monkeypatch,
+):
+    async def fake_get_dashboard_referral_progress(referral_track_id, tenant_code):
+        return None
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "get_dashboard_referral_progress",
+        fake_get_dashboard_referral_progress,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=DISTRIBUTION_ADMIN_HEADERS,
+    ) as client:
+        response = await client.get(
+            f"/v1/referral-saas/operator/referrals/{TRACE_REFERRAL_TRACK_ID}/progress-status",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == {
+        "code": "progress_status_not_found",
+        "message": "Progress status was not found for the requested tenant.",
+    }
+
+
+async def test_referral_saas_operator_progress_status_rejects_bad_viewer_role(
+    monkeypatch,
+):
+    async def fake_get_dashboard_referral_progress(referral_track_id, tenant_code):
+        return _operator_progress_status()
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "get_dashboard_referral_progress",
+        fake_get_dashboard_referral_progress,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=DISTRIBUTION_ADMIN_HEADERS,
+    ) as client:
+        response = await client.get(
+            f"/v1/referral-saas/operator/referrals/{TRACE_REFERRAL_TRACK_ID}/progress-status",
+            params={"tenant_code": "FNB", "viewer_role": "finance_admin"},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "validation_error",
+        "message": "Unsupported viewer_role for safe status projection.",
+    }
+
+
+async def test_referral_saas_operator_progress_status_rejects_missing_credentials(
+    monkeypatch,
+):
+    async def fake_get_dashboard_referral_progress(referral_track_id, tenant_code):  # pragma: no cover
+        raise AssertionError("service should not be called")
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "get_dashboard_referral_progress",
+        fake_get_dashboard_referral_progress,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.get(
+            f"/v1/referral-saas/operator/referrals/{TRACE_REFERRAL_TRACK_ID}/progress-status",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 401
+
+
+async def test_referral_saas_operator_progress_status_rejects_adjacent_admin_role(
+    monkeypatch,
+):
+    async def fake_get_dashboard_referral_progress(referral_track_id, tenant_code):  # pragma: no cover
+        raise AssertionError("service should not be called")
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "get_dashboard_referral_progress",
+        fake_get_dashboard_referral_progress,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers={"x-api-key": "test-finance-admin-key"},
+    ) as client:
+        response = await client.get(
+            f"/v1/referral-saas/operator/referrals/{TRACE_REFERRAL_TRACK_ID}/progress-status",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 403
 
 
 async def test_referral_saas_operator_attribution_trace_wraps_read_only_primitive(

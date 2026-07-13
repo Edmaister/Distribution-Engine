@@ -166,3 +166,11 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   next diagnostics, links from the operator link/code inspection surface, and
   keeps money/webhook evidence, mutation controls, support-case writes,
   repair/replay/retry, reward, money, and DLaaS behavior out of scope.
+- TASK-182 adds the read-only Referral SaaS operator progress/status API
+  wrapper at
+  `/v1/referral-saas/operator/referrals/{referral_track_id}/progress-status`.
+  It composes the existing dashboard progress read and Referral SaaS
+  safe-status projection helper, returns safe progress, redactions, missing
+  evidence, and next diagnostics, and keeps progress ingestion mutation,
+  support-case writes, repair/replay/retry, reward, money, and DLaaS behavior
+  out of scope.

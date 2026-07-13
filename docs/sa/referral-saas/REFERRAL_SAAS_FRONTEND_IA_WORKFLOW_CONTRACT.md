@@ -142,6 +142,10 @@ Current API/client foundations:
   fulfilment, settlement, wallet, invoice, payout, webhook, raw provider
   payload, support-case write, repair, retry, replay, override, or attribution
   mutation controls.
+- `GET /v1/referral-saas/operator/referrals/{referral_track_id}/progress-status`
+  now provides the TASK-182 read-only progress/status diagnostics API over
+  existing dashboard progress evidence and safe-status projection. A focused
+  progress/status UI is still future work.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.
@@ -158,9 +162,9 @@ Current frontend gaps:
 - Current consumer-facing calls still pass `tenantCode`, `referrerUcn`, and
   sometimes `referralTrackId` directly.
 - Link/code issue, validation, identity capture, operator inspection, and
-  attribution trace now have focused admin workflow surfaces. Progress, safe
-  status, and broader support workflows are not yet presented as one SaaS
-  workflow.
+  attribution trace now have focused admin workflow surfaces. Progress/status
+  now has a product API wrapper, but progress/status UI, safe status, and
+  broader support workflows are not yet presented as one SaaS workflow.
 - Reporting/export screens now have a focused Referral SaaS report catalog
   surface with inline JSON/CSV preview handling, but persisted exports,
   download URLs, scheduled delivery, audit writes, and account membership UX

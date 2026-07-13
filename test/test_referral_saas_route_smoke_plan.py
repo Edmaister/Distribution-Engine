@@ -24,6 +24,7 @@ def test_referral_saas_route_smoke_plan_defaults_to_read_only():
         "/admin/analytics/reports/{report_type}",
         "/v1/referral-saas/operator/links/inspect",
         "/v1/referral-saas/operator/outcomes/{referral_track_id}/trace",
+        "/v1/referral-saas/operator/referrals/{referral_track_id}/progress-status",
         "/v1/referral-saas/reports/{report_type}",
         "/v1/referral-saas/reports/{report_type}/exports/preview",
         "/v1/referral-saas/reports/{report_type}/exports/validate",
@@ -62,6 +63,7 @@ def test_referral_saas_route_smoke_plan_product_wrapper_surface_is_bounded():
     ] == [
         "/v1/referral-saas/operator/links/inspect",
         "/v1/referral-saas/operator/outcomes/{referral_track_id}/trace",
+        "/v1/referral-saas/operator/referrals/{referral_track_id}/progress-status",
         "/v1/referral-saas/reports/{report_type}",
         "/v1/referral-saas/reports/{report_type}/exports/validate",
         "/v1/referral-saas/reports/{report_type}/exports/preview",

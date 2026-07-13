@@ -343,8 +343,8 @@ Recommended sequence:
    sections: outcome, attribution, participants, events, and audit.
 3. TASK-181 adds a focused Referral SaaS attribution trace frontend surface
    over the TASK-180 wrapper.
-4. Add progress/status support diagnostics that connect trace evidence to safe
-   next actions.
+4. TASK-182 adds progress/status support diagnostics that connect trace
+   evidence to safe next actions.
 5. Add redaction/role tests for account-safe trace output after account
    membership exists.
 6. Define reporting aggregation rules in TASK-142.
@@ -384,6 +384,20 @@ The surface:
   invoice, payout, webhook, raw provider payload, support-case write, repair,
   retry, replay, override, or attribution mutation controls
 
+## Current Progress/Status Diagnostics Fact
+
+TASK-182 implements
+`GET /v1/referral-saas/operator/referrals/{referral_track_id}/progress-status`
+as a read-only progress/status diagnostics API that can support attribution
+follow-up from a safe referral track. It reuses existing dashboard progress
+evidence and the Referral SaaS safe-status projection helper instead of adding
+a separate attribution or progress system.
+
+The wrapper returns safe progress, safe status, missing evidence, redactions,
+and next diagnostics, including attribution trace follow-up for completed
+progress. It does not mutate attribution, progress, campaign, reward, funding,
+fulfilment, settlement, audit, webhook, support-case, or money state.
+
 ## Explicit Non-Goals
 
 This task does not implement:
@@ -406,5 +420,7 @@ This task does not implement:
 
 Referral SaaS now has a strong trace foundation through `outcome_trace_service`,
 `/admin/outcomes/{referral_track_id}/trace`, the TASK-180 product wrapper, and
-the TASK-181 focused trace UI. The next work should add progress/status support
-diagnostics over that wrapper instead of creating a separate attribution system.
+the TASK-181 focused trace UI. TASK-182 adds the first progress/status
+diagnostics API beside that trace surface. The next work should add focused
+progress/status UI and support workflow depth instead of creating a separate
+attribution system.
