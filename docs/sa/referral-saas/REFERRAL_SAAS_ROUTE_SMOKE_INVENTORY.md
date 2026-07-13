@@ -55,6 +55,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Read-only diagnostic | GET | `/admin/outcomes/{referral_track_id}/trace` | Attribution trace evidence |
 | Read-only reporting | GET | `/admin/analytics/reports/{report_type}` | Tenant-safe analytics foundation |
 | Read-only product diagnostic | GET | `/v1/referral-saas/operator/links/inspect` | Referral SaaS operator link/code inspection wrapper |
+| Read-only product diagnostic | GET | `/v1/referral-saas/operator/outcomes/{referral_track_id}/trace` | Referral SaaS operator attribution trace wrapper |
 | Read-only product report | GET | `/v1/referral-saas/reports/{report_type}` | Referral SaaS report wrapper |
 | Inline product export preview | POST | `/v1/referral-saas/reports/{report_type}/exports/preview` | Referral SaaS export payload preview |
 | Validation-only product export | POST | `/v1/referral-saas/reports/{report_type}/exports/validate` | Referral SaaS export request validation gate |
@@ -73,10 +74,11 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 
 ## Product Wrapper Fact
 
-TASK-157, TASK-165, TASK-167, and TASK-178 introduce exactly four mounted
+TASK-157, TASK-165, TASK-167, TASK-178, and TASK-180 introduce exactly five mounted
 read-only or side-effect-free `/v1/referral-saas/*` product wrappers:
 
 - `GET /v1/referral-saas/operator/links/inspect`
+- `GET /v1/referral-saas/operator/outcomes/{referral_track_id}/trace`
 - `GET /v1/referral-saas/reports/{report_type}`
 - `POST /v1/referral-saas/reports/{report_type}/exports/preview`
 - `POST /v1/referral-saas/reports/{report_type}/exports/validate`
@@ -92,9 +94,13 @@ records, or download URLs. The operator inspect wrapper composes the shared
 `inspect_link_code` primitive and preserves redactions, missing evidence,
 source warnings, evidence toggling, and safe validation errors without issuing,
 resolving, mutating, retrying, replaying, repairing, rewarding, funding,
-fulfilling, settling, or generating codes. Internal report readers still require
+fulfilling, settling, or generating codes. The attribution trace wrapper
+composes the shared `get_outcome_trace` primitive, exposes only outcome,
+attribution, participants, events, and audit sections, and rejects money and
+webhook sections from the product surface. Internal report readers still require
 explicit `tenant_code` until SaaS account resolution is implemented. No account
-membership, frontend, persisted export, or write command wrapper is implied.
+membership, trace frontend, persisted export, or write command wrapper is
+implied.
 
 ## Smoke Safety Classification
 
@@ -107,6 +113,7 @@ auth permits and test subjects are known:
 - tenant-safe analytics
 - Referral SaaS report wrapper
 - Referral SaaS operator link/code inspection wrapper
+- Referral SaaS operator attribution trace wrapper
 - Referral SaaS export preview wrapper
 - Referral SaaS export validation wrapper
 - consumer/referrer status summaries

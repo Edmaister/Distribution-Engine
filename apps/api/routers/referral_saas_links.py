@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from typing import Annotated, Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 
 from services.link_code_service import inspect_link_code
+from services.outcome_trace_service import OutcomeTraceNotFound, get_outcome_trace
 from services.referral_code import (
     capture_referee_ucn,
     get_or_create_referrer_code,
@@ -21,6 +23,15 @@ router = APIRouter(
     prefix="/v1/referral-saas",
     tags=["Referral SaaS"],
 )
+
+REFERRAL_SAAS_OPERATOR_TRACE_SECTIONS = [
+    "outcome",
+    "attribution",
+    "participants",
+    "events",
+    "audit",
+]
+REFERRAL_SAAS_OPERATOR_TRACE_SECTION_SET = set(REFERRAL_SAAS_OPERATOR_TRACE_SECTIONS)
 
 
 class ReferralSaasCodeIssueRequest(BaseModel):
@@ -142,6 +153,104 @@ def _operator_next_diagnostics(link_code: dict[str, Any]) -> list[dict[str, str]
     return diagnostics
 
 
+def _normalise_operator_trace_sections(
+    include_sections: list[str] | None,
+) -> list[str]:
+    if include_sections is None:
+        return list(REFERRAL_SAAS_OPERATOR_TRACE_SECTIONS)
+
+    sections = ["outcome"]
+    for section in include_sections:
+        normalised = str(section or "").strip().lower()
+        if not normalised:
+            continue
+        if normalised not in REFERRAL_SAAS_OPERATOR_TRACE_SECTION_SET:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "validation_error",
+                    "message": (
+                        "Unsupported Referral SaaS attribution trace section: "
+                        f"{section}"
+                    ),
+                },
+            )
+        if normalised not in sections:
+            sections.append(normalised)
+    return sections
+
+
+def _operator_trace_sections(trace: dict[str, Any]) -> dict[str, Any]:
+    sections = trace.get("sections") if isinstance(trace.get("sections"), dict) else {}
+    return {
+        section: sections[section]
+        for section in REFERRAL_SAAS_OPERATOR_TRACE_SECTIONS
+        if section in sections
+    }
+
+
+def _operator_trace_next_diagnostics(trace: dict[str, Any]) -> list[dict[str, str]]:
+    diagnostics: list[dict[str, str]] = []
+    sections = trace.get("sections") if isinstance(trace.get("sections"), dict) else {}
+    attribution = (
+        sections.get("attribution")
+        if isinstance(sections.get("attribution"), dict)
+        else {}
+    )
+
+    campaign_links = attribution.get("campaign_links")
+    if isinstance(campaign_links, list):
+        for link in campaign_links:
+            if not isinstance(link, dict):
+                continue
+            campaign_code = link.get("campaign_code")
+            if campaign_code:
+                diagnostics.append(
+                    {
+                        "type": "CAMPAIGN_READINESS",
+                        "label": "Inspect campaign readiness",
+                        "targetRef": str(campaign_code),
+                    }
+                )
+                break
+
+    trace_ref = str(trace.get("trace_id") or "")
+    if trace.get("missing_evidence"):
+        diagnostics.append(
+            {
+                "type": "SUPPORT_TRIAGE",
+                "label": "Review missing evidence",
+                "targetRef": trace_ref,
+            }
+        )
+
+    if trace.get("source_warnings"):
+        diagnostics.append(
+            {
+                "type": "SOURCE_WARNING",
+                "label": "Review source warnings",
+                "targetRef": trace_ref,
+            }
+        )
+
+    support_trace = (
+        trace.get("support_trace")
+        if isinstance(trace.get("support_trace"), dict)
+        else {}
+    )
+    if int(support_trace.get("correlation_reference_count") or 0) > 0:
+        lookup = trace.get("lookup") if isinstance(trace.get("lookup"), dict) else {}
+        diagnostics.append(
+            {
+                "type": "SUPPORT_CORRELATION",
+                "label": "Review support correlations",
+                "targetRef": str(lookup.get("value") or trace_ref),
+            }
+        )
+
+    return diagnostics
+
+
 @router.post("/referral-codes")
 async def issue_referral_saas_code(
     request: ReferralSaasCodeIssueRequest,
@@ -176,6 +285,73 @@ async def issue_referral_saas_code(
             "identity and does not expose raw UCNs, hashes, revoke, expire, "
             "reissue, rewards, funding, fulfilment, settlement, or wallet "
             "behavior."
+        ),
+    }
+
+
+@router.get("/operator/outcomes/{referral_track_id}/trace")
+async def get_referral_saas_operator_attribution_trace(
+    referral_track_id: UUID,
+    tenant_code: Annotated[str, Query(min_length=1)],
+    include_sections: Annotated[list[str] | None, Query()] = None,
+    identity: dict = Depends(require_distribution_admin_key),
+) -> dict[str, Any]:
+    resolved_tenant = _normalise_operator_tenant_code(tenant_code)
+    sections = _normalise_operator_trace_sections(include_sections)
+
+    try:
+        trace = await get_outcome_trace(
+            tenant_code=resolved_tenant,
+            referral_track_id=str(referral_track_id),
+            identity=identity,
+            include_sections=sections,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": str(exc),
+            },
+        ) from exc
+    except OutcomeTraceNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "outcome_not_found",
+                "message": (
+                    "Attribution trace was not found for the requested tenant."
+                ),
+            },
+        ) from exc
+
+    return {
+        "status": "ok",
+        "attributionTrace": {
+            "traceStatus": trace.get("trace_completeness"),
+            "traceId": trace.get("trace_id"),
+            "lookup": trace.get("lookup"),
+            "tenantCode": trace.get("tenant_code"),
+            "sections": _operator_trace_sections(trace),
+            "supportTrace": trace.get("support_trace"),
+            "missingEvidence": trace.get("missing_evidence", []),
+            "sourceWarnings": trace.get("source_warnings", []),
+            "redactions": trace.get("redactions", []),
+            "generatedAt": trace.get("generated_at"),
+            "nextDiagnostics": _operator_trace_next_diagnostics(trace),
+        },
+        "operator_scope": {
+            "source": "operator_query_tenant",
+            "tenant_code": resolved_tenant,
+            "account_ref": identity.get("account_ref"),
+            "external_tenant_ref": identity.get("external_tenant_ref"),
+        },
+        "guardrail": (
+            "Referral SaaS operator attribution trace wrapper over the "
+            "existing read-only outcome trace primitive. This endpoint does "
+            "not mutate attribution, progress, campaign, reward, funding, "
+            "fulfilment, settlement, audit, webhook, or money state and does "
+            "not expose money sections."
         ),
     }
 

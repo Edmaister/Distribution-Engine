@@ -307,6 +307,12 @@ Current frontend facts:
   missing evidence, source warnings, redactions, and next diagnostics while
   keeping raw source evidence, support-case writes, repair, retry, replay,
   lifecycle commands, reward, money, and DLaaS controls absent.
+- `GET /v1/referral-saas/operator/outcomes/{referral_track_id}/trace` now gives
+  operators a TASK-180 read-only product attribution trace API over the existing
+  outcome trace primitive. It exposes only outcome, attribution, participants,
+  events, and audit sections; rejects reward, commission, funding, fulfilment,
+  settlement, webhook, and unknown sections; and preserves missing evidence,
+  source warnings, redactions, support trace, and safe next diagnostics.
 
 Implementation should therefore add support UI as a focused workflow, not as a
 generic admin dashboard.
