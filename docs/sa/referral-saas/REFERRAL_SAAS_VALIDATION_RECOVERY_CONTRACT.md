@@ -65,6 +65,8 @@ Current product validation wrapper:
 - `POST /v1/referral-saas/public/referrals/validate`
 - implemented by TASK-174 in `apps/api/routers/referral_saas_links.py`
 - composes `validate_referral_code` without forking validation logic
+- uses the TASK-175 mapper in `services/referral_saas_validation_service.py`
+  for product status, recovery action, and safe response shape
 - returns product-shaped `validationStatus`, `valid`, `referralTrackId`,
   `alias`, `errorCode`, `message`, and `recovery`
 - maps `REFERRAL_LOG_FAILED` to `RECOVERY_REQUIRED_LOGGING` with a safe
@@ -400,10 +402,11 @@ Implementation work following this contract should add or preserve tests for:
 
 Recommended sequence:
 
-1. Add product validation response mapping and redaction contract tests.
-2. Decide duplicate validation/idempotency behavior.
-3. Add explicit recovery mapping for `REFERRAL_LOG_FAILED`.
-4. Add safe customer recovery copy and frontend state handling.
+1. TASK-174 added the product validation wrapper.
+2. TASK-175 added centralized product validation response mapping, redaction
+   shape, and recovery contract tests.
+3. Decide duplicate validation/idempotency behavior.
+4. Add richer frontend recovery state handling.
 5. Add operator evidence linkage to link/code inspection under TASK-140.
 6. Defer progress-event catalog hardening to TASK-138.
 7. Defer attribution trace composition to TASK-139.

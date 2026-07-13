@@ -10,6 +10,9 @@ from services.referral_code import (
     get_or_create_referrer_code,
     validate_referral_code,
 )
+from services.referral_saas_validation_service import (
+    build_referral_saas_validation_result,
+)
 from utils.security import require_partner_key
 from utils.tenant_guard import require_valid_tenant
 
@@ -58,57 +61,6 @@ def _issue_status(body: dict[str, Any], status_code: int) -> str:
     if status_code >= 400:
         return "FAILED"
     return "CREATED" if body.get("created") else "EXISTING"
-
-
-def _validation_status(body: dict[str, Any], status_code: int) -> str:
-    error_code = str(body.get("error_code") or body.get("errorCode") or "")
-    if error_code == "TENANT_CODE_REQUIRED":
-        return "REJECTED_MISSING_TENANT"
-    if error_code == "REFERRAL_CODE_REQUIRED":
-        return "REJECTED_MISSING_CODE"
-    if error_code == "ACCEPTED_TERMS_REQUIRED":
-        return "REJECTED_TERMS_REQUIRED"
-    if error_code in {
-        "ALIAS_REQUIRED",
-        "ALIAS_TOO_SHORT",
-        "ALIAS_TOO_LONG",
-        "ALIAS_INVALID_FORMAT",
-        "ALIAS_NOT_ALLOWED",
-    }:
-        return "REJECTED_ALIAS"
-    if error_code == "REFERRAL_CODE_NOT_FOUND":
-        return "REJECTED_CODE_NOT_FOUND"
-    if error_code == "REFERRAL_LOG_FAILED":
-        return "RECOVERY_REQUIRED_LOGGING"
-    if status_code >= 400:
-        return "FAILED"
-    return "VALIDATED" if body.get("valid") else "FAILED"
-
-
-def _validation_recovery(validation_status: str) -> dict[str, str] | None:
-    recovery_map = {
-        "REJECTED_TERMS_REQUIRED": (
-            "ACCEPT_TERMS_AND_RETRY",
-            "Accept the referral terms and try again.",
-        ),
-        "REJECTED_ALIAS": (
-            "RETRY_WITH_VALID_ALIAS",
-            "Use a valid display alias and try again.",
-        ),
-        "REJECTED_CODE_NOT_FOUND": (
-            "CHECK_CODE_AND_RETRY",
-            "Check the referral code and try again.",
-        ),
-        "RECOVERY_REQUIRED_LOGGING": (
-            "RETRY_VALIDATION_OR_CONTACT_SUPPORT",
-            "We could not finish setting up this referral. Try again or contact support.",
-        ),
-    }
-    mapped = recovery_map.get(validation_status)
-    if not mapped:
-        return None
-    action, safe_message = mapped
-    return {"action": action, "safeMessage": safe_message}
 
 
 def _capture_status(body: dict[str, Any], status_code: int) -> str:
@@ -179,20 +131,10 @@ async def validate_referral_saas_code(
         ip_address=request.ip_address,
         qr_code=request.qr_code,
     )
-    validation_status = _validation_status(body, code)
-
     response.status_code = code
     return {
         "status": "ok" if code < 400 else "rejected",
-        "validation": {
-            "validationStatus": validation_status,
-            "valid": bool(body.get("valid")) and validation_status == "VALIDATED",
-            "referralTrackId": body.get("referral_track_id") or body.get("referralTrackId"),
-            "alias": body.get("alias") or body.get("alias_value"),
-            "errorCode": body.get("error_code") or body.get("errorCode"),
-            "message": body.get("message"),
-            "recovery": _validation_recovery(validation_status),
-        },
+        "validation": build_referral_saas_validation_result(body, code),
         "guardrail": (
             "Referral SaaS validation wrapper over the existing public "
             "validation primitive. This endpoint returns a product status and "

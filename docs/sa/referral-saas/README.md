@@ -126,3 +126,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   from identity where protected, return product-shaped safe statuses, redact
   raw UCN/hash/internal attribute evidence, and keep lifecycle commands,
   schema, audit writes, reward, money, and DLaaS expansion out of scope.
+- TASK-175 adds a dedicated Referral SaaS validation recovery mapper over the
+  existing product validation wrapper. It centralizes product status and safe
+  recovery mapping for terms, alias, missing-code, code-not-found, and logging
+  recovery states, keeps internal validation attributes redacted, and leaves
+  duplicate-submit idempotency, operator trace linkage, schema, lifecycle,
+  audit, reward, money, and DLaaS expansion behavior out of scope.
