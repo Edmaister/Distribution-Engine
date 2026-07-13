@@ -11,6 +11,18 @@ export const queryKeys = {
     ["layout", "health-connection", refreshKey] as const,
   adminChannelOperations: (status: string, refreshKey = 0) =>
     ["admin", "channel-operations", status, refreshKey] as const,
+  referralSaasAccountSetup: (
+    externalTenantRef: string,
+    organisationRef: string,
+    refreshKey = 0,
+  ) =>
+    [
+      "referral-saas",
+      "account-setup",
+      externalTenantRef,
+      organisationRef,
+      refreshKey,
+    ] as const,
   referralSaasReport: (reportType: string, tenantCode: string, refreshKey = 0) =>
     ["referral-saas", "report", reportType, tenantCode, refreshKey] as const,
   partnerIntegrationWorkspace: (refreshKey = 0) =>

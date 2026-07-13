@@ -52,6 +52,7 @@ const sections = [
       { to: "/admin", label: "Command Centre", icon: Gauge, sub: "Admin" },
       { to: "/admin/demo-home", label: "Demo Home", icon: Sparkles, sub: "Demo" },
       { to: "/admin/onboarding/company", label: "Company Onboarding", icon: Building2, sub: "Setup" },
+      { to: "/admin/referral-saas/account-setup", label: "Referral SaaS Setup", icon: Building2, sub: "Account" },
       { to: "/admin/onboarding/members-roles", label: "User & Role Setup", icon: ShieldCheck, sub: "Access" },
       { to: "/admin/onboarding/readiness", label: "Onboarding Readiness", icon: CheckCircle2, sub: "Review" },
       { to: "/admin/distribution/operations", label: "Demand Operations", icon: GitPullRequestArrow, sub: "Ops" },

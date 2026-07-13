@@ -859,7 +859,15 @@ a {
   grid-template-columns: minmax(180px, 0.35fr) minmax(0, 1fr);
 }
 
-.referral-report-controls .field > span {
+.referral-account-controls {
+  align-items: end;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+}
+
+.referral-report-controls .field > span,
+.referral-account-controls .field > span {
   color: var(--color-ink-soft);
   font-family: var(--font-mono);
   font-size: 11px;
@@ -4015,7 +4023,8 @@ textarea.input {
   .settlement-batch-form,
   .settlement-item-form,
   .settlement-approval-form,
-  .referral-report-controls {
+  .referral-report-controls,
+  .referral-account-controls {
     grid-template-columns: 1fr;
   }
 
