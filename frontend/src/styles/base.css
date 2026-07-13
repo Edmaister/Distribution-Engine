@@ -873,13 +873,25 @@ a {
   grid-template-columns: minmax(160px, 0.6fr) minmax(140px, 0.4fr) minmax(190px, 0.7fr) minmax(0, 1fr);
 }
 
+.referral-link-code-controls {
+  align-items: end;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+}
+
 .referral-report-controls .field > span,
 .referral-account-controls .field > span,
-.referral-campaign-controls .field > span {
+.referral-campaign-controls .field > span,
+.referral-link-code-controls .field > span {
   color: var(--color-ink-soft);
   font-family: var(--font-mono);
   font-size: 11px;
   text-transform: uppercase;
+}
+
+.referral-link-code-terms {
+  grid-column: span 2;
 }
 
 .export-preview-actions {
@@ -4071,8 +4083,13 @@ textarea.input {
   .referral-report-controls,
   .referral-account-controls,
   .referral-campaign-controls,
+  .referral-link-code-controls,
   .export-preview-actions {
     grid-template-columns: 1fr;
+  }
+
+  .referral-link-code-terms {
+    grid-column: auto;
   }
 
   .consumer-phone {
