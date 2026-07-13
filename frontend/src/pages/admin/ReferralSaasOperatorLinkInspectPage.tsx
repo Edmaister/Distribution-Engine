@@ -264,6 +264,7 @@ export function ReferralSaasOperatorLinkInspectPage() {
           </div>
           <div className="panel-body route-list">
             <SetupLink to="/admin/referral-saas/campaigns" title="Campaign readiness" copy="Check campaign setup and launch blockers." />
+            <SetupLink to="/admin/referral-saas/attribution-trace" title="Attribution trace" copy="Inspect outcome evidence through the product trace wrapper." />
             <SetupLink to="/admin/referral-saas/link-codes" title="Link/code workflow" copy="Run issue, validation, and identity-capture checks." />
             <SetupLink to="/admin/referral-saas/reports" title="Referral SaaS reports" copy="Review link/code, progress, and attribution reporting." />
           </div>

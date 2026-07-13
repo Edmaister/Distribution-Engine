@@ -133,6 +133,15 @@ Current API/client foundations:
   identifiers, missing evidence, source warnings, redactions, and next
   diagnostics, and does not render raw source evidence or expose support-case,
   retry, replay, repair, lifecycle, reward, money, or DLaaS controls.
+- `/admin/referral-saas/attribution-trace` now provides the TASK-181 focused
+  operator attribution trace surface. It consumes the TASK-180 read-only product
+  wrapper, lets operators inspect a referral track with safe first-launch
+  section toggles, renders trace summary, attribution links, participants,
+  events, audit evidence, missing evidence, source warnings, redactions, and
+  next diagnostics, and does not render reward, commission, funding,
+  fulfilment, settlement, wallet, invoice, payout, webhook, raw provider
+  payload, support-case write, repair, retry, replay, override, or attribution
+  mutation controls.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.
@@ -148,9 +157,9 @@ Current frontend gaps:
   focused Referral SaaS setup and report entries now exist.
 - Current consumer-facing calls still pass `tenantCode`, `referrerUcn`, and
   sometimes `referralTrackId` directly.
-- Link/code issue, validation, identity capture, and operator inspection now
-  have focused admin workflow surfaces. Progress, safe status, attribution
-  trace, and broader support workflows are not yet presented as one SaaS
+- Link/code issue, validation, identity capture, operator inspection, and
+  attribution trace now have focused admin workflow surfaces. Progress, safe
+  status, and broader support workflows are not yet presented as one SaaS
   workflow.
 - Reporting/export screens now have a focused Referral SaaS report catalog
   surface with inline JSON/CSV preview handling, but persisted exports,

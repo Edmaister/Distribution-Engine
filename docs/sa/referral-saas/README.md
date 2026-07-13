@@ -159,3 +159,10 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   reward/commission/funding/fulfilment/settlement/webhook sections, and keeps
   trace UI, repair/replay, support-case writes, reward, money, and DLaaS
   behavior out of scope.
+- TASK-181 adds the focused Referral SaaS operator attribution trace frontend
+  surface at `/admin/referral-saas/attribution-trace`. It calls the TASK-180
+  product wrapper, renders safe trace summary, attribution links, participants,
+  events, audit evidence, missing evidence, source warnings, redactions, and
+  next diagnostics, links from the operator link/code inspection surface, and
+  keeps money/webhook evidence, mutation controls, support-case writes,
+  repair/replay/retry, reward, money, and DLaaS behavior out of scope.

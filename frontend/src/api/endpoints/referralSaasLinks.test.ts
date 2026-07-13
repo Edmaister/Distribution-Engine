@@ -5,6 +5,7 @@ import {
   captureReferralSaasRefereeUcn,
   issueReferralSaasCode,
   inspectReferralSaasOperatorLink,
+  inspectReferralSaasOperatorAttributionTrace,
   validateReferralSaasCode,
 } from "./referralSaasLinks";
 
@@ -94,5 +95,23 @@ describe("referralSaasLinks endpoint client", () => {
         include_evidence: false,
       },
     });
+  });
+
+  it("inspects operator attribution traces through the product wrapper", async () => {
+    await inspectReferralSaasOperatorAttributionTrace({
+      tenantCode: "FNB",
+      referralTrackId: "11111111-1111-4111-8111-111111111111",
+      includeSections: ["attribution", "events", "audit"],
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/operator/outcomes/11111111-1111-4111-8111-111111111111/trace",
+      {
+        query: {
+          tenant_code: "FNB",
+          include_sections: ["attribution", "events", "audit"],
+        },
+      },
+    );
   });
 });

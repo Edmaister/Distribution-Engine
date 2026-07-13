@@ -341,11 +341,12 @@ Recommended sequence:
    `get_outcome_trace`.
 2. TASK-180 adds a narrow product API wrapper that includes only first-launch
    sections: outcome, attribution, participants, events, and audit.
-3. Add a focused Referral SaaS attribution trace frontend surface over the
-   TASK-180 wrapper.
-4. Add redaction/role tests for account-safe trace output after account
+3. TASK-181 adds a focused Referral SaaS attribution trace frontend surface
+   over the TASK-180 wrapper.
+4. Add progress/status support diagnostics that connect trace evidence to safe
+   next actions.
+5. Add redaction/role tests for account-safe trace output after account
    membership exists.
-5. Link operator link/code investigation UI to the outcome trace workflow.
 6. Define reporting aggregation rules in TASK-142.
 
 ## Current Product Wrapper Fact
@@ -365,6 +366,23 @@ The wrapper:
   safe next diagnostics
 - does not mutate attribution, progress, campaign, reward, funding,
   fulfilment, settlement, audit, webhook, or money state
+
+## Current Frontend Fact
+
+TASK-181 implements `/admin/referral-saas/attribution-trace` as a focused
+operator UI over the TASK-180 product wrapper.
+
+The surface:
+
+- lets operators inspect a referral track through the current tenant bridge
+- only offers first-launch safe section toggles: attribution, participants,
+  events, and audit, while outcome remains the required base section
+- renders safe trace summary, attribution links, participants, events, audit
+  evidence, missing evidence, source warnings, redactions, and next diagnostics
+- links from the operator link/code inspection surface into the trace workflow
+- does not render reward, commission, funding, fulfilment, settlement, wallet,
+  invoice, payout, webhook, raw provider payload, support-case write, repair,
+  retry, replay, override, or attribution mutation controls
 
 ## Explicit Non-Goals
 
@@ -387,6 +405,6 @@ This task does not implement:
 ## Readiness Decision
 
 Referral SaaS now has a strong trace foundation through `outcome_trace_service`,
-`/admin/outcomes/{referral_track_id}/trace`, and the TASK-180 product wrapper.
-The next work should add a focused trace UI and progress/status support links
-over that wrapper instead of creating a separate attribution system.
+`/admin/outcomes/{referral_track_id}/trace`, the TASK-180 product wrapper, and
+the TASK-181 focused trace UI. The next work should add progress/status support
+diagnostics over that wrapper instead of creating a separate attribution system.

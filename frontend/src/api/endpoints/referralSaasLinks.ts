@@ -9,6 +9,13 @@ export type ReferralSaasOperatorLinkSourceType =
   | "ROUTE_REFERRAL_LINK"
   | "COMPOSITE_CODE";
 
+export type ReferralSaasAttributionTraceSection =
+  | "outcome"
+  | "attribution"
+  | "participants"
+  | "events"
+  | "audit";
+
 export function issueReferralSaasCode({
   referrerUcn,
   sticker,
@@ -93,4 +100,24 @@ export function inspectReferralSaasOperatorLink({
       include_evidence: includeEvidence,
     },
   });
+}
+
+export function inspectReferralSaasOperatorAttributionTrace({
+  tenantCode,
+  referralTrackId,
+  includeSections,
+}: {
+  tenantCode: string;
+  referralTrackId: string;
+  includeSections?: ReferralSaasAttributionTraceSection[];
+}): Promise<ReferralSaasLinkRecord> {
+  return apiRequest<ReferralSaasLinkRecord>(
+    `v1/referral-saas/operator/outcomes/${encodeURIComponent(referralTrackId)}/trace`,
+    {
+      query: {
+        tenant_code: tenantCode,
+        include_sections: includeSections?.length ? includeSections : undefined,
+      },
+    },
+  );
 }
