@@ -120,3 +120,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   validation, and referee UCN capture client calls, renders only whitelisted
   result fields, and keeps reissue, revoke, expire, repair, replay, reward,
   money, backend route, schema, and DLaaS expansion behavior out of scope.
+- TASK-174 adds bounded `/v1/referral-saas` product API wrappers for referral
+  code issue/reuse, public referral validation, and referee UCN capture. The
+  wrappers compose existing referral primitives, derive partner tenant scope
+  from identity where protected, return product-shaped safe statuses, redact
+  raw UCN/hash/internal attribute evidence, and keep lifecycle commands,
+  schema, audit writes, reward, money, and DLaaS expansion out of scope.

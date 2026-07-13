@@ -145,6 +145,7 @@ greenfield referral construction.
 37. TASK-171: Add Referral SaaS inline export preview frontend surface.
 38. TASK-172: Add Referral SaaS campaign readiness frontend surface.
 39. TASK-173: Add Referral SaaS link/code workflow frontend surface.
+40. TASK-174: Add Referral SaaS link/code product API wrappers.
 
 ## 10/10 Exit Criteria
 
@@ -236,6 +237,10 @@ greenfield referral construction.
   `frontend/src/api/referralSaasCampaignQueries.ts`
 - TASK-173: `frontend/src/pages/admin/ReferralSaasLinkCodeWorkflowPage.tsx`;
   `frontend/src/pages/admin/ReferralSaasLinkCodeWorkflowPage.test.tsx`
+- TASK-174: `apps/api/routers/referral_saas_links.py`;
+  `test/api/test_referral_saas_links_api.py`;
+  `frontend/src/api/endpoints/referralSaasLinks.ts`;
+  `frontend/src/api/endpoints/referralSaasLinks.test.ts`
 
 ## Explicit Deferrals
 

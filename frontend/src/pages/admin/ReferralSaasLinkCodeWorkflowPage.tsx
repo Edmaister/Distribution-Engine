@@ -5,11 +5,11 @@ import { Link } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 
 import {
-  captureConsumerRefereeUcn,
-  issueConsumerReferralCode,
-  validateConsumerReferralCode,
-  type ConsumerPortalRecord,
-} from "../../api/endpoints/consumerPortal";
+  captureReferralSaasRefereeUcn,
+  issueReferralSaasCode,
+  validateReferralSaasCode,
+  type ReferralSaasLinkRecord,
+} from "../../api/endpoints/referralSaasLinks";
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { KpiCard } from "../../components/KpiCard";
 import { StatusBadge } from "../../components/StatusBadge";
@@ -21,16 +21,21 @@ const defaultReferrerUcn = "5555555555";
 const defaultSticker = "QR001";
 const defaultSegment = "PERSONAL";
 
-function resultValue(result: ConsumerPortalRecord | undefined, keys: string[], fallback = "-") {
+function resultValue(result: ReferralSaasLinkRecord | undefined, keys: string[], fallback = "-") {
   return result ? getValue(result, keys, fallback) : fallback;
 }
 
-function issuedReferralCode(result: ConsumerPortalRecord | undefined) {
-  return resultValue(result, ["referral_code", "referralCode", "code"], "");
+function nestedString(result: ReferralSaasLinkRecord | undefined, path: string[]) {
+  const value = result ? getNestedValue(result, path, "") : "";
+  return value === undefined || value === null ? "" : String(value);
 }
 
-function validationTrackId(result: ConsumerPortalRecord | undefined) {
-  return resultValue(result, ["referral_track_id", "referralTrackId", "track_id"], "");
+function issuedReferralCode(result: ReferralSaasLinkRecord | undefined) {
+  return nestedString(result, ["issue", "referralCode"]) || resultValue(result, ["referral_code", "referralCode", "code"], "");
+}
+
+function validationTrackId(result: ReferralSaasLinkRecord | undefined) {
+  return nestedString(result, ["validation", "referralTrackId"]) || resultValue(result, ["referral_track_id", "referralTrackId", "track_id"], "");
 }
 
 export function ReferralSaasLinkCodeWorkflowPage() {
@@ -46,9 +51,8 @@ export function ReferralSaasLinkCodeWorkflowPage() {
 
   const issueMutation = useMutation({
     mutationFn: () =>
-      issueConsumerReferralCode({
+      issueReferralSaasCode({
         referrerUcn,
-        tenantCode,
         sticker,
         segment,
         preferredHandle,
@@ -64,7 +68,7 @@ export function ReferralSaasLinkCodeWorkflowPage() {
 
   const validateMutation = useMutation({
     mutationFn: () =>
-      validateConsumerReferralCode({
+      validateReferralSaasCode({
         tenantCode,
         referralCode: referralCode || issuedReferralCode(issueMutation.data),
         acceptedTerms,
@@ -74,7 +78,7 @@ export function ReferralSaasLinkCodeWorkflowPage() {
 
   const captureMutation = useMutation({
     mutationFn: () =>
-      captureConsumerRefereeUcn(
+      captureReferralSaasRefereeUcn(
         validationTrackId(validateMutation.data),
         refereeUcn,
       ),
@@ -83,9 +87,11 @@ export function ReferralSaasLinkCodeWorkflowPage() {
   const issueResult = issueMutation.data;
   const validationResult = validateMutation.data;
   const captureResult = captureMutation.data;
+  const issue = asRecord(getNestedValue(issueResult, ["issue"], issueResult || {}));
+  const validation = asRecord(getNestedValue(validationResult, ["validation"], validationResult || {}));
+  const identityCapture = asRecord(getNestedValue(captureResult, ["identityCapture"], captureResult || {}));
   const activeReferralCode = referralCode || issuedReferralCode(issueResult);
   const activeTrackId = validationTrackId(validationResult);
-  const validationAttributes = asRecord(getNestedValue(validationResult, ["attributes"], {}));
   const canIssueOrValidate = acceptedTerms && tenantCode.trim() !== "";
   const canValidate = canIssueOrValidate && activeReferralCode.trim() !== "";
   const canCapture = activeTrackId.trim() !== "" && refereeUcn.trim() !== "";
@@ -207,15 +213,15 @@ export function ReferralSaasLinkCodeWorkflowPage() {
           disabled={!canIssueOrValidate || issueMutation.isPending}
           icon={<KeyRound size={16} />}
           onAction={() => issueMutation.mutate()}
-          status={resultValue(issueResult, ["created"], "") === "true" ? "Created" : issueResult ? "Existing" : "Waiting"}
+          status={resultValue(issue, ["issueStatus"], "") || (issueResult ? "Existing" : "Waiting")}
           tone={issueResult ? "success" : "neutral"}
         >
           {issueMutation.error ? <ErrorPanel error={issueMutation.error} /> : null}
           <div className="summary-grid">
-            <SummaryItem label="Referral code" value={resultValue(issueResult, ["referral_code", "referralCode", "code"])} />
-            <SummaryItem label="Handle" value={resultValue(issueResult, ["gaming_handle", "preferred_handle", "handle"])} />
-            <SummaryItem label="Message" value={resultValue(issueResult, ["message", "detail"])} />
-            <SummaryItem label="Error code" value={resultValue(issueResult, ["error_code", "code"])} />
+            <SummaryItem label="Referral code" value={resultValue(issue, ["referralCode", "referral_code", "code"])} />
+            <SummaryItem label="Handle" value={resultValue(issue, ["publicHandle", "gaming_handle", "preferred_handle", "handle"])} />
+            <SummaryItem label="Message" value={resultValue(issue, ["message", "detail"])} />
+            <SummaryItem label="Error code" value={resultValue(issue, ["errorCode", "error_code", "code"])} />
           </div>
         </WorkflowPanel>
 
@@ -226,21 +232,21 @@ export function ReferralSaasLinkCodeWorkflowPage() {
           disabled={!canValidate || validateMutation.isPending}
           icon={<ShieldCheck size={16} />}
           onAction={() => validateMutation.mutate()}
-          status={resultValue(validationResult, ["validation_outcome", "valid"], "Waiting")}
-          tone={validationResult ? statusTone(resultValue(validationResult, ["validation_outcome", "valid"])) : "neutral"}
+          status={resultValue(validation, ["validationStatus", "validation_outcome", "valid"], "Waiting")}
+          tone={validationResult ? statusTone(resultValue(validation, ["validationStatus", "validation_outcome", "valid"])) : "neutral"}
         >
           {validateMutation.error ? <ErrorPanel error={validateMutation.error} /> : null}
           <div className="summary-grid">
-            <SummaryItem label="Outcome" value={resultValue(validationResult, ["validation_outcome", "valid"])} />
-            <SummaryItem label="Track ID" value={resultValue(validationResult, ["referral_track_id", "referralTrackId", "track_id"])} />
-            <SummaryItem label="Alias" value={resultValue(validationResult, ["alias"])} />
-            <SummaryItem label="Message" value={resultValue(validationResult, ["message", "detail"])} />
+            <SummaryItem label="Outcome" value={resultValue(validation, ["validationStatus", "validation_outcome", "valid"])} />
+            <SummaryItem label="Track ID" value={resultValue(validation, ["referralTrackId", "referral_track_id", "track_id"])} />
+            <SummaryItem label="Alias" value={resultValue(validation, ["alias"])} />
+            <SummaryItem label="Message" value={resultValue(validation, ["message", "detail"])} />
           </div>
-          {Object.keys(validationAttributes).length ? (
+          {validationResult && !Object.keys(validation).includes("attributes") ? (
             <div className="route-item">
               <div>
                 <div className="route-name">Internal attributes redacted</div>
-                <div className="route-path">Validation attributes are present but not rendered in this product surface.</div>
+                <div className="route-path">The product wrapper does not return raw validation attributes to this surface.</div>
               </div>
               <StatusBadge label="Redacted" tone="info" />
             </div>
@@ -254,14 +260,14 @@ export function ReferralSaasLinkCodeWorkflowPage() {
           disabled={!canCapture || captureMutation.isPending}
           icon={<UserCheck size={16} />}
           onAction={() => captureMutation.mutate()}
-          status={resultValue(captureResult, ["status"], "Waiting")}
-          tone={captureResult ? statusTone(resultValue(captureResult, ["status"])) : "neutral"}
+          status={resultValue(identityCapture, ["captureStatus", "status"], "Waiting")}
+          tone={captureResult ? statusTone(resultValue(identityCapture, ["captureStatus", "status"])) : "neutral"}
         >
           {captureMutation.error ? <ErrorPanel error={captureMutation.error} /> : null}
           <div className="summary-grid">
-            <SummaryItem label="Status" value={resultValue(captureResult, ["status"])} />
-            <SummaryItem label="Message" value={resultValue(captureResult, ["message", "detail"])} />
-            <SummaryItem label="Error code" value={resultValue(captureResult, ["error_code", "code"])} />
+            <SummaryItem label="Status" value={resultValue(identityCapture, ["captureStatus", "status"])} />
+            <SummaryItem label="Message" value={resultValue(identityCapture, ["message", "detail"])} />
+            <SummaryItem label="Error code" value={resultValue(identityCapture, ["errorCode", "error_code", "code"])} />
           </div>
         </WorkflowPanel>
       </section>
