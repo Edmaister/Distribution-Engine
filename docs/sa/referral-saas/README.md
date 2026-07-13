@@ -115,3 +115,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   setup checklist, lifecycle, blockers, warnings, and safe campaign/policy
   evidence without adding campaign creation, policy writes, activation,
   link/code generation, backend routes, schema, marketplace, or money flows.
+- TASK-173 adds a focused admin frontend surface for Referral SaaS link/code
+  workflow execution. It reuses the existing referral code issue, public
+  validation, and referee UCN capture client calls, renders only whitelisted
+  result fields, and keeps reissue, revoke, expire, repair, replay, reward,
+  money, backend route, schema, and DLaaS expansion behavior out of scope.

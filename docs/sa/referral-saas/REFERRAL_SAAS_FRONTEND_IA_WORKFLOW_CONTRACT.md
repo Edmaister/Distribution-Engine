@@ -120,6 +120,12 @@ Current API/client foundations:
   operation readiness, blockers, warnings, and safe campaign/policy evidence
   without campaign creation, policy writes, activation, link/code generation,
   backend routes, schema, marketplace, or money behavior.
+- `/admin/referral-saas/link-codes` now provides the TASK-173 focused
+  link/code workflow surface. It reuses the current referral code issue, public
+  validation, and referee UCN capture client calls, labels tenant/referrer UCN
+  input as a transitional bridge, shows only whitelisted result fields, and
+  keeps reissue, revoke, expire, repair, replay, reward, money, backend route,
+  schema, and DLaaS expansion behavior out of scope.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.
@@ -129,13 +135,14 @@ Current API/client foundations:
 Current frontend gaps:
 
 - Dedicated Referral SaaS admin routes have started for account setup
-  readiness, campaign readiness, and reports, but a full product shell is still
-  future work.
+  readiness, campaign readiness, link/code workflow, and reports, but a full
+  product shell is still future work.
 - Current navigation is still broader Distribution OS/DLaaS oriented, though
   focused Referral SaaS setup and report entries now exist.
 - Current consumer-facing calls still pass `tenantCode`, `referrerUcn`, and
   sometimes `referralTrackId` directly.
-- Link/code issue, validation, progress, status, attribution trace, and support
+- Link/code issue, validation, and identity capture now have a first focused
+  admin workflow surface. Progress, safe status, attribution trace, and support
   are not yet presented as one SaaS workflow.
 - Reporting/export screens now have a focused Referral SaaS report catalog
   surface with inline JSON/CSV preview handling, but persisted exports,
