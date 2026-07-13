@@ -339,12 +339,32 @@ Recommended sequence:
 
 1. Add Referral SaaS attribution trace projection tests over
    `get_outcome_trace`.
-2. Add a narrow product projection wrapper that includes only first-launch
-   sections.
-3. Add redaction/role tests for account-safe trace output after account
+2. TASK-180 adds a narrow product API wrapper that includes only first-launch
+   sections: outcome, attribution, participants, events, and audit.
+3. Add a focused Referral SaaS attribution trace frontend surface over the
+   TASK-180 wrapper.
+4. Add redaction/role tests for account-safe trace output after account
    membership exists.
-4. Link operator link/code investigation to the outcome trace in TASK-140.
-5. Define reporting aggregation rules in TASK-142.
+5. Link operator link/code investigation UI to the outcome trace workflow.
+6. Define reporting aggregation rules in TASK-142.
+
+## Current Product Wrapper Fact
+
+TASK-180 implements
+`GET /v1/referral-saas/operator/outcomes/{referral_track_id}/trace` as a
+read-only Referral SaaS operator wrapper over `get_outcome_trace`.
+
+The wrapper:
+
+- requires the Referral SaaS operator/distribution-admin bridge
+- accepts required `tenant_code` and optional repeated `include_sections`
+- defaults to `outcome`, `attribution`, `participants`, `events`, and `audit`
+- rejects reward, commission, funding, fulfilment, settlement, webhook, and
+  unknown sections before the shared trace service is called
+- preserves missing evidence, source warnings, redactions, support trace, and
+  safe next diagnostics
+- does not mutate attribution, progress, campaign, reward, funding,
+  fulfilment, settlement, audit, webhook, or money state
 
 ## Explicit Non-Goals
 
@@ -366,7 +386,7 @@ This task does not implement:
 
 ## Readiness Decision
 
-Referral SaaS already has a strong trace foundation through
-`outcome_trace_service` and `/admin/outcomes/{referral_track_id}/trace`. The
-next work should productize a narrow, redacted Referral SaaS attribution trace
-projection instead of creating a separate attribution system.
+Referral SaaS now has a strong trace foundation through `outcome_trace_service`,
+`/admin/outcomes/{referral_track_id}/trace`, and the TASK-180 product wrapper.
+The next work should add a focused trace UI and progress/status support links
+over that wrapper instead of creating a separate attribution system.

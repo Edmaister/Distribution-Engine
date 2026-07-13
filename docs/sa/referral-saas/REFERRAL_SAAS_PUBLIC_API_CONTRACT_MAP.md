@@ -175,7 +175,7 @@ Future Referral SaaS APIs should follow these rules:
 | Target route | Method | Current source/wrapper | Auth | Notes |
 |---|---|---|---|---|
 | `/v1/referral-saas/operator/links/inspect` | `GET` | TASK-178 wrapper over `inspect_link_code` / `GET /admin/links/inspect` plus TASK-140 contract | Operator/support/admin bridge | Implemented as read-only operator diagnostics. Preserves evidence toggling, redactions, missing evidence, source warnings, safe validation errors, and product `nextDiagnostics`; no mutation, retry, replay, repair, reward, money, or code generation. |
-| `/v1/referral-saas/operator/outcomes/{safeReferralRef}/trace` | `GET` | `GET /admin/outcomes/{referral_track_id}/trace` | Operator/support role | Read-only diagnostic. |
+| `/v1/referral-saas/operator/outcomes/{referral_track_id}/trace` | `GET` | TASK-180 wrapper over `get_outcome_trace` / `GET /admin/outcomes/{referral_track_id}/trace` plus TASK-139 contract | Operator/support/admin bridge | Implemented as read-only operator attribution trace. Defaults to outcome, attribution, participants, events, and audit; rejects reward, commission, funding, fulfilment, settlement, webhook, and unknown sections; no mutation, retry, replay, repair, reward, money, or support-case write. Future account-safe aliases may hide raw internal referral track IDs after account membership exists. |
 | `/v1/referral-saas/operator/support-cases` | `GET` | TASK-145 future contract | Operator/support role | Not implemented by this map. |
 
 ## Auth And Tenant Scope Rules
@@ -262,6 +262,15 @@ Rules:
   evidence, and source warnings. It does not add support-case mutations,
   repair/replay/retry commands, schema, audit writes, reward, funding,
   fulfilment, settlement, or broad DLaaS behavior.
+- TASK-180 adds a read-only operator attribution trace product wrapper:
+  `GET /v1/referral-saas/operator/outcomes/{referral_track_id}/trace`. It
+  composes `get_outcome_trace`, keeps the response operator-scoped, defaults
+  to outcome, attribution, participants, events, and audit sections, and
+  rejects reward, commission, funding, fulfilment, settlement, webhook, and
+  unknown sections from the Referral SaaS product surface. It does not add
+  attribution mutation, support-case writes, repair/replay/retry commands,
+  schema, audit writes, reward, funding, fulfilment, settlement, or broad
+  DLaaS behavior.
 - TASK-166 lets report/export-validation envelopes carry trusted `account_ref`
   and `external_tenant_ref` identity claims. No SaaS account membership wrapper
   currently resolves caller-supplied `accountRef` to internal tenant scope.

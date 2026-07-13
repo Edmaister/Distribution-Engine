@@ -14,6 +14,7 @@ pytestmark = pytest.mark.asyncio
 
 PARTNER_HEADERS = {"x-api-key": "test-partner-key"}
 DISTRIBUTION_ADMIN_HEADERS = {"x-api-key": "test-distribution-admin-key"}
+TRACE_REFERRAL_TRACK_ID = "11111111-1111-4111-8111-111111111111"
 
 
 async def fake_require_valid_tenant(tenant: str) -> str:
@@ -51,6 +52,80 @@ def _operator_link_code(*, status: str = "ISSUED") -> dict:
         "created_at": "2026-06-25T00:00:00+00:00",
         "updated_at": "2026-06-25T00:00:00+00:00",
         "inspected_at": "2026-06-25T00:00:00+00:00",
+    }
+
+
+def _operator_attribution_trace(*, completeness: str = "PARTIAL") -> dict:
+    trace_id = f"outcome:referral_track_id:{TRACE_REFERRAL_TRACK_ID}"
+    return {
+        "trace_id": trace_id,
+        "trace_type": "OUTCOME",
+        "lookup": {
+            "type": "REFERRAL_TRACK_ID",
+            "value": TRACE_REFERRAL_TRACK_ID,
+        },
+        "tenant_code": "FNB",
+        "trace_completeness": completeness,
+        "sections": {
+            "outcome": {
+                "referral_track_id": TRACE_REFERRAL_TRACK_ID,
+                "status": "ACCOUNT_OPENED",
+            },
+            "attribution": {
+                "items": [],
+                "count": 1,
+                "campaign_links": [
+                    {
+                        "campaign_code": "CAMP001",
+                        "campaign_track_id": "campaign-track-1",
+                        "referral_track_id": TRACE_REFERRAL_TRACK_ID,
+                    }
+                ],
+                "route_links": [],
+            },
+            "participants": {
+                "items": [
+                    {
+                        "participant_type": "REFERRER",
+                        "safe_display_ref": "safe-referrer",
+                    }
+                ],
+                "count": 1,
+            },
+            "events": {
+                "items": [
+                    {
+                        "event_type": "ACCOUNT_OPENED",
+                        "source_event_id": "event-1",
+                    }
+                ],
+                "count": 1,
+            },
+            "audit": {
+                "items": [{"audit_id": "audit-1", "action_type": "TRACE"}],
+                "count": 1,
+            },
+            "reward": {"items": [{"amount": "999.00"}], "count": 1},
+            "funding": {"items": [{"amount": "999.00"}], "count": 1},
+            "webhooks": {"items": [{"secret": "not-for-product"}], "count": 1},
+        },
+        "support_trace": {"correlation_reference_count": 1},
+        "missing_evidence": [
+            {
+                "code": "ATTRIBUTION_EVENT_MISSING",
+                "severity": "WARNING",
+                "message": "Expected attribution event evidence was not found.",
+            }
+        ],
+        "source_warnings": [
+            {
+                "code": "SOURCE_DELAYED",
+                "severity": "WARNING",
+                "message": "One evidence source was delayed.",
+            }
+        ],
+        "redactions": ["referrer_ucn", "referee_ucn"],
+        "generated_at": "2026-07-14T00:00:00+00:00",
     }
 
 
@@ -115,6 +190,268 @@ async def test_referral_saas_issue_wrapper_derives_tenant_and_redacts_response(m
     ]
     assert "5555555555" not in response.text
     assert "secret-hash" not in response.text
+
+
+async def test_referral_saas_operator_attribution_trace_wraps_read_only_primitive(
+    monkeypatch,
+):
+    calls: list[dict] = []
+
+    async def fake_get_outcome_trace(**kwargs):
+        calls.append(kwargs)
+        return _operator_attribution_trace(completeness="COMPLETE")
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "get_outcome_trace",
+        fake_get_outcome_trace,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=DISTRIBUTION_ADMIN_HEADERS,
+    ) as client:
+        response = await client.get(
+            f"/v1/referral-saas/operator/outcomes/{TRACE_REFERRAL_TRACK_ID}/trace",
+            params={"tenant_code": "fnb"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    trace = body["attributionTrace"]
+    assert body["status"] == "ok"
+    assert trace["traceStatus"] == "COMPLETE"
+    assert trace["lookup"]["value"] == TRACE_REFERRAL_TRACK_ID
+    assert trace["tenantCode"] == "FNB"
+    assert set(trace["sections"]) == {
+        "outcome",
+        "attribution",
+        "participants",
+        "events",
+        "audit",
+    }
+    assert "reward" not in trace["sections"]
+    assert "funding" not in trace["sections"]
+    assert "webhooks" not in trace["sections"]
+    assert trace["missingEvidence"][0]["code"] == "ATTRIBUTION_EVENT_MISSING"
+    assert trace["sourceWarnings"][0]["code"] == "SOURCE_DELAYED"
+    assert trace["redactions"] == ["referrer_ucn", "referee_ucn"]
+    assert trace["nextDiagnostics"] == [
+        {
+            "type": "CAMPAIGN_READINESS",
+            "label": "Inspect campaign readiness",
+            "targetRef": "CAMP001",
+        },
+        {
+            "type": "SUPPORT_TRIAGE",
+            "label": "Review missing evidence",
+            "targetRef": f"outcome:referral_track_id:{TRACE_REFERRAL_TRACK_ID}",
+        },
+        {
+            "type": "SOURCE_WARNING",
+            "label": "Review source warnings",
+            "targetRef": f"outcome:referral_track_id:{TRACE_REFERRAL_TRACK_ID}",
+        },
+        {
+            "type": "SUPPORT_CORRELATION",
+            "label": "Review support correlations",
+            "targetRef": TRACE_REFERRAL_TRACK_ID,
+        },
+    ]
+    assert body["operator_scope"]["tenant_code"] == "FNB"
+    assert body["guardrail"].startswith(
+        "Referral SaaS operator attribution trace wrapper"
+    )
+    assert "does not expose money sections" in body["guardrail"]
+    assert calls[0]["tenant_code"] == "FNB"
+    assert calls[0]["referral_track_id"] == TRACE_REFERRAL_TRACK_ID
+    assert calls[0]["include_sections"] == [
+        "outcome",
+        "attribution",
+        "participants",
+        "events",
+        "audit",
+    ]
+    assert calls[0]["identity"]["role"] == "DISTRIBUTION_ADMIN"
+    assert "999.00" not in response.text
+    assert "not-for-product" not in response.text
+
+
+async def test_referral_saas_operator_attribution_trace_accepts_safe_section_filter(
+    monkeypatch,
+):
+    calls: list[dict] = []
+
+    async def fake_get_outcome_trace(**kwargs):
+        calls.append(kwargs)
+        trace = _operator_attribution_trace()
+        trace["sections"] = {
+            section: trace["sections"][section]
+            for section in ["outcome", "events", "attribution"]
+        }
+        return trace
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "get_outcome_trace",
+        fake_get_outcome_trace,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=DISTRIBUTION_ADMIN_HEADERS,
+    ) as client:
+        response = await client.get(
+            f"/v1/referral-saas/operator/outcomes/{TRACE_REFERRAL_TRACK_ID}/trace",
+            params=[
+                ("tenant_code", "FNB"),
+                ("include_sections", "events"),
+                ("include_sections", "attribution"),
+            ],
+        )
+
+    assert response.status_code == 200
+    assert calls[0]["include_sections"] == ["outcome", "events", "attribution"]
+    assert set(response.json()["attributionTrace"]["sections"]) == {
+        "outcome",
+        "attribution",
+        "events",
+    }
+
+
+async def test_referral_saas_operator_attribution_trace_rejects_money_sections(
+    monkeypatch,
+):
+    async def fake_get_outcome_trace(**kwargs):  # pragma: no cover
+        raise AssertionError("service should not be called")
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "get_outcome_trace",
+        fake_get_outcome_trace,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=DISTRIBUTION_ADMIN_HEADERS,
+    ) as client:
+        response = await client.get(
+            f"/v1/referral-saas/operator/outcomes/{TRACE_REFERRAL_TRACK_ID}/trace",
+            params={"tenant_code": "FNB", "include_sections": "reward"},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "validation_error",
+        "message": "Unsupported Referral SaaS attribution trace section: reward",
+    }
+
+
+async def test_referral_saas_operator_attribution_trace_rejects_missing_credentials(
+    monkeypatch,
+):
+    async def fake_get_outcome_trace(**kwargs):  # pragma: no cover
+        raise AssertionError("service should not be called")
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "get_outcome_trace",
+        fake_get_outcome_trace,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.get(
+            f"/v1/referral-saas/operator/outcomes/{TRACE_REFERRAL_TRACK_ID}/trace",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 401
+
+
+async def test_referral_saas_operator_attribution_trace_rejects_adjacent_admin_role(
+    monkeypatch,
+):
+    async def fake_get_outcome_trace(**kwargs):  # pragma: no cover
+        raise AssertionError("service should not be called")
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "get_outcome_trace",
+        fake_get_outcome_trace,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers={"x-api-key": "test-finance-admin-key"},
+    ) as client:
+        response = await client.get(
+            f"/v1/referral-saas/operator/outcomes/{TRACE_REFERRAL_TRACK_ID}/trace",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 403
+
+
+async def test_referral_saas_operator_attribution_trace_returns_safe_not_found(
+    monkeypatch,
+):
+    async def fake_get_outcome_trace(**kwargs):
+        raise referral_saas_links.OutcomeTraceNotFound("missing")
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "get_outcome_trace",
+        fake_get_outcome_trace,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=DISTRIBUTION_ADMIN_HEADERS,
+    ) as client:
+        response = await client.get(
+            f"/v1/referral-saas/operator/outcomes/{TRACE_REFERRAL_TRACK_ID}/trace",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == {
+        "code": "outcome_not_found",
+        "message": "Attribution trace was not found for the requested tenant.",
+    }
+
+
+async def test_referral_saas_operator_attribution_trace_returns_safe_validation_error(
+    monkeypatch,
+):
+    async def fake_get_outcome_trace(**kwargs):
+        raise ValueError("referral_track_id is required")
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "get_outcome_trace",
+        fake_get_outcome_trace,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=DISTRIBUTION_ADMIN_HEADERS,
+    ) as client:
+        response = await client.get(
+            f"/v1/referral-saas/operator/outcomes/{TRACE_REFERRAL_TRACK_ID}/trace",
+            params={"tenant_code": "FNB"},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "validation_error",
+        "message": "referral_track_id is required",
+    }
 
 
 async def test_referral_saas_issue_wrapper_maps_terms_rejection(monkeypatch):

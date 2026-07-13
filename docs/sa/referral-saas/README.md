@@ -152,3 +152,10 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   and attribution identifiers, missing evidence, source warnings, redactions,
   and next diagnostics, and keeps raw evidence, support-case writes, mutation,
   retry/replay/repair, reward, money, and DLaaS behavior out of scope.
+- TASK-180 adds the read-only Referral SaaS operator attribution trace API
+  wrapper at `/v1/referral-saas/operator/outcomes/{referral_track_id}/trace`.
+  It composes the existing outcome trace primitive, limits first-launch product
+  sections to outcome, attribution, participants, events, and audit, rejects
+  reward/commission/funding/fulfilment/settlement/webhook sections, and keeps
+  trace UI, repair/replay, support-case writes, reward, money, and DLaaS
+  behavior out of scope.
