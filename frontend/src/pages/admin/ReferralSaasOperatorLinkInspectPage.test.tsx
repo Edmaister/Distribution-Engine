@@ -191,6 +191,10 @@ describe("ReferralSaasOperatorLinkInspectPage", () => {
       "href",
       "/admin/referral-saas/attribution-trace",
     );
+    expect(screen.getByRole("link", { name: /Progress\/status/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/progress-status",
+    );
     expect(screen.getByRole("link", { name: /Link\/code workflow/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/link-codes",

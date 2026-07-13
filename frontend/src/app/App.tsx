@@ -84,6 +84,11 @@ const ReferralSaasAttributionTracePage = lazy(() =>
     default: module.ReferralSaasAttributionTracePage,
   })),
 );
+const ReferralSaasProgressStatusPage = lazy(() =>
+  import("../pages/admin/ReferralSaasProgressStatusPage").then((module) => ({
+    default: module.ReferralSaasProgressStatusPage,
+  })),
+);
 const EnterpriseEventsPage = lazy(() =>
   import("../pages/admin/EnterpriseEventsPage").then((module) => ({ default: module.EnterpriseEventsPage })),
 );
@@ -186,6 +191,7 @@ export function App() {
         <Route path="/admin/referral-saas/link-codes" element={lazyWorkspace(<ReferralSaasLinkCodeWorkflowPage />)} />
         <Route path="/admin/referral-saas/operator-links" element={lazyWorkspace(<ReferralSaasOperatorLinkInspectPage />)} />
         <Route path="/admin/referral-saas/attribution-trace" element={lazyWorkspace(<ReferralSaasAttributionTracePage />)} />
+        <Route path="/admin/referral-saas/progress-status" element={lazyWorkspace(<ReferralSaasProgressStatusPage />)} />
         <Route path="/admin/referral-saas/reports" element={lazyWorkspace(<ReferralSaasReportsPage />)} />
         <Route path="/admin/events" element={lazyWorkspace(<EnterpriseEventsPage />)} />
         <Route path="/admin/distribution" element={lazyWorkspace(<DistributionCommandCentrePage />)} />

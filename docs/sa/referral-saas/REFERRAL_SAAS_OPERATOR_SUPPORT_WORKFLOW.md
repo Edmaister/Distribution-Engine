@@ -328,6 +328,12 @@ Current frontend facts:
   redactions, next milestone/support/trace diagnostics, and keeps support-case
   writes, repair/replay/retry, progress mutation, reward, money, webhook
   evidence, and DLaaS controls absent.
+- `/admin/referral-saas/progress-status` now gives operators a TASK-183
+  focused progress/status UI over the TASK-182 wrapper. It renders safe
+  progress, safe status copy, action posture, missing evidence, redactions, and
+  next diagnostics, links to adjacent read-only support surfaces, and keeps
+  support-case writes, repair/replay/retry, progress mutation, reward, money,
+  webhook evidence, and DLaaS controls absent.
 
 Implementation should therefore add support UI as a focused workflow, not as a
 generic admin dashboard.

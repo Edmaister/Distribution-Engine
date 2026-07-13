@@ -16,6 +16,8 @@ export type ReferralSaasAttributionTraceSection =
   | "events"
   | "audit";
 
+export type ReferralSaasProgressStatusViewerRole = "referrer" | "customer" | "operator";
+
 export function issueReferralSaasCode({
   referrerUcn,
   sticker,
@@ -117,6 +119,26 @@ export function inspectReferralSaasOperatorAttributionTrace({
       query: {
         tenant_code: tenantCode,
         include_sections: includeSections?.length ? includeSections : undefined,
+      },
+    },
+  );
+}
+
+export function inspectReferralSaasOperatorProgressStatus({
+  tenantCode,
+  referralTrackId,
+  viewerRole = "referrer",
+}: {
+  tenantCode: string;
+  referralTrackId: string;
+  viewerRole?: ReferralSaasProgressStatusViewerRole;
+}): Promise<ReferralSaasLinkRecord> {
+  return apiRequest<ReferralSaasLinkRecord>(
+    `v1/referral-saas/operator/referrals/${encodeURIComponent(referralTrackId)}/progress-status`,
+    {
+      query: {
+        tenant_code: tenantCode,
+        viewer_role: viewerRole,
       },
     },
   );

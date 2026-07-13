@@ -215,6 +215,10 @@ describe("ReferralSaasAttributionTracePage", () => {
       "href",
       "/admin/referral-saas/operator-links",
     );
+    expect(screen.getByRole("link", { name: /Progress\/status/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/progress-status",
+    );
     expect(screen.getByRole("link", { name: /Campaign readiness/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/campaigns",

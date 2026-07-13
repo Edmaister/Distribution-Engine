@@ -6,6 +6,7 @@ import {
   issueReferralSaasCode,
   inspectReferralSaasOperatorLink,
   inspectReferralSaasOperatorAttributionTrace,
+  inspectReferralSaasOperatorProgressStatus,
   validateReferralSaasCode,
 } from "./referralSaasLinks";
 
@@ -110,6 +111,24 @@ describe("referralSaasLinks endpoint client", () => {
         query: {
           tenant_code: "FNB",
           include_sections: ["attribution", "events", "audit"],
+        },
+      },
+    );
+  });
+
+  it("inspects operator progress/status through the product wrapper", async () => {
+    await inspectReferralSaasOperatorProgressStatus({
+      tenantCode: "FNB",
+      referralTrackId: "11111111-1111-4111-8111-111111111111",
+      viewerRole: "operator",
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/operator/referrals/11111111-1111-4111-8111-111111111111/progress-status",
+      {
+        query: {
+          tenant_code: "FNB",
+          viewer_role: "operator",
         },
       },
     );
