@@ -866,8 +866,16 @@ a {
   grid-template-columns: repeat(2, minmax(180px, 1fr));
 }
 
+.referral-campaign-controls {
+  align-items: end;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(160px, 0.6fr) minmax(140px, 0.4fr) minmax(190px, 0.7fr) minmax(0, 1fr);
+}
+
 .referral-report-controls .field > span,
-.referral-account-controls .field > span {
+.referral-account-controls .field > span,
+.referral-campaign-controls .field > span {
   color: var(--color-ink-soft);
   font-family: var(--font-mono);
   font-size: 11px;
@@ -4062,6 +4070,7 @@ textarea.input {
   .settlement-approval-form,
   .referral-report-controls,
   .referral-account-controls,
+  .referral-campaign-controls,
   .export-preview-actions {
     grid-template-columns: 1fr;
   }

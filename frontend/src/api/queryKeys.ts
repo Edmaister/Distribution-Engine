@@ -25,6 +25,22 @@ export const queryKeys = {
     ] as const,
   referralSaasReport: (reportType: string, tenantCode: string, refreshKey = 0) =>
     ["referral-saas", "report", reportType, tenantCode, refreshKey] as const,
+  referralSaasCampaignReadiness: (
+    campaignCode: string,
+    tenantCode: string,
+    operation: string,
+    opportunityId: string,
+    refreshKey = 0,
+  ) =>
+    [
+      "referral-saas",
+      "campaign-readiness",
+      campaignCode,
+      tenantCode,
+      operation,
+      opportunityId,
+      refreshKey,
+    ] as const,
   partnerIntegrationWorkspace: (refreshKey = 0) =>
     ["partner", "integration-workspace", refreshKey] as const,
   consumerExperience: (
