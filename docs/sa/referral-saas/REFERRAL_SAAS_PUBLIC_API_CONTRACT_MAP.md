@@ -251,6 +251,10 @@ Rules:
   idempotency keys are not supported. It does not implement schema-backed
   duplicate reuse, conflict detection, operator trace linkage, lifecycle
   commands, or audit writes.
+- TASK-177 renders the product validation recovery and idempotency posture in
+  the focused frontend link/code workflow. It does not add routes, schema,
+  duplicate reuse, conflict detection, operator trace linkage, lifecycle
+  commands, or audit writes.
 - TASK-166 lets report/export-validation envelopes carry trusted `account_ref`
   and `external_tenant_ref` identity claims. No SaaS account membership wrapper
   currently resolves caller-supplied `accountRef` to internal tenant scope.

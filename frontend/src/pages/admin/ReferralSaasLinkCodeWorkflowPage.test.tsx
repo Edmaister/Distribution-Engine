@@ -75,6 +75,12 @@ describe("ReferralSaasLinkCodeWorkflowPage", () => {
         message: "Referral code validated",
         errorCode: null,
         recovery: null,
+        idempotency: {
+          validationAttemptPolicy: "NEW_JOURNEY_PER_SUCCESSFUL_VALIDATION",
+          duplicateSubmitGuarantee: "NOT_IDEMPOTENT",
+          idempotencyKeySupported: false,
+          safeMessage: "Successful public validation currently records a new referral journey for each submit.",
+        },
       },
     });
     mockedCaptureReferralSaasRefereeUcn.mockResolvedValue({
@@ -134,10 +140,57 @@ describe("ReferralSaasLinkCodeWorkflowPage", () => {
     expect(await screen.findAllByText("VALIDATED")).not.toHaveLength(0);
     expect(screen.getByText("track-1")).toBeInTheDocument();
     expect(screen.getByText("Internal attributes redacted")).toBeInTheDocument();
+    expect(screen.getByText("Validation retry posture")).toBeInTheDocument();
+    expect(screen.getByText("NOT_IDEMPOTENT")).toBeInTheDocument();
+    expect(
+      screen.getByText("Successful public validation currently records a new referral journey for each submit."),
+    ).toBeInTheDocument();
 
     const validatePanel = panelByHeading("Validate code");
     expect(validatePanel.queryByText("tenant_code")).not.toBeInTheDocument();
     expect(validatePanel.queryByText("9999999999")).not.toBeInTheDocument();
+  });
+
+  it("renders validation recovery next action without exposing internal attributes", async () => {
+    mockedValidateReferralSaasCode.mockResolvedValueOnce({
+      validation: {
+        validationStatus: "RECOVERY_REQUIRED_LOGGING",
+        valid: false,
+        referralTrackId: null,
+        alias: null,
+        message: "Referral logging failed",
+        errorCode: "REFERRAL_LOG_FAILED",
+        recovery: {
+          action: "RETRY_VALIDATION_OR_CONTACT_SUPPORT",
+          safeMessage: "We could not finish setting up this referral. Try again or contact support.",
+        },
+        idempotency: {
+          validationAttemptPolicy: "NEW_JOURNEY_PER_SUCCESSFUL_VALIDATION",
+          duplicateSubmitGuarantee: "NOT_IDEMPOTENT",
+          idempotencyKeySupported: false,
+          safeMessage: "Successful public validation currently records a new referral journey for each submit.",
+        },
+        attributes: {
+          tenant_code: "FNB",
+          referrer_ucn_hash: "secret-hash",
+        },
+      },
+    });
+    renderWorkspace(<ReferralSaasLinkCodeWorkflowPage />);
+
+    fireEvent.change(screen.getByLabelText("Referral code"), { target: { value: "REF123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Validate code" }));
+
+    expect(await screen.findAllByText("RECOVERY_REQUIRED_LOGGING")).not.toHaveLength(0);
+    expect(screen.getByText("Recovery next action")).toBeInTheDocument();
+    expect(screen.getByText("RETRY_VALIDATION_OR_CONTACT_SUPPORT")).toBeInTheDocument();
+    expect(
+      screen.getByText("We could not finish setting up this referral. Try again or contact support."),
+    ).toBeInTheDocument();
+
+    const validatePanel = panelByHeading("Validate code");
+    expect(validatePanel.queryByText("tenant_code")).not.toBeInTheDocument();
+    expect(validatePanel.queryByText("secret-hash")).not.toBeInTheDocument();
   });
 
   it("captures referee identity against the validated track", async () => {

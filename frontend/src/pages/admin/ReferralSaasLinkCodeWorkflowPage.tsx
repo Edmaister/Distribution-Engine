@@ -89,6 +89,8 @@ export function ReferralSaasLinkCodeWorkflowPage() {
   const captureResult = captureMutation.data;
   const issue = asRecord(getNestedValue(issueResult, ["issue"], issueResult || {}));
   const validation = asRecord(getNestedValue(validationResult, ["validation"], validationResult || {}));
+  const validationRecovery = asRecord(getNestedValue(validation, ["recovery"], {}));
+  const validationIdempotency = asRecord(getNestedValue(validation, ["idempotency"], {}));
   const identityCapture = asRecord(getNestedValue(captureResult, ["identityCapture"], captureResult || {}));
   const activeReferralCode = referralCode || issuedReferralCode(issueResult);
   const activeTrackId = validationTrackId(validationResult);
@@ -249,6 +251,34 @@ export function ReferralSaasLinkCodeWorkflowPage() {
                 <div className="route-path">The product wrapper does not return raw validation attributes to this surface.</div>
               </div>
               <StatusBadge label="Redacted" tone="info" />
+            </div>
+          ) : null}
+          {Object.keys(validationRecovery).length ? (
+            <div className="route-item">
+              <div>
+                <div className="route-name">Recovery next action</div>
+                <div className="route-path">
+                  {resultValue(validationRecovery, ["safeMessage"])}
+                </div>
+              </div>
+              <StatusBadge
+                label={formatDisplay(resultValue(validationRecovery, ["action"], "Recovery"))}
+                tone="warning"
+              />
+            </div>
+          ) : null}
+          {Object.keys(validationIdempotency).length ? (
+            <div className="route-item">
+              <div>
+                <div className="route-name">Validation retry posture</div>
+                <div className="route-path">
+                  {resultValue(validationIdempotency, ["safeMessage"])}
+                </div>
+              </div>
+              <StatusBadge
+                label={formatDisplay(resultValue(validationIdempotency, ["duplicateSubmitGuarantee"], "Not idempotent"))}
+                tone="warning"
+              />
             </div>
           ) : null}
         </WorkflowPanel>

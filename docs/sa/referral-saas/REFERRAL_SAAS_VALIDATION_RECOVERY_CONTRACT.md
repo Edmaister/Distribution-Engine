@@ -76,6 +76,8 @@ Current product validation wrapper:
 - TASK-176 exposes that successful duplicate submits are not idempotent today
   and that idempotency keys are not supported until schema-backed duplicate
   reuse or conflict behavior is implemented
+- TASK-177 renders the safe recovery next action and non-idempotent retry
+  posture in the focused link/code workflow UI
 - does not implement duplicate-submit idempotency, operator trace linkage,
   schema changes, repair/replay, audit writes, rewards, funding, fulfilment,
   settlement, wallet, or DLaaS expansion behavior
@@ -422,10 +424,12 @@ Recommended sequence:
 3. TASK-176 exposed the current non-idempotent validation posture in the
    product response.
 4. Decide and implement schema-backed duplicate validation/idempotency behavior.
-5. Add richer frontend recovery state handling.
-6. Add operator evidence linkage to link/code inspection under TASK-140.
-7. Defer progress-event catalog hardening to TASK-138.
-8. Defer attribution trace composition to TASK-139.
+5. TASK-177 added frontend recovery and retry-posture visibility to the
+   focused link/code workflow.
+6. Decide and implement schema-backed duplicate validation/idempotency behavior.
+7. Add operator evidence linkage to link/code inspection under TASK-140.
+8. Defer progress-event catalog hardening to TASK-138.
+9. Defer attribution trace composition to TASK-139.
 
 ## Explicit Non-Goals
 
