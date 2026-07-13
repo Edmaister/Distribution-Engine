@@ -68,11 +68,14 @@ Current product validation wrapper:
 - uses the TASK-175 mapper in `services/referral_saas_validation_service.py`
   for product status, recovery action, and safe response shape
 - returns product-shaped `validationStatus`, `valid`, `referralTrackId`,
-  `alias`, `errorCode`, `message`, and `recovery`
+  `alias`, `errorCode`, `message`, `recovery`, and `idempotency`
 - maps `REFERRAL_LOG_FAILED` to `RECOVERY_REQUIRED_LOGGING` with a safe
   retry/contact-support recovery action
 - redacts raw UCN, UCN hash, and internal `attributes` evidence from the
   response
+- TASK-176 exposes that successful duplicate submits are not idempotent today
+  and that idempotency keys are not supported until schema-backed duplicate
+  reuse or conflict behavior is implemented
 - does not implement duplicate-submit idempotency, operator trace linkage,
   schema changes, repair/replay, audit writes, rewards, funding, fulfilment,
   settlement, wallet, or DLaaS expansion behavior
@@ -265,7 +268,12 @@ Minimum product response:
   "referralTrackId": "uuid",
   "alias": "customer-alias",
   "errorCode": null,
-  "recovery": null
+  "recovery": null,
+  "idempotency": {
+    "validationAttemptPolicy": "NEW_JOURNEY_PER_SUCCESSFUL_VALIDATION",
+    "duplicateSubmitGuarantee": "NOT_IDEMPOTENT",
+    "idempotencyKeySupported": false
+  }
 }
 ```
 
@@ -290,6 +298,12 @@ Recovery response example:
 Current validation appears to create a new `referral_instances` row for each
 successful validation request. No explicit validation idempotency key is present
 in the inspected route or service.
+
+TASK-176 makes that current posture explicit in the product wrapper response:
+
+- `validationAttemptPolicy=NEW_JOURNEY_PER_SUCCESSFUL_VALIDATION`
+- `duplicateSubmitGuarantee=NOT_IDEMPOTENT`
+- `idempotencyKeySupported=false`
 
 Before implementation changes, Referral SaaS must decide whether duplicate
 public submissions should:
@@ -405,11 +419,13 @@ Recommended sequence:
 1. TASK-174 added the product validation wrapper.
 2. TASK-175 added centralized product validation response mapping, redaction
    shape, and recovery contract tests.
-3. Decide duplicate validation/idempotency behavior.
-4. Add richer frontend recovery state handling.
-5. Add operator evidence linkage to link/code inspection under TASK-140.
-6. Defer progress-event catalog hardening to TASK-138.
-7. Defer attribution trace composition to TASK-139.
+3. TASK-176 exposed the current non-idempotent validation posture in the
+   product response.
+4. Decide and implement schema-backed duplicate validation/idempotency behavior.
+5. Add richer frontend recovery state handling.
+6. Add operator evidence linkage to link/code inspection under TASK-140.
+7. Defer progress-event catalog hardening to TASK-138.
+8. Defer attribution trace composition to TASK-139.
 
 ## Explicit Non-Goals
 
