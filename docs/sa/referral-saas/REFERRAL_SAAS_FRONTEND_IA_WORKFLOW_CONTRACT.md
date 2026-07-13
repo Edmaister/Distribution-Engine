@@ -126,6 +126,13 @@ Current API/client foundations:
   input as a transitional bridge, shows only whitelisted result fields, and
   keeps reissue, revoke, expire, repair, replay, reward, money, backend route,
   schema, and DLaaS expansion behavior out of scope.
+- `/admin/referral-saas/operator-links` now provides the TASK-179 focused
+  operator link/code inspection surface. It consumes the TASK-178 read-only
+  product wrapper, lets operators choose canonical source type and lookup
+  reference, renders source summary, connected campaign/participant/attribution
+  identifiers, missing evidence, source warnings, redactions, and next
+  diagnostics, and does not render raw source evidence or expose support-case,
+  retry, replay, repair, lifecycle, reward, money, or DLaaS controls.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.
@@ -141,9 +148,10 @@ Current frontend gaps:
   focused Referral SaaS setup and report entries now exist.
 - Current consumer-facing calls still pass `tenantCode`, `referrerUcn`, and
   sometimes `referralTrackId` directly.
-- Link/code issue, validation, and identity capture now have a first focused
-  admin workflow surface. Progress, safe status, attribution trace, and support
-  are not yet presented as one SaaS workflow.
+- Link/code issue, validation, identity capture, and operator inspection now
+  have focused admin workflow surfaces. Progress, safe status, attribution
+  trace, and broader support workflows are not yet presented as one SaaS
+  workflow.
 - Reporting/export screens now have a focused Referral SaaS report catalog
   surface with inline JSON/CSV preview handling, but persisted exports,
   download URLs, scheduled delivery, audit writes, and account membership UX
@@ -164,13 +172,13 @@ Recommended top-level IA:
 | Home | See setup state, campaign health, referral volume, and open support items. | Admin overview, readiness, health. | Product summary only; no generic dashboard. |
 | Account setup | Configure company, members, roles, external refs, and readiness. | Company/member onboarding and readiness pages. | Hide internal tenant code behind safe account refs. |
 | Campaigns | Create campaign draft, review readiness, policy, and activation blockers. | Campaign setup and readiness pages. | Use TASK-135 product states and blockers. |
-| Links and codes | Issue, inspect, reuse, validate, and explain referral codes/links. | Consumer referral code actions; operator link/code contract. | Do not expose operator evidence to public users. |
+| Links and codes | Issue, inspect, reuse, validate, and explain referral codes/links. | Consumer referral code actions; TASK-178 wrapper; TASK-179 operator inspect UI. | Do not expose operator evidence to public users. |
 | Validation | Validate referral/campaign code and recover safely from terms/alias/evidence gaps. | Consumer portal validation actions. | Use TASK-137 recovery states and safe copy. |
 | Progress and status | Show referral journey progress, dedupe-safe status, and next action. | Consumer experience, progress queries, safe-status contract. | Use TASK-141 labels, not raw backend state names. |
 | Attribution | Explain how campaign/link/event evidence produced the attribution outcome. | Outcome trace contract; distribution attribution evidence. | Account/support view only; referrer/customer gets summary status. |
 | Reports | Show campaign, funnel, link/code, progress, attribution, and safe-status reports. | Tenant-safe analytics and distribution reporting foundations. | Use TASK-142 report catalog and redaction rules. |
 | Integrations | Manage credential setup, webhooks, event payloads, and API readiness. | Webhook/API setup and partner integration pages. | Pair with TASK-143 API contract map. |
-| Support | Investigate failed validation, missing progress, stuck status, and attribution gaps. | Operator demo, admin links, audit, events, health. | Read-only diagnostics first; mutation/replay requires later task. |
+| Support | Investigate failed validation, missing progress, stuck status, and attribution gaps. | Operator demo, TASK-179 link/code inspect UI, audit, events, health. | Read-only diagnostics first; mutation/replay requires later task. |
 
 ## Workflow Contracts
 

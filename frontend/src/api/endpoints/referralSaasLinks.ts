@@ -2,6 +2,13 @@ import { apiRequest } from "../client";
 
 export type ReferralSaasLinkRecord = Record<string, unknown>;
 
+export type ReferralSaasOperatorLinkSourceType =
+  | "REFERRAL_CODE"
+  | "CAMPAIGN_CODE"
+  | "CAMPAIGN_REFERRAL_LINK"
+  | "ROUTE_REFERRAL_LINK"
+  | "COMPOSITE_CODE";
+
 export function issueReferralSaasCode({
   referrerUcn,
   sticker,
@@ -62,4 +69,28 @@ export function captureReferralSaasRefereeUcn(
       },
     },
   );
+}
+
+export function inspectReferralSaasOperatorLink({
+  tenantCode,
+  sourceType,
+  linkCodeId,
+  codeOrRef,
+  includeEvidence = true,
+}: {
+  tenantCode: string;
+  sourceType: ReferralSaasOperatorLinkSourceType;
+  linkCodeId?: string;
+  codeOrRef?: string;
+  includeEvidence?: boolean;
+}): Promise<ReferralSaasLinkRecord> {
+  return apiRequest<ReferralSaasLinkRecord>("v1/referral-saas/operator/links/inspect", {
+    query: {
+      tenant_code: tenantCode,
+      source_type: sourceType,
+      link_code_id: linkCodeId || undefined,
+      code_or_ref: codeOrRef || undefined,
+      include_evidence: includeEvidence,
+    },
+  });
 }

@@ -150,6 +150,7 @@ greenfield referral construction.
 42. TASK-176: Expose Referral SaaS validation idempotency posture.
 43. TASK-177: Add Referral SaaS validation recovery UI.
 44. TASK-178: Add Referral SaaS operator link/code inspect API wrapper.
+45. TASK-179: Add Referral SaaS operator link/code inspect frontend surface.
 
 ## 10/10 Exit Criteria
 
@@ -258,6 +259,12 @@ greenfield referral construction.
   `scripts/referral_saas_route_smoke_plan.py`;
   `test/test_referral_saas_route_smoke_inventory.py`;
   `test/test_referral_saas_route_smoke_plan.py`
+- TASK-179: `frontend/src/api/endpoints/referralSaasLinks.ts`;
+  `frontend/src/api/endpoints/referralSaasLinks.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasOperatorLinkInspectPage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasOperatorLinkInspectPage.test.tsx`;
+  `frontend/src/app/App.tsx`;
+  `frontend/src/layout/Sidebar.tsx`
 
 ## Explicit Deferrals
 
