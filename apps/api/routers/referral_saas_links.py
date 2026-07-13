@@ -6,6 +6,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 
+from apps.api.routers.dashboard import (
+    _get_referral_progress as get_dashboard_referral_progress,
+)
 from services.link_code_service import inspect_link_code
 from services.outcome_trace_service import OutcomeTraceNotFound, get_outcome_trace
 from services.referral_code import (
@@ -13,6 +16,7 @@ from services.referral_code import (
     get_or_create_referrer_code,
     validate_referral_code,
 )
+from services.referral_saas_safe_status_service import project_referral_saas_safe_status
 from services.referral_saas_validation_service import (
     build_referral_saas_validation_result,
 )
@@ -251,6 +255,62 @@ def _operator_trace_next_diagnostics(trace: dict[str, Any]) -> list[dict[str, st
     return diagnostics
 
 
+def _operator_progress_next_diagnostics(
+    progress: dict[str, Any],
+    safe_status: dict[str, Any],
+) -> list[dict[str, str]]:
+    diagnostics: list[dict[str, str]] = []
+    referral_track_id = str(progress.get("referral_track_id") or "")
+    next_milestone = progress.get("next_milestone")
+    if next_milestone:
+        diagnostics.append(
+            {
+                "type": "NEXT_MILESTONE",
+                "label": "Review next progress milestone",
+                "targetRef": str(next_milestone),
+            }
+        )
+
+    product_status = str(
+        safe_status.get("product_status") or safe_status.get("status") or ""
+    ).upper()
+    action_category = str(safe_status.get("action_category") or "").upper()
+    if product_status in {"ACTION_NEEDED", "UNAVAILABLE"} or action_category not in {
+        "",
+        "NONE",
+    }:
+        diagnostics.append(
+            {
+                "type": "SUPPORT_TRIAGE",
+                "label": "Review progress status with support",
+                "targetRef": referral_track_id,
+            }
+        )
+
+    if bool(progress.get("is_complete")):
+        diagnostics.append(
+            {
+                "type": "ATTRIBUTION_TRACE",
+                "label": "Inspect attribution trace",
+                "targetRef": referral_track_id,
+            }
+        )
+
+    return diagnostics
+
+
+def _safe_progress_payload(progress: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "referralTrackId": progress.get("referral_track_id"),
+        "status": progress.get("status"),
+        "isComplete": bool(progress.get("is_complete")),
+        "progressPercent": int(progress.get("progress_percent") or 0),
+        "progressBand": progress.get("progress_band"),
+        "displayStatus": progress.get("display_status"),
+        "nextMilestone": progress.get("next_milestone"),
+    }
+
+
 @router.post("/referral-codes")
 async def issue_referral_saas_code(
     request: ReferralSaasCodeIssueRequest,
@@ -285,6 +345,88 @@ async def issue_referral_saas_code(
             "identity and does not expose raw UCNs, hashes, revoke, expire, "
             "reissue, rewards, funding, fulfilment, settlement, or wallet "
             "behavior."
+        ),
+    }
+
+
+@router.get("/operator/referrals/{referral_track_id}/progress-status")
+async def get_referral_saas_operator_progress_status(
+    referral_track_id: UUID,
+    tenant_code: Annotated[str, Query(min_length=1)],
+    viewer_role: str = Query(default="referrer"),
+    identity: dict = Depends(require_distribution_admin_key),
+) -> dict[str, Any]:
+    resolved_tenant = _normalise_operator_tenant_code(tenant_code)
+
+    try:
+        progress = await get_dashboard_referral_progress(
+            str(referral_track_id),
+            resolved_tenant,
+        )
+        if not progress:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "code": "progress_status_not_found",
+                    "message": (
+                        "Progress status was not found for the requested tenant."
+                    ),
+                },
+            )
+
+        safe_projection = project_referral_saas_safe_status(
+            viewer_role=viewer_role,
+            subject={
+                "type": "referral",
+                "safe_ref": f"referral:track:{referral_track_id}",
+            },
+            evidence={
+                "source_family": "outcome",
+                "status": progress.get("status"),
+                "source_confidence": "HIGH",
+            },
+            redactions=["referrer_ucn", "referee_ucn", "tenant_code"],
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": str(exc),
+            },
+        ) from exc
+
+    safe_status = safe_projection["safe_status"]
+    return {
+        "status": "ok",
+        "progressStatus": {
+            "lookup": {
+                "type": "REFERRAL_TRACK_ID",
+                "value": str(referral_track_id),
+            },
+            "tenantCode": resolved_tenant,
+            "viewerRole": viewer_role,
+            "progress": _safe_progress_payload(progress),
+            "safeStatus": safe_status,
+            "missingEvidence": safe_status.get("missing_evidence", []),
+            "redactions": safe_status.get("redactions", []),
+            "nextDiagnostics": _operator_progress_next_diagnostics(
+                progress,
+                safe_status,
+            ),
+        },
+        "operator_scope": {
+            "source": "operator_query_tenant",
+            "tenant_code": resolved_tenant,
+            "account_ref": identity.get("account_ref"),
+            "external_tenant_ref": identity.get("external_tenant_ref"),
+        },
+        "guardrail": (
+            "Referral SaaS operator progress/status wrapper over existing "
+            "read-only referral progress and safe-status primitives. This "
+            "endpoint does not mutate progress, attribution, campaign, reward, "
+            "funding, fulfilment, settlement, audit, webhook, support-case, "
+            "repair, replay, retry, or money state and does not expose raw UCNs."
         ),
     }
 

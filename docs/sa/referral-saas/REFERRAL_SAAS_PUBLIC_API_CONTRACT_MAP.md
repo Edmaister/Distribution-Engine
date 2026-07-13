@@ -152,6 +152,7 @@ Future Referral SaaS APIs should follow these rules:
 |---|---|---|---|---|
 | `/v1/referral-saas/events/progress` | `POST` | `POST /v1/progress` plus TASK-138 contract | Integration/partner credential | Requires source event ID/dedupe posture and safe outcome mapping. |
 | `/v1/referral-saas/referrals/{safeReferralRef}/progress` | `GET` | `GET /v1/referrers/{referrerUcn}` plus status wrapper | SaaS account/member or referrer/customer role | Must not expose raw referrer UCN. |
+| `/v1/referral-saas/operator/referrals/{referral_track_id}/progress-status` | `GET` | TASK-182 wrapper over existing dashboard progress read and TASK-141 safe-status projection | Operator/support/admin bridge | Implemented as read-only operator progress/status diagnostics. Returns safe progress, safe status, missing evidence, redactions, and next diagnostics; no progress mutation, retry, replay, repair, support-case write, reward, money, or raw UCN exposure. |
 
 ### Attribution And Trace
 
@@ -271,6 +272,15 @@ Rules:
   attribution mutation, support-case writes, repair/replay/retry commands,
   schema, audit writes, reward, funding, fulfilment, settlement, or broad
   DLaaS behavior.
+- TASK-182 adds a read-only operator progress/status diagnostics product
+  wrapper:
+  `GET /v1/referral-saas/operator/referrals/{referral_track_id}/progress-status`.
+  It composes the existing dashboard progress read and Referral SaaS
+  safe-status projection helper, keeps the response operator-scoped, and
+  returns safe progress, safe status, missing evidence, redactions, and next
+  diagnostics. It does not add progress ingestion mutation, support-case
+  writes, repair/replay/retry commands, schema, audit writes, reward, funding,
+  fulfilment, settlement, or broad DLaaS behavior.
 - TASK-166 lets report/export-validation envelopes carry trusted `account_ref`
   and `external_tenant_ref` identity claims. No SaaS account membership wrapper
   currently resolves caller-supplied `accountRef` to internal tenant scope.

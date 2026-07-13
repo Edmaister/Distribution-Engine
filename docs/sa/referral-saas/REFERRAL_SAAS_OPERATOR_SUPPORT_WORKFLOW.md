@@ -87,6 +87,7 @@ Current read-only or diagnostic foundations:
 | Campaign readiness | `GET /admin/campaigns/{campaign_code}/readiness`; `get_campaign_readiness` | Read-only; does not mutate campaigns, policies, referrals, attribution, funding, fulfilment, settlement, audit, or rewards. |
 | Progress ingestion | `POST /v1/progress`; `handle_progress_event` | Partner-authenticated; dedupe and queue behavior are source truth. |
 | Referrer progress read | `GET /v1/referrers/{referrerUcn}` | Admin/partner scoped progress summary. |
+| Progress/status diagnostics | `GET /v1/referral-saas/operator/referrals/{referral_track_id}/progress-status` | Read-only TASK-182 product wrapper over existing dashboard progress and safe-status projection; returns safe progress, missing evidence, redactions, and next diagnostics without exposing raw UCN values or mutating progress/support state. |
 | Tenant-safe analytics | `GET /admin/analytics/reports/{report_type}` | Read-only; no export, invoice, billing, funding, settlement, fulfilment, reward, commission, audit, tenant, or analytics mutation. |
 | Admin audit | `GET /admin/audit`; `GET /admin/audit/summary` | System-admin audit visibility. |
 | Failure list/summary | `GET /admin/failures`; `GET /admin/failures/summary` | Admin failure visibility over `referral_event_failures`. |
@@ -320,6 +321,13 @@ Current frontend facts:
   operator link/code inspection surface while keeping support-case writes,
   repair/replay/retry, attribution overrides, reward, money, webhook evidence,
   and DLaaS controls absent.
+- `GET /v1/referral-saas/operator/referrals/{referral_track_id}/progress-status`
+  now gives operators a TASK-182 read-only progress/status diagnostics API over
+  existing dashboard progress evidence and the Referral SaaS safe-status
+  projection helper. It returns safe progress, safe status, missing evidence,
+  redactions, next milestone/support/trace diagnostics, and keeps support-case
+  writes, repair/replay/retry, progress mutation, reward, money, webhook
+  evidence, and DLaaS controls absent.
 
 Implementation should therefore add support UI as a focused workflow, not as a
 generic admin dashboard.
