@@ -313,6 +313,13 @@ Current frontend facts:
   events, and audit sections; rejects reward, commission, funding, fulfilment,
   settlement, webhook, and unknown sections; and preserves missing evidence,
   source warnings, redactions, support trace, and safe next diagnostics.
+- `/admin/referral-saas/attribution-trace` now gives operators a focused
+  TASK-181 trace UI over the TASK-180 wrapper. It renders safe trace summary,
+  attribution links, participants, events, audit evidence, missing evidence,
+  source warnings, redactions, and next diagnostics, and links from the
+  operator link/code inspection surface while keeping support-case writes,
+  repair/replay/retry, attribution overrides, reward, money, webhook evidence,
+  and DLaaS controls absent.
 
 Implementation should therefore add support UI as a focused workflow, not as a
 generic admin dashboard.

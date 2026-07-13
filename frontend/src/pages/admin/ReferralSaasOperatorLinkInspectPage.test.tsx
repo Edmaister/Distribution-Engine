@@ -187,6 +187,10 @@ describe("ReferralSaasOperatorLinkInspectPage", () => {
       "href",
       "/admin/referral-saas/campaigns",
     );
+    expect(screen.getByRole("link", { name: /Attribution trace/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/attribution-trace",
+    );
     expect(screen.getByRole("link", { name: /Link\/code workflow/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/link-codes",
