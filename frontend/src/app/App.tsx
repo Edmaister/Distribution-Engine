@@ -64,6 +64,11 @@ const ReferralSaasAccountSetupPage = lazy(() =>
     default: module.ReferralSaasAccountSetupPage,
   })),
 );
+const ReferralSaasCampaignReadinessPage = lazy(() =>
+  import("../pages/admin/ReferralSaasCampaignReadinessPage").then((module) => ({
+    default: module.ReferralSaasCampaignReadinessPage,
+  })),
+);
 const EnterpriseEventsPage = lazy(() =>
   import("../pages/admin/EnterpriseEventsPage").then((module) => ({ default: module.EnterpriseEventsPage })),
 );
@@ -162,6 +167,7 @@ export function App() {
         <Route path="/admin/audit" element={lazyWorkspace(<AdminAuditPage />)} />
         <Route path="/admin/channels" element={lazyWorkspace(<ChannelOperationsPage />)} />
         <Route path="/admin/referral-saas/account-setup" element={lazyWorkspace(<ReferralSaasAccountSetupPage />)} />
+        <Route path="/admin/referral-saas/campaigns" element={lazyWorkspace(<ReferralSaasCampaignReadinessPage />)} />
         <Route path="/admin/referral-saas/reports" element={lazyWorkspace(<ReferralSaasReportsPage />)} />
         <Route path="/admin/events" element={lazyWorkspace(<EnterpriseEventsPage />)} />
         <Route path="/admin/distribution" element={lazyWorkspace(<DistributionCommandCentrePage />)} />

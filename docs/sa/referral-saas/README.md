@@ -109,3 +109,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   preview status, content type, row count, and payload evidence without adding
   export IDs, stored files, download actions, scheduled exports, audit writes,
   backend routes, schema, or money flows.
+- TASK-172 adds a focused admin frontend surface for Referral SaaS campaign
+  readiness. It consumes the existing read-only admin campaign readiness
+  endpoint, renders the four first-launch operations from TASK-135, and shows
+  setup checklist, lifecycle, blockers, warnings, and safe campaign/policy
+  evidence without adding campaign creation, policy writes, activation,
+  link/code generation, backend routes, schema, marketplace, or money flows.

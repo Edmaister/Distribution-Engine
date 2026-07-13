@@ -557,16 +557,17 @@
             preview through TASK-167, and a frontend report/export API client
             seam through TASK-168, the first focused report catalog UI
             through TASK-169, account setup readiness UI through TASK-170,
-            and inline export preview UI through TASK-171.
+            inline export preview UI through TASK-171, and campaign readiness
+            UI through TASK-172.
           </p>
           <div class="score-row" aria-label="Current position">
             <div class="score">
-              <strong>9.50/10</strong>
-              <span>Referral management foundation after TASK-171 export preview UI</span>
+              <strong>9.58/10</strong>
+              <span>Referral management foundation after TASK-172 campaign readiness UI</span>
             </div>
             <div class="score">
-              <strong>9.05/10</strong>
-              <span>Campaign attribution foundation with account setup, report, and preview UI depth</span>
+              <strong>9.18/10</strong>
+              <span>Campaign attribution foundation with account, campaign readiness, report, and preview UI depth</span>
             </div>
             <div class="score">
               <strong>10/10</strong>
@@ -580,7 +581,7 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-171 for Referral SaaS, with
+            Updated after TASK-134 through TASK-172 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
@@ -590,8 +591,8 @@
             <span>Account, campaign, code, validation, progress, attribution, support, reporting, API, IA, audit, and E2E plan are documented.</span>
           </div>
           <div class="status-pill">
-            <b>23 implementation proofs added</b>
-            <span>TASK-149 through TASK-171 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, safe-status, report-catalog, report-API, account-scope, referral-funnel, progress-health, attribution-quality, safe-status distribution, link/code performance, reward visibility, export validation, account-reference, export-preview, frontend report-client, report-catalog UI, account-setup readiness UI, and inline export-preview UI proof.</span>
+            <b>24 implementation proofs added</b>
+            <span>TASK-149 through TASK-172 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, safe-status, report-catalog, report-API, account-scope, referral-funnel, progress-health, attribution-quality, safe-status distribution, link/code performance, reward visibility, export validation, account-reference, export-preview, frontend report-client, report-catalog UI, account-setup readiness UI, inline export-preview UI, and campaign-readiness UI proof.</span>
           </div>
           <div class="status-pill">
             <b>Live confidence still capped</b>
@@ -801,7 +802,8 @@
               adds the frontend report/export API client seam, and TASK-169
               adds the focused report catalog UI. TASK-170 adds the focused
               account setup readiness UI, and TASK-171 adds inline export
-              preview actions to the report surface.
+              preview actions to the report surface. TASK-172 adds the focused
+              campaign readiness UI.
             </p>
             <div class="tag-row">
               <span class="tag">Customer value</span>
@@ -819,6 +821,7 @@
               <span class="tag done">TASK-169</span>
               <span class="tag done">TASK-170</span>
               <span class="tag done">TASK-171</span>
+              <span class="tag done">TASK-172</span>
               <span class="tag dlaas">Portal status primitive</span>
             </div>
           </article>
@@ -841,7 +844,7 @@
               <li>TASK-134 through TASK-147 completed as contract outputs.</li>
               <li>Referral, validation, progress, attribution, API, IA, reporting, and support boundaries are explicit.</li>
               <li>Money-depth and broad DLaaS scope remain deliberately separate.</li>
-              <li>The contracts are now backed by TASK-149 through TASK-171 implementation proof.</li>
+              <li>The contracts are now backed by TASK-149 through TASK-172 implementation proof.</li>
             </ol>
           </article>
           <article class="phase">
@@ -851,7 +854,7 @@
               <li>Golden-path and negative-path contract tests are in place.</li>
               <li>Route smoke and schema/status tooling is ready for controlled execution.</li>
               <li>Referral safe-status projection, seven report catalog helpers, export request validation, inline preview payloads, and preview UI are implemented in the service layer/API wrapper and focused report surface.</li>
-              <li>Next: account/membership persistence, persisted export storage/audit/downloads, and customer/operator workflow depth.</li>
+              <li>Next: account/membership persistence, product campaign write wrappers, persisted export storage/audit/downloads, and customer/operator workflow depth.</li>
             </ol>
           </article>
           <article class="phase">
@@ -1132,7 +1135,8 @@
               TASK-167 returns inline JSON/CSV preview payloads, and TASK-168
               adds the frontend report/export API client, TASK-169 adds the
               focused report catalog UI, and TASK-170 adds account setup
-              readiness UI, and TASK-171 adds inline export preview actions.
+              readiness UI, TASK-171 adds inline export preview actions, and
+              TASK-172 adds campaign readiness UI.
             </p>
             <div class="tag-row">
               <span class="tag done">154</span>
@@ -1150,7 +1154,7 @@
           <article class="capability" data-tone="amber">
             <h3>Still Not Shipped</h3>
             <p>
-              Account/membership persistence, broader SaaS frontend workflows, persisted export storage/audit/downloads,
+              Account/membership persistence, campaign create/policy/activation wrappers, broader SaaS frontend workflows, persisted export storage/audit/downloads,
               live/staging execution evidence, and
               full E2E proof remain open before a 10/10 claim.
             </p>
@@ -1178,8 +1182,8 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">SaaS workflow implementation</div>
-            <div class="matrix-cell">Contracts and early proof exist, reporting has a focused UI with inline export preview, and account setup readiness now has a focused UI, but campaign, referral, validation, attribution, and support still need cohesive product wrappers.</div>
-            <div class="matrix-cell">Thin SaaS routes and UI around existing primitives with tests and no source duplication.</div>
+            <div class="matrix-cell">Contracts and early proof exist, reporting has a focused UI with inline export preview, account setup readiness has a focused UI, and campaign readiness now has a focused UI, but campaign write wrappers, referral, validation, attribution, and support still need cohesive product wrappers.</div>
+            <div class="matrix-cell">Thin SaaS routes and UI around existing primitives with tests, account-scope resolution, idempotency, and no source duplication.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Live DB/state verification</div>
@@ -1188,7 +1192,7 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Product report/export catalog</div>
-            <div class="matrix-cell">TASK-156 adds `campaign_performance`, TASK-157 exposes it through a read-only product route, TASK-158 derives scope from tenant-scoped identities, TASK-159 adds `referral_funnel`, TASK-160 adds `progress_event_health`, TASK-161 adds `attribution_quality`, TASK-162 adds `safe_status_distribution`, TASK-163 adds `link_code_performance`, TASK-164 adds count-only `reward_visibility_summary`, TASK-165 adds validation-only export gating, TASK-166 carries trusted account references through report/export scope, TASK-167 returns inline JSON/CSV export previews, TASK-168 adds the frontend report/export client, TASK-169 adds the focused report catalog UI, TASK-170 adds account setup readiness UI, and TASK-171 adds inline export preview UI. Persisted exports and account/membership persistence remain open.</div>
+            <div class="matrix-cell">TASK-156 adds `campaign_performance`, TASK-157 exposes it through a read-only product route, TASK-158 derives scope from tenant-scoped identities, TASK-159 adds `referral_funnel`, TASK-160 adds `progress_event_health`, TASK-161 adds `attribution_quality`, TASK-162 adds `safe_status_distribution`, TASK-163 adds `link_code_performance`, TASK-164 adds count-only `reward_visibility_summary`, TASK-165 adds validation-only export gating, TASK-166 carries trusted account references through report/export scope, TASK-167 returns inline JSON/CSV export previews, TASK-168 adds the frontend report/export client, TASK-169 adds the focused report catalog UI, TASK-170 adds account setup readiness UI, TASK-171 adds inline export preview UI, and TASK-172 adds campaign readiness UI. Persisted exports and account/membership persistence remain open.</div>
             <div class="matrix-cell">Implement persisted export storage/audit/downloads, account membership UX, live redaction/export checks, and deeper report workflow actions.</div>
           </div>
           <div class="matrix-row" role="row">
@@ -1356,7 +1360,7 @@
       </section>
 
       <div class="footer-note">
-        Recommendation: continue from TASK-171 into narrow product-wrapper
+        Recommendation: continue from TASK-172 into narrow product-wrapper
         implementation slices for the referral and campaign attribution SaaS.
         Keep the code single-source, keep DLaaS money/marketplace depth
         separate, and use live verification plus E2E proof before upgrading the
