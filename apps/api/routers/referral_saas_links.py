@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 
+from services.link_code_service import inspect_link_code
 from services.referral_code import (
     capture_referee_ucn,
     get_or_create_referrer_code,
@@ -13,7 +14,7 @@ from services.referral_code import (
 from services.referral_saas_validation_service import (
     build_referral_saas_validation_result,
 )
-from utils.security import require_partner_key
+from utils.security import require_distribution_admin_key, require_partner_key
 from utils.tenant_guard import require_valid_tenant
 
 router = APIRouter(
@@ -78,6 +79,69 @@ def _capture_status(body: dict[str, Any], status_code: int) -> str:
     return "CAPTURED"
 
 
+def _normalise_operator_tenant_code(tenant_code: str) -> str:
+    tenant = str(tenant_code or "").strip().upper()
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": "tenant_code is required",
+            },
+        )
+    return tenant
+
+
+def _operator_next_diagnostics(link_code: dict[str, Any]) -> list[dict[str, str]]:
+    diagnostics: list[dict[str, str]] = []
+    campaign = link_code.get("campaign") if isinstance(link_code.get("campaign"), dict) else {}
+    attribution = (
+        link_code.get("attribution")
+        if isinstance(link_code.get("attribution"), dict)
+        else {}
+    )
+
+    campaign_code = campaign.get("campaign_code")
+    if campaign_code:
+        diagnostics.append(
+            {
+                "type": "CAMPAIGN_READINESS",
+                "label": "Inspect campaign readiness",
+                "targetRef": str(campaign_code),
+            }
+        )
+
+    referral_track_id = attribution.get("referral_track_id")
+    if referral_track_id:
+        diagnostics.append(
+            {
+                "type": "ATTRIBUTION_TRACE",
+                "label": "Inspect attribution trace",
+                "targetRef": str(referral_track_id),
+            }
+        )
+
+    if link_code.get("missing_evidence"):
+        diagnostics.append(
+            {
+                "type": "SUPPORT_TRIAGE",
+                "label": "Review missing evidence",
+                "targetRef": str(link_code.get("link_code_id") or ""),
+            }
+        )
+
+    if link_code.get("source_warnings"):
+        diagnostics.append(
+            {
+                "type": "SOURCE_WARNING",
+                "label": "Review source warnings",
+                "targetRef": str(link_code.get("link_code_id") or ""),
+            }
+        )
+
+    return diagnostics
+
+
 @router.post("/referral-codes")
 async def issue_referral_saas_code(
     request: ReferralSaasCodeIssueRequest,
@@ -112,6 +176,56 @@ async def issue_referral_saas_code(
             "identity and does not expose raw UCNs, hashes, revoke, expire, "
             "reissue, rewards, funding, fulfilment, settlement, or wallet "
             "behavior."
+        ),
+    }
+
+
+@router.get("/operator/links/inspect")
+async def inspect_referral_saas_operator_link_code(
+    tenant_code: Annotated[str, Query(min_length=1)],
+    source_type: Annotated[str, Query(min_length=1)],
+    link_code_id: str | None = Query(default=None),
+    code_or_ref: str | None = Query(default=None),
+    include_evidence: bool = Query(default=True),
+    identity: dict = Depends(require_distribution_admin_key),
+) -> dict[str, Any]:
+    resolved_tenant = _normalise_operator_tenant_code(tenant_code)
+
+    try:
+        link_code = await inspect_link_code(
+            tenant_code=resolved_tenant,
+            source_type=source_type,
+            link_code_id=link_code_id,
+            code_or_ref=code_or_ref,
+            include_evidence=include_evidence,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": str(exc),
+            },
+        ) from exc
+
+    return {
+        "status": "ok",
+        "inspection": {
+            "inspectionStatus": link_code.get("status"),
+            "linkCode": link_code,
+            "nextDiagnostics": _operator_next_diagnostics(link_code),
+        },
+        "operator_scope": {
+            "source": "operator_query_tenant",
+            "tenant_code": resolved_tenant,
+            "account_ref": identity.get("account_ref"),
+            "external_tenant_ref": identity.get("external_tenant_ref"),
+        },
+        "guardrail": (
+            "Referral SaaS operator link/code inspection wrapper over the "
+            "existing read-only inspection primitive. This endpoint does not "
+            "issue, resolve, void, rotate, mutate, retry, replay, repair, "
+            "reward, fund, fulfil, settle, or generate codes."
         ),
     }
 

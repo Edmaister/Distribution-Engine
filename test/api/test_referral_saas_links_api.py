@@ -13,10 +13,45 @@ from apps.api.routers import referral_saas_links  # noqa: E402
 pytestmark = pytest.mark.asyncio
 
 PARTNER_HEADERS = {"x-api-key": "test-partner-key"}
+DISTRIBUTION_ADMIN_HEADERS = {"x-api-key": "test-distribution-admin-key"}
 
 
 async def fake_require_valid_tenant(tenant: str) -> str:
     return tenant.upper()
+
+
+def _operator_link_code(*, status: str = "ISSUED") -> dict:
+    return {
+        "link_code_id": "referrer_codes:code-1",
+        "source_type": "REFERRAL_CODE",
+        "source": "referrer_codes",
+        "tenant_code": "FNB",
+        "status": status,
+        "code": "REF123",
+        "campaign": {"campaign_code": "CAMP001", "campaign_track_id": None},
+        "participant": {
+            "participant_type": "REFERRER",
+            "participant_ref": "SafeHandle",
+            "source": "referrer_codes",
+        },
+        "attribution": {
+            "referral_track_id": "track-1",
+            "route_id": None,
+            "opportunity_id": None,
+        },
+        "metadata": {},
+        "evidence": {
+            "referral_code": "REF123",
+            "referrer_ucn": "[REDACTED]",
+            "referrer_ucn_hash": "[REDACTED]",
+        },
+        "missing_evidence": [],
+        "source_warnings": [],
+        "redactions": ["referrer_ucn", "referrer_ucn_hash"],
+        "created_at": "2026-06-25T00:00:00+00:00",
+        "updated_at": "2026-06-25T00:00:00+00:00",
+        "inspected_at": "2026-06-25T00:00:00+00:00",
+    }
 
 
 async def test_referral_saas_issue_wrapper_derives_tenant_and_redacts_response(monkeypatch):
@@ -113,6 +148,268 @@ async def test_referral_saas_issue_wrapper_maps_terms_rejection(monkeypatch):
     assert response.status_code == 400
     assert response.json()["status"] == "rejected"
     assert response.json()["issue"]["issueStatus"] == "REJECTED_TERMS_REQUIRED"
+
+
+async def test_referral_saas_operator_link_inspect_wraps_read_only_primitive(monkeypatch):
+    calls: list[dict] = []
+
+    async def fake_inspect_link_code(**kwargs):
+        calls.append(kwargs)
+        return _operator_link_code()
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "inspect_link_code",
+        fake_inspect_link_code,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=DISTRIBUTION_ADMIN_HEADERS,
+    ) as client:
+        response = await client.get(
+            "/v1/referral-saas/operator/links/inspect",
+            params={
+                "tenant_code": "fnb",
+                "source_type": "REFERRAL_CODE",
+                "code_or_ref": "REF123",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["inspection"]["inspectionStatus"] == "ISSUED"
+    assert body["inspection"]["linkCode"]["status"] == "ISSUED"
+    assert body["inspection"]["linkCode"]["evidence"]["referrer_ucn"] == "[REDACTED]"
+    assert body["inspection"]["nextDiagnostics"] == [
+        {
+            "type": "CAMPAIGN_READINESS",
+            "label": "Inspect campaign readiness",
+            "targetRef": "CAMP001",
+        },
+        {
+            "type": "ATTRIBUTION_TRACE",
+            "label": "Inspect attribution trace",
+            "targetRef": "track-1",
+        },
+    ]
+    assert body["operator_scope"]["tenant_code"] == "FNB"
+    assert body["guardrail"].startswith("Referral SaaS operator link/code inspection")
+    assert "mutate" in body["guardrail"]
+    assert "replay" in body["guardrail"]
+    assert calls == [
+        {
+            "tenant_code": "FNB",
+            "source_type": "REFERRAL_CODE",
+            "link_code_id": None,
+            "code_or_ref": "REF123",
+            "include_evidence": True,
+        }
+    ]
+    assert "900001" not in response.text
+    assert "secret" not in response.text.lower()
+
+
+async def test_referral_saas_operator_link_inspect_preserves_missing_evidence_and_warnings(
+    monkeypatch,
+):
+    async def fake_inspect_link_code(**kwargs):
+        result = _operator_link_code(status="UNKNOWN")
+        result["campaign"] = {"campaign_code": None, "campaign_track_id": None}
+        result["attribution"] = {
+            "referral_track_id": None,
+            "route_id": None,
+            "opportunity_id": None,
+        }
+        result["missing_evidence"] = [
+            {
+                "code": "SOURCE_NOT_FOUND",
+                "severity": "BLOCKER",
+                "source": "referrer_codes",
+                "message": "Source evidence was not found for the requested tenant.",
+            }
+        ]
+        result["source_warnings"] = [
+            {
+                "code": "SOURCE_UNAVAILABLE",
+                "severity": "WARNING",
+                "source": "referrer_codes",
+                "message": "Source evidence could not be inspected safely.",
+            }
+        ]
+        return result
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "inspect_link_code",
+        fake_inspect_link_code,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=DISTRIBUTION_ADMIN_HEADERS,
+    ) as client:
+        response = await client.get(
+            "/v1/referral-saas/operator/links/inspect",
+            params={
+                "tenant_code": "FNB",
+                "source_type": "REFERRAL_CODE",
+                "code_or_ref": "MISSING",
+            },
+        )
+
+    assert response.status_code == 200
+    inspection = response.json()["inspection"]
+    assert inspection["inspectionStatus"] == "UNKNOWN"
+    assert inspection["linkCode"]["missing_evidence"][0]["code"] == "SOURCE_NOT_FOUND"
+    assert inspection["linkCode"]["source_warnings"][0]["code"] == "SOURCE_UNAVAILABLE"
+    assert inspection["nextDiagnostics"] == [
+        {
+            "type": "SUPPORT_TRIAGE",
+            "label": "Review missing evidence",
+            "targetRef": "referrer_codes:code-1",
+        },
+        {
+            "type": "SOURCE_WARNING",
+            "label": "Review source warnings",
+            "targetRef": "referrer_codes:code-1",
+        },
+    ]
+
+
+async def test_referral_saas_operator_link_inspect_forwards_link_id_and_evidence_flag(
+    monkeypatch,
+):
+    calls: list[dict] = []
+
+    async def fake_inspect_link_code(**kwargs):
+        calls.append(kwargs)
+        result = _operator_link_code(status="ACTIVE")
+        result["evidence"] = None
+        return result
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "inspect_link_code",
+        fake_inspect_link_code,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=DISTRIBUTION_ADMIN_HEADERS,
+    ) as client:
+        response = await client.get(
+            "/v1/referral-saas/operator/links/inspect",
+            params={
+                "tenant_code": "FNB",
+                "source_type": "ROUTE_REFERRAL_LINK",
+                "link_code_id": "route-1:track-1",
+                "include_evidence": "false",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["inspection"]["linkCode"]["evidence"] is None
+    assert calls == [
+        {
+            "tenant_code": "FNB",
+            "source_type": "ROUTE_REFERRAL_LINK",
+            "link_code_id": "route-1:track-1",
+            "code_or_ref": None,
+            "include_evidence": False,
+        }
+    ]
+
+
+async def test_referral_saas_operator_link_inspect_rejects_missing_credentials(
+    monkeypatch,
+):
+    async def fake_inspect_link_code(**kwargs):  # pragma: no cover
+        raise AssertionError("service should not be called")
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "inspect_link_code",
+        fake_inspect_link_code,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.get(
+            "/v1/referral-saas/operator/links/inspect",
+            params={
+                "tenant_code": "FNB",
+                "source_type": "REFERRAL_CODE",
+                "code_or_ref": "REF123",
+            },
+        )
+
+    assert response.status_code == 401
+
+
+async def test_referral_saas_operator_link_inspect_rejects_adjacent_admin_role(
+    monkeypatch,
+):
+    async def fake_inspect_link_code(**kwargs):  # pragma: no cover
+        raise AssertionError("service should not be called")
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "inspect_link_code",
+        fake_inspect_link_code,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers={"x-api-key": "test-finance-admin-key"},
+    ) as client:
+        response = await client.get(
+            "/v1/referral-saas/operator/links/inspect",
+            params={
+                "tenant_code": "FNB",
+                "source_type": "REFERRAL_CODE",
+                "code_or_ref": "REF123",
+            },
+        )
+
+    assert response.status_code == 403
+
+
+async def test_referral_saas_operator_link_inspect_returns_safe_validation_error(
+    monkeypatch,
+):
+    async def fake_inspect_link_code(**kwargs):
+        raise ValueError("Unsupported link/code source_type: BAD_SOURCE")
+
+    monkeypatch.setattr(
+        referral_saas_links,
+        "inspect_link_code",
+        fake_inspect_link_code,
+    )
+
+    async with AsyncClient(
+        app=app,
+        base_url="http://test",
+        headers=DISTRIBUTION_ADMIN_HEADERS,
+    ) as client:
+        response = await client.get(
+            "/v1/referral-saas/operator/links/inspect",
+            params={
+                "tenant_code": "FNB",
+                "source_type": "BAD_SOURCE",
+                "code_or_ref": "REF123",
+            },
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "validation_error",
+        "message": "Unsupported link/code source_type: BAD_SOURCE",
+    }
 
 
 async def test_referral_saas_public_validation_wrapper_maps_safe_success(monkeypatch):

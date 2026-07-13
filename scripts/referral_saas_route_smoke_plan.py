@@ -86,6 +86,28 @@ READ_ONLY_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_operator_link_code_inspect",
+        method="GET",
+        path="/v1/referral-saas/operator/links/inspect",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS operator/support role",
+        environment_rule="local/staging/production read-only where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "tenant_code",
+            "source_type",
+            "code_or_ref",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -H "Authorization: Bearer {admin_token}" '
+            '"{base_url}/v1/referral-saas/operator/links/inspect'
+            '?tenant_code={tenant_code}&source_type={source_type}'
+            '&code_or_ref={code_or_ref}"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_campaign_performance_report",
         method="GET",
         path="/v1/referral-saas/reports/{report_type}",

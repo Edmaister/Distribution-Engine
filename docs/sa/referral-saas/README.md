@@ -140,3 +140,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   Referral SaaS link/code workflow UI. It renders safe recovery next action and
   non-idempotent retry evidence from the product wrapper without exposing raw
   validation attributes, UCNs, hashes, reward, money, or DLaaS internals.
+- TASK-178 adds a read-only Referral SaaS operator link/code inspection API
+  wrapper over the existing `inspect_link_code` primitive. It preserves
+  redactions, missing evidence, source warnings, evidence toggling, and safe
+  validation errors, adds product `nextDiagnostics`, and does not issue,
+  resolve, mutate, retry, replay, repair, reward, fund, fulfil, settle, or
+  generate codes.

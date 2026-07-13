@@ -7,7 +7,8 @@ Product boundary: Referral Management and Campaign Attribution SaaS.
 Status: Source-backed route inventory and local contract test. TASK-157 adds
 the first bounded read-only product wrapper route for Referral SaaS reporting;
 TASK-165 adds the validation-only report export gate; TASK-167 adds inline
-export preview. No schema, frontend, live database, persisted export, or write
+export preview; TASK-178 adds the read-only operator link/code inspection
+wrapper. No schema, frontend, live database, persisted export, or write
 behavior is introduced by this inventory.
 
 ## Boundary
@@ -53,6 +54,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Read-only diagnostic | GET | `/admin/links/inspect` | Operator link/code investigation |
 | Read-only diagnostic | GET | `/admin/outcomes/{referral_track_id}/trace` | Attribution trace evidence |
 | Read-only reporting | GET | `/admin/analytics/reports/{report_type}` | Tenant-safe analytics foundation |
+| Read-only product diagnostic | GET | `/v1/referral-saas/operator/links/inspect` | Referral SaaS operator link/code inspection wrapper |
 | Read-only product report | GET | `/v1/referral-saas/reports/{report_type}` | Referral SaaS report wrapper |
 | Inline product export preview | POST | `/v1/referral-saas/reports/{report_type}/exports/preview` | Referral SaaS export payload preview |
 | Validation-only product export | POST | `/v1/referral-saas/reports/{report_type}/exports/validate` | Referral SaaS export request validation gate |
@@ -71,9 +73,10 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 
 ## Product Wrapper Fact
 
-TASK-157, TASK-165, and TASK-167 introduce exactly three mounted
-`/v1/referral-saas/*` product wrappers:
+TASK-157, TASK-165, TASK-167, and TASK-178 introduce exactly four mounted
+read-only or side-effect-free `/v1/referral-saas/*` product wrappers:
 
+- `GET /v1/referral-saas/operator/links/inspect`
 - `GET /v1/referral-saas/reports/{report_type}`
 - `POST /v1/referral-saas/reports/{report_type}/exports/preview`
 - `POST /v1/referral-saas/reports/{report_type}/exports/validate`
@@ -85,8 +88,12 @@ report type, format, redaction profile, dimensions, filters, row limits, and
 date windows. The export preview wrapper is also side-effect free: it returns
 inline JSON or CSV preview content from the tenant-safe report output without
 creating export files, storage records, delivery jobs, audit rows, retention
-records, or download URLs. Internal report readers still require explicit
-`tenant_code` until SaaS account resolution is implemented. No account
+records, or download URLs. The operator inspect wrapper composes the shared
+`inspect_link_code` primitive and preserves redactions, missing evidence,
+source warnings, evidence toggling, and safe validation errors without issuing,
+resolving, mutating, retrying, replaying, repairing, rewarding, funding,
+fulfilling, settling, or generating codes. Internal report readers still require
+explicit `tenant_code` until SaaS account resolution is implemented. No account
 membership, frontend, persisted export, or write command wrapper is implied.
 
 ## Smoke Safety Classification
@@ -99,6 +106,7 @@ auth permits and test subjects are known:
 - attribution trace
 - tenant-safe analytics
 - Referral SaaS report wrapper
+- Referral SaaS operator link/code inspection wrapper
 - Referral SaaS export preview wrapper
 - Referral SaaS export validation wrapper
 - consumer/referrer status summaries
@@ -127,7 +135,8 @@ Remaining blockers before a 10/10 claim:
 - perform live or staging schema/status/index verification using
   `scripts/referral_saas_schema_status_check.py`
 - keep product wrapper expansion bounded beyond the report route,
-  validation-only export gate, and inline export preview
+  validation-only export gate, inline export preview, and operator inspection
+  wrapper
 - add safe-status and reporting E2E assertions over product-ready surfaces
 - keep production smoke read-only unless separately approved
 

@@ -174,7 +174,7 @@ Future Referral SaaS APIs should follow these rules:
 
 | Target route | Method | Current source/wrapper | Auth | Notes |
 |---|---|---|---|---|
-| `/v1/referral-saas/operator/links/inspect` | `GET` | `GET /admin/links/inspect` plus TASK-140 contract | Operator/support role | Internal/operator only. |
+| `/v1/referral-saas/operator/links/inspect` | `GET` | TASK-178 wrapper over `inspect_link_code` / `GET /admin/links/inspect` plus TASK-140 contract | Operator/support/admin bridge | Implemented as read-only operator diagnostics. Preserves evidence toggling, redactions, missing evidence, source warnings, safe validation errors, and product `nextDiagnostics`; no mutation, retry, replay, repair, reward, money, or code generation. |
 | `/v1/referral-saas/operator/outcomes/{safeReferralRef}/trace` | `GET` | `GET /admin/outcomes/{referral_track_id}/trace` | Operator/support role | Read-only diagnostic. |
 | `/v1/referral-saas/operator/support-cases` | `GET` | TASK-145 future contract | Operator/support role | Not implemented by this map. |
 
@@ -255,6 +255,13 @@ Rules:
   the focused frontend link/code workflow. It does not add routes, schema,
   duplicate reuse, conflict detection, operator trace linkage, lifecycle
   commands, or audit writes.
+- TASK-178 adds a read-only operator diagnostics product wrapper:
+  `GET /v1/referral-saas/operator/links/inspect`. It composes
+  `inspect_link_code`, keeps the response operator-scoped, and returns safe
+  `nextDiagnostics` for campaign readiness, attribution trace, missing
+  evidence, and source warnings. It does not add support-case mutations,
+  repair/replay/retry commands, schema, audit writes, reward, funding,
+  fulfilment, settlement, or broad DLaaS behavior.
 - TASK-166 lets report/export-validation envelopes carry trusted `account_ref`
   and `external_tenant_ref` identity claims. No SaaS account membership wrapper
   currently resolves caller-supplied `accountRef` to internal tenant scope.

@@ -82,7 +82,7 @@ Current read-only or diagnostic foundations:
 
 | Capability | Current route/service | Current guardrail |
 |---|---|---|
-| Link/code inspection | `GET /admin/links/inspect`; `inspect_link_code` | Read-only; does not issue, resolve, void, rotate, mutate, or generate codes. |
+| Link/code inspection | `GET /admin/links/inspect`; `GET /v1/referral-saas/operator/links/inspect`; `inspect_link_code` | Read-only; product wrapper preserves redactions, missing evidence, source warnings, evidence toggling, safe validation errors, and next diagnostics; does not issue, resolve, void, rotate, mutate, retry, replay, repair, reward, fund, fulfil, settle, or generate codes. |
 | Outcome trace | `GET /admin/outcomes/{referral_track_id}/trace`; `get_outcome_trace` | Read-only; does not mutate reward, funding, fulfilment, settlement, audit, or webhook state. |
 | Campaign readiness | `GET /admin/campaigns/{campaign_code}/readiness`; `get_campaign_readiness` | Read-only; does not mutate campaigns, policies, referrals, attribution, funding, fulfilment, settlement, audit, or rewards. |
 | Progress ingestion | `POST /v1/progress`; `handle_progress_event` | Partner-authenticated; dedupe and queue behavior are source truth. |
