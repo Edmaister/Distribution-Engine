@@ -562,16 +562,17 @@
             link/code product API wrappers through TASK-174, a tested
             validation recovery mapper through TASK-175, explicit validation
             idempotency posture through TASK-176, and validation recovery UI
-            through TASK-177.
+            through TASK-177, and the first product operator link/code
+            inspection API wrapper through TASK-178.
           </p>
           <div class="score-row" aria-label="Current position">
             <div class="score">
-              <strong>9.78/10</strong>
-              <span>Referral management foundation after TASK-177 validation recovery UI</span>
+              <strong>9.80/10</strong>
+              <span>Referral management foundation after TASK-178 operator link/code inspection wrapper</span>
             </div>
             <div class="score">
-              <strong>9.31/10</strong>
-              <span>Campaign attribution foundation with account, campaign readiness, product link/code, report, preview UI, validation recovery UI, and explicit retry posture</span>
+              <strong>9.33/10</strong>
+              <span>Campaign attribution foundation with account, campaign readiness, product link/code, report, preview UI, validation recovery UI, explicit retry posture, and operator inspection diagnostics</span>
             </div>
             <div class="score">
               <strong>10/10</strong>
@@ -585,7 +586,7 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-177 for Referral SaaS, with
+            Updated after TASK-134 through TASK-178 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
@@ -595,8 +596,8 @@
             <span>Account, campaign, code, validation, progress, attribution, support, reporting, API, IA, audit, and E2E plan are documented.</span>
           </div>
           <div class="status-pill">
-            <b>29 implementation proofs added</b>
-            <span>TASK-149 through TASK-177 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, safe-status, report-catalog, report-API, account-scope, referral-funnel, progress-health, attribution-quality, safe-status distribution, link/code performance, reward visibility, export validation, account-reference, export-preview, frontend report-client, report-catalog UI, account-setup readiness UI, inline export-preview UI, campaign-readiness UI, link/code workflow UI, product link/code API wrapper proof, validation recovery mapper proof, validation idempotency posture proof, and validation recovery UI proof.</span>
+            <b>30 implementation proofs added</b>
+            <span>TASK-149 through TASK-178 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, safe-status, report-catalog, report-API, account-scope, referral-funnel, progress-health, attribution-quality, safe-status distribution, link/code performance, reward visibility, export validation, account-reference, export-preview, frontend report-client, report-catalog UI, account-setup readiness UI, inline export-preview UI, campaign-readiness UI, link/code workflow UI, product link/code API wrapper proof, validation recovery mapper proof, validation idempotency posture proof, validation recovery UI proof, and operator link/code inspection API proof.</span>
           </div>
           <div class="status-pill">
             <b>Live confidence still capped</b>
@@ -814,7 +815,9 @@
               those wrappers. TASK-175 centralizes and tests validation
               recovery mapping for product-safe responses. TASK-176 exposes
               the current non-idempotent validation retry posture. TASK-177
-              renders recovery and retry posture in the focused UI.
+              renders recovery and retry posture in the focused UI. TASK-178
+              adds a read-only operator link/code inspection API wrapper with
+              next diagnostics.
             </p>
             <div class="tag-row">
               <span class="tag">Customer value</span>
@@ -838,6 +841,7 @@
               <span class="tag done">TASK-175</span>
               <span class="tag done">TASK-176</span>
               <span class="tag done">TASK-177</span>
+              <span class="tag done">TASK-178</span>
               <span class="tag dlaas">Portal status primitive</span>
             </div>
           </article>
@@ -860,7 +864,7 @@
               <li>TASK-134 through TASK-147 completed as contract outputs.</li>
               <li>Referral, validation, progress, attribution, API, IA, reporting, and support boundaries are explicit.</li>
               <li>Money-depth and broad DLaaS scope remain deliberately separate.</li>
-              <li>The contracts are now backed by TASK-149 through TASK-177 implementation proof.</li>
+              <li>The contracts are now backed by TASK-149 through TASK-178 implementation proof.</li>
             </ol>
           </article>
           <article class="phase">
@@ -869,7 +873,7 @@
             <ol>
               <li>Golden-path and negative-path contract tests are in place.</li>
               <li>Route smoke and schema/status tooling is ready for controlled execution.</li>
-              <li>Referral safe-status projection, seven report catalog helpers, export request validation, inline preview payloads, preview UI, campaign readiness UI, link/code workflow UI, product link/code wrappers, validation recovery mapper, validation idempotency posture, and validation recovery UI are implemented over existing primitives.</li>
+              <li>Referral safe-status projection, seven report catalog helpers, export request validation, inline preview payloads, preview UI, campaign readiness UI, link/code workflow UI, product link/code wrappers, validation recovery mapper, validation idempotency posture, validation recovery UI, and operator link/code inspection API are implemented over existing primitives.</li>
               <li>Next: account/membership persistence, remaining product wrappers, schema-backed duplicate validation reuse or conflict behavior, persisted export storage/audit/downloads, and customer/operator workflow depth.</li>
             </ol>
           </article>
@@ -1157,6 +1161,8 @@
               TASK-175 adds a tested validation recovery mapper, TASK-176
               exposes the current non-idempotent validation posture, and
               TASK-177 renders recovery and retry posture in the link/code UI.
+              TASK-178 adds a read-only operator link/code inspection API
+              wrapper over the existing inspection primitive.
             </p>
             <div class="tag-row">
               <span class="tag done">154</span>
@@ -1174,7 +1180,7 @@
           <article class="capability" data-tone="amber">
             <h3>Still Not Shipped</h3>
             <p>
-              Account/membership persistence, campaign create/policy/activation wrappers, broader SaaS frontend workflows, persisted export storage/audit/downloads,
+              Account/membership persistence, campaign create/policy/activation wrappers, broader SaaS frontend workflows, operator support UI/trace linkage, persisted export storage/audit/downloads,
               live/staging execution evidence, and
               full E2E proof remain open before a 10/10 claim.
             </p>
@@ -1202,7 +1208,7 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">SaaS workflow implementation</div>
-            <div class="matrix-cell">Contracts and early proof exist, reporting has a focused UI with inline export preview, account setup readiness has a focused UI, campaign readiness has a focused UI, and link/code issue-validation-capture now has product wrappers plus focused UI, tested validation recovery mapping, explicit non-idempotent retry posture, and recovery UI, but progress/status, attribution, support, account membership, and lifecycle hardening still need cohesive product workflows.</div>
+            <div class="matrix-cell">Contracts and early proof exist, reporting has a focused UI with inline export preview, account setup readiness has a focused UI, campaign readiness has a focused UI, link/code issue-validation-capture now has product wrappers plus focused UI, tested validation recovery mapping, explicit non-idempotent retry posture, recovery UI, and operator link/code inspection API proof, but progress/status, attribution, support UI, account membership, and lifecycle hardening still need cohesive product workflows.</div>
             <div class="matrix-cell">Thin SaaS routes and UI around existing primitives with tests, account-scope resolution, idempotency/recovery posture, and no source duplication.</div>
           </div>
           <div class="matrix-row" role="row">
@@ -1212,7 +1218,7 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Product report/export catalog</div>
-            <div class="matrix-cell">TASK-156 adds `campaign_performance`, TASK-157 exposes it through a read-only product route, TASK-158 derives scope from tenant-scoped identities, TASK-159 adds `referral_funnel`, TASK-160 adds `progress_event_health`, TASK-161 adds `attribution_quality`, TASK-162 adds `safe_status_distribution`, TASK-163 adds `link_code_performance`, TASK-164 adds count-only `reward_visibility_summary`, TASK-165 adds validation-only export gating, TASK-166 carries trusted account references through report/export scope, TASK-167 returns inline JSON/CSV export previews, TASK-168 adds the frontend report/export client, TASK-169 adds the focused report catalog UI, TASK-170 adds account setup readiness UI, TASK-171 adds inline export preview UI, TASK-172 adds campaign readiness UI, TASK-173 adds link/code workflow UI, TASK-174 adds product link/code API wrappers, TASK-175 adds validation recovery mapper proof, TASK-176 adds explicit validation idempotency posture proof, and TASK-177 adds validation recovery UI proof. Persisted exports, remaining product wrappers, and account/membership persistence remain open.</div>
+            <div class="matrix-cell">TASK-156 adds `campaign_performance`, TASK-157 exposes it through a read-only product route, TASK-158 derives scope from tenant-scoped identities, TASK-159 adds `referral_funnel`, TASK-160 adds `progress_event_health`, TASK-161 adds `attribution_quality`, TASK-162 adds `safe_status_distribution`, TASK-163 adds `link_code_performance`, TASK-164 adds count-only `reward_visibility_summary`, TASK-165 adds validation-only export gating, TASK-166 carries trusted account references through report/export scope, TASK-167 returns inline JSON/CSV export previews, TASK-168 adds the frontend report/export client, TASK-169 adds the focused report catalog UI, TASK-170 adds account setup readiness UI, TASK-171 adds inline export preview UI, TASK-172 adds campaign readiness UI, TASK-173 adds link/code workflow UI, TASK-174 adds product link/code API wrappers, TASK-175 adds validation recovery mapper proof, TASK-176 adds explicit validation idempotency posture proof, TASK-177 adds validation recovery UI proof, and TASK-178 adds operator link/code inspection API proof. Persisted exports, remaining product wrappers, operator support UI/trace linkage, and account/membership persistence remain open.</div>
             <div class="matrix-cell">Implement persisted export storage/audit/downloads, account membership UX, live redaction/export checks, and deeper report workflow actions.</div>
           </div>
           <div class="matrix-row" role="row">
@@ -1222,7 +1228,7 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Public API and frontend packaging</div>
-            <div class="matrix-cell">The API map and IA exist, focused admin surfaces are emerging, and product wrappers now cover reports/exports plus link/code issue-validation-capture, but customers still need account-scoped wrappers across progress/status/attribution/support and full product-shell cohesion.</div>
+            <div class="matrix-cell">The API map and IA exist, focused admin surfaces are emerging, and product wrappers now cover reports/exports, link/code issue-validation-capture, and operator link/code inspection, but customers still need account-scoped wrappers across progress/status/attribution/support and full product-shell cohesion.</div>
             <div class="matrix-cell">Ship TASK-143/TASK-144 implementation slices with auth, safe errors, and redaction tests.</div>
           </div>
           <div class="matrix-row" role="row">
@@ -1380,7 +1386,7 @@
       </section>
 
       <div class="footer-note">
-        Recommendation: continue after TASK-177 into schema-backed idempotency, account, and attribution/support
+        Recommendation: continue after TASK-178 into schema-backed idempotency, account, operator UI, and attribution/support
         implementation slices for the referral and campaign attribution SaaS.
         Keep the code single-source, keep DLaaS money/marketplace depth
         separate, and use live verification plus E2E proof before upgrading the

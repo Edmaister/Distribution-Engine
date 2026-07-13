@@ -121,6 +121,22 @@ Current route:
 GET /admin/links/inspect
 ```
 
+Current Referral SaaS product wrapper:
+
+```text
+GET /v1/referral-saas/operator/links/inspect
+```
+
+TASK-178 implements the product wrapper in
+`apps/api/routers/referral_saas_links.py`. It is protected by
+`require_distribution_admin_key`, composes the existing `inspect_link_code`
+service, and returns a product envelope with `inspection.inspectionStatus`,
+`inspection.linkCode`, `inspection.nextDiagnostics`, `operator_scope`, and a
+read-only guardrail. It preserves `include_evidence=false`, missing evidence,
+source warnings, redactions, and safe validation errors. It does not issue,
+resolve, void, rotate, mutate, retry, replay, repair, reward, fund, fulfil,
+settle, or generate codes.
+
 Required query inputs:
 
 - `tenant_code`
@@ -281,7 +297,9 @@ Minimum first-launch flow:
 2. Operator chooses a source type using product labels.
 3. Operator enters code, link ID, campaign track ID, referral track ID, route
    ID, or composite lookup reference as appropriate.
-4. System calls read-only inspect route.
+4. System calls the read-only product inspect route when the operator surface
+   is using Referral SaaS packaging; lower-level admin tooling may still call
+   the shared admin route.
 5. System shows status, source, tenant, participant, campaign, attribution,
    missing evidence, warnings, redactions, and inspect timestamp.
 6. System offers safe next links to campaign readiness, attribution trace, or
@@ -291,8 +309,8 @@ This first-launch workflow remains diagnostic only.
 
 ## Future Tests
 
-When this contract becomes implementation work, add or preserve focused tests
-for:
+When this contract expands beyond the TASK-178 product wrapper, add or preserve
+focused tests for:
 
 - UI source-type selection maps to canonical source types
 - operator lookup requires tenant and one lookup reference
