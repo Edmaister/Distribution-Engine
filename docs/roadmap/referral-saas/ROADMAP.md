@@ -142,6 +142,7 @@ greenfield referral construction.
 34. TASK-168: Add Referral SaaS report/export frontend client.
 35. TASK-169: Add Referral SaaS report catalog frontend surface.
 36. TASK-170: Add Referral SaaS account setup readiness frontend surface.
+37. TASK-171: Add Referral SaaS inline export preview frontend surface.
 
 ## 10/10 Exit Criteria
 
@@ -225,6 +226,8 @@ greenfield referral construction.
 - TASK-170: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
   `frontend/src/api/referralSaasAccountQueries.ts`
+- TASK-171: `frontend/src/pages/admin/ReferralSaasReportsPage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasReportsPage.test.tsx`
 
 ## Explicit Deferrals
 

@@ -1,7 +1,12 @@
 import { Download, FileJson, ShieldCheck, TableProperties } from "lucide-react";
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 
-import { type ReferralSaasReportType } from "../../api/endpoints/referralSaasReports";
+import {
+  previewReferralSaasReportExport,
+  type ReferralSaasExportFormat,
+  type ReferralSaasReportType,
+} from "../../api/endpoints/referralSaasReports";
 import { useReferralSaasReport } from "../../api/referralSaasQueries";
 import { DataTable } from "../../components/DataTable";
 import { ErrorPanel } from "../../components/ErrorPanel";
@@ -41,7 +46,18 @@ export function ReferralSaasReportsPage() {
   const { refreshKey } = useRefreshContext();
   const [reportType, setReportType] = useState<ReferralSaasReportType>("campaign_performance");
   const [tenantCode, setTenantCode] = useState(defaultTenantCode);
+  const [previewRowLimit, setPreviewRowLimit] = useState(10);
   const { data, error, isLoading } = useReferralSaasReport(reportType, tenantCode, refreshKey);
+  const exportPreviewMutation = useMutation({
+    mutationFn: (format: ReferralSaasExportFormat) =>
+      previewReferralSaasReportExport({
+        reportType,
+        tenantCode,
+        format,
+        redactionProfile: "tenant_safe",
+        rowLimit: previewRowLimit,
+      }),
+  });
 
   const report = asRecord(data?.report);
   const metrics = asArray(getNestedValue(report, ["metrics"], []));
@@ -53,10 +69,31 @@ export function ReferralSaasReportsPage() {
     })),
   );
   const accountScope = asRecord(data?.account_scope);
+  const exportPreview = asRecord(exportPreviewMutation.data?.export_preview);
+  const preview = asRecord(getNestedValue(exportPreview, ["preview"], {}));
+  const previewMetadata = asRecord(getNestedValue(preview, ["metadata"], {}));
+  const previewPayloadValue = getNestedValue(preview, ["payload"], "");
+  const previewPayload =
+    typeof previewPayloadValue === "string"
+      ? previewPayloadValue
+      : JSON.stringify(previewPayloadValue, null, 2);
   const metricTotal = metrics.reduce((total, metric) => {
     const value = Number(getValue(metric, ["value"], "0"));
     return Number.isFinite(value) ? total + value : total;
   }, 0);
+  const handleReportTypeChange = (value: string) => {
+    exportPreviewMutation.reset();
+    setReportType(value as ReferralSaasReportType);
+  };
+  const handleTenantCodeChange = (value: string) => {
+    exportPreviewMutation.reset();
+    setTenantCode(value.toUpperCase());
+  };
+  const handlePreviewRowLimitChange = (value: string) => {
+    const nextLimit = Number(value);
+    exportPreviewMutation.reset();
+    setPreviewRowLimit(Number.isFinite(nextLimit) ? Math.min(100, Math.max(1, nextLimit)) : 1);
+  };
 
   return (
     <>
@@ -89,13 +126,13 @@ export function ReferralSaasReportsPage() {
             <span>Tenant code</span>
             <input
               className="input"
-              onChange={(event) => setTenantCode(event.target.value.toUpperCase())}
+              onChange={(event) => handleTenantCodeChange(event.target.value)}
               value={tenantCode}
             />
           </label>
           <SegmentedFilter
             ariaLabel="Select Referral SaaS report"
-            onChange={(value) => setReportType(value as ReferralSaasReportType)}
+            onChange={handleReportTypeChange}
             options={reportOptions}
             value={reportType}
           />
@@ -159,13 +196,46 @@ export function ReferralSaasReportsPage() {
             <div className="panel">
               <div className="panel-header">
                 <div>
-                  <h2 className="panel-title">Launch guardrails</h2>
+                  <h2 className="panel-title">Inline export preview</h2>
                   <div className="panel-subtitle">
-                    Current report surface does not create persisted exports.
+                    Current report surface can preview payloads but does not create stored files.
                   </div>
                 </div>
               </div>
               <div className="panel-body route-list">
+                <div className="export-preview-actions">
+                  <label className="field export-preview-row-limit">
+                    <span>Preview rows</span>
+                    <input
+                      aria-label="Preview row limit"
+                      className="input"
+                      min={1}
+                      max={100}
+                      onChange={(event) => handlePreviewRowLimitChange(event.target.value)}
+                      type="number"
+                      value={previewRowLimit}
+                    />
+                  </label>
+                  <button
+                    className="button"
+                    disabled={exportPreviewMutation.isPending}
+                    onClick={() => exportPreviewMutation.mutate("json")}
+                    type="button"
+                  >
+                    <FileJson size={16} />
+                    Preview JSON
+                  </button>
+                  <button
+                    className="button secondary"
+                    disabled={exportPreviewMutation.isPending}
+                    onClick={() => exportPreviewMutation.mutate("csv")}
+                    type="button"
+                  >
+                    <Download size={16} />
+                    Preview CSV
+                  </button>
+                </div>
+                {exportPreviewMutation.error ? <ErrorPanel error={exportPreviewMutation.error} /> : null}
                 <div className="route-item">
                   <div>
                     <div className="route-name">Inline preview only</div>
@@ -180,6 +250,19 @@ export function ReferralSaasReportsPage() {
                   </div>
                   <StatusBadge label="Read-only" tone="success" />
                 </div>
+                {exportPreviewMutation.data ? (
+                  <div className="export-preview-result">
+                    <div className="summary-grid">
+                      <SummaryItem label="Preview status" value={formatDisplay(getNestedValue(preview, ["status"]))} />
+                      <SummaryItem label="Format" value={formatDisplay(getNestedValue(preview, ["export_format"]))} />
+                      <SummaryItem label="Content type" value={formatDisplay(getNestedValue(preview, ["content_type"]))} />
+                      <SummaryItem label="Rows" value={formatDisplay(getNestedValue(previewMetadata, ["row_count"]))} />
+                    </div>
+                    <pre className="export-preview-payload" aria-label="Export preview payload">
+                      {previewPayload}
+                    </pre>
+                  </div>
+                ) : null}
               </div>
             </div>
           </section>
