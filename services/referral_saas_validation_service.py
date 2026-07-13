@@ -29,6 +29,18 @@ VALIDATION_RECOVERY_MAP = {
     ),
 }
 
+VALIDATION_IDEMPOTENCY_POSTURE = {
+    "validationAttemptPolicy": "NEW_JOURNEY_PER_SUCCESSFUL_VALIDATION",
+    "duplicateSubmitGuarantee": "NOT_IDEMPOTENT",
+    "idempotencyKeySupported": False,
+    "safeMessage": (
+        "Successful public validation currently records a new referral "
+        "journey for each submit. Do not treat repeated validation submits "
+        "as idempotent until a schema-backed idempotency key or duplicate "
+        "reuse contract is implemented."
+    ),
+}
+
 
 def referral_saas_validation_status(body: dict[str, Any], status_code: int) -> str:
     error_code = str(body.get("error_code") or body.get("errorCode") or "")
@@ -70,4 +82,5 @@ def build_referral_saas_validation_result(
         "errorCode": body.get("error_code") or body.get("errorCode"),
         "message": body.get("message"),
         "recovery": referral_saas_validation_recovery(validation_status),
+        "idempotency": dict(VALIDATION_IDEMPOTENCY_POSTURE),
     }

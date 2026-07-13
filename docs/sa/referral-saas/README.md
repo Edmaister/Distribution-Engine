@@ -132,3 +132,7 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   recovery states, keeps internal validation attributes redacted, and leaves
   duplicate-submit idempotency, operator trace linkage, schema, lifecycle,
   audit, reward, money, and DLaaS expansion behavior out of scope.
+- TASK-176 exposes the current public validation idempotency posture in the
+  product validation response. It states that successful duplicate submits
+  currently create new validation journeys and that idempotency keys are not
+  supported until a schema-backed duplicate/reuse contract is implemented.

@@ -158,6 +158,9 @@ Current gaps:
 - No unique business key prevents the same referee/alias/device from creating
   repeated validation rows when the caller retries.
 - Validation evidence is not yet written as a canonical audit event.
+- TASK-176 exposes this current posture in the product validation response as
+  `NEW_JOURNEY_PER_SUCCESSFUL_VALIDATION`, `NOT_IDEMPOTENT`, and
+  `idempotencyKeySupported=false`.
 
 Future requirement:
 

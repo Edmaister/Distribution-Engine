@@ -142,7 +142,7 @@ Future Referral SaaS APIs should follow these rules:
 
 | Target route | Method | Current source/wrapper | Auth | Notes |
 |---|---|---|---|---|
-| `/v1/referral-saas/public/referrals/validate` | `POST` | TASK-174 wrapper over `POST /public/referrals/validate`, TASK-175 validation recovery mapper, plus TASK-137 contract | Public validation | Implemented as a bounded product wrapper. It returns `validationStatus`, safe `referralTrackId`, alias, safe error/recovery fields, and redacts internal attributes through a centralized mapper. Duplicate-submit idempotency and operator trace linkage remain future work. |
+| `/v1/referral-saas/public/referrals/validate` | `POST` | TASK-174 wrapper over `POST /public/referrals/validate`, TASK-175 validation recovery mapper, TASK-176 validation idempotency posture, plus TASK-137 contract | Public validation | Implemented as a bounded product wrapper. It returns `validationStatus`, safe `referralTrackId`, alias, safe error/recovery fields, and redacts internal attributes through a centralized mapper. It also exposes that successful duplicate submits are not idempotent today and idempotency keys are not supported. Schema-backed duplicate reuse/conflict behavior and operator trace linkage remain future work. |
 | `/v1/referral-saas/public/campaigns/validate` | `POST` | `POST /campaigns/validate` plus TASK-135 contract | Public validation | Must distinguish campaign code from campaign track ID. |
 | `/v1/referral-saas/referrals/{referral_track_id}/referee-ucn` | `POST` | TASK-174 wrapper over `POST /referrals/referees/ucn` plus TASK-137 contract | SaaS account integration or partner/member role | Implemented as a bounded partner-identity scoped wrapper. It derives tenant scope from the credential and returns `captureStatus` without exposing raw UCN/hash evidence. |
 
@@ -245,6 +245,12 @@ Rules:
   missing-code, code-not-found, logging-recovery, failed, success, and
   redaction behavior. It does not implement duplicate-submit idempotency,
   operator trace linkage, schema changes, lifecycle commands, or audit writes.
+- TASK-176 exposes the current validation idempotency posture in the product
+  validation response: successful duplicate submits are treated as new
+  validation journeys, the duplicate-submit guarantee is `NOT_IDEMPOTENT`, and
+  idempotency keys are not supported. It does not implement schema-backed
+  duplicate reuse, conflict detection, operator trace linkage, lifecycle
+  commands, or audit writes.
 - TASK-166 lets report/export-validation envelopes carry trusted `account_ref`
   and `external_tenant_ref` identity claims. No SaaS account membership wrapper
   currently resolves caller-supplied `accountRef` to internal tenant scope.

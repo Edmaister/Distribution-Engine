@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from services.referral_saas_validation_service import (
+    VALIDATION_IDEMPOTENCY_POSTURE,
     build_referral_saas_validation_result,
     referral_saas_validation_recovery,
     referral_saas_validation_status,
@@ -32,6 +33,7 @@ def test_referral_saas_validation_result_maps_success_and_redacts_internal_attri
         "errorCode": None,
         "message": "Referral code validated",
         "recovery": None,
+        "idempotency": VALIDATION_IDEMPOTENCY_POSTURE,
     }
     assert "attributes" not in result
     assert "referrer_ucn" not in result
@@ -54,6 +56,7 @@ def test_referral_saas_validation_status_maps_terms_required_recovery():
         "action": "ACCEPT_TERMS_AND_RETRY",
         "safeMessage": "Accept the referral terms and try again.",
     }
+    assert result["idempotency"] == VALIDATION_IDEMPOTENCY_POSTURE
 
 
 def test_referral_saas_validation_status_maps_alias_errors_to_single_recovery():
@@ -135,4 +138,29 @@ def test_referral_saas_validation_status_falls_back_to_failed_without_recovery()
         "errorCode": "UNKNOWN",
         "message": "Unexpected validation failure",
         "recovery": None,
+        "idempotency": VALIDATION_IDEMPOTENCY_POSTURE,
+    }
+
+
+def test_referral_saas_validation_idempotency_posture_is_explicit():
+    result = build_referral_saas_validation_result(
+        {
+            "valid": True,
+            "referral_track_id": "track-2",
+            "alias": "customer-alias",
+            "error_code": None,
+        },
+        200,
+    )
+
+    assert result["idempotency"] == {
+        "validationAttemptPolicy": "NEW_JOURNEY_PER_SUCCESSFUL_VALIDATION",
+        "duplicateSubmitGuarantee": "NOT_IDEMPOTENT",
+        "idempotencyKeySupported": False,
+        "safeMessage": (
+            "Successful public validation currently records a new referral "
+            "journey for each submit. Do not treat repeated validation submits "
+            "as idempotent until a schema-backed idempotency key or duplicate "
+            "reuse contract is implemented."
+        ),
     }

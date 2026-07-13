@@ -172,6 +172,17 @@ async def test_referral_saas_public_validation_wrapper_maps_safe_success(monkeyp
         "errorCode": None,
         "message": "Referral code validated",
         "recovery": None,
+        "idempotency": {
+            "validationAttemptPolicy": "NEW_JOURNEY_PER_SUCCESSFUL_VALIDATION",
+            "duplicateSubmitGuarantee": "NOT_IDEMPOTENT",
+            "idempotencyKeySupported": False,
+            "safeMessage": (
+                "Successful public validation currently records a new referral "
+                "journey for each submit. Do not treat repeated validation submits "
+                "as idempotent until a schema-backed idempotency key or duplicate "
+                "reuse contract is implemented."
+            ),
+        },
     }
     assert calls == [
         {
