@@ -104,8 +104,10 @@ Current API/client foundations:
 - `/admin/referral-saas/reports` now provides the TASK-169 focused report
   catalog surface. It consumes the TASK-168 report client through React Query
   and renders tenant-safe metrics, freshness, warnings, redactions,
-  account-scope posture, and export-preview guardrails without adding persisted
-  exports or account membership UX.
+  account-scope posture, and export-preview guardrails. TASK-171 adds inline
+  JSON/CSV preview actions and payload display on this same surface without
+  adding persisted exports, download actions, scheduled delivery, audit writes,
+  or account membership UX.
 - `/admin/referral-saas/account-setup` now provides the TASK-170 focused
   account setup readiness surface. It consumes existing onboarding readiness
   evidence through external references and shows account profile, tenant-link,
@@ -128,9 +130,10 @@ Current frontend gaps:
   sometimes `referralTrackId` directly.
 - Link/code issue, validation, progress, status, attribution trace, and reports
   are not yet presented as one SaaS workflow.
-- Reporting/export screens now have an initial focused Referral SaaS report
-  catalog surface, but persisted exports, download URLs, scheduled delivery,
-  and account membership UX remain future work.
+- Reporting/export screens now have a focused Referral SaaS report catalog
+  surface with inline JSON/CSV preview handling, but persisted exports,
+  download URLs, scheduled delivery, audit writes, and account membership UX
+  remain future work.
 - Operator diagnostics are scattered across admin, distribution, events, audit,
   and health surfaces.
 

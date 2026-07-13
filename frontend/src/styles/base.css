@@ -874,6 +874,43 @@ a {
   text-transform: uppercase;
 }
 
+.export-preview-actions {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(120px, 0.7fr) auto auto;
+}
+
+.export-preview-row-limit > span {
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.export-preview-result {
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-panel);
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.export-preview-payload {
+  background: var(--color-ink);
+  border-radius: var(--radius-control);
+  color: var(--color-white);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+  max-height: 280px;
+  overflow: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .tooltip-wrap {
   display: inline-flex;
   position: relative;
@@ -4024,7 +4061,8 @@ textarea.input {
   .settlement-item-form,
   .settlement-approval-form,
   .referral-report-controls,
-  .referral-account-controls {
+  .referral-account-controls,
+  .export-preview-actions {
     grid-template-columns: 1fr;
   }
 

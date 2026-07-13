@@ -4,14 +4,19 @@ import type { ReactElement } from "react";
 import { createMemoryRouter, Outlet, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getReferralSaasReport } from "../../api/endpoints/referralSaasReports";
+import {
+  getReferralSaasReport,
+  previewReferralSaasReportExport,
+} from "../../api/endpoints/referralSaasReports";
 import { ReferralSaasReportsPage } from "./ReferralSaasReportsPage";
 
 vi.mock("../../api/endpoints/referralSaasReports", () => ({
   getReferralSaasReport: vi.fn(),
+  previewReferralSaasReportExport: vi.fn(),
 }));
 
 const mockedGetReferralSaasReport = vi.mocked(getReferralSaasReport);
+const mockedPreviewReferralSaasReportExport = vi.mocked(previewReferralSaasReportExport);
 
 function renderWorkspace(ui: ReactElement) {
   const client = new QueryClient({
@@ -73,6 +78,37 @@ function mockReport(reportType = "campaign_performance") {
   });
 }
 
+function mockExportPreview(format = "json") {
+  mockedPreviewReferralSaasReportExport.mockResolvedValue({
+    status: "ok",
+    guardrail: "Inline export preview only; no persisted export is created.",
+    account_scope: {
+      source: "explicit_tenant_code",
+      account_ref: "acct_fnb_referrals",
+      external_tenant_ref: "org_fnb_referrals",
+    },
+    export_preview: {
+      preview: {
+        status: "PREVIEW_READY",
+        export_format: format,
+        content_type: format === "csv" ? "text/csv" : "application/json",
+        metadata: {
+          row_count: 1,
+          redactions: ["raw_ucn"],
+        },
+        payload:
+          format === "csv"
+            ? "metric_name,value\nconversion.attribution_rate,0.9"
+            : JSON.stringify([{ metric_name: "conversion.attribution_rate", value: 0.9 }], null, 2),
+      },
+      creation_status: "NOT_IMPLEMENTED",
+      storage_status: "NOT_IMPLEMENTED",
+      delivery_status: "NOT_IMPLEMENTED",
+      audit_status: "NOT_IMPLEMENTED",
+    },
+  });
+}
+
 function panelByHeading(heading: string) {
   const headingElement = screen.getByRole("heading", { name: heading });
   const panel = headingElement.closest(".panel");
@@ -86,6 +122,7 @@ describe("ReferralSaasReportsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockReport();
+    mockExportPreview();
   });
 
   afterEach(() => {
@@ -104,7 +141,7 @@ describe("ReferralSaasReportsPage", () => {
     expect(screen.getByText("PARTIAL_SOURCE_COVERAGE")).toBeInTheDocument();
     expect(screen.getByText("raw_ucn")).toBeInTheDocument();
     expect(screen.getByText("NOT_IMPLEMENTED")).toBeInTheDocument();
-    expect(screen.getByText(/does not create persisted exports/i)).toBeInTheDocument();
+    expect(screen.getByText(/Export storage, download URLs, and audit rows remain future work/i)).toBeInTheDocument();
     expect(screen.queryByText("raw_customer_identifier")).not.toBeInTheDocument();
   });
 
@@ -132,5 +169,53 @@ describe("ReferralSaasReportsPage", () => {
     expect(JSON.stringify(mockedGetReferralSaasReport.mock.calls)).not.toMatch(
       /account_ref|external_tenant_ref/i,
     );
+  });
+
+  it("previews JSON exports inline without enabling persisted exports", async () => {
+    renderWorkspace(<ReferralSaasReportsPage />);
+
+    await screen.findAllByText("conversion.attribution_rate");
+    fireEvent.click(screen.getByRole("button", { name: "Preview JSON" }));
+
+    await waitFor(() =>
+      expect(mockedPreviewReferralSaasReportExport).toHaveBeenCalledWith({
+        reportType: "campaign_performance",
+        tenantCode: "FNB",
+        format: "json",
+        redactionProfile: "tenant_safe",
+        rowLimit: 10,
+      }),
+    );
+    expect(await screen.findByText("PREVIEW_READY")).toBeInTheDocument();
+    expect(screen.getByText("application/json")).toBeInTheDocument();
+    expect(screen.getByLabelText("Export preview payload")).toHaveTextContent(
+      "conversion.attribution_rate",
+    );
+    expect(JSON.stringify(mockedPreviewReferralSaasReportExport.mock.calls)).not.toMatch(
+      /account_ref|external_tenant_ref/i,
+    );
+    expect(screen.queryByText(/export id/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^download$/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/scheduled export/i)).not.toBeInTheDocument();
+  });
+
+  it("previews CSV exports with the selected row limit", async () => {
+    mockExportPreview("csv");
+    renderWorkspace(<ReferralSaasReportsPage />);
+
+    await screen.findAllByText("conversion.attribution_rate");
+    fireEvent.change(screen.getByLabelText("Preview row limit"), { target: { value: "25" } });
+    fireEvent.click(screen.getByRole("button", { name: "Preview CSV" }));
+
+    await waitFor(() =>
+      expect(mockedPreviewReferralSaasReportExport).toHaveBeenCalledWith({
+        reportType: "campaign_performance",
+        tenantCode: "FNB",
+        format: "csv",
+        redactionProfile: "tenant_safe",
+        rowLimit: 25,
+      }),
+    );
+    expect(await screen.findByText("text/csv")).toBeInTheDocument();
   });
 });

@@ -104,3 +104,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   external references and links the account, membership, campaign, and report
   setup path without adding account tables, membership writes, backend routes,
   schema, tenant-link persistence, or money flows.
+- TASK-171 adds inline JSON/CSV export preview actions to the focused Referral
+  SaaS report catalog. It consumes the existing preview endpoint and shows
+  preview status, content type, row count, and payload evidence without adding
+  export IDs, stored files, download actions, scheduled exports, audit writes,
+  backend routes, schema, or money flows.
