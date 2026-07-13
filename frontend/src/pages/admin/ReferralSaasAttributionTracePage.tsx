@@ -230,6 +230,7 @@ export function ReferralSaasAttributionTracePage() {
         </div>
         <div className="panel-body route-list">
           <SetupLink to="/admin/referral-saas/operator-links" title="Link/code inspection" copy="Start from a code, route link, campaign link, or composite code." />
+          <SetupLink to="/admin/referral-saas/progress-status" title="Progress/status" copy="Inspect safe progress and status evidence for one referral." />
           <SetupLink to="/admin/referral-saas/campaigns" title="Campaign readiness" copy="Check campaign setup and launch blockers." />
           <SetupLink to="/admin/referral-saas/reports" title="Referral SaaS reports" copy="Review link/code, progress, and attribution reporting." />
         </div>

@@ -144,8 +144,14 @@ Current API/client foundations:
   mutation controls.
 - `GET /v1/referral-saas/operator/referrals/{referral_track_id}/progress-status`
   now provides the TASK-182 read-only progress/status diagnostics API over
-  existing dashboard progress evidence and safe-status projection. A focused
-  progress/status UI is still future work.
+  existing dashboard progress evidence and safe-status projection.
+- `/admin/referral-saas/progress-status` now provides the TASK-183 focused
+  operator progress/status surface. It consumes the TASK-182 read-only product
+  wrapper, lets operators choose a safe viewer projection, renders safe
+  progress, product status copy, action posture, missing evidence, redactions,
+  and next diagnostics, and does not render raw UCNs, provider payloads,
+  support-case writes, progress mutation, repair, retry, replay, reward,
+  money, or DLaaS controls.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.
@@ -163,8 +169,9 @@ Current frontend gaps:
   sometimes `referralTrackId` directly.
 - Link/code issue, validation, identity capture, operator inspection, and
   attribution trace now have focused admin workflow surfaces. Progress/status
-  now has a product API wrapper, but progress/status UI, safe status, and
-  broader support workflows are not yet presented as one SaaS workflow.
+  now has a product API wrapper and focused operator UI, but account-safe
+  status and broader support workflows are not yet presented as one SaaS
+  workflow.
 - Reporting/export screens now have a focused Referral SaaS report catalog
   surface with inline JSON/CSV preview handling, but persisted exports,
   download URLs, scheduled delivery, audit writes, and account membership UX
