@@ -10,6 +10,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
 
 - `REFERRAL_SAAS_GAP_MATRIX.md` - focused 10/10 gap matrix and task sequence.
 - `REFERRAL_SAAS_ACCOUNT_SETUP_CONTRACT.md` - TASK-134 account setup contract.
+- `REFERRAL_SAAS_ACCOUNT_SETUP_MAINTENANCE_WORKFLOW_ARCHITECTURE.md` -
+  TASK-190 account setup, readiness, and maintenance workflow architecture.
 - `REFERRAL_SAAS_CAMPAIGN_SETUP_READINESS_CONTRACT.md` - TASK-135 campaign
   setup and readiness contract.
 - `REFERRAL_SAAS_REFERRAL_CODE_ISSUE_CONTRACT.md` - TASK-136 referral code
@@ -209,3 +211,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   inside the wider Account Setup workflow. The page keeps account creation,
   invitations, and account maintenance out of scope while still linking to the
   setup actions needed to clear readiness blockers.
+- TASK-190 defines the real account setup and maintenance workflow
+  architecture. It uses existing onboarding drafts and readiness as the first
+  setup foundation, keeps readiness integrated into setup, separates account
+  maintenance from first-time setup, and prevents fake account creation,
+  invitation, membership, tenant-link, or maintenance claims until durable
+  account primitives exist.
