@@ -186,6 +186,13 @@ Current API/client foundations:
   setup, readiness checkpoint, review handoff, and campaign setup as one
   ordered path, keeps each action in the related step, and leaves draft
   save/submit/review actions disabled until the product wrapper is implemented.
+- TASK-193 wires that Account Setup workflow shell to the existing guarded
+  admin onboarding APIs for dry-run validation, draft save, submit-for-review,
+  and internal review decision. The UI uses checked external references,
+  canonical onboarding section keys, safe idempotency keys, and safe result
+  summaries without adding account creation, membership writes, invitations,
+  credential lifecycle, campaign activation, go-live, webhook delivery, or
+  money behavior.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.

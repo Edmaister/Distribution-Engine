@@ -231,3 +231,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   while still using existing read-only readiness evidence and keeping draft
   save/review, account creation, invitations, membership writes, go-live, and
   money actions out of scope.
+- TASK-193 connects the Account Setup workflow shell to existing guarded admin
+  onboarding draft actions: dry-run validation, draft save, submit-for-review,
+  and internal review decision. The surface sends checked external references
+  and known onboarding section keys only, shows safe action results, and keeps
+  account creation, invitations, credential creation, campaign activation,
+  go-live, webhooks, and money actions out of scope.

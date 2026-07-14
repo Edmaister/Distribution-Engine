@@ -1,7 +1,18 @@
 import { ArrowRight, Building2, CheckCircle2, ClipboardCheck, KeyRound, ShieldCheck, Users } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
+import {
+  recordAdminOnboardingReviewDecision,
+  saveAdminOnboardingDraft,
+  submitAdminOnboardingDraftForReview,
+  validateAdminOnboardingDryRun,
+  type AdminOnboardingDraftSaveResponse,
+  type AdminOnboardingDryRunValidationResponse,
+  type AdminOnboardingReviewDecisionResponse,
+  type AdminOnboardingReviewOutcome,
+  type AdminOnboardingSubmitForReviewResponse,
+} from "../../api/endpoints/adminOnboarding";
 import { useReferralSaasAccountSetupState } from "../../api/referralSaasAccountQueries";
 import { DataTable } from "../../components/DataTable";
 import { ErrorPanel } from "../../components/ErrorPanel";
@@ -20,6 +31,7 @@ import {
 
 const defaultExternalTenantRef = "demo-platform-operator";
 const defaultOrganisationRef = "demo-organisation";
+type SetupActionState = "idle" | "loading" | "success" | "error";
 
 const accountChecklist = [
   {
@@ -98,6 +110,19 @@ export function ReferralSaasAccountSetupPage() {
   const [draftOrganisationRef, setDraftOrganisationRef] = useState(defaultOrganisationRef);
   const [appliedExternalTenantRef, setAppliedExternalTenantRef] = useState(defaultExternalTenantRef);
   const [appliedOrganisationRef, setAppliedOrganisationRef] = useState(defaultOrganisationRef);
+  const [validationState, setValidationState] = useState<SetupActionState>("idle");
+  const [validationResponse, setValidationResponse] = useState<AdminOnboardingDryRunValidationResponse | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [draftState, setDraftState] = useState<SetupActionState>("idle");
+  const [draftResponse, setDraftResponse] = useState<AdminOnboardingDraftSaveResponse | null>(null);
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [submitState, setSubmitState] = useState<SetupActionState>("idle");
+  const [submitResponse, setSubmitResponse] = useState<AdminOnboardingSubmitForReviewResponse | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [reviewReason, setReviewReason] = useState("");
+  const [reviewState, setReviewState] = useState<SetupActionState>("idle");
+  const [reviewResponse, setReviewResponse] = useState<AdminOnboardingReviewDecisionResponse | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const { data, error, isLoading } = useReferralSaasAccountSetupState(
     appliedExternalTenantRef,
     appliedOrganisationRef,
@@ -132,6 +157,38 @@ export function ReferralSaasAccountSetupPage() {
   const goLiveDisabledCount = formatDisplay(goLiveDisabledCountValue);
   const needsSetupWork = blockedCountValue > 0 || missingEvidenceCountValue > 0;
   const nextStep = getAccountSetupNextStep(scopeChanged, needsSetupWork);
+  const setupSections = useMemo(
+    () => buildReferralSaasSetupSections(appliedExternalTenantRef, appliedOrganisationRef),
+    [appliedExternalTenantRef, appliedOrganisationRef],
+  );
+  const actionScopeReady = Boolean(appliedExternalTenantRef && appliedOrganisationRef && !scopeChanged);
+  const draftIdempotencyKey = useMemo(
+    () => ["referral-saas-account-setup-draft", appliedExternalTenantRef, appliedOrganisationRef].join(":"),
+    [appliedExternalTenantRef, appliedOrganisationRef],
+  );
+  const validateIdempotencyKey = useMemo(
+    () => ["referral-saas-account-setup-validate", appliedExternalTenantRef, appliedOrganisationRef].join(":"),
+    [appliedExternalTenantRef, appliedOrganisationRef],
+  );
+  const submitIdempotencyKey = useMemo(
+    () => ["referral-saas-account-setup-submit", draftResponse?.draft_ref || "missing-draft"].join(":"),
+    [draftResponse?.draft_ref],
+  );
+  const reviewIdempotencyKey = useMemo(
+    () => [
+      "referral-saas-account-setup-review",
+      submitResponse?.draft_ref || "missing-draft",
+      submitResponse?.draft_version ?? "missing-version",
+    ].join(":"),
+    [submitResponse?.draft_ref, submitResponse?.draft_version],
+  );
+  const canSubmitForReview = Boolean(actionScopeReady && draftResponse?.draft_ref && draftState === "success");
+  const canRecordReview = Boolean(
+    actionScopeReady &&
+      submitResponse?.draft_ref &&
+      submitResponse.draft_status === "READY_FOR_REVIEW" &&
+      submitState === "success",
+  );
   const workflowSteps = setupWorkflowLinks.map((step) =>
     resolveWorkflowStep(step, categories, scopeChanged, needsSetupWork),
   );
@@ -158,6 +215,133 @@ export function ReferralSaasAccountSetupPage() {
     }
     setAppliedExternalTenantRef(nextExternalTenantRef);
     setAppliedOrganisationRef(nextOrganisationRef);
+    resetSetupActionState();
+  }
+
+  function resetSetupActionState() {
+    setValidationState("idle");
+    setValidationResponse(null);
+    setValidationError(null);
+    setDraftState("idle");
+    setDraftResponse(null);
+    setDraftError(null);
+    setSubmitState("idle");
+    setSubmitResponse(null);
+    setSubmitError(null);
+    setReviewState("idle");
+    setReviewResponse(null);
+    setReviewError(null);
+  }
+
+  async function handleValidateSetupDraft() {
+    if (!actionScopeReady || validationState === "loading") {
+      return;
+    }
+    setValidationState("loading");
+    setValidationResponse(null);
+    setValidationError(null);
+    try {
+      const response = await validateAdminOnboardingDryRun({
+        external_tenant_ref: appliedExternalTenantRef,
+        organisation_ref: appliedOrganisationRef,
+        validation_scope: ["company", "member_role", "webhook_api"],
+        idempotency_key: validateIdempotencyKey,
+        correlation_id: "referral-saas-account-setup-validate",
+        sections: setupSections,
+      });
+      setValidationResponse(response);
+      setValidationState("success");
+    } catch {
+      setValidationError("Validation is unavailable. No draft was saved and no live action was taken.");
+      setValidationState("error");
+    }
+  }
+
+  async function handleSaveSetupDraft() {
+    if (!actionScopeReady || draftState === "loading") {
+      return;
+    }
+    setDraftState("loading");
+    setDraftResponse(null);
+    setDraftError(null);
+    setSubmitState("idle");
+    setSubmitResponse(null);
+    setSubmitError(null);
+    setReviewState("idle");
+    setReviewResponse(null);
+    setReviewError(null);
+    try {
+      const response = await saveAdminOnboardingDraft({
+        external_tenant_ref: appliedExternalTenantRef,
+        organisation_ref: appliedOrganisationRef,
+        idempotency_key: draftIdempotencyKey,
+        correlation_id: "referral-saas-account-setup-draft",
+        sections: setupSections,
+      });
+      setDraftResponse(response);
+      setDraftState("success");
+    } catch (error) {
+      setDraftError(safeActionError(error, "Draft save is unavailable. No account was created and no live action was taken."));
+      setDraftState("error");
+    }
+  }
+
+  async function handleSubmitSetupDraft() {
+    if (!canSubmitForReview || !draftResponse?.draft_ref || submitState === "loading") {
+      return;
+    }
+    setSubmitState("loading");
+    setSubmitResponse(null);
+    setSubmitError(null);
+    setReviewState("idle");
+    setReviewResponse(null);
+    setReviewError(null);
+    try {
+      const response = await submitAdminOnboardingDraftForReview(draftResponse.draft_ref, {
+        external_tenant_ref: appliedExternalTenantRef,
+        organisation_ref: appliedOrganisationRef,
+        expected_version: draftResponse.draft_version ?? 1,
+        idempotency_key: submitIdempotencyKey,
+        correlation_id: "referral-saas-account-setup-submit-review",
+      });
+      setSubmitResponse(response);
+      setSubmitState("success");
+    } catch (error) {
+      setSubmitError(safeActionError(error, "Submit for review is unavailable. No approval or live action was taken."));
+      setSubmitState("error");
+    }
+  }
+
+  async function handleReviewDecision(outcome: AdminOnboardingReviewOutcome) {
+    if (!canRecordReview || !submitResponse?.draft_ref || reviewState === "loading") {
+      return;
+    }
+    const reason = reviewReason.trim();
+    if (!reason) {
+      setReviewError("A bounded review reason is required. No approval, go-live, or live action was taken.");
+      setReviewState("error");
+      return;
+    }
+    setReviewState("loading");
+    setReviewResponse(null);
+    setReviewError(null);
+    try {
+      const response = await recordAdminOnboardingReviewDecision(submitResponse.draft_ref, {
+        external_tenant_ref: appliedExternalTenantRef,
+        organisation_ref: appliedOrganisationRef,
+        expected_version: submitResponse.draft_version ?? 1,
+        idempotency_key: `${reviewIdempotencyKey}:${outcome}`,
+        review_outcome: outcome,
+        reason_category: outcome === "BLOCKED" ? "REVIEW_BLOCKER" : "OPERATOR_REVIEW",
+        reason,
+        correlation_id: "referral-saas-account-setup-review-decision",
+      });
+      setReviewResponse(response);
+      setReviewState("success");
+    } catch (error) {
+      setReviewError(safeActionError(error, "Review decision is unavailable. No approval, go-live, or live action was taken."));
+      setReviewState("error");
+    }
   }
 
   return (
@@ -279,6 +463,76 @@ export function ReferralSaasAccountSetupPage() {
                   />
                 </div>
               </div>
+            </div>
+          </section>
+
+          <section className="panel" aria-labelledby="setup-draft-actions-heading">
+            <div className="panel-header">
+              <div>
+                <h2 className="panel-title" id="setup-draft-actions-heading">
+                  Setup draft actions
+                </h2>
+                <div className="panel-subtitle">
+                  Save setup intent, validate evidence, submit for review, and record internal review without account creation.
+                </div>
+              </div>
+              <StatusBadge label={actionScopeReady ? "Checked scope" : "Check scope first"} tone={actionScopeReady ? "success" : "warning"} />
+            </div>
+            <div className="panel-body route-list">
+              <div className="action-button-row">
+                <button className="button secondary" disabled={!actionScopeReady || validationState === "loading"} onClick={handleValidateSetupDraft} type="button">
+                  {validationState === "loading" ? "Validating setup" : "Validate setup"}
+                </button>
+                <button className="button" disabled={!actionScopeReady || draftState === "loading"} onClick={handleSaveSetupDraft} type="button">
+                  {draftState === "loading" ? "Saving draft" : "Save setup draft"}
+                </button>
+                <button className="button secondary" disabled={!canSubmitForReview || submitState === "loading"} onClick={handleSubmitSetupDraft} type="button">
+                  {submitState === "loading" ? "Submitting review" : "Submit for review"}
+                </button>
+              </div>
+              <div className="field">
+                <label htmlFor="referral-saas-review-reason">Review reason</label>
+                <textarea
+                  className="input"
+                  disabled={!canRecordReview}
+                  id="referral-saas-review-reason"
+                  onChange={(event) => setReviewReason(event.target.value)}
+                  placeholder="Bounded internal review reason"
+                  rows={3}
+                  value={reviewReason}
+                />
+              </div>
+              <div className="action-button-row">
+                <button
+                  className="button secondary"
+                  disabled={!canRecordReview || reviewState === "loading"}
+                  onClick={() => handleReviewDecision("APPROVED_FOR_INTERNAL_REVIEW")}
+                  type="button"
+                >
+                  Accept internal review
+                </button>
+                <button
+                  className="button secondary"
+                  disabled={!canRecordReview || reviewState === "loading"}
+                  onClick={() => handleReviewDecision("BLOCKED")}
+                  type="button"
+                >
+                  Mark review blocked
+                </button>
+              </div>
+              <div className="table-subtext">
+                These actions use existing guarded onboarding APIs. They do not create accounts, invite users, create credentials, deliver webhooks, activate campaigns, enable go-live, or move money.
+              </div>
+              <SetupActionResult
+                draftResponse={draftResponse}
+                draftError={draftError}
+                reviewError={reviewError}
+                reviewResponse={reviewResponse}
+                submitError={submitError}
+                submitResponse={submitResponse}
+                validationError={validationError}
+                validationResponse={validationResponse}
+              />
             </div>
           </section>
 
@@ -575,6 +829,137 @@ function resolveWorkflowStep(
     state: ready ? "done" : blocked ? "blocked" : "current",
     tone: ready ? ("success" as const) : blocked ? ("warning" as const) : ("info" as const),
   };
+}
+
+function buildReferralSaasSetupSections(externalTenantRef: string, organisationRef: string) {
+  return {
+    company: {
+      organisation_name: `${organisationRef} Referral SaaS setup`,
+      external_tenant_ref: externalTenantRef,
+      organisation_ref: organisationRef,
+      country: "South Africa",
+      organisation_type: "Referral SaaS customer",
+      industry: "Referral management and campaign attribution",
+      admin_contact: "setup-owner@example.test",
+      intended_role: "Referral SaaS admin",
+    },
+    member_role: {
+      organisation_ref: organisationRef,
+      external_tenant_ref: externalTenantRef,
+      user_email: "setup-owner@example.test",
+      display_name: "Referral SaaS setup owner",
+      role_family: "Account setup admin",
+      participant_type: "Platform operator",
+      access_scope: "Referral SaaS account setup",
+      invite_status: "Draft intent only",
+    },
+    webhook_api: {
+      organisation_ref: organisationRef,
+      external_tenant_ref: externalTenantRef,
+      integration_owner_contact: "integration-owner@example.test",
+      api_environment_intention: "Sandbox integration intent",
+      callback_url_placeholder: "https://example.invalid/referral-saas/webhook-placeholder",
+      selected_webhook_event_categories: ["referral", "campaign_attribution", "progress"],
+      intended_authentication_method: "Partner credential setup intent only",
+      ip_allowlist_notes: "To be confirmed before credential lifecycle work",
+      payload_format_version: "referral-saas.v1",
+      go_live_readiness_status: "GO_LIVE_DISABLED",
+    },
+  };
+}
+
+function safeActionError(error: unknown, fallback: string) {
+  const status = typeof error === "object" && error && "status" in error ? Number((error as { status?: number }).status) : null;
+  if (status === 409) {
+    return "The request conflicts with a previous setup action or stale draft. No approval or live action was taken.";
+  }
+  if (status === 422) {
+    return "The setup evidence has blockers or unsafe input. No account was created and no live action was taken.";
+  }
+  return fallback;
+}
+
+function SetupActionResult({
+  draftError,
+  draftResponse,
+  reviewError,
+  reviewResponse,
+  submitError,
+  submitResponse,
+  validationError,
+  validationResponse,
+}: {
+  draftError: string | null;
+  draftResponse: AdminOnboardingDraftSaveResponse | null;
+  reviewError: string | null;
+  reviewResponse: AdminOnboardingReviewDecisionResponse | null;
+  submitError: string | null;
+  submitResponse: AdminOnboardingSubmitForReviewResponse | null;
+  validationError: string | null;
+  validationResponse: AdminOnboardingDryRunValidationResponse | null;
+}) {
+  return (
+    <>
+      {validationResponse ? (
+        <div className="banner info" role="status">
+          <ShieldCheck size={18} />
+          <div>
+            <strong>Validation completed without saving.</strong>
+            <div className="table-subtext">
+              Readiness: {validationResponse.readiness_preview.overall_status}; no persistence:{" "}
+              {validationResponse.no_persistence_confirmed ? "confirmed" : "unavailable"}; no live action:{" "}
+              {validationResponse.no_live_action_confirmed ? "confirmed" : "unavailable"}.
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {draftResponse ? (
+        <div className="banner success" role="status">
+          <CheckCircle2 size={18} />
+          <div>
+            <strong>Setup draft saved.</strong>
+            <div className="table-subtext">
+              {draftResponse.draft_ref} - {draftResponse.draft_status} - {draftResponse.idempotency_status}; no live action:{" "}
+              {draftResponse.no_live_action_confirmed ? "confirmed" : "unavailable"}.
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {submitResponse ? (
+        <div className="banner success" role="status">
+          <CheckCircle2 size={18} />
+          <div>
+            <strong>Setup draft submitted for review.</strong>
+            <div className="table-subtext">
+              {submitResponse.draft_ref} - {submitResponse.draft_status} - {submitResponse.idempotency_status}; no live action:{" "}
+              {submitResponse.no_live_action_confirmed ? "confirmed" : "unavailable"}.
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {reviewResponse ? (
+        <div className="banner success" role="status">
+          <CheckCircle2 size={18} />
+          <div>
+            <strong>Internal review decision recorded.</strong>
+            <div className="table-subtext">
+              {reviewResponse.draft_ref} - {reviewResponse.review_outcome} - {reviewResponse.draft_status}; go-live:{" "}
+              {reviewResponse.go_live_enabled ? "enabled" : "disabled"}.
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {[validationError, draftError, submitError, reviewError].filter(Boolean).map((message) => (
+        <div className="banner warning" key={message} role="status">
+          <ShieldCheck size={18} />
+          <div>
+            <strong>Setup action fallback.</strong>
+            <div className="table-subtext">{message}</div>
+          </div>
+        </div>
+      ))}
+    </>
+  );
 }
 
 function SetupLink({ to, title, copy }: { to: string; title: string; copy: string }) {
