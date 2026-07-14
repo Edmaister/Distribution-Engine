@@ -186,3 +186,10 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   read-only product surfaces, shows evidence order and mutation guardrails, and
   keeps support-case writes, repair/replay/retry, reward, money, and DLaaS
   behavior out of scope.
+- TASK-185 adds the focused Referral SaaS workspace shell at
+  `/admin/referral-saas`. It switches the sidebar into a Referral Management
+  and Campaign Attribution SaaS mode for `/admin/referral-saas/*` routes,
+  exposes only the account, campaign, link/code, report, attribution,
+  progress/status, and support surfaces, and keeps broader DLaaS marketplace,
+  funding, settlement, wallet, billing, treasury, demo, and generic admin
+  navigation outside the product workspace without forking source code.

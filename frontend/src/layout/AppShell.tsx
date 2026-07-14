@@ -39,9 +39,17 @@ const titles: Record<string, [string, string]> = {
   "/admin/health": ["Runtime Health", "Platform readiness and dependency signals"],
   "/admin/audit": ["Trust & Audit", "Platform-sensitive action visibility"],
   "/admin/channels": ["Channel Operations", "Messaging delivery, retries, and channel audit evidence"],
+  "/admin/referral-saas": [
+    "Referral SaaS Workspace",
+    "Referral management and campaign attribution workspace",
+  ],
   "/admin/referral-saas/account-setup": ["Referral SaaS Account Setup", "External-reference setup readiness and membership guardrails"],
   "/admin/referral-saas/campaigns": ["Referral SaaS Campaigns", "Campaign setup readiness and launch guardrails"],
   "/admin/referral-saas/link-codes": ["Referral SaaS Links & Codes", "Issue, validation, and identity-capture guardrails"],
+  "/admin/referral-saas/operator-links": ["Referral SaaS Link Inspection", "Read-only link and code evidence"],
+  "/admin/referral-saas/support": ["Referral SaaS Support", "Read-only support triage workflow"],
+  "/admin/referral-saas/attribution-trace": ["Referral SaaS Attribution Trace", "Read-only attribution evidence"],
+  "/admin/referral-saas/progress-status": ["Referral SaaS Progress Status", "Safe progress and status diagnostics"],
   "/admin/referral-saas/reports": ["Referral SaaS Reports", "Tenant-safe report catalog and export preview readiness"],
   "/admin/events": ["Event Fabric", "Hogan and enterprise event intake"],
   "/admin/distribution": ["Demand Marketplace", "Company-created demand and campaign discovery"],
@@ -63,7 +71,9 @@ export function AppShell({ refreshKey, onRefresh }: { refreshKey: number; onRefr
   const [title, subtitle] = titles[location.pathname] || titles["/admin"];
   const immersiveProducerWorkspace = location.pathname === "/sponsor";
   const shellClass =
-    location.pathname === "/sponsor" || location.pathname === "/sponsor/operations"
+    location.pathname === "/admin/referral-saas" || location.pathname.startsWith("/admin/referral-saas/")
+      ? "app-shell referral-saas-app-shell"
+      : location.pathname === "/sponsor" || location.pathname === "/sponsor/operations"
       ? "app-shell producer-app-shell"
       : location.pathname === "/distributor" ||
           location.pathname === "/distributor/wallet" ||
