@@ -168,6 +168,10 @@ Current API/client foundations:
   is for, what users can do there, what to do first, and the recommended local
   testing path through account setup, campaign readiness, links/codes, and
   support evidence.
+- TASK-187 stabilizes `/admin/referral-saas/account-setup` scope entry so
+  editing external account references stays local until the tester clicks
+  `Check setup`. This prevents readiness reloads and visual flicker on every
+  keystroke without changing the API contract.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.
@@ -408,7 +412,9 @@ Referral SaaS has enough frontend foundation to support a strong product
 workflow, and TASK-185 now packages the existing first-launch admin surfaces
 behind a focused Referral SaaS workspace shell. TASK-186 makes that shell and
 the account setup screen usable as local testing entry points by adding
-explicit purpose, action, first-step, and next-screen guidance. Remaining
+explicit purpose, action, first-step, and next-screen guidance. TASK-187 keeps
+account setup scope entry stable by applying reference changes only when the
+tester requests a setup check. Remaining
 frontend work should focus on account-safe customer/referrer status,
 support-case execution guardrails, live E2E proof, and deeper campaign/account
 workflows rather than mixing Referral SaaS with broader DLaaS navigation.

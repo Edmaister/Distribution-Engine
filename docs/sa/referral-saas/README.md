@@ -198,3 +198,7 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   there, and what to do first, then gives recommended test paths through
   account setup, campaign readiness, links/codes, and support evidence without
   adding backend behavior, schema, mutations, money actions, or DLaaS scope.
+- TASK-187 stabilizes the account setup scope inputs so typing external tenant
+  and organisation references does not trigger a readiness reload on every
+  keystroke. The lookup now runs only after the tester clicks `Check setup`,
+  preserving the existing read-only API and setup evidence behavior.

@@ -1,6 +1,6 @@
 import { ArrowRight, Building2, CheckCircle2, ClipboardCheck, KeyRound, ShieldCheck, Users } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 
 import { useReferralSaasAccountSetupState } from "../../api/referralSaasAccountQueries";
 import { DataTable } from "../../components/DataTable";
@@ -54,30 +54,21 @@ const accountChecklist = [
   },
 ];
 
-const setupPath = [
-  {
-    title: "1. Confirm the account references",
-    copy: "Use the external tenant and organisation references to load the account setup view you want to test.",
-  },
-  {
-    title: "2. Fix blocked setup evidence",
-    copy: "Use the checklist to find missing account profile, tenant-link, membership, campaign, or reporting evidence.",
-  },
-  {
-    title: "3. Continue only when setup is usable",
-    copy: "Move to campaign readiness after account evidence is ready enough for referral testing.",
-  },
-];
-
 export function ReferralSaasAccountSetupPage() {
   const { refreshKey } = useRefreshContext();
-  const [externalTenantRef, setExternalTenantRef] = useState(defaultExternalTenantRef);
-  const [organisationRef, setOrganisationRef] = useState(defaultOrganisationRef);
+  const [draftExternalTenantRef, setDraftExternalTenantRef] = useState(defaultExternalTenantRef);
+  const [draftOrganisationRef, setDraftOrganisationRef] = useState(defaultOrganisationRef);
+  const [appliedExternalTenantRef, setAppliedExternalTenantRef] = useState(defaultExternalTenantRef);
+  const [appliedOrganisationRef, setAppliedOrganisationRef] = useState(defaultOrganisationRef);
   const { data, error, isLoading } = useReferralSaasAccountSetupState(
-    externalTenantRef,
-    organisationRef,
+    appliedExternalTenantRef,
+    appliedOrganisationRef,
     refreshKey,
   );
+  const scopeChanged =
+    draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
+    draftOrganisationRef.trim() !== appliedOrganisationRef;
+  const canCheckScope = Boolean(draftExternalTenantRef.trim() && draftOrganisationRef.trim() && scopeChanged);
 
   const readiness = asRecord(data?.readiness);
   const summary = asRecord(getNestedValue(readiness, ["summary"], {}));
@@ -110,6 +101,17 @@ export function ReferralSaasAccountSetupPage() {
       blocker: formatDisplay(getNestedValue(matchingCategory, ["blockers", "0"], "-")),
     };
   });
+
+  function submitScope(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextExternalTenantRef = draftExternalTenantRef.trim();
+    const nextOrganisationRef = draftOrganisationRef.trim();
+    if (!nextExternalTenantRef || !nextOrganisationRef) {
+      return;
+    }
+    setAppliedExternalTenantRef(nextExternalTenantRef);
+    setAppliedOrganisationRef(nextOrganisationRef);
+  }
 
   return (
     <>
@@ -177,35 +179,6 @@ export function ReferralSaasAccountSetupPage() {
         </div>
       </section>
 
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <h2 className="panel-title">Account scope</h2>
-            <div className="panel-subtitle">
-              External references are used for this product surface; internal tenant identifiers stay hidden.
-            </div>
-          </div>
-        </div>
-        <div className="panel-body referral-account-controls">
-          <label className="field">
-            <span>External tenant ref</span>
-            <input
-              className="input"
-              onChange={(event) => setExternalTenantRef(event.target.value)}
-              value={externalTenantRef}
-            />
-          </label>
-          <label className="field">
-            <span>Organisation ref</span>
-            <input
-              className="input"
-              onChange={(event) => setOrganisationRef(event.target.value)}
-              value={organisationRef}
-            />
-          </label>
-        </div>
-      </section>
-
       {isLoading ? <LoadingState label="Loading Referral SaaS account setup" /> : null}
       {error ? <ErrorPanel error={error} /> : null}
       {!isLoading && !error ? (
@@ -222,26 +195,74 @@ export function ReferralSaasAccountSetupPage() {
               <div>
                 <h2 className="panel-title">Recommended setup path</h2>
                 <div className="panel-subtitle">
-                  Follow this order while testing account setup locally.
+                  Follow these steps in order. Each step contains its own action.
                 </div>
               </div>
               <StatusBadge label="Start here" tone="success" />
             </div>
-            <div className="panel-body route-list">
-              {setupPath.map((step) => (
-                <div className="route-item" key={step.title}>
+            <div className="panel-body grid-3">
+              <div className="panel">
+                <div className="panel-header">
                   <div>
-                    <div className="route-name">{step.title}</div>
-                    <div className="route-path">{step.copy}</div>
+                    <h3 className="panel-title">Step 1: Check the account</h3>
+                    <div className="panel-subtitle">Confirm which account setup evidence you want to load.</div>
                   </div>
-                  <StatusBadge label="Guided" tone="info" />
+                  <StatusBadge label={scopeChanged ? "Changes not checked" : "Loaded"} tone={scopeChanged ? "warning" : "success"} />
                 </div>
-              ))}
-              <SetupLink
-                to="/admin/referral-saas/campaigns"
-                title="Next product screen: Campaign readiness"
-                copy="Use this after the account setup evidence is ready enough for campaign testing."
-              />
+                <form className="panel-body route-list" onSubmit={submitScope}>
+                  <label className="field">
+                    <span>External tenant ref</span>
+                    <input
+                      className="input"
+                      onChange={(event) => setDraftExternalTenantRef(event.target.value)}
+                      value={draftExternalTenantRef}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Organisation ref</span>
+                    <input
+                      className="input"
+                      onChange={(event) => setDraftOrganisationRef(event.target.value)}
+                      value={draftOrganisationRef}
+                    />
+                  </label>
+                  <button className="button" disabled={!canCheckScope} type="submit">
+                    Check setup
+                  </button>
+                </form>
+              </div>
+
+              <div className="panel">
+                <div className="panel-header">
+                  <div>
+                    <h3 className="panel-title">Step 2: Fix setup blockers</h3>
+                    <div className="panel-subtitle">Use these actions if the checklist shows blocked or missing evidence.</div>
+                  </div>
+                  <StatusBadge label="Fix first" tone={blockedCount === "0" && missingEvidenceCount === "0" ? "success" : "warning"} />
+                </div>
+                <div className="panel-body route-list">
+                  <SetupLink to="/admin/onboarding/company" title="Company onboarding" copy="Capture company evidence and external references." />
+                  <SetupLink to="/admin/onboarding/members-roles" title="User and role setup" copy="Confirm owner, campaign manager, support, analyst, and integration roles." />
+                  <SetupLink to="/admin/referral-saas/reports" title="Report baseline" copy="Confirm reporting baseline and redaction posture." />
+                </div>
+              </div>
+
+              <div className="panel">
+                <div className="panel-header">
+                  <div>
+                    <h3 className="panel-title">Step 3: Continue to campaigns</h3>
+                    <div className="panel-subtitle">Move on only when account setup is usable for referral testing.</div>
+                  </div>
+                  <StatusBadge label="Next" tone="info" />
+                </div>
+                <div className="panel-body route-list">
+                  <SetupLink
+                    to="/admin/referral-saas/campaigns"
+                    title="Campaign readiness"
+                    copy="Check campaign setup evidence, blockers, warnings, and launch posture."
+                  />
+                </div>
+              </div>
             </div>
           </section>
 
@@ -352,15 +373,25 @@ export function ReferralSaasAccountSetupPage() {
             <div className="panel">
               <div className="panel-header">
                 <div>
-                  <h2 className="panel-title">Next setup actions</h2>
-                  <div className="panel-subtitle">Existing surfaces that complete the first SaaS setup path.</div>
+                  <h2 className="panel-title">How to read the evidence</h2>
+                  <div className="panel-subtitle">Use the checklist and categories to decide whether to repeat step 2 or move to step 3.</div>
                 </div>
               </div>
               <div className="panel-body route-list">
-                <SetupLink to="/admin/onboarding/company" title="Company onboarding" copy="Save draft company evidence with external references." />
-                <SetupLink to="/admin/onboarding/members-roles" title="User & role setup" copy="Draft member and role-family intent before membership APIs exist." />
-                <SetupLink to="/admin/onboarding/campaign-opportunity" title="Campaign setup" copy="Continue only after account setup evidence is ready." />
-                <SetupLink to="/admin/referral-saas/reports" title="Referral SaaS reports" copy="Confirm report baseline and redaction posture." />
+                <div className="route-item">
+                  <div>
+                    <div className="route-name">Blocked or missing evidence</div>
+                    <div className="route-path">Return to Step 2 and complete the setup action that matches the blocker.</div>
+                  </div>
+                  <StatusBadge label="Fix" tone="warning" />
+                </div>
+                <div className="route-item">
+                  <div>
+                    <div className="route-name">Ready enough for testing</div>
+                    <div className="route-path">Continue to Step 3 and check campaign readiness before testing links and codes.</div>
+                  </div>
+                  <StatusBadge label="Continue" tone="success" />
+                </div>
               </div>
             </div>
           </section>
