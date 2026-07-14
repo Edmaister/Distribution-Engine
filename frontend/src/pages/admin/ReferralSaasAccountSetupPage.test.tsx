@@ -156,25 +156,32 @@ describe("ReferralSaasAccountSetupPage", () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
     expect(await screen.findByRole("heading", { name: "Recommended setup path" })).toBeInTheDocument();
-    expect(screen.getByText("1. Confirm the account references")).toBeInTheDocument();
-    expect(screen.getByText("2. Fix blocked setup evidence")).toBeInTheDocument();
-    expect(screen.getByText("3. Continue only when setup is usable")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Next product screen: Campaign readiness/ })).toHaveAttribute(
+    expect(screen.getByRole("heading", { name: "Step 1: Check the account" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Step 2: Fix setup blockers" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Step 3: Continue to campaigns" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Campaign readiness/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/campaigns",
     );
   });
 
-  it("updates the readiness request when external scope changes", async () => {
+  it("keeps scope typing local until the tester checks setup", async () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
     await screen.findByRole("heading", { name: "Check account setup" });
+    await waitFor(() => expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1));
+
     fireEvent.change(screen.getByLabelText("External tenant ref"), {
       target: { value: "org-fnb-referrals" },
     });
     fireEvent.change(screen.getByLabelText("Organisation ref"), {
       target: { value: "fnb-referral-org" },
     });
+
+    expect(screen.getByText("Changes not checked")).toBeInTheDocument();
+    expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Check setup" }));
 
     await waitFor(() =>
       expect(mockedGetAdminOnboardingState).toHaveBeenLastCalledWith({
@@ -207,17 +214,17 @@ describe("ReferralSaasAccountSetupPage", () => {
       "href",
       "/admin/onboarding/company",
     );
-    expect(screen.getByRole("link", { name: /User & role setup/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /User and role setup/ })).toHaveAttribute(
       "href",
       "/admin/onboarding/members-roles",
     );
-    expect(screen.getByRole("link", { name: /Campaign setup/ })).toHaveAttribute(
-      "href",
-      "/admin/onboarding/campaign-opportunity",
-    );
-    expect(screen.getByRole("link", { name: /Referral SaaS reports/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Report baseline/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/reports",
+    );
+    expect(screen.getByRole("link", { name: /Campaign readiness/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/campaigns",
     );
   });
 });
