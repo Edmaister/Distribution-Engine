@@ -202,3 +202,10 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   and organisation references does not trigger a readiness reload on every
   keystroke. The lookup now runs only after the tester clicks `Check setup`,
   preserving the existing read-only API and setup evidence behavior.
+- TASK-188 adds next-action guidance to the account setup surface so testers
+  know whether to check changed references, complete setup actions, or continue
+  to campaign readiness.
+- TASK-189 positions the current account setup page as Account Setup Readiness
+  inside the wider Account Setup workflow. The page keeps account creation,
+  invitations, and account maintenance out of scope while still linking to the
+  setup actions needed to clear readiness blockers.

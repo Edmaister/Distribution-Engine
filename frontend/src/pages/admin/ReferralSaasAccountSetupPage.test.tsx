@@ -128,7 +128,7 @@ describe("ReferralSaasAccountSetupPage", () => {
   it("renders account setup readiness from external references", async () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
-    expect(await screen.findByRole("heading", { name: "Check account setup" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Account setup readiness" })).toBeInTheDocument();
     await waitFor(() =>
       expect(mockedGetAdminOnboardingState).toHaveBeenCalledWith({
         external_tenant_ref: "demo-platform-operator",
@@ -146,21 +146,22 @@ describe("ReferralSaasAccountSetupPage", () => {
   it("explains the screen purpose, actions, and next step", async () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
-    expect(await screen.findByRole("heading", { name: "What this screen is for" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Where this fits" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "What you can do here" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "What to do next" })).toBeInTheDocument();
-    expect(screen.getByText(/Fix account blockers before campaign testing/)).toBeInTheDocument();
+    expect(screen.getByText(/This is the readiness checkpoint inside Account Setup/)).toBeInTheDocument();
+    expect(screen.getByText(/This page does not create accounts or invite users/)).toBeInTheDocument();
   });
 
   it("shows a recommended account setup testing path", async () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
-    expect(await screen.findByRole("heading", { name: "Recommended setup path" })).toBeInTheDocument();
-    expect(screen.getByText("Do this next: fix the setup blockers")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Account setup workflow" })).toBeInTheDocument();
+    expect(screen.getByText("Do this next: complete setup actions")).toBeInTheDocument();
     expect(screen.getByText(/Use the Step 2 actions to fill the missing setup evidence/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Step 1: Check the account" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Step 2: Fix setup blockers" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Step 3: Continue to campaigns" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Step 1: Confirm account scope" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Step 2: Complete setup actions" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Step 3: Continue to campaign setup" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Campaign readiness/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/campaigns",
@@ -170,7 +171,7 @@ describe("ReferralSaasAccountSetupPage", () => {
   it("keeps scope typing local until the tester checks setup", async () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
-    await screen.findByRole("heading", { name: "Check account setup" });
+    await screen.findByRole("heading", { name: "Account setup readiness" });
     await waitFor(() => expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1));
 
     fireEvent.change(screen.getByLabelText("External tenant ref"), {
@@ -181,10 +182,10 @@ describe("ReferralSaasAccountSetupPage", () => {
     });
 
     expect(screen.getByText("Changes not checked")).toBeInTheDocument();
-    expect(screen.getByText("Do this next: check the account references")).toBeInTheDocument();
+    expect(screen.getByText("Do this next: confirm the account scope")).toBeInTheDocument();
     expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Check setup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check readiness" }));
 
     await waitFor(() =>
       expect(mockedGetAdminOnboardingState).toHaveBeenLastCalledWith({
@@ -192,7 +193,7 @@ describe("ReferralSaasAccountSetupPage", () => {
         organisation_ref: "fnb-referral-org",
       }),
     );
-    expect(await screen.findByText("Do this next: fix the setup blockers")).toBeInTheDocument();
+    expect(await screen.findByText("Do this next: complete setup actions")).toBeInTheDocument();
     expect(JSON.stringify(mockedGetAdminOnboardingState.mock.calls)).not.toMatch(
       /account_ref|tenant_code|api_key|client_secret/i,
     );

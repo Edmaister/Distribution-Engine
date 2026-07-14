@@ -176,6 +176,11 @@ Current API/client foundations:
   `Do this next` instruction to the recommended setup path. It points testers
   to step 1 when references changed, step 2 when blockers or missing evidence
   remain, and step 3 when the account setup has no blocker count.
+- TASK-189 positions the current account setup page as Account Setup
+  Readiness, a checkpoint inside the broader Account Setup workflow. The
+  sidebar/product area remains Account Setup, while the page copy and steps
+  avoid implying that the readiness screen creates accounts, invites users, or
+  performs account maintenance.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.
@@ -420,7 +425,9 @@ explicit purpose, action, first-step, and next-screen guidance. TASK-187 keeps
 account setup scope entry stable by applying reference changes only when the
 tester requests a setup check. TASK-188 adds a post-check next-action
 instruction so testers know whether to check changed references, fix setup
-blockers, or continue to campaign readiness. Remaining
+blockers, or continue to campaign readiness. TASK-189 clarifies that Account
+Setup is the parent workflow and Account Setup Readiness is the current
+checkpoint inside that workflow. Remaining
 frontend work should focus on account-safe customer/referrer status,
 support-case execution guardrails, live E2E proof, and deeper campaign/account
 workflows rather than mixing Referral SaaS with broader DLaaS navigation.
