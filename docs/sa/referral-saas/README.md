@@ -12,6 +12,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
 - `REFERRAL_SAAS_ACCOUNT_SETUP_CONTRACT.md` - TASK-134 account setup contract.
 - `REFERRAL_SAAS_ACCOUNT_SETUP_MAINTENANCE_WORKFLOW_ARCHITECTURE.md` -
   TASK-190 account setup, readiness, and maintenance workflow architecture.
+- `REFERRAL_SAAS_ACCOUNT_SETUP_WRAPPER_CONTRACT.md` - TASK-191 product wrapper
+  contract over onboarding draft/readiness primitives.
 - `REFERRAL_SAAS_CAMPAIGN_SETUP_READINESS_CONTRACT.md` - TASK-135 campaign
   setup and readiness contract.
 - `REFERRAL_SAAS_REFERRAL_CODE_ISSUE_CONTRACT.md` - TASK-136 referral code
@@ -217,3 +219,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   maintenance from first-time setup, and prevents fake account creation,
   invitation, membership, tenant-link, or maintenance claims until durable
   account primitives exist.
+- TASK-191 defines the near-term Referral SaaS Account Setup product wrapper
+  contract over the existing admin onboarding draft, validation, readiness,
+  submit-for-review, review-decision, idempotency, and audit primitives. It
+  keeps `tenant_code`, secrets, account creation, membership, invitations,
+  maintenance commands, live launch, and money behavior out of the product
+  wrapper.
