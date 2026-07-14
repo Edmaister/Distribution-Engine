@@ -165,6 +165,7 @@ greenfield referral construction.
 57. TASK-191: Define Referral SaaS account setup wrapper contract.
 58. TASK-192: Build Account Setup workflow shell using draft/readiness primitives.
 59. TASK-193: Connect Account Setup workflow to draft save, validation, submit, and review APIs.
+60. TASK-194: Define Account Maintenance workflow contract and read model.
 
 ## 10/10 Exit Criteria
 
@@ -200,6 +201,8 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_MAINTENANCE_WORKFLOW_ARCHITECTURE.md`
 - TASK-191:
   `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_WRAPPER_CONTRACT.md`
+- TASK-194:
+  `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_MAINTENANCE_READ_MODEL_CONTRACT.md`
 
 ## Completed Implementation Outputs
 

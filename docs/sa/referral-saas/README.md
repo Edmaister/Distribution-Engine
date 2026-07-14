@@ -14,6 +14,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   TASK-190 account setup, readiness, and maintenance workflow architecture.
 - `REFERRAL_SAAS_ACCOUNT_SETUP_WRAPPER_CONTRACT.md` - TASK-191 product wrapper
   contract over onboarding draft/readiness primitives.
+- `REFERRAL_SAAS_ACCOUNT_MAINTENANCE_READ_MODEL_CONTRACT.md` - TASK-194
+  Account Maintenance workflow/read-model contract.
 - `REFERRAL_SAAS_CAMPAIGN_SETUP_READINESS_CONTRACT.md` - TASK-135 campaign
   setup and readiness contract.
 - `REFERRAL_SAAS_REFERRAL_CODE_ISSUE_CONTRACT.md` - TASK-136 referral code
@@ -237,3 +239,7 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   and known onboarding section keys only, shows safe action results, and keeps
   account creation, invitations, credential creation, campaign activation,
   go-live, webhooks, and money actions out of scope.
+- TASK-194 defines the Account Maintenance workflow and read model. It keeps
+  maintenance read-only until durable account, tenant-link, external-reference,
+  membership, and lifecycle primitives exist, and routes evidence correction
+  back to Account Setup rather than inventing maintenance commands.

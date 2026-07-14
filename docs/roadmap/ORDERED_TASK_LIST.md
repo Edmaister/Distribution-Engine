@@ -3969,6 +3969,32 @@ Rollback notes: Revert the account setup page action wiring, tests, and docs upd
 Explicit non-goals: Do not add backend routes, schema, migrations, permission changes, OpenAPI output, durable account creation, internal tenant creation, tenant-link persistence, external-reference resolver, account selector, membership writes, user invitations, account maintenance operations, reference rotation, credential lifecycle, support-case writes, issue/reissue/revoke/expire/void commands, attribution overrides, validation idempotency changes beyond existing onboarding draft idempotency, duplicate reuse, live DB checks, audit writes beyond existing onboarding primitives, repair, replay, retry commands, campaign activation, webhook delivery, reward application, reward fulfilment, reward funding, reward settlement, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, SaaS billing, source-code forks, or broad DLaaS behavior.
 Definition of done: Referral SaaS Account Setup has tested guarded draft validation, save, submit-for-review, and internal review-decision actions over existing onboarding primitives while preserving no-live-action and no-fake-account boundaries. Priority: P0.
 
+## TASK-194: Define Account Maintenance workflow contract and read model
+
+Status: Complete (2026-07-15). Output: `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_MAINTENANCE_READ_MODEL_CONTRACT.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_MAINTENANCE_WORKFLOW_ARCHITECTURE.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_WRAPPER_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Defines how Account Maintenance should initially read shared onboarding readiness/draft evidence while preserving future shared account, tenant-link, external-reference, membership, audit, and permission boundaries. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Maintenance read model; account health/readiness drift; maintenance command boundary.
+Objective: Define Account Maintenance as a read-only evidence and drift workflow before building a maintenance shell.
+Why now: Account Setup now has workflow and guarded draft action wiring. The next 10/10 SaaS gap is separating existing-account maintenance from first-time setup without inventing account lifecycle commands before durable account primitives exist.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_MAINTENANCE_READ_MODEL_CONTRACT.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `apps/api/routers/admin_onboarding.py`; `frontend/src/api/endpoints/adminOnboarding.ts`; `services/onboarding/onboarding_state_projection_service.py`; `services/onboarding/onboarding_draft_validation_service.py`; `services/onboarding/onboarding_draft_repository.py`; `dp/migrations/080_onboarding_draft_persistence.sql`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: None.
+API impact: No route implementation. Contract defines future Account Maintenance read-model direction and candidate product routes.
+Tests to add/update: No runtime tests; docs-only contract with readback and diff validation. Future implementation must test no internal identifier leakage, blocked command posture, scoped evidence, and no fake maintenance commands.
+Validation method: Readback of the new contract and roadmap/gap/index references; `git diff --check`.
+Acceptance criteria: Contract separates Account Maintenance from Account Setup; defines a read-only maintenance model over current safe onboarding/readiness evidence; identifies maintenance areas and blocked commands; preserves no account creation, lifecycle, membership, reference rotation, credential, go-live, webhook, money, or broad DLaaS behavior.
+Dependencies: TASK-190; TASK-191; TASK-192; TASK-193.
+Blocked by: None for contract. Implementation of real maintenance commands remains blocked by future durable account, tenant-link, external-reference, membership, audit, and permission primitives.
+Risk level: Low.
+Rollback notes: Revert the Account Maintenance contract and roadmap/gap/index updates.
+Explicit non-goals: Do not add backend routes, frontend pages, schema, migrations, permission changes, OpenAPI output, durable account creation, account selector, internal tenant creation, tenant-link persistence, external-reference resolver, membership writes, user invitations, account lifecycle commands, account maintenance commands, reference rotation, credential lifecycle, support-case writes, issue/reissue/revoke/expire/void commands, attribution overrides, validation idempotency changes, duplicate reuse, live DB checks, audit writes, repair, replay, retry commands, campaign activation, webhook delivery, reward application, reward fulfilment, reward funding, reward settlement, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, SaaS billing, source-code forks, or broad DLaaS behavior.
+Definition of done: Referral SaaS has a documented Account Maintenance workflow/read-model contract that can drive a read-only shell without confusing maintenance with first-time setup or faking backend account commands. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
