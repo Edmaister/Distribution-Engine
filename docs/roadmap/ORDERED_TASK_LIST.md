@@ -3810,6 +3810,33 @@ Rollback notes: Revert the account setup scope-state and test updates plus docs.
 Explicit non-goals: Do not add backend routes, schema, migrations, permission changes, API wrappers, support-case tables, support-case writes, account creation, membership writes, tenant-link persistence, issue/reissue/revoke/expire/void commands, attribution overrides, validation idempotency keys, duplicate reuse, live DB checks, audit writes, repair, replay, retry commands, campaign activation, webhook delivery, reward application, reward fulfilment, reward funding, reward settlement, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, SaaS billing, source-code forks, or broad DLaaS behavior.
 Definition of done: Referral SaaS account setup scope entry is stable for local testing, readiness evidence refreshes only on explicit tester action, and the setup workflow presents actions inside step 1, step 2, and step 3. Priority: P1.
 
+## TASK-188: Clarify Referral SaaS account setup next action
+
+Status: Complete (2026-07-14). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Improves the existing account setup frontend guidance; no duplicated API client, backend route, schema, permission, support-case table, repair/replay, retry, reward, money, or DLaaS logic.
+Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account setup testing UX; next-action clarity; frontend readiness workflow.
+Objective: Make `/admin/referral-saas/account-setup` clearly tell the tester what to do after checking account setup.
+Why now: Local UI testing showed that after clicking `Check setup`, the screen showed `Loaded` but did not clearly tell the tester whether to continue with step 2 blockers or step 3 campaigns.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Adds a `Do this next` result row to the recommended setup path. It directs testers to check changed references, fix setup blockers, or continue to campaign readiness based on the current page state. Step 2 and Step 3 subtitles and badges now reflect whether they are active, blocked, or waiting.
+API impact: None.
+Tests to add/update: Updated account setup tests to assert the recommended setup path displays the correct next-action guidance before and after checking changed references.
+Validation method: `npm.cmd test -- ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run build`; `npm.cmd run lint -- --quiet`; `git diff --check`.
+Acceptance criteria: After changing account references, the page tells the tester to check the references; after loading account setup with blockers or missing evidence, the page tells the tester to use step 2; when no blocker count remains, the page tells the tester to continue to campaign readiness; no backend route, schema, permission, API wrapper, source fork, support-case write, repair/replay/retry, reward, money, or DLaaS behavior is added.
+Dependencies: TASK-186; TASK-187.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the account setup next-action UI/test updates plus docs.
+Explicit non-goals: Do not add backend routes, schema, migrations, permission changes, API wrappers, support-case tables, support-case writes, account creation, membership writes, tenant-link persistence, issue/reissue/revoke/expire/void commands, attribution overrides, validation idempotency keys, duplicate reuse, live DB checks, audit writes, repair, replay, retry commands, campaign activation, webhook delivery, reward application, reward fulfilment, reward funding, reward settlement, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, SaaS billing, source-code forks, or broad DLaaS behavior.
+Definition of done: Referral SaaS account setup tells the tester exactly whether step 1, step 2, or step 3 is next after account setup is checked. Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
