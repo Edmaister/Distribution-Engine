@@ -1,4 +1,4 @@
-import { Building2, CheckCircle2, KeyRound, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, Building2, CheckCircle2, ClipboardCheck, KeyRound, ShieldCheck, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 
@@ -54,6 +54,21 @@ const accountChecklist = [
   },
 ];
 
+const setupPath = [
+  {
+    title: "1. Confirm the account references",
+    copy: "Use the external tenant and organisation references to load the account setup view you want to test.",
+  },
+  {
+    title: "2. Fix blocked setup evidence",
+    copy: "Use the checklist to find missing account profile, tenant-link, membership, campaign, or reporting evidence.",
+  },
+  {
+    title: "3. Continue only when setup is usable",
+    copy: "Move to campaign readiness after account evidence is ready enough for referral testing.",
+  },
+];
+
 export function ReferralSaasAccountSetupPage() {
   const { refreshKey } = useRefreshContext();
   const [externalTenantRef, setExternalTenantRef] = useState(defaultExternalTenantRef);
@@ -101,14 +116,65 @@ export function ReferralSaasAccountSetupPage() {
       <section className="page-header">
         <div>
           <div className="page-kicker">Referral SaaS - Account Setup</div>
-          <h1 className="page-title">Account setup readiness</h1>
+          <h1 className="page-title">Check account setup</h1>
           <p className="page-copy">
-            Track the account, external-reference, membership, campaign-readiness,
-            and report-baseline gates that wrap existing tenant-scoped Referral
-            SaaS behavior.
+            Start here before testing campaigns, links, attribution, or reports.
+            This page tells you whether the account setup evidence is ready,
+            blocked, or missing.
           </p>
         </div>
         <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
+      </section>
+
+      <section className="grid-3">
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h2 className="panel-title">What this screen is for</h2>
+              <div className="panel-subtitle">It checks if this SaaS account is ready for referral testing.</div>
+            </div>
+            <StatusBadge label="Setup" tone="info" />
+          </div>
+          <div className="panel-body">
+            <p className="page-copy">
+              Use it to verify account profile, tenant link, membership, campaign
+              readiness, and reporting baseline evidence before moving deeper
+              into the product.
+            </p>
+          </div>
+        </div>
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h2 className="panel-title">What you can do here</h2>
+              <div className="panel-subtitle">Change the safe account references and review readiness.</div>
+            </div>
+            <ClipboardCheck size={18} />
+          </div>
+          <div className="panel-body">
+            <p className="page-copy">
+              You can load a different external tenant or organisation reference,
+              see what is ready or blocked, and choose the next setup surface to
+              complete missing evidence.
+            </p>
+          </div>
+        </div>
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h2 className="panel-title">What to do next</h2>
+              <div className="panel-subtitle">Fix account blockers before campaign testing.</div>
+            </div>
+            <ArrowRight size={18} />
+          </div>
+          <div className="panel-body">
+            <p className="page-copy">
+              First confirm the references below. Then review the setup checklist.
+              If anything is blocked or missing, use <strong>Next setup actions</strong>
+              before moving to campaign readiness.
+            </p>
+          </div>
+        </div>
       </section>
 
       <section className="panel">
@@ -145,10 +211,38 @@ export function ReferralSaasAccountSetupPage() {
       {!isLoading && !error ? (
         <>
           <section className="grid-4">
-            <KpiCard label="Ready" value={readyCount} footnote="Checklist categories" icon={CheckCircle2} />
-            <KpiCard label="Blocked" value={blockedCount} footnote="Requires operator action" icon={ShieldCheck} />
-            <KpiCard label="Missing evidence" value={missingEvidenceCount} footnote="Setup proof gaps" icon={Building2} />
-            <KpiCard label="Go-live disabled" value={goLiveDisabledCount} footnote="No launch action here" icon={KeyRound} />
+            <KpiCard label="Ready setup gates" value={readyCount} footnote="Can support testing" icon={CheckCircle2} />
+            <KpiCard label="Blocked setup gates" value={blockedCount} footnote="Fix before moving on" icon={ShieldCheck} />
+            <KpiCard label="Evidence gaps" value={missingEvidenceCount} footnote="Missing setup proof" icon={Building2} />
+            <KpiCard label="Launch actions here" value="0" footnote={`${goLiveDisabledCount} go-live blocker shown`} icon={KeyRound} />
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <div>
+                <h2 className="panel-title">Recommended setup path</h2>
+                <div className="panel-subtitle">
+                  Follow this order while testing account setup locally.
+                </div>
+              </div>
+              <StatusBadge label="Start here" tone="success" />
+            </div>
+            <div className="panel-body route-list">
+              {setupPath.map((step) => (
+                <div className="route-item" key={step.title}>
+                  <div>
+                    <div className="route-name">{step.title}</div>
+                    <div className="route-path">{step.copy}</div>
+                  </div>
+                  <StatusBadge label="Guided" tone="info" />
+                </div>
+              ))}
+              <SetupLink
+                to="/admin/referral-saas/campaigns"
+                title="Next product screen: Campaign readiness"
+                copy="Use this after the account setup evidence is ready enough for campaign testing."
+              />
+            </div>
           </section>
 
           <section className="grid-2">
