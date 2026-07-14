@@ -123,12 +123,12 @@ export function ReferralSaasAccountSetupPage() {
     <>
       <section className="page-header">
         <div>
-          <div className="page-kicker">Referral SaaS - Account Setup</div>
-          <h1 className="page-title">Check account setup</h1>
+          <div className="page-kicker">Referral SaaS - Account Setup Workflow</div>
+          <h1 className="page-title">Account setup readiness</h1>
           <p className="page-copy">
-            Start here before testing campaigns, links, attribution, or reports.
-            This page tells you whether the account setup evidence is ready,
-            blocked, or missing.
+            Use this checkpoint inside Account Setup before testing campaigns,
+            links, attribution, or reports. It confirms whether setup evidence
+            is ready, blocked, or missing.
           </p>
         </div>
         <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
@@ -138,16 +138,17 @@ export function ReferralSaasAccountSetupPage() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <h2 className="panel-title">What this screen is for</h2>
-              <div className="panel-subtitle">It checks if this SaaS account is ready for referral testing.</div>
+              <h2 className="panel-title">Where this fits</h2>
+              <div className="panel-subtitle">This is the readiness checkpoint inside Account Setup.</div>
             </div>
             <StatusBadge label="Setup" tone="info" />
           </div>
           <div className="panel-body">
             <p className="page-copy">
-              Use it to verify account profile, tenant link, membership, campaign
-              readiness, and reporting baseline evidence before moving deeper
-              into the product.
+              Account Setup is the wider workflow. This screen checks whether
+              company profile, tenant link, membership, campaign-readiness, and
+              reporting-baseline evidence are ready before moving deeper into
+              the product.
             </p>
           </div>
         </div>
@@ -155,15 +156,15 @@ export function ReferralSaasAccountSetupPage() {
           <div className="panel-header">
             <div>
               <h2 className="panel-title">What you can do here</h2>
-              <div className="panel-subtitle">Change the safe account references and review readiness.</div>
+              <div className="panel-subtitle">Review readiness and jump to setup actions.</div>
             </div>
             <ClipboardCheck size={18} />
           </div>
           <div className="panel-body">
             <p className="page-copy">
-              You can load a different external tenant or organisation reference,
-              see what is ready or blocked, and choose the next setup surface to
-              complete missing evidence.
+              You can load safe account references, see what is ready or
+              blocked, and open the setup action that captures missing evidence.
+              This page does not create accounts or invite users.
             </p>
           </div>
         </div>
@@ -177,9 +178,9 @@ export function ReferralSaasAccountSetupPage() {
           </div>
           <div className="panel-body">
             <p className="page-copy">
-              First confirm the references below. Then review the setup checklist.
-              If anything is blocked or missing, use <strong>Next setup actions</strong>
-              before moving to campaign readiness.
+              First confirm the account scope below. Then resolve any setup
+              blockers. Move to campaign readiness only when this checkpoint is
+              clear enough for referral testing.
             </p>
           </div>
         </div>
@@ -199,9 +200,9 @@ export function ReferralSaasAccountSetupPage() {
           <section className="panel">
             <div className="panel-header">
               <div>
-                <h2 className="panel-title">Recommended setup path</h2>
+                <h2 className="panel-title">Account setup workflow</h2>
                 <div className="panel-subtitle">
-                  Follow the highlighted instruction first. Each step contains its own action.
+                  Use this readiness checkpoint as part of setup. Each step contains its own action.
                 </div>
               </div>
               <StatusBadge label={nextStep.badge} tone={nextStep.tone} />
@@ -219,9 +220,9 @@ export function ReferralSaasAccountSetupPage() {
               <div className="panel">
                 <div className="panel-header">
                   <div>
-                    <h3 className="panel-title">Step 1: Check the account</h3>
+                    <h3 className="panel-title">Step 1: Confirm account scope</h3>
                     <div className="panel-subtitle">
-                      Type the account references, then click Check setup. Nothing else updates until you click.
+                      Load the account setup evidence you want to review.
                     </div>
                   </div>
                   <StatusBadge label={scopeChanged ? "Changes not checked" : "Loaded"} tone={scopeChanged ? "warning" : "success"} />
@@ -244,7 +245,7 @@ export function ReferralSaasAccountSetupPage() {
                     />
                   </label>
                   <button className="button" disabled={!canCheckScope} type="submit">
-                    Check setup
+                    Check readiness
                   </button>
                 </form>
               </div>
@@ -252,11 +253,11 @@ export function ReferralSaasAccountSetupPage() {
               <div className="panel">
                 <div className="panel-header">
                   <div>
-                    <h3 className="panel-title">Step 2: Fix setup blockers</h3>
+                    <h3 className="panel-title">Step 2: Complete setup actions</h3>
                     <div className="panel-subtitle">
                       {needsSetupWork
                         ? "This is your next step because setup still has blocked or missing evidence."
-                        : "Skip this for now because the loaded setup has no blocker count."}
+                        : "Skip this for now because this readiness check has no blocker count."}
                     </div>
                   </div>
                   <StatusBadge label={needsSetupWork ? "Do next" : "No blockers"} tone={needsSetupWork ? "warning" : "success"} />
@@ -271,11 +272,11 @@ export function ReferralSaasAccountSetupPage() {
               <div className="panel">
                 <div className="panel-header">
                   <div>
-                    <h3 className="panel-title">Step 3: Continue to campaigns</h3>
+                    <h3 className="panel-title">Step 3: Continue to campaign setup</h3>
                     <div className="panel-subtitle">
                       {needsSetupWork || scopeChanged
-                        ? "Wait until Step 1 is checked and Step 2 blockers are clear."
-                        : "This is your next step because the account setup is ready enough for campaign testing."}
+                        ? "Wait until account scope is checked and setup blockers are clear."
+                        : "This is your next step because account setup is ready enough for campaign testing."}
                     </div>
                   </div>
                   <StatusBadge label={needsSetupWork || scopeChanged ? "Wait" : "Do next"} tone={needsSetupWork || scopeChanged ? "neutral" : "success"} />
@@ -297,7 +298,7 @@ export function ReferralSaasAccountSetupPage() {
                 <div>
                   <h2 className="panel-title">Setup checklist</h2>
                   <div className="panel-subtitle">
-                    Productized account setup gates mapped to existing onboarding evidence.
+                    Productized setup-readiness gates mapped to existing onboarding evidence.
                   </div>
                 </div>
               </div>
@@ -399,7 +400,7 @@ export function ReferralSaasAccountSetupPage() {
               <div className="panel-header">
                 <div>
                   <h2 className="panel-title">How to read the evidence</h2>
-                  <div className="panel-subtitle">Use the checklist and categories to decide whether to repeat step 2 or move to step 3.</div>
+                  <div className="panel-subtitle">Use the checklist and categories to decide whether to complete setup actions or continue.</div>
                 </div>
               </div>
               <div className="panel-body route-list">
@@ -413,7 +414,7 @@ export function ReferralSaasAccountSetupPage() {
                 <div className="route-item">
                   <div>
                     <div className="route-name">Ready enough for testing</div>
-                    <div className="route-path">Continue to Step 3 and check campaign readiness before testing links and codes.</div>
+                    <div className="route-path">Continue to Step 3 and check campaign setup readiness before testing links and codes.</div>
                   </div>
                   <StatusBadge label="Continue" tone="success" />
                 </div>
@@ -492,8 +493,8 @@ function getAccountSetupNextStep(scopeChanged: boolean, needsSetupWork: boolean)
     return {
       actionLabel: "Step 1",
       badge: "Check changes",
-      copy: "You changed the account references. Click Check setup before using the blocker or campaign actions.",
-      title: "Do this next: check the account references",
+      copy: "You changed the account references. Click Check readiness before using the setup or campaign actions.",
+      title: "Do this next: confirm the account scope",
       tone: "warning" as const,
     };
   }
@@ -501,16 +502,16 @@ function getAccountSetupNextStep(scopeChanged: boolean, needsSetupWork: boolean)
     return {
       actionLabel: "Step 2",
       badge: "Fix blockers",
-      copy: "The account setup is loaded, but it is not ready yet. Use the Step 2 actions to fill the missing setup evidence.",
-      title: "Do this next: fix the setup blockers",
+      copy: "The account setup readiness check is loaded, but it is not ready yet. Use the Step 2 actions to fill the missing setup evidence.",
+      title: "Do this next: complete setup actions",
       tone: "warning" as const,
     };
   }
   return {
     actionLabel: "Step 3",
     badge: "Ready",
-    copy: "The account setup is loaded and has no blocker count. Continue to Campaign readiness before testing links and attribution.",
-    title: "Do this next: continue to campaigns",
+    copy: "The account setup readiness check has no blocker count. Continue to campaign setup readiness before testing links and attribution.",
+    title: "Do this next: continue to campaign setup",
     tone: "success" as const,
   };
 }
