@@ -2,8 +2,10 @@ import {
   BarChart3,
   Building2,
   CheckCircle2,
+  ClipboardCheck,
   Link as LinkIcon,
   ListChecks,
+  PlayCircle,
   Route,
   ShieldCheck,
   Split,
@@ -92,32 +94,131 @@ const boundaries = [
   "No raw UCN, provider payload, DLQ payload, token, secret, or cross-tenant evidence rendering",
 ];
 
+const testingSteps: WorkspaceLink[] = [
+  {
+    title: "1. Check account setup",
+    route: "/admin/referral-saas/account-setup",
+    description: "Start here to confirm the account, external references, membership posture, and readiness gates.",
+    badge: "Start",
+    icon: Building2,
+  },
+  {
+    title: "2. Check campaign readiness",
+    route: "/admin/referral-saas/campaigns",
+    description: "Then confirm the campaign has the setup evidence needed before referral traffic is tested.",
+    badge: "Next",
+    icon: Target,
+  },
+  {
+    title: "3. Test links and codes",
+    route: "/admin/referral-saas/link-codes",
+    description: "Issue, reuse, validate, and recover referral codes through the product workflow.",
+    badge: "Action",
+    icon: LinkIcon,
+  },
+  {
+    title: "4. Prove attribution and reporting",
+    route: "/admin/referral-saas/support",
+    description: "Use support triage to inspect link evidence, progress/status, attribution trace, and reports.",
+    badge: "Verify",
+    icon: ClipboardCheck,
+  },
+];
+
 export function ReferralSaasWorkspacePage() {
   return (
     <>
       <section className="page-header">
         <div>
           <div className="page-kicker">Referral Management and Campaign Attribution SaaS</div>
-          <h1 className="page-title">Focused workspace</h1>
+          <h1 className="page-title">Start testing Referral SaaS</h1>
           <p className="page-copy">
-            Operate the Referral SaaS product without mixing in broader DLaaS
-            marketplace, wallet, funding, settlement, sponsor billing, or
-            treasury workflows.
+            This screen is the front door for testing account setup, campaign
+            readiness, referral links/codes, attribution evidence, and
+            tenant-safe reporting without broader DLaaS workflows.
           </p>
         </div>
         <StatusBadge label="Ringfenced" tone="success" />
       </section>
 
+      <section className="grid-3">
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h2 className="panel-title">What this screen is for</h2>
+              <div className="panel-subtitle">A guided launch and testing cockpit for the focused SaaS product.</div>
+            </div>
+            <StatusBadge label="Workspace" tone="info" />
+          </div>
+          <div className="panel-body">
+            <p className="page-copy">
+              Use it to move through the product in the same order a customer or
+              operator would: setup, campaign readiness, referral link/code
+              flow, attribution investigation, and reports.
+            </p>
+          </div>
+        </div>
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h2 className="panel-title">What you can do here</h2>
+              <div className="panel-subtitle">Open the right product surface without DLaaS noise.</div>
+            </div>
+            <StatusBadge label="8 paths" tone="success" />
+          </div>
+          <div className="panel-body">
+            <p className="page-copy">
+              You can check readiness, issue or validate referral codes, inspect
+              support evidence, review progress/status, trace attribution, and
+              confirm tenant-safe reports.
+            </p>
+          </div>
+        </div>
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h2 className="panel-title">What to do first</h2>
+              <div className="panel-subtitle">Start with account setup, then move left to right.</div>
+            </div>
+            <PlayCircle size={18} />
+          </div>
+          <div className="panel-body">
+            <p className="page-copy">
+              Click <strong>Check account setup</strong>. If setup is blocked,
+              fix that first. If it is usable, continue to campaign readiness,
+              then links/codes, then support evidence and reports.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <h2 className="panel-title">Recommended test path</h2>
+            <div className="panel-subtitle">
+              Follow this order when you are doing local live testing from the UI.
+            </div>
+          </div>
+          <StatusBadge label="Start here" tone="success" />
+        </div>
+        <div className="panel-body route-list">
+          {testingSteps.map((step) => (
+            <WorkspaceLinkItem item={step} key={step.route} />
+          ))}
+        </div>
+      </section>
+
       <section className="grid-4">
-        <KpiCard label="Product workflows" value={primaryWorkflows.length} footnote="SaaS core" icon={CheckCircle2} />
-        <KpiCard label="Support workflows" value={supportWorkflows.length} footnote="Read-only diagnostics" icon={ShieldCheck} />
-        <KpiCard label="DLaaS controls" value="0" footnote="Hidden from this workspace" icon={Target} />
-        <KpiCard label="Money actions" value="0" footnote="Outside Referral SaaS launch" icon={BarChart3} />
+        <KpiCard label="Core areas to test" value={primaryWorkflows.length} footnote="Setup, campaigns, links/codes, reports" icon={CheckCircle2} />
+        <KpiCard label="Investigation areas" value={supportWorkflows.length} footnote="Support, inspection, trace, status" icon={ShieldCheck} />
+        <KpiCard label="DLaaS items shown" value="0" footnote="Marketplace, wallet, funding, settlement hidden" icon={Target} />
+        <KpiCard label="Money actions available" value="0" footnote="No payout, invoice, wallet, or settlement actions" icon={BarChart3} />
       </section>
 
       <section className="grid-2">
-        <WorkspacePanel title="Operate" subtitle="The core SaaS workflow for account, campaign, referral, and reporting work." items={primaryWorkflows} />
-        <WorkspacePanel title="Investigate" subtitle="Read-only support paths for link/code, progress, and attribution evidence." items={supportWorkflows} />
+        <WorkspacePanel title="All product work areas" subtitle="Use these after the recommended test path when you need a specific surface." items={primaryWorkflows} />
+        <WorkspacePanel title="All investigation areas" subtitle="Read-only support paths for link/code, progress, and attribution evidence." items={supportWorkflows} />
       </section>
 
       <section className="panel">
@@ -165,21 +266,27 @@ function WorkspacePanel({
       </div>
       <div className="panel-body route-list">
         {items.map((item) => {
-          const Icon = item.icon;
           return (
-            <Link className="route-item route-link" key={item.route} to={item.route}>
-              <div>
-                <div className="route-name">{item.title}</div>
-                <div className="route-path">{item.description}</div>
-              </div>
-              <span className="support-hub-route">
-                <Icon size={15} />
-                {item.badge}
-              </span>
-            </Link>
+            <WorkspaceLinkItem item={item} key={item.route} />
           );
         })}
       </div>
     </section>
+  );
+}
+
+function WorkspaceLinkItem({ item }: { item: WorkspaceLink }) {
+  const Icon = item.icon;
+  return (
+    <Link className="route-item route-link" to={item.route}>
+      <div>
+        <div className="route-name">{item.title}</div>
+        <div className="route-path">{item.description}</div>
+      </div>
+      <span className="support-hub-route">
+        <Icon size={15} />
+        {item.badge}
+      </span>
+    </Link>
   );
 }

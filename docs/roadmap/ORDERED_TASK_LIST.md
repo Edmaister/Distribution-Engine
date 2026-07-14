@@ -3756,6 +3756,33 @@ Rollback notes: Revert the workspace page, sidebar mode, route/title wiring, tes
 Explicit non-goals: Do not add backend routes, schema, migrations, permission changes, support-case tables, support-case writes, issue/reissue/revoke/expire/void commands, attribution overrides, validation idempotency keys, duplicate reuse, duplicate conflict detection, account schema, membership schema, tenant-link persistence, external-reference resolver, live DB checks, audit writes, repair, replay, retry commands, progress ingestion/correction, campaign activation, webhook delivery, reward application, reward fulfilment, reward funding, reward settlement, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, SaaS billing, source-code forks, or broad DLaaS behavior.
 Definition of done: Referral SaaS has a focused workspace shell and navigation boundary that lets operators work inside the first-launch product without DLaaS noise, while deeper account, support-case, customer-safe status, export persistence, and live E2E work remain explicit future tasks. Priority: P1.
 
+## TASK-186: Add Referral SaaS workspace testing guidance
+
+Status: Complete (2026-07-14). Output: `frontend/src/pages/admin/ReferralSaasWorkspacePage.tsx`; `frontend/src/pages/admin/ReferralSaasWorkspacePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Improves the existing Referral SaaS workspace page orientation and testing path; no duplicated frontend routes, backend route, API client, schema, permission, support-case table, repair/replay, retry, reward, money, or DLaaS logic.
+Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Local testing entry point; workspace call-to-action clarity; product workflow guidance.
+Objective: Make `/admin/referral-saas` understandable for local UI testing by answering what the screen is for, what can be done there, and what the tester should do first.
+Why now: TASK-185 ringfenced the workspace, but the first screen still read like a map of surfaces rather than a clear testing cockpit. The user could see product links but not the intended call to action or test order.
+Files involved: `frontend/src/pages/admin/ReferralSaasWorkspacePage.tsx`; `frontend/src/pages/admin/ReferralSaasWorkspacePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasWorkspacePage.tsx`; `frontend/src/pages/admin/ReferralSaasWorkspacePage.test.tsx`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: The workspace home now states its purpose, available actions, first call to action, and recommended local testing path: account setup, campaign readiness, links/codes, and support evidence. The existing product work-area links remain available below the guided path.
+API impact: None.
+Tests to add/update: Updated workspace page tests for screen purpose, available actions, first call to action, and recommended testing path links.
+Validation method: `npm.cmd test -- ReferralSaasWorkspacePage.test.tsx`; `npm.cmd run build`; `npm.cmd run lint -- --quiet`; `git diff --check`.
+Acceptance criteria: `/admin/referral-saas` clearly explains what the screen is for; it explains what a tester can do there; it tells the tester to start with account setup; it exposes a recommended test path through account setup, campaign readiness, links/codes, and support evidence; no backend route, schema, permission, API wrapper, source fork, support-case write, repair/replay/retry, reward, money, or DLaaS behavior is added.
+Dependencies: TASK-144; TASK-185.
+Blocked by: None for workspace guidance. Live E2E automation, account-safe customer/referrer status, support-case persistence, repair/replay guardrails, schema-backed duplicate validation, account/membership persistence, persisted exports, and full live smoke proof remain separate work.
+Risk level: Low.
+Rollback notes: Revert the workspace page copy/test updates plus docs.
+Explicit non-goals: Do not add backend routes, schema, migrations, permission changes, API wrappers, support-case tables, support-case writes, issue/reissue/revoke/expire/void commands, attribution overrides, validation idempotency keys, duplicate reuse, duplicate conflict detection, account schema, membership schema, tenant-link persistence, external-reference resolver, live DB checks, audit writes, repair, replay, retry commands, progress ingestion/correction, campaign activation, webhook delivery, reward application, reward fulfilment, reward funding, reward settlement, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, SaaS billing, source-code forks, or broad DLaaS behavior.
+Definition of done: Referral SaaS workspace users can immediately understand the screen purpose, available actions, and first local testing path without needing a prompt, while deeper live E2E automation and production hardening remain explicit future work. Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

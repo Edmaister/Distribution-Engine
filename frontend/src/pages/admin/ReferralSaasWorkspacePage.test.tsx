@@ -25,11 +25,43 @@ describe("ReferralSaasWorkspacePage", () => {
   it("renders the focused Referral SaaS workspace", () => {
     renderWorkspace();
 
-    expect(screen.getByRole("heading", { name: "Focused workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Start testing Referral SaaS" })).toBeInTheDocument();
     expect(screen.getByText("Referral Management and Campaign Attribution SaaS")).toBeInTheDocument();
     expect(screen.getByText("Ringfenced")).toBeInTheDocument();
-    expect(screen.getByText("DLaaS controls")).toBeInTheDocument();
-    expect(screen.getByText("Money actions")).toBeInTheDocument();
+    expect(screen.getByText("Core areas to test")).toBeInTheDocument();
+    expect(screen.getByText("DLaaS items shown")).toBeInTheDocument();
+    expect(screen.getByText("Money actions available")).toBeInTheDocument();
+  });
+
+  it("explains the screen purpose, available actions, and first call to action", () => {
+    renderWorkspace();
+
+    expect(screen.getByRole("heading", { name: "What this screen is for" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What you can do here" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What to do first" })).toBeInTheDocument();
+    expect(screen.getByText(/If setup is blocked, fix that first/)).toBeInTheDocument();
+  });
+
+  it("shows a recommended local testing path", () => {
+    renderWorkspace();
+
+    expect(screen.getByRole("heading", { name: "Recommended test path" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /1. Check account setup/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-setup",
+    );
+    expect(screen.getByRole("link", { name: /2. Check campaign readiness/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/campaigns",
+    );
+    expect(screen.getByRole("link", { name: /3. Test links and codes/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/link-codes",
+    );
+    expect(screen.getByRole("link", { name: /4. Prove attribution and reporting/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/support",
+    );
   });
 
   it("links only to Referral SaaS product surfaces", () => {
