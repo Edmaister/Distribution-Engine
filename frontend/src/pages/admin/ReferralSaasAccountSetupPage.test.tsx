@@ -128,7 +128,7 @@ describe("ReferralSaasAccountSetupPage", () => {
   it("renders account setup readiness from external references", async () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
-    expect(await screen.findByRole("heading", { name: "Account setup readiness" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Check account setup" })).toBeInTheDocument();
     await waitFor(() =>
       expect(mockedGetAdminOnboardingState).toHaveBeenCalledWith({
         external_tenant_ref: "demo-platform-operator",
@@ -143,10 +143,32 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
   });
 
+  it("explains the screen purpose, actions, and next step", async () => {
+    renderWorkspace(<ReferralSaasAccountSetupPage />);
+
+    expect(await screen.findByRole("heading", { name: "What this screen is for" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What you can do here" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What to do next" })).toBeInTheDocument();
+    expect(screen.getByText(/Fix account blockers before campaign testing/)).toBeInTheDocument();
+  });
+
+  it("shows a recommended account setup testing path", async () => {
+    renderWorkspace(<ReferralSaasAccountSetupPage />);
+
+    expect(await screen.findByRole("heading", { name: "Recommended setup path" })).toBeInTheDocument();
+    expect(screen.getByText("1. Confirm the account references")).toBeInTheDocument();
+    expect(screen.getByText("2. Fix blocked setup evidence")).toBeInTheDocument();
+    expect(screen.getByText("3. Continue only when setup is usable")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Next product screen: Campaign readiness/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/campaigns",
+    );
+  });
+
   it("updates the readiness request when external scope changes", async () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
-    await screen.findByRole("heading", { name: "Account setup readiness" });
+    await screen.findByRole("heading", { name: "Check account setup" });
     fireEvent.change(screen.getByLabelText("External tenant ref"), {
       target: { value: "org-fnb-referrals" },
     });
