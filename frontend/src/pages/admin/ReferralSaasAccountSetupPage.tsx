@@ -84,10 +84,16 @@ export function ReferralSaasAccountSetupPage() {
     })),
   );
   const overallStatus = formatDisplay(getNestedValue(readiness, ["overall_status"], "pending"));
-  const readyCount = formatDisplay(getNestedValue(summary, ["ready_count"], 0));
-  const blockedCount = formatDisplay(getNestedValue(summary, ["blocked_count"], 0));
-  const missingEvidenceCount = formatDisplay(getNestedValue(summary, ["missing_evidence_count"], 0));
-  const goLiveDisabledCount = formatDisplay(getNestedValue(summary, ["go_live_disabled_count"], 0));
+  const readyCountValue = toCount(getNestedValue(summary, ["ready_count"], 0));
+  const blockedCountValue = toCount(getNestedValue(summary, ["blocked_count"], 0));
+  const missingEvidenceCountValue = toCount(getNestedValue(summary, ["missing_evidence_count"], 0));
+  const goLiveDisabledCountValue = toCount(getNestedValue(summary, ["go_live_disabled_count"], 0));
+  const readyCount = formatDisplay(readyCountValue);
+  const blockedCount = formatDisplay(blockedCountValue);
+  const missingEvidenceCount = formatDisplay(missingEvidenceCountValue);
+  const goLiveDisabledCount = formatDisplay(goLiveDisabledCountValue);
+  const needsSetupWork = blockedCountValue > 0 || missingEvidenceCountValue > 0;
+  const nextStep = getAccountSetupNextStep(scopeChanged, needsSetupWork);
   const resolvedRows = accountChecklist.map((item) => {
     const matchingCategory = categories.find((category) => categoryMatches(category, item));
     const status = formatDisplay(
@@ -195,17 +201,28 @@ export function ReferralSaasAccountSetupPage() {
               <div>
                 <h2 className="panel-title">Recommended setup path</h2>
                 <div className="panel-subtitle">
-                  Follow these steps in order. Each step contains its own action.
+                  Follow the highlighted instruction first. Each step contains its own action.
                 </div>
               </div>
-              <StatusBadge label="Start here" tone="success" />
+              <StatusBadge label={nextStep.badge} tone={nextStep.tone} />
+            </div>
+            <div className="panel-body route-list">
+              <div className="route-item">
+                <div>
+                  <div className="route-name">{nextStep.title}</div>
+                  <div className="route-path">{nextStep.copy}</div>
+                </div>
+                <StatusBadge label={nextStep.actionLabel} tone={nextStep.tone} />
+              </div>
             </div>
             <div className="panel-body grid-3">
               <div className="panel">
                 <div className="panel-header">
                   <div>
                     <h3 className="panel-title">Step 1: Check the account</h3>
-                    <div className="panel-subtitle">Confirm which account setup evidence you want to load.</div>
+                    <div className="panel-subtitle">
+                      Type the account references, then click Check setup. Nothing else updates until you click.
+                    </div>
                   </div>
                   <StatusBadge label={scopeChanged ? "Changes not checked" : "Loaded"} tone={scopeChanged ? "warning" : "success"} />
                 </div>
@@ -236,9 +253,13 @@ export function ReferralSaasAccountSetupPage() {
                 <div className="panel-header">
                   <div>
                     <h3 className="panel-title">Step 2: Fix setup blockers</h3>
-                    <div className="panel-subtitle">Use these actions if the checklist shows blocked or missing evidence.</div>
+                    <div className="panel-subtitle">
+                      {needsSetupWork
+                        ? "This is your next step because setup still has blocked or missing evidence."
+                        : "Skip this for now because the loaded setup has no blocker count."}
+                    </div>
                   </div>
-                  <StatusBadge label="Fix first" tone={blockedCount === "0" && missingEvidenceCount === "0" ? "success" : "warning"} />
+                  <StatusBadge label={needsSetupWork ? "Do next" : "No blockers"} tone={needsSetupWork ? "warning" : "success"} />
                 </div>
                 <div className="panel-body route-list">
                   <SetupLink to="/admin/onboarding/company" title="Company onboarding" copy="Capture company evidence and external references." />
@@ -251,9 +272,13 @@ export function ReferralSaasAccountSetupPage() {
                 <div className="panel-header">
                   <div>
                     <h3 className="panel-title">Step 3: Continue to campaigns</h3>
-                    <div className="panel-subtitle">Move on only when account setup is usable for referral testing.</div>
+                    <div className="panel-subtitle">
+                      {needsSetupWork || scopeChanged
+                        ? "Wait until Step 1 is checked and Step 2 blockers are clear."
+                        : "This is your next step because the account setup is ready enough for campaign testing."}
+                    </div>
                   </div>
-                  <StatusBadge label="Next" tone="info" />
+                  <StatusBadge label={needsSetupWork || scopeChanged ? "Wait" : "Do next"} tone={needsSetupWork || scopeChanged ? "neutral" : "success"} />
                 </div>
                 <div className="panel-body route-list">
                   <SetupLink
@@ -455,6 +480,39 @@ function categoryMatches(category: Record<string, unknown>, item: { code: string
     .toLowerCase()
     .split("_")
     .some((part) => haystack.includes(part)) || haystack.includes(item.label.toLowerCase());
+}
+
+function toCount(value: unknown) {
+  const count = Number(value);
+  return Number.isFinite(count) ? count : 0;
+}
+
+function getAccountSetupNextStep(scopeChanged: boolean, needsSetupWork: boolean) {
+  if (scopeChanged) {
+    return {
+      actionLabel: "Step 1",
+      badge: "Check changes",
+      copy: "You changed the account references. Click Check setup before using the blocker or campaign actions.",
+      title: "Do this next: check the account references",
+      tone: "warning" as const,
+    };
+  }
+  if (needsSetupWork) {
+    return {
+      actionLabel: "Step 2",
+      badge: "Fix blockers",
+      copy: "The account setup is loaded, but it is not ready yet. Use the Step 2 actions to fill the missing setup evidence.",
+      title: "Do this next: fix the setup blockers",
+      tone: "warning" as const,
+    };
+  }
+  return {
+    actionLabel: "Step 3",
+    badge: "Ready",
+    copy: "The account setup is loaded and has no blocker count. Continue to Campaign readiness before testing links and attribution.",
+    title: "Do this next: continue to campaigns",
+    tone: "success" as const,
+  };
 }
 
 function SetupLink({ to, title, copy }: { to: string; title: string; copy: string }) {
