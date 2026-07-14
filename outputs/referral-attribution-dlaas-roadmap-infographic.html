@@ -570,16 +570,17 @@
             read-only operator progress/status diagnostics API wrapper through
             TASK-182, the focused operator progress/status UI through
             TASK-183, and the focused operator support workflow hub through
-            TASK-184.
+            TASK-184, and a ringfenced product workspace shell through
+            TASK-185.
           </p>
           <div class="score-row" aria-label="Current position">
             <div class="score">
-              <strong>9.85/10</strong>
-              <span>Referral management foundation after TASK-184 support hub</span>
+              <strong>9.90/10</strong>
+              <span>Referral management foundation after TASK-185 workspace ringfencing</span>
             </div>
             <div class="score">
-              <strong>9.50/10</strong>
-              <span>Campaign attribution foundation with account, campaign readiness, product link/code, report, preview UI, validation recovery UI, explicit retry posture, operator inspection UI, attribution trace API/UI, progress/status API/UI, and support hub</span>
+              <strong>9.55/10</strong>
+              <span>Campaign attribution foundation with account, campaign readiness, product link/code, report, preview UI, validation recovery UI, explicit retry posture, operator inspection UI, attribution trace API/UI, progress/status API/UI, support hub, and focused workspace shell</span>
             </div>
             <div class="score">
               <strong>10/10</strong>
@@ -593,7 +594,7 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-184 for Referral SaaS, with
+            Updated after TASK-134 through TASK-185 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
@@ -603,8 +604,8 @@
             <span>Account, campaign, code, validation, progress, attribution, support, reporting, API, IA, audit, and E2E plan are documented.</span>
           </div>
           <div class="status-pill">
-            <b>36 implementation proofs added</b>
-            <span>TASK-149 through TASK-184 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, safe-status, report-catalog, report-API, account-scope, referral-funnel, progress-health, attribution-quality, safe-status distribution, link/code performance, reward visibility, export validation, account-reference, export-preview, frontend report-client, report-catalog UI, account-setup readiness UI, inline export-preview UI, campaign-readiness UI, link/code workflow UI, product link/code API wrapper proof, validation recovery mapper proof, validation idempotency posture proof, validation recovery UI proof, operator link/code inspection API proof, operator link/code inspection UI proof, operator attribution trace API proof, operator attribution trace UI proof, operator progress/status diagnostics API proof, operator progress/status UI proof, and operator support workflow hub proof.</span>
+            <b>37 implementation proofs added</b>
+            <span>TASK-149 through TASK-185 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, safe-status, report-catalog, report-API, account-scope, referral-funnel, progress-health, attribution-quality, safe-status distribution, link/code performance, reward visibility, export validation, account-reference, export-preview, frontend report-client, report-catalog UI, account-setup readiness UI, inline export-preview UI, campaign-readiness UI, link/code workflow UI, product link/code API wrapper proof, validation recovery mapper proof, validation idempotency posture proof, validation recovery UI proof, operator link/code inspection API proof, operator link/code inspection UI proof, operator attribution trace API proof, operator attribution trace UI proof, operator progress/status diagnostics API proof, operator progress/status UI proof, operator support workflow hub proof, and focused workspace shell proof.</span>
           </div>
           <div class="status-pill">
             <b>Live confidence still capped</b>
@@ -616,7 +617,7 @@
           </div>
           <div class="status-pill">
             <b>Hardening still missing</b>
-            <span>The score stays below 10/10 until account/membership persistence, remaining product API/UI wrappers, schema-backed duplicate validation reuse or conflict behavior, persisted export storage/audit/downloads, support-case persistence/repair guardrails, account-safe status surfaces, and live smoke evidence ship.</span>
+            <span>The score stays below 10/10 until account/membership persistence, schema-backed duplicate validation reuse or conflict behavior, persisted export storage/audit/downloads, support-case persistence/repair guardrails, account-safe status surfaces, and live smoke evidence ship.</span>
           </div>
         </div>
       </section>
@@ -898,7 +899,7 @@
               <li>TASK-134 through TASK-147 completed as contract outputs.</li>
               <li>Referral, validation, progress, attribution, API, IA, reporting, and support boundaries are explicit.</li>
               <li>Money-depth and broad DLaaS scope remain deliberately separate.</li>
-              <li>The contracts are now backed by TASK-149 through TASK-184 implementation proof.</li>
+              <li>The contracts are now backed by TASK-149 through TASK-185 implementation proof.</li>
             </ol>
           </article>
           <article class="phase">
@@ -1204,6 +1205,7 @@
               API wrapper.
               TASK-183 adds the focused operator progress/status UI.
               TASK-184 adds the focused operator support workflow hub.
+              TASK-185 adds the ringfenced Referral SaaS workspace shell.
             </p>
             <div class="tag-row">
               <span class="tag done">154</span>
@@ -1221,7 +1223,7 @@
           <article class="capability" data-tone="amber">
             <h3>Still Not Shipped</h3>
             <p>
-              Account/membership persistence, campaign create/policy/activation wrappers, broader SaaS frontend workflows, persisted export storage/audit/downloads,
+              Account/membership persistence, campaign create/policy/activation wrappers, account-safe/customer-facing status, persisted export storage/audit/downloads,
               live/staging execution evidence, and
               full E2E proof remain open before a 10/10 claim.
             </p>
@@ -1249,7 +1251,7 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">SaaS workflow implementation</div>
-            <div class="matrix-cell">Contracts and early proof exist, reporting has a focused UI with inline export preview, account setup readiness has a focused UI, campaign readiness has a focused UI, link/code issue-validation-capture now has product wrappers plus focused UI, tested validation recovery mapping, explicit non-idempotent retry posture, recovery UI, operator link/code inspection API proof, focused operator inspect UI, attribution trace API proof, attribution trace UI proof, progress/status diagnostics API proof, progress/status UI proof, and support workflow hub proof, but account membership, account-safe status surfaces, support-case persistence, and lifecycle hardening still need cohesive product workflows.</div>
+            <div class="matrix-cell">Contracts and early proof exist, reporting has a focused UI with inline export preview, account setup readiness has a focused UI, campaign readiness has a focused UI, link/code issue-validation-capture now has product wrappers plus focused UI, tested validation recovery mapping, explicit non-idempotent retry posture, recovery UI, operator link/code inspection API proof, focused operator inspect UI, attribution trace API proof, attribution trace UI proof, progress/status diagnostics API proof, progress/status UI proof, support workflow hub proof, and ringfenced workspace proof, but account membership, account-safe status surfaces, support-case persistence, and lifecycle hardening still need cohesive product workflows.</div>
             <div class="matrix-cell">Thin SaaS routes and UI around existing primitives with tests, account-scope resolution, idempotency/recovery posture, and no source duplication.</div>
           </div>
           <div class="matrix-row" role="row">
@@ -1259,7 +1261,7 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Product report/export catalog</div>
-            <div class="matrix-cell">TASK-156 adds `campaign_performance`, TASK-157 exposes it through a read-only product route, TASK-158 derives scope from tenant-scoped identities, TASK-159 adds `referral_funnel`, TASK-160 adds `progress_event_health`, TASK-161 adds `attribution_quality`, TASK-162 adds `safe_status_distribution`, TASK-163 adds `link_code_performance`, TASK-164 adds count-only `reward_visibility_summary`, TASK-165 adds validation-only export gating, TASK-166 carries trusted account references through report/export scope, TASK-167 returns inline JSON/CSV export previews, TASK-168 adds the frontend report/export client, TASK-169 adds the focused report catalog UI, TASK-170 adds account setup readiness UI, TASK-171 adds inline export preview UI, TASK-172 adds campaign readiness UI, TASK-173 adds link/code workflow UI, TASK-174 adds product link/code API wrappers, TASK-175 adds validation recovery mapper proof, TASK-176 adds explicit validation idempotency posture proof, TASK-177 adds validation recovery UI proof, TASK-178 adds operator link/code inspection API proof, TASK-179 adds operator inspection UI proof, TASK-180 adds attribution trace API proof, TASK-181 adds attribution trace UI proof, TASK-182 adds progress/status diagnostics API proof, TASK-183 adds progress/status UI proof, and TASK-184 adds support workflow hub proof. Persisted exports, support-case persistence/repair guardrails, account-safe status surfaces, and account/membership persistence remain open.</div>
+            <div class="matrix-cell">TASK-156 adds `campaign_performance`, TASK-157 exposes it through a read-only product route, TASK-158 derives scope from tenant-scoped identities, TASK-159 adds `referral_funnel`, TASK-160 adds `progress_event_health`, TASK-161 adds `attribution_quality`, TASK-162 adds `safe_status_distribution`, TASK-163 adds `link_code_performance`, TASK-164 adds count-only `reward_visibility_summary`, TASK-165 adds validation-only export gating, TASK-166 carries trusted account references through report/export scope, TASK-167 returns inline JSON/CSV export previews, TASK-168 adds the frontend report/export client, TASK-169 adds the focused report catalog UI, TASK-170 adds account setup readiness UI, TASK-171 adds inline export preview UI, TASK-172 adds campaign readiness UI, TASK-173 adds link/code workflow UI, TASK-174 adds product link/code API wrappers, TASK-175 adds validation recovery mapper proof, TASK-176 adds explicit validation idempotency posture proof, TASK-177 adds validation recovery UI proof, TASK-178 adds operator link/code inspection API proof, TASK-179 adds operator inspection UI proof, TASK-180 adds attribution trace API proof, TASK-181 adds attribution trace UI proof, TASK-182 adds progress/status diagnostics API proof, TASK-183 adds progress/status UI proof, TASK-184 adds support workflow hub proof, and TASK-185 adds ringfenced workspace proof. Persisted exports, support-case persistence/repair guardrails, account-safe status surfaces, and account/membership persistence remain open.</div>
             <div class="matrix-cell">Implement persisted export storage/audit/downloads, account membership UX, live redaction/export checks, and deeper report workflow actions.</div>
           </div>
           <div class="matrix-row" role="row">
@@ -1269,7 +1271,7 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Public API and frontend packaging</div>
-            <div class="matrix-cell">The API map and IA exist, focused admin surfaces are emerging, and product wrappers now cover reports/exports, link/code issue-validation-capture, operator link/code inspection, attribution trace API/UI, and progress/status API/UI, but customers still need account-scoped support surfaces and full product-shell cohesion.</div>
+            <div class="matrix-cell">The API map and IA exist, focused admin surfaces are now ringfenced in a Referral SaaS workspace, and product wrappers now cover reports/exports, link/code issue-validation-capture, operator link/code inspection, attribution trace API/UI, and progress/status API/UI, but customers still need account-scoped support surfaces, live proof, and customer/referrer-safe status surfaces.</div>
             <div class="matrix-cell">Ship TASK-143/TASK-144 implementation slices with auth, safe errors, and redaction tests.</div>
           </div>
           <div class="matrix-row" role="row">
@@ -1427,8 +1429,10 @@
       </section>
 
       <div class="footer-note">
-        Recommendation: continue after TASK-184 into support-case persistence guardrails, schema-backed idempotency, and account
-        implementation slices for the referral and campaign attribution SaaS.
+        Recommendation: continue after TASK-185 into live E2E proof,
+        account-safe status surfaces, support-case persistence guardrails,
+        schema-backed idempotency, and account implementation slices for the
+        referral and campaign attribution SaaS.
         Keep the code single-source, keep DLaaS money/marketplace depth
         separate, and use live verification plus E2E proof before upgrading the
         score to 10/10.

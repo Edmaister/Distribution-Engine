@@ -156,6 +156,7 @@ greenfield referral construction.
 48. TASK-182: Add Referral SaaS operator progress/status diagnostics API wrapper.
 49. TASK-183: Add Referral SaaS operator progress/status frontend surface.
 50. TASK-184: Add Referral SaaS operator support workflow hub.
+51. TASK-185: Add Referral SaaS focused workspace shell.
 
 ## 10/10 Exit Criteria
 
@@ -308,6 +309,12 @@ greenfield referral construction.
   `frontend/src/pages/admin/ReferralSaasOperatorLinkInspectPage.test.tsx`;
   `frontend/src/app/App.tsx`;
   `frontend/src/layout/Sidebar.tsx`
+- TASK-185: `frontend/src/pages/admin/ReferralSaasWorkspacePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasWorkspacePage.test.tsx`;
+  `frontend/src/layout/Sidebar.tsx`;
+  `frontend/src/layout/Sidebar.test.tsx`;
+  `frontend/src/app/App.tsx`;
+  `frontend/src/layout/AppShell.tsx`
 
 ## Explicit Deferrals
 

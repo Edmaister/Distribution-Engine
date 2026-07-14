@@ -21,10 +21,32 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useBackendSession, workspaceForPath } from "../auth/useBackendSession";
 
-const sections = [
+const referralSaasSections = [
+  {
+    label: "Referral SaaS",
+    links: [
+      { to: "/admin/referral-saas", label: "Workspace Home", icon: Gauge, sub: "Home" },
+      { to: "/admin/referral-saas/account-setup", label: "Account Setup", icon: Building2, sub: "Account" },
+      { to: "/admin/referral-saas/campaigns", label: "Campaigns", icon: Target, sub: "Ready" },
+      { to: "/admin/referral-saas/link-codes", label: "Links & Codes", icon: Link2, sub: "Codes" },
+      { to: "/admin/referral-saas/reports", label: "Reports", icon: ChartNoAxesColumn, sub: "Reports" },
+    ],
+  },
+  {
+    label: "Attribution & Support",
+    links: [
+      { to: "/admin/referral-saas/support", label: "Support Hub", icon: ShieldCheck, sub: "Hub" },
+      { to: "/admin/referral-saas/operator-links", label: "Link Inspection", icon: ShieldCheck, sub: "Inspect" },
+      { to: "/admin/referral-saas/attribution-trace", label: "Attribution Trace", icon: Split, sub: "Trace" },
+      { to: "/admin/referral-saas/progress-status", label: "Progress Status", icon: ListChecks, sub: "Status" },
+    ],
+  },
+];
+
+const platformSections = [
   {
     label: "Distributor - Demand",
     links: [
@@ -77,6 +99,10 @@ const sections = [
 
 export function Sidebar() {
   const backend = useBackendSession();
+  const location = useLocation();
+  const inReferralSaasWorkspace = location.pathname === "/admin/referral-saas" ||
+    location.pathname.startsWith("/admin/referral-saas/");
+  const sections = inReferralSaasWorkspace ? referralSaasSections : platformSections;
 
   return (
     <aside className="sidebar">
@@ -86,8 +112,10 @@ export function Sidebar() {
             <Sparkles size={18} />
           </span>
           <div>
-            <div className="brand-title">Amplifi</div>
-            <div className="brand-subtitle">Distribution OS</div>
+            <div className="brand-title">{inReferralSaasWorkspace ? "Referral SaaS" : "Amplifi"}</div>
+            <div className="brand-subtitle">
+              {inReferralSaasWorkspace ? "Management & Attribution" : "Distribution OS"}
+            </div>
           </div>
         </div>
       </div>

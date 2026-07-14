@@ -158,6 +158,11 @@ Current API/client foundations:
   campaign readiness, and reporting surfaces, shows evidence order and
   mutation guardrails, and does not render support-case write, repair, retry,
   replay, reward, money, or DLaaS controls.
+- `/admin/referral-saas` now provides the TASK-185 focused workspace shell. It
+  ringfences Referral Management and Campaign Attribution SaaS navigation from
+  broader DLaaS/demo/admin surfaces and links only to account setup, campaign
+  readiness, link/code workflow, reports, support, link inspection,
+  attribution trace, and progress/status routes.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.
@@ -166,11 +171,11 @@ Current API/client foundations:
 
 Current frontend gaps:
 
-- Dedicated Referral SaaS admin routes have started for account setup
-  readiness, campaign readiness, link/code workflow, and reports, but a full
-  product shell is still future work.
-- Current navigation is still broader Distribution OS/DLaaS oriented, though
-  focused Referral SaaS setup and report entries now exist.
+- Dedicated Referral SaaS admin routes now have a focused `/admin/referral-saas`
+  workspace shell and sidebar mode for the first-launch product workflow.
+- Broader Distribution OS/DLaaS navigation still exists outside the Referral
+  SaaS workspace, but it is no longer mixed into `/admin/referral-saas/*`
+  product routes.
 - Current consumer-facing calls still pass `tenantCode`, `referrerUcn`, and
   sometimes `referralTrackId` directly.
 - Link/code issue, validation, identity capture, operator inspection, and
@@ -395,7 +400,8 @@ When implementation starts, add or preserve tests for:
 ## Readiness Decision
 
 Referral SaaS has enough frontend foundation to support a strong product
-workflow, but it is not yet packaged as a focused Referral SaaS IA. TASK-144
-defines the product shell, navigation, role boundaries, workflow contracts, copy
-rules, and test expectations needed before implementation changes reorganize
-the existing pages into a coherent SaaS experience.
+workflow, and TASK-185 now packages the existing first-launch admin surfaces
+behind a focused Referral SaaS workspace shell. Remaining frontend work should
+focus on account-safe customer/referrer status, support-case execution
+guardrails, live E2E proof, and deeper campaign/account workflows rather than
+mixing Referral SaaS with broader DLaaS navigation.
