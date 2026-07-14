@@ -162,6 +162,7 @@ greenfield referral construction.
 54. TASK-188: Clarify Referral SaaS account setup next action.
 55. TASK-189: Position Account Setup Readiness inside setup workflow.
 56. TASK-190: Define Referral SaaS account setup and maintenance workflow architecture.
+57. TASK-191: Define Referral SaaS account setup wrapper contract.
 
 ## 10/10 Exit Criteria
 
@@ -195,6 +196,8 @@ greenfield referral construction.
 - TASK-146: `docs/sa/referral-saas/REFERRAL_SAAS_AUDIT_IDEMPOTENCY_POSTURE.md`
 - TASK-190:
   `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_MAINTENANCE_WORKFLOW_ARCHITECTURE.md`
+- TASK-191:
+  `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_WRAPPER_CONTRACT.md`
 
 ## Completed Implementation Outputs
 

@@ -30,6 +30,7 @@ Required boundary docs checked:
 - `docs/sa/referral-saas/REFERRAL_SAAS_ATTRIBUTION_TRACE_CONTRACT.md`
 - `docs/sa/referral-saas/REFERRAL_SAAS_SAFE_STATUS_CONTRACT.md`
 - `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`
+- `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_WRAPPER_CONTRACT.md`
 
 Source files inspected:
 
@@ -119,7 +120,11 @@ Future Referral SaaS APIs should follow these rules:
 | Target route | Method | Current source/wrapper | Auth | Notes |
 |---|---|---|---|---|
 | `/v1/referral-saas/account` | `GET` | TASK-134 contract; future account wrapper | SaaS account admin/member | Not currently implemented as product route. |
-| `/v1/referral-saas/account/setup` | `GET` | TASK-134 setup checklist | SaaS account admin/member | Should not expose raw `tenant_code`. |
+| `/v1/referral-saas/account-setup/drafts` | `POST` | TASK-191 wrapper over `POST /admin/onboarding/drafts` | Admin/onboarding bridge first; future account setup role | Future wrapper contract only. Saves setup evidence, carries idempotency/audit posture, and must reject internal `tenant_code`. |
+| `/v1/referral-saas/account-setup/validate` | `POST` | TASK-191 wrapper over `POST /admin/onboarding/validate` | Admin/onboarding bridge first; future account setup role | Future wrapper contract only. Validates setup evidence without saving or live actions. |
+| `/v1/referral-saas/account-setup/readiness` | `GET` | TASK-191 wrapper over `GET /admin/onboarding/state` | Admin/onboarding bridge first; future account setup/member/support role | Future wrapper contract only. Read-only integrated readiness in product language. |
+| `/v1/referral-saas/account-setup/drafts/{draftRef}/submit-for-review` | `POST` | TASK-191 wrapper over `POST /admin/onboarding/drafts/{draft_ref}/submit-for-review` | Admin/onboarding bridge first; future account setup submit role | Future wrapper contract only. Review handoff, not account activation or go-live. |
+| `/v1/referral-saas/account-setup/drafts/{draftRef}/review-decision` | `POST` | TASK-191 wrapper over `POST /admin/onboarding/drafts/{draft_ref}/review-decision` | Operator/admin reviewer | Future wrapper contract only. Records review outcome, not account creation, invitation, tenant-link, or campaign activation. |
 
 ### Campaigns
 

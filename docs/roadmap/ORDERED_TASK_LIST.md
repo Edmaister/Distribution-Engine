@@ -3890,6 +3890,32 @@ Rollback notes: Revert the architecture contract and roadmap/gap/index updates.
 Explicit non-goals: Do not add backend routes, schema, migrations, permission changes, API wrappers, frontend pages, account creation, membership writes, tenant-link persistence, user invitations, account maintenance operations, reference rotation, credential rotation, support-case writes, issue/reissue/revoke/expire/void commands, attribution overrides, validation idempotency keys, duplicate reuse, live DB checks, audit writes, repair, replay, retry commands, campaign activation, webhook delivery, reward application, reward fulfilment, reward funding, reward settlement, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, SaaS billing, source-code forks, or broad DLaaS behavior.
 Definition of done: Referral SaaS has a documented architecture for real Account Setup, integrated readiness, and Account Maintenance, with a clear implementation path that starts from existing onboarding draft/readiness primitives and avoids fake SaaS account behavior. Priority: P0.
 
+## TASK-191: Define Referral SaaS account setup wrapper contract
+
+Status: Complete (2026-07-14). Output: `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_WRAPPER_CONTRACT.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_MAINTENANCE_WORKFLOW_ARCHITECTURE.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Defines how Referral SaaS should wrap shared admin onboarding draft, validation, readiness, submit-for-review, review-decision, idempotency, and audit primitives without duplicating source logic. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account setup product API contract; onboarding draft wrapper boundary; integrated readiness wrapper.
+Objective: Define the near-term Referral SaaS Account Setup product wrapper contract over existing onboarding draft/readiness primitives before building the setup workflow shell.
+Why now: TASK-190 established that Account Setup must become a real workflow, not a readiness-only page. The next safe step is to define exactly how product routes may compose existing onboarding primitives while preserving no-live-action, no-tenant-code, idempotency, audit, and no-fake-account boundaries.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_WRAPPER_CONTRACT.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `apps/api/routers/admin_onboarding.py`; `frontend/src/api/endpoints/adminOnboarding.ts`; `services/onboarding/onboarding_draft_repository.py`; `dp/migrations/080_onboarding_draft_persistence.sql`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: None.
+API impact: No route implementation. Contract defines future `/v1/referral-saas/account-setup/*` wrappers for draft save, validate, readiness, submit-for-review, and review-decision over existing admin onboarding primitives.
+Tests to add/update: No runtime tests; docs-only contract with readback and diff validation. Future implementation must add product wrapper route, mapping, permission, idempotency, redaction, no-internal-leak, and no-live-action tests.
+Validation method: Readback of the new contract and roadmap/gap/index/API-map references; `git diff --check`.
+Acceptance criteria: Contract maps product account setup requests/responses to existing onboarding draft/readiness primitives; defines product route family; preserves idempotency, audit, no-live-action, and no-tenant-code posture; separates setup evidence capture from durable account creation; explicitly excludes account creation, membership, invitations, maintenance commands, live launch, campaign activation, money, and broad DLaaS behavior.
+Dependencies: TASK-134; TASK-170; TASK-190.
+Blocked by: None for contract. Implementation remains blocked by future route, frontend shell, permission, and durable account/member primitive tasks.
+Risk level: Low.
+Rollback notes: Revert the wrapper contract and roadmap/gap/index/API-map updates.
+Explicit non-goals: Do not add backend routes, schema, migrations, permission changes, OpenAPI output, frontend pages, account creation, internal tenant creation, tenant-link persistence, external-reference resolver, account selector, membership writes, user invitations, account maintenance operations, reference rotation, credential lifecycle, support-case writes, issue/reissue/revoke/expire/void commands, attribution overrides, validation idempotency changes, duplicate reuse, live DB checks, audit writes beyond current primitive contract, repair, replay, retry commands, campaign activation, webhook delivery, reward application, reward fulfilment, reward funding, reward settlement, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, SaaS billing, source-code forks, or broad DLaaS behavior.
+Definition of done: Referral SaaS has a source-backed product wrapper contract for Account Setup that can drive the next workflow-shell and API-wrapper tasks without faking SaaS account creation. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
