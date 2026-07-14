@@ -156,6 +156,8 @@ describe("ReferralSaasAccountSetupPage", () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
     expect(await screen.findByRole("heading", { name: "Recommended setup path" })).toBeInTheDocument();
+    expect(screen.getByText("Do this next: fix the setup blockers")).toBeInTheDocument();
+    expect(screen.getByText(/Use the Step 2 actions to fill the missing setup evidence/)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Step 1: Check the account" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Step 2: Fix setup blockers" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Step 3: Continue to campaigns" })).toBeInTheDocument();
@@ -179,6 +181,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     });
 
     expect(screen.getByText("Changes not checked")).toBeInTheDocument();
+    expect(screen.getByText("Do this next: check the account references")).toBeInTheDocument();
     expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Check setup" }));
@@ -189,6 +192,7 @@ describe("ReferralSaasAccountSetupPage", () => {
         organisation_ref: "fnb-referral-org",
       }),
     );
+    expect(await screen.findByText("Do this next: fix the setup blockers")).toBeInTheDocument();
     expect(JSON.stringify(mockedGetAdminOnboardingState.mock.calls)).not.toMatch(
       /account_ref|tenant_code|api_key|client_secret/i,
     );

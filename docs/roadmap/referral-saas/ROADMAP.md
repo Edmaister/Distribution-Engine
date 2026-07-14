@@ -159,6 +159,7 @@ greenfield referral construction.
 51. TASK-185: Add Referral SaaS focused workspace shell.
 52. TASK-186: Add Referral SaaS workspace and account setup testing guidance.
 53. TASK-187: Stabilize Referral SaaS account setup scope inputs.
+54. TASK-188: Clarify Referral SaaS account setup next action.
 
 ## 10/10 Exit Criteria
 
@@ -322,6 +323,8 @@ greenfield referral construction.
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`
 - TASK-187: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`
+- TASK-188: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`
 
 ## Explicit Deferrals

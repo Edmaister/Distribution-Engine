@@ -172,6 +172,10 @@ Current API/client foundations:
   editing external account references stays local until the tester clicks
   `Check setup`. This prevents readiness reloads and visual flicker on every
   keystroke without changing the API contract.
+- TASK-188 clarifies the account setup post-check decision by adding a
+  `Do this next` instruction to the recommended setup path. It points testers
+  to step 1 when references changed, step 2 when blockers or missing evidence
+  remain, and step 3 when the account setup has no blocker count.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.
@@ -414,7 +418,9 @@ behind a focused Referral SaaS workspace shell. TASK-186 makes that shell and
 the account setup screen usable as local testing entry points by adding
 explicit purpose, action, first-step, and next-screen guidance. TASK-187 keeps
 account setup scope entry stable by applying reference changes only when the
-tester requests a setup check. Remaining
+tester requests a setup check. TASK-188 adds a post-check next-action
+instruction so testers know whether to check changed references, fix setup
+blockers, or continue to campaign readiness. Remaining
 frontend work should focus on account-safe customer/referrer status,
 support-case execution guardrails, live E2E proof, and deeper campaign/account
 workflows rather than mixing Referral SaaS with broader DLaaS navigation.
