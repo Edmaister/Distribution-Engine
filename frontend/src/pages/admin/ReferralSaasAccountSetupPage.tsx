@@ -54,6 +54,44 @@ const accountChecklist = [
   },
 ];
 
+const setupWorkflowLinks = [
+  {
+    code: "ACCOUNT_PROFILE",
+    copy: "Capture company profile, organisation reference, and primary setup contact evidence.",
+    label: "Company profile",
+    path: "/admin/onboarding/company",
+  },
+  {
+    code: "MEMBERSHIP",
+    copy: "Confirm owner, campaign manager, support, analyst, and integration role intent.",
+    label: "Users and roles",
+    path: "/admin/onboarding/members-roles",
+  },
+  {
+    code: "WEBHOOK_API",
+    copy: "Document API and webhook setup intent without creating credentials or sending webhooks.",
+    label: "Integration setup",
+    path: "/admin/onboarding/webhook-api",
+  },
+  {
+    code: "READINESS",
+    copy: "Run the integrated readiness checkpoint before review handoff or campaign testing.",
+    label: "Readiness checkpoint",
+    path: "/admin/referral-saas/account-setup",
+  },
+  {
+    code: "REVIEW_HANDOFF",
+    copy: "Submit and review actions remain disabled until the product wrapper is implemented.",
+    label: "Review handoff",
+  },
+  {
+    code: "CAMPAIGN_READINESS",
+    copy: "Continue only when setup evidence is clear enough for referral testing.",
+    label: "Campaign setup",
+    path: "/admin/referral-saas/campaigns",
+  },
+];
+
 export function ReferralSaasAccountSetupPage() {
   const { refreshKey } = useRefreshContext();
   const [draftExternalTenantRef, setDraftExternalTenantRef] = useState(defaultExternalTenantRef);
@@ -94,6 +132,9 @@ export function ReferralSaasAccountSetupPage() {
   const goLiveDisabledCount = formatDisplay(goLiveDisabledCountValue);
   const needsSetupWork = blockedCountValue > 0 || missingEvidenceCountValue > 0;
   const nextStep = getAccountSetupNextStep(scopeChanged, needsSetupWork);
+  const workflowSteps = setupWorkflowLinks.map((step) =>
+    resolveWorkflowStep(step, categories, scopeChanged, needsSetupWork),
+  );
   const resolvedRows = accountChecklist.map((item) => {
     const matchingCategory = categories.find((category) => categoryMatches(category, item));
     const status = formatDisplay(
@@ -123,111 +164,69 @@ export function ReferralSaasAccountSetupPage() {
     <>
       <section className="page-header">
         <div>
-          <div className="page-kicker">Referral SaaS - Account Setup Workflow</div>
-          <h1 className="page-title">Account setup readiness</h1>
+          <div className="page-kicker">Referral SaaS - Account Setup</div>
+          <h1 className="page-title">Account setup workflow</h1>
           <p className="page-copy">
-            Use this checkpoint inside Account Setup before testing campaigns,
-            links, attribution, or reports. It confirms whether setup evidence
-            is ready, blocked, or missing.
+            Work through company setup, roles, integration intent, readiness,
+            and review handoff before testing campaigns, links, attribution, or
+            reports.
           </p>
         </div>
         <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
-      </section>
-
-      <section className="grid-3">
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">Where this fits</h2>
-              <div className="panel-subtitle">This is the readiness checkpoint inside Account Setup.</div>
-            </div>
-            <StatusBadge label="Setup" tone="info" />
-          </div>
-          <div className="panel-body">
-            <p className="page-copy">
-              Account Setup is the wider workflow. This screen checks whether
-              company profile, tenant link, membership, campaign-readiness, and
-              reporting-baseline evidence are ready before moving deeper into
-              the product.
-            </p>
-          </div>
-        </div>
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">What you can do here</h2>
-              <div className="panel-subtitle">Review readiness and jump to setup actions.</div>
-            </div>
-            <ClipboardCheck size={18} />
-          </div>
-          <div className="panel-body">
-            <p className="page-copy">
-              You can load safe account references, see what is ready or
-              blocked, and open the setup action that captures missing evidence.
-              This page does not create accounts or invite users.
-            </p>
-          </div>
-        </div>
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">What to do next</h2>
-              <div className="panel-subtitle">Fix account blockers before campaign testing.</div>
-            </div>
-            <ArrowRight size={18} />
-          </div>
-          <div className="panel-body">
-            <p className="page-copy">
-              First confirm the account scope below. Then resolve any setup
-              blockers. Move to campaign readiness only when this checkpoint is
-              clear enough for referral testing.
-            </p>
-          </div>
-        </div>
       </section>
 
       {isLoading ? <LoadingState label="Loading Referral SaaS account setup" /> : null}
       {error ? <ErrorPanel error={error} /> : null}
       {!isLoading && !error ? (
         <>
-          <section className="grid-4">
-            <KpiCard label="Ready setup gates" value={readyCount} footnote="Can support testing" icon={CheckCircle2} />
-            <KpiCard label="Blocked setup gates" value={blockedCount} footnote="Fix before moving on" icon={ShieldCheck} />
-            <KpiCard label="Evidence gaps" value={missingEvidenceCount} footnote="Missing setup proof" icon={Building2} />
-            <KpiCard label="Launch actions here" value="0" footnote={`${goLiveDisabledCount} go-live blocker shown`} icon={KeyRound} />
-          </section>
-
-          <section className="panel">
+          <section className="panel journey-panel" aria-labelledby="account-setup-workflow-heading">
             <div className="panel-header">
               <div>
-                <h2 className="panel-title">Account setup workflow</h2>
+                <h2 className="panel-title" id="account-setup-workflow-heading">
+                  Guided setup path
+                </h2>
                 <div className="panel-subtitle">
-                  Use this readiness checkpoint as part of setup. Each step contains its own action.
+                  Follow the steps in order. Readiness is one checkpoint inside setup, not the whole workflow.
                 </div>
               </div>
               <StatusBadge label={nextStep.badge} tone={nextStep.tone} />
             </div>
-            <div className="panel-body route-list">
-              <div className="route-item">
+            <div className="panel-body">
+              <div className="journey-summary">
                 <div>
                   <div className="route-name">{nextStep.title}</div>
                   <div className="route-path">{nextStep.copy}</div>
                 </div>
                 <StatusBadge label={nextStep.actionLabel} tone={nextStep.tone} />
               </div>
-            </div>
-            <div className="panel-body grid-3">
-              <div className="panel">
-                <div className="panel-header">
-                  <div>
-                    <h3 className="panel-title">Step 1: Confirm account scope</h3>
-                    <div className="panel-subtitle">
-                      Load the account setup evidence you want to review.
+
+              <ol className="journey-steps account-setup-journey">
+                {workflowSteps.map((step, index) => (
+                  <li className={`journey-step ${step.state}`} key={step.label}>
+                    <div className="journey-step-index">
+                      <span>{index + 1}</span>
+                      <StatusBadge label={step.badge} tone={step.tone} />
                     </div>
+                    <div>
+                      <div className="journey-step-title">{step.label}</div>
+                      <p className="journey-step-copy">{step.copy}</p>
+                    </div>
+                    <div className="journey-step-area">
+                      <span>{step.actionLabel}</span>
+                      {step.path ? <Link to={step.path}>{step.actionText}</Link> : <strong>{step.actionText}</strong>}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+
+              <div className="account-setup-action-grid">
+                <form className="account-setup-scope-form" onSubmit={submitScope}>
+                  <div>
+                    <h3 className="panel-title">Step 1 action: check account scope</h3>
+                    <p className="journey-step-copy">
+                      Confirm which setup evidence to load. Typing stays local until you run the check.
+                    </p>
                   </div>
-                  <StatusBadge label={scopeChanged ? "Changes not checked" : "Loaded"} tone={scopeChanged ? "warning" : "success"} />
-                </div>
-                <form className="panel-body route-list" onSubmit={submitScope}>
                   <label className="field">
                     <span>External tenant ref</span>
                     <input
@@ -247,41 +246,32 @@ export function ReferralSaasAccountSetupPage() {
                   <button className="button" disabled={!canCheckScope} type="submit">
                     Check readiness
                   </button>
+                  <StatusBadge label={scopeChanged ? "Changes not checked" : "Loaded"} tone={scopeChanged ? "warning" : "success"} />
                 </form>
-              </div>
-
-              <div className="panel">
-                <div className="panel-header">
-                  <div>
-                    <h3 className="panel-title">Step 2: Complete setup actions</h3>
-                    <div className="panel-subtitle">
-                      {needsSetupWork
-                        ? "This is your next step because setup still has blocked or missing evidence."
-                        : "Skip this for now because this readiness check has no blocker count."}
+                <div className="route-list">
+                  <div className="route-item">
+                    <div>
+                      <div className="route-name">Step 2 action: complete setup evidence</div>
+                      <div className="route-path">
+                        Use company, role, and integration setup only when the readiness check shows missing evidence.
+                      </div>
                     </div>
+                    <ClipboardCheck size={18} />
                   </div>
-                  <StatusBadge label={needsSetupWork ? "Do next" : "No blockers"} tone={needsSetupWork ? "warning" : "success"} />
-                </div>
-                <div className="panel-body route-list">
                   <SetupLink to="/admin/onboarding/company" title="Company onboarding" copy="Capture company evidence and external references." />
                   <SetupLink to="/admin/onboarding/members-roles" title="User and role setup" copy="Confirm owner, campaign manager, support, analyst, and integration roles." />
-                  <SetupLink to="/admin/referral-saas/reports" title="Report baseline" copy="Confirm reporting baseline and redaction posture." />
+                  <SetupLink to="/admin/onboarding/webhook-api" title="Integration setup" copy="Document API and webhook setup intent without creating credentials." />
                 </div>
-              </div>
-
-              <div className="panel">
-                <div className="panel-header">
-                  <div>
-                    <h3 className="panel-title">Step 3: Continue to campaign setup</h3>
-                    <div className="panel-subtitle">
-                      {needsSetupWork || scopeChanged
-                        ? "Wait until account scope is checked and setup blockers are clear."
-                        : "This is your next step because account setup is ready enough for campaign testing."}
+                <div className="route-list">
+                  <div className="route-item">
+                    <div>
+                      <div className="route-name">Step 3 action: move to campaign setup</div>
+                      <div className="route-path">
+                        Continue only after account setup evidence is checked and blockers are understood.
+                      </div>
                     </div>
+                    <ArrowRight size={18} />
                   </div>
-                  <StatusBadge label={needsSetupWork || scopeChanged ? "Wait" : "Do next"} tone={needsSetupWork || scopeChanged ? "neutral" : "success"} />
-                </div>
-                <div className="panel-body route-list">
                   <SetupLink
                     to="/admin/referral-saas/campaigns"
                     title="Campaign readiness"
@@ -290,6 +280,13 @@ export function ReferralSaasAccountSetupPage() {
                 </div>
               </div>
             </div>
+          </section>
+
+          <section className="grid-4">
+            <KpiCard label="Ready setup gates" value={readyCount} footnote="Can support testing" icon={CheckCircle2} />
+            <KpiCard label="Blocked setup gates" value={blockedCount} footnote="Fix before moving on" icon={ShieldCheck} />
+            <KpiCard label="Evidence gaps" value={missingEvidenceCount} footnote="Missing setup proof" icon={Building2} />
+            <KpiCard label="Launch actions here" value="0" footnote={`${goLiveDisabledCount} go-live blocker shown`} icon={KeyRound} />
           </section>
 
           <section className="grid-2">
@@ -513,6 +510,70 @@ function getAccountSetupNextStep(scopeChanged: boolean, needsSetupWork: boolean)
     copy: "The account setup readiness check has no blocker count. Continue to campaign setup readiness before testing links and attribution.",
     title: "Do this next: continue to campaign setup",
     tone: "success" as const,
+  };
+}
+
+function resolveWorkflowStep(
+  step: (typeof setupWorkflowLinks)[number],
+  categories: Record<string, unknown>[],
+  scopeChanged: boolean,
+  needsSetupWork: boolean,
+) {
+  const category = categories.find((item) => getValue(item, ["category"], "") === step.code);
+  const status = formatDisplay(
+    getNestedValue(category, ["safe_display_status", "label"], getNestedValue(category, ["status"], "")),
+  );
+  const ready = status === "READY" || status === "Ready";
+  const blocked = [
+    "BLOCKED",
+    "MISSING_EVIDENCE",
+    "NEEDS_EVIDENCE",
+    "NEEDS_ATTENTION",
+    "Blocked",
+    "Missing evidence",
+    "Needs evidence",
+  ].includes(status);
+
+  if (step.code === "READINESS") {
+    return {
+      ...step,
+      actionLabel: "Current checkpoint",
+      actionText: scopeChanged ? "Check readiness" : "Readiness loaded",
+      badge: scopeChanged ? "Check" : needsSetupWork ? "Active" : "Ready",
+      state: scopeChanged ? "blocked" : needsSetupWork ? "current" : "done",
+      tone: scopeChanged ? ("warning" as const) : needsSetupWork ? ("info" as const) : ("success" as const),
+    };
+  }
+
+  if (step.code === "REVIEW_HANDOFF") {
+    return {
+      ...step,
+      actionLabel: "Future action",
+      actionText: "Requires draft save wrapper",
+      badge: "Future",
+      state: "review",
+      tone: "warning" as const,
+    };
+  }
+
+  if (step.code === "CAMPAIGN_READINESS") {
+    return {
+      ...step,
+      actionLabel: "Next product step",
+      actionText: "Open campaign readiness",
+      badge: needsSetupWork || scopeChanged ? "Wait" : "Next",
+      state: needsSetupWork || scopeChanged ? "blocked" : "current",
+      tone: needsSetupWork || scopeChanged ? ("neutral" as const) : ("success" as const),
+    };
+  }
+
+  return {
+    ...step,
+    actionLabel: "Setup action",
+    actionText: `Open ${step.label.toLowerCase()}`,
+    badge: ready ? "Ready" : blocked ? "Fix" : "Check",
+    state: ready ? "done" : blocked ? "blocked" : "current",
+    tone: ready ? ("success" as const) : blocked ? ("warning" as const) : ("info" as const),
   };
 }
 

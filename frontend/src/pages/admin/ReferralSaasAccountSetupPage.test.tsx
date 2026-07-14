@@ -115,6 +115,14 @@ function panelByHeading(heading: string) {
   return within(panel as HTMLElement);
 }
 
+function lastMatch(elements: HTMLElement[]) {
+  const element = elements[elements.length - 1];
+  if (!element) {
+    throw new Error("Expected at least one matching element");
+  }
+  return element;
+}
+
 describe("ReferralSaasAccountSetupPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -128,7 +136,7 @@ describe("ReferralSaasAccountSetupPage", () => {
   it("renders account setup readiness from external references", async () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
-    expect(await screen.findByRole("heading", { name: "Account setup readiness" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Account setup workflow" })).toBeInTheDocument();
     await waitFor(() =>
       expect(mockedGetAdminOnboardingState).toHaveBeenCalledWith({
         external_tenant_ref: "demo-platform-operator",
@@ -146,23 +154,28 @@ describe("ReferralSaasAccountSetupPage", () => {
   it("explains the screen purpose, actions, and next step", async () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
-    expect(await screen.findByRole("heading", { name: "Where this fits" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "What you can do here" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "What to do next" })).toBeInTheDocument();
-    expect(screen.getByText(/This is the readiness checkpoint inside Account Setup/)).toBeInTheDocument();
-    expect(screen.getByText(/This page does not create accounts or invite users/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Guided setup path" })).toBeInTheDocument();
+    expect(screen.getByText(/Readiness is one checkpoint inside setup/)).toBeInTheDocument();
+    expect(screen.getByText(/Submit and review actions remain disabled/)).toBeInTheDocument();
+    expect(screen.getByText(/Account creation remains future work/)).toBeInTheDocument();
   });
 
   it("shows a recommended account setup testing path", async () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
-    expect(await screen.findByRole("heading", { name: "Account setup workflow" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Guided setup path" })).toBeInTheDocument();
     expect(screen.getByText("Do this next: complete setup actions")).toBeInTheDocument();
     expect(screen.getByText(/Use the Step 2 actions to fill the missing setup evidence/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Step 1: Confirm account scope" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Step 2: Complete setup actions" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Step 3: Continue to campaign setup" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Campaign readiness/ })).toHaveAttribute(
+    expect(screen.getByRole("heading", { name: "Step 1 action: check account scope" })).toBeInTheDocument();
+    expect(screen.getByText("Step 2 action: complete setup evidence")).toBeInTheDocument();
+    expect(screen.getByText("Step 3 action: move to campaign setup")).toBeInTheDocument();
+    expect(screen.getAllByText("Company profile").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Users and roles").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Integration setup").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Readiness checkpoint").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Review handoff").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Campaign setup").length).toBeGreaterThan(0);
+    expect(lastMatch(screen.getAllByRole("link", { name: /Campaign readiness/ }))).toHaveAttribute(
       "href",
       "/admin/referral-saas/campaigns",
     );
@@ -171,7 +184,7 @@ describe("ReferralSaasAccountSetupPage", () => {
   it("keeps scope typing local until the tester checks setup", async () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
-    await screen.findByRole("heading", { name: "Account setup readiness" });
+    await screen.findByRole("heading", { name: "Account setup workflow" });
     await waitFor(() => expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1));
 
     fireEvent.change(screen.getByLabelText("External tenant ref"), {
@@ -215,19 +228,19 @@ describe("ReferralSaasAccountSetupPage", () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
     await screen.findByText("ACCOUNT_PROFILE");
-    expect(screen.getByRole("link", { name: /Company onboarding/ })).toHaveAttribute(
+    expect(lastMatch(screen.getAllByRole("link", { name: /Company onboarding/ }))).toHaveAttribute(
       "href",
       "/admin/onboarding/company",
     );
-    expect(screen.getByRole("link", { name: /User and role setup/ })).toHaveAttribute(
+    expect(lastMatch(screen.getAllByRole("link", { name: /User and role setup/ }))).toHaveAttribute(
       "href",
       "/admin/onboarding/members-roles",
     );
-    expect(screen.getByRole("link", { name: /Report baseline/ })).toHaveAttribute(
+    expect(lastMatch(screen.getAllByRole("link", { name: /Integration setup/ }))).toHaveAttribute(
       "href",
-      "/admin/referral-saas/reports",
+      "/admin/onboarding/webhook-api",
     );
-    expect(screen.getByRole("link", { name: /Campaign readiness/ })).toHaveAttribute(
+    expect(lastMatch(screen.getAllByRole("link", { name: /Campaign readiness/ }))).toHaveAttribute(
       "href",
       "/admin/referral-saas/campaigns",
     );
