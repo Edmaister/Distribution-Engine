@@ -614,8 +614,12 @@ a {
 }
 
 .journey-summary {
+  align-items: center;
   border: 1px solid var(--color-rule);
   border-radius: var(--radius-panel);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
   padding: 14px;
 }
 
@@ -627,6 +631,25 @@ a {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+.journey-steps.account-setup-journey {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.account-setup-action-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(240px, 0.9fr) repeat(2, minmax(220px, 1fr));
+}
+
+.account-setup-scope-form {
+  align-content: start;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-panel);
+  display: grid;
+  gap: 12px;
+  padding: 14px;
 }
 
 .journey-step {
@@ -4058,6 +4081,7 @@ textarea.input {
   .marketplace-pulse-grid,
   .guidance-grid,
   .journey-steps,
+  .account-setup-action-grid,
   .capability-grid,
   .action-guardrail-list,
   .summary-grid,

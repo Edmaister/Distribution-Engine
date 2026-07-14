@@ -181,6 +181,11 @@ Current API/client foundations:
   sidebar/product area remains Account Setup, while the page copy and steps
   avoid implying that the readiness screen creates accounts, invites users, or
   performs account maintenance.
+- TASK-192 turns `/admin/referral-saas/account-setup` into the first Account
+  Setup workflow shell. It shows company profile, users and roles, integration
+  setup, readiness checkpoint, review handoff, and campaign setup as one
+  ordered path, keeps each action in the related step, and leaves draft
+  save/submit/review actions disabled until the product wrapper is implemented.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.

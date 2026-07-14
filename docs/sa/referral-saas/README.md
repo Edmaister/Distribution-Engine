@@ -225,3 +225,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   keeps `tenant_code`, secrets, account creation, membership, invitations,
   maintenance commands, live launch, and money behavior out of the product
   wrapper.
+- TASK-192 turns the focused account setup surface into an Account Setup
+  workflow shell. It presents company profile, users and roles, integration
+  setup, readiness, review handoff, and campaign setup as one ordered path
+  while still using existing read-only readiness evidence and keeping draft
+  save/review, account creation, invitations, membership writes, go-live, and
+  money actions out of scope.
