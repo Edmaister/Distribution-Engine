@@ -3864,6 +3864,32 @@ Rollback notes: Revert the account setup readiness copy/test updates plus docs.
 Explicit non-goals: Do not add backend routes, schema, migrations, permission changes, API wrappers, support-case tables, support-case writes, account creation, membership writes, tenant-link persistence, user invitations, account maintenance operations, issue/reissue/revoke/expire/void commands, attribution overrides, validation idempotency keys, duplicate reuse, live DB checks, audit writes, repair, replay, retry commands, campaign activation, webhook delivery, reward application, reward fulfilment, reward funding, reward settlement, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, SaaS billing, source-code forks, or broad DLaaS behavior.
 Definition of done: Account Setup is presented as the parent workflow and the current page is clearly presented as the readiness checkpoint inside it, with setup actions and campaign continuation still bounded to the Referral SaaS product surface. Priority: P1.
 
+## TASK-190: Define Referral SaaS account setup and maintenance workflow architecture
+
+Status: Complete (2026-07-14). Output: `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_MAINTENANCE_WORKFLOW_ARCHITECTURE.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_CONTRACT.md`; `docs/sa/TENANT_ACCOUNT_LIFECYCLE_MEMBERSHIP_MODEL.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Defines how Referral SaaS should use shared onboarding draft/readiness primitives as the first setup foundation while preserving future shared account, tenant-link, external-reference, membership, audit, and permission boundaries. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account setup workflow architecture; integrated readiness; account maintenance workflow; setup and maintenance boundary.
+Objective: Define the real Account Setup workflow, integrated readiness checkpoint, and Account Maintenance workflow so future work does not keep polishing a readiness-only page or build fake account behavior.
+Why now: Product testing showed that Account Setup Readiness is useful but incomplete. The 10/10 SaaS gap is real account setup and account maintenance, not more readiness-page copy. Current code has onboarding draft persistence and safe readiness primitives, but not durable account records, account-to-tenant links, membership, account selector, invitations, lifecycle commands, or maintenance operations.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_MAINTENANCE_WORKFLOW_ARCHITECTURE.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `dp/migrations/080_onboarding_draft_persistence.sql`; `services/onboarding/onboarding_draft_repository.py`; `services/onboarding/onboarding_state_projection_service.py`; `apps/api/routers/admin_onboarding.py`; `services/tenant_service.py`; `apps/api/routers/admin_tenants.py`; `frontend/src/api/endpoints/adminOnboarding.ts`; `frontend/src/pages/admin/CompanyOnboardingPage.tsx`; `frontend/src/pages/admin/MemberRoleOnboardingPage.tsx`; `frontend/src/pages/admin/OnboardingReadinessChecklistPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: No runtime tests; docs-only architecture contract with readback and diff validation.
+Validation method: Readback of the new contract and roadmap/gap/index references; `git diff --check`.
+Acceptance criteria: Architecture separates Account Setup, Account Setup Readiness, Account Maintenance, and Campaign Setup; identifies which current onboarding draft/readiness primitives are reusable; identifies missing durable account/member primitives; defines implementation sequence for setup wrapper, setup workflow, maintenance contract, maintenance shell, selector, and future schema/service primitives; explicitly prevents fake account creation, invitations, membership, tenant-link, reference-rotation, maintenance, money, or DLaaS behavior.
+Dependencies: TASK-134; TASK-170; TASK-186; TASK-187; TASK-188; TASK-189.
+Blocked by: None for architecture. Implementation remains blocked by future task decisions around product wrappers, account schema, membership, tenant-link, external-reference resolver, account selector, and maintenance commands.
+Risk level: Low.
+Rollback notes: Revert the architecture contract and roadmap/gap/index updates.
+Explicit non-goals: Do not add backend routes, schema, migrations, permission changes, API wrappers, frontend pages, account creation, membership writes, tenant-link persistence, user invitations, account maintenance operations, reference rotation, credential rotation, support-case writes, issue/reissue/revoke/expire/void commands, attribution overrides, validation idempotency keys, duplicate reuse, live DB checks, audit writes, repair, replay, retry commands, campaign activation, webhook delivery, reward application, reward fulfilment, reward funding, reward settlement, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, SaaS billing, source-code forks, or broad DLaaS behavior.
+Definition of done: Referral SaaS has a documented architecture for real Account Setup, integrated readiness, and Account Maintenance, with a clear implementation path that starts from existing onboarding draft/readiness primitives and avoids fake SaaS account behavior. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
