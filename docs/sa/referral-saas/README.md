@@ -193,3 +193,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   progress/status, and support surfaces, and keeps broader DLaaS marketplace,
   funding, settlement, wallet, billing, treasury, demo, and generic admin
   navigation outside the product workspace without forking source code.
+- TASK-186 adds explicit local testing guidance to the focused workspace. It
+  answers what the workspace is for, what can be done there, and what to do
+  first, then gives a recommended test path through account setup, campaign
+  readiness, links/codes, and support evidence without adding backend behavior,
+  schema, mutations, money actions, or DLaaS scope.

@@ -163,6 +163,10 @@ Current API/client foundations:
   broader DLaaS/demo/admin surfaces and links only to account setup, campaign
   readiness, link/code workflow, reports, support, link inspection,
   attribution trace, and progress/status routes.
+- TASK-186 adds explicit testing guidance to `/admin/referral-saas`: the page
+  now states what the workspace is for, what users can do there, what to do
+  first, and the recommended local testing path through account setup, campaign
+  readiness, links/codes, and support evidence.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.
@@ -401,7 +405,9 @@ When implementation starts, add or preserve tests for:
 
 Referral SaaS has enough frontend foundation to support a strong product
 workflow, and TASK-185 now packages the existing first-launch admin surfaces
-behind a focused Referral SaaS workspace shell. Remaining frontend work should
-focus on account-safe customer/referrer status, support-case execution
-guardrails, live E2E proof, and deeper campaign/account workflows rather than
-mixing Referral SaaS with broader DLaaS navigation.
+behind a focused Referral SaaS workspace shell. TASK-186 makes that shell
+usable as a local testing entry point by adding explicit purpose, action, and
+first-step guidance. Remaining frontend work should focus on account-safe
+customer/referrer status, support-case execution guardrails, live E2E proof,
+and deeper campaign/account workflows rather than mixing Referral SaaS with
+broader DLaaS navigation.
