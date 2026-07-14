@@ -6,15 +6,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   getAdminOnboardingState,
+  recordAdminOnboardingReviewDecision,
+  saveAdminOnboardingDraft,
+  submitAdminOnboardingDraftForReview,
+  validateAdminOnboardingDryRun,
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
 import { ReferralSaasAccountSetupPage } from "./ReferralSaasAccountSetupPage";
 
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
   getAdminOnboardingState: vi.fn(),
+  recordAdminOnboardingReviewDecision: vi.fn(),
+  saveAdminOnboardingDraft: vi.fn(),
+  submitAdminOnboardingDraftForReview: vi.fn(),
+  validateAdminOnboardingDryRun: vi.fn(),
 }));
 
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
+const mockedRecordAdminOnboardingReviewDecision = vi.mocked(recordAdminOnboardingReviewDecision);
+const mockedSaveAdminOnboardingDraft = vi.mocked(saveAdminOnboardingDraft);
+const mockedSubmitAdminOnboardingDraftForReview = vi.mocked(submitAdminOnboardingDraftForReview);
+const mockedValidateAdminOnboardingDryRun = vi.mocked(validateAdminOnboardingDryRun);
 
 function renderWorkspace(ui: ReactElement) {
   const client = new QueryClient({
@@ -106,6 +118,91 @@ function mockAccountSetupState(): AdminOnboardingStateResponse {
   };
 }
 
+function mockValidationResponse() {
+  return {
+    status: "ok",
+    validation_result: { status: "VALID" },
+    readiness_preview: mockAccountSetupState().readiness,
+    missing_evidence: [],
+    blockers: [],
+    warnings: [],
+    safe_errors: [],
+    next_actions: ["Save setup draft."],
+    guardrails: ["NO_PERSISTENCE", "NO_LIVE_MUTATION"],
+    redactions: ["INTERNAL_IDENTIFIER"],
+    no_persistence_confirmed: true,
+    no_live_action_confirmed: true,
+  };
+}
+
+function mockDraftSaveResponse() {
+  return {
+    status: "ok",
+    draft_ref: "draft_referral_saas_setup",
+    draft_status: "DRAFT_CREATED",
+    draft_version: 1,
+    idempotency_status: "NEW_REQUEST",
+    validation_summary: {
+      status: "VALID",
+      safe_error_count: 0,
+      missing_evidence_count: 0,
+      blocker_count: 0,
+    },
+    next_actions: ["Submit setup draft for review."],
+    guardrails: ["NO_LIVE_ACTION"],
+    redactions: ["INTERNAL_IDENTIFIER"],
+    no_live_action_confirmed: true,
+  };
+}
+
+function mockSubmitResponse() {
+  return {
+    status: "ok",
+    draft_ref: "draft_referral_saas_setup",
+    draft_status: "READY_FOR_REVIEW",
+    draft_version: 2,
+    idempotency_status: "NEW_REQUEST",
+    validation_summary: {
+      status: "VALID",
+      safe_error_count: 0,
+      missing_evidence_count: 0,
+      blocker_count: 0,
+    },
+    readiness_summary: {
+      overall_status: "GO_LIVE_DISABLED",
+      ready_count: 3,
+      blocked_count: 0,
+      missing_evidence_count: 0,
+      go_live_disabled_count: 1,
+      total_count: 4,
+      go_live_enabled: false,
+    },
+    next_actions: ["Record internal review decision."],
+    guardrails: ["NO_LIVE_ACTION"],
+    redactions: ["INTERNAL_IDENTIFIER"],
+    no_live_action_confirmed: true,
+  };
+}
+
+function mockReviewResponse() {
+  return {
+    status: "ok",
+    draft_ref: "draft_referral_saas_setup",
+    previous_status: "READY_FOR_REVIEW",
+    draft_status: "READY_FOR_REVIEW",
+    draft_version: 3,
+    review_outcome: "APPROVED_FOR_INTERNAL_REVIEW",
+    reason_category: "OPERATOR_REVIEW",
+    idempotency_status: "NEW_REQUEST",
+    guardrails: ["NO_LIVE_ACTION"],
+    redactions: ["INTERNAL_IDENTIFIER"],
+    audit_evidence_status: "RECORDED_REFERENCE",
+    approval_to_launch: false,
+    go_live_enabled: false,
+    no_live_action_confirmed: true,
+  };
+}
+
 function panelByHeading(heading: string) {
   const headingElement = screen.getByRole("heading", { name: heading });
   const panel = headingElement.closest(".panel");
@@ -127,6 +224,10 @@ describe("ReferralSaasAccountSetupPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetAdminOnboardingState.mockResolvedValue(mockAccountSetupState());
+    mockedValidateAdminOnboardingDryRun.mockResolvedValue(mockValidationResponse());
+    mockedSaveAdminOnboardingDraft.mockResolvedValue(mockDraftSaveResponse());
+    mockedSubmitAdminOnboardingDraftForReview.mockResolvedValue(mockSubmitResponse());
+    mockedRecordAdminOnboardingReviewDecision.mockResolvedValue(mockReviewResponse());
   });
 
   afterEach(() => {
@@ -210,6 +311,75 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(JSON.stringify(mockedGetAdminOnboardingState.mock.calls)).not.toMatch(
       /account_ref|tenant_code|api_key|client_secret/i,
     );
+    expect(screen.getByRole("button", { name: "Save setup draft" })).toBeEnabled();
+  });
+
+  it("connects setup workflow actions to existing onboarding draft APIs safely", async () => {
+    renderWorkspace(<ReferralSaasAccountSetupPage />);
+
+    await screen.findByRole("heading", { name: "Setup draft actions" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Validate setup" }));
+    await waitFor(() => expect(mockedValidateAdminOnboardingDryRun).toHaveBeenCalledTimes(1));
+    const validationRequest = mockedValidateAdminOnboardingDryRun.mock.calls[0][0];
+    expect(validationRequest).toMatchObject({
+      external_tenant_ref: "demo-platform-operator",
+      organisation_ref: "demo-organisation",
+      validation_scope: ["company", "member_role", "webhook_api"],
+      correlation_id: "referral-saas-account-setup-validate",
+    });
+    expect(validationRequest.idempotency_key).toContain("referral-saas-account-setup-validate");
+    expect(Object.keys(validationRequest.sections || {})).toEqual(["company", "member_role", "webhook_api"]);
+    expect(JSON.stringify(validationRequest).toLowerCase()).not.toMatch(/tenant_code|api_key|client_secret|wallet|settlement|money/);
+    expect(await screen.findByText("Validation completed without saving.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save setup draft" }));
+    await waitFor(() => expect(mockedSaveAdminOnboardingDraft).toHaveBeenCalledTimes(1));
+    const draftRequest = mockedSaveAdminOnboardingDraft.mock.calls[0][0];
+    expect(draftRequest).toMatchObject({
+      external_tenant_ref: "demo-platform-operator",
+      organisation_ref: "demo-organisation",
+      correlation_id: "referral-saas-account-setup-draft",
+    });
+    expect(draftRequest.idempotency_key).toContain("referral-saas-account-setup-draft");
+    expect(JSON.stringify(draftRequest).toLowerCase()).not.toMatch(/tenant_code|api_key|client_secret|wallet|settlement|money/);
+    expect(await screen.findByText("Setup draft saved.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+    await waitFor(() => expect(mockedSubmitAdminOnboardingDraftForReview).toHaveBeenCalledTimes(1));
+    const [draftRef, submitRequest] = mockedSubmitAdminOnboardingDraftForReview.mock.calls[0];
+    expect(draftRef).toBe("draft_referral_saas_setup");
+    expect(submitRequest).toMatchObject({
+      external_tenant_ref: "demo-platform-operator",
+      organisation_ref: "demo-organisation",
+      expected_version: 1,
+      correlation_id: "referral-saas-account-setup-submit-review",
+    });
+    expect(submitRequest.idempotency_key).toContain("referral-saas-account-setup-submit");
+    expect(JSON.stringify(submitRequest).toLowerCase()).not.toMatch(/tenant_code|api_key|client_secret|wallet|settlement|money/);
+    expect(await screen.findByText("Setup draft submitted for review.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Review reason"), {
+      target: { value: "Setup evidence is complete enough for internal review." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Accept internal review" }));
+    await waitFor(() => expect(mockedRecordAdminOnboardingReviewDecision).toHaveBeenCalledTimes(1));
+    const [reviewDraftRef, reviewRequest] = mockedRecordAdminOnboardingReviewDecision.mock.calls[0];
+    expect(reviewDraftRef).toBe("draft_referral_saas_setup");
+    expect(reviewRequest).toMatchObject({
+      external_tenant_ref: "demo-platform-operator",
+      organisation_ref: "demo-organisation",
+      expected_version: 2,
+      review_outcome: "APPROVED_FOR_INTERNAL_REVIEW",
+      reason_category: "OPERATOR_REVIEW",
+      reason: "Setup evidence is complete enough for internal review.",
+      correlation_id: "referral-saas-account-setup-review-decision",
+    });
+    expect(reviewRequest.idempotency_key).toContain("referral-saas-account-setup-review");
+    expect(JSON.stringify(reviewRequest).toLowerCase()).not.toMatch(/tenant_code|api_key|client_secret|wallet|settlement|money/);
+    expect(await screen.findByText("Internal review decision recorded.")).toBeInTheDocument();
+    expect(screen.getByText(/go-live: disabled/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /create account/i })).not.toBeInTheDocument();
   });
 
   it("keeps account creation and membership mutation as visible guardrails", async () => {
