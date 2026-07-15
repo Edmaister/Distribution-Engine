@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  getAdminOnboardingDrafts,
   getAdminOnboardingState,
   recordAdminOnboardingReviewDecision,
   saveAdminOnboardingDraft,
@@ -125,6 +126,27 @@ const successResponse: AdminOnboardingStateResponse = {
   },
   guardrail:
     "Read-only admin onboarding state. This endpoint does not create records or move money.",
+};
+
+const draftSelectorResponse = {
+  status: "ok",
+  count: 1,
+  items: [
+    {
+      draft_ref: "draft_acme_distribution",
+      draft_version: 2,
+      draft_status: "READY_FOR_REVIEW",
+      external_tenant_ref: "acme-distribution",
+      organisation_ref: "org-acme",
+      readiness_status: "GO_LIVE_DISABLED",
+      validation_status: "VALID",
+      missing_evidence_count: 1,
+      blocker_count: 0,
+      redactions: ["internal_identifier"],
+    },
+  ],
+  guardrails: ["READ_ONLY_DRAFT_SELECTOR", "NO_ACCOUNT_CREATION"],
+  redactions: ["internal_identifier"],
 };
 
 const draftSaveResponse: AdminOnboardingDraftSaveResponse = {
@@ -531,6 +553,44 @@ describe("admin onboarding api helper", () => {
     expect(renderedBody).not.toContain("secret-client");
     expect(renderedBody).not.toContain("publish_campaign");
     expect(renderedBody).not.toContain("activate_go_live");
+  });
+
+  it("lists onboarding drafts with external references and bounded selector params only", async () => {
+    const fetchMock = mockFetch(draftSelectorResponse);
+
+    const result = await getAdminOnboardingDrafts({
+      external_tenant_ref: " acme-distribution ",
+      organisation_ref: " org-acme ",
+      producer_ref: " ",
+      status: " READY_FOR_REVIEW ",
+      limit: 500,
+      tenant_code: "INTERNAL-SHOULD-NOT-BE-SENT",
+    } as Parameters<typeof getAdminOnboardingDrafts>[0] & {
+      tenant_code: string;
+    });
+
+    expect(result.items[0]).toMatchObject({
+      draft_ref: "draft_acme_distribution",
+      draft_status: "READY_FOR_REVIEW",
+      external_tenant_ref: "acme-distribution",
+      organisation_ref: "org-acme",
+      readiness_status: "GO_LIVE_DISABLED",
+    });
+
+    const [url, options] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    const requestUrl = new URL(url);
+
+    expect(requestUrl.pathname).toBe("/admin/onboarding/drafts");
+    expect(options.method).toBe("GET");
+    expect(requestUrl.searchParams.get("external_tenant_ref")).toBe("acme-distribution");
+    expect(requestUrl.searchParams.get("organisation_ref")).toBe("org-acme");
+    expect(requestUrl.searchParams.get("status")).toBe("READY_FOR_REVIEW");
+    expect(requestUrl.searchParams.get("limit")).toBe("50");
+    expect(requestUrl.searchParams.has("producer_ref")).toBe(false);
+    expect(requestUrl.searchParams.has("tenant_code")).toBe(false);
   });
 
   it("surfaces safe draft-save conflicts through the shared API error contract", async () => {

@@ -532,6 +532,7 @@ def _patch_draft_repo(
     *,
     existing_idempotency=None,
     existing_draft=None,
+    draft_list=None,
     draft_sections=None,
     stale_update=False,
 ):
@@ -542,6 +543,7 @@ def _patch_draft_repo(
         "record_idempotency_reference": [],
         "create_audit_link_reference": [],
         "get_draft_sections": [],
+        "list_drafts": [],
         "update_draft_metadata_or_status": [],
     }
 
@@ -556,6 +558,10 @@ def _patch_draft_repo(
     async def fake_get_draft_sections(draft_id):
         calls["get_draft_sections"].append(draft_id)
         return list(draft_sections or [])
+
+    async def fake_list_drafts(**kwargs):
+        calls["list_drafts"].append(kwargs)
+        return list(draft_list or [])
 
     async def fake_create_draft(**kwargs):
         calls["create_draft"].append(kwargs)
@@ -609,6 +615,11 @@ def _patch_draft_repo(
         admin_onboarding.draft_repo,
         "get_draft_sections",
         fake_get_draft_sections,
+    )
+    monkeypatch.setattr(
+        admin_onboarding.draft_repo,
+        "list_drafts",
+        fake_list_drafts,
     )
     monkeypatch.setattr(admin_onboarding.draft_repo, "create_draft", fake_create_draft)
     monkeypatch.setattr(
@@ -1260,6 +1271,87 @@ async def test_admin_onboarding_draft_save_requires_auth(monkeypatch):
 
     assert response.status_code == 401
     assert calls["create_draft"] == []
+
+
+async def test_admin_onboarding_draft_selector_requires_auth(monkeypatch):
+    calls = _patch_draft_repo(monkeypatch)
+
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.get("/admin/onboarding/drafts")
+
+    assert response.status_code == 401
+    assert calls["list_drafts"] == []
+
+
+async def test_admin_onboarding_draft_selector_rejects_adjacent_role(monkeypatch):
+    calls = _patch_draft_repo(monkeypatch)
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=FINANCE_ADMIN_HEADERS
+    ) as client:
+        response = await client.get("/admin/onboarding/drafts")
+
+    assert response.status_code == 403
+    assert calls["list_drafts"] == []
+
+
+async def test_admin_onboarding_draft_selector_returns_safe_scope(monkeypatch):
+    calls = _patch_draft_repo(
+        monkeypatch,
+        draft_list=[
+            _saved_draft(
+                draft_ref="draft-safe-1",
+                status="READY_FOR_REVIEW",
+                safe_summary={
+                    "readiness_status": "GO_LIVE_DISABLED",
+                    "validation_status": "VALID",
+                    "missing_evidence_count": 1,
+                    "blocker_count": 0,
+                },
+                redactions=["internal_identifier"],
+                created_by_ref="actor-secret",
+            )
+        ],
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=ADMIN_HEADERS
+    ) as client:
+        response = await client.get(
+            "/admin/onboarding/drafts",
+            params={
+                "external_tenant_ref": "acme-distribution",
+                "organisation_ref": "org-acme",
+                "limit": 50,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    rendered = json.dumps(body)
+    assert body["status"] == "ok"
+    assert body["count"] == 1
+    assert calls["list_drafts"] == [
+        {
+            "external_tenant_ref": "acme-distribution",
+            "organisation_ref": "org-acme",
+            "status": None,
+            "limit": 50,
+        }
+    ]
+    item = body["items"][0]
+    assert item["draft_ref"] == "draft-safe-1"
+    assert item["draft_status"] == "READY_FOR_REVIEW"
+    assert item["external_tenant_ref"] == "acme-distribution"
+    assert item["organisation_ref"] == "org-acme"
+    assert item["readiness_status"] == "GO_LIVE_DISABLED"
+    assert item["validation_status"] == "VALID"
+    assert item["blocker_count"] == 0
+    assert "READ_ONLY_DRAFT_SELECTOR" in body["guardrails"]
+    assert "tenant_code" not in rendered
+    assert "INTERNAL-ACME" not in rendered
+    assert "created_by_ref" not in rendered
+    assert "actor-secret" not in rendered
 
 
 async def test_admin_onboarding_draft_save_rejects_adjacent_role(monkeypatch):

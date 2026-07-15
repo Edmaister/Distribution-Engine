@@ -167,6 +167,7 @@ greenfield referral construction.
 59. TASK-193: Connect Account Setup workflow to draft save, validation, submit, and review APIs.
 60. TASK-194: Define Account Maintenance workflow contract and read model.
 61. TASK-195: Build Account Maintenance read-only shell.
+62. TASK-196: Add Account Maintenance draft selector from safe onboarding source.
 
 ## 10/10 Exit Criteria
 
@@ -353,6 +354,16 @@ greenfield referral construction.
   `frontend/src/app/App.tsx`;
   `frontend/src/layout/Sidebar.tsx`;
   `frontend/src/pages/admin/ReferralSaasWorkspacePage.tsx`
+- TASK-196: `services/onboarding/onboarding_draft_repository.py`;
+  `apps/api/routers/admin_onboarding.py`;
+  `frontend/src/api/endpoints/adminOnboarding.ts`;
+  `frontend/src/api/referralSaasAccountQueries.ts`;
+  `frontend/src/api/queryKeys.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `test/test_onboarding_draft_repository.py`;
+  `test/api/test_admin_onboarding_api.py`;
+  `frontend/src/api/endpoints/adminOnboarding.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`
 
 ## Explicit Deferrals
 

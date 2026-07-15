@@ -12,7 +12,10 @@ import {
 import { Link } from "react-router-dom";
 import { useState, type FormEvent } from "react";
 
-import { useReferralSaasAccountMaintenanceState } from "../../api/referralSaasAccountQueries";
+import {
+  useReferralSaasAccountDraftSelector,
+  useReferralSaasAccountMaintenanceState,
+} from "../../api/referralSaasAccountQueries";
 import { DataTable } from "../../components/DataTable";
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { KpiCard } from "../../components/KpiCard";
@@ -115,6 +118,11 @@ export function ReferralSaasAccountMaintenancePage() {
     appliedOrganisationRef,
     refreshKey,
   );
+  const {
+    data: draftSelector,
+    error: draftSelectorError,
+    isLoading: isDraftSelectorLoading,
+  } = useReferralSaasAccountDraftSelector(appliedExternalTenantRef, appliedOrganisationRef, refreshKey);
 
   const readiness = data?.readiness;
   const summary = readiness?.summary;
@@ -136,6 +144,7 @@ export function ReferralSaasAccountMaintenancePage() {
   const overallStatus = formatDisplay(readiness?.overall_status || "read_only_evidence");
   const nextAction = getMaintenanceNextAction(scopeChanged, blockedCount, missingEvidenceCount);
   const areaRows = maintenanceAreas.map((area) => resolveMaintenanceArea(area, categories));
+  const draftItems = draftSelector?.items || [];
 
   function submitScope(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -266,6 +275,53 @@ export function ReferralSaasAccountMaintenancePage() {
             <KpiCard label="Blocked areas" value={formatDisplay(blockedCount)} footnote="Route back to setup" icon={ShieldCheck} />
             <KpiCard label="Evidence gaps" value={formatDisplay(missingEvidenceCount)} footnote="Missing setup proof" icon={Building2} />
             <KpiCard label="Maintenance commands" value="0" footnote={`${goLiveDisabledCount} go-live blocker shown`} icon={Lock} />
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <div>
+                <h2 className="panel-title">Account/draft selector</h2>
+                <div className="panel-subtitle">
+                  Select from safe onboarding draft evidence for this external scope. This is not a durable account registry yet.
+                </div>
+              </div>
+              <StatusBadge label={`${draftItems.length} drafts`} tone={draftItems.length ? "info" : "neutral"} />
+            </div>
+            <div className="panel-body route-list">
+              {isDraftSelectorLoading ? <LoadingState label="Loading setup drafts" /> : null}
+              {draftSelectorError ? <ErrorPanel error={draftSelectorError} /> : null}
+              {!isDraftSelectorLoading && !draftSelectorError && draftItems.length === 0 ? (
+                <div className="empty-state">
+                  No saved setup drafts found for this external scope. Use Account Setup to save setup intent first.
+                </div>
+              ) : null}
+              {!isDraftSelectorLoading && !draftSelectorError
+                ? draftItems.map((draft) => (
+                    <button
+                      className="route-item route-link"
+                      key={draft.draft_ref}
+                      onClick={() => {
+                        setDraftExternalTenantRef(draft.external_tenant_ref);
+                        setDraftOrganisationRef(draft.organisation_ref);
+                        setAppliedExternalTenantRef(draft.external_tenant_ref);
+                        setAppliedOrganisationRef(draft.organisation_ref);
+                      }}
+                      type="button"
+                    >
+                      <div>
+                        <div className="route-name">{draft.organisation_ref || draft.draft_ref}</div>
+                        <div className="route-path">
+                          {draft.external_tenant_ref} - {draft.draft_status || "Draft evidence"}
+                        </div>
+                        <div className="table-subtext">
+                          {draft.draft_ref} - readiness {formatDisplay(draft.readiness_status || "unknown")} - blockers {formatDisplay(draft.blocker_count || 0)}
+                        </div>
+                      </div>
+                      <StatusBadge label="Load evidence" tone="info" />
+                    </button>
+                  ))
+                : null}
+            </div>
           </section>
 
           <section className="grid-2">

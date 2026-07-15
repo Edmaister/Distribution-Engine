@@ -35,6 +35,18 @@ export const queryKeys = {
       organisationRef,
       refreshKey,
     ] as const,
+  referralSaasAccountDraftSelector: (
+    externalTenantRef: string,
+    organisationRef: string,
+    refreshKey = 0,
+  ) =>
+    [
+      "referral-saas",
+      "account-draft-selector",
+      externalTenantRef,
+      organisationRef,
+      refreshKey,
+    ] as const,
   referralSaasReport: (reportType: string, tenantCode: string, refreshKey = 0) =>
     ["referral-saas", "report", reportType, tenantCode, refreshKey] as const,
   referralSaasCampaignReadiness: (

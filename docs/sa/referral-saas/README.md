@@ -248,3 +248,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   first-time setup, routes fixes back to product surfaces, and keeps account
   lifecycle, membership, reference rotation, credential, go-live, campaign
   activation, repair/replay/retry, and money commands unavailable.
+- TASK-196 adds the first source-backed Account Maintenance selector. It lists
+  safe onboarding draft evidence through a read-only admin onboarding route and
+  lets the maintenance shell load draft scope without exposing internal tenant
+  identifiers or claiming durable account, membership, lifecycle, invitation,
+  reference rotation, credential, campaign activation, go-live, repair/replay,
+  retry, or money behavior.

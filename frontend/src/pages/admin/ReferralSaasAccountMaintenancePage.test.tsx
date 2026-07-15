@@ -5,15 +5,19 @@ import { createMemoryRouter, Outlet, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  getAdminOnboardingDrafts,
   getAdminOnboardingState,
+  type AdminOnboardingDraftSelectorResponse,
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
 import { ReferralSaasAccountMaintenancePage } from "./ReferralSaasAccountMaintenancePage";
 
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
+  getAdminOnboardingDrafts: vi.fn(),
   getAdminOnboardingState: vi.fn(),
 }));
 
+const mockedGetAdminOnboardingDrafts = vi.mocked(getAdminOnboardingDrafts);
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
 
 function renderWorkspace(ui: ReactElement) {
@@ -126,9 +130,33 @@ function mockMaintenanceState(): AdminOnboardingStateResponse {
   };
 }
 
+function mockDraftSelector(): AdminOnboardingDraftSelectorResponse {
+  return {
+    status: "ok",
+    count: 1,
+    items: [
+      {
+        draft_ref: "draft_referral_saas_setup",
+        draft_version: 2,
+        draft_status: "READY_FOR_REVIEW",
+        external_tenant_ref: "demo-platform-operator",
+        organisation_ref: "demo-organisation",
+        readiness_status: "GO_LIVE_DISABLED",
+        validation_status: "VALID",
+        missing_evidence_count: 1,
+        blocker_count: 0,
+        redactions: ["internal_identifier"],
+      },
+    ],
+    guardrails: ["READ_ONLY_DRAFT_SELECTOR", "NO_ACCOUNT_CREATION"],
+    redactions: ["internal_identifier"],
+  };
+}
+
 describe("ReferralSaasAccountMaintenancePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedGetAdminOnboardingDrafts.mockResolvedValue(mockDraftSelector());
     mockedGetAdminOnboardingState.mockResolvedValue(mockMaintenanceState());
   });
 
@@ -152,6 +180,12 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText("Account profile")).toBeInTheDocument();
     expect(screen.getByText("Users and roles")).toBeInTheDocument();
     expect(screen.getByText("Integration posture")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Account/draft selector" })).toBeInTheDocument();
+    expect(mockedGetAdminOnboardingDrafts).toHaveBeenCalledWith({
+      external_tenant_ref: "demo-platform-operator",
+      organisation_ref: "demo-organisation",
+      limit: 10,
+    });
     expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
   });
 
@@ -180,8 +214,44 @@ describe("ReferralSaasAccountMaintenancePage", () => {
         organisation_ref: "fnb-demo-org",
       }),
     );
+    await waitFor(() =>
+      expect(mockedGetAdminOnboardingDrafts).toHaveBeenLastCalledWith({
+        external_tenant_ref: "fnb-referral-account",
+        organisation_ref: "fnb-demo-org",
+        limit: 10,
+      }),
+    );
     expect(JSON.stringify(mockedGetAdminOnboardingState.mock.calls)).not.toMatch(
       /account_ref|tenant_code|api_key|client_secret/i,
+    );
+  });
+
+  it("loads maintenance scope from a safe saved setup draft selector", async () => {
+    mockedGetAdminOnboardingDrafts.mockResolvedValueOnce(mockDraftSelector()).mockResolvedValueOnce({
+      ...mockDraftSelector(),
+      items: [
+        {
+          ...mockDraftSelector().items[0],
+          draft_ref: "draft_fnb_setup",
+          external_tenant_ref: "fnb-referral-account",
+          organisation_ref: "fnb-demo-org",
+        },
+      ],
+    });
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />);
+
+    expect(await screen.findByRole("heading", { name: "Account/draft selector" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /demo-organisation/ }));
+
+    await waitFor(() =>
+      expect(mockedGetAdminOnboardingState).toHaveBeenLastCalledWith({
+        external_tenant_ref: "demo-platform-operator",
+        organisation_ref: "demo-organisation",
+      }),
+    );
+    expect(screen.getByText(/draft_referral_saas_setup/)).toBeInTheDocument();
+    expect(JSON.stringify(mockedGetAdminOnboardingDrafts.mock.calls)).not.toMatch(
+      /tenant_code|api_key|client_secret/i,
     );
   });
 
