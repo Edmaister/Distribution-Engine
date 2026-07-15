@@ -4047,6 +4047,32 @@ Rollback notes: Revert the onboarding draft selector repository/route/client/UI/
 Explicit non-goals: Do not add schema, migrations, durable account creation, account lifecycle, internal tenant creation, tenant-link persistence, external-reference resolver persistence, membership writes, user invitations, account maintenance commands, reference rotation, credential lifecycle, support-case writes, issue/reissue/revoke/expire/void commands, attribution overrides, validation idempotency changes, duplicate reuse, live DB checks, audit writes beyond existing onboarding primitives, repair, replay, retry commands, campaign activation, webhook delivery, reward application, reward fulfilment, reward funding, reward settlement, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, SaaS billing, source-code forks, or broad DLaaS behavior.
 Definition of done: Referral SaaS Account Maintenance has a tested source-backed draft selector over existing safe onboarding evidence, without exposing internal identifiers or faking durable account behavior. Priority: P0.
 
+## TASK-197: Add account/tenant-link/external-reference schema final review
+
+Status: Complete (2026-07-15). Output: `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SCHEMA_FINAL_REVIEW.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_MAINTENANCE_WORKFLOW_ARCHITECTURE.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_WRAPPER_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_MAINTENANCE_READ_MODEL_CONTRACT.md`; `docs/sa/TENANT_ACCOUNT_BOUNDARY_MAP.md`; `docs/sa/TENANT_ACCOUNT_LIFECYCLE_MEMBERSHIP_MODEL.md`; `docs/sa/TENANT_IDENTIFIER_BOUNDARY_DECISION.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Confirms the shared account, tenant-link, external-reference, membership, lifecycle, and audit schema direction before implementation while keeping `tenant_code` and onboarding draft primitives single-source. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account foundation planning; tenant/account boundary; external-reference mapping; account membership readiness; Account Setup and Account Maintenance unblocker.
+Objective: Record the final schema review before adding durable account primitives so the next backend task can implement an additive account foundation without mixing in routes, frontend commands, money behavior, or broad DLaaS expansion.
+Why now: Account Setup can save guarded draft evidence and Account Maintenance can select safe onboarding drafts, but both are still capped by the absence of durable account, tenant-link, external-reference, membership, and lifecycle primitives. The next step must be schema correctness before product commands.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SCHEMA_FINAL_REVIEW.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `dp/migrations/031_tenent.sql`; `dp/migrations/080_onboarding_draft_persistence.sql`; `services/tenant_service.py`; `apps/api/routers/admin_tenants.py`; tenant/account boundary docs; Account Setup and Account Maintenance contracts.
+Database/schema impact: None in TASK-197. The review approves a future additive schema slice only.
+Backend impact: None.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: No runtime tests for this docs-only review. The next implementation slice must add migration replay, account/tenant-link, external-reference, membership, lifecycle, tenant-isolation, and no-leak contract tests.
+Validation method: Docs readback and `git diff --check`.
+Acceptance criteria: Final review distinguishes current facts from target schema; confirms `tenant_code` remains internal; confirms onboarding drafts are setup evidence, not account records; names the approved additive account foundation table families; records migration guardrails and required test gates; explicitly defers routes, account creation, membership writes, invitations, lifecycle commands, reference rotation, credential lifecycle, campaign activation, go-live, money, and broad DLaaS behavior.
+Dependencies: TASK-190; TASK-191; TASK-192; TASK-193; TASK-194; TASK-195; TASK-196.
+Blocked by: None for final review. Implementation remains blocked until the next additive account foundation migration task.
+Risk level: Low.
+Rollback notes: Revert the final-review doc and roadmap/gap/index updates.
+Explicit non-goals: Do not add schema, migrations, routes, services, frontend changes, OpenAPI output, permission changes, durable account creation, tenant creation, tenant-link persistence, external-reference resolver persistence, membership writes, invitations, account lifecycle commands, account maintenance commands, reference rotation, credential lifecycle, campaign activation, go-live actions, repair, replay, retry, support-case writes, reward application, reward fulfilment, funding, settlement, commissions, wallet behavior, invoice behavior, sponsor billing, marketplace expansion, white-label/embed, SaaS billing, source-code forks, or broad DLaaS behavior.
+Definition of done: Referral SaaS has a documented final schema review that unlocks a small additive account foundation migration and test task without faking account maintenance behavior. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
