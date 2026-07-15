@@ -166,6 +166,7 @@ greenfield referral construction.
 58. TASK-192: Build Account Setup workflow shell using draft/readiness primitives.
 59. TASK-193: Connect Account Setup workflow to draft save, validation, submit, and review APIs.
 60. TASK-194: Define Account Maintenance workflow contract and read model.
+61. TASK-195: Build Account Maintenance read-only shell.
 
 ## 10/10 Exit Criteria
 
@@ -345,6 +346,13 @@ greenfield referral construction.
   `frontend/src/styles/base.css`
 - TASK-193: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`
+- TASK-195: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `frontend/src/api/referralSaasAccountQueries.ts`;
+  `frontend/src/api/queryKeys.ts`;
+  `frontend/src/app/App.tsx`;
+  `frontend/src/layout/Sidebar.tsx`;
+  `frontend/src/pages/admin/ReferralSaasWorkspacePage.tsx`
 
 ## Explicit Deferrals
 

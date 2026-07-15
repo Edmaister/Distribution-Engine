@@ -193,6 +193,13 @@ Current API/client foundations:
   summaries without adding account creation, membership writes, invitations,
   credential lifecycle, campaign activation, go-live, webhook delivery, or
   money behavior.
+- `/admin/referral-saas/account-maintenance` now provides the TASK-195
+  read-only Account Maintenance shell. It consumes the same safe onboarding
+  state source as the current setup wrapper, but presents maintenance as
+  account health, drift, blocked command posture, and routing back to Account
+  Setup, Campaigns, Reports, or Support without adding account lifecycle,
+  membership, reference rotation, credential, go-live, campaign activation,
+  repair/replay/retry, money, backend route, or schema behavior.
 - `distribution.ts` includes broader route, offer, conversion, reporting, and
   wallet calls. Some are useful evidence for attribution and link/code status;
   money and marketplace depth remain outside first-launch Referral SaaS.
@@ -439,7 +446,8 @@ tester requests a setup check. TASK-188 adds a post-check next-action
 instruction so testers know whether to check changed references, fix setup
 blockers, or continue to campaign readiness. TASK-189 clarifies that Account
 Setup is the parent workflow and Account Setup Readiness is the current
-checkpoint inside that workflow. Remaining
-frontend work should focus on account-safe customer/referrer status,
+checkpoint inside that workflow. TASK-195 adds the Account Maintenance
+read-only shell beside setup. Remaining frontend work should focus on durable
+account/account-selector primitives, account-safe customer/referrer status,
 support-case execution guardrails, live E2E proof, and deeper campaign/account
 workflows rather than mixing Referral SaaS with broader DLaaS navigation.
