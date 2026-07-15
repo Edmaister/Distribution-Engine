@@ -30,6 +30,7 @@ const referralSaasSections = [
     links: [
       { to: "/admin/referral-saas", label: "Workspace Home", icon: Gauge, sub: "Home" },
       { to: "/admin/referral-saas/account-setup", label: "Account Setup", icon: Building2, sub: "Account" },
+      { to: "/admin/referral-saas/account-maintenance", label: "Account Maintenance", icon: ShieldCheck, sub: "Maintain" },
       { to: "/admin/referral-saas/campaigns", label: "Campaigns", icon: Target, sub: "Ready" },
       { to: "/admin/referral-saas/link-codes", label: "Links & Codes", icon: Link2, sub: "Codes" },
       { to: "/admin/referral-saas/reports", label: "Reports", icon: ChartNoAxesColumn, sub: "Reports" },
@@ -78,6 +79,7 @@ const platformSections = [
       { to: "/admin/demo-home", label: "Demo Home", icon: Sparkles, sub: "Demo" },
       { to: "/admin/onboarding/company", label: "Company Onboarding", icon: Building2, sub: "Setup" },
       { to: "/admin/referral-saas/account-setup", label: "Referral SaaS Setup", icon: Building2, sub: "Account" },
+      { to: "/admin/referral-saas/account-maintenance", label: "Referral SaaS Maintenance", icon: ShieldCheck, sub: "Maintain" },
       { to: "/admin/referral-saas/campaigns", label: "Referral SaaS Campaigns", icon: Target, sub: "Ready" },
       { to: "/admin/referral-saas/link-codes", label: "Referral SaaS Links", icon: Link2, sub: "Codes" },
       { to: "/admin/referral-saas/support", label: "Referral SaaS Support", icon: ShieldCheck, sub: "Hub" },

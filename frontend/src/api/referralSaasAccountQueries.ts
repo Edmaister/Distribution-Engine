@@ -25,3 +25,26 @@ export function useReferralSaasAccountSetupState(
     enabled: Boolean(cleanedExternalTenantRef && cleanedOrganisationRef),
   });
 }
+
+export function useReferralSaasAccountMaintenanceState(
+  externalTenantRef: string,
+  organisationRef: string,
+  refreshKey = 0,
+) {
+  const cleanedExternalTenantRef = externalTenantRef.trim();
+  const cleanedOrganisationRef = organisationRef.trim();
+
+  return useQuery({
+    queryKey: queryKeys.referralSaasAccountMaintenance(
+      cleanedExternalTenantRef,
+      cleanedOrganisationRef,
+      refreshKey,
+    ),
+    queryFn: () =>
+      getAdminOnboardingState({
+        external_tenant_ref: cleanedExternalTenantRef,
+        organisation_ref: cleanedOrganisationRef,
+      }),
+    enabled: Boolean(cleanedExternalTenantRef && cleanedOrganisationRef),
+  });
+}

@@ -243,3 +243,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   maintenance read-only until durable account, tenant-link, external-reference,
   membership, and lifecycle primitives exist, and routes evidence correction
   back to Account Setup rather than inventing maintenance commands.
+- TASK-195 implements the first Account Maintenance read-only shell. It uses
+  existing safe onboarding/readiness evidence, separates maintenance from
+  first-time setup, routes fixes back to product surfaces, and keeps account
+  lifecycle, membership, reference rotation, credential, go-live, campaign
+  activation, repair/replay/retry, and money commands unavailable.

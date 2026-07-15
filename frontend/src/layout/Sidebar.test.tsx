@@ -35,6 +35,10 @@ describe("Sidebar", () => {
       "href",
       "/admin/referral-saas/campaigns",
     );
+    expect(screen.getByRole("link", { name: /Account Maintenance/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance",
+    );
     expect(screen.getByRole("link", { name: /Attribution Trace/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/attribution-trace",

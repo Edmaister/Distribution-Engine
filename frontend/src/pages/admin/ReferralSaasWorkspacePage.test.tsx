@@ -50,15 +50,19 @@ describe("ReferralSaasWorkspacePage", () => {
       "href",
       "/admin/referral-saas/account-setup",
     );
-    expect(screen.getByRole("link", { name: /2. Check campaign readiness/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /2. Review account maintenance/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance",
+    );
+    expect(screen.getByRole("link", { name: /3. Check campaign readiness/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/campaigns",
     );
-    expect(screen.getByRole("link", { name: /3. Test links and codes/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /4. Test links and codes/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/link-codes",
     );
-    expect(screen.getByRole("link", { name: /4. Prove attribution and reporting/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /5. Prove attribution and reporting/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/support",
     );
@@ -69,6 +73,7 @@ describe("ReferralSaasWorkspacePage", () => {
 
     const expectedLinks = [
       ["/admin/referral-saas/account-setup", /Account setup/],
+      ["/admin/referral-saas/account-maintenance", /Account maintenance/],
       ["/admin/referral-saas/campaigns", /Campaign readiness/],
       ["/admin/referral-saas/link-codes", /Links and codes/],
       ["/admin/referral-saas/reports", /Reports/],

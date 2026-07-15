@@ -34,6 +34,13 @@ const primaryWorkflows: WorkspaceLink[] = [
     icon: Building2,
   },
   {
+    title: "Account maintenance",
+    route: "/admin/referral-saas/account-maintenance",
+    description: "Read-only account health, setup drift, blocked commands, and evidence routing.",
+    badge: "Maintain",
+    icon: ShieldCheck,
+  },
+  {
     title: "Campaign readiness",
     route: "/admin/referral-saas/campaigns",
     description: "Campaign setup evidence, blockers, warnings, and safe launch posture.",
@@ -103,21 +110,28 @@ const testingSteps: WorkspaceLink[] = [
     icon: Building2,
   },
   {
-    title: "2. Check campaign readiness",
+    title: "2. Review account maintenance",
+    route: "/admin/referral-saas/account-maintenance",
+    description: "Confirm existing setup evidence, health drift, guardrails, and unavailable maintenance commands.",
+    badge: "Review",
+    icon: ShieldCheck,
+  },
+  {
+    title: "3. Check campaign readiness",
     route: "/admin/referral-saas/campaigns",
     description: "Then confirm the campaign has the setup evidence needed before referral traffic is tested.",
     badge: "Next",
     icon: Target,
   },
   {
-    title: "3. Test links and codes",
+    title: "4. Test links and codes",
     route: "/admin/referral-saas/link-codes",
     description: "Issue, reuse, validate, and recover referral codes through the product workflow.",
     badge: "Action",
     icon: LinkIcon,
   },
   {
-    title: "4. Prove attribution and reporting",
+    title: "5. Prove attribution and reporting",
     route: "/admin/referral-saas/support",
     description: "Use support triage to inspect link evidence, progress/status, attribution trace, and reports.",
     badge: "Verify",
@@ -164,7 +178,7 @@ export function ReferralSaasWorkspacePage() {
               <h2 className="panel-title">What you can do here</h2>
               <div className="panel-subtitle">Open the right product surface without DLaaS noise.</div>
             </div>
-            <StatusBadge label="8 paths" tone="success" />
+            <StatusBadge label="9 paths" tone="success" />
           </div>
           <div className="panel-body">
             <p className="page-copy">
@@ -210,7 +224,7 @@ export function ReferralSaasWorkspacePage() {
       </section>
 
       <section className="grid-4">
-        <KpiCard label="Core areas to test" value={primaryWorkflows.length} footnote="Setup, campaigns, links/codes, reports" icon={CheckCircle2} />
+        <KpiCard label="Core areas to test" value={primaryWorkflows.length} footnote="Setup, maintenance, campaigns, links/codes, reports" icon={CheckCircle2} />
         <KpiCard label="Investigation areas" value={supportWorkflows.length} footnote="Support, inspection, trace, status" icon={ShieldCheck} />
         <KpiCard label="DLaaS items shown" value="0" footnote="Marketplace, wallet, funding, settlement hidden" icon={Target} />
         <KpiCard label="Money actions available" value="0" footnote="No payout, invoice, wallet, or settlement actions" icon={BarChart3} />
