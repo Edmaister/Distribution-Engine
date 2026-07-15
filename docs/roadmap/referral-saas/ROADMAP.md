@@ -168,6 +168,7 @@ greenfield referral construction.
 60. TASK-194: Define Account Maintenance workflow contract and read model.
 61. TASK-195: Build Account Maintenance read-only shell.
 62. TASK-196: Add Account Maintenance draft selector from safe onboarding source.
+63. TASK-197: Add account/tenant-link/external-reference schema final review.
 
 ## 10/10 Exit Criteria
 
@@ -205,6 +206,8 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_WRAPPER_CONTRACT.md`
 - TASK-194:
   `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_MAINTENANCE_READ_MODEL_CONTRACT.md`
+- TASK-197:
+  `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SCHEMA_FINAL_REVIEW.md`
 
 ## Completed Implementation Outputs
 
@@ -364,6 +367,11 @@ greenfield referral construction.
   `test/api/test_admin_onboarding_api.py`;
   `frontend/src/api/endpoints/adminOnboarding.test.ts`;
   `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`
+- TASK-197: `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SCHEMA_FINAL_REVIEW.md`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
 
 ## Explicit Deferrals
 

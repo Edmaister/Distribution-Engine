@@ -16,6 +16,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   contract over onboarding draft/readiness primitives.
 - `REFERRAL_SAAS_ACCOUNT_MAINTENANCE_READ_MODEL_CONTRACT.md` - TASK-194
   Account Maintenance workflow/read-model contract.
+- `REFERRAL_SAAS_ACCOUNT_SCHEMA_FINAL_REVIEW.md` - TASK-197 final schema
+  review before durable account primitives.
 - `REFERRAL_SAAS_CAMPAIGN_SETUP_READINESS_CONTRACT.md` - TASK-135 campaign
   setup and readiness contract.
 - `REFERRAL_SAAS_REFERRAL_CODE_ISSUE_CONTRACT.md` - TASK-136 referral code
