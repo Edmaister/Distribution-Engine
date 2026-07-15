@@ -103,6 +103,36 @@ export type AdminOnboardingStateResponse = {
   guardrail: string;
 };
 
+export type AdminOnboardingDraftSelectorItem = {
+  draft_ref: string;
+  draft_version?: number;
+  draft_status: string;
+  external_tenant_ref: string;
+  organisation_ref: string;
+  producer_ref?: string;
+  sponsor_ref?: string;
+  distributor_ref?: string;
+  campaign_code?: string;
+  opportunity_ref?: string;
+  source?: string;
+  readiness_status?: string;
+  validation_status?: string;
+  missing_evidence_count?: number;
+  blocker_count?: number;
+  created_at?: string;
+  updated_at?: string;
+  expires_at?: string;
+  redactions?: string[];
+};
+
+export type AdminOnboardingDraftSelectorResponse = {
+  status: string;
+  items: AdminOnboardingDraftSelectorItem[];
+  count: number;
+  guardrails: string[];
+  redactions: string[];
+};
+
 export type AdminOnboardingDraftSectionKey =
   | "company"
   | "producer_sponsor"
@@ -281,6 +311,14 @@ export function getAdminOnboardingState(
   });
 }
 
+export function getAdminOnboardingDrafts(
+  params: AdminOnboardingStateParams & { status?: string; limit?: number } = {},
+): Promise<AdminOnboardingDraftSelectorResponse> {
+  return apiRequest<AdminOnboardingDraftSelectorResponse>("admin/onboarding/drafts", {
+    query: buildAdminOnboardingDraftSelectorQuery(params),
+  });
+}
+
 export function saveAdminOnboardingDraft(
   request: AdminOnboardingDraftSaveRequest,
 ): Promise<AdminOnboardingDraftSaveResponse> {
@@ -351,6 +389,24 @@ function buildAdminOnboardingStateQuery(
     },
     {},
   );
+}
+
+function buildAdminOnboardingDraftSelectorQuery(
+  params: AdminOnboardingStateParams & { status?: string; limit?: number },
+): AdminOnboardingStateParams & { status?: string; limit?: number } {
+  const query = buildAdminOnboardingStateQuery(params) as AdminOnboardingStateParams & {
+    status?: string;
+    limit?: number;
+  };
+  const statusValue = params.status?.trim();
+  if (statusValue) {
+    query.status = statusValue;
+  }
+  const limitValue = Number(params.limit);
+  if (Number.isFinite(limitValue)) {
+    query.limit = Math.max(1, Math.min(Math.trunc(limitValue), 50));
+  }
+  return query;
 }
 
 function buildAdminOnboardingDraftSaveBody(

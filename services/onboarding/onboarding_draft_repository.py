@@ -180,6 +180,50 @@ async def get_draft_by_ref(draft_ref: str) -> dict[str, Any] | None:
     return _as_dict(row)
 
 
+async def list_drafts(
+    *,
+    external_tenant_ref: str | None = None,
+    organisation_ref: str | None = None,
+    status: str | None = None,
+    limit: int = 25,
+) -> list[dict[str, Any]]:
+    bounded_limit = max(1, min(int(limit or 25), 50))
+    async with db_connection() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT
+                draft_ref,
+                draft_version,
+                status,
+                external_tenant_ref,
+                organisation_ref,
+                producer_ref,
+                sponsor_ref,
+                distributor_ref,
+                campaign_code,
+                opportunity_ref,
+                source,
+                safe_summary,
+                redactions,
+                created_at,
+                updated_at,
+                expires_at
+            FROM onboarding_drafts
+            WHERE ($1::text IS NULL OR external_tenant_ref = $1)
+              AND ($2::text IS NULL OR organisation_ref = $2)
+              AND ($3::text IS NULL OR status = $3)
+            ORDER BY updated_at DESC, created_at DESC
+            LIMIT $4
+            """,
+            external_tenant_ref,
+            organisation_ref,
+            status,
+            bounded_limit,
+        )
+
+    return _as_list(rows)
+
+
 async def update_draft_metadata_or_status(
     *,
     draft_ref: str,

@@ -342,6 +342,37 @@ async def save_admin_onboarding_draft(
     return response
 
 
+@router.get("/drafts")
+async def list_admin_onboarding_drafts(
+    external_tenant_ref: str | None = Query(default=None),
+    organisation_ref: str | None = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
+    limit: int = Query(default=25, ge=1, le=50),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_onboarding_admin(identity)
+    drafts = await draft_repo.list_drafts(
+        external_tenant_ref=_maybe_text(external_tenant_ref) or None,
+        organisation_ref=_maybe_text(organisation_ref) or None,
+        status=_maybe_text(status_filter) or None,
+        limit=limit,
+    )
+    items = [_draft_selector_item(draft) for draft in drafts]
+    return {
+        "status": "ok",
+        "items": items,
+        "count": len(items),
+        "guardrails": [
+            "READ_ONLY_DRAFT_SELECTOR",
+            "NO_ACCOUNT_CREATION",
+            "NO_LIVE_ACTION",
+            "INTERNAL_TENANT_IDENTIFIER_ONLY",
+            "NO_MONEY_MOVEMENT",
+        ],
+        "redactions": ["internal_identifier", "secret", "raw_payload"],
+    }
+
+
 @router.post("/drafts/{draft_ref}/submit-for-review")
 async def submit_admin_onboarding_draft_for_review(
     draft_ref: str,
@@ -623,6 +654,31 @@ def _scope_from_payload(payload: Mapping[str, Any]) -> dict[str, str]:
             opportunity_ref=_maybe_text(scope_source.get("opportunity_ref")),
         ).items()
         if value
+    }
+
+
+def _draft_selector_item(draft: Mapping[str, Any]) -> dict[str, Any]:
+    safe_summary = _as_mapping(draft.get("safe_summary"))
+    return {
+        "draft_ref": _optional_text(draft.get("draft_ref")),
+        "draft_version": draft.get("draft_version"),
+        "draft_status": _optional_text(draft.get("status")),
+        "external_tenant_ref": _optional_text(draft.get("external_tenant_ref")),
+        "organisation_ref": _optional_text(draft.get("organisation_ref")),
+        "producer_ref": _optional_text(draft.get("producer_ref")),
+        "sponsor_ref": _optional_text(draft.get("sponsor_ref")),
+        "distributor_ref": _optional_text(draft.get("distributor_ref")),
+        "campaign_code": _optional_text(draft.get("campaign_code")),
+        "opportunity_ref": _optional_text(draft.get("opportunity_ref")),
+        "source": _optional_text(draft.get("source")),
+        "readiness_status": _optional_text(safe_summary.get("readiness_status")),
+        "validation_status": _optional_text(safe_summary.get("validation_status")),
+        "missing_evidence_count": safe_summary.get("missing_evidence_count", 0),
+        "blocker_count": safe_summary.get("blocker_count", 0),
+        "created_at": _optional_text(draft.get("created_at")),
+        "updated_at": _optional_text(draft.get("updated_at")),
+        "expires_at": _optional_text(draft.get("expires_at")),
+        "redactions": _as_list(draft.get("redactions")),
     }
 
 

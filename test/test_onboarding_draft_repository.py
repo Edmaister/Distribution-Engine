@@ -74,6 +74,27 @@ async def test_create_and_read_draft_by_external_references(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_list_drafts_returns_safe_selector_rows(monkeypatch):
+    conn = FakeConn(rows=[_draft_row(source="ADMIN_ONBOARDING")])
+    patch_db(monkeypatch, conn)
+
+    rows = await repo.list_drafts(
+        external_tenant_ref="tenant-ext-1",
+        organisation_ref="org-1",
+        status="DRAFT_CREATED",
+        limit=100,
+    )
+
+    query, params = conn.fetch_calls[0]
+    assert rows[0]["draft_ref"] == "draft_001"
+    assert params == ("tenant-ext-1", "org-1", "DRAFT_CREATED", 50)
+    assert "FROM onboarding_drafts" in query
+    assert "ORDER BY updated_at DESC, created_at DESC" in query
+    assert "tenant_code" not in query
+    assert "created_by_ref" not in query
+
+
+@pytest.mark.asyncio
 async def test_create_draft_rejects_obvious_secret_payload(monkeypatch):
     conn = FakeConn(fetchrow_rows=[_draft_row()])
     patch_db(monkeypatch, conn)

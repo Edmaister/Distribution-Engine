@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { getAdminOnboardingState } from "./endpoints/adminOnboarding";
+import { getAdminOnboardingDrafts, getAdminOnboardingState } from "./endpoints/adminOnboarding";
 import { queryKeys } from "./queryKeys";
 
 export function useReferralSaasAccountSetupState(
@@ -44,6 +44,30 @@ export function useReferralSaasAccountMaintenanceState(
       getAdminOnboardingState({
         external_tenant_ref: cleanedExternalTenantRef,
         organisation_ref: cleanedOrganisationRef,
+      }),
+    enabled: Boolean(cleanedExternalTenantRef && cleanedOrganisationRef),
+  });
+}
+
+export function useReferralSaasAccountDraftSelector(
+  externalTenantRef: string,
+  organisationRef: string,
+  refreshKey = 0,
+) {
+  const cleanedExternalTenantRef = externalTenantRef.trim();
+  const cleanedOrganisationRef = organisationRef.trim();
+
+  return useQuery({
+    queryKey: queryKeys.referralSaasAccountDraftSelector(
+      cleanedExternalTenantRef,
+      cleanedOrganisationRef,
+      refreshKey,
+    ),
+    queryFn: () =>
+      getAdminOnboardingDrafts({
+        external_tenant_ref: cleanedExternalTenantRef,
+        organisation_ref: cleanedOrganisationRef,
+        limit: 10,
       }),
     enabled: Boolean(cleanedExternalTenantRef && cleanedOrganisationRef),
   });
