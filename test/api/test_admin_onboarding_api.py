@@ -1322,7 +1322,7 @@ async def test_admin_onboarding_draft_selector_returns_safe_scope(monkeypatch):
             params={
                 "external_tenant_ref": "acme-distribution",
                 "organisation_ref": "org-acme",
-                "limit": 500,
+                "limit": 50,
             },
         )
 
