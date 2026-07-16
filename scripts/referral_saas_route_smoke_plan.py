@@ -148,6 +148,26 @@ READ_ONLY_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_account_resolve",
+        method="GET",
+        path="/v1/referral-saas/accounts/resolve",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS account reader role",
+        environment_rule="local/staging/production read-only where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "ref_type",
+            "external_ref",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -H "Authorization: Bearer {admin_token}" '
+            '"{base_url}/v1/referral-saas/accounts/resolve'
+            '?ref_type={ref_type}&external_ref={external_ref}&context=setup"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_campaign_performance_report",
         method="GET",
         path="/v1/referral-saas/reports/{report_type}",
