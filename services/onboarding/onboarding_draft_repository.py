@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from typing import Any
 
@@ -53,6 +54,10 @@ def _as_dict(row: Any) -> dict[str, Any] | None:
 
 def _as_list(rows: Any) -> list[dict[str, Any]]:
     return [dict(row) for row in rows or []]
+
+
+def _jsonb(value: Any, default: Any) -> str:
+    return json.dumps(default if value is None else value, sort_keys=True)
 
 
 def _normalize_key(key: Any) -> str:
@@ -158,9 +163,9 @@ async def create_draft(
             created_by_role,
             source,
             correlation_id,
-            safe_summary_payload,
-            metadata_payload,
-            redactions or [],
+            _jsonb(safe_summary_payload, {}),
+            _jsonb(metadata_payload, {}),
+            _jsonb(redactions, []),
         )
 
     return _as_dict(row) or {}
@@ -261,11 +266,11 @@ async def update_draft_metadata_or_status(
             draft_ref,
             expected_draft_version,
             status,
-            metadata_payload,
-            safe_summary_payload,
+            _jsonb(metadata_payload, {}),
+            _jsonb(safe_summary_payload, {}),
             updated_by_ref,
             correlation_id,
-            redactions or [],
+            _jsonb(redactions, []),
         )
 
     if row is None:
@@ -316,11 +321,11 @@ async def upsert_draft_section(
             draft_id,
             section_key,
             section_status,
-            payload,
+            _jsonb(payload, {}),
             payload_hash,
-            redactions,
-            missing_evidence or [],
-            source_warnings or [],
+            _jsonb(redactions, {}),
+            _jsonb(missing_evidence, []),
+            _jsonb(source_warnings, []),
         )
 
     return _as_dict(row) or {}
@@ -399,12 +404,12 @@ async def record_validation_result(
             section_key,
             field_name,
             message,
-            safe_errors or [],
-            missing_evidence or [],
-            blockers or [],
-            warnings or [],
-            preview,
-            safe_details,
+            _jsonb(safe_errors, []),
+            _jsonb(missing_evidence, []),
+            _jsonb(blockers, []),
+            _jsonb(warnings, []),
+            _jsonb(preview, {}),
+            _jsonb(safe_details, {}),
             correlation_id,
         )
 
@@ -546,10 +551,10 @@ async def create_audit_link_reference(
             correlation_id,
             before_state_hash,
             after_state_hash,
-            changed_sections or [],
-            redactions or [],
+            _jsonb(changed_sections, []),
+            _jsonb(redactions, []),
             evidence_type,
-            safe_evidence,
+            _jsonb(safe_evidence, {}),
         )
 
     return _as_dict(row) or {}

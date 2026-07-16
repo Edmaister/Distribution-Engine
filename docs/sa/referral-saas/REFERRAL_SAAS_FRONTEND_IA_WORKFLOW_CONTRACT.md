@@ -199,6 +199,12 @@ Current API/client foundations:
   identifiers or adding account creation, tenant creation, membership,
   invitation, maintenance, campaign activation, go-live, webhook delivery, or
   money behavior.
+- TASK-202 physically verifies Account Setup draft save against the running
+  local frontend/API/Postgres stack. The verification found and fixed onboarding
+  draft JSONB persistence in the shared repository layer, confirmed safe
+  first-time setup-draft mode, and recorded that no account creation, tenant
+  creation, membership, invitation, go-live, webhook, or money action was
+  executed.
 - `/admin/referral-saas/account-maintenance` now provides the TASK-195
   read-only Account Maintenance shell. It consumes the same safe onboarding
   state source as the current setup wrapper, but presents maintenance as
@@ -460,9 +466,10 @@ blockers, or continue to campaign readiness. TASK-189 clarifies that Account
 Setup is the parent workflow and Account Setup Readiness is the current
 checkpoint inside that workflow. TASK-195 adds the Account Maintenance
 read-only shell beside setup, TASK-196 adds a source-backed draft selector for
-maintenance evidence, and TASK-201 wires Account Setup to the durable account
-resolver. Remaining frontend work should focus on local physical Account Setup
-proof, membership-aware account setup, account-safe customer/referrer status,
-support-case execution guardrails, live E2E proof, and deeper
-campaign/account workflows rather than mixing Referral SaaS with broader DLaaS
-navigation.
+maintenance evidence, TASK-201 wires Account Setup to the durable account
+resolver, and TASK-202 proves the local draft-save path against the running
+app/API/DB after fixing JSONB persistence. Remaining frontend work should focus
+on membership-aware account setup, durable account creation, account-safe
+customer/referrer status, support-case execution guardrails, live E2E proof,
+and deeper campaign/account workflows rather than mixing Referral SaaS with
+broader DLaaS navigation.
