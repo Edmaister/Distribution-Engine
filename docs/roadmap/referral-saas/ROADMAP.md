@@ -169,6 +169,7 @@ greenfield referral construction.
 61. TASK-195: Build Account Maintenance read-only shell.
 62. TASK-196: Add Account Maintenance draft selector from safe onboarding source.
 63. TASK-197: Add account/tenant-link/external-reference schema final review.
+64. TASK-198: Add Referral SaaS account foundation migration and contract tests.
 
 ## 10/10 Exit Criteria
 
@@ -369,6 +370,11 @@ greenfield referral construction.
   `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`
 - TASK-197: `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SCHEMA_FINAL_REVIEW.md`;
   `docs/sa/referral-saas/README.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-198: `dp/migrations/082_referral_saas_account_foundation.sql`;
+  `test/test_referral_saas_account_foundation_migration.py`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`
