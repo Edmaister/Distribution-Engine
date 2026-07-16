@@ -172,6 +172,7 @@ greenfield referral construction.
 64. TASK-198: Add Referral SaaS account foundation migration and contract tests.
 65. TASK-199: Add Referral SaaS account foundation read resolver service.
 66. TASK-200: Add Referral SaaS account read API wrapper.
+67. TASK-201: Wire Account Setup frontend to durable account resolver.
 
 ## 10/10 Exit Criteria
 
@@ -394,6 +395,16 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-201: `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/api/referralSaasAccountQueries.ts`;
+  `frontend/src/api/queryKeys.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`
 
 ## Explicit Deferrals

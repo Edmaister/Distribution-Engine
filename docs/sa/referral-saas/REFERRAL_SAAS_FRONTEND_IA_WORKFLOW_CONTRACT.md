@@ -193,6 +193,12 @@ Current API/client foundations:
   summaries without adding account creation, membership writes, invitations,
   credential lifecycle, campaign activation, go-live, webhook delivery, or
   money behavior.
+- TASK-201 wires Account Setup Step 1 to the read-only Referral SaaS durable
+  account resolver. The page now distinguishes existing resolved account
+  context from first-time setup-draft mode without exposing internal tenant
+  identifiers or adding account creation, tenant creation, membership,
+  invitation, maintenance, campaign activation, go-live, webhook delivery, or
+  money behavior.
 - `/admin/referral-saas/account-maintenance` now provides the TASK-195
   read-only Account Maintenance shell. It consumes the same safe onboarding
   state source as the current setup wrapper, but presents maintenance as
@@ -453,8 +459,10 @@ instruction so testers know whether to check changed references, fix setup
 blockers, or continue to campaign readiness. TASK-189 clarifies that Account
 Setup is the parent workflow and Account Setup Readiness is the current
 checkpoint inside that workflow. TASK-195 adds the Account Maintenance
-read-only shell beside setup, and TASK-196 adds a source-backed draft selector
-for maintenance evidence. Remaining frontend work should focus on durable
-account primitives, account-safe customer/referrer status, support-case
-execution guardrails, live E2E proof, and deeper campaign/account workflows
-rather than mixing Referral SaaS with broader DLaaS navigation.
+read-only shell beside setup, TASK-196 adds a source-backed draft selector for
+maintenance evidence, and TASK-201 wires Account Setup to the durable account
+resolver. Remaining frontend work should focus on local physical Account Setup
+proof, membership-aware account setup, account-safe customer/referrer status,
+support-case execution guardrails, live E2E proof, and deeper
+campaign/account workflows rather than mixing Referral SaaS with broader DLaaS
+navigation.

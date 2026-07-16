@@ -13,7 +13,10 @@ import {
   type AdminOnboardingReviewOutcome,
   type AdminOnboardingSubmitForReviewResponse,
 } from "../../api/endpoints/adminOnboarding";
-import { useReferralSaasAccountSetupState } from "../../api/referralSaasAccountQueries";
+import {
+  useReferralSaasAccountResolver,
+  useReferralSaasAccountSetupState,
+} from "../../api/referralSaasAccountQueries";
 import { DataTable } from "../../components/DataTable";
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { KpiCard } from "../../components/KpiCard";
@@ -128,6 +131,11 @@ export function ReferralSaasAccountSetupPage() {
     appliedOrganisationRef,
     refreshKey,
   );
+  const {
+    data: accountResolution,
+    error: accountResolutionError,
+    isLoading: accountResolutionLoading,
+  } = useReferralSaasAccountResolver(appliedExternalTenantRef, refreshKey);
   const scopeChanged =
     draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
     draftOrganisationRef.trim() !== appliedOrganisationRef;
@@ -156,6 +164,12 @@ export function ReferralSaasAccountSetupPage() {
   const missingEvidenceCount = formatDisplay(missingEvidenceCountValue);
   const goLiveDisabledCount = formatDisplay(goLiveDisabledCountValue);
   const needsSetupWork = blockedCountValue > 0 || missingEvidenceCountValue > 0;
+  const durableAccount = accountResolution?.account;
+  const durableAccountStatus = getDurableAccountStatus(
+    Boolean(durableAccount),
+    accountResolutionLoading,
+    accountResolutionError,
+  );
   const nextStep = getAccountSetupNextStep(scopeChanged, needsSetupWork);
   const setupSections = useMemo(
     () => buildReferralSaasSetupSections(appliedExternalTenantRef, appliedOrganisationRef),
@@ -406,9 +420,9 @@ export function ReferralSaasAccountSetupPage() {
               <div className="account-setup-action-grid">
                 <form className="account-setup-scope-form" onSubmit={submitScope}>
                   <div>
-                    <h3 className="panel-title">Step 1 action: check account scope</h3>
+                    <h3 className="panel-title">Step 1 action: check account setup</h3>
                     <p className="journey-step-copy">
-                      Confirm which setup evidence to load. Typing stays local until you run the check.
+                      Confirm the account references, load readiness evidence, and resolve any durable account already created for setup.
                     </p>
                   </div>
                   <label className="field">
@@ -428,9 +442,23 @@ export function ReferralSaasAccountSetupPage() {
                     />
                   </label>
                   <button className="button" disabled={!canCheckScope} type="submit">
-                    Check readiness
+                    Check setup
                   </button>
                   <StatusBadge label={scopeChanged ? "Changes not checked" : "Loaded"} tone={scopeChanged ? "warning" : "success"} />
+                  <div className="route-item">
+                    <div>
+                      <div className="route-name">Durable account resolution</div>
+                      <div className="route-path">{durableAccountStatus.copy}</div>
+                      {durableAccount ? (
+                        <div className="table-subtext">
+                          {durableAccount.accountName || durableAccount.accountCode || "Account"} -{" "}
+                          {durableAccount.accountStatus || "status unavailable"} - tenant link{" "}
+                          {durableAccount.tenantLinkStatus || "unavailable"}
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge label={durableAccountStatus.label} tone={durableAccountStatus.tone} />
+                  </div>
                 </form>
                 <div className="route-list">
                   <div className="route-item">
@@ -594,6 +622,15 @@ export function ReferralSaasAccountSetupPage() {
               <div className="panel-body route-list">
                 <div className="route-item">
                   <div>
+                    <div className="route-name">Durable account resolver is read-only</div>
+                    <div className="route-path">
+                      Step 1 resolves existing account context when available, but it does not create accounts, tenants, users, memberships, or invitations.
+                    </div>
+                  </div>
+                  <StatusBadge label={durableAccount ? "Resolved" : "Setup mode"} tone={durableAccount ? "success" : "info"} />
+                </div>
+                <div className="route-item">
+                  <div>
                     <div className="route-name">Account creation remains future work</div>
                     <div className="route-path">
                       No account table, membership table, tenant-link write, invitation, or activation is created here.
@@ -737,6 +774,44 @@ function categoryMatches(category: Record<string, unknown>, item: { code: string
 function toCount(value: unknown) {
   const count = Number(value);
   return Number.isFinite(count) ? count : 0;
+}
+
+function getDurableAccountStatus(hasAccount: boolean, isLoading: boolean, error: unknown) {
+  if (isLoading) {
+    return {
+      copy: "Checking whether the external tenant reference maps to a durable Referral SaaS account.",
+      label: "Checking",
+      tone: "info" as const,
+    };
+  }
+  if (hasAccount) {
+    return {
+      copy: "This setup scope resolves to an existing durable account. Continue setup from this account context.",
+      label: "Resolved",
+      tone: "success" as const,
+    };
+  }
+
+  const status = typeof error === "object" && error && "status" in error ? Number((error as { status?: number }).status) : null;
+  if (status === 404) {
+    return {
+      copy: "No durable account was found for this reference yet. Continue the Account Setup draft path.",
+      label: "Setup draft",
+      tone: "warning" as const,
+    };
+  }
+  if (error) {
+    return {
+      copy: "The account resolver could not safely resolve this reference. Check the reference or resolver guardrails before continuing.",
+      label: "Resolver blocked",
+      tone: "warning" as const,
+    };
+  }
+  return {
+    copy: "No durable account check has returned yet. Run Step 1 before moving to setup actions.",
+    label: "Unchecked",
+    tone: "neutral" as const,
+  };
 }
 
 function getAccountSetupNextStep(scopeChanged: boolean, needsSetupWork: boolean) {
