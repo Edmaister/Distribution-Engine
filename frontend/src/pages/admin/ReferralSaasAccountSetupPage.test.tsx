@@ -12,6 +12,7 @@ import {
   validateAdminOnboardingDryRun,
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
+import { resolveReferralSaasAccount } from "../../api/endpoints/referralSaasAccounts";
 import { ReferralSaasAccountSetupPage } from "./ReferralSaasAccountSetupPage";
 
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
@@ -21,12 +22,16 @@ vi.mock("../../api/endpoints/adminOnboarding", () => ({
   submitAdminOnboardingDraftForReview: vi.fn(),
   validateAdminOnboardingDryRun: vi.fn(),
 }));
+vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
+  resolveReferralSaasAccount: vi.fn(),
+}));
 
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
 const mockedRecordAdminOnboardingReviewDecision = vi.mocked(recordAdminOnboardingReviewDecision);
 const mockedSaveAdminOnboardingDraft = vi.mocked(saveAdminOnboardingDraft);
 const mockedSubmitAdminOnboardingDraftForReview = vi.mocked(submitAdminOnboardingDraftForReview);
 const mockedValidateAdminOnboardingDryRun = vi.mocked(validateAdminOnboardingDryRun);
+const mockedResolveReferralSaasAccount = vi.mocked(resolveReferralSaasAccount);
 
 function renderWorkspace(ui: ReactElement) {
   const client = new QueryClient({
@@ -203,6 +208,31 @@ function mockReviewResponse() {
   };
 }
 
+function mockAccountResolutionResponse() {
+  return {
+    status: "ok",
+    context: "setup" as const,
+    account: {
+      accountId: "acc_fnb",
+      accountCode: "FNB_REFERRAL_SAAS",
+      accountName: "FNB Referral SaaS",
+      accountType: "REFERRAL_SAAS_CUSTOMER",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "READY_FOR_SETUP",
+      externalRefId: "ext_fnb",
+      refType: "external_tenant_ref",
+      externalRef: "demo-platform-operator",
+      referenceStatus: "ACTIVE",
+      accountTenantId: "acct_tenant_fnb",
+      relationshipType: "PRIMARY",
+      tenantLinkStatus: "ACTIVE",
+      isPrimary: true,
+      source: "external_reference",
+    },
+    guardrail: "Read-only Referral SaaS account resolver.",
+  };
+}
+
 function panelByHeading(heading: string) {
   const headingElement = screen.getByRole("heading", { name: heading });
   const panel = headingElement.closest(".panel");
@@ -228,6 +258,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     mockedSaveAdminOnboardingDraft.mockResolvedValue(mockDraftSaveResponse());
     mockedSubmitAdminOnboardingDraftForReview.mockResolvedValue(mockSubmitResponse());
     mockedRecordAdminOnboardingReviewDecision.mockResolvedValue(mockReviewResponse());
+    mockedResolveReferralSaasAccount.mockResolvedValue(mockAccountResolutionResponse());
   });
 
   afterEach(() => {
@@ -244,7 +275,14 @@ describe("ReferralSaasAccountSetupPage", () => {
         organisation_ref: "demo-organisation",
       }),
     );
+    expect(mockedResolveReferralSaasAccount).toHaveBeenCalledWith({
+      refType: "external_tenant_ref",
+      externalRef: "demo-platform-operator",
+      context: "setup",
+    });
     expect(screen.getByText("GO_LIVE_DISABLED")).toBeInTheDocument();
+    expect(screen.getByText("Durable account resolution")).toBeInTheDocument();
+    expect(screen.getByText("FNB Referral SaaS - ACTIVE - tenant link ACTIVE")).toBeInTheDocument();
     expect(screen.getByText("ACCOUNT_PROFILE")).toBeInTheDocument();
     expect(screen.getByText("MEMBERSHIP")).toBeInTheDocument();
     expect(screen.getByText("NO_ACCOUNT_CREATION")).toBeInTheDocument();
@@ -267,7 +305,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(await screen.findByRole("heading", { name: "Guided setup path" })).toBeInTheDocument();
     expect(screen.getByText("Do this next: complete setup actions")).toBeInTheDocument();
     expect(screen.getByText(/Use the Step 2 actions to fill the missing setup evidence/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Step 1 action: check account scope" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Step 1 action: check account setup" })).toBeInTheDocument();
     expect(screen.getByText("Step 2 action: complete setup evidence")).toBeInTheDocument();
     expect(screen.getByText("Step 3 action: move to campaign setup")).toBeInTheDocument();
     expect(screen.getAllByText("Company profile").length).toBeGreaterThan(0);
@@ -299,7 +337,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.getByText("Do this next: confirm the account scope")).toBeInTheDocument();
     expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Check readiness" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check setup" }));
 
     await waitFor(() =>
       expect(mockedGetAdminOnboardingState).toHaveBeenLastCalledWith({
@@ -307,11 +345,33 @@ describe("ReferralSaasAccountSetupPage", () => {
         organisation_ref: "fnb-referral-org",
       }),
     );
+    await waitFor(() =>
+      expect(mockedResolveReferralSaasAccount).toHaveBeenLastCalledWith({
+        refType: "external_tenant_ref",
+        externalRef: "org-fnb-referrals",
+        context: "setup",
+      }),
+    );
     expect(await screen.findByText("Do this next: complete setup actions")).toBeInTheDocument();
     expect(JSON.stringify(mockedGetAdminOnboardingState.mock.calls)).not.toMatch(
       /account_ref|tenant_code|api_key|client_secret/i,
     );
     expect(screen.getByRole("button", { name: "Save setup draft" })).toBeEnabled();
+  });
+
+  it("keeps first-time setup usable when no durable account exists yet", async () => {
+    mockedResolveReferralSaasAccount.mockRejectedValue({
+      status: 404,
+      message: "External reference was not found.",
+    });
+
+    renderWorkspace(<ReferralSaasAccountSetupPage />);
+
+    expect(await screen.findByRole("heading", { name: "Account setup workflow" })).toBeInTheDocument();
+    expect(await screen.findByText("No durable account was found for this reference yet. Continue the Account Setup draft path.")).toBeInTheDocument();
+    expect(screen.getByText("Setup draft")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save setup draft" })).toBeEnabled();
+    expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
   });
 
   it("connects setup workflow actions to existing onboarding draft APIs safely", async () => {
