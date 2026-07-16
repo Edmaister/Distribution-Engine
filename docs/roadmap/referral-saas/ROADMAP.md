@@ -174,6 +174,7 @@ greenfield referral construction.
 66. TASK-200: Add Referral SaaS account read API wrapper.
 67. TASK-201: Wire Account Setup frontend to durable account resolver.
 68. TASK-202: Physically verify Account Setup draft save against local app/API/DB.
+69. TASK-203: Add Account Setup durable account creation service.
 
 ## 10/10 Exit Criteria
 
@@ -413,6 +414,12 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-203: `services/referral_saas_account_setup_service.py`;
+  `test/test_referral_saas_account_setup_service.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_DURABLE_ACCOUNT_COMMAND.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`
 
 ## Explicit Deferrals
