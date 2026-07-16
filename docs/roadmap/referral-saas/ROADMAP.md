@@ -173,6 +173,7 @@ greenfield referral construction.
 65. TASK-199: Add Referral SaaS account foundation read resolver service.
 66. TASK-200: Add Referral SaaS account read API wrapper.
 67. TASK-201: Wire Account Setup frontend to durable account resolver.
+68. TASK-202: Physically verify Account Setup draft save against local app/API/DB.
 
 ## 10/10 Exit Criteria
 
@@ -402,6 +403,13 @@ greenfield referral construction.
   `frontend/src/api/queryKeys.ts`;
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-202: `services/onboarding/onboarding_draft_repository.py`;
+  `test/test_onboarding_draft_repository.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_PHYSICAL_VERIFICATION.md`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md`;

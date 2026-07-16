@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from contextlib import asynccontextmanager
 
 import pytest
@@ -71,6 +72,30 @@ async def test_create_and_read_draft_by_external_references(monkeypatch):
     assert "tenant_code" not in conn.fetchrow_calls[0][0]
     assert "INSERT INTO onboarding_drafts" in conn.fetchrow_calls[0][0]
     assert "SELECT *" in conn.fetchrow_calls[1][0]
+
+
+@pytest.mark.asyncio
+async def test_create_draft_serializes_jsonb_payloads_for_asyncpg(monkeypatch):
+    conn = FakeConn(fetchrow_rows=[_draft_row()])
+    patch_db(monkeypatch, conn)
+
+    await repo.create_draft(
+        draft_ref="draft_001",
+        external_tenant_ref="tenant-ext-1",
+        organisation_ref="org-1",
+        created_by_ref="actor-1",
+        created_by_role="PLATFORM_OPERATOR",
+        safe_summary={"validation_status": "MISSING_EVIDENCE"},
+        metadata={"source": "physical-test"},
+        redactions=["tenant_code"],
+    )
+
+    _, params = conn.fetchrow_calls[0]
+    assert params[14] == json.dumps(
+        {"validation_status": "MISSING_EVIDENCE"}, sort_keys=True
+    )
+    assert params[15] == json.dumps({"source": "physical-test"}, sort_keys=True)
+    assert params[16] == json.dumps(["tenant_code"], sort_keys=True)
 
 
 @pytest.mark.asyncio
@@ -177,6 +202,9 @@ async def test_update_draft_uses_expected_version_and_increments(monkeypatch):
     assert "WHERE draft_ref = $1" in query
     assert "AND draft_version = $2" in query
     assert params[0:3] == ("draft_001", 1, "DRAFT_UPDATED")
+    assert params[3] == json.dumps({"note": "safe"}, sort_keys=True)
+    assert params[4] == json.dumps({}, sort_keys=True)
+    assert params[7] == json.dumps([], sort_keys=True)
 
 
 @pytest.mark.asyncio
@@ -215,6 +243,10 @@ async def test_record_validation_result(monkeypatch):
 
     assert result["validation_status"] == "BLOCKED"
     assert "INSERT INTO onboarding_draft_validation_results" in conn.fetchrow_calls[0][0]
+    _, params = conn.fetchrow_calls[0]
+    assert params[9] == json.dumps([{"code": "MISSING_EVIDENCE"}], sort_keys=True)
+    assert params[13] == json.dumps({"status": "REVIEW_ONLY"}, sort_keys=True)
+    assert params[14] == json.dumps({}, sort_keys=True)
 
 
 @pytest.mark.asyncio
@@ -285,6 +317,10 @@ async def test_create_audit_link_reference_only(monkeypatch):
     assert result["audit_ref"] == "audit-ref-only"
     assert result["event_ref"] is None
     assert "INSERT INTO onboarding_draft_audit_links" in conn.fetchrow_calls[0][0]
+    _, params = conn.fetchrow_calls[0]
+    assert params[13] == json.dumps(["company"], sort_keys=True)
+    assert params[14] == json.dumps([], sort_keys=True)
+    assert params[16] == json.dumps({"summary": "reference only"}, sort_keys=True)
 
 
 def test_payload_guard_allows_intent_fields_but_blocks_live_action_fields():
