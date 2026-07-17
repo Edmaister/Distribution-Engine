@@ -12,7 +12,7 @@ import {
   validateAdminOnboardingDryRun,
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
-import { resolveReferralSaasAccount } from "../../api/endpoints/referralSaasAccounts";
+import { createReferralSaasAccountFromDraft, resolveReferralSaasAccount } from "../../api/endpoints/referralSaasAccounts";
 import { ReferralSaasAccountSetupPage } from "./ReferralSaasAccountSetupPage";
 
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
@@ -23,6 +23,7 @@ vi.mock("../../api/endpoints/adminOnboarding", () => ({
   validateAdminOnboardingDryRun: vi.fn(),
 }));
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
+  createReferralSaasAccountFromDraft: vi.fn(),
   resolveReferralSaasAccount: vi.fn(),
 }));
 
@@ -31,6 +32,7 @@ const mockedRecordAdminOnboardingReviewDecision = vi.mocked(recordAdminOnboardin
 const mockedSaveAdminOnboardingDraft = vi.mocked(saveAdminOnboardingDraft);
 const mockedSubmitAdminOnboardingDraftForReview = vi.mocked(submitAdminOnboardingDraftForReview);
 const mockedValidateAdminOnboardingDryRun = vi.mocked(validateAdminOnboardingDryRun);
+const mockedCreateReferralSaasAccountFromDraft = vi.mocked(createReferralSaasAccountFromDraft);
 const mockedResolveReferralSaasAccount = vi.mocked(resolveReferralSaasAccount);
 
 function renderWorkspace(ui: ReactElement) {
@@ -233,6 +235,23 @@ function mockAccountResolutionResponse() {
   };
 }
 
+function mockAccountCreateResponse() {
+  return {
+    status: "created",
+    account: {
+      accountId: "acc_created",
+      accountCode: "ACCT_CREATED",
+      accountName: "demo-organisation Referral SaaS setup",
+      accountStatus: "PENDING_ONBOARDING",
+      onboardingStatus: "READY_FOR_REVIEW",
+      tenantLinkStatus: "PENDING_SETUP",
+    },
+    guardrails: ["DURABLE_ACCOUNT_FOUNDATION_ONLY", "NO_TENANT_CREATION", "NO_MONEY_MOVEMENT"],
+    redactions: ["internal_tenant_identifier"],
+    noAdjacentLiveActionConfirmed: true,
+  };
+}
+
 function panelByHeading(heading: string) {
   const headingElement = screen.getByRole("heading", { name: heading });
   const panel = headingElement.closest(".panel");
@@ -258,6 +277,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     mockedSaveAdminOnboardingDraft.mockResolvedValue(mockDraftSaveResponse());
     mockedSubmitAdminOnboardingDraftForReview.mockResolvedValue(mockSubmitResponse());
     mockedRecordAdminOnboardingReviewDecision.mockResolvedValue(mockReviewResponse());
+    mockedCreateReferralSaasAccountFromDraft.mockResolvedValue(mockAccountCreateResponse());
     mockedResolveReferralSaasAccount.mockResolvedValue(mockAccountResolutionResponse());
   });
 
@@ -439,7 +459,49 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(JSON.stringify(reviewRequest).toLowerCase()).not.toMatch(/tenant_code|api_key|client_secret|wallet|settlement|money/);
     expect(await screen.findByText("Internal review decision recorded.")).toBeInTheDocument();
     expect(screen.getByText(/go-live: disabled/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /create account/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create account foundation" })).toBeDisabled();
+  });
+
+  it("creates the account foundation only after accepted internal review when no durable account exists", async () => {
+    mockedResolveReferralSaasAccount.mockRejectedValue({
+      status: 404,
+      message: "External reference was not found.",
+    });
+
+    renderWorkspace(<ReferralSaasAccountSetupPage />);
+
+    await screen.findByRole("heading", { name: "Setup draft actions" });
+    expect(await screen.findByText(/No durable account was found/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create account foundation" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save setup draft" }));
+    await screen.findByText("Setup draft saved.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+    await screen.findByText("Setup draft submitted for review.");
+
+    fireEvent.change(screen.getByLabelText("Review reason"), {
+      target: { value: "Setup evidence is ready for account foundation creation." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Accept internal review" }));
+    await screen.findByText("Internal review decision recorded.");
+
+    const createButton = screen.getByRole("button", { name: "Create account foundation" });
+    await waitFor(() => expect(createButton).toBeEnabled());
+    fireEvent.click(createButton);
+
+    await waitFor(() => expect(mockedCreateReferralSaasAccountFromDraft).toHaveBeenCalledTimes(1));
+    expect(mockedCreateReferralSaasAccountFromDraft).toHaveBeenCalledWith({
+      draftRef: "draft_referral_saas_setup",
+      internalTenantCode: "FNB",
+      idempotencyKey: "referral-saas-account-setup-create:draft_referral_saas_setup",
+    });
+    expect(JSON.stringify(mockedCreateReferralSaasAccountFromDraft.mock.calls).toLowerCase()).not.toMatch(
+      /client_secret|wallet|settlement|money_movement|go_live_enabled/,
+    );
+    expect(await screen.findByText("Account foundation created.")).toBeInTheDocument();
+    expect(screen.getByText(/PENDING_ONBOARDING/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /invite/i })).not.toBeInTheDocument();
   });
 
   it("keeps account creation and membership mutation as visible guardrails", async () => {
@@ -449,8 +511,8 @@ describe("ReferralSaasAccountSetupPage", () => {
     const guardrailPanel = panelByHeading("Launch guardrails");
 
     expect(guardrailPanel.getByText("Account creation is gated")).toBeInTheDocument();
-    expect(guardrailPanel.getByText(/backend account creation wrapper exists/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /create account/i })).not.toBeInTheDocument();
+    expect(guardrailPanel.getByText(/available only after setup draft save/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create account foundation" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: /invite/i })).not.toBeInTheDocument();
   });
 

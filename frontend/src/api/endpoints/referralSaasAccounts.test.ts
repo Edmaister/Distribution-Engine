@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { apiRequest } from "../client";
-import { resolveReferralSaasAccount } from "./referralSaasAccounts";
+import { createReferralSaasAccountFromDraft, resolveReferralSaasAccount } from "./referralSaasAccounts";
 
 vi.mock("../client", () => ({
   apiRequest: vi.fn(),
@@ -48,6 +48,47 @@ describe("referralSaasAccounts endpoint client", () => {
     });
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|wallet|settlement|money/,
+    );
+  });
+
+  it("creates a Referral SaaS account from a reviewed setup draft through the guarded product wrapper", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "created",
+      account: {
+        accountCode: "FNB_REFERRAL_SAAS",
+        accountName: "FNB Referral SaaS",
+        accountStatus: "PENDING_ONBOARDING",
+      },
+      guardrails: ["DURABLE_ACCOUNT_FOUNDATION_ONLY", "NO_MONEY_MOVEMENT"],
+      redactions: ["internal_tenant_identifier"],
+      no_adjacent_live_action_confirmed: true,
+    });
+
+    await expect(
+      createReferralSaasAccountFromDraft({
+        draftRef: " draft_referral_saas_setup ",
+        internalTenantCode: " FNB ",
+        idempotencyKey: "account-create:draft_referral_saas_setup",
+      }),
+    ).resolves.toMatchObject({
+      status: "created",
+      account: {
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      noAdjacentLiveActionConfirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts/from-draft", {
+      method: "POST",
+      body: {
+        draft_ref: "draft_referral_saas_setup",
+        internal_tenant_code: "FNB",
+        idempotency_key: "account-create:draft_referral_saas_setup",
+        correlation_id: "referral-saas-account-setup-create",
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /client_secret|wallet|settlement|money_movement/,
     );
   });
 });
