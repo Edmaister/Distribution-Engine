@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from typing import Any
 
@@ -759,10 +760,22 @@ def _sections_from_saved_rows(rows: list[dict[str, Any]]) -> dict[str, dict[str,
         section_key = _optional_text(row.get("section_key"))
         if section_key not in SECTION_DEFINITIONS:
             continue
-        payload = row.get("section_payload")
+        payload = _mapping_from_saved_jsonb(row.get("section_payload"))
         if isinstance(payload, Mapping):
             sections[section_key] = dict(payload)
     return sections
+
+
+def _mapping_from_saved_jsonb(value: Any) -> Mapping[str, Any] | None:
+    if isinstance(value, Mapping):
+        return value
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, Mapping) else None
 
 
 def _draft_ref(scope: Mapping[str, str]) -> str:

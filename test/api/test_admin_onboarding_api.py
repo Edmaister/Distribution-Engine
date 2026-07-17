@@ -671,6 +671,30 @@ def _existing_idempotency_for(payload, *, request_hash=None):
     }
 
 
+def test_saved_section_rows_decode_jsonb_strings_for_submit_validation():
+    payload = _complete_draft_payload()
+    rows = [
+        {
+            "section_key": section_key,
+            "section_payload": json.dumps(section_payload, sort_keys=True),
+        }
+        for section_key, section_payload in payload["sections"].items()
+    ]
+
+    sections = admin_onboarding._sections_from_saved_rows(rows)
+
+    assert set(sections) == set(payload["sections"])
+    assert sections["company"]["organisation_ref"] == "org-acme"
+    validation = admin_onboarding.validate_onboarding_draft(
+        {
+            "scope": admin_onboarding._scope_from_payload(payload),
+            "sections": sections,
+        },
+        actor_context={"role": "PLATFORM_ADMIN"},
+    )
+    assert validation["validation_result"]["status"] == "VALID"
+
+
 def _saved_draft(**overrides):
     draft = {
         "draft_id": "draft-uuid",
