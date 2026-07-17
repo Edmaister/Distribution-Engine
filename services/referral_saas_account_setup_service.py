@@ -177,6 +177,23 @@ async def create_durable_account_from_onboarding_draft(
                 "External tenant reference is already attached to an account."
             )
 
+        duplicate_owner_link = await conn.fetchrow(
+            """
+            SELECT account_tenant_id
+            FROM platform_account_tenants
+            WHERE tenant_code = $1
+              AND relationship_type = $2
+              AND status IN ('PENDING_SETUP', 'ACTIVE', 'SUSPENDED')
+            LIMIT 1
+            """,
+            safe_tenant_code,
+            RELATIONSHIP_OWNER,
+        )
+        if duplicate_owner_link:
+            raise AccountSetupDuplicateReference(
+                "Internal tenant scope is already attached to an account owner."
+            )
+
         async with conn.transaction():
             account = await conn.fetchrow(
                 """
