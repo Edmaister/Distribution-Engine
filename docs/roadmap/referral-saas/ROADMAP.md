@@ -177,6 +177,7 @@ greenfield referral construction.
 69. TASK-203: Add Account Setup durable account creation service.
 70. TASK-204: Add Referral SaaS account creation API wrapper.
 71. TASK-205: Clarify Account Setup parent workflow and Step 1 company profile UX.
+72. TASK-206: Physically verify Referral SaaS account creation from reviewed draft.
 
 ## 10/10 Exit Criteria
 
@@ -436,6 +437,14 @@ greenfield referral construction.
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
   `frontend/src/pages/admin/OnboardingDemoJourneySmoke.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-206: `scripts/referral_saas_account_create_physical_check.py`;
+  `test/test_referral_saas_account_create_physical_check.py`;
+  `services/referral_saas_account_setup_service.py`;
+  `test/test_referral_saas_account_setup_service.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_CREATE_PHYSICAL_VERIFICATION.md`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`
