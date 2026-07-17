@@ -14,6 +14,11 @@ import {
   type AdminOnboardingSubmitForReviewResponse,
 } from "../../api/endpoints/adminOnboarding";
 import {
+  createReferralSaasAccountFromDraft,
+  type ReferralSaasAccountCreateFromDraftResponse,
+  type ReferralSaasAccountSummary,
+} from "../../api/endpoints/referralSaasAccounts";
+import {
   useReferralSaasAccountResolver,
   useReferralSaasAccountSetupState,
 } from "../../api/referralSaasAccountQueries";
@@ -34,6 +39,8 @@ import {
 
 const defaultExternalTenantRef = "demo-platform-operator";
 const defaultOrganisationRef = "demo-organisation";
+const trustedInternalTenantScopeKey = "amplifi.referralSaas.accountSetup.trustedTenantScope";
+const defaultTrustedInternalTenantScope = "FNB";
 type SetupActionState = "idle" | "loading" | "success" | "error";
 
 const accountChecklist = [
@@ -126,6 +133,10 @@ export function ReferralSaasAccountSetupPage() {
   const [reviewState, setReviewState] = useState<SetupActionState>("idle");
   const [reviewResponse, setReviewResponse] = useState<AdminOnboardingReviewDecisionResponse | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [createState, setCreateState] = useState<SetupActionState>("idle");
+  const [createResponse, setCreateResponse] = useState<ReferralSaasAccountCreateFromDraftResponse | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [accountRefreshKey, setAccountRefreshKey] = useState(0);
   const { data, error, isLoading } = useReferralSaasAccountSetupState(
     appliedExternalTenantRef,
     appliedOrganisationRef,
@@ -135,7 +146,7 @@ export function ReferralSaasAccountSetupPage() {
     data: accountResolution,
     error: accountResolutionError,
     isLoading: accountResolutionLoading,
-  } = useReferralSaasAccountResolver(appliedExternalTenantRef, refreshKey);
+  } = useReferralSaasAccountResolver(appliedExternalTenantRef, refreshKey + accountRefreshKey);
   const scopeChanged =
     draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
     draftOrganisationRef.trim() !== appliedOrganisationRef;
@@ -196,12 +207,23 @@ export function ReferralSaasAccountSetupPage() {
     ].join(":"),
     [submitResponse?.draft_ref, submitResponse?.draft_version],
   );
+  const createAccountIdempotencyKey = useMemo(
+    () => ["referral-saas-account-setup-create", reviewResponse?.draft_ref || "missing-draft"].join(":"),
+    [reviewResponse?.draft_ref],
+  );
   const canSubmitForReview = Boolean(actionScopeReady && draftResponse?.draft_ref && draftState === "success");
   const canRecordReview = Boolean(
     actionScopeReady &&
       submitResponse?.draft_ref &&
       submitResponse.draft_status === "READY_FOR_REVIEW" &&
       submitState === "success",
+  );
+  const canCreateAccount = Boolean(
+    actionScopeReady &&
+      reviewResponse?.draft_ref &&
+      reviewResponse.review_outcome === "APPROVED_FOR_INTERNAL_REVIEW" &&
+      reviewState === "success" &&
+      !durableAccount,
   );
   const workflowSteps = setupWorkflowLinks.map((step) =>
     resolveWorkflowStep(step, categories, scopeChanged, needsSetupWork),
@@ -245,6 +267,9 @@ export function ReferralSaasAccountSetupPage() {
     setReviewState("idle");
     setReviewResponse(null);
     setReviewError(null);
+    setCreateState("idle");
+    setCreateResponse(null);
+    setCreateError(null);
   }
 
   async function handleValidateSetupDraft() {
@@ -284,6 +309,9 @@ export function ReferralSaasAccountSetupPage() {
     setReviewState("idle");
     setReviewResponse(null);
     setReviewError(null);
+    setCreateState("idle");
+    setCreateResponse(null);
+    setCreateError(null);
     try {
       const response = await saveAdminOnboardingDraft({
         external_tenant_ref: appliedExternalTenantRef,
@@ -310,6 +338,9 @@ export function ReferralSaasAccountSetupPage() {
     setReviewState("idle");
     setReviewResponse(null);
     setReviewError(null);
+    setCreateState("idle");
+    setCreateResponse(null);
+    setCreateError(null);
     try {
       const response = await submitAdminOnboardingDraftForReview(draftResponse.draft_ref, {
         external_tenant_ref: appliedExternalTenantRef,
@@ -352,9 +383,34 @@ export function ReferralSaasAccountSetupPage() {
       });
       setReviewResponse(response);
       setReviewState("success");
+      setCreateState("idle");
+      setCreateResponse(null);
+      setCreateError(null);
     } catch (error) {
       setReviewError(safeActionError(error, "Review decision is unavailable. No approval, go-live, or live action was taken."));
       setReviewState("error");
+    }
+  }
+
+  async function handleCreateAccountFoundation() {
+    if (!canCreateAccount || !reviewResponse?.draft_ref || createState === "loading") {
+      return;
+    }
+    setCreateState("loading");
+    setCreateResponse(null);
+    setCreateError(null);
+    try {
+      const response = await createReferralSaasAccountFromDraft({
+        draftRef: reviewResponse.draft_ref,
+        internalTenantCode: getTrustedInternalTenantScope(),
+        idempotencyKey: createAccountIdempotencyKey,
+      });
+      setCreateResponse(response);
+      setCreateState("success");
+      setAccountRefreshKey((current) => current + 1);
+    } catch (error) {
+      setCreateError(safeAccountCreateError(error));
+      setCreateState("error");
     }
   }
 
@@ -549,9 +605,11 @@ export function ReferralSaasAccountSetupPage() {
                 </button>
               </div>
               <div className="table-subtext">
-                These actions use existing guarded onboarding APIs. They do not create accounts, invite users, create credentials, deliver webhooks, activate campaigns, enable go-live, or move money.
+                These actions use existing guarded onboarding APIs. They do not invite users, create credentials, deliver webhooks, activate campaigns, enable go-live, or move money.
               </div>
               <SetupActionResult
+                createError={createError}
+                createResponse={createResponse}
                 draftResponse={draftResponse}
                 draftError={draftError}
                 reviewError={reviewError}
@@ -561,6 +619,27 @@ export function ReferralSaasAccountSetupPage() {
                 validationError={validationError}
                 validationResponse={validationResponse}
               />
+              <div className="route-item">
+                <div>
+                  <div className="route-name">Final setup action: create account foundation</div>
+                  <div className="route-path">
+                    Available only after internal review is accepted. It creates the durable account foundation and external reference, not users, campaigns, activation, go-live, or money movement.
+                  </div>
+                  {durableAccount ? (
+                    <div className="table-subtext">
+                      Account already resolves as {formatAccountSummary(durableAccount)}. Continue from the resolved account context.
+                    </div>
+                  ) : null}
+                </div>
+                <button
+                  className="button"
+                  disabled={!canCreateAccount || createState === "loading"}
+                  onClick={handleCreateAccountFoundation}
+                  type="button"
+                >
+                  {createState === "loading" ? "Creating account" : "Create account foundation"}
+                </button>
+              </div>
             </div>
           </section>
 
@@ -633,10 +712,10 @@ export function ReferralSaasAccountSetupPage() {
                   <div>
                     <div className="route-name">Account creation is gated</div>
                     <div className="route-path">
-                      The backend account creation wrapper exists, but this UI waits for physical create-account proof and explicit create-action wiring.
+                      Account foundation creation is available only after setup draft save, submit, and internal review. It does not create tenants, users, memberships, invitations, campaigns, go-live, or money movement.
                     </div>
                   </div>
-                  <StatusBadge label="Gated" tone="warning" />
+                  <StatusBadge label={canCreateAccount ? "Ready" : durableAccount ? "Resolved" : "Gated"} tone={canCreateAccount || durableAccount ? "success" : "warning"} />
                 </div>
                 <div className="route-item">
                   <div>
@@ -877,9 +956,9 @@ function resolveWorkflowStep(
   if (step.code === "REVIEW_HANDOFF") {
     return {
       ...step,
-      actionLabel: "Future action",
-      actionText: "Requires draft save wrapper",
-      badge: "Future",
+      actionLabel: "Review action",
+      actionText: "Complete draft review",
+      badge: needsSetupWork || scopeChanged ? "Wait" : "Review",
       state: "review",
       tone: "warning" as const,
     };
@@ -954,7 +1033,41 @@ function safeActionError(error: unknown, fallback: string) {
   return fallback;
 }
 
+function safeAccountCreateError(error: unknown) {
+  const status = typeof error === "object" && error && "status" in error ? Number((error as { status?: number }).status) : null;
+  if (status === 409) {
+    return "The account could not be created because this setup scope already has conflicting or previously created account evidence. Re-check account setup to continue from the resolved account context.";
+  }
+  if (status === 422) {
+    return "The reviewed setup draft is missing required account creation evidence. No account, tenant, user, campaign, go-live, or money action was taken.";
+  }
+  if (status === 403) {
+    return "Your current session is not allowed to create the account foundation. No adjacent setup action was taken.";
+  }
+  return "Account foundation creation is unavailable. No tenant, user, campaign, go-live, or money action was taken.";
+}
+
+function getTrustedInternalTenantScope() {
+  if (typeof window === "undefined") {
+    return defaultTrustedInternalTenantScope;
+  }
+
+  return localStorage.getItem(trustedInternalTenantScopeKey) || defaultTrustedInternalTenantScope;
+}
+
+function formatAccountSummary(account: ReferralSaasAccountSummary) {
+  return [
+    account.accountName || account.accountCode || "Referral SaaS account",
+    account.accountStatus || "status unavailable",
+    account.tenantLinkStatus ? `tenant link ${account.tenantLinkStatus}` : "",
+  ]
+    .filter(Boolean)
+    .join(" - ");
+}
+
 function SetupActionResult({
+  createError,
+  createResponse,
   draftError,
   draftResponse,
   reviewError,
@@ -964,6 +1077,8 @@ function SetupActionResult({
   validationError,
   validationResponse,
 }: {
+  createError: string | null;
+  createResponse: ReferralSaasAccountCreateFromDraftResponse | null;
   draftError: string | null;
   draftResponse: AdminOnboardingDraftSaveResponse | null;
   reviewError: string | null;
@@ -1024,7 +1139,19 @@ function SetupActionResult({
           </div>
         </div>
       ) : null}
-      {[validationError, draftError, submitError, reviewError].filter(Boolean).map((message) => (
+      {createResponse ? (
+        <div className="banner success" role="status">
+          <CheckCircle2 size={18} />
+          <div>
+            <strong>Account foundation created.</strong>
+            <div className="table-subtext">
+              {formatAccountSummary(createResponse.account)}; adjacent live action:{" "}
+              {createResponse.noAdjacentLiveActionConfirmed ? "blocked" : "unavailable"}.
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {[validationError, draftError, submitError, reviewError, createError].filter(Boolean).map((message) => (
         <div className="banner warning" key={message} role="status">
           <ShieldCheck size={18} />
           <div>

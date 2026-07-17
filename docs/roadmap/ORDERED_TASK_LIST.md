@@ -4307,6 +4307,32 @@ Rollback notes: Revert the physical checker script/test, duplicate-owner service
 Explicit non-goals: Do not add schema, migrations, frontend create-action wiring, permission model changes, tenant creation, onboarding-draft schema changes, membership writes, user invitations, account activation, account lifecycle commands, account maintenance commands, reference rotation commands, credential lifecycle, support-case writes, attribution overrides, validation idempotency changes, repair, replay, retry commands, campaign activation, webhook delivery, reward application, reward fulfilment, reward funding, reward settlement, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, SaaS billing, source-code forks, or broad DLaaS behavior.
 Definition of done: Referral SaaS has a documented, tested, and locally proven account creation path from reviewed setup draft to durable account foundation, with safe resolve/readback and duplicate-owner hardening, ready for carefully scoped UI create-action wiring. Priority: P0.
 
+## TASK-207: Wire Account Setup UI create action to reviewed-draft account creation
+
+Status: Complete (2026-07-17). Output: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Wires the frontend to the existing guarded Referral SaaS account creation API while keeping onboarding draft, review, account foundation, resolver, and account setup primitives single-source. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup create-action wiring; reviewed-draft account foundation creation; safe UI command gating.
+Objective: Add the Account Setup UI action that creates the durable account foundation from an accepted reviewed draft through the TASK-204 guarded product API, using the TASK-206 physical proof as the release gate.
+Why now: TASK-206 physically proved account creation from reviewed setup evidence. The Account Setup UI can now expose a real final setup action instead of only describing a future gated command.
+Files involved: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/referralSaasAccountQueries.ts`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `apps/api/routers/referral_saas_accounts.py`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_CREATE_PHYSICAL_VERIFICATION.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Adds a typed create-from-draft endpoint client, shows a final Account Setup create-account-foundation action, enables it only after accepted internal review when no durable account already resolves, renders success/fallback states, and refreshes the account resolver after creation. The UI does not expose internal tenant identifiers to the operator.
+API impact: Consumes existing `POST /v1/referral-saas/accounts/from-draft`; adds no route.
+Tests to add/update: Adds endpoint client coverage for the guarded create call and updates Account Setup page tests for disabled existing-account state, first-time reviewed-draft create flow, no invite/money/go-live actions, and safe account-created evidence.
+Validation method: `npm.cmd test -- --run src/api/endpoints/referralSaasAccounts.test.ts src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run lint -- --max-warnings 60`; `npm.cmd run build`.
+Acceptance criteria: Account Setup shows the real account foundation create action only after save, submit, and accepted internal review; already-resolved account context keeps the create action disabled; create success displays safe account evidence; internal tenant identifiers are not displayed; no tenant creation, membership write, invitation, credential lifecycle, campaign activation, go-live, webhook delivery, repair/replay/retry, reward, money, or broad DLaaS behavior is added.
+Dependencies: TASK-204; TASK-205; TASK-206.
+Blocked by: None for UI command wiring. Full UI-driven local save -> submit -> review -> create -> resolve proof, full save/submit/review path hardening, membership-aware authorization, invitations, account lifecycle commands, and account maintenance commands remain future tasks.
+Risk level: Medium.
+Rollback notes: Revert the Referral SaaS account endpoint client/test changes, Account Setup page/test changes, and roadmap/gap updates.
+Explicit non-goals: Do not add backend routes, schema, migrations, permission model changes, tenant creation, onboarding-draft schema changes, membership writes, user invitations, account activation, account lifecycle commands, account maintenance commands, reference rotation commands, credential lifecycle, support-case writes, attribution overrides, validation idempotency changes, repair, replay, retry commands, campaign activation, webhook delivery, reward application, reward fulfilment, reward funding, reward settlement, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, marketplace-depth, white-label/embed, SaaS billing, source-code forks, or broad DLaaS behavior.
+Definition of done: Referral SaaS Account Setup has tested UI wiring to create the durable account foundation from accepted reviewed draft evidence through the guarded product API, ready for full local UI-driven physical onboarding proof. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

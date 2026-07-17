@@ -33,6 +33,21 @@ export type ReferralSaasAccountResolutionResponse = {
   guardrail: string;
 };
 
+export type ReferralSaasAccountCreateFromDraftRequest = {
+  draftRef: string;
+  internalTenantCode: string;
+  idempotencyKey: string;
+  correlationId?: string;
+};
+
+export type ReferralSaasAccountCreateFromDraftResponse = {
+  status: string;
+  account: ReferralSaasAccountSummary;
+  guardrails: string[];
+  redactions: string[];
+  noAdjacentLiveActionConfirmed: boolean;
+};
+
 export function resolveReferralSaasAccount({
   refType,
   externalRef,
@@ -45,4 +60,33 @@ export function resolveReferralSaasAccount({
       context,
     },
   });
+}
+
+export function createReferralSaasAccountFromDraft({
+  draftRef,
+  internalTenantCode,
+  idempotencyKey,
+  correlationId = "referral-saas-account-setup-create",
+}: ReferralSaasAccountCreateFromDraftRequest): Promise<ReferralSaasAccountCreateFromDraftResponse> {
+  return apiRequest<{
+    status: string;
+    account: ReferralSaasAccountSummary;
+    guardrails: string[];
+    redactions: string[];
+    no_adjacent_live_action_confirmed: boolean;
+  }>("v1/referral-saas/accounts/from-draft", {
+    method: "POST",
+    body: {
+      draft_ref: draftRef.trim(),
+      internal_tenant_code: internalTenantCode.trim(),
+      idempotency_key: idempotencyKey,
+      correlation_id: correlationId,
+    },
+  }).then((response) => ({
+    status: response.status,
+    account: response.account,
+    guardrails: response.guardrails,
+    redactions: response.redactions,
+    noAdjacentLiveActionConfirmed: response.no_adjacent_live_action_confirmed,
+  }));
 }
