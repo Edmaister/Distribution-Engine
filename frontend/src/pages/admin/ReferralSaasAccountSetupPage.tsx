@@ -15,10 +15,12 @@ import {
 } from "../../api/endpoints/adminOnboarding";
 import {
   createReferralSaasAccountFromDraft,
+  type ReferralSaasAccountMembershipPosture,
   type ReferralSaasAccountCreateFromDraftResponse,
   type ReferralSaasAccountSummary,
 } from "../../api/endpoints/referralSaasAccounts";
 import {
+  useReferralSaasAccountMembershipPosture,
   useReferralSaasAccountResolver,
   useReferralSaasAccountSetupState,
 } from "../../api/referralSaasAccountQueries";
@@ -150,6 +152,15 @@ export function ReferralSaasAccountSetupPage() {
   const scopeChanged =
     draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
     draftOrganisationRef.trim() !== appliedOrganisationRef;
+  const {
+    data: membershipPostureResponse,
+    error: membershipPostureError,
+    isLoading: membershipPostureLoading,
+  } = useReferralSaasAccountMembershipPosture(
+    appliedExternalTenantRef,
+    Boolean(accountResolution?.account && !scopeChanged),
+    refreshKey + accountRefreshKey,
+  );
   const canCheckScope = Boolean(draftExternalTenantRef.trim() && draftOrganisationRef.trim() && scopeChanged);
 
   const readiness = asRecord(data?.readiness);
@@ -176,6 +187,13 @@ export function ReferralSaasAccountSetupPage() {
   const goLiveDisabledCount = formatDisplay(goLiveDisabledCountValue);
   const needsSetupWork = blockedCountValue > 0 || missingEvidenceCountValue > 0;
   const durableAccount = accountResolution?.account;
+  const membershipPosture = membershipPostureResponse?.membershipPosture;
+  const membershipPostureStatus = getMembershipPostureStatus(
+    membershipPosture,
+    membershipPostureLoading,
+    membershipPostureError,
+    Boolean(durableAccount),
+  );
   const durableAccountStatus = getDurableAccountStatus(
     Boolean(durableAccount),
     accountResolutionLoading,
@@ -522,6 +540,19 @@ export function ReferralSaasAccountSetupPage() {
                     </div>
                     <StatusBadge label={durableAccountStatus.label} tone={durableAccountStatus.tone} />
                   </div>
+                  <div className="route-item">
+                    <div>
+                      <div className="route-name">Membership access check</div>
+                      <div className="route-path">{membershipPostureStatus.copy}</div>
+                      {membershipPosture ? (
+                        <div className="table-subtext">
+                          {membershipPosture.activeCount} active, {membershipPosture.invitedCount} invited,{" "}
+                          {membershipPosture.totalMemberships} total memberships. Invitations stay outside Account Setup.
+                        </div>
+                      ) : null}
+                    </div>
+                    <StatusBadge label={membershipPostureStatus.label} tone={membershipPostureStatus.tone} />
+                  </div>
                 </form>
                 <div className="route-list">
                   <div className="route-item">
@@ -728,10 +759,22 @@ export function ReferralSaasAccountSetupPage() {
                   <div>
                     <div className="route-name">Internal tenant identifier hidden</div>
                     <div className="route-path">
-                      Operators work from external references until trusted account membership is implemented.
+                      Operators work from external references. Membership posture is read-only here, and internal tenant identifiers stay redacted.
                     </div>
                   </div>
                   <StatusBadge label="Redacted" tone="success" />
+                </div>
+                <div className="route-item">
+                  <div>
+                    <div className="route-name">Membership writes are outside setup</div>
+                    <div className="route-path">
+                      This page can show active or missing membership evidence, but it cannot invite users, assign seats, or change auth claims.
+                    </div>
+                  </div>
+                  <StatusBadge
+                    label={membershipPosture?.noInviteDeliveryConfirmed ? "Read-only" : "Guarded"}
+                    tone={membershipPosture?.noInviteDeliveryConfirmed ? "success" : "warning"}
+                  />
                 </div>
               </div>
             </div>
@@ -897,6 +940,64 @@ function getDurableAccountStatus(hasAccount: boolean, isLoading: boolean, error:
     copy: "No durable account check has returned yet. Run Step 1 before moving to setup actions.",
     label: "Unchecked",
     tone: "neutral" as const,
+  };
+}
+
+function getMembershipPostureStatus(
+  posture: ReferralSaasAccountMembershipPosture | undefined,
+  isLoading: boolean,
+  error: unknown,
+  hasAccount: boolean,
+) {
+  if (!hasAccount) {
+    return {
+      copy: "Membership access is checked after Step 1 resolves a durable account.",
+      label: "Wait for account",
+      tone: "neutral" as const,
+    };
+  }
+  if (isLoading) {
+    return {
+      copy: "Checking read-only membership posture for this account.",
+      label: "Checking",
+      tone: "info" as const,
+    };
+  }
+  if (error) {
+    return {
+      copy: "Membership posture is unavailable. Keep setup actions bounded until access evidence can be checked.",
+      label: "Unavailable",
+      tone: "warning" as const,
+    };
+  }
+
+  const actorStatus = posture?.currentActor?.status || "NO_MEMBERSHIP_EVIDENCE";
+  if (actorStatus === "MEMBERSHIP_CONFIRMED") {
+    return {
+      copy: "The current actor has active account membership evidence. Continue setup actions in order.",
+      label: "Membership active",
+      tone: "success" as const,
+    };
+  }
+  if (actorStatus === "INVITED_NOT_ACTIVE") {
+    return {
+      copy: "The current actor has invited membership evidence, but it is not active. Complete access activation outside this Account Setup page.",
+      label: "Invited only",
+      tone: "warning" as const,
+    };
+  }
+  if (actorStatus === "MEMBERSHIP_NOT_USABLE") {
+    return {
+      copy: "The current actor membership evidence is suspended or disabled. Resolve account access outside this Account Setup page.",
+      label: "Blocked access",
+      tone: "warning" as const,
+    };
+  }
+
+  return {
+    copy: "No active account membership evidence matched the current actor yet. This page remains a read-only setup wrapper for access posture.",
+    label: "No membership",
+    tone: "warning" as const,
   };
 }
 

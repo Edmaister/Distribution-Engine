@@ -180,6 +180,7 @@ greenfield referral construction.
 72. TASK-206: Physically verify Referral SaaS account creation from reviewed draft.
 73. TASK-207: Wire Account Setup UI create action to reviewed-draft account creation.
 74. TASK-208: Physically verify full Account Setup UI save-review-create path.
+75. TASK-209: Add Referral SaaS membership read boundary.
 
 ## 10/10 Exit Criteria
 
@@ -464,6 +465,23 @@ greenfield referral construction.
   `scripts/referral_saas_account_setup_ui_physical_check.py`;
   `test/test_referral_saas_account_setup_ui_physical_check.py`;
   `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_UI_PHYSICAL_VERIFICATION.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-209: `services/referral_saas_account_membership_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/api/referralSaasAccountQueries.ts`;
+  `frontend/src/api/queryKeys.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`

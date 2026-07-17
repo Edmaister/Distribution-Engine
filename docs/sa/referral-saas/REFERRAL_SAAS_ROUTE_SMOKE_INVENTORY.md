@@ -60,6 +60,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Read-only product diagnostic | GET | `/v1/referral-saas/operator/outcomes/{referral_track_id}/trace` | Referral SaaS operator attribution trace wrapper |
 | Read-only product diagnostic | GET | `/v1/referral-saas/operator/referrals/{referral_track_id}/progress-status` | Referral SaaS operator progress/status diagnostics wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/resolve` | Referral SaaS account resolver wrapper |
+| Read-only product account | GET | `/v1/referral-saas/accounts/membership-posture` | Referral SaaS account membership posture wrapper |
 | Read-only product report | GET | `/v1/referral-saas/reports/{report_type}` | Referral SaaS report wrapper |
 | Inline product export preview | POST | `/v1/referral-saas/reports/{report_type}/exports/preview` | Referral SaaS export payload preview |
 | Validation-only product export | POST | `/v1/referral-saas/reports/{report_type}/exports/validate` | Referral SaaS export request validation gate |
@@ -85,6 +86,7 @@ read-only or side-effect-free `/v1/referral-saas/*` product wrappers:
 - `GET /v1/referral-saas/operator/outcomes/{referral_track_id}/trace`
 - `GET /v1/referral-saas/operator/referrals/{referral_track_id}/progress-status`
 - `GET /v1/referral-saas/accounts/resolve`
+- `GET /v1/referral-saas/accounts/membership-posture`
 - `GET /v1/referral-saas/reports/{report_type}`
 - `POST /v1/referral-saas/reports/{report_type}/exports/preview`
 - `POST /v1/referral-saas/reports/{report_type}/exports/validate`
@@ -168,8 +170,8 @@ Remaining blockers before a 10/10 claim:
 `test/test_referral_saas_route_smoke_inventory.py` asserts that the current
 read-only and seeded-write smoke route families are mounted, and that the
 `/v1/referral-saas/*` route surface remains bounded to the report, export,
-operator inspection, attribution trace, progress/status, and account resolver
-wrappers.
+operator inspection, attribution trace, progress/status, account resolver, and
+account membership posture wrappers.
 
 `scripts/referral_saas_route_smoke_plan.py` builds dry-run command templates
 for the read-only smoke routes by default. Local/staging write-route templates
