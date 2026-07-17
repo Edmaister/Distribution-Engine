@@ -295,8 +295,8 @@ describe("ReferralSaasAccountSetupPage", () => {
 
     expect(await screen.findByRole("heading", { name: "Guided setup path" })).toBeInTheDocument();
     expect(screen.getByText(/Readiness is one checkpoint inside setup/)).toBeInTheDocument();
-    expect(screen.getByText(/Submit and review actions remain disabled/)).toBeInTheDocument();
-    expect(screen.getByText(/Account creation remains future work/)).toBeInTheDocument();
+    expect(screen.getByText(/Save, submit, and review the setup draft/)).toBeInTheDocument();
+    expect(screen.getByText(/Account creation is gated/)).toBeInTheDocument();
   });
 
   it("shows a recommended account setup testing path", async () => {
@@ -448,8 +448,8 @@ describe("ReferralSaasAccountSetupPage", () => {
     await screen.findByText("ACCOUNT_PROFILE");
     const guardrailPanel = panelByHeading("Launch guardrails");
 
-    expect(guardrailPanel.getByText("Account creation remains future work")).toBeInTheDocument();
-    expect(guardrailPanel.getByText(/No account table, membership table/)).toBeInTheDocument();
+    expect(guardrailPanel.getByText("Account creation is gated")).toBeInTheDocument();
+    expect(guardrailPanel.getByText(/backend account creation wrapper exists/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /create account/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /invite/i })).not.toBeInTheDocument();
   });
@@ -458,7 +458,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
     await screen.findByText("ACCOUNT_PROFILE");
-    expect(lastMatch(screen.getAllByRole("link", { name: /Company onboarding/ }))).toHaveAttribute(
+    expect(lastMatch(screen.getAllByRole("link", { name: /Company profile/ }))).toHaveAttribute(
       "href",
       "/admin/onboarding/company",
     );
