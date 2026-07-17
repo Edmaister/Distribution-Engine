@@ -283,7 +283,14 @@ export function ReferralSaasAccountSetupPage() {
       const response = await validateAdminOnboardingDryRun({
         external_tenant_ref: appliedExternalTenantRef,
         organisation_ref: appliedOrganisationRef,
-        validation_scope: ["company", "member_role", "webhook_api"],
+        validation_scope: [
+          "company",
+          "producer_sponsor",
+          "distributor",
+          "member_role",
+          "campaign_opportunity",
+          "webhook_api",
+        ],
         idempotency_key: validateIdempotencyKey,
         correlation_id: "referral-saas-account-setup-validate",
         sections: setupSections,
@@ -986,6 +993,13 @@ function resolveWorkflowStep(
 }
 
 function buildReferralSaasSetupSections(externalTenantRef: string, organisationRef: string) {
+  const producerRef = `${organisationRef}-producer`;
+  const sponsorRef = `${organisationRef}-sponsor`;
+  const distributorRef = `${organisationRef}-distributor`;
+  const campaignCode = `${organisationRef}-setup-campaign`;
+  const opportunityRef = `${organisationRef}-setup-opportunity`;
+  const adminContact = "setup-owner@example.test";
+
   return {
     company: {
       organisation_name: `${organisationRef} Referral SaaS setup`,
@@ -994,18 +1008,56 @@ function buildReferralSaasSetupSections(externalTenantRef: string, organisationR
       country: "South Africa",
       organisation_type: "Referral SaaS customer",
       industry: "Referral management and campaign attribution",
-      admin_contact: "setup-owner@example.test",
+      admin_contact: adminContact,
       intended_role: "Referral SaaS admin",
+    },
+    producer_sponsor: {
+      producer_sponsor_name: `${organisationRef} sponsor setup`,
+      external_tenant_ref: externalTenantRef,
+      producer_ref: producerRef,
+      sponsor_ref: sponsorRef,
+      organisation_ref: organisationRef,
+      industry: "Referral management and campaign attribution",
+      funding_model_intention: "No value transfer during account setup",
+      admin_contact: adminContact,
+      campaign_opportunity_role: "Referral SaaS sponsor owner",
+    },
+    distributor: {
+      distributor_name: `${organisationRef} referral distribution setup`,
+      external_tenant_ref: externalTenantRef,
+      distributor_ref: distributorRef,
+      organisation_ref: organisationRef,
+      channel_type: "Referral SaaS direct",
+      market_country: "South Africa",
+      admin_contact: adminContact,
+      distribution_model: "Referral management and campaign attribution",
+      campaign_opportunity_participation: "Referral testing after account setup",
     },
     member_role: {
       organisation_ref: organisationRef,
       external_tenant_ref: externalTenantRef,
-      user_email: "setup-owner@example.test",
+      user_email: adminContact,
       display_name: "Referral SaaS setup owner",
       role_family: "Account setup admin",
       participant_type: "Platform operator",
       access_scope: "Referral SaaS account setup",
       invite_status: "Draft intent only",
+    },
+    campaign_opportunity: {
+      organisation_ref: organisationRef,
+      producer_ref: producerRef,
+      sponsor_ref: sponsorRef,
+      campaign_code: campaignCode,
+      opportunity_ref: opportunityRef,
+      campaign_name: `${organisationRef} setup readiness campaign`,
+      market_country: "South Africa",
+      distribution_model: "Referral SaaS direct",
+      eligible_distributor_type: "Referral partner",
+      intended_outcome_event: "REFERRED_CUSTOMER_VERIFIED",
+      reward_commission_policy_intention: "No reward or commission activation during account setup",
+      funding_model_intention: "No value transfer during account setup",
+      go_live_target_status: "GO_LIVE_DISABLED",
+      link_code_intent: "Issue referral links or codes after account setup readiness",
     },
     webhook_api: {
       organisation_ref: organisationRef,

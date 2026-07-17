@@ -405,11 +405,25 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(validationRequest).toMatchObject({
       external_tenant_ref: "demo-platform-operator",
       organisation_ref: "demo-organisation",
-      validation_scope: ["company", "member_role", "webhook_api"],
+      validation_scope: [
+        "company",
+        "producer_sponsor",
+        "distributor",
+        "member_role",
+        "campaign_opportunity",
+        "webhook_api",
+      ],
       correlation_id: "referral-saas-account-setup-validate",
     });
     expect(validationRequest.idempotency_key).toContain("referral-saas-account-setup-validate");
-    expect(Object.keys(validationRequest.sections || {})).toEqual(["company", "member_role", "webhook_api"]);
+    expect(Object.keys(validationRequest.sections || {})).toEqual([
+      "company",
+      "producer_sponsor",
+      "distributor",
+      "member_role",
+      "campaign_opportunity",
+      "webhook_api",
+    ]);
     expect(JSON.stringify(validationRequest).toLowerCase()).not.toMatch(/tenant_code|api_key|client_secret|wallet|settlement|money/);
     expect(await screen.findByText("Validation completed without saving.")).toBeInTheDocument();
 
