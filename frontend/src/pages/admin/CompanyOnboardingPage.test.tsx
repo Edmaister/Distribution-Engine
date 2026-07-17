@@ -272,10 +272,10 @@ function renderWorkspace(ui: ReactElement) {
 }
 
 function readinessPanel() {
-  const heading = screen.getByRole("heading", { name: "Setup readiness" });
+  const heading = screen.getByRole("heading", { name: "Step 1 readiness" });
   const panel = heading.closest(".panel");
   if (!panel) {
-    throw new Error("Setup readiness panel was not rendered");
+    throw new Error("Step 1 readiness panel was not rendered");
   }
   return within(panel as HTMLElement);
 }
@@ -300,15 +300,20 @@ describe("CompanyOnboardingPage", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the company onboarding shell with external identifier guardrails", async () => {
+  it("renders company profile as Step 1 of Account Setup", async () => {
     renderWorkspace(<CompanyOnboardingPage />);
 
     expect(
       screen.getByRole("heading", {
-        name: "Company & organisation onboarding",
+        name: "Step 1: Company profile",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Shell only")).toBeInTheDocument();
+    expect(screen.getByText("Step 1")).toBeInTheDocument();
+    expect(screen.getByText("This is one step inside Referral SaaS Account Setup.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to Account Setup" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-setup",
+    );
     expect(screen.getByLabelText(/Organisation name/)).toBeInTheDocument();
     expect(screen.getByLabelText(/external_tenant_ref/)).toBeInTheDocument();
     expect(screen.getByLabelText(/organisation_ref/)).toBeInTheDocument();
@@ -316,16 +321,16 @@ describe("CompanyOnboardingPage", () => {
       screen.getByText("Internal tenant identifier stays hidden"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("No records are created from this page."),
+      screen.getByText("This page saves onboarding evidence, not the final account."),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Create account later" }),
+      screen.getByRole("button", { name: "Create account in Account Setup" }),
     ).toBeDisabled();
     expect(
-      screen.getByRole("button", { name: "Preview validation" }),
+      screen.getByRole("button", { name: "Preview readiness" }),
     ).toBeDisabled();
     expect(
-      screen.getByRole("button", { name: "Submit for review" }),
+      screen.getByRole("button", { name: "Submit profile for review" }),
     ).toBeDisabled();
     expect(
       screen.getByRole("button", { name: "Accept internal review" }),
@@ -334,7 +339,7 @@ describe("CompanyOnboardingPage", () => {
       screen.getByRole("button", { name: "Mark review blocked" }),
     ).toBeDisabled();
     expect(
-      await screen.findByText("Read-only platform state"),
+      await screen.findByText("Saved setup evidence"),
     ).toBeInTheDocument();
     expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
   });
@@ -366,10 +371,10 @@ describe("CompanyOnboardingPage", () => {
     expect(screen.getByText("demo-organisation")).toBeInTheDocument();
     expect(screen.getByText("Missing evidence")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Create account later" }),
+      screen.getByRole("button", { name: "Create account in Account Setup" }),
     ).toBeDisabled();
     expect(
-      screen.getByRole("button", { name: "Submit for review" }),
+      screen.getByRole("button", { name: "Submit profile for review" }),
     ).toBeDisabled();
   });
 
@@ -399,10 +404,10 @@ describe("CompanyOnboardingPage", () => {
     });
 
     expect(
-      screen.getByText("Required shell fields are captured locally."),
+      screen.getByText("Company profile is complete enough to save."),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Create account later" }),
+      screen.getByRole("button", { name: "Create account in Account Setup" }),
     ).toBeDisabled();
     expect(readinessPanel().getByText("Profile drafted")).toBeInTheDocument();
     expect(readinessPanel().getAllByText("Ready")).toHaveLength(3);
@@ -435,7 +440,7 @@ describe("CompanyOnboardingPage", () => {
       target: { value: "Producer admin" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save company draft" }));
 
     await waitFor(() => {
       expect(mockedSaveAdminOnboardingDraft).toHaveBeenCalledTimes(1);
@@ -474,7 +479,7 @@ describe("CompanyOnboardingPage", () => {
       screen.getByText("Review company draft evidence before go-live review."),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Create account later" }),
+      screen.getByRole("button", { name: "Create account in Account Setup" }),
     ).toBeDisabled();
     expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
   });
@@ -483,12 +488,12 @@ describe("CompanyOnboardingPage", () => {
     renderWorkspace(<CompanyOnboardingPage />);
 
     fillRequiredCompanyFields();
-    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save company draft" }));
 
     expect(
       await screen.findByText("Draft saved for review."),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit profile for review" }));
 
     await waitFor(() => {
       expect(mockedSubmitAdminOnboardingDraftForReview).toHaveBeenCalledTimes(
@@ -531,7 +536,7 @@ describe("CompanyOnboardingPage", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Create account later" }),
+      screen.getByRole("button", { name: "Create account in Account Setup" }),
     ).toBeDisabled();
     expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/SECRET-API-KEY/i)).not.toBeInTheDocument();
@@ -542,11 +547,11 @@ describe("CompanyOnboardingPage", () => {
     renderWorkspace(<CompanyOnboardingPage />);
 
     fillRequiredCompanyFields();
-    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save company draft" }));
     expect(
       await screen.findByText("Draft saved for review."),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit profile for review" }));
     expect(
       await screen.findByText("Draft submitted for review."),
     ).toBeInTheDocument();
@@ -606,7 +611,7 @@ describe("CompanyOnboardingPage", () => {
       screen.getByText("Audit reference: REVIEW_DECISION_AUDIT_EVIDENCE"),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Create account later" }),
+      screen.getByRole("button", { name: "Create account in Account Setup" }),
     ).toBeDisabled();
     expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
   });
@@ -615,11 +620,11 @@ describe("CompanyOnboardingPage", () => {
     renderWorkspace(<CompanyOnboardingPage />);
 
     fillRequiredCompanyFields();
-    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save company draft" }));
     expect(
       await screen.findByText("Draft saved for review."),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit profile for review" }));
     expect(
       await screen.findByText("Draft submitted for review."),
     ).toBeInTheDocument();
@@ -648,11 +653,11 @@ describe("CompanyOnboardingPage", () => {
     renderWorkspace(<CompanyOnboardingPage />);
 
     fillRequiredCompanyFields();
-    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save company draft" }));
     expect(
       await screen.findByText("Draft saved for review."),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit profile for review" }));
     expect(
       await screen.findByText("Draft submitted for review."),
     ).toBeInTheDocument();
@@ -680,7 +685,7 @@ describe("CompanyOnboardingPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/BLOCKED/)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Create account later" }),
+      screen.getByRole("button", { name: "Create account in Account Setup" }),
     ).toBeDisabled();
   });
 
@@ -692,11 +697,11 @@ describe("CompanyOnboardingPage", () => {
     renderWorkspace(<CompanyOnboardingPage />);
 
     fillRequiredCompanyFields();
-    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save company draft" }));
     expect(
       await screen.findByText("Draft saved for review."),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit profile for review" }));
     expect(
       await screen.findByText("Draft submitted for review."),
     ).toBeInTheDocument();
@@ -723,11 +728,11 @@ describe("CompanyOnboardingPage", () => {
     renderWorkspace(<CompanyOnboardingPage />);
 
     fillRequiredCompanyFields();
-    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save company draft" }));
     expect(
       await screen.findByText("Draft saved for review."),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit profile for review" }));
 
     expect(
       await screen.findByText("Submit for review fallback."),
@@ -738,7 +743,7 @@ describe("CompanyOnboardingPage", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Create account later" }),
+      screen.getByRole("button", { name: "Create account in Account Setup" }),
     ).toBeDisabled();
   });
 
@@ -750,11 +755,11 @@ describe("CompanyOnboardingPage", () => {
     renderWorkspace(<CompanyOnboardingPage />);
 
     fillRequiredCompanyFields();
-    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save company draft" }));
     expect(
       await screen.findByText("Draft saved for review."),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit profile for review" }));
 
     expect(
       await screen.findByText(
@@ -772,11 +777,11 @@ describe("CompanyOnboardingPage", () => {
     renderWorkspace(<CompanyOnboardingPage />);
 
     fillRequiredCompanyFields();
-    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save company draft" }));
     expect(
       await screen.findByText("Draft saved for review."),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit profile for review" }));
 
     expect(
       await screen.findByText(
@@ -784,7 +789,7 @@ describe("CompanyOnboardingPage", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Create account later" }),
+      screen.getByRole("button", { name: "Create account in Account Setup" }),
     ).toBeDisabled();
   });
 
@@ -810,7 +815,7 @@ describe("CompanyOnboardingPage", () => {
       target: { value: "ops@example.test" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Preview validation" }));
+    fireEvent.click(screen.getByRole("button", { name: "Preview readiness" }));
 
     await waitFor(() => {
       expect(mockedValidateAdminOnboardingDryRun).toHaveBeenCalledTimes(1);
@@ -843,14 +848,14 @@ describe("CompanyOnboardingPage", () => {
     expect(renderedRequest).not.toContain("client_secret");
 
     expect(
-      await screen.findByText("Dry-run validation preview."),
+      await screen.findByText("Readiness preview: needs attention."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Status: MISSING_EVIDENCE; readiness: GO_LIVE_DISABLED/),
+      screen.getByText(/Can I continue\? Not yet/),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Company profile: Company profile needs one more evidence check.",
+        "Why? Company profile: Company profile needs one more evidence check.",
       ),
     ).toBeInTheDocument();
     expect(
@@ -860,11 +865,11 @@ describe("CompanyOnboardingPage", () => {
     expect(screen.getByText(/Warnings: GO_LIVE_DISABLED/)).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Next actions: Review company profile before go-live review.",
+        "Next action: Review company profile before go-live review.",
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Create account later" }),
+      screen.getByRole("button", { name: "Create account in Account Setup" }),
     ).toBeDisabled();
     expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/SECRET-API-KEY/i)).not.toBeInTheDocument();
@@ -885,7 +890,7 @@ describe("CompanyOnboardingPage", () => {
     fireEvent.change(screen.getByLabelText(/organisation_ref/), {
       target: { value: "org-acme" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Preview validation" }));
+    fireEvent.click(screen.getByRole("button", { name: "Preview readiness" }));
 
     expect(
       await screen.findByText("Validation preview fallback."),
@@ -897,7 +902,7 @@ describe("CompanyOnboardingPage", () => {
     ).toBeInTheDocument();
     expect(mockedSaveAdminOnboardingDraft).not.toHaveBeenCalled();
     expect(
-      screen.getByRole("button", { name: "Create account later" }),
+      screen.getByRole("button", { name: "Create account in Account Setup" }),
     ).toBeDisabled();
   });
 
@@ -914,7 +919,7 @@ describe("CompanyOnboardingPage", () => {
     fireEvent.change(screen.getByLabelText(/organisation_ref/), {
       target: { value: "org-acme" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save company draft" }));
 
     expect(await screen.findByText("Draft save fallback.")).toBeInTheDocument();
     expect(
@@ -923,7 +928,7 @@ describe("CompanyOnboardingPage", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Create account later" }),
+      screen.getByRole("button", { name: "Create account in Account Setup" }),
     ).toBeDisabled();
   });
 
@@ -940,7 +945,7 @@ describe("CompanyOnboardingPage", () => {
     fireEvent.change(screen.getByLabelText(/organisation_ref/), {
       target: { value: "org-acme" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save company draft" }));
 
     expect(await screen.findByText("Draft save fallback.")).toBeInTheDocument();
     expect(
@@ -949,7 +954,7 @@ describe("CompanyOnboardingPage", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Create account later" }),
+      screen.getByRole("button", { name: "Create account in Account Setup" }),
     ).toBeDisabled();
   });
 
@@ -985,7 +990,7 @@ describe("CompanyOnboardingPage", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText("Company profile").length).toBeGreaterThan(0);
     expect(
-      screen.getByRole("button", { name: "Create account later" }),
+      screen.getByRole("button", { name: "Create account in Account Setup" }),
     ).toBeDisabled();
   });
 });

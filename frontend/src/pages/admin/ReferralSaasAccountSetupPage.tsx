@@ -72,7 +72,7 @@ const accountChecklist = [
 const setupWorkflowLinks = [
   {
     code: "ACCOUNT_PROFILE",
-    copy: "Capture company profile, organisation reference, and primary setup contact evidence.",
+    copy: "Capture the company profile draft used by this Account Setup workflow.",
     label: "Company profile",
     path: "/admin/onboarding/company",
   },
@@ -96,7 +96,7 @@ const setupWorkflowLinks = [
   },
   {
     code: "REVIEW_HANDOFF",
-    copy: "Submit and review actions remain disabled until the product wrapper is implemented.",
+    copy: "Save, submit, and review the setup draft before the gated account creation path.",
     label: "Review handoff",
   },
   {
@@ -470,7 +470,7 @@ export function ReferralSaasAccountSetupPage() {
                     </div>
                     <ClipboardCheck size={18} />
                   </div>
-                  <SetupLink to="/admin/onboarding/company" title="Company onboarding" copy="Capture company evidence and external references." />
+                  <SetupLink to="/admin/onboarding/company" title="Company profile" copy="Open Step 1 and save the company setup draft." />
                   <SetupLink to="/admin/onboarding/members-roles" title="User and role setup" copy="Confirm owner, campaign manager, support, analyst, and integration roles." />
                   <SetupLink to="/admin/onboarding/webhook-api" title="Integration setup" copy="Document API and webhook setup intent without creating credentials." />
                 </div>
@@ -631,12 +631,12 @@ export function ReferralSaasAccountSetupPage() {
                 </div>
                 <div className="route-item">
                   <div>
-                    <div className="route-name">Account creation remains future work</div>
+                    <div className="route-name">Account creation is gated</div>
                     <div className="route-path">
-                      No account table, membership table, tenant-link write, invitation, or activation is created here.
+                      The backend account creation wrapper exists, but this UI waits for physical create-account proof and explicit create-action wiring.
                     </div>
                   </div>
-                  <StatusBadge label="Bounded" tone="info" />
+                  <StatusBadge label="Gated" tone="warning" />
                 </div>
                 <div className="route-item">
                   <div>

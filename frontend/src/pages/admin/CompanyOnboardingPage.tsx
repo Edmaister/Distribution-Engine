@@ -420,15 +420,32 @@ export function CompanyOnboardingPage() {
     <>
       <section className="page-header">
         <div>
-          <div className="page-kicker">DLaaS onboarding - Company setup</div>
-          <h1 className="page-title">Company & organisation onboarding</h1>
+          <div className="page-kicker">Referral SaaS Account Setup - Step 1</div>
+          <h1 className="page-title">Step 1: Company profile</h1>
           <p className="page-copy">
-            Capture the first company setup pass using external SaaS-facing
-            identifiers while account creation, memberships, and tenant-link
-            APIs remain future implementation work.
+            Capture the company evidence that Account Setup needs before
+            review, durable account creation, users, integrations, and campaign
+            testing can continue.
           </p>
         </div>
-        <StatusBadge label="Shell only" tone="warning" />
+        <StatusBadge label="Step 1" tone="info" />
+      </section>
+
+      <section className="banner info" role="note">
+        <Building2 size={18} />
+        <div>
+          <strong>This is one step inside Referral SaaS Account Setup.</strong>
+          <div className="table-subtext">
+            Save the company draft here, then return to Account Setup to run
+            readiness, review handoff, and the gated account creation path.
+          </div>
+        </div>
+        <Link
+          className="button secondary"
+          to="/admin/referral-saas/account-setup"
+        >
+          Back to Account Setup
+        </Link>
       </section>
 
       <section className="grid-3">
@@ -444,11 +461,11 @@ export function CompanyOnboardingPage() {
         <div className="panel-header">
           <div>
             <h2 className="panel-title" id="read-only-state-heading">
-              Read-only platform state
+              Saved setup evidence
             </h2>
             <div className="panel-subtitle">
-              Uses external references to hydrate safe onboarding context when
-              available.
+              Reference context from the existing onboarding projection. Use
+              the Step 1 form below for action.
             </div>
           </div>
           <StatusBadge
@@ -469,8 +486,8 @@ export function CompanyOnboardingPage() {
               <div>
                 <strong>Loading read-only company readiness.</strong>
                 <div className="table-subtext">
-                  The shell is checking external references without creating
-                  account records.
+                  Checking saved setup evidence without creating account
+                  records.
                 </div>
               </div>
             </div>
@@ -481,7 +498,7 @@ export function CompanyOnboardingPage() {
                 <strong>Using local company setup fallback.</strong>
                 <div className="table-subtext">
                   The read-only onboarding state endpoint is unavailable, so
-                  this page keeps local shell state only.
+                  this page keeps local Step 1 state only.
                 </div>
               </div>
             </div>
@@ -547,10 +564,11 @@ export function CompanyOnboardingPage() {
       <section className="banner warning" role="note">
         <ShieldCheck size={18} />
         <div>
-          <strong>No records are created from this page.</strong>
+          <strong>This page saves onboarding evidence, not the final account.</strong>
           <div className="table-subtext">
-            This shell uses local form state only. It does not call account,
-            tenant, membership, billing, or external-reference APIs.
+            Save draft can persist company setup intent. It does not create the
+            durable account, tenant, membership, billing, credential, webhook,
+            campaign, go-live, or money records.
           </div>
         </div>
       </section>
@@ -559,10 +577,10 @@ export function CompanyOnboardingPage() {
         <form className="panel" aria-label="Company onboarding shell">
           <div className="panel-header">
             <div>
-              <h2 className="panel-title">Company profile</h2>
+              <h2 className="panel-title">Step 1: company profile</h2>
               <div className="panel-subtitle">
-                External identifiers are captured before any internal tenant
-                mapping.
+                Enter the visible customer/account references used by the
+                Referral SaaS setup workflow.
               </div>
             </div>
             <Building2 size={18} />
@@ -646,7 +664,7 @@ export function CompanyOnboardingPage() {
               >
                 {validationPreviewState === "loading"
                   ? "Previewing validation"
-                  : "Preview validation"}
+                  : "Preview readiness"}
               </button>
               <button
                 className="button secondary"
@@ -654,7 +672,9 @@ export function CompanyOnboardingPage() {
                 onClick={handleSaveDraft}
                 type="button"
               >
-                {draftSaveState === "saving" ? "Saving draft" : "Save draft"}
+                {draftSaveState === "saving"
+                  ? "Saving draft"
+                  : "Save company draft"}
               </button>
               <button
                 className="button secondary"
@@ -666,21 +686,26 @@ export function CompanyOnboardingPage() {
               >
                 {submitForReviewState === "submitting"
                   ? "Submitting for review"
-                  : "Submit for review"}
+                  : "Submit profile for review"}
               </button>
-              <button className="button" disabled type="button">
-                Create account later
+              <button
+                className="button"
+                disabled
+                title="Durable account creation is completed from Account Setup after review."
+                type="button"
+              >
+                Create account in Account Setup
               </button>
               <span className={requiredComplete ? "muted" : "danger-text"}>
                 {requiredComplete
-                  ? "Required shell fields are captured locally."
-                  : "Complete required shell fields before a future create flow."}
+                  ? "Company profile is complete enough to save."
+                  : "Complete required company fields to save the profile draft."}
               </span>
             </div>
             <div className="table-subtext">
-              Validation preview is a no-op dry-run. It does not save draft
-              data, submit for review, create records, create credentials,
-              deliver webhooks, activate go-live, or move money.
+              Preview readiness answers three questions before you save: can
+              this continue, why is it blocked, and what should happen next. It
+              does not save, submit, create records, launch, or move money.
             </div>
             {validationPreviewState === "loading" ? (
               <div className="banner info" role="status">
@@ -830,10 +855,10 @@ export function CompanyOnboardingPage() {
           <div className="panel-header">
             <div>
               <h2 className="panel-title" id="readiness-heading">
-                Setup readiness
+                Step 1 readiness
               </h2>
               <div className="panel-subtitle">
-                Visible guardrails before producer, distributor, and role setup.
+                Plain-language checks for this company profile step.
               </div>
             </div>
             <StatusBadge
@@ -890,10 +915,10 @@ export function CompanyOnboardingPage() {
       <section className="panel">
         <div className="panel-header">
           <div>
-            <h2 className="panel-title">Next onboarding steps</h2>
+            <h2 className="panel-title">Next setup steps</h2>
             <div className="panel-subtitle">
-              Links point to existing workspaces until the next shells are
-              built.
+              Continue in the Account Setup workflow after the company draft is
+              saved and reviewed.
             </div>
           </div>
           <CircleDashed size={18} />
@@ -1049,22 +1074,35 @@ function ValidationPreviewPanel({
   const warnings = preview.warnings.slice(0, 2);
   const safeErrors = preview.safe_errors.slice(0, 2);
   const nextActions = preview.next_actions.slice(0, 3);
+  const canContinue =
+    blockers.length === 0 &&
+    missingEvidence.length === 0 &&
+    safeErrors.length === 0 &&
+    !String(validationStatus).toUpperCase().includes("MISSING");
 
   return (
     <div className="banner info" role="status">
       <ShieldCheck size={18} />
       <div>
-        <strong>Dry-run validation preview.</strong>
+        <strong>
+          Readiness preview: {canContinue ? "ready to save" : "needs attention"}.
+        </strong>
         <div className="table-subtext">
-          Status: {validationStatus}; readiness:{" "}
-          {preview.readiness_preview.overall_status}; no persistence:{" "}
+          Can I continue?{" "}
+          {canContinue
+            ? "Yes, save the company draft next."
+            : "Not yet. Review the items below first."}
+        </div>
+        <div className="table-subtext">
+          Result: {validationStatus}; setup posture:{" "}
+          {preview.readiness_preview.overall_status}; no save:{" "}
           {preview.no_persistence_confirmed ? "confirmed" : "unavailable"}; no
-          live action:{" "}
+          launch action:{" "}
           {preview.no_live_action_confirmed ? "confirmed" : "unavailable"}.
         </div>
         {firstReadinessCategory ? (
           <div className="table-subtext">
-            {firstReadinessCategory.display_label}:{" "}
+            Why? {firstReadinessCategory.display_label}:{" "}
             {firstReadinessCategory.evidence_summary}
           </div>
         ) : null}
@@ -1074,7 +1112,7 @@ function ValidationPreviewPanel({
         <ValidationItemList label="Safe errors" items={safeErrors} />
         {nextActions.length > 0 ? (
           <div className="table-subtext">
-            Next actions: {nextActions.join("; ")}
+            Next action: {nextActions.join("; ")}
           </div>
         ) : null}
         {preview.guardrails.length > 0 ? (

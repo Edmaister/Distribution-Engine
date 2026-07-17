@@ -468,8 +468,8 @@ describe("onboarding demo journey smoke", () => {
     }> = [
       {
         ui: <CompanyOnboardingPage />,
-        heading: "Company & organisation onboarding",
-        disabledAction: "Create account later",
+        heading: "Step 1: Company profile",
+        disabledAction: "Create account in Account Setup",
         forwardLink: /Producer \/ sponsor onboarding/,
       },
       {
