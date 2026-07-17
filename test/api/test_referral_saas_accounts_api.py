@@ -14,6 +14,12 @@ from services.referral_saas_account_foundation_service import (
     InvalidExternalReferenceType,
     TenantLinkNotResolvable,
 )
+from services.referral_saas_account_setup_service import (
+    AccountSetupDraftNotFound,
+    AccountSetupDuplicateReference,
+    AccountSetupInvalidDraftState,
+    DurableAccountSetupResult,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -41,6 +47,145 @@ def _context(**overrides) -> AccountFoundationContext:
     }
     values.update(overrides)
     return AccountFoundationContext(**values)
+
+
+def _setup_result(**overrides) -> DurableAccountSetupResult:
+    values = {
+        "account_id": "acct-1",
+        "account_code": "ACCT_FNB",
+        "account_name": "FNB Referral SaaS",
+        "account_status": "PENDING_ONBOARDING",
+        "onboarding_status": "READY_FOR_REVIEW",
+        "account_tenant_id": "acct-tenant-1",
+        "tenant_link_status": "PENDING_SETUP",
+        "external_ref_id": "external-ref-1",
+        "organisation_ref_id": "organisation-ref-1",
+        "draft_ref": "draft_001",
+        "audit_event_id": "audit-1",
+        "guardrails": ["DURABLE_ACCOUNT_FOUNDATION_ONLY"],
+    }
+    values.update(overrides)
+    return DurableAccountSetupResult(**values)
+
+
+async def test_referral_saas_account_admin_can_create_account_from_draft(monkeypatch):
+    calls: list[dict] = []
+
+    async def fake_create_durable_account_from_onboarding_draft(**kwargs):
+        calls.append(kwargs)
+        return _setup_result()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "create_durable_account_from_onboarding_draft",
+        fake_create_durable_account_from_onboarding_draft,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/from-draft",
+            json={
+                "draft_ref": "draft_001",
+                "internal_tenant_code": "FNB",
+                "idempotency_key": "account-create-1",
+                "correlation_id": "corr-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "created"
+    assert body["account"]["accountCode"] == "ACCT_FNB"
+    assert body["account"]["draftRef"] == "draft_001"
+    assert "tenantCode" not in body["account"]
+    assert body["redactions"] == ["internal_tenant_identifier"]
+    assert body["no_adjacent_live_action_confirmed"] is True
+    assert calls[0]["draft_ref"] == "draft_001"
+    assert calls[0]["tenant_code"] == "FNB"
+    assert calls[0]["actor_role"] == "ADMIN"
+    assert calls[0]["correlation_id"] == "corr-1"
+    assert calls[0]["idempotency_key_hash"]
+
+
+async def test_referral_saas_account_create_rejects_missing_required_fields():
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/from-draft",
+            json={"draft_ref": "draft_001"},
+        )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "validation_error"
+    assert "NO_TENANT_CREATION" in detail["guardrails"]
+    assert detail["redactions"] == ["internal_tenant_identifier"]
+
+
+async def test_referral_saas_account_create_rejects_adjacent_role():
+    async with AsyncClient(app=app, base_url="http://test", headers=PARTNER_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/from-draft",
+            json={
+                "draft_ref": "draft_001",
+                "internal_tenant_code": "FNB",
+                "idempotency_key": "account-create-1",
+            },
+        )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "permission_denied"
+
+
+@pytest.mark.parametrize(
+    ("error", "status_code", "safe_code"),
+    [
+        (
+            AccountSetupDraftNotFound("Draft missing."),
+            404,
+            "DRAFT_NOT_FOUND",
+        ),
+        (
+            AccountSetupInvalidDraftState("Draft not ready."),
+            409,
+            "INVALID_DRAFT_STATE",
+        ),
+        (
+            AccountSetupDuplicateReference("Duplicate reference."),
+            409,
+            "DUPLICATE_EXTERNAL_REFERENCE",
+        ),
+    ],
+)
+async def test_referral_saas_account_create_maps_safe_command_errors(
+    monkeypatch,
+    error,
+    status_code,
+    safe_code,
+):
+    async def fake_create_durable_account_from_onboarding_draft(**kwargs):
+        raise error
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "create_durable_account_from_onboarding_draft",
+        fake_create_durable_account_from_onboarding_draft,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/from-draft",
+            json={
+                "draft_ref": "draft_001",
+                "internal_tenant_code": "FNB",
+                "idempotency_key": "account-create-1",
+            },
+        )
+
+    assert response.status_code == status_code
+    detail = response.json()["detail"]
+    assert detail["code"] == safe_code
+    assert detail["redactions"] == ["internal_tenant_identifier"]
+    assert detail["no_adjacent_live_action_confirmed"] is True
 
 
 async def test_referral_saas_account_reader_can_resolve_runtime_account(monkeypatch):

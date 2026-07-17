@@ -286,6 +286,33 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_account_create_from_draft",
+        method="POST",
+        path="/v1/referral-saas/accounts/from-draft",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin role",
+        environment_rule="local/staging seeded tenant and reviewed draft only",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "draft_ref",
+            "internal_tenant_code",
+            "idempotency_key",
+        ],
+        expected_state_change=(
+            "creates platform account foundation, tenant link, external references, "
+            "and account audit event"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"draft_ref":"{draft_ref}",'
+            '"internal_tenant_code":"{internal_tenant_code}",'
+            '"idempotency_key":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/from-draft"'
+        ),
+    ),
+    SmokeRoute(
         name="public_referral_validate",
         method="POST",
         path="/public/referrals/validate",
