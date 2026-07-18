@@ -1,5 +1,5 @@
-import { ArrowRight, Building2, CheckCircle2, ClipboardCheck, KeyRound, ShieldCheck, Users } from "lucide-react";
-import { Link } from "react-router-dom";
+import { CheckCircle2, ShieldCheck, Users } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { useMemo, useState, type FormEvent } from "react";
 
 import {
@@ -28,7 +28,6 @@ import {
 } from "../../api/referralSaasAccountQueries";
 import { DataTable } from "../../components/DataTable";
 import { ErrorPanel } from "../../components/ErrorPanel";
-import { KpiCard } from "../../components/KpiCard";
 import { LoadingState } from "../../components/LoadingState";
 import { StatusBadge } from "../../components/StatusBadge";
 import {
@@ -80,46 +79,10 @@ const accountChecklist = [
   },
 ];
 
-const setupWorkflowLinks = [
-  {
-    code: "ACCOUNT_PROFILE",
-    copy: "Capture the company profile draft used by this Account Setup workflow.",
-    label: "Company profile",
-    path: "/admin/onboarding/company",
-  },
-  {
-    code: "MEMBERSHIP",
-    copy: "Confirm owner, campaign manager, support, analyst, and integration role intent.",
-    label: "Users and roles",
-    path: "/admin/onboarding/members-roles",
-  },
-  {
-    code: "WEBHOOK_API",
-    copy: "Document API and webhook setup intent without creating credentials or sending webhooks.",
-    label: "Integration setup",
-    path: "/admin/onboarding/webhook-api",
-  },
-  {
-    code: "READINESS",
-    copy: "Run the integrated readiness checkpoint before review handoff or campaign testing.",
-    label: "Readiness checkpoint",
-    path: "/admin/referral-saas/account-setup",
-  },
-  {
-    code: "REVIEW_HANDOFF",
-    copy: "Save, submit, and review the setup draft before the gated account creation path.",
-    label: "Review handoff",
-  },
-  {
-    code: "CAMPAIGN_READINESS",
-    copy: "Continue only when setup evidence is clear enough for referral testing.",
-    label: "Campaign setup",
-    path: "/admin/referral-saas/campaigns",
-  },
-];
-
 export function ReferralSaasAccountSetupPage() {
+  const navigate = useNavigate();
   const { refreshKey } = useRefreshContext();
+  const [activeWizardStep, setActiveWizardStep] = useState(1);
   const [draftExternalTenantRef, setDraftExternalTenantRef] = useState(defaultExternalTenantRef);
   const [draftOrganisationRef, setDraftOrganisationRef] = useState(defaultOrganisationRef);
   const [appliedExternalTenantRef, setAppliedExternalTenantRef] = useState(defaultExternalTenantRef);
@@ -209,7 +172,6 @@ export function ReferralSaasAccountSetupPage() {
     accountResolutionLoading,
     accountResolutionError,
   );
-  const nextStep = getAccountSetupNextStep(scopeChanged, needsSetupWork);
   const setupSections = useMemo(
     () => buildReferralSaasSetupSections(appliedExternalTenantRef, appliedOrganisationRef),
     [appliedExternalTenantRef, appliedOrganisationRef],
@@ -271,9 +233,15 @@ export function ReferralSaasAccountSetupPage() {
       memberPermissionSet &&
       membershipInviteState !== "loading",
   );
-  const workflowSteps = setupWorkflowLinks.map((step) =>
-    resolveWorkflowStep(step, categories, scopeChanged, needsSetupWork),
-  );
+  const wizardSteps = [
+    { id: 1, label: "Identify customer" },
+    { id: 2, label: "Company profile" },
+    { id: 3, label: "People & roles" },
+    { id: 4, label: "Integration intent" },
+    { id: 5, label: "Readiness check" },
+    { id: 6, label: "Review & create" },
+    { id: 7, label: "Handoff" },
+  ];
   const resolvedRows = accountChecklist.map((item) => {
     const matchingCategory = categories.find((category) => categoryMatches(category, item));
     const status = formatDisplay(
@@ -287,6 +255,9 @@ export function ReferralSaasAccountSetupPage() {
       blocker: formatDisplay(getNestedValue(matchingCategory, ["blockers", "0"], "-")),
     };
   });
+  const failingReadinessRows = resolvedRows.filter((row) =>
+    ["Blocked", "Missing evidence", "Needs evidence", "Needs attention", "Pending"].includes(row.status),
+  );
 
   function submitScope(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -298,6 +269,18 @@ export function ReferralSaasAccountSetupPage() {
     setAppliedExternalTenantRef(nextExternalTenantRef);
     setAppliedOrganisationRef(nextOrganisationRef);
     resetSetupActionState();
+  }
+
+  function goToWizardStep(step: number) {
+    setActiveWizardStep(Math.min(Math.max(step, 1), wizardSteps.length));
+  }
+
+  function continueWizard() {
+    if (activeWizardStep === wizardSteps.length) {
+      navigate("/admin/referral-saas/campaigns");
+      return;
+    }
+    goToWizardStep(activeWizardStep + 1);
   }
 
   function resetSetupActionState() {
@@ -519,7 +502,7 @@ export function ReferralSaasAccountSetupPage() {
       <section className="page-header">
         <div>
           <div className="page-kicker">Referral SaaS - Account Setup</div>
-          <h1 className="page-title">Account setup workflow</h1>
+          <h1 className="page-title">Account setup wizard</h1>
           <p className="page-copy">
             Work through company setup, roles, integration intent, readiness,
             and review handoff before testing campaigns, links, attribution, or
@@ -533,491 +516,337 @@ export function ReferralSaasAccountSetupPage() {
       {error ? <ErrorPanel error={error} /> : null}
       {!isLoading && !error ? (
         <>
-          <section className="panel journey-panel" aria-labelledby="account-setup-workflow-heading">
-            <div className="panel-header">
-              <div>
-                <h2 className="panel-title" id="account-setup-workflow-heading">
-                  Guided setup path
-                </h2>
-                <div className="panel-subtitle">
-                  Follow the steps in order. Readiness is one checkpoint inside setup, not the whole workflow.
-                </div>
-              </div>
-              <StatusBadge label={nextStep.badge} tone={nextStep.tone} />
-            </div>
-            <div className="panel-body">
-              <div className="journey-summary">
-                <div>
-                  <div className="route-name">{nextStep.title}</div>
-                  <div className="route-path">{nextStep.copy}</div>
-                </div>
-                <StatusBadge label={nextStep.actionLabel} tone={nextStep.tone} />
-              </div>
-
-              <ol className="journey-steps account-setup-journey">
-                {workflowSteps.map((step, index) => (
-                  <li className={`journey-step ${step.state}`} key={step.label}>
-                    <div className="journey-step-index">
-                      <span>{index + 1}</span>
-                      <StatusBadge label={step.badge} tone={step.tone} />
-                    </div>
-                    <div>
-                      <div className="journey-step-title">{step.label}</div>
-                      <p className="journey-step-copy">{step.copy}</p>
-                    </div>
-                    <div className="journey-step-area">
-                      <span>{step.actionLabel}</span>
-                      {step.path ? <Link to={step.path}>{step.actionText}</Link> : <strong>{step.actionText}</strong>}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-
-              <div className="account-setup-action-grid">
-                <form className="account-setup-scope-form" onSubmit={submitScope}>
-                  <div>
-                    <h3 className="panel-title">Step 1 action: find or start the account</h3>
-                    <p className="journey-step-copy">
-                      Enter the customer references to see whether this account already exists. If it does not, continue with the company setup draft.
-                    </p>
-                  </div>
-                  <label className="field">
-                    <span>External tenant ref</span>
-                    <input
-                      className="input"
-                      onChange={(event) => setDraftExternalTenantRef(event.target.value)}
-                      value={draftExternalTenantRef}
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Organisation ref</span>
-                    <input
-                      className="input"
-                      onChange={(event) => setDraftOrganisationRef(event.target.value)}
-                      value={draftOrganisationRef}
-                    />
-                  </label>
-                  <button className="button" disabled={!canCheckScope} type="submit">
-                    Find account
-                  </button>
-                  <StatusBadge label={scopeChanged ? "Changes not checked" : "Loaded"} tone={scopeChanged ? "warning" : "success"} />
-                  <div className="route-item">
-                    <div>
-                      <div className="route-name">Account status</div>
-                      <div className="route-path">{durableAccountStatus.copy}</div>
-                      {durableAccount ? (
-                        <div className="table-subtext">
-                          {durableAccount.accountName || durableAccount.accountCode || "Account"} -{" "}
-                          {durableAccount.accountStatus || "status unavailable"} - tenant link{" "}
-                          {durableAccount.tenantLinkStatus || "unavailable"}
-                        </div>
-                      ) : null}
-                    </div>
-                    <StatusBadge label={durableAccountStatus.label} tone={durableAccountStatus.tone} />
-                  </div>
-                  <div className="route-item">
-                    <div>
-                      <div className="route-name">User access status</div>
-                      <div className="route-path">{membershipPostureStatus.copy}</div>
-                      {membershipPosture ? (
-                        <div className="table-subtext">
-                          {membershipPosture.activeCount} active, {membershipPosture.invitedCount} invited,{" "}
-                          {membershipPosture.totalMemberships} total memberships. Delivery and activation stay outside Account Setup.
-                        </div>
-                      ) : null}
-                    </div>
-                    <StatusBadge label={membershipPostureStatus.label} tone={membershipPostureStatus.tone} />
-                  </div>
-                </form>
-                <div className="route-list">
-                  <div className="route-item">
-                    <div>
-                      <div className="route-name">Step 2 action: complete setup evidence</div>
-                      <div className="route-path">
-                        Capture missing company evidence, then record the first user and role invitation intent against the durable account.
-                      </div>
-                    </div>
-                    <ClipboardCheck size={18} />
-                  </div>
-                  <SetupLink to="/admin/onboarding/company" title="Company profile" copy="Open Step 1 and save the company setup draft." />
-                  <div className="route-item">
-                    <div>
-                      <div className="route-name">User and role invitation intent</div>
-                      <div className="route-path">
-                        Record who should be invited for this account. This creates invited membership evidence only; it does not email, activate access, assign seats, or change auth.
-                      </div>
-                    </div>
-                    <StatusBadge label={durableAccount ? "Account ready" : "Resolve account first"} tone={durableAccount ? "success" : "warning"} />
-                  </div>
-                  <div className="form-grid">
-                    <label className="field">
-                      <span>User subject</span>
-                      <input
-                        className="input"
-                        onChange={(event) => setMemberSubject(event.target.value)}
-                        placeholder="future identity subject"
-                        value={memberSubject}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Display name</span>
-                      <input
-                        className="input"
-                        onChange={(event) => setMemberDisplayName(event.target.value)}
-                        placeholder="Setup owner name"
-                        value={memberDisplayName}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Email hash</span>
-                      <input
-                        className="input"
-                        onChange={(event) => setMemberEmailHash(event.target.value)}
-                        placeholder="Optional privacy-safe hash"
-                        value={memberEmailHash}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Role family</span>
-                      <select className="input" onChange={(event) => setMemberRoleFamily(event.target.value)} value={memberRoleFamily}>
-                        <option value="DISTRIBUTION_ADMIN">Distribution admin</option>
-                        <option value="PLATFORM_ADMIN">Platform admin</option>
-                        <option value="SYSTEM_ADMIN">System admin</option>
-                        <option value="PARTNER">Partner</option>
-                        <option value="SUPPORT">Support</option>
-                      </select>
-                    </label>
-                    <label className="field">
-                      <span>Permission set</span>
-                      <select className="input" onChange={(event) => setMemberPermissionSet(event.target.value)} value={memberPermissionSet}>
-                        <option value="REFERRAL_SAAS_ACCOUNT_ADMIN">Referral SaaS account admin</option>
-                        <option value="REFERRAL_SAAS_CAMPAIGN_MANAGER">Referral SaaS campaign manager</option>
-                        <option value="REFERRAL_SAAS_ANALYST">Referral SaaS analyst</option>
-                        <option value="REFERRAL_SAAS_SUPPORT">Referral SaaS support</option>
-                      </select>
-                    </label>
-                  </div>
+          <section className="account-wizard" aria-labelledby="account-setup-wizard-heading">
+            <aside className="account-wizard-rail" aria-label="Account setup progress">
+              <div className="rail-title">Progress</div>
+              {wizardSteps.map((step) => {
+                const state = step.id < activeWizardStep ? "done" : step.id === activeWizardStep ? "current" : "locked";
+                return (
                   <button
-                    className="button"
-                    disabled={!canRecordMembershipInvitation}
-                    onClick={handleRecordMembershipInvitationIntent}
+                    className={`rail-step ${state}`}
+                    key={step.id}
+                    onClick={() => goToWizardStep(step.id)}
                     type="button"
                   >
-                    {membershipInviteState === "loading" ? "Recording role intent" : "Record role intent"}
+                    <span aria-hidden="true" className="rail-dot">{step.id < activeWizardStep ? "OK" : step.id}</span>
+                    <span>{step.label}</span>
                   </button>
-                  <MembershipInvitationResult error={membershipInviteError} response={membershipInviteResponse} />
-                  <SetupLink to="/admin/onboarding/webhook-api" title="Integration setup" copy="Document API and webhook setup intent without creating credentials." />
+                );
+              })}
+            </aside>
+
+            <div className="account-wizard-main">
+              <div className="account-wizard-topbar">
+                <div>
+                  <div className="page-kicker">Step {activeWizardStep} of {wizardSteps.length}</div>
+                  <h2 className="panel-title" id="account-setup-wizard-heading">Guided account setup</h2>
+                  <div className="panel-subtitle">Set up a customer account foundation before campaign and attribution testing.</div>
                 </div>
-                <div className="route-list">
-                  <div className="route-item">
+                <StatusBadge label="Safe mode: no go-live / money / credentials" tone="warning" />
+              </div>
+
+              <div className="account-wizard-step">
+                {activeWizardStep === 1 ? (
+                  <>
                     <div>
-                      <div className="route-name">Step 3 action: move to campaign setup</div>
-                      <div className="route-path">
-                        Continue only after account setup evidence is checked and blockers are understood.
+                      <div className="page-kicker">Identify customer</div>
+                      <h3 className="account-wizard-title">Find or start the account</h3>
+                      <p className="page-copy">Enter the customer references. We will tell you if a Referral SaaS account already exists.</p>
+                    </div>
+                    <form className="wizard-card" onSubmit={submitScope}>
+                      <div className="form-grid">
+                        <label className="field">
+                          <span>External tenant ref</span>
+                          <input className="input" onChange={(event) => setDraftExternalTenantRef(event.target.value)} value={draftExternalTenantRef} />
+                        </label>
+                        <label className="field">
+                          <span>Organisation ref</span>
+                          <input className="input" onChange={(event) => setDraftOrganisationRef(event.target.value)} value={draftOrganisationRef} />
+                        </label>
                       </div>
-                    </div>
-                    <ArrowRight size={18} />
-                  </div>
-                  <SetupLink
-                    to="/admin/referral-saas/campaigns"
-                    title="Campaign readiness"
-                    copy="Check campaign setup evidence, blockers, warnings, and launch posture."
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="panel" aria-labelledby="setup-draft-actions-heading">
-            <div className="panel-header">
-              <div>
-                <h2 className="panel-title" id="setup-draft-actions-heading">
-                  Setup draft actions
-                </h2>
-                <div className="panel-subtitle">
-                  Save setup intent, validate evidence, submit for review, and record internal review without account creation.
-                </div>
-              </div>
-              <StatusBadge label={actionScopeReady ? "Checked scope" : "Check scope first"} tone={actionScopeReady ? "success" : "warning"} />
-            </div>
-            <div className="panel-body route-list">
-              <div className="action-button-row">
-                <button className="button secondary" disabled={!actionScopeReady || validationState === "loading"} onClick={handleValidateSetupDraft} type="button">
-                  {validationState === "loading" ? "Validating setup" : "Validate setup"}
-                </button>
-                <button className="button" disabled={!actionScopeReady || draftState === "loading"} onClick={handleSaveSetupDraft} type="button">
-                  {draftState === "loading" ? "Saving draft" : "Save setup draft"}
-                </button>
-                <button className="button secondary" disabled={!canSubmitForReview || submitState === "loading"} onClick={handleSubmitSetupDraft} type="button">
-                  {submitState === "loading" ? "Submitting review" : "Submit for review"}
-                </button>
-              </div>
-              <div className="field">
-                <label htmlFor="referral-saas-review-reason">Review reason</label>
-                <textarea
-                  className="input"
-                  disabled={!canRecordReview}
-                  id="referral-saas-review-reason"
-                  onChange={(event) => setReviewReason(event.target.value)}
-                  placeholder="Bounded internal review reason"
-                  rows={3}
-                  value={reviewReason}
-                />
-              </div>
-              <div className="action-button-row">
-                <button
-                  className="button secondary"
-                  disabled={!canRecordReview || reviewState === "loading"}
-                  onClick={() => handleReviewDecision("APPROVED_FOR_INTERNAL_REVIEW")}
-                  type="button"
-                >
-                  Accept internal review
-                </button>
-                <button
-                  className="button secondary"
-                  disabled={!canRecordReview || reviewState === "loading"}
-                  onClick={() => handleReviewDecision("BLOCKED")}
-                  type="button"
-                >
-                  Mark review blocked
-                </button>
-              </div>
-              <div className="table-subtext">
-                These actions use existing guarded onboarding APIs. They do not invite users, create credentials, deliver webhooks, activate campaigns, enable go-live, or move money.
-              </div>
-              <SetupActionResult
-                createError={createError}
-                createResponse={createResponse}
-                draftResponse={draftResponse}
-                draftError={draftError}
-                reviewError={reviewError}
-                reviewResponse={reviewResponse}
-                submitError={submitError}
-                submitResponse={submitResponse}
-                validationError={validationError}
-                validationResponse={validationResponse}
-              />
-              <div className="route-item">
-                <div>
-                  <div className="route-name">Final setup action: create account foundation</div>
-                  <div className="route-path">
-                    Available only after internal review is accepted. It creates the durable account foundation and external reference, not users, campaigns, activation, go-live, or money movement.
-                  </div>
-                  {durableAccount ? (
-                    <div className="table-subtext">
-                      Account already resolves as {formatAccountSummary(durableAccount)}. Continue from the resolved account context.
-                    </div>
-                  ) : null}
-                </div>
-                <button
-                  className="button"
-                  disabled={!canCreateAccount || createState === "loading"}
-                  onClick={handleCreateAccountFoundation}
-                  type="button"
-                >
-                  {createState === "loading" ? "Creating account" : "Create account foundation"}
-                </button>
-              </div>
-            </div>
-          </section>
-
-          <section className="grid-4">
-            <KpiCard label="Ready setup gates" value={readyCount} footnote="Can support testing" icon={CheckCircle2} />
-            <KpiCard label="Blocked setup gates" value={blockedCount} footnote="Fix before moving on" icon={ShieldCheck} />
-            <KpiCard label="Evidence gaps" value={missingEvidenceCount} footnote="Missing setup proof" icon={Building2} />
-            <KpiCard label="Launch actions here" value="0" footnote={`${goLiveDisabledCount} go-live blocker shown`} icon={KeyRound} />
-          </section>
-
-          <section className="grid-2">
-            <div className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Setup checklist</h2>
-                  <div className="panel-subtitle">
-                    Productized setup-readiness gates mapped to existing onboarding evidence.
-                  </div>
-                </div>
-              </div>
-              <DataTable
-                rows={resolvedRows}
-                emptyText="No setup checklist rows returned."
-                columns={[
-                  {
-                    key: "gate",
-                    header: "Gate",
-                    render: (row) => (
-                      <>
-                        <span className="mono">{row.code}</span>
-                        <div className="table-subtext">{row.label}</div>
-                      </>
-                    ),
-                  },
-                  {
-                    key: "status",
-                    header: "Status",
-                    render: (row) => <StatusBadge label={row.status} tone={statusTone(row.status)} />,
-                  },
-                  {
-                    key: "evidence",
-                    header: "Evidence",
-                    render: (row) => <span className="table-subtext">{row.evidence}</span>,
-                  },
-                ]}
-              />
-            </div>
-
-            <div className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Launch guardrails</h2>
-                  <div className="panel-subtitle">
-                    This surface is a setup/readiness wrapper, not an account lifecycle API.
-                  </div>
-                </div>
-                <StatusBadge label="No live action" tone="warning" />
-              </div>
-              <div className="panel-body route-list">
-                <div className="route-item">
-                  <div>
-                    <div className="route-name">Account lookup is read-only</div>
-                    <div className="route-path">
-                      Step 1 only finds an existing account when available. Account creation happens later through the reviewed setup path.
-                    </div>
-                  </div>
-                  <StatusBadge label={durableAccount ? "Resolved" : "Setup mode"} tone={durableAccount ? "success" : "info"} />
-                </div>
-                <div className="route-item">
-                  <div>
-                    <div className="route-name">Account creation is gated</div>
-                    <div className="route-path">
-                      Account foundation creation is available only after setup draft save, submit, and internal review. It does not create tenants, users, memberships, invitations, campaigns, go-live, or money movement.
-                    </div>
-                  </div>
-                  <StatusBadge label={canCreateAccount ? "Ready" : durableAccount ? "Resolved" : "Gated"} tone={canCreateAccount || durableAccount ? "success" : "warning"} />
-                </div>
-                <div className="route-item">
-                  <div>
-                    <div className="route-name">Internal tenant identifier hidden</div>
-                    <div className="route-path">
-                      Operators work from external references. Membership posture is read-only here, and internal tenant identifiers stay redacted.
-                    </div>
-                  </div>
-                  <StatusBadge label="Redacted" tone="success" />
-                </div>
-                <div className="route-item">
-                  <div>
-                    <div className="route-name">Membership invitation intent is bounded</div>
-                    <div className="route-path">
-                      Step 2 can record invited membership intent only. Email delivery, active access, seat assignment, auth claims, campaigns, go-live, and money remain outside this page.
-                    </div>
-                  </div>
-                  <StatusBadge
-                    label={membershipInviteResponse ? "Intent recorded" : "Guarded"}
-                    tone={membershipInviteResponse ? "success" : "warning"}
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="grid-2">
-            <div className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Current readiness evidence</h2>
-                  <div className="panel-subtitle">Safe categories returned by the onboarding projection.</div>
-                </div>
-                <StatusBadge label={`${categories.length} categories`} tone={categories.length ? "info" : "neutral"} />
-              </div>
-              <div className="panel-body route-list">
-                {categories.length ? (
-                  categories.map((category) => {
-                    const label = getValue(category, ["display_label", "category"]);
-                    const status = formatDisplay(
-                      getNestedValue(category, ["safe_display_status", "label"], getNestedValue(category, ["status"])),
-                    );
-                    return (
-                      <div className="route-item" key={getValue(category, ["category"])}>
+                      <div className="action-button-row">
+                        <button className="button" disabled={!canCheckScope} type="submit">Find account</button>
+                        <StatusBadge label={scopeChanged ? "Changes not checked" : "Loaded"} tone={scopeChanged ? "warning" : "success"} />
+                      </div>
+                      <div className="wizard-status-card">
                         <div>
-                          <div className="route-name">{label}</div>
-                          <div className="route-path">{getValue(category, ["evidence_summary"])}</div>
-                          <div className="table-subtext">{getValue(category, ["next_actions", "0"], "Review setup evidence.")}</div>
+                          <strong>Account status</strong>
+                          <p>{durableAccountStatus.copy}</p>
+                          {durableAccount ? <span>{formatAccountSummary(durableAccount)}</span> : null}
                         </div>
-                        <StatusBadge label={status} tone={statusTone(status)} />
+                        <StatusBadge label={durableAccountStatus.label} tone={durableAccountStatus.tone} />
                       </div>
-                    );
-                  })
-                ) : (
-                  <div className="empty-state">No account readiness categories returned.</div>
-                )}
-              </div>
-            </div>
+                    </form>
+                  </>
+                ) : null}
 
-            <div className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">How to read the evidence</h2>
-                  <div className="panel-subtitle">Use the checklist and categories to decide whether to complete setup actions or continue.</div>
-                </div>
-              </div>
-              <div className="panel-body route-list">
-                <div className="route-item">
-                  <div>
-                    <div className="route-name">Blocked or missing evidence</div>
-                    <div className="route-path">Return to Step 2 and complete the setup action that matches the blocker.</div>
-                  </div>
-                  <StatusBadge label="Fix" tone="warning" />
-                </div>
-                <div className="route-item">
-                  <div>
-                    <div className="route-name">Ready enough for testing</div>
-                    <div className="route-path">Continue to Step 3 and check campaign setup readiness before testing links and codes.</div>
-                  </div>
-                  <StatusBadge label="Continue" tone="success" />
-                </div>
-              </div>
-            </div>
-          </section>
+                {activeWizardStep === 2 ? (
+                  <>
+                    <div>
+                      <div className="page-kicker">Company profile</div>
+                      <h3 className="account-wizard-title">Capture company setup evidence</h3>
+                      <p className="page-copy">Use the existing company onboarding surface for the profile evidence that feeds this setup draft.</p>
+                    </div>
+                    <div className="wizard-card route-list">
+                      <SetupLink to="/admin/onboarding/company" title="Company profile" copy="Open the company setup form and save the required organisation evidence." />
+                      <div className="wizard-status-card">
+                        <div>
+                          <strong>Company setup status</strong>
+                          <p>{resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE")?.evidence || "Company evidence has not been returned yet."}</p>
+                        </div>
+                        <StatusBadge label={resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE")?.status || "Pending"} tone={statusTone(resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE")?.status || "Pending")} />
+                      </div>
+                    </div>
+                  </>
+                ) : null}
 
-          <section className="grid-2">
-            <div className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Guardrails</h2>
-                  <div className="panel-subtitle">Boundaries returned by the current onboarding projection.</div>
-                </div>
-              </div>
-              <DataTable
-                rows={guardrails}
-                emptyText="No guardrails returned."
-                columns={[
-                  {
-                    key: "guardrail",
-                    header: "Guardrail",
-                    render: (row) => <span className="mono">{getValue(row, ["name"])}</span>,
-                  },
-                ]}
-              />
-            </div>
+                {activeWizardStep === 3 ? (
+                  <>
+                    <div>
+                      <div className="page-kicker">People & roles</div>
+                      <h3 className="account-wizard-title">Record role invitation intent</h3>
+                      <p className="page-copy">Capture who should administer this account. This records intent only; it does not send email or activate login.</p>
+                    </div>
+                    <div className="wizard-card route-list">
+                      <div className="wizard-status-card">
+                        <div>
+                          <strong>User access status</strong>
+                          <p>{membershipPostureStatus.copy}</p>
+                          {membershipPosture ? <span>{membershipPosture.activeCount} active, {membershipPosture.invitedCount} invited, {membershipPosture.totalMemberships} total memberships.</span> : null}
+                        </div>
+                        <StatusBadge label={membershipPostureStatus.label} tone={membershipPostureStatus.tone} />
+                      </div>
+                      <div className="form-grid">
+                        <label className="field">
+                          <span>User subject</span>
+                          <input className="input" onChange={(event) => setMemberSubject(event.target.value)} placeholder="future identity subject" value={memberSubject} />
+                        </label>
+                        <label className="field">
+                          <span>Display name</span>
+                          <input className="input" onChange={(event) => setMemberDisplayName(event.target.value)} placeholder="Setup owner name" value={memberDisplayName} />
+                        </label>
+                        <label className="field">
+                          <span>Email hash</span>
+                          <input className="input" onChange={(event) => setMemberEmailHash(event.target.value)} placeholder="Optional privacy-safe hash" value={memberEmailHash} />
+                        </label>
+                        <label className="field">
+                          <span>Role family</span>
+                          <select className="input" onChange={(event) => setMemberRoleFamily(event.target.value)} value={memberRoleFamily}>
+                            <option value="DISTRIBUTION_ADMIN">Distribution admin</option>
+                            <option value="PLATFORM_ADMIN">Platform admin</option>
+                            <option value="SYSTEM_ADMIN">System admin</option>
+                            <option value="PARTNER">Partner</option>
+                            <option value="SUPPORT">Support</option>
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>Permission set</span>
+                          <select className="input" onChange={(event) => setMemberPermissionSet(event.target.value)} value={memberPermissionSet}>
+                            <option value="REFERRAL_SAAS_ACCOUNT_ADMIN">Referral SaaS account admin</option>
+                            <option value="REFERRAL_SAAS_CAMPAIGN_MANAGER">Referral SaaS campaign manager</option>
+                            <option value="REFERRAL_SAAS_ANALYST">Referral SaaS analyst</option>
+                            <option value="REFERRAL_SAAS_SUPPORT">Referral SaaS support</option>
+                          </select>
+                        </label>
+                      </div>
+                      <button className="button" disabled={!canRecordMembershipInvitation} onClick={handleRecordMembershipInvitationIntent} type="button">
+                        {membershipInviteState === "loading" ? "Recording role intent" : "Record role intent"}
+                      </button>
+                      <MembershipInvitationResult error={membershipInviteError} response={membershipInviteResponse} />
+                    </div>
+                  </>
+                ) : null}
 
-            <div className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Redactions</h2>
-                  <div className="panel-subtitle">Fields hidden from the Referral SaaS setup surface.</div>
-                </div>
+                {activeWizardStep === 4 ? (
+                  <>
+                    <div>
+                      <div className="page-kicker">Integration intent</div>
+                      <h3 className="account-wizard-title">Document API and webhook intent</h3>
+                      <p className="page-copy">Capture setup intent without creating credentials, sending webhooks, or exposing secrets.</p>
+                    </div>
+                    <div className="wizard-card route-list">
+                      <SetupLink to="/admin/onboarding/webhook-api" title="Integration setup" copy="Open advanced webhook/API setup intent. No credentials are created from Account Setup." />
+                      <div className="chip-row">
+                        <StatusBadge label="No credentials" tone="warning" />
+                        <StatusBadge label="No webhook delivery" tone="warning" />
+                        <StatusBadge label="Intent only" tone="info" />
+                      </div>
+                    </div>
+                  </>
+                ) : null}
+
+                {activeWizardStep === 5 ? (
+                  <>
+                    <div>
+                      <div className="page-kicker">Readiness check</div>
+                      <h3 className="account-wizard-title">Check what is blocking setup</h3>
+                      <p className="page-copy">Validate once, show the failing gates, and keep full evidence in the details drawer.</p>
+                    </div>
+                    <div className="wizard-card route-list">
+                      <div className={`wizard-summary-strip ${needsSetupWork ? "warning" : "success"}`}>
+                        <StatusBadge label={needsSetupWork ? "Needs work" : "Ready"} tone={needsSetupWork ? "warning" : "success"} />
+                        <div>
+                          <strong>{blockedCount} blocked gates, {missingEvidenceCount} evidence gaps</strong>
+                          <span>{readyCount} setup gates ready. {goLiveDisabledCount} go-live blocker shown.</span>
+                        </div>
+                      </div>
+                      <div className="route-list">
+                        {failingReadinessRows.length ? (
+                          failingReadinessRows.map((row) => (
+                            <div className="route-item" key={row.code}>
+                              <div>
+                                <div className="route-name">{row.label}</div>
+                                <div className="route-path">{row.evidence}</div>
+                              </div>
+                              <StatusBadge label={row.status} tone={statusTone(row.status)} />
+                            </div>
+                          ))
+                        ) : (
+                          <div className="empty-state">No failing setup gates returned.</div>
+                        )}
+                      </div>
+                      <button className="button" disabled={!actionScopeReady || validationState === "loading"} onClick={handleValidateSetupDraft} type="button">
+                        {validationState === "loading" ? "Validating setup" : "Validate setup"}
+                      </button>
+                      <SetupActionResult
+                        createError={null}
+                        createResponse={null}
+                        draftResponse={null}
+                        draftError={null}
+                        reviewError={null}
+                        reviewResponse={null}
+                        submitError={null}
+                        submitResponse={null}
+                        validationError={validationError}
+                        validationResponse={validationResponse}
+                      />
+                      <details className="wizard-details">
+                        <summary>Full evidence and system boundaries</summary>
+                        <div className="grid-2">
+                          <DataTable
+                            rows={resolvedRows}
+                            emptyText="No setup checklist rows returned."
+                            columns={[
+                              { key: "gate", header: "Gate", render: (row) => <span className="mono">{row.code}</span> },
+                              { key: "status", header: "Status", render: (row) => <StatusBadge label={row.status} tone={statusTone(row.status)} /> },
+                              { key: "evidence", header: "Evidence", render: (row) => <span className="table-subtext">{row.evidence}</span> },
+                            ]}
+                          />
+                          <DataTable
+                            rows={guardrails}
+                            emptyText="No guardrails returned."
+                            columns={[{ key: "guardrail", header: "Guardrail", render: (row) => <span className="mono">{getValue(row, ["name"])}</span> }]}
+                          />
+                        </div>
+                        <DataTable
+                          rows={redactions}
+                          emptyText="No redactions returned."
+                          columns={[{ key: "redaction", header: "Redaction", render: (row) => <span className="mono">{getValue(row, ["name"])}</span> }]}
+                        />
+                      </details>
+                    </div>
+                  </>
+                ) : null}
+
+                {activeWizardStep === 6 ? (
+                  <>
+                    <div>
+                      <div className="page-kicker">Review & create</div>
+                      <h3 className="account-wizard-title">Save, review, then create foundation</h3>
+                      <p className="page-copy">The same gated spine as before, shown as an ordered timeline instead of equal competing actions.</p>
+                    </div>
+                    <div className="wizard-card">
+                      <ol className="wizard-timeline">
+                        <li className={draftResponse ? "done" : "current"}>
+                          <span>1</span>
+                          <div>
+                            <strong>Save setup draft</strong>
+                            <p>Persist setup intent for this external scope.</p>
+                            <button className="button secondary" disabled={!actionScopeReady || draftState === "loading"} onClick={handleSaveSetupDraft} type="button">
+                              {draftState === "loading" ? "Saving draft" : "Save setup draft"}
+                            </button>
+                          </div>
+                        </li>
+                        <li className={submitResponse ? "done" : canSubmitForReview ? "current" : "locked"}>
+                          <span>2</span>
+                          <div>
+                            <strong>Submit for review</strong>
+                            <p>Move the draft into a human review gate.</p>
+                            <button className="button secondary" disabled={!canSubmitForReview || submitState === "loading"} onClick={handleSubmitSetupDraft} type="button">
+                              {submitState === "loading" ? "Submitting review" : "Submit for review"}
+                            </button>
+                          </div>
+                        </li>
+                        <li className={reviewResponse ? "done" : canRecordReview ? "current" : "locked"}>
+                          <span>3</span>
+                          <div>
+                            <strong>Internal review decision</strong>
+                            <p>Reason required. Accept unlocks create; Block stops the path.</p>
+                            <label className="field" htmlFor="referral-saas-review-reason">
+                              <span>Review reason</span>
+                              <textarea className="input" disabled={!canRecordReview} id="referral-saas-review-reason" onChange={(event) => setReviewReason(event.target.value)} placeholder="Bounded internal review reason" rows={3} value={reviewReason} />
+                            </label>
+                            <div className="action-button-row">
+                              <button className="button" disabled={!canRecordReview || reviewState === "loading"} onClick={() => handleReviewDecision("APPROVED_FOR_INTERNAL_REVIEW")} type="button">Accept internal review</button>
+                              <button className="button secondary" disabled={!canRecordReview || reviewState === "loading"} onClick={() => handleReviewDecision("BLOCKED")} type="button">Mark review blocked</button>
+                            </div>
+                          </div>
+                        </li>
+                        <li className={createResponse || durableAccount ? "done" : canCreateAccount ? "current" : "locked"}>
+                          <span>4</span>
+                          <div>
+                            <strong>Create account foundation</strong>
+                            <p>Creates the durable account foundation only. No users, campaigns, go-live, or money.</p>
+                            <button className="button" disabled={!canCreateAccount || createState === "loading"} onClick={handleCreateAccountFoundation} type="button">
+                              {createState === "loading" ? "Creating account" : "Create account foundation"}
+                            </button>
+                          </div>
+                        </li>
+                      </ol>
+                      <SetupActionResult
+                        createError={createError}
+                        createResponse={createResponse}
+                        draftResponse={draftResponse}
+                        draftError={draftError}
+                        reviewError={reviewError}
+                        reviewResponse={reviewResponse}
+                        submitError={submitError}
+                        submitResponse={submitResponse}
+                        validationError={null}
+                        validationResponse={null}
+                      />
+                    </div>
+                  </>
+                ) : null}
+
+                {activeWizardStep === 7 ? (
+                  <>
+                    <div>
+                      <div className="page-kicker">Handoff</div>
+                      <h3 className="account-wizard-title">Account ready for campaign setup</h3>
+                      <p className="page-copy">Confirm account posture, then leave Account Setup for campaign readiness.</p>
+                    </div>
+                    <div className="wizard-card route-list">
+                      <div className="wizard-status-card">
+                        <div>
+                          <strong>{durableAccount ? formatAccountSummary(durableAccount) : "Account not created yet"}</strong>
+                          <p>{membershipPostureStatus.copy}</p>
+                          {membershipPosture ? <span>{membershipPosture.activeCount} active, {membershipPosture.invitedCount} invited, {membershipPosture.totalMemberships} total memberships.</span> : null}
+                        </div>
+                        <StatusBadge label={durableAccount ? "Account found" : "Setup incomplete"} tone={durableAccount ? "success" : "warning"} />
+                      </div>
+                      <SetupLink to="/admin/referral-saas/campaigns" title="Campaign readiness" copy="Go to campaign setup only after account evidence is clear enough for referral testing." />
+                    </div>
+                  </>
+                ) : null}
               </div>
-              <DataTable
-                rows={redactions}
-                emptyText="No redactions returned."
-                columns={[
-                  {
-                    key: "redaction",
-                    header: "Redaction",
-                    render: (row) => <span className="mono">{getValue(row, ["name"])}</span>,
-                  },
-                ]}
-              />
+
+              <div className="account-wizard-footer">
+                <button className="button secondary" disabled={activeWizardStep === 1} onClick={() => goToWizardStep(activeWizardStep - 1)} type="button">Back</button>
+                <button className="button" onClick={continueWizard} type="button">
+                  {activeWizardStep === wizardSteps.length ? "Go to Campaigns" : "Continue"}
+                </button>
+              </div>
             </div>
           </section>
         </>
@@ -1138,98 +967,6 @@ function getMembershipPostureStatus(
     copy: "No active account membership evidence matched the current actor yet. This page remains a read-only setup wrapper for access posture.",
     label: "No membership",
     tone: "warning" as const,
-  };
-}
-
-function getAccountSetupNextStep(scopeChanged: boolean, needsSetupWork: boolean) {
-  if (scopeChanged) {
-    return {
-      actionLabel: "Step 1",
-      badge: "Check changes",
-      copy: "You changed the account references. Click Check readiness before using the setup or campaign actions.",
-      title: "Do this next: confirm the account scope",
-      tone: "warning" as const,
-    };
-  }
-  if (needsSetupWork) {
-    return {
-      actionLabel: "Step 2",
-      badge: "Fix blockers",
-      copy: "The account setup readiness check is loaded, but it is not ready yet. Use the Step 2 actions to fill the missing setup evidence.",
-      title: "Do this next: complete setup actions",
-      tone: "warning" as const,
-    };
-  }
-  return {
-    actionLabel: "Step 3",
-    badge: "Ready",
-    copy: "The account setup readiness check has no blocker count. Continue to campaign setup readiness before testing links and attribution.",
-    title: "Do this next: continue to campaign setup",
-    tone: "success" as const,
-  };
-}
-
-function resolveWorkflowStep(
-  step: (typeof setupWorkflowLinks)[number],
-  categories: Record<string, unknown>[],
-  scopeChanged: boolean,
-  needsSetupWork: boolean,
-) {
-  const category = categories.find((item) => getValue(item, ["category"], "") === step.code);
-  const status = formatDisplay(
-    getNestedValue(category, ["safe_display_status", "label"], getNestedValue(category, ["status"], "")),
-  );
-  const ready = status === "READY" || status === "Ready";
-  const blocked = [
-    "BLOCKED",
-    "MISSING_EVIDENCE",
-    "NEEDS_EVIDENCE",
-    "NEEDS_ATTENTION",
-    "Blocked",
-    "Missing evidence",
-    "Needs evidence",
-  ].includes(status);
-
-  if (step.code === "READINESS") {
-    return {
-      ...step,
-      actionLabel: "Current checkpoint",
-      actionText: scopeChanged ? "Check readiness" : "Readiness loaded",
-      badge: scopeChanged ? "Check" : needsSetupWork ? "Active" : "Ready",
-      state: scopeChanged ? "blocked" : needsSetupWork ? "current" : "done",
-      tone: scopeChanged ? ("warning" as const) : needsSetupWork ? ("info" as const) : ("success" as const),
-    };
-  }
-
-  if (step.code === "REVIEW_HANDOFF") {
-    return {
-      ...step,
-      actionLabel: "Review action",
-      actionText: "Complete draft review",
-      badge: needsSetupWork || scopeChanged ? "Wait" : "Review",
-      state: "review",
-      tone: "warning" as const,
-    };
-  }
-
-  if (step.code === "CAMPAIGN_READINESS") {
-    return {
-      ...step,
-      actionLabel: "Next product step",
-      actionText: "Open campaign readiness",
-      badge: needsSetupWork || scopeChanged ? "Wait" : "Next",
-      state: needsSetupWork || scopeChanged ? "blocked" : "current",
-      tone: needsSetupWork || scopeChanged ? ("neutral" as const) : ("success" as const),
-    };
-  }
-
-  return {
-    ...step,
-    actionLabel: "Setup action",
-    actionText: `Open ${step.label.toLowerCase()}`,
-    badge: ready ? "Ready" : blocked ? "Fix" : "Check",
-    state: ready ? "done" : blocked ? "blocked" : "current",
-    tone: ready ? ("success" as const) : blocked ? ("warning" as const) : ("info" as const),
   };
 }
 
