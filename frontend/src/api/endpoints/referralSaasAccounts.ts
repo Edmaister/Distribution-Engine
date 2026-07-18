@@ -91,6 +91,66 @@ export type ReferralSaasAccountCreateFromDraftResponse = {
   noAdjacentLiveActionConfirmed: boolean;
 };
 
+export type ReferralSaasMembershipInvitationRequest = {
+  accountRef: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  actor: {
+    actorType: "USER" | "CLIENT";
+    subject?: string;
+    clientId?: string;
+    emailHash?: string;
+    displayName?: string;
+  };
+  membership: {
+    roleFamily: string;
+    permissionSet: string;
+    tenantScope?: "PRIMARY_ACCOUNT_TENANT";
+  };
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
+export type ReferralSaasMembershipInvitationResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  invitation: {
+    commandStatus: string;
+    membership: {
+      membershipRef: string;
+      status: string;
+      roleFamily: string;
+      permissionSet: string;
+      canOperateSetup: boolean;
+    };
+    delivery: {
+      status: string;
+      nextAction: string;
+    };
+    idempotency: {
+      status: string;
+    };
+    auditEventId?: string | null;
+    guardrails: string[];
+    redactions: string[];
+    noInviteDeliveryConfirmed: boolean;
+    noAuthClaimChangeConfirmed: boolean;
+    noSeatAssignmentConfirmed: boolean;
+    noMoneyMovementConfirmed: boolean;
+  };
+  guardrails: string[];
+  redactions: string[];
+  no_invite_delivery_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_seat_assignment_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
 export function resolveReferralSaasAccount({
   refType,
   externalRef,
@@ -149,4 +209,43 @@ export function createReferralSaasAccountFromDraft({
     redactions: response.redactions,
     noAdjacentLiveActionConfirmed: response.no_adjacent_live_action_confirmed,
   }));
+}
+
+export function recordReferralSaasMembershipInvitationIntent({
+  accountRef,
+  accountScope,
+  actor,
+  membership,
+  reasonCode = "ACCOUNT_SETUP_USER_ROLE",
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasMembershipInvitationRequest): Promise<ReferralSaasMembershipInvitationResponse> {
+  return apiRequest<ReferralSaasMembershipInvitationResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/membership-invitations`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        actor: {
+          actorType: actor.actorType,
+          subject: actor.subject?.trim() || undefined,
+          clientId: actor.clientId?.trim() || undefined,
+          emailHash: actor.emailHash?.trim() || undefined,
+          displayName: actor.displayName?.trim() || undefined,
+        },
+        membership: {
+          roleFamily: membership.roleFamily.trim(),
+          permissionSet: membership.permissionSet.trim(),
+          tenantScope: membership.tenantScope || "PRIMARY_ACCOUNT_TENANT",
+        },
+        reasonCode,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
 }

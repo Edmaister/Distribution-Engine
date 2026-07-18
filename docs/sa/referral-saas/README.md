@@ -269,3 +269,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   audit evidence, redactions, and route smoke classification while keeping email
   delivery, membership activation, seat assignment, auth-claim changes,
   campaign activation, go-live, money, and DLaaS behavior out of scope.
+- TASK-212 wires Account Setup Step 2 Users and Roles to the bounded
+  invitation intent API. The focused workspace can now record invited membership
+  setup evidence from the UI after durable account resolution while keeping raw
+  internal tenant identifiers, email delivery, active access, seat assignment,
+  auth-claim changes, campaign activation, go-live, money, and DLaaS behavior
+  out of scope.

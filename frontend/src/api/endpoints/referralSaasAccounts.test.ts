@@ -4,6 +4,7 @@ import { apiRequest } from "../client";
 import {
   createReferralSaasAccountFromDraft,
   getReferralSaasAccountMembershipPosture,
+  recordReferralSaasMembershipInvitationIntent,
   resolveReferralSaasAccount,
 } from "./referralSaasAccounts";
 
@@ -154,6 +155,106 @@ describe("referralSaasAccounts endpoint client", () => {
     });
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|wallet|settlement|money_movement/,
+    );
+  });
+
+  it("records Referral SaaS membership invitation intent through the bounded product wrapper", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acc_fnb",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      invitation: {
+        commandStatus: "INVITATION_INTENT_RECORDED",
+        membership: {
+          membershipRef: "mbr_1",
+          status: "INVITED",
+          roleFamily: "DISTRIBUTION_ADMIN",
+          permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+          canOperateSetup: false,
+        },
+        delivery: {
+          status: "DELIVERY_NOT_CONFIGURED",
+          nextAction: "Configure approved invitation delivery provider",
+        },
+        idempotency: {
+          status: "RECORDED",
+        },
+        auditEventId: "audit_1",
+        guardrails: ["NO_RAW_EMAIL_STORAGE", "NO_EMAIL_DELIVERY_WITHOUT_PROVIDER"],
+        redactions: ["internal_tenant_identifier", "email_hash"],
+        noInviteDeliveryConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noMoneyMovementConfirmed: true,
+      },
+      guardrails: ["NO_RAW_EMAIL_STORAGE", "NO_EMAIL_DELIVERY_WITHOUT_PROVIDER"],
+      redactions: ["internal_tenant_identifier", "email_hash"],
+      no_invite_delivery_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      recordReferralSaasMembershipInvitationIntent({
+        accountRef: " acc_fnb ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " demo-platform-operator ",
+          context: "setup",
+        },
+        actor: {
+          actorType: "USER",
+          subject: " setup-owner ",
+          emailHash: " email-hash-only ",
+          displayName: " Referral SaaS setup owner ",
+        },
+        membership: {
+          roleFamily: "DISTRIBUTION_ADMIN",
+          permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        },
+        correlationId: "referral-saas-account-setup-membership-invitation",
+        idempotencyKey: "membership-invitation:acc_fnb:setup-owner",
+      }),
+    ).resolves.toMatchObject({
+      invitation: {
+        commandStatus: "INVITATION_INTENT_RECORDED",
+        delivery: {
+          status: "DELIVERY_NOT_CONFIGURED",
+        },
+      },
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts/acc_fnb/membership-invitations", {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: "demo-platform-operator",
+          context: "setup",
+        },
+        actor: {
+          actorType: "USER",
+          subject: "setup-owner",
+          clientId: undefined,
+          emailHash: "email-hash-only",
+          displayName: "Referral SaaS setup owner",
+        },
+        membership: {
+          roleFamily: "DISTRIBUTION_ADMIN",
+          permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+          tenantScope: "PRIMARY_ACCOUNT_TENANT",
+        },
+        reasonCode: "ACCOUNT_SETUP_USER_ROLE",
+        correlationId: "referral-saas-account-setup-membership-invitation",
+        idempotencyKey: "membership-invitation:acc_fnb:setup-owner",
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement|send_invite|activate/,
     );
   });
 });

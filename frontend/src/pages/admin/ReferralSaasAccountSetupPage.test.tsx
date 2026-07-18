@@ -15,6 +15,7 @@ import {
 import {
   createReferralSaasAccountFromDraft,
   getReferralSaasAccountMembershipPosture,
+  recordReferralSaasMembershipInvitationIntent,
   resolveReferralSaasAccount,
 } from "../../api/endpoints/referralSaasAccounts";
 import { ReferralSaasAccountSetupPage } from "./ReferralSaasAccountSetupPage";
@@ -29,6 +30,7 @@ vi.mock("../../api/endpoints/adminOnboarding", () => ({
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   createReferralSaasAccountFromDraft: vi.fn(),
   getReferralSaasAccountMembershipPosture: vi.fn(),
+  recordReferralSaasMembershipInvitationIntent: vi.fn(),
   resolveReferralSaasAccount: vi.fn(),
 }));
 
@@ -39,6 +41,7 @@ const mockedSubmitAdminOnboardingDraftForReview = vi.mocked(submitAdminOnboardin
 const mockedValidateAdminOnboardingDryRun = vi.mocked(validateAdminOnboardingDryRun);
 const mockedCreateReferralSaasAccountFromDraft = vi.mocked(createReferralSaasAccountFromDraft);
 const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
+const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordReferralSaasMembershipInvitationIntent);
 const mockedResolveReferralSaasAccount = vi.mocked(resolveReferralSaasAccount);
 
 function renderWorkspace(ui: ReactElement) {
@@ -290,6 +293,44 @@ function mockAccountCreateResponse() {
   };
 }
 
+function mockMembershipInvitationResponse() {
+  return {
+    status: "ok",
+    context: "setup" as const,
+    account: mockAccountResolutionResponse().account,
+    invitation: {
+      commandStatus: "INVITATION_INTENT_RECORDED",
+      membership: {
+        membershipRef: "mbr_setup_owner",
+        status: "INVITED",
+        roleFamily: "DISTRIBUTION_ADMIN",
+        permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        canOperateSetup: false,
+      },
+      delivery: {
+        status: "DELIVERY_NOT_CONFIGURED",
+        nextAction: "Configure approved invitation delivery provider",
+      },
+      idempotency: {
+        status: "RECORDED",
+      },
+      auditEventId: "audit_membership_invite",
+      guardrails: ["NO_RAW_EMAIL_STORAGE", "NO_EMAIL_DELIVERY_WITHOUT_PROVIDER"],
+      redactions: ["internal_tenant_identifier", "email_hash"],
+      noInviteDeliveryConfirmed: true,
+      noAuthClaimChangeConfirmed: true,
+      noSeatAssignmentConfirmed: true,
+      noMoneyMovementConfirmed: true,
+    },
+    guardrails: ["NO_RAW_EMAIL_STORAGE", "NO_EMAIL_DELIVERY_WITHOUT_PROVIDER"],
+    redactions: ["internal_tenant_identifier", "email_hash"],
+    no_invite_delivery_confirmed: true,
+    no_auth_claim_change_confirmed: true,
+    no_seat_assignment_confirmed: true,
+    no_money_movement_confirmed: true,
+  };
+}
+
 function panelByHeading(heading: string) {
   const headingElement = screen.getByRole("heading", { name: heading });
   const panel = headingElement.closest(".panel");
@@ -317,6 +358,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     mockedRecordAdminOnboardingReviewDecision.mockResolvedValue(mockReviewResponse());
     mockedCreateReferralSaasAccountFromDraft.mockResolvedValue(mockAccountCreateResponse());
     mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockMembershipPostureResponse());
+    mockedRecordReferralSaasMembershipInvitationIntent.mockResolvedValue(mockMembershipInvitationResponse());
     mockedResolveReferralSaasAccount.mockResolvedValue(mockAccountResolutionResponse());
   });
 
@@ -351,7 +393,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.getByText("FNB Referral SaaS - ACTIVE - tenant link ACTIVE")).toBeInTheDocument();
     expect(screen.getByText("Membership access check")).toBeInTheDocument();
     expect(screen.getByText("No membership")).toBeInTheDocument();
-    expect(screen.getByText(/Invitations stay outside Account Setup/)).toBeInTheDocument();
+    expect(screen.getByText(/Record who should be invited for this account/)).toBeInTheDocument();
     expect(screen.getByText("ACCOUNT_PROFILE")).toBeInTheDocument();
     expect(screen.getByText("MEMBERSHIP")).toBeInTheDocument();
     expect(screen.getByText("NO_ACCOUNT_CREATION")).toBeInTheDocument();
@@ -376,6 +418,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.getByText(/Use the Step 2 actions to fill the missing setup evidence/)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Step 1 action: check account setup" })).toBeInTheDocument();
     expect(screen.getByText("Step 2 action: complete setup evidence")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Record role intent" })).toBeInTheDocument();
     expect(screen.getByText("Step 3 action: move to campaign setup")).toBeInTheDocument();
     expect(screen.getAllByText("Company profile").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Users and roles").length).toBeGreaterThan(0);
@@ -572,10 +615,64 @@ describe("ReferralSaasAccountSetupPage", () => {
     );
     expect(await screen.findByText("Account foundation created.")).toBeInTheDocument();
     expect(screen.getByText(/PENDING_ONBOARDING/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /invite/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Record role intent" })).toBeInTheDocument();
   });
 
-  it("keeps account creation and membership mutation as visible guardrails", async () => {
+  it("records users and roles invitation intent from Step 2 after durable account resolution", async () => {
+    renderWorkspace(<ReferralSaasAccountSetupPage />);
+
+    await screen.findByRole("heading", { name: "Guided setup path" });
+    await waitFor(() => expect(mockedResolveReferralSaasAccount).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByLabelText("User subject"), {
+      target: { value: "fnb-setup-owner-subject" },
+    });
+    fireEvent.change(screen.getByLabelText("Display name"), {
+      target: { value: "FNB setup owner" },
+    });
+    fireEvent.change(screen.getByLabelText("Email hash"), {
+      target: { value: "hash_fnb_setup_owner" },
+    });
+    fireEvent.change(screen.getByLabelText("Role family"), {
+      target: { value: "DISTRIBUTION_ADMIN" },
+    });
+    fireEvent.change(screen.getByLabelText("Permission set"), {
+      target: { value: "REFERRAL_SAAS_ACCOUNT_ADMIN" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Record role intent" }));
+
+    await waitFor(() => expect(mockedRecordReferralSaasMembershipInvitationIntent).toHaveBeenCalledTimes(1));
+    expect(mockedRecordReferralSaasMembershipInvitationIntent).toHaveBeenCalledWith({
+      accountRef: "acc_fnb",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "demo-platform-operator",
+        context: "setup",
+      },
+      actor: {
+        actorType: "USER",
+        subject: "fnb-setup-owner-subject",
+        emailHash: "hash_fnb_setup_owner",
+        displayName: "FNB setup owner",
+      },
+      membership: {
+        roleFamily: "DISTRIBUTION_ADMIN",
+        permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        tenantScope: "PRIMARY_ACCOUNT_TENANT",
+      },
+      reasonCode: "ACCOUNT_SETUP_USER_ROLE",
+      correlationId: "referral-saas-account-setup-membership-invitation",
+      idempotencyKey: "referral-saas-account-setup-membership-invitation:acc_fnb:fnb-setup-owner-subject:DISTRIBUTION_ADMIN",
+    });
+    expect(JSON.stringify(mockedRecordReferralSaasMembershipInvitationIntent.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement|send_invite|activate/,
+    );
+    expect(await screen.findByText("Role intent recorded.")).toBeInTheDocument();
+    expect(screen.getByText(/DELIVERY_NOT_CONFIGURED/)).toBeInTheDocument();
+    expect(screen.getByText(/No active access, seat, auth claim, campaign, go-live, or money action was taken/)).toBeInTheDocument();
+  });
+
+  it("keeps account creation and bounded membership intent as visible guardrails", async () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
     await screen.findByText("ACCOUNT_PROFILE");
@@ -584,7 +681,8 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(guardrailPanel.getByText("Account creation is gated")).toBeInTheDocument();
     expect(guardrailPanel.getByText(/available only after setup draft save/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create account foundation" })).toBeDisabled();
-    expect(screen.queryByRole("button", { name: /invite/i })).not.toBeInTheDocument();
+    expect(guardrailPanel.getByText("Membership invitation intent is bounded")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Record role intent" })).toBeEnabled();
   });
 
   it("links to existing setup surfaces without forking source workflows", async () => {
@@ -595,7 +693,7 @@ describe("ReferralSaasAccountSetupPage", () => {
       "href",
       "/admin/onboarding/company",
     );
-    expect(lastMatch(screen.getAllByRole("link", { name: /User and role setup/ }))).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Open users and roles" })).toHaveAttribute(
       "href",
       "/admin/onboarding/members-roles",
     );

@@ -4437,6 +4437,32 @@ Rollback notes: Revert the membership invitation service/API route, tests, route
 Explicit non-goals: Do not add schema, migrations, frontend controls, email or messaging invitation delivery, identity-provider integration, auth/session claim changes, membership activation, seat assignment, account lifecycle commands, account maintenance commands, tenant creation, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS Account Setup has a bounded, tested backend/API command for membership invitation intent, ready for the next task to wire the Users and Roles step in the wizard. Priority: P0.
 
+## TASK-212: Wire Account Setup Users and Roles to invitation intent API
+
+Status: Complete (2026-07-18). Output: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_INVITATION_BOUNDARY.md`.
+Shared primitive impact: Reuses the TASK-211 Referral SaaS account membership invitation intent API and existing account foundation resolver. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup Users and Roles UX; membership invitation intent evidence.
+Objective: Wire Account Setup Step 2 Users and Roles to the bounded membership invitation intent API so operators can record invited role evidence from the Referral SaaS workspace after durable account resolution.
+Why now: TASK-211 added the backend/API command. The Account Setup wizard remained confusing until Step 2 could call the real command and show what was recorded versus what remains deliberately outside the setup page.
+Files involved: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/referralSaasAccountQueries.ts`; `frontend/src/api/queryKeys.ts`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `apps/api/routers/referral_saas_accounts.py`; `services/referral_saas_account_membership_service.py`.
+Database/schema impact: None.
+Backend impact: None. Uses the existing TASK-211 API route.
+Frontend impact: Adds a typed invitation intent client and inline Account Setup Step 2 Users/Roles action with subject, display name, optional email hash, role family, permission set, safe success/fallback messaging, and membership posture refresh.
+API impact: No new route. Calls `POST /v1/referral-saas/accounts/{account_ref}/membership-invitations`.
+Tests to add/update: Adds endpoint client coverage and Account Setup page coverage for successful role intent recording, safe payload shape, visible delivery/activation/seat/auth/money guardrails, and existing workflow links.
+Validation method: `npm.cmd test -- --run src/api/endpoints/referralSaasAccounts.test.ts src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run lint -- --max-warnings 60`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Account Setup Step 2 can record bounded invited membership intent only after durable account resolution; request payload includes trusted account scope, actor subject/display/hash, role family, permission set, correlation ID, and idempotency key; UI shows recorded invitation intent and delivery-not-configured posture; no raw internal tenant identifiers, email delivery, identity-provider integration, membership activation, seat assignment, auth-claim change, tenant creation, account activation, campaign activation, go-live, credential lifecycle, webhook delivery, repair/replay/retry, reward, money, or broad DLaaS behavior is added.
+Dependencies: TASK-198; TASK-199; TASK-200; TASK-203; TASK-204; TASK-209; TASK-210; TASK-211.
+Blocked by: None for frontend invitation-intent wiring. Local UI/API/DB physical proof, invite delivery provider integration, membership activation, seat assignment, auth-claim integration, account lifecycle commands, and account maintenance commands remain future work.
+Risk level: Medium.
+Rollback notes: Revert the frontend account endpoint client addition, Account Setup page/test updates, and roadmap/gap/index updates.
+Explicit non-goals: Do not add backend routes, service writes, schema, migrations, raw email storage, email or messaging invitation delivery, identity-provider integration, auth/session claim changes, membership activation, seat assignment, account lifecycle commands, account maintenance commands, tenant creation, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS Account Setup has tested frontend wiring for Step 2 Users/Roles invitation intent and is ready for local UI-driven API/DB proof before moving to campaign setup work. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

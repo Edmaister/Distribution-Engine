@@ -15,9 +15,11 @@ import {
 } from "../../api/endpoints/adminOnboarding";
 import {
   createReferralSaasAccountFromDraft,
+  recordReferralSaasMembershipInvitationIntent,
   type ReferralSaasAccountMembershipPosture,
   type ReferralSaasAccountCreateFromDraftResponse,
   type ReferralSaasAccountSummary,
+  type ReferralSaasMembershipInvitationResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import {
   useReferralSaasAccountMembershipPosture,
@@ -138,6 +140,14 @@ export function ReferralSaasAccountSetupPage() {
   const [createState, setCreateState] = useState<SetupActionState>("idle");
   const [createResponse, setCreateResponse] = useState<ReferralSaasAccountCreateFromDraftResponse | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [memberSubject, setMemberSubject] = useState("setup-owner");
+  const [memberDisplayName, setMemberDisplayName] = useState("Referral SaaS setup owner");
+  const [memberEmailHash, setMemberEmailHash] = useState("");
+  const [memberRoleFamily, setMemberRoleFamily] = useState("DISTRIBUTION_ADMIN");
+  const [memberPermissionSet, setMemberPermissionSet] = useState("REFERRAL_SAAS_ACCOUNT_ADMIN");
+  const [membershipInviteState, setMembershipInviteState] = useState<SetupActionState>("idle");
+  const [membershipInviteResponse, setMembershipInviteResponse] = useState<ReferralSaasMembershipInvitationResponse | null>(null);
+  const [membershipInviteError, setMembershipInviteError] = useState<string | null>(null);
   const [accountRefreshKey, setAccountRefreshKey] = useState(0);
   const { data, error, isLoading } = useReferralSaasAccountSetupState(
     appliedExternalTenantRef,
@@ -229,6 +239,15 @@ export function ReferralSaasAccountSetupPage() {
     () => ["referral-saas-account-setup-create", reviewResponse?.draft_ref || "missing-draft"].join(":"),
     [reviewResponse?.draft_ref],
   );
+  const membershipInvitationIdempotencyKey = useMemo(
+    () => [
+      "referral-saas-account-setup-membership-invitation",
+      durableAccount?.accountId || durableAccount?.accountCode || "missing-account",
+      memberSubject.trim() || "missing-subject",
+      memberRoleFamily,
+    ].join(":"),
+    [durableAccount?.accountCode, durableAccount?.accountId, memberRoleFamily, memberSubject],
+  );
   const canSubmitForReview = Boolean(actionScopeReady && draftResponse?.draft_ref && draftState === "success");
   const canRecordReview = Boolean(
     actionScopeReady &&
@@ -242,6 +261,15 @@ export function ReferralSaasAccountSetupPage() {
       reviewResponse.review_outcome === "APPROVED_FOR_INTERNAL_REVIEW" &&
       reviewState === "success" &&
       !durableAccount,
+  );
+  const canRecordMembershipInvitation = Boolean(
+    actionScopeReady &&
+      durableAccount &&
+      (durableAccount.accountId || durableAccount.accountCode) &&
+      memberSubject.trim() &&
+      memberRoleFamily &&
+      memberPermissionSet &&
+      membershipInviteState !== "loading",
   );
   const workflowSteps = setupWorkflowLinks.map((step) =>
     resolveWorkflowStep(step, categories, scopeChanged, needsSetupWork),
@@ -288,6 +316,9 @@ export function ReferralSaasAccountSetupPage() {
     setCreateState("idle");
     setCreateResponse(null);
     setCreateError(null);
+    setMembershipInviteState("idle");
+    setMembershipInviteResponse(null);
+    setMembershipInviteError(null);
   }
 
   async function handleValidateSetupDraft() {
@@ -439,6 +470,50 @@ export function ReferralSaasAccountSetupPage() {
     }
   }
 
+  async function handleRecordMembershipInvitationIntent() {
+    if (!canRecordMembershipInvitation || !durableAccount) {
+      return;
+    }
+    const accountRef = durableAccount.accountId || durableAccount.accountCode;
+    if (!accountRef) {
+      return;
+    }
+
+    setMembershipInviteState("loading");
+    setMembershipInviteResponse(null);
+    setMembershipInviteError(null);
+    try {
+      const response = await recordReferralSaasMembershipInvitationIntent({
+        accountRef,
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: appliedExternalTenantRef,
+          context: "setup",
+        },
+        actor: {
+          actorType: "USER",
+          subject: memberSubject,
+          emailHash: memberEmailHash,
+          displayName: memberDisplayName,
+        },
+        membership: {
+          roleFamily: memberRoleFamily,
+          permissionSet: memberPermissionSet,
+          tenantScope: "PRIMARY_ACCOUNT_TENANT",
+        },
+        reasonCode: "ACCOUNT_SETUP_USER_ROLE",
+        correlationId: "referral-saas-account-setup-membership-invitation",
+        idempotencyKey: membershipInvitationIdempotencyKey,
+      });
+      setMembershipInviteResponse(response);
+      setMembershipInviteState("success");
+      setAccountRefreshKey((current) => current + 1);
+    } catch (error) {
+      setMembershipInviteError(safeMembershipInvitationError(error));
+      setMembershipInviteState("error");
+    }
+  }
+
   return (
     <>
       <section className="page-header">
@@ -547,7 +622,7 @@ export function ReferralSaasAccountSetupPage() {
                       {membershipPosture ? (
                         <div className="table-subtext">
                           {membershipPosture.activeCount} active, {membershipPosture.invitedCount} invited,{" "}
-                          {membershipPosture.totalMemberships} total memberships. Invitations stay outside Account Setup.
+                          {membershipPosture.totalMemberships} total memberships. Delivery and activation stay outside Account Setup.
                         </div>
                       ) : null}
                     </div>
@@ -559,13 +634,78 @@ export function ReferralSaasAccountSetupPage() {
                     <div>
                       <div className="route-name">Step 2 action: complete setup evidence</div>
                       <div className="route-path">
-                        Use company, role, and integration setup only when the readiness check shows missing evidence.
+                        Capture missing company evidence, then record the first user and role invitation intent against the durable account.
                       </div>
                     </div>
                     <ClipboardCheck size={18} />
                   </div>
                   <SetupLink to="/admin/onboarding/company" title="Company profile" copy="Open Step 1 and save the company setup draft." />
-                  <SetupLink to="/admin/onboarding/members-roles" title="User and role setup" copy="Confirm owner, campaign manager, support, analyst, and integration roles." />
+                  <div className="route-item">
+                    <div>
+                      <div className="route-name">User and role invitation intent</div>
+                      <div className="route-path">
+                        Record who should be invited for this account. This creates invited membership evidence only; it does not email, activate access, assign seats, or change auth.
+                      </div>
+                    </div>
+                    <StatusBadge label={durableAccount ? "Account ready" : "Resolve account first"} tone={durableAccount ? "success" : "warning"} />
+                  </div>
+                  <div className="form-grid">
+                    <label className="field">
+                      <span>User subject</span>
+                      <input
+                        className="input"
+                        onChange={(event) => setMemberSubject(event.target.value)}
+                        placeholder="future identity subject"
+                        value={memberSubject}
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Display name</span>
+                      <input
+                        className="input"
+                        onChange={(event) => setMemberDisplayName(event.target.value)}
+                        placeholder="Setup owner name"
+                        value={memberDisplayName}
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Email hash</span>
+                      <input
+                        className="input"
+                        onChange={(event) => setMemberEmailHash(event.target.value)}
+                        placeholder="Optional privacy-safe hash"
+                        value={memberEmailHash}
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Role family</span>
+                      <select className="input" onChange={(event) => setMemberRoleFamily(event.target.value)} value={memberRoleFamily}>
+                        <option value="DISTRIBUTION_ADMIN">Distribution admin</option>
+                        <option value="PLATFORM_ADMIN">Platform admin</option>
+                        <option value="SYSTEM_ADMIN">System admin</option>
+                        <option value="PARTNER">Partner</option>
+                        <option value="SUPPORT">Support</option>
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Permission set</span>
+                      <select className="input" onChange={(event) => setMemberPermissionSet(event.target.value)} value={memberPermissionSet}>
+                        <option value="REFERRAL_SAAS_ACCOUNT_ADMIN">Referral SaaS account admin</option>
+                        <option value="REFERRAL_SAAS_CAMPAIGN_MANAGER">Referral SaaS campaign manager</option>
+                        <option value="REFERRAL_SAAS_ANALYST">Referral SaaS analyst</option>
+                        <option value="REFERRAL_SAAS_SUPPORT">Referral SaaS support</option>
+                      </select>
+                    </label>
+                  </div>
+                  <button
+                    className="button"
+                    disabled={!canRecordMembershipInvitation}
+                    onClick={handleRecordMembershipInvitationIntent}
+                    type="button"
+                  >
+                    {membershipInviteState === "loading" ? "Recording role intent" : "Record role intent"}
+                  </button>
+                  <MembershipInvitationResult error={membershipInviteError} response={membershipInviteResponse} />
                   <SetupLink to="/admin/onboarding/webhook-api" title="Integration setup" copy="Document API and webhook setup intent without creating credentials." />
                 </div>
                 <div className="route-list">
@@ -766,14 +906,14 @@ export function ReferralSaasAccountSetupPage() {
                 </div>
                 <div className="route-item">
                   <div>
-                    <div className="route-name">Membership writes are outside setup</div>
+                    <div className="route-name">Membership invitation intent is bounded</div>
                     <div className="route-path">
-                      This page can show active or missing membership evidence, but it cannot invite users, assign seats, or change auth claims.
+                      Step 2 can record invited membership intent only. Email delivery, active access, seat assignment, auth claims, campaigns, go-live, and money remain outside this page.
                     </div>
                   </div>
                   <StatusBadge
-                    label={membershipPosture?.noInviteDeliveryConfirmed ? "Read-only" : "Guarded"}
-                    tone={membershipPosture?.noInviteDeliveryConfirmed ? "success" : "warning"}
+                    label={membershipInviteResponse ? "Intent recorded" : "Guarded"}
+                    tone={membershipInviteResponse ? "success" : "warning"}
                   />
                 </div>
               </div>
@@ -1200,6 +1340,20 @@ function safeAccountCreateError(error: unknown) {
   return "Account foundation creation is unavailable. No tenant, user, campaign, go-live, or money action was taken.";
 }
 
+function safeMembershipInvitationError(error: unknown) {
+  const status = typeof error === "object" && error && "status" in error ? Number((error as { status?: number }).status) : null;
+  if (status === 409) {
+    return "Membership invitation intent was not recorded because the account, idempotency key, or existing membership evidence conflicts. No email, access, seat, campaign, go-live, or money action was taken.";
+  }
+  if (status === 422) {
+    return "Membership invitation intent needs a valid subject, role family, permission set, account scope, correlation ID, and idempotency key. No delivery or activation was attempted.";
+  }
+  if (status === 403) {
+    return "Your current session is not allowed to record membership invitation intent for this account. No membership, delivery, access, or money action was taken.";
+  }
+  return "Membership invitation intent is unavailable. No email delivery, active access, seat assignment, auth claim, campaign, go-live, or money action was taken.";
+}
+
 function getTrustedInternalTenantScope() {
   if (typeof window === "undefined") {
     return defaultTrustedInternalTenantScope;
@@ -1314,6 +1468,56 @@ function SetupActionResult({
         </div>
       ))}
     </>
+  );
+}
+
+function MembershipInvitationResult({
+  error,
+  response,
+}: {
+  error: string | null;
+  response: ReferralSaasMembershipInvitationResponse | null;
+}) {
+  if (response) {
+    return (
+      <div className="banner success" role="status">
+        <CheckCircle2 size={18} />
+        <div>
+          <strong>Role intent recorded.</strong>
+          <div className="table-subtext">
+            {response.invitation.commandStatus} - {response.invitation.membership.status} -{" "}
+            {response.invitation.membership.roleFamily}; delivery: {response.invitation.delivery.status}.
+          </div>
+          <div className="table-subtext">
+            Next: {response.invitation.delivery.nextAction}. No active access, seat, auth claim, campaign, go-live, or money action was taken.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="banner warning" role="status">
+        <ShieldCheck size={18} />
+        <div>
+          <strong>Role intent fallback.</strong>
+          <div className="table-subtext">{error}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="banner info">
+      <ShieldCheck size={18} />
+      <div>
+        <strong>What this records</strong>
+        <div className="table-subtext">
+          A bounded invited membership record for setup evidence. It is not an email invitation, login activation, seat assignment, or campaign launch.
+        </div>
+      </div>
+    </div>
   );
 }
 
