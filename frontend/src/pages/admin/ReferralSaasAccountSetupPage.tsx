@@ -576,9 +576,9 @@ export function ReferralSaasAccountSetupPage() {
               <div className="account-setup-action-grid">
                 <form className="account-setup-scope-form" onSubmit={submitScope}>
                   <div>
-                    <h3 className="panel-title">Step 1 action: check account setup</h3>
+                    <h3 className="panel-title">Step 1 action: find or start the account</h3>
                     <p className="journey-step-copy">
-                      Confirm the account references, load readiness evidence, and resolve any durable account already created for setup.
+                      Enter the customer references to see whether this account already exists. If it does not, continue with the company setup draft.
                     </p>
                   </div>
                   <label className="field">
@@ -598,12 +598,12 @@ export function ReferralSaasAccountSetupPage() {
                     />
                   </label>
                   <button className="button" disabled={!canCheckScope} type="submit">
-                    Check setup
+                    Find account
                   </button>
                   <StatusBadge label={scopeChanged ? "Changes not checked" : "Loaded"} tone={scopeChanged ? "warning" : "success"} />
                   <div className="route-item">
                     <div>
-                      <div className="route-name">Durable account resolution</div>
+                      <div className="route-name">Account status</div>
                       <div className="route-path">{durableAccountStatus.copy}</div>
                       {durableAccount ? (
                         <div className="table-subtext">
@@ -617,7 +617,7 @@ export function ReferralSaasAccountSetupPage() {
                   </div>
                   <div className="route-item">
                     <div>
-                      <div className="route-name">Membership access check</div>
+                      <div className="route-name">User access status</div>
                       <div className="route-path">{membershipPostureStatus.copy}</div>
                       {membershipPosture ? (
                         <div className="table-subtext">
@@ -879,9 +879,9 @@ export function ReferralSaasAccountSetupPage() {
               <div className="panel-body route-list">
                 <div className="route-item">
                   <div>
-                    <div className="route-name">Durable account resolver is read-only</div>
+                    <div className="route-name">Account lookup is read-only</div>
                     <div className="route-path">
-                      Step 1 resolves existing account context when available, but it does not create accounts, tenants, users, memberships, or invitations.
+                      Step 1 only finds an existing account when available. Account creation happens later through the reviewed setup path.
                     </div>
                   </div>
                   <StatusBadge label={durableAccount ? "Resolved" : "Setup mode"} tone={durableAccount ? "success" : "info"} />
@@ -1048,15 +1048,15 @@ function toCount(value: unknown) {
 function getDurableAccountStatus(hasAccount: boolean, isLoading: boolean, error: unknown) {
   if (isLoading) {
     return {
-      copy: "Checking whether the external tenant reference maps to a durable Referral SaaS account.",
+      copy: "Looking for an existing Referral SaaS account for these customer references.",
       label: "Checking",
       tone: "info" as const,
     };
   }
   if (hasAccount) {
     return {
-      copy: "This setup scope resolves to an existing durable account. Continue setup from this account context.",
-      label: "Resolved",
+      copy: "Account found. Continue with users, roles, and readiness from this account context.",
+      label: "Account found",
       tone: "success" as const,
     };
   }
@@ -1064,20 +1064,20 @@ function getDurableAccountStatus(hasAccount: boolean, isLoading: boolean, error:
   const status = typeof error === "object" && error && "status" in error ? Number((error as { status?: number }).status) : null;
   if (status === 404) {
     return {
-      copy: "No durable account was found for this reference yet. Continue the Account Setup draft path.",
-      label: "Setup draft",
+      copy: "No account exists for these references yet. Start the company setup draft to create one.",
+      label: "Start setup",
       tone: "warning" as const,
     };
   }
   if (error) {
     return {
-      copy: "The account resolver could not safely resolve this reference. Check the reference or resolver guardrails before continuing.",
-      label: "Resolver blocked",
+      copy: "The account lookup could not safely confirm this customer. Check the references before continuing.",
+      label: "Lookup blocked",
       tone: "warning" as const,
     };
   }
   return {
-    copy: "No durable account check has returned yet. Run Step 1 before moving to setup actions.",
+    copy: "Run Step 1 before moving to setup actions.",
     label: "Unchecked",
     tone: "neutral" as const,
   };
@@ -1091,7 +1091,7 @@ function getMembershipPostureStatus(
 ) {
   if (!hasAccount) {
     return {
-      copy: "Membership access is checked after Step 1 resolves a durable account.",
+      copy: "User access can be checked after an account is found or created.",
       label: "Wait for account",
       tone: "neutral" as const,
     };

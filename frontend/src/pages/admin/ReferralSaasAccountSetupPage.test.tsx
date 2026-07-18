@@ -389,9 +389,9 @@ describe("ReferralSaasAccountSetupPage", () => {
       }),
     );
     expect(screen.getByText("GO_LIVE_DISABLED")).toBeInTheDocument();
-    expect(screen.getByText("Durable account resolution")).toBeInTheDocument();
+    expect(screen.getByText("Account status")).toBeInTheDocument();
     expect(screen.getByText("FNB Referral SaaS - ACTIVE - tenant link ACTIVE")).toBeInTheDocument();
-    expect(screen.getByText("Membership access check")).toBeInTheDocument();
+    expect(screen.getByText("User access status")).toBeInTheDocument();
     expect(screen.getByText("No membership")).toBeInTheDocument();
     expect(screen.getByText(/Record who should be invited for this account/)).toBeInTheDocument();
     expect(screen.getByText("ACCOUNT_PROFILE")).toBeInTheDocument();
@@ -416,7 +416,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(await screen.findByRole("heading", { name: "Guided setup path" })).toBeInTheDocument();
     expect(screen.getByText("Do this next: complete setup actions")).toBeInTheDocument();
     expect(screen.getByText(/Use the Step 2 actions to fill the missing setup evidence/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Step 1 action: check account setup" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Step 1 action: find or start the account" })).toBeInTheDocument();
     expect(screen.getByText("Step 2 action: complete setup evidence")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Record role intent" })).toBeInTheDocument();
     expect(screen.getByText("Step 3 action: move to campaign setup")).toBeInTheDocument();
@@ -450,7 +450,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1);
     expect(mockedGetReferralSaasAccountMembershipPosture).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Check setup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Find account" }));
 
     await waitFor(() =>
       expect(mockedGetAdminOnboardingState).toHaveBeenLastCalledWith({
@@ -488,8 +488,8 @@ describe("ReferralSaasAccountSetupPage", () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
     expect(await screen.findByRole("heading", { name: "Account setup workflow" })).toBeInTheDocument();
-    expect(await screen.findByText("No durable account was found for this reference yet. Continue the Account Setup draft path.")).toBeInTheDocument();
-    expect(screen.getByText("Setup draft")).toBeInTheDocument();
+    expect(await screen.findByText("No account exists for these references yet. Start the company setup draft to create one.")).toBeInTheDocument();
+    expect(screen.getByText("Start setup")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save setup draft" })).toBeEnabled();
     expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
   });
@@ -585,7 +585,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
     await screen.findByRole("heading", { name: "Setup draft actions" });
-    expect(await screen.findByText(/No durable account was found/)).toBeInTheDocument();
+    expect(await screen.findByText(/No account exists for these references yet/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create account foundation" })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Save setup draft" }));
