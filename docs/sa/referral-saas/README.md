@@ -18,6 +18,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   Account Maintenance workflow/read-model contract.
 - `REFERRAL_SAAS_ACCOUNT_SCHEMA_FINAL_REVIEW.md` - TASK-197 final schema
   review before durable account primitives.
+- `REFERRAL_SAAS_MEMBERSHIP_INVITATION_BOUNDARY.md` - TASK-210 membership
+  invitation write boundary before runtime invite/member commands.
 - `REFERRAL_SAAS_CAMPAIGN_SETUP_READINESS_CONTRACT.md` - TASK-135 campaign
   setup and readiness contract.
 - `REFERRAL_SAAS_REFERRAL_CODE_ISSUE_CONTRACT.md` - TASK-136 referral code
@@ -256,3 +258,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   identifiers or claiming durable account, membership, lifecycle, invitation,
   reference rotation, credential, campaign activation, go-live, repair/replay,
   retry, or money behavior.
+- TASK-210 defines the reviewed Referral SaaS membership invitation write
+  boundary against the existing account foundation schema. It makes the future
+  Users and Roles setup action implementable with idempotency, audit,
+  duplicate prevention, redactions, and no email delivery, identity-provider,
+  seat, auth-claim, activation, campaign, go-live, money, or DLaaS side effects.
