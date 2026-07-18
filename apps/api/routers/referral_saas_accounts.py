@@ -24,6 +24,9 @@ from services.referral_saas_account_setup_service import (
     AccountSetupPermissionDenied,
     create_durable_account_from_onboarding_draft,
 )
+from services.referral_saas_account_membership_service import (
+    get_referral_saas_account_membership_posture,
+)
 from services.onboarding.onboarding_draft_idempotency_service import hash_payload
 from utils.security import require_session_key
 
@@ -230,6 +233,83 @@ async def resolve_referral_saas_account(
             "mutate funding, fulfilment, settlement, reward, commission, wallet, "
             "invoice, billing, or DLaaS marketplace records."
         ),
+    }
+
+
+@router.get("/accounts/membership-posture")
+async def read_referral_saas_account_membership_posture(
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/tenant reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "runtime requires active account/reference/tenant-link state; "
+                "setup allows pending/suspended setup evidence."
+            ),
+        ),
+    ] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    reader_identity = _require_referral_saas_account_reader(identity)
+
+    normalised_context = str(context or "").strip().lower()
+    if normalised_context not in REFERRAL_SAAS_ACCOUNT_CONTEXTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": "context must be runtime or setup.",
+            },
+        )
+
+    try:
+        if normalised_context == "setup":
+            account = await resolve_setup_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+        else:
+            account = await resolve_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+    except AccountFoundationResolutionError as exc:
+        raise _resolution_error(exc) from exc
+
+    posture = await get_referral_saas_account_membership_posture(
+        account_id=account.account_id,
+        tenant_code=account.tenant_code,
+        actor_ref=_optional_text(reader_identity.get("subject")) or None,
+        actor_client_id=_optional_text(reader_identity.get("client_id")) or None,
+    )
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "membershipPosture": posture.to_safe_dict(),
+        "guardrail": (
+            "Read-only Referral SaaS account membership posture. This endpoint "
+            "does not invite users, create users, assign seats, write "
+            "memberships, modify auth claims, expose internal tenant codes, "
+            "activate accounts, trigger go-live, or mutate adjacent DLaaS money "
+            "or marketplace records."
+        ),
+        "no_membership_write_confirmed": True,
+        "no_invite_delivery_confirmed": True,
     }
 
 

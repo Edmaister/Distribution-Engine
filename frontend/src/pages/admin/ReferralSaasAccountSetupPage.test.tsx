@@ -12,7 +12,11 @@ import {
   validateAdminOnboardingDryRun,
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
-import { createReferralSaasAccountFromDraft, resolveReferralSaasAccount } from "../../api/endpoints/referralSaasAccounts";
+import {
+  createReferralSaasAccountFromDraft,
+  getReferralSaasAccountMembershipPosture,
+  resolveReferralSaasAccount,
+} from "../../api/endpoints/referralSaasAccounts";
 import { ReferralSaasAccountSetupPage } from "./ReferralSaasAccountSetupPage";
 
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
@@ -24,6 +28,7 @@ vi.mock("../../api/endpoints/adminOnboarding", () => ({
 }));
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   createReferralSaasAccountFromDraft: vi.fn(),
+  getReferralSaasAccountMembershipPosture: vi.fn(),
   resolveReferralSaasAccount: vi.fn(),
 }));
 
@@ -33,6 +38,7 @@ const mockedSaveAdminOnboardingDraft = vi.mocked(saveAdminOnboardingDraft);
 const mockedSubmitAdminOnboardingDraftForReview = vi.mocked(submitAdminOnboardingDraftForReview);
 const mockedValidateAdminOnboardingDryRun = vi.mocked(validateAdminOnboardingDryRun);
 const mockedCreateReferralSaasAccountFromDraft = vi.mocked(createReferralSaasAccountFromDraft);
+const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
 const mockedResolveReferralSaasAccount = vi.mocked(resolveReferralSaasAccount);
 
 function renderWorkspace(ui: ReactElement) {
@@ -235,6 +241,38 @@ function mockAccountResolutionResponse() {
   };
 }
 
+function mockMembershipPostureResponse() {
+  return {
+    status: "ok",
+    context: "setup" as const,
+    account: mockAccountResolutionResponse().account,
+    membershipPosture: {
+      accountId: "acc_fnb",
+      totalMemberships: 0,
+      invitedCount: 0,
+      activeCount: 0,
+      suspendedCount: 0,
+      disabledCount: 0,
+      archivedCount: 0,
+      roleFamilies: [],
+      currentActor: {
+        status: "NO_MEMBERSHIP_EVIDENCE",
+        roleFamily: null,
+        permissionSet: null,
+        canOperateSetup: false,
+        evidence: "No active account membership matched the current actor.",
+      },
+      guardrails: ["READ_ONLY_MEMBERSHIP_POSTURE", "NO_MEMBERSHIP_WRITE", "NO_INVITE_DELIVERY"],
+      redactions: ["internal_tenant_identifier", "user_identifier", "client_identifier"],
+      noMembershipWriteConfirmed: true,
+      noInviteDeliveryConfirmed: true,
+    },
+    guardrail: "Read-only Referral SaaS account membership posture.",
+    no_membership_write_confirmed: true,
+    no_invite_delivery_confirmed: true,
+  };
+}
+
 function mockAccountCreateResponse() {
   return {
     status: "created",
@@ -278,6 +316,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     mockedSubmitAdminOnboardingDraftForReview.mockResolvedValue(mockSubmitResponse());
     mockedRecordAdminOnboardingReviewDecision.mockResolvedValue(mockReviewResponse());
     mockedCreateReferralSaasAccountFromDraft.mockResolvedValue(mockAccountCreateResponse());
+    mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockMembershipPostureResponse());
     mockedResolveReferralSaasAccount.mockResolvedValue(mockAccountResolutionResponse());
   });
 
@@ -300,9 +339,19 @@ describe("ReferralSaasAccountSetupPage", () => {
       externalRef: "demo-platform-operator",
       context: "setup",
     });
+    await waitFor(() =>
+      expect(mockedGetReferralSaasAccountMembershipPosture).toHaveBeenCalledWith({
+        refType: "external_tenant_ref",
+        externalRef: "demo-platform-operator",
+        context: "setup",
+      }),
+    );
     expect(screen.getByText("GO_LIVE_DISABLED")).toBeInTheDocument();
     expect(screen.getByText("Durable account resolution")).toBeInTheDocument();
     expect(screen.getByText("FNB Referral SaaS - ACTIVE - tenant link ACTIVE")).toBeInTheDocument();
+    expect(screen.getByText("Membership access check")).toBeInTheDocument();
+    expect(screen.getByText("No membership")).toBeInTheDocument();
+    expect(screen.getByText(/Invitations stay outside Account Setup/)).toBeInTheDocument();
     expect(screen.getByText("ACCOUNT_PROFILE")).toBeInTheDocument();
     expect(screen.getByText("MEMBERSHIP")).toBeInTheDocument();
     expect(screen.getByText("NO_ACCOUNT_CREATION")).toBeInTheDocument();
@@ -356,6 +405,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.getByText("Changes not checked")).toBeInTheDocument();
     expect(screen.getByText("Do this next: confirm the account scope")).toBeInTheDocument();
     expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1);
+    expect(mockedGetReferralSaasAccountMembershipPosture).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Check setup" }));
 
@@ -367,6 +417,13 @@ describe("ReferralSaasAccountSetupPage", () => {
     );
     await waitFor(() =>
       expect(mockedResolveReferralSaasAccount).toHaveBeenLastCalledWith({
+        refType: "external_tenant_ref",
+        externalRef: "org-fnb-referrals",
+        context: "setup",
+      }),
+    );
+    await waitFor(() =>
+      expect(mockedGetReferralSaasAccountMembershipPosture).toHaveBeenLastCalledWith({
         refType: "external_tenant_ref",
         externalRef: "org-fnb-referrals",
         context: "setup",

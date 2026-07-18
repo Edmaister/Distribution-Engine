@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { apiRequest } from "../client";
-import { createReferralSaasAccountFromDraft, resolveReferralSaasAccount } from "./referralSaasAccounts";
+import {
+  createReferralSaasAccountFromDraft,
+  getReferralSaasAccountMembershipPosture,
+  resolveReferralSaasAccount,
+} from "./referralSaasAccounts";
 
 vi.mock("../client", () => ({
   apiRequest: vi.fn(),
@@ -89,6 +93,67 @@ describe("referralSaasAccounts endpoint client", () => {
     });
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /client_secret|wallet|settlement|money_movement/,
+    );
+  });
+
+  it("reads Referral SaaS account membership posture through the read-only wrapper", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountCode: "FNB_REFERRAL_SAAS",
+        accountName: "FNB Referral SaaS",
+      },
+      membershipPosture: {
+        accountId: "acct-1",
+        totalMemberships: 0,
+        invitedCount: 0,
+        activeCount: 0,
+        suspendedCount: 0,
+        disabledCount: 0,
+        archivedCount: 0,
+        roleFamilies: [],
+        currentActor: {
+          status: "NO_MEMBERSHIP_EVIDENCE",
+          roleFamily: null,
+          permissionSet: null,
+          canOperateSetup: false,
+          evidence: "No active account membership matched the current actor.",
+        },
+        guardrails: ["READ_ONLY_MEMBERSHIP_POSTURE", "NO_INVITE_DELIVERY"],
+        redactions: ["internal_tenant_identifier", "user_identifier"],
+        noMembershipWriteConfirmed: true,
+        noInviteDeliveryConfirmed: true,
+      },
+      guardrail: "Read-only Referral SaaS account membership posture.",
+      no_membership_write_confirmed: true,
+      no_invite_delivery_confirmed: true,
+    });
+
+    await expect(
+      getReferralSaasAccountMembershipPosture({
+        refType: "external_tenant_ref",
+        externalRef: " demo-platform-operator ",
+        context: "setup",
+      }),
+    ).resolves.toMatchObject({
+      membershipPosture: {
+        currentActor: {
+          status: "NO_MEMBERSHIP_EVIDENCE",
+        },
+        noInviteDeliveryConfirmed: true,
+      },
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts/membership-posture", {
+      query: {
+        ref_type: "external_tenant_ref",
+        external_ref: "demo-platform-operator",
+        context: "setup",
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement/,
     );
   });
 });

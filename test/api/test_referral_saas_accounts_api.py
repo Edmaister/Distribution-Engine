@@ -261,6 +261,107 @@ async def test_referral_saas_account_reader_can_resolve_setup_context(monkeypatc
     ]
 
 
+async def test_referral_saas_account_reader_can_read_membership_posture(monkeypatch):
+    resolve_calls: list[dict] = []
+    posture_calls: list[dict] = []
+
+    class FakePosture:
+        def to_safe_dict(self):
+            return {
+                "accountId": "acct-1",
+                "totalMemberships": 0,
+                "activeCount": 0,
+                "invitedCount": 0,
+                "currentActor": {
+                    "status": "NO_MEMBERSHIP_EVIDENCE",
+                    "roleFamily": None,
+                    "permissionSet": None,
+                    "canOperateSetup": False,
+                    "evidence": "No active account membership matched the current actor.",
+                },
+                "guardrails": [
+                    "READ_ONLY_MEMBERSHIP_POSTURE",
+                    "NO_MEMBERSHIP_WRITE",
+                    "NO_INVITE_DELIVERY",
+                ],
+                "redactions": [
+                    "internal_tenant_identifier",
+                    "user_identifier",
+                    "client_identifier",
+                ],
+                "noMembershipWriteConfirmed": True,
+                "noInviteDeliveryConfirmed": True,
+            }
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context()
+
+    async def fake_get_referral_saas_account_membership_posture(**kwargs):
+        posture_calls.append(kwargs)
+        return FakePosture()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_account_membership_posture",
+        fake_get_referral_saas_account_membership_posture,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/membership-posture",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["context"] == "setup"
+    assert body["account"]["accountCode"] == "ACCT_FNB"
+    assert "tenantCode" not in body["account"]
+    assert body["membershipPosture"]["currentActor"]["status"] == "NO_MEMBERSHIP_EVIDENCE"
+    assert body["membershipPosture"]["noMembershipWriteConfirmed"] is True
+    assert body["membershipPosture"]["noInviteDeliveryConfirmed"] is True
+    assert body["no_membership_write_confirmed"] is True
+    assert body["no_invite_delivery_confirmed"] is True
+    assert "tenantCode" not in body["membershipPosture"]
+    assert "clientId" not in str(body)
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert posture_calls == [
+        {
+            "account_id": "acct-1",
+            "tenant_code": "FNB",
+            "actor_ref": None,
+            "actor_client_id": None,
+        }
+    ]
+
+
+async def test_referral_saas_membership_posture_rejects_adjacent_role():
+    async with AsyncClient(app=app, base_url="http://test", headers=PARTNER_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/membership-posture",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+            },
+        )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "permission_denied"
+
+
 async def test_referral_saas_account_reader_rejects_adjacent_role():
     async with AsyncClient(app=app, base_url="http://test", headers=PARTNER_HEADERS) as client:
         response = await client.get(

@@ -33,6 +33,49 @@ export type ReferralSaasAccountResolutionResponse = {
   guardrail: string;
 };
 
+export type ReferralSaasMembershipActorPosture = {
+  status: string;
+  roleFamily?: string | null;
+  permissionSet?: string | null;
+  canOperateSetup: boolean;
+  evidence: string;
+};
+
+export type ReferralSaasMembershipRoleFamilySummary = {
+  roleFamily: string;
+  invitedCount: number;
+  activeCount: number;
+  suspendedCount: number;
+  disabledCount: number;
+  archivedCount: number;
+};
+
+export type ReferralSaasAccountMembershipPosture = {
+  accountId: string;
+  totalMemberships: number;
+  invitedCount: number;
+  activeCount: number;
+  suspendedCount: number;
+  disabledCount: number;
+  archivedCount: number;
+  roleFamilies: ReferralSaasMembershipRoleFamilySummary[];
+  currentActor: ReferralSaasMembershipActorPosture;
+  guardrails: string[];
+  redactions: string[];
+  noMembershipWriteConfirmed: boolean;
+  noInviteDeliveryConfirmed: boolean;
+};
+
+export type ReferralSaasAccountMembershipPostureResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  membershipPosture: ReferralSaasAccountMembershipPosture;
+  guardrail: string;
+  no_membership_write_confirmed: boolean;
+  no_invite_delivery_confirmed: boolean;
+};
+
 export type ReferralSaasAccountCreateFromDraftRequest = {
   draftRef: string;
   internalTenantCode: string;
@@ -60,6 +103,23 @@ export function resolveReferralSaasAccount({
       context,
     },
   });
+}
+
+export function getReferralSaasAccountMembershipPosture({
+  refType,
+  externalRef,
+  context = "setup",
+}: ReferralSaasAccountResolutionRequest): Promise<ReferralSaasAccountMembershipPostureResponse> {
+  return apiRequest<ReferralSaasAccountMembershipPostureResponse>(
+    "v1/referral-saas/accounts/membership-posture",
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+      },
+    },
+  );
 }
 
 export function createReferralSaasAccountFromDraft({
