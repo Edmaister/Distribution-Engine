@@ -4541,6 +4541,32 @@ Rollback notes: Revert the Account Setup page/test copy updates and roadmap/gap/
 Explicit non-goals: Do not add backend routes, service writes, schema, migrations, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, money movement, DLaaS expansion, or source-code forks.
 Definition of done: Account Setup Step 1 reads as a clear find-or-start workflow instead of implementation plumbing, and the product is ready for local UI-driven Account Setup E2E readiness proof. Priority: P0.
 
+## TASK-216: Redesign Account Setup as guided wizard
+
+Status: Complete (2026-07-18). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; local Account Setup wizard recommendation mock at `http://127.0.0.1:8765/`.
+Shared primitive impact: Reuses existing onboarding draft/readiness APIs, account resolver, guarded account creation API, membership posture API, and membership invitation intent API. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup CX clarity; guided setup workflow; no-adjacent-action guardrails.
+Objective: Replace the dense Account Setup console layout with a guided seven-step wizard that tells operators what the screen is for, what they can do now, and what comes next.
+Why now: Local UI testing showed the technically correct Account Setup page still felt disjointed and unclear. The product needed a real guided workflow before another local E2E pass would produce useful feedback.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `frontend/src/styles/base.css`; local recommendation mock at `http://127.0.0.1:8765/`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Adds a seven-step Account Setup wizard: Identify customer, Company profile, People & roles, Integration intent, Readiness check, Review & create, and Handoff. The page now moves evidence tables and guardrails into a secondary drawer, keeps actions inside their associated step, and preserves existing safe-mode boundaries.
+API impact: None. Uses existing Referral SaaS account setup, account resolver, account creation, membership posture, and membership invitation intent endpoints.
+Tests to add/update: Updates Account Setup page tests to assert the wizard steps, action order, no-internal-leak posture, existing workflow links, guarded save/submit/review/create behavior, and bounded membership invitation intent behavior.
+Validation method: `npm.cmd test -- ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Operators see a clear step-by-step Account Setup path; each step owns its relevant action; readiness is integrated as one checkpoint instead of the whole screen; review/create remains ordered and gated; full evidence remains available without dominating the primary workflow; no raw internal tenant identifiers, credentials, go-live, campaign activation, invite delivery, membership activation, seat assignment, auth-claim change, reward, money movement, DLaaS expansion, or source-code forks are added.
+Dependencies: TASK-215.
+Blocked by: None for the guided wizard redesign. Local UI-driven Account Setup wizard E2E proof, membership activation, invitation delivery provider integration, seat assignment, auth-claim integration, account lifecycle commands, and account maintenance commands remain future work.
+Risk level: Medium.
+Rollback notes: Revert the Account Setup page, page test, style, roadmap, gap matrix, and ordered task list updates.
+Explicit non-goals: Do not add backend routes, service writes, schema, migrations, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS Account Setup is presented as a guided wizard over existing guarded primitives and is ready for a local UI-driven E2E readiness proof. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
