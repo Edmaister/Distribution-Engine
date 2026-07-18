@@ -4515,6 +4515,32 @@ Rollback notes: Revert the boundary doc, static test, and roadmap/gap/index upda
 Explicit non-goals: Do not add runtime routes, service writes, frontend controls, schema, migrations, invitation provider integration, email/messaging delivery, IDP integration, auth/session claims, seat assignment, account lifecycle commands, account maintenance commands, tenant creation, campaign activation, go-live, credential lifecycle, webhooks, support-case writes, repair/replay/retry, reward/funding/fulfilment/settlement/commission/wallet/invoice/payout/sponsor billing/treasury/money, broad DLaaS, or forks.
 Definition of done: Referral SaaS has a reviewed delivery/activation boundary that keeps invited intent distinct from actual communication/access and is ready for final Account Setup CX/E2E readiness review. Priority: P0.
 
+## TASK-215: Clarify Account Setup find-or-start CX copy
+
+Status: Complete (2026-07-18). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing read-only account resolver and membership posture checks, but presents them as operator-safe Account Setup states. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup CX clarity; find-or-start account workflow; no-internal-leak UX.
+Objective: Replace implementation-centric Account Setup Step 1 wording with clear operator language that explains whether the user should continue with an existing account or start the setup draft path.
+Why now: Local UI testing exposed that “durable account resolution” and “membership access check” were technically accurate but confusing, which blocks 10/10 Account Setup usability.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Renames Step 1 as “find or start the account,” changes the primary button to “Find account,” converts “durable account resolution” to “Account status,” converts “membership access check” to “User access status,” and softens guardrail copy.
+API impact: None.
+Tests to add/update: Updates Account Setup page tests to assert the clearer CX language while preserving existing resolver, membership posture, draft, review, create, and invitation-intent behavior.
+Validation method: `npm test -- ReferralSaasAccountSetupPage.test.tsx --runInBand`; `npm run build`; `git diff --check`.
+Acceptance criteria: Operators can understand Step 1 as “find existing account or start setup,” no internal tenant identifiers or implementation labels are exposed as primary UX, existing API calls remain unchanged, and setup actions remain gated in the same order.
+Dependencies: TASK-214.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the Account Setup page/test copy updates and roadmap/gap/task-list entries.
+Explicit non-goals: Do not add backend routes, service writes, schema, migrations, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, money movement, DLaaS expansion, or source-code forks.
+Definition of done: Account Setup Step 1 reads as a clear find-or-start workflow instead of implementation plumbing, and the product is ready for local UI-driven Account Setup E2E readiness proof. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
