@@ -333,6 +333,43 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_membership_invitation_intent",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/membership-invitations",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin role",
+        environment_rule="local/staging seeded account only; no invite delivery",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "subject",
+            "idempotency_key",
+        ],
+        expected_state_change=(
+            "records platform user and invited membership intent plus account "
+            "audit event; does not send invitations, activate membership, assign "
+            "seats, mutate auth claims, or move money"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"actor":{"actorType":"USER","subject":"{subject}"},'
+            '"membership":{"roleFamily":"DISTRIBUTION_ADMIN",'
+            '"permissionSet":"REFERRAL_SAAS_ACCOUNT_ADMIN",'
+            '"tenantScope":"PRIMARY_ACCOUNT_TENANT"},'
+            '"reasonCode":"ACCOUNT_SETUP_USER_ROLE",'
+            '"correlationId":"smoke-membership-invite",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/membership-invitations"'
+        ),
+    ),
+    SmokeRoute(
         name="public_referral_validate",
         method="POST",
         path="/public/referrals/validate",

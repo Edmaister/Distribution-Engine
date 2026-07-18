@@ -75,6 +75,8 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Seeded local/staging write | POST | `/public/referrals/validate` | Public referral validation |
 | Seeded local/staging write | POST | `/referrals/codes` | Referral code issue/reuse |
 | Seeded local/staging write | POST | `/referrals/referees/ucn` | Referee UCN capture |
+| Seeded local/staging write | POST | `/v1/referral-saas/accounts/from-draft` | Referral SaaS account foundation create wrapper |
+| Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations` | Referral SaaS membership invitation intent wrapper |
 | Seeded local/staging write | POST | `/v1/progress` | Progress ingestion |
 
 ## Product Wrapper Fact
@@ -115,8 +117,13 @@ exposing raw UCN values. The account resolver wrapper composes the TASK-199
 read-only account foundation resolver and returns safe account context without
 exposing internal `tenant_code` by default or creating accounts, tenants,
 memberships, invitations, lifecycle changes, maintenance commands, go-live
-actions, or money/DLaaS records. No account membership, progress/status
-frontend, persisted export, or write command wrapper is implied.
+actions, or money/DLaaS records. The account membership posture wrapper remains
+read-only, and no progress/status frontend or persisted export wrapper is
+implied.
+TASK-211 adds a seeded local/staging-only membership invitation intent wrapper.
+It records invited membership intent and account audit evidence only; it does
+not send invitations, activate membership, assign seats, mutate auth claims,
+trigger go-live, activate campaigns, or move money.
 
 ## Smoke Safety Classification
 
@@ -146,6 +153,8 @@ approved seeded production-safe process:
 - public referral validation
 - referee UCN capture
 - progress ingestion
+- Referral SaaS account foundation create from reviewed draft
+- Referral SaaS membership invitation intent
 
 ## Launch Implication
 
