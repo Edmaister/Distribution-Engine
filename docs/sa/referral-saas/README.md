@@ -281,3 +281,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   `invitedCount: 1` from membership posture, and confirms delivery, activation,
   seats, auth claims, campaign activation, go-live, money, and DLaaS behavior
   remain out of scope.
+- TASK-214 defines the command boundary for future invitation delivery and
+  membership activation. It separates invitation intent from provider delivery
+  and active access, requires identity acceptance plus active account, tenant
+  link, external reference, idempotency, permission, and audit gates, and keeps
+  seats, auth claims, campaign activation, go-live, money, and DLaaS behavior
+  out of scope.

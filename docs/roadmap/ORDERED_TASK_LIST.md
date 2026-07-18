@@ -4489,6 +4489,32 @@ Rollback notes: Revert the physical checker, checker tests, verification doc, an
 Explicit non-goals: Do not add backend routes, service writes beyond existing product APIs, schema, migrations, frontend controls, raw email storage, email or messaging invitation delivery, identity-provider integration, auth/session claim changes, membership activation, seat assignment, account lifecycle commands, account maintenance commands, tenant creation, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS Account Setup has repeatable local API/DB proof that Step 2 records invited membership intent and posture evidence without adjacent delivery, activation, seat, auth, campaign, go-live, money, or DLaaS side effects. Priority: P0.
 
+## TASK-214: Define membership activation and invitation delivery boundary
+
+Status: Complete (2026-07-18). Output: `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_DELIVERY_BOUNDARY.md`; `test/test_referral_saas_membership_activation_delivery_boundary_contract.py`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_INVITATION_BOUNDARY.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_MEMBERSHIP_INTENT_PHYSICAL_VERIFICATION.md`; `docs/sa/TENANT_ACCOUNT_LIFECYCLE_MEMBERSHIP_MODEL.md`.
+Shared primitive impact: Reuses existing account foundation, external reference, membership, seat, audit, and account lifecycle model as a boundary. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Membership invitation delivery boundary; membership activation boundary; setup access guardrails.
+Objective: Define the future command boundary for invitation delivery and membership activation so invited setup evidence cannot be mistaken for active access.
+Why now: TASK-213 physically proved invited membership intent. Before adding delivery/activation or polishing final Account Setup readiness, the product needs explicit gates for provider delivery, identity acceptance, active account, active tenant link, active external reference, idempotency, audit, duplicate prevention, redaction, and no adjacent seat/auth/campaign/go-live/money behavior.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_DELIVERY_BOUNDARY.md`; `test/test_referral_saas_membership_activation_delivery_boundary_contract.py`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `dp/migrations/082_referral_saas_account_foundation.sql`; `services/referral_saas_account_membership_service.py`; `apps/api/routers/referral_saas_accounts.py`; `scripts/referral_saas_account_membership_intent_physical_check.py`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_INVITATION_BOUNDARY.md`; `docs/sa/TENANT_ACCOUNT_LIFECYCLE_MEMBERSHIP_MODEL.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: Adds static contract tests proving delivery and activation remain separate from invitation intent and preserve gates, redactions, guardrails, and non-goals.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_membership_activation_delivery_boundary_contract.py`; `.venv_codex\Scripts\python.exe -m py_compile test\test_referral_saas_membership_activation_delivery_boundary_contract.py`; `git diff --check`.
+Acceptance criteria: Contract defines future delivery and activation routes/request/response/statuses, identity/provider/account/tenant/reference/membership/idempotency/audit gates, guardrails/redactions, UX posture, and explicit non-goals; no runtime route/service/UI/schema/provider/IDP/auth/seat/campaign/go-live/money/DLaaS behavior is added.
+Dependencies: TASK-209; TASK-210; TASK-211; TASK-212; TASK-213.
+Blocked by: None for contract. Runtime delivery provider integration, membership activation service/API/UI, seat assignment, auth-claim integration, account lifecycle commands, and account maintenance commands remain future.
+Risk level: Low.
+Rollback notes: Revert the boundary doc, static test, and roadmap/gap/index updates.
+Explicit non-goals: Do not add runtime routes, service writes, frontend controls, schema, migrations, invitation provider integration, email/messaging delivery, IDP integration, auth/session claims, seat assignment, account lifecycle commands, account maintenance commands, tenant creation, campaign activation, go-live, credential lifecycle, webhooks, support-case writes, repair/replay/retry, reward/funding/fulfilment/settlement/commission/wallet/invoice/payout/sponsor billing/treasury/money, broad DLaaS, or forks.
+Definition of done: Referral SaaS has a reviewed delivery/activation boundary that keeps invited intent distinct from actual communication/access and is ready for final Account Setup CX/E2E readiness review. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
