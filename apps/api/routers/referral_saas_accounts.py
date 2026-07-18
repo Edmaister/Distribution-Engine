@@ -25,7 +25,15 @@ from services.referral_saas_account_setup_service import (
     create_durable_account_from_onboarding_draft,
 )
 from services.referral_saas_account_membership_service import (
+    MembershipInvitationAccountNotReady,
+    MembershipInvitationCommandError,
+    MembershipInvitationDuplicate,
+    MembershipInvitationIdempotencyConflict,
+    MembershipInvitationUnsafePayload,
+    MembershipInvitationUnsafeScope,
+    MembershipInvitationValidationError,
     get_referral_saas_account_membership_posture,
+    record_referral_saas_membership_invitation_intent,
 )
 from services.onboarding.onboarding_draft_idempotency_service import hash_payload
 from utils.security import require_session_key
@@ -114,6 +122,38 @@ def _command_error(exc: AccountSetupCommandError) -> HTTPException:
     )
 
 
+def _membership_invitation_error(exc: MembershipInvitationCommandError) -> HTTPException:
+    if isinstance(exc, MembershipInvitationValidationError):
+        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    elif isinstance(exc, (MembershipInvitationUnsafePayload, MembershipInvitationUnsafeScope)):
+        status_code = status.HTTP_400_BAD_REQUEST
+    elif isinstance(
+        exc,
+        (
+            MembershipInvitationAccountNotReady,
+            MembershipInvitationDuplicate,
+            MembershipInvitationIdempotencyConflict,
+        ),
+    ):
+        status_code = status.HTTP_409_CONFLICT
+    else:
+        status_code = status.HTTP_400_BAD_REQUEST
+
+    return HTTPException(
+        status_code=status_code,
+        detail={
+            "code": exc.safe_code,
+            "message": str(exc),
+            "guardrails": _membership_invitation_guardrails(),
+            "redactions": _membership_invitation_redactions(),
+            "no_invite_delivery_confirmed": True,
+            "no_auth_claim_change_confirmed": True,
+            "no_seat_assignment_confirmed": True,
+            "no_money_movement_confirmed": True,
+        },
+    )
+
+
 @router.post("/accounts/from-draft")
 async def create_referral_saas_account_from_draft(
     payload: dict[str, Any] = Body(default_factory=dict),
@@ -161,6 +201,133 @@ async def create_referral_saas_account_from_draft(
         "guardrails": _account_creation_guardrails(),
         "redactions": ["internal_tenant_identifier"],
         "no_adjacent_live_action_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/membership-invitations")
+async def record_referral_saas_membership_invitation(
+    account_ref: str,
+    payload: dict[str, Any] = Body(default_factory=dict),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    _reject_unsafe_invitation_payload(payload)
+
+    account_scope = payload.get("accountScope") or {}
+    actor = payload.get("actor") or {}
+    membership = payload.get("membership") or {}
+    idempotency_key = _optional_text(payload.get("idempotencyKey"))
+    correlation_id = _optional_text(payload.get("correlationId"))
+    reason_code = _optional_text(payload.get("reasonCode")) or "ACCOUNT_SETUP_USER_ROLE"
+
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    if not ref_type or not external_ref or not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": _membership_invitation_guardrails(),
+                "redactions": _membership_invitation_redactions(),
+                "no_invite_delivery_confirmed": True,
+                "no_auth_claim_change_confirmed": True,
+                "no_seat_assignment_confirmed": True,
+                "no_money_movement_confirmed": True,
+            },
+        )
+    if context not in REFERRAL_SAAS_ACCOUNT_CONTEXTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope.context must be runtime or setup.",
+            },
+        )
+
+    try:
+        if context == "setup":
+            account = await resolve_setup_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+        else:
+            account = await resolve_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+    except AccountFoundationResolutionError as exc:
+        raise _resolution_error(exc) from exc
+
+    safe_account_ref = _optional_text(account_ref)
+    if safe_account_ref not in {account.account_id, account.account_code}:
+        raise _membership_invitation_error(
+            MembershipInvitationUnsafeScope(
+                "Path account reference does not match resolved account context."
+            )
+        )
+
+    command_payload = {
+        "accountScope": {
+            "accountRef": safe_account_ref,
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": context,
+        },
+        "actor": actor,
+        "membership": membership,
+        "reasonCode": reason_code,
+    }
+
+    try:
+        result = await record_referral_saas_membership_invitation_intent(
+            account_id=account.account_id,
+            tenant_code=account.tenant_code,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            actor_type=_optional_text(actor.get("actorType")) or "USER",
+            subject=_optional_text(actor.get("subject")) or None,
+            client_id=_optional_text(actor.get("clientId")) or None,
+            email_hash=_optional_text(actor.get("emailHash")) or None,
+            display_name=_optional_text(actor.get("displayName")) or None,
+            role_family=_optional_text(membership.get("roleFamily")),
+            permission_set=_optional_text(membership.get("permissionSet")),
+            tenant_scope=(
+                _optional_text(membership.get("tenantScope"))
+                or "PRIMARY_ACCOUNT_TENANT"
+            ),
+            reason_code=reason_code,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_MEMBERSHIP_INVITATION_INTENT",
+                    "account_ref": safe_account_ref,
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            command_payload_hash=hash_payload(command_payload),
+            command_payload=payload,
+            command_actor_ref=_actor_ref(admin_identity),
+            command_actor_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except MembershipInvitationCommandError as exc:
+        raise _membership_invitation_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": context,
+        "account": account.to_safe_dict(),
+        "invitation": result.to_safe_dict(),
+        "guardrails": _membership_invitation_guardrails(),
+        "redactions": _membership_invitation_redactions(),
+        "no_invite_delivery_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_money_movement_confirmed": True,
     }
 
 
@@ -326,6 +493,84 @@ def _account_creation_guardrails() -> list[str]:
         "NO_WEBHOOK_DISPATCH",
         "NO_MONEY_MOVEMENT",
     ]
+
+
+def _membership_invitation_guardrails() -> list[str]:
+    return [
+        "NO_RAW_EMAIL_STORAGE",
+        "NO_EMAIL_DELIVERY_WITHOUT_PROVIDER",
+        "NO_AUTH_CLAIM_CHANGE",
+        "NO_SEAT_ASSIGNMENT",
+        "NO_TENANT_CODE_EXPOSURE",
+        "NO_MONEY_MOVEMENT",
+    ]
+
+
+def _membership_invitation_redactions() -> list[str]:
+    return [
+        "internal_tenant_identifier",
+        "user_identifier",
+        "client_identifier",
+        "email_hash",
+        "idempotency_key_hash",
+    ]
+
+
+UNSAFE_INVITATION_KEYS = {
+    "tenant_code",
+    "tenantCode",
+    "internal_tenant_code",
+    "internalTenantCode",
+    "email",
+    "rawEmail",
+    "password",
+    "secret",
+    "token",
+    "credentials",
+    "authClaims",
+    "seatId",
+    "sendInvite",
+    "delivery",
+    "activate",
+    "goLive",
+    "campaignActivation",
+    "webhook",
+    "reward",
+    "funding",
+    "fulfilment",
+    "settlement",
+    "commission",
+    "wallet",
+    "invoice",
+    "payout",
+    "sponsorBilling",
+}
+
+
+def _reject_unsafe_invitation_payload(value: Any) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if str(key) in UNSAFE_INVITATION_KEYS:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "code": "REJECTED_UNSAFE_PAYLOAD",
+                        "message": (
+                            "Membership invitation payload includes unsafe "
+                            "live-action fields."
+                        ),
+                        "guardrails": _membership_invitation_guardrails(),
+                        "redactions": _membership_invitation_redactions(),
+                        "no_invite_delivery_confirmed": True,
+                        "no_auth_claim_change_confirmed": True,
+                        "no_seat_assignment_confirmed": True,
+                        "no_money_movement_confirmed": True,
+                    },
+                )
+            _reject_unsafe_invitation_payload(child)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_unsafe_invitation_payload(item)
 
 
 def _actor_ref(identity: dict[str, Any]) -> str:

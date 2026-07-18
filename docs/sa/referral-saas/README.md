@@ -263,3 +263,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   Users and Roles setup action implementable with idempotency, audit,
   duplicate prevention, redactions, and no email delivery, identity-provider,
   seat, auth-claim, activation, campaign, go-live, money, or DLaaS side effects.
+- TASK-211 adds the bounded Referral SaaS membership invitation intent service
+  and product API wrapper. It records invited user/member intent with
+  idempotency replay/conflict behavior, duplicate membership prevention, account
+  audit evidence, redactions, and route smoke classification while keeping email
+  delivery, membership activation, seat assignment, auth-claim changes,
+  campaign activation, go-live, money, and DLaaS behavior out of scope.

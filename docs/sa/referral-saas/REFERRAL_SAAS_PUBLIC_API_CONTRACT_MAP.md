@@ -125,6 +125,10 @@ Future Referral SaaS APIs should follow these rules:
 | `/v1/referral-saas/account-setup/readiness` | `GET` | TASK-191 wrapper over `GET /admin/onboarding/state` | Admin/onboarding bridge first; future account setup/member/support role | Future wrapper contract only. Read-only integrated readiness in product language. |
 | `/v1/referral-saas/account-setup/drafts/{draftRef}/submit-for-review` | `POST` | TASK-191 wrapper over `POST /admin/onboarding/drafts/{draft_ref}/submit-for-review` | Admin/onboarding bridge first; future account setup submit role | Future wrapper contract only. Review handoff, not account activation or go-live. |
 | `/v1/referral-saas/account-setup/drafts/{draftRef}/review-decision` | `POST` | TASK-191 wrapper over `POST /admin/onboarding/drafts/{draft_ref}/review-decision` | Operator/admin reviewer | Future wrapper contract only. Records review outcome, not account creation, invitation, tenant-link, or campaign activation. |
+| `/v1/referral-saas/accounts/resolve` | `GET` | TASK-200 wrapper over account foundation resolver | Account reader/admin bridge | Implemented as safe account resolution from external references without exposing internal tenant code. |
+| `/v1/referral-saas/accounts/membership-posture` | `GET` | TASK-209 membership posture wrapper | Account reader/admin bridge | Implemented as read-only membership posture. Does not invite users, create users, assign seats, write memberships, change auth claims, activate accounts, trigger go-live, or move money. |
+| `/v1/referral-saas/accounts/from-draft` | `POST` | TASK-204 account creation wrapper over reviewed onboarding draft evidence | Account admin bridge | Implemented as guarded seeded write. Creates durable account foundation only; no tenant creation, membership write, invitation delivery, activation, campaign launch, go-live, or money behavior. |
+| `/v1/referral-saas/accounts/{accountRef}/membership-invitations` | `POST` | TASK-211 membership invitation intent wrapper | Account admin bridge | Implemented as guarded seeded write. Records invited membership intent and account audit evidence only; no email delivery, membership activation, seat assignment, auth-claim change, campaign activation, go-live, or money behavior. |
 
 ### Campaigns
 
@@ -287,8 +291,10 @@ Rules:
   writes, repair/replay/retry commands, schema, audit writes, reward, funding,
   fulfilment, settlement, or broad DLaaS behavior.
 - TASK-166 lets report/export-validation envelopes carry trusted `account_ref`
-  and `external_tenant_ref` identity claims. No SaaS account membership wrapper
-  currently resolves caller-supplied `accountRef` to internal tenant scope.
+  and `external_tenant_ref` identity claims. TASK-200/TASK-209/TASK-211 now
+  provide bounded account resolver, membership posture, and membership
+  invitation intent wrappers for Account Setup, but broader membership-aware
+  route authorization and auth-claim integration remain future work.
 - Some legacy current schemas expose raw `tenant_code`, `referrer_ucn`, or
   `referee_ucn`; TASK-174 product link/code wrappers use credential-derived
   scope for protected calls and product-shaped safe responses, while future
@@ -341,7 +347,8 @@ When API implementation work starts, add tests for:
 - no schema, migration, service, route, auth helper, OpenAPI, frontend, or test
   implementation
 - no public API namespace implementation
-- no account membership implementation
+- no membership activation, invitation delivery, seat assignment, or auth-claim
+  implementation
 - no export API/storage implementation
 - no lifecycle commands such as revoke, expire, reissue, repair, retry, replay,
   fulfil, settle, payout, invoice, or webhook dispatch

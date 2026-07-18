@@ -182,6 +182,7 @@ greenfield referral construction.
 74. TASK-208: Physically verify full Account Setup UI save-review-create path.
 75. TASK-209: Add Referral SaaS membership read boundary.
 76. TASK-210: Define Referral SaaS membership invitation write boundary.
+77. TASK-211: Add Referral SaaS membership invitation intent API.
 
 ## 10/10 Exit Criteria
 
@@ -491,6 +492,19 @@ greenfield referral construction.
 - TASK-210:
   `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_INVITATION_BOUNDARY.md`;
   `test/test_referral_saas_membership_invitation_boundary_contract.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-211: `services/referral_saas_account_membership_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/sa/referral-saas/README.md`;

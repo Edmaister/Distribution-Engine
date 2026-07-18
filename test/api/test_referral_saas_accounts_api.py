@@ -20,6 +20,10 @@ from services.referral_saas_account_setup_service import (
     AccountSetupInvalidDraftState,
     DurableAccountSetupResult,
 )
+from services.referral_saas_account_membership_service import (
+    MembershipInvitationDuplicate,
+    MembershipInvitationIntentResult,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -66,6 +70,24 @@ def _setup_result(**overrides) -> DurableAccountSetupResult:
     }
     values.update(overrides)
     return DurableAccountSetupResult(**values)
+
+
+def _invitation_result(**overrides) -> MembershipInvitationIntentResult:
+    values = {
+        "command_status": "INVITATION_INTENT_RECORDED",
+        "account_id": "acct-1",
+        "membership_id": "membership-1",
+        "membership_status": "INVITED",
+        "role_family": "DISTRIBUTION_ADMIN",
+        "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        "can_operate_setup": False,
+        "delivery_status": "DELIVERY_NOT_CONFIGURED",
+        "delivery_next_action": "Configure approved invitation delivery provider",
+        "idempotency_status": "RECORDED",
+        "audit_event_id": "audit-1",
+    }
+    values.update(overrides)
+    return MembershipInvitationIntentResult(**values)
 
 
 async def test_referral_saas_account_admin_can_create_account_from_draft(monkeypatch):
@@ -224,6 +246,209 @@ async def test_referral_saas_account_reader_can_resolve_runtime_account(monkeypa
             "external_ref": "fnb-referrals",
         }
     ]
+
+
+async def test_referral_saas_account_admin_can_record_membership_invitation_intent(
+    monkeypatch,
+):
+    resolve_calls: list[dict] = []
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(
+            account_status="PENDING_ONBOARDING",
+            tenant_link_status="PENDING_SETUP",
+        )
+
+    async def fake_record_referral_saas_membership_invitation_intent(**kwargs):
+        command_calls.append(kwargs)
+        return _invitation_result()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "record_referral_saas_membership_invitation_intent",
+        fake_record_referral_saas_membership_invitation_intent,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/membership-invitations",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "actor": {
+                    "actorType": "USER",
+                    "subject": "setup-owner-subject",
+                    "emailHash": "email-hash-only",
+                    "displayName": "Setup Owner",
+                },
+                "membership": {
+                    "roleFamily": "DISTRIBUTION_ADMIN",
+                    "permissionSet": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                    "tenantScope": "PRIMARY_ACCOUNT_TENANT",
+                },
+                "reasonCode": "ACCOUNT_SETUP_USER_ROLE",
+                "correlationId": "corr-1",
+                "idempotencyKey": "invite-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["account"]["accountCode"] == "ACCT_FNB"
+    assert "tenantCode" not in body["account"]
+    assert body["invitation"]["commandStatus"] == "INVITATION_INTENT_RECORDED"
+    assert body["invitation"]["membership"]["status"] == "INVITED"
+    assert body["invitation"]["delivery"]["status"] == "DELIVERY_NOT_CONFIGURED"
+    assert body["invitation"]["noInviteDeliveryConfirmed"] is True
+    assert body["no_auth_claim_change_confirmed"] is True
+    assert body["no_seat_assignment_confirmed"] is True
+    assert body["no_money_movement_confirmed"] is True
+    assert "NO_EMAIL_DELIVERY_WITHOUT_PROVIDER" in body["guardrails"]
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert command_calls[0]["account_id"] == "acct-1"
+    assert command_calls[0]["tenant_code"] == "FNB"
+    assert command_calls[0]["actor_type"] == "USER"
+    assert command_calls[0]["subject"] == "setup-owner-subject"
+    assert command_calls[0]["role_family"] == "DISTRIBUTION_ADMIN"
+    assert command_calls[0]["permission_set"] == "REFERRAL_SAAS_ACCOUNT_ADMIN"
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["command_payload_hash"]
+
+
+async def test_referral_saas_membership_invitation_rejects_path_scope_mismatch(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-other/membership-invitations",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "actor": {"actorType": "USER", "subject": "setup-owner-subject"},
+                "membership": {
+                    "roleFamily": "DISTRIBUTION_ADMIN",
+                    "permissionSet": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "invite-1",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_SCOPE"
+    assert detail["no_invite_delivery_confirmed"] is True
+
+
+async def test_referral_saas_membership_invitation_rejects_adjacent_role():
+    async with AsyncClient(app=app, base_url="http://test", headers=PARTNER_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/membership-invitations",
+            json={},
+        )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "permission_denied"
+
+
+async def test_referral_saas_membership_invitation_rejects_unsafe_payload():
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/membership-invitations",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "actor": {
+                    "actorType": "USER",
+                    "subject": "setup-owner-subject",
+                    "email": "raw@example.test",
+                },
+                "membership": {
+                    "roleFamily": "DISTRIBUTION_ADMIN",
+                    "permissionSet": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "invite-1",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert "NO_RAW_EMAIL_STORAGE" in detail["guardrails"]
+
+
+async def test_referral_saas_membership_invitation_maps_duplicate_safely(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_status="PENDING_ONBOARDING",
+            tenant_link_status="PENDING_SETUP",
+        )
+
+    async def fake_record_referral_saas_membership_invitation_intent(**kwargs):
+        raise MembershipInvitationDuplicate("Membership already exists.")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "record_referral_saas_membership_invitation_intent",
+        fake_record_referral_saas_membership_invitation_intent,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/membership-invitations",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "actor": {"actorType": "USER", "subject": "setup-owner-subject"},
+                "membership": {
+                    "roleFamily": "DISTRIBUTION_ADMIN",
+                    "permissionSet": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "invite-1",
+            },
+        )
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["code"] == "MEMBERSHIP_ALREADY_EXISTS"
+    assert detail["no_seat_assignment_confirmed"] is True
 
 
 async def test_referral_saas_account_reader_can_resolve_setup_context(monkeypatch):
