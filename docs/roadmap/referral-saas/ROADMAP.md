@@ -181,6 +181,7 @@ greenfield referral construction.
 73. TASK-207: Wire Account Setup UI create action to reviewed-draft account creation.
 74. TASK-208: Physically verify full Account Setup UI save-review-create path.
 75. TASK-209: Add Referral SaaS membership read boundary.
+76. TASK-210: Define Referral SaaS membership invitation write boundary.
 
 ## 10/10 Exit Criteria
 
@@ -220,6 +221,8 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_MAINTENANCE_READ_MODEL_CONTRACT.md`
 - TASK-197:
   `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SCHEMA_FINAL_REVIEW.md`
+- TASK-210:
+  `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_INVITATION_BOUNDARY.md`
 
 ## Completed Implementation Outputs
 
@@ -484,6 +487,13 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-210:
+  `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_INVITATION_BOUNDARY.md`;
+  `test/test_referral_saas_membership_invitation_boundary_contract.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/README.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`
 
 ## Explicit Deferrals
