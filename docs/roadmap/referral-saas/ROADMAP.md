@@ -184,6 +184,7 @@ greenfield referral construction.
 76. TASK-210: Define Referral SaaS membership invitation write boundary.
 77. TASK-211: Add Referral SaaS membership invitation intent API.
 78. TASK-212: Wire Account Setup Users and Roles to invitation intent API.
+79. TASK-213: Physically verify Account Setup membership invitation intent.
 
 ## 10/10 Exit Criteria
 
@@ -514,6 +515,14 @@ greenfield referral construction.
   `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-213:
+  `scripts/referral_saas_account_membership_intent_physical_check.py`;
+  `test/test_referral_saas_account_membership_intent_physical_check.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_MEMBERSHIP_INTENT_PHYSICAL_VERIFICATION.md`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/sa/referral-saas/README.md`;

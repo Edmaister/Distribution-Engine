@@ -275,3 +275,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   internal tenant identifiers, email delivery, active access, seat assignment,
   auth-claim changes, campaign activation, go-live, money, and DLaaS behavior
   out of scope.
+- TASK-213 physically verifies the Account Setup Step 2 membership invitation
+  intent path against the local API and database. The proof creates and resolves
+  a durable account foundation, records `INVITATION_INTENT_RECORDED`, reads back
+  `invitedCount: 1` from membership posture, and confirms delivery, activation,
+  seats, auth claims, campaign activation, go-live, money, and DLaaS behavior
+  remain out of scope.
