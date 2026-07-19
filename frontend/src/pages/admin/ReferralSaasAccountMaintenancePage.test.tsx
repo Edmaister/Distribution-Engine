@@ -44,6 +44,8 @@ function renderWorkspace(ui: ReactElement) {
         { path: "admin/referral-saas/account-setup", element: <div>Account Setup Target</div> },
         { path: "admin/onboarding/webhook-api", element: <div>Technical Setup Target</div> },
         { path: "admin/referral-saas/campaigns", element: <div>Campaign Target</div> },
+        { path: "admin/referral-saas/link-codes", element: <div>Links Target</div> },
+        { path: "admin/referral-saas/attribution-trace", element: <div>Trace Target</div> },
         { path: "admin/referral-saas/reports", element: <div>Reports Target</div> },
         { path: "admin/referral-saas/support", element: <div>Support Target</div> },
       ],
@@ -208,10 +210,10 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     cleanup();
   });
 
-  it("renders read-only account maintenance evidence from external references", async () => {
+  it("renders the client workspace from external references", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
 
-    expect(await screen.findByRole("heading", { name: "Account maintenance evidence" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Client workspace" })).toBeInTheDocument();
     await waitFor(() =>
       expect(mockedGetAdminOnboardingState).toHaveBeenCalledWith({
         external_tenant_ref: "demo-platform-operator",
@@ -219,14 +221,15 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       }),
     );
 
-    expect(screen.getByText("Read-only evidence")).toBeInTheDocument();
-    expect(screen.getByText("Do this next: route the fix to Account Setup")).toBeInTheDocument();
-    expect(screen.getAllByText("Account profile").length).toBeGreaterThan(0);
-    expect(screen.getByText("Users and roles")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Readiness check" })).toBeInTheDocument();
+    expect(screen.getByText("Client-scoped")).toBeInTheDocument();
+    expect(screen.getByText("Do this next: open the client workspace")).toBeInTheDocument();
+    expect(screen.getAllByText("Client profile").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Users and access").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "Client workspace summary" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Client activities and dashboards" })).toBeInTheDocument();
     expect(screen.getByText("Technical setup posture")).toBeInTheDocument();
     expect(screen.getByText("1 blocked area, 2 evidence gaps")).toBeInTheDocument();
-    expect(screen.getByText("Step 1: select the account to maintain")).toBeInTheDocument();
+    expect(screen.getByText("Step 1: select the client")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /FNB Referral SaaS/ })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Setup draft fallback" })).toBeInTheDocument();
     expect(mockedListReferralSaasAccounts).toHaveBeenCalledWith(50);
@@ -241,7 +244,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
   it("keeps scope typing local until the tester checks maintenance evidence", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
 
-    await screen.findByRole("heading", { name: "Account maintenance evidence" });
+    await screen.findByRole("heading", { name: "Client workspace" });
     await waitFor(() => expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1));
 
     fireEvent.change(screen.getByLabelText("Customer reference"), {
@@ -252,10 +255,10 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     });
 
     expect(screen.getByText("Changes not checked")).toBeInTheDocument();
-    expect(screen.getByText("Do this next: reload account evidence")).toBeInTheDocument();
+    expect(screen.getByText("Do this next: check the client again")).toBeInTheDocument();
     expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Check maintenance evidence" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check client evidence" }));
 
     await waitFor(() =>
       expect(mockedGetAdminOnboardingState).toHaveBeenLastCalledWith({
@@ -286,8 +289,10 @@ describe("ReferralSaasAccountMaintenancePage", () => {
         organisation_ref: "fnb-org",
       }),
     );
-    expect(await screen.findByText("Step 1: select the account to maintain")).toBeInTheDocument();
+    expect(await screen.findByText("Step 1: select the client")).toBeInTheDocument();
     expect(screen.getAllByText("fnb-referrals / fnb-org").length).toBeGreaterThan(0);
+    expect(screen.getByText("Durable client")).toBeInTheDocument();
+    expect(screen.getByText("Selected")).toBeInTheDocument();
     expect(JSON.stringify(mockedListReferralSaasAccounts.mock.calls)).not.toMatch(
       /tenant_code|api_key|client_secret/i,
     );
@@ -325,9 +330,9 @@ describe("ReferralSaasAccountMaintenancePage", () => {
   it("routes fixes to existing product surfaces without adding maintenance commands", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
 
-    await screen.findByRole("heading", { name: "Maintenance areas" });
+    await screen.findByRole("heading", { name: "Client readiness details" });
 
-    expect(screen.getAllByRole("link", { name: /Account profile/ })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /Client profile/ })[0]).toHaveAttribute(
       "href",
       "/admin/referral-saas/account-setup",
     );
@@ -338,6 +343,14 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByRole("link", { name: /Campaign handoff/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/campaigns",
+    );
+    expect(screen.getByRole("link", { name: /Links and codes/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/link-codes",
+    );
+    expect(screen.getByRole("link", { name: /Attribution trace/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/attribution-trace",
     );
     expect(screen.getByRole("link", { name: /Reporting posture/ })).toHaveAttribute(
       "href",

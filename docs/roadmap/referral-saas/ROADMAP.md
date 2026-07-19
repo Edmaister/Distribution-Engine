@@ -199,6 +199,7 @@ greenfield referral construction.
 91. TASK-225: Split Technical Setup from Account Setup and align customer identification language.
 92. TASK-226: Move full Account Setup readiness evidence to Account Maintenance.
 93. TASK-227: Add Account Maintenance durable account selector.
+94. TASK-228: Reframe Account Maintenance as a Client Workspace hub.
 
 ## 10/10 Exit Criteria
 
@@ -627,6 +628,11 @@ greenfield referral construction.
   `test/test_referral_saas_account_foundation_service.py`;
   `test/api/test_referral_saas_accounts_api.py`;
   `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-228: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
   `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
