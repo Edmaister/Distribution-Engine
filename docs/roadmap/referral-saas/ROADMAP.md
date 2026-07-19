@@ -599,6 +599,8 @@ greenfield referral construction.
   `docs/roadmap/ORDERED_TASK_LIST.md`
 - TASK-224: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
+  `apps/api/routers/admin_onboarding.py`;
+  `test/api/test_admin_onboarding_api.py`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`
