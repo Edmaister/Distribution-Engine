@@ -701,12 +701,21 @@ a {
   color: var(--color-text);
 }
 
+.rail-step:disabled {
+  cursor: not-allowed;
+}
+
 .rail-step.done {
+  color: var(--color-text);
+}
+
+.rail-step.available {
   color: var(--color-text);
 }
 
 .rail-step.locked {
   color: var(--color-text-muted);
+  opacity: 0.55;
 }
 
 .rail-dot {

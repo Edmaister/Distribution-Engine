@@ -258,6 +258,28 @@ export function ReferralSaasAccountSetupPage() {
   const failingReadinessRows = resolvedRows.filter((row) =>
     ["Blocked", "Missing evidence", "Needs evidence", "Needs attention", "Pending"].includes(row.status),
   );
+  const accountProfileRow = resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE");
+  const membershipRow = resolvedRows.find((row) => row.code === "MEMBERSHIP");
+  const hasMembershipEvidence = Boolean(
+    membershipInviteResponse ||
+      (membershipPosture &&
+        (membershipPosture.activeCount > 0 ||
+          membershipPosture.invitedCount > 0 ||
+          membershipPosture.totalMemberships > 0)),
+  );
+  const wizardStepCompletion = {
+    1: actionScopeReady,
+    2: isReadyStatus(accountProfileRow?.status),
+    3: hasMembershipEvidence,
+    4: true,
+    5: validationState === "success" || !needsSetupWork,
+    6: Boolean(durableAccount || createResponse),
+    7: false,
+  } as const;
+  const wizardStepPassable = {
+    ...wizardStepCompletion,
+    3: wizardStepCompletion[3] || !durableAccount,
+  } as const;
 
   function submitScope(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -272,7 +294,11 @@ export function ReferralSaasAccountSetupPage() {
   }
 
   function goToWizardStep(step: number) {
-    setActiveWizardStep(Math.min(Math.max(step, 1), wizardSteps.length));
+    const requestedStep = Math.min(Math.max(step, 1), wizardSteps.length);
+    if (!canOpenWizardStep(requestedStep)) {
+      return;
+    }
+    setActiveWizardStep(requestedStep);
   }
 
   function continueWizard() {
@@ -280,7 +306,31 @@ export function ReferralSaasAccountSetupPage() {
       navigate("/admin/referral-saas/campaigns");
       return;
     }
-    goToWizardStep(activeWizardStep + 1);
+    if (canOpenWizardStep(activeWizardStep + 1)) {
+      goToWizardStep(activeWizardStep + 1);
+    }
+  }
+
+  function canOpenWizardStep(step: number) {
+    if (step <= activeWizardStep) {
+      return true;
+    }
+    return wizardSteps
+      .filter((wizardStep) => wizardStep.id < step)
+      .every((wizardStep) => wizardStepPassable[wizardStep.id as keyof typeof wizardStepPassable]);
+  }
+
+  function getWizardRailState(step: number) {
+    if (step === activeWizardStep) {
+      return "current";
+    }
+    if (!canOpenWizardStep(step)) {
+      return "locked";
+    }
+    if (wizardStepCompletion[step as keyof typeof wizardStepCompletion]) {
+      return "done";
+    }
+    return "available";
   }
 
   function resetSetupActionState() {
@@ -520,15 +570,17 @@ export function ReferralSaasAccountSetupPage() {
             <aside className="account-wizard-rail" aria-label="Account setup progress">
               <div className="rail-title">Progress</div>
               {wizardSteps.map((step) => {
-                const state = step.id < activeWizardStep ? "done" : step.id === activeWizardStep ? "current" : "locked";
+                const state = getWizardRailState(step.id);
+                const locked = state === "locked";
                 return (
                   <button
                     className={`rail-step ${state}`}
+                    disabled={locked}
                     key={step.id}
                     onClick={() => goToWizardStep(step.id)}
                     type="button"
                   >
-                    <span aria-hidden="true" className="rail-dot">{step.id < activeWizardStep ? "OK" : step.id}</span>
+                    <span aria-hidden="true" className="rail-dot">{state === "done" ? "OK" : locked ? "Lock" : step.id}</span>
                     <span>{step.label}</span>
                   </button>
                 );
@@ -843,7 +895,7 @@ export function ReferralSaasAccountSetupPage() {
 
               <div className="account-wizard-footer">
                 <button className="button secondary" disabled={activeWizardStep === 1} onClick={() => goToWizardStep(activeWizardStep - 1)} type="button">Back</button>
-                <button className="button" onClick={continueWizard} type="button">
+                <button className="button" disabled={activeWizardStep < wizardSteps.length && !canOpenWizardStep(activeWizardStep + 1)} onClick={continueWizard} type="button">
                   {activeWizardStep === wizardSteps.length ? "Go to Campaigns" : "Continue"}
                 </button>
               </div>
@@ -867,6 +919,10 @@ function categoryMatches(category: Record<string, unknown>, item: { code: string
     .toLowerCase()
     .split("_")
     .some((part) => haystack.includes(part)) || haystack.includes(item.label.toLowerCase());
+}
+
+function isReadyStatus(status: string | undefined) {
+  return status === "Ready" || status === "READY";
 }
 
 function toCount(value: unknown) {
