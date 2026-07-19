@@ -68,6 +68,7 @@ describe("referralSaasAccounts endpoint client", () => {
           accountName: "FNB Referral SaaS",
           accountStatus: "PENDING_ONBOARDING",
           onboardingStatus: "READY_FOR_REVIEW",
+          operatingJurisdictionCode: "ZA",
           primaryExternalTenantRef: "fnb-referrals",
           externalReferences: [
             {
@@ -84,7 +85,7 @@ describe("referralSaasAccounts endpoint client", () => {
 
     await expect(listReferralSaasAccounts(25)).resolves.toMatchObject({
       count: 1,
-      accounts: [{ accountCode: "ACCT_FNB" }],
+      accounts: [{ accountCode: "ACCT_FNB", operatingJurisdictionCode: "ZA" }],
     });
 
     expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts", {

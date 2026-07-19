@@ -26,19 +26,14 @@ import { useBackendSession, workspaceForPath } from "../auth/useBackendSession";
 
 const referralSaasSections = [
   {
-    label: "While in a customer",
+    label: "Customers",
     links: [
+      { to: "/admin/referral-saas/account-setup", label: "Account Setup", icon: Building2, sub: "New" },
       { to: "/admin/referral-saas/account-maintenance", label: "Customer profile", icon: ShieldCheck, sub: "Home" },
       { to: "/admin/referral-saas/campaigns", label: "Campaigns", icon: Target, sub: "Scoped" },
       { to: "/admin/referral-saas/link-codes", label: "Links & Codes", icon: Link2, sub: "Scoped" },
       { to: "/admin/referral-saas/reports", label: "Reports", icon: ChartNoAxesColumn, sub: "Scoped" },
       { to: "/admin/referral-saas/support", label: "Support", icon: ShieldCheck, sub: "Scoped" },
-    ],
-  },
-  {
-    label: "Setup",
-    links: [
-      { to: "/admin/referral-saas/account-setup", label: "Account Setup", icon: Building2, sub: "Account" },
     ],
   },
   {

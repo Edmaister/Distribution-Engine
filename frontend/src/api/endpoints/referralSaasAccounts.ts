@@ -33,6 +33,7 @@ export type ReferralSaasAccountRegistryItem = {
   accountType: string;
   accountStatus: string;
   onboardingStatus: string;
+  operatingJurisdictionCode: string;
   primaryExternalTenantRef?: string | null;
   externalReferences: {
     refType: string;

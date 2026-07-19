@@ -35,12 +35,23 @@ describe("Sidebar", () => {
       "href",
       "/admin/referral-saas/campaigns",
     );
-    expect(screen.getByText("While in a customer")).toBeInTheDocument();
+    expect(screen.getByText("Customers")).toBeInTheDocument();
     expect(screen.getByText("Global")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Account Setup/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-setup",
+    );
     expect(screen.getByRole("link", { name: /Customer profile/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/account-maintenance",
     );
+
+    const accountSetup = screen.getByRole("link", { name: /Account Setup/ });
+    const customerProfile = screen.getByRole("link", { name: /Customer profile/ });
+    expect(
+      accountSetup.compareDocumentPosition(customerProfile) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
     expect(screen.getByRole("link", { name: /Attribution Trace/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/attribution-trace",

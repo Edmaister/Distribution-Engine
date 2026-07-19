@@ -201,6 +201,7 @@ async def test_lists_safe_account_registry_without_internal_tenant_code(monkeypa
                 "account_type": "ORGANISATION",
                 "account_status": "PENDING_ONBOARDING",
                 "onboarding_status": "READY_FOR_REVIEW",
+                "operating_jurisdiction_code": "ZA",
                 "primary_external_tenant_ref": "fnb-referrals",
                 "created_at": datetime(2026, 7, 19),
                 "updated_at": datetime(2026, 7, 19, 1),
@@ -225,6 +226,7 @@ async def test_lists_safe_account_registry_without_internal_tenant_code(monkeypa
 
     assert accounts[0].account_code == "ACCT_FNB"
     safe_payload = accounts[0].to_safe_dict()
+    assert safe_payload["operatingJurisdictionCode"] == "ZA"
     assert safe_payload["primaryExternalTenantRef"] == "fnb-referrals"
     assert safe_payload["externalReferences"][1]["externalRef"] == "fnb-org"
     assert "tenantCode" not in safe_payload

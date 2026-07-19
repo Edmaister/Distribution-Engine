@@ -346,6 +346,10 @@ a {
   cursor: pointer;
 }
 
+.customer-selector-card.compact {
+  min-height: 104px;
+}
+
 .customer-selector-card:hover,
 .customer-function-card:hover {
   background: var(--color-signal-light);
@@ -370,6 +374,34 @@ a {
   font-family: var(--font-mono);
   font-size: 11px;
   overflow-wrap: anywhere;
+}
+
+.customer-selector-copy {
+  color: var(--color-ink-soft);
+  font-size: 13px;
+}
+
+.customer-selector-count {
+  color: var(--color-signal);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.customer-picker-step {
+  margin: 18px 0 12px;
+}
+
+.customer-open-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.button.disabled,
+.button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .customer-tabs {

@@ -233,7 +233,7 @@ def test_account_foundation_migration_is_ordered_after_onboarding_drafts() -> No
         migration_names.index(MIGRATION_NAME)
     )
     assert migration_names.index(MIGRATION_NAME) < migration_names.index(
-        "999_indexes.sql"
+        "083_referral_saas_account_operating_jurisdiction.sql"
     )
 
 

@@ -109,6 +109,7 @@ class AccountFoundationListItem:
     account_type: str
     account_status: str
     onboarding_status: str
+    operating_jurisdiction_code: str
     primary_external_tenant_ref: str | None
     external_references: tuple[dict[str, str], ...]
     created_at: str
@@ -122,6 +123,7 @@ class AccountFoundationListItem:
             "accountType": self.account_type,
             "accountStatus": self.account_status,
             "onboardingStatus": self.onboarding_status,
+            "operatingJurisdictionCode": self.operating_jurisdiction_code,
             "primaryExternalTenantRef": self.primary_external_tenant_ref,
             "externalReferences": list(self.external_references),
             "createdAt": self.created_at,
@@ -288,6 +290,7 @@ async def list_referral_saas_accounts(*, limit: int = 50) -> list[AccountFoundat
                 account.account_type,
                 account.status AS account_status,
                 account.onboarding_status,
+                COALESCE(account.operating_jurisdiction_code, 'ZA') AS operating_jurisdiction_code,
                 account.primary_external_tenant_ref,
                 account.created_at,
                 account.updated_at,
@@ -335,6 +338,9 @@ async def list_referral_saas_accounts(*, limit: int = 50) -> list[AccountFoundat
                 account_type=str(row["account_type"]),
                 account_status=str(row["account_status"]),
                 onboarding_status=str(row["onboarding_status"]),
+                operating_jurisdiction_code=str(
+                    row.get("operating_jurisdiction_code") or "ZA"
+                ),
                 primary_external_tenant_ref=(
                     str(row["primary_external_tenant_ref"])
                     if row.get("primary_external_tenant_ref")
