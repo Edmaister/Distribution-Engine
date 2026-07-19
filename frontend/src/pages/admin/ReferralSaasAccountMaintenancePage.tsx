@@ -3,7 +3,6 @@ import {
   BarChart3,
   Building2,
   CheckCircle2,
-  KeyRound,
   Link as LinkIcon,
   ListChecks,
   Search,
@@ -12,7 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { useMemo, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 
 import {
   useReferralSaasAccountDraftSelector,
@@ -191,13 +190,9 @@ export function ReferralSaasAccountMaintenancePage() {
   const overallStatus = formatDisplay(readiness?.overall_status || "go_live_disabled");
   const customerName = selectedAccount?.accountName || formatDisplay(appliedOrganisationRef);
   const doNext = getCustomerNextActions(blockedCount, missingEvidenceCount);
-  const customerQuery = useMemo(
-    () =>
-      `?external_tenant_ref=${encodeURIComponent(selectedExternalTenantRef)}&organisation_ref=${encodeURIComponent(
-        selectedOrganisationRef,
-      )}`,
-    [selectedExternalTenantRef, selectedOrganisationRef],
-  );
+  const customerQuery = `?external_tenant_ref=${encodeURIComponent(
+    selectedExternalTenantRef,
+  )}&organisation_ref=${encodeURIComponent(selectedOrganisationRef)}`;
 
   function submitScope(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -702,10 +697,6 @@ function getOperatingMarkets(accounts: AccountRegistryItem[]) {
         },
       ]
     : knownMarkets;
-}
-
-function inferOperatingMarket(account: AccountRegistryItem) {
-  return operatingMarketFromAccount(account).name;
 }
 
 function operatingMarketFromAccount(account: AccountRegistryItem) {
