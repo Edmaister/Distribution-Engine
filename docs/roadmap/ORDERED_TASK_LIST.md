@@ -4671,6 +4671,32 @@ Rollback notes: Revert the Account Setup page/test updates and roadmap/gap/task-
 Explicit non-goals: Do not add backend routes, service writes, schema, migrations, draft deletion, stale draft override, account creation, approval, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Account Setup Step 2 handles existing-draft `409 Conflict` as a clear recoverable product state with tested refresh and reference-change actions. Priority: P0.
 
+## TASK-221: Clarify Account Setup contact responsibility field
+
+Status: Complete (2026-07-19). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing Account Setup company-profile draft payload while clarifying that the field records setup-contact responsibility, not access permission. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup field semantics; product-boundary UX; no-permission-confusion guardrails.
+Objective: Replace the Step 2 `Intended role` wording with `Contact responsibility` and bounded setup-responsibility options so operators do not confuse company-profile evidence with People & Roles permissions.
+Why now: User testing showed the previous `Referral SaaS account admin` option looked like a future permission set, which made Company Profile feel mixed with access setup.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Renames the Step 2 field to `Contact responsibility`, replaces the default value with `Account owner`, adds setup-responsibility options such as implementation, campaign, technical integration, reporting, and support leads, and updates tooltip copy to point access roles and permissions to the People & Roles step.
+API impact: None. Keeps the existing draft payload key `intended_role` for compatibility with the onboarding draft contract.
+Tests to add/update: Updates Account Setup page tests to assert the new label, tooltip, option set, payload compatibility, and absence of `Referral SaaS account admin` from the Company Profile responsibility selector.
+Validation method: `npm.cmd test -- ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Company Profile no longer presents contact responsibility as a platform permission; the saved draft remains compatible with the existing API; actual permission selection stays in People & Roles; no backend route, schema, permission, invitation, activation, billing, or money behavior changes are introduced.
+Dependencies: TASK-220.
+Blocked by: None for frontend field semantics. Local UI-driven Account Setup wizard E2E proof remains the next account setup readiness task.
+Risk level: Low.
+Rollback notes: Revert the Account Setup page/test updates and roadmap/gap/task-list entries.
+Explicit non-goals: Do not add backend routes, service writes, schema, migrations, permission sets, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Setup Step 2 clearly captures the primary contact's setup responsibility while leaving future access permissions to People & Roles. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
