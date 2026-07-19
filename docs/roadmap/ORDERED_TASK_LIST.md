@@ -4905,6 +4905,32 @@ Rollback notes: Revert the physical checker, checker tests, verification doc, an
 Explicit non-goals: Do not add schema, migrations, account lifecycle commands, durable account updates, durable profile updates, membership writes, invitations, activation, seat assignment, auth/session claim changes, credential rotation, webhook delivery, campaign activation, go-live, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has a repeatable physical checker for selected Client Workspace readiness using safe external identifiers, with the fresh-create local seed gap documented separately. Priority: P0.
 
+## TASK-230: Add repeatable fresh-client physical seed proof
+
+Status: Complete (2026-07-19). Output: `scripts/referral_saas_fresh_client_workspace_physical_check.py`; `test/test_referral_saas_fresh_client_workspace_physical_check.py`; `docs/sa/referral-saas/REFERRAL_SAAS_FRESH_CLIENT_PHYSICAL_SEED_VERIFICATION.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing tenant table, guarded Account Setup creation API, TASK-229 Client Workspace physical checker, account registry wrapper, and onboarding readiness projection. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Repeatable local fresh-client proof; Account Setup to Client Workspace physical verification; local tenant seed guardrails.
+Objective: Add local-only physical proof tooling that prepares a fresh unlinked internal tenant seed, then runs the existing Account Setup to Client Workspace proof in created-client mode.
+Why now: TASK-229 proved Client Workspace selection with an existing durable client but documented that strict create-first proof was blocked because every local tenant seed was already attached to an account owner.
+Files involved: `scripts/referral_saas_fresh_client_workspace_physical_check.py`; `test/test_referral_saas_fresh_client_workspace_physical_check.py`; `docs/sa/referral-saas/REFERRAL_SAAS_FRESH_CLIENT_PHYSICAL_SEED_VERIFICATION.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `scripts/referral_saas_client_workspace_physical_check.py`; `scripts/referral_saas_account_setup_ui_physical_check.py`; `scripts/referral_saas_account_create_physical_check.py`; `services/referral_saas_account_setup_service.py`; `services/tenant_service.py`; `dp/migrations/031_tenent.sql`; `dp/migrations/082_referral_saas_account_foundation.sql`.
+Database/schema impact: No migration changes. The physical checker inserts or updates a local `tenants` row only when the requested seed is not already linked as an owner in `platform_account_tenants`.
+Backend impact: None. This is script-only physical verification over existing API behavior.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: Adds tests for deterministic local tenant seed naming, linked-seed rejection, seed insertion, DB DSN requirement, and delegation to TASK-229 in created-client mode.
+Validation method: `.venv_codex\Scripts\python.exe -m py_compile scripts\referral_saas_fresh_client_workspace_physical_check.py test\test_referral_saas_fresh_client_workspace_physical_check.py`; `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_fresh_client_workspace_physical_check.py test\test_referral_saas_client_workspace_physical_check.py test\test_referral_saas_account_setup_ui_physical_check.py`; `.venv_codex\Scripts\python.exe scripts\referral_saas_fresh_client_workspace_physical_check.py --db-dsn $env:APP_DB_DSN --suffix local-230`; `git diff --check`.
+Acceptance criteria: The checker fails without a DB DSN, creates or updates one active local seed tenant only when no owner link exists, rejects already linked seed tenants, runs the existing Account Setup and Client Workspace proof in fresh-client mode, confirms the created client is selected by safe external identifiers, and confirms no profile update, invitation delivery, campaign activation, go-live, money, DLaaS marketplace, or source-code fork behavior is added.
+Dependencies: TASK-229.
+Blocked by: None for repeatable local fresh-client physical proof when `APP_DB_DSN` points at the running local database.
+Risk level: Low.
+Rollback notes: Revert the physical checker, checker tests, verification doc, and roadmap/gap/task-list updates. Local `TASK230...` tenant/account proof rows can remain as local evidence or be cleaned manually in a disposable local DB.
+Explicit non-goals: Do not add schema, migrations, product tenant creation APIs, account lifecycle updates, durable profile updates, membership writes, invitations, activation, seat assignment, auth/session claim changes, credential rotation, webhook delivery, campaign activation, go-live, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, destructive local cleanup, or source-code forks.
+Definition of done: Fresh Account Setup to Client Workspace physical proof is repeatable on a local DB by creating a bounded unlinked test tenant seed before invoking the existing guarded account creation path. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
