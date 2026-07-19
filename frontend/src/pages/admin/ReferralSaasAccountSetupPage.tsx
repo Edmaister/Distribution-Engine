@@ -45,7 +45,7 @@ const defaultOrganisationRef = "demo-organisation";
 const trustedInternalTenantScopeKey = "amplifi.referralSaas.accountSetup.trustedTenantScope";
 const defaultTrustedInternalTenantScope = "FNB";
 const draftConflictRecoveryMessage =
-  "A setup draft already exists for this customer. Refresh the setup status to continue from the latest evidence, or change the customer references before saving another draft. No account was created and no live action was taken.";
+  "A saved setup already exists for this customer. Refresh the setup status to continue from the latest evidence, or use a different customer before saving another draft. No account was created and no live action was taken.";
 type SetupActionState = "idle" | "loading" | "success" | "error";
 type CompanyProfileForm = {
   organisationName: string;
@@ -299,10 +299,9 @@ export function ReferralSaasAccountSetupPage() {
   const wizardSteps = [
     { id: 1, label: "Identify customer" },
     { id: 2, label: "Company profile" },
-    { id: 3, label: "Integration intent" },
-    { id: 4, label: "Readiness check" },
-    { id: 5, label: "Review & create" },
-    { id: 6, label: "Handoff" },
+    { id: 3, label: "Readiness check" },
+    { id: 4, label: "Review & create" },
+    { id: 5, label: "Handoff" },
   ];
   const resolvedRows = accountChecklist.map((item) => {
     const matchingCategory = categories.find((category) => categoryMatches(category, item));
@@ -324,10 +323,9 @@ export function ReferralSaasAccountSetupPage() {
   const wizardStepCompletion = {
     1: actionScopeReady && scopeCheckConfirmed && !scopeChanged,
     2: isReadyStatus(accountProfileRow?.status) || Boolean(companyProfileHasSavedDraft && !companyProfileHasUnsavedChanges),
-    3: true,
-    4: validationState === "success" || !needsSetupWork,
-    5: Boolean(durableAccount || createResponse),
-    6: false,
+    3: validationState === "success" || !needsSetupWork,
+    4: Boolean(durableAccount || createResponse),
+    5: false,
   } as const;
   const wizardStepPassable = {
     ...wizardStepCompletion,
@@ -625,10 +623,10 @@ export function ReferralSaasAccountSetupPage() {
   const companyProfileStatusCopy = companyProfileHasUnsavedChanges
     ? "You changed the company profile after the last saved draft. Save these changes before continuing."
     : companyProfileHasSavedDraft
-      ? "Company profile saved. Continue to Integration intent."
+      ? "Company profile saved. Continue to Readiness check."
       : draftSelectorLoading
         ? "Checking for a saved company profile draft for this customer."
-        : "Save the company profile draft before moving to Integration intent.";
+        : "Save the company profile draft before moving to Readiness check.";
   const companyProfileStatusBadge = companyProfileHasUnsavedChanges
     ? "Unsaved changes"
     : companyProfileHasSavedDraft
@@ -660,9 +658,10 @@ export function ReferralSaasAccountSetupPage() {
           <div className="page-kicker">Referral SaaS - Account Setup</div>
           <h1 className="page-title">Account setup wizard</h1>
           <p className="page-copy">
-            Work through company setup, roles, integration intent, readiness,
-            and review handoff before testing campaigns, links, attribution, or
-            reports.
+            Work through customer identification, company profile, readiness,
+            review, and handoff before testing campaigns, links, attribution, or
+            reports. Technical integration setup is handled after the account
+            foundation is ready.
           </p>
         </div>
         <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
@@ -709,16 +708,23 @@ export function ReferralSaasAccountSetupPage() {
                     <div>
                       <div className="page-kicker">Identify customer</div>
                       <h3 className="account-wizard-title">Find or start the account</h3>
-                      <p className="page-copy">Enter the customer references. We will tell you if a Referral SaaS account already exists.</p>
+                      <p className="page-copy">Enter the customer identifiers. We will tell you if a Referral SaaS account already exists.</p>
                     </div>
                     <form className="wizard-card" onSubmit={submitScope}>
+                      <div className="wizard-status-card">
+                        <div>
+                          <strong>Customer identifiers</strong>
+                          <p>Use the customer's visible identifiers for setup. Internal tenant identifiers stay hidden.</p>
+                        </div>
+                        <StatusBadge label="External only" tone="info" />
+                      </div>
                       <div className="form-grid">
                         <label className="field">
-                          <span>External tenant ref</span>
+                          <span>Customer reference</span>
                           <input className="input" onChange={(event) => setDraftExternalTenantRef(event.target.value)} value={draftExternalTenantRef} />
                         </label>
                         <label className="field">
-                          <span>Organisation ref</span>
+                          <span>Organisation reference</span>
                           <input className="input" onChange={(event) => setDraftOrganisationRef(event.target.value)} value={draftOrganisationRef} />
                         </label>
                       </div>
@@ -861,24 +867,6 @@ export function ReferralSaasAccountSetupPage() {
                 {activeWizardStep === 3 ? (
                   <>
                     <div>
-                      <div className="page-kicker">Integration intent</div>
-                      <h3 className="account-wizard-title">Document API and webhook intent</h3>
-                      <p className="page-copy">Capture setup intent without creating credentials, sending webhooks, or exposing secrets.</p>
-                    </div>
-                    <div className="wizard-card route-list">
-                      <SetupLink to="/admin/onboarding/webhook-api" title="Integration setup" copy="Open advanced webhook/API setup intent. No credentials are created from Account Setup." />
-                      <div className="chip-row">
-                        <StatusBadge label="No credentials" tone="warning" />
-                        <StatusBadge label="No webhook delivery" tone="warning" />
-                        <StatusBadge label="Intent only" tone="info" />
-                      </div>
-                    </div>
-                  </>
-                ) : null}
-
-                {activeWizardStep === 4 ? (
-                  <>
-                    <div>
                       <div className="page-kicker">Readiness check</div>
                       <h3 className="account-wizard-title">Check what is blocking setup</h3>
                       <p className="page-copy">Validate once, show the failing gates, and keep full evidence in the details drawer.</p>
@@ -951,7 +939,7 @@ export function ReferralSaasAccountSetupPage() {
                   </>
                 ) : null}
 
-                {activeWizardStep === 5 ? (
+                {activeWizardStep === 4 ? (
                   <>
                     <div>
                       <div className="page-kicker">Review & create</div>
@@ -1024,12 +1012,12 @@ export function ReferralSaasAccountSetupPage() {
                   </>
                 ) : null}
 
-                {activeWizardStep === 6 ? (
+                {activeWizardStep === 5 ? (
                   <>
                     <div>
                       <div className="page-kicker">Handoff</div>
                       <h3 className="account-wizard-title">Account ready for campaign setup</h3>
-                      <p className="page-copy">Confirm account posture, then leave Account Setup for campaign readiness.</p>
+                      <p className="page-copy">Confirm account posture, then leave Account Setup for campaign readiness or technical setup.</p>
                     </div>
                     <div className="wizard-card route-list">
                       <div className="wizard-status-card">
@@ -1040,6 +1028,14 @@ export function ReferralSaasAccountSetupPage() {
                         </div>
                         <StatusBadge label={durableAccount ? "Account found" : "Setup incomplete"} tone={durableAccount ? "success" : "warning"} />
                       </div>
+                      <div className="wizard-status-card">
+                        <div>
+                          <strong>Technical setup is separate</strong>
+                          <p>Configure API environment intent, webhook callbacks, credentials, and test delivery outside Account Setup.</p>
+                        </div>
+                        <StatusBadge label="Separate workflow" tone="info" />
+                      </div>
+                      <SetupLink to="/admin/onboarding/webhook-api" title="Technical setup" copy="Configure API and webhook setup after the customer account foundation is ready." />
                       <SetupLink to="/admin/referral-saas/campaigns" title="Campaign readiness" copy="Go to campaign setup only after account evidence is clear enough for referral testing." />
                     </div>
                   </>
@@ -1086,7 +1082,7 @@ function toCount(value: unknown) {
 function getDurableAccountStatus(hasAccount: boolean, isLoading: boolean, error: unknown) {
   if (isLoading) {
     return {
-      copy: "Looking for an existing Referral SaaS account for these customer references.",
+      copy: "Looking for an existing Referral SaaS account for these customer identifiers.",
       label: "Checking",
       tone: "info" as const,
     };
@@ -1102,7 +1098,7 @@ function getDurableAccountStatus(hasAccount: boolean, isLoading: boolean, error:
   const status = typeof error === "object" && error && "status" in error ? Number((error as { status?: number }).status) : null;
   if (status === 404) {
     return {
-      copy: "No account exists for these references yet. Start the company setup draft to create one.",
+      copy: "No account exists for these customer identifiers yet. Start the company setup draft to create one.",
       label: "Start setup",
       tone: "warning" as const,
     };
@@ -1448,7 +1444,7 @@ function SetupActionResult({
                   Refresh setup status
                 </button>
                 <button className="button secondary" onClick={onChangeCustomerReferences} type="button">
-                  Change customer references
+                  Use different customer
                 </button>
               </div>
             ) : null}

@@ -420,8 +420,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.getByText("Account status")).toBeInTheDocument();
     expect(screen.getByText("FNB Referral SaaS - ACTIVE - tenant link ACTIVE")).toBeInTheDocument();
     await confirmAccountScope();
-    fireEvent.click(screen.getByRole("button", { name: "Integration intent" }));
-    expect(screen.getByRole("heading", { name: "Document API and webhook intent" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Integration intent" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "People & roles" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Record role intent" })).not.toBeInTheDocument();
     expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
@@ -434,11 +433,12 @@ describe("ReferralSaasAccountSetupPage", () => {
     await waitForWizard();
     expect(screen.getByRole("button", { name: "Identify customer" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Company profile" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Integration intent" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Integration intent" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Readiness check" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Review & create" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Handoff" })).toBeInTheDocument();
     expect(screen.getByText(/Set up a customer account foundation before campaign and attribution testing/)).toBeInTheDocument();
+    expect(screen.getByText(/Technical integration setup is handled after the account foundation is ready/)).toBeInTheDocument();
   });
 
   it("locks future wizard steps until previous steps are complete", async () => {
@@ -450,10 +450,10 @@ describe("ReferralSaasAccountSetupPage", () => {
     await waitForWizard();
 
     expect(screen.getByRole("button", { name: "Company profile" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Integration intent" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Readiness check" })).toBeDisabled();
     expect(screen.getByText("Not checked")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Integration intent" }));
+    fireEvent.click(screen.getByRole("button", { name: "Readiness check" }));
 
     expect(screen.getByRole("heading", { name: "Find or start the account" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Company profile" })).not.toHaveClass("done");
@@ -467,7 +467,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.getByRole("heading", { name: "Capture company setup evidence" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Identify customer" })).toHaveClass("done");
     expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Integration intent" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Readiness check" })).toBeDisabled();
   });
 
   it("shows a recommended account setup testing path", async () => {
@@ -496,11 +496,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.queryByRole("link", { name: /Company profile/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "People & roles" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Record role intent" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Integration intent"));
-    expect(screen.getByRole("link", { name: /Integration setup/ })).toHaveAttribute(
-      "href",
-      "/admin/onboarding/webhook-api",
-    );
+    expect(screen.queryByRole("button", { name: "Integration intent" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Readiness check" }));
     expect(screen.getByRole("button", { name: "Validate setup" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Validate setup" }));
@@ -508,6 +504,11 @@ describe("ReferralSaasAccountSetupPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Review & create" }));
     expect(screen.getByRole("button", { name: "Save setup draft" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Handoff" }));
+    expect(lastMatch(screen.getAllByRole("link", { name: /Technical setup/ }))).toHaveAttribute(
+      "href",
+      "/admin/onboarding/webhook-api",
+    );
+    expect(screen.getByText(/Technical setup is separate/)).toBeInTheDocument();
     expect(lastMatch(screen.getAllByRole("link", { name: /Campaign readiness/ }))).toHaveAttribute(
       "href",
       "/admin/referral-saas/campaigns",
@@ -612,9 +613,10 @@ describe("ReferralSaasAccountSetupPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save company profile" }));
 
     expect(await screen.findByText("Existing setup draft found.")).toBeInTheDocument();
-    expect(screen.getByText(/A setup draft already exists for this customer/)).toBeInTheDocument();
+    expect(screen.getByText(/A saved setup already exists for this customer/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Refresh setup status" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Change customer references" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use different customer" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Change customer references" })).not.toBeInTheDocument();
     expect(screen.queryByText("Setup action fallback.")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Refresh setup status" }));
@@ -629,10 +631,10 @@ describe("ReferralSaasAccountSetupPage", () => {
     await waitForWizard();
     await waitFor(() => expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1));
 
-    fireEvent.change(screen.getByLabelText("External tenant ref"), {
+    fireEvent.change(screen.getByLabelText("Customer reference"), {
       target: { value: "org-fnb-referrals" },
     });
-    fireEvent.change(screen.getByLabelText("Organisation ref"), {
+    fireEvent.change(screen.getByLabelText("Organisation reference"), {
       target: { value: "fnb-referral-org" },
     });
 
@@ -682,7 +684,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(await screen.findByRole("heading", { name: "Account setup wizard" })).toBeInTheDocument();
     await waitForWizard();
     await confirmAccountScope();
-    expect(await screen.findByText("No account exists for these references yet. Start the company setup draft to create one.")).toBeInTheDocument();
+    expect(await screen.findByText("No account exists for these customer identifiers yet. Start the company setup draft to create one.")).toBeInTheDocument();
     expect(screen.getByText("Start setup")).toBeInTheDocument();
     await validateSetup();
     fireEvent.click(screen.getByRole("button", { name: "Review & create" }));
@@ -787,7 +789,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     await screen.findByRole("heading", { name: "Account setup wizard" });
     await waitForWizard();
     await confirmAccountScope();
-    expect(await screen.findByText(/No account exists for these references yet/)).toBeInTheDocument();
+    expect(await screen.findByText(/No account exists for these customer identifiers yet/)).toBeInTheDocument();
     await validateSetup();
     fireEvent.click(screen.getByRole("button", { name: "Review & create" }));
     expect(screen.getByRole("button", { name: "Create account foundation" })).toBeDisabled();
@@ -821,6 +823,11 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.getByText(/PENDING_ONBOARDING/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Handoff" }));
     expect(screen.getByText(/Manage users and access in Account Maintenance after the account foundation exists/)).toBeInTheDocument();
+    expect(screen.getByText(/Technical setup is separate/)).toBeInTheDocument();
+    expect(lastMatch(screen.getAllByRole("link", { name: /Technical setup/ }))).toHaveAttribute(
+      "href",
+      "/admin/onboarding/webhook-api",
+    );
   });
 
   it("keeps user access writes out of Account Setup", async () => {
@@ -859,14 +866,14 @@ describe("ReferralSaasAccountSetupPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
     expect(screen.getByRole("button", { name: "Save company profile" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Company profile/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Integration intent" }));
-    expect(lastMatch(screen.getAllByRole("link", { name: /Integration setup/ }))).toHaveAttribute(
-      "href",
-      "/admin/onboarding/webhook-api",
-    );
+    expect(screen.queryByRole("button", { name: "Integration intent" })).not.toBeInTheDocument();
     await validateSetup();
     fireEvent.click(screen.getByRole("button", { name: "Review & create" }));
     fireEvent.click(screen.getByRole("button", { name: "Handoff" }));
+    expect(lastMatch(screen.getAllByRole("link", { name: /Technical setup/ }))).toHaveAttribute(
+      "href",
+      "/admin/onboarding/webhook-api",
+    );
     expect(lastMatch(screen.getAllByRole("link", { name: /Campaign readiness/ }))).toHaveAttribute(
       "href",
       "/admin/referral-saas/campaigns",
