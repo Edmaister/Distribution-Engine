@@ -291,6 +291,193 @@ a {
   max-width: 760px;
 }
 
+.customer-profile-header {
+  align-items: flex-start;
+}
+
+.customer-context-chips {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.customer-context-chips span:not(.badge) {
+  background: var(--color-white);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-control);
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 5px 8px;
+}
+
+.customer-header-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.customer-selector-grid,
+.customer-function-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.customer-selector-card,
+.customer-function-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-panel);
+  color: inherit;
+  display: grid;
+  gap: 8px;
+  min-height: 136px;
+  padding: 14px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.customer-selector-card {
+  cursor: pointer;
+}
+
+.customer-selector-card:hover,
+.customer-function-card:hover {
+  background: var(--color-signal-light);
+  border-color: rgb(37 99 235 / 0.34);
+}
+
+.customer-selector-card.selected {
+  background: rgb(13 158 114 / 0.08);
+  border-color: rgb(13 158 114 / 0.35);
+}
+
+.customer-selector-title,
+.customer-function-title {
+  align-items: center;
+  display: inline-flex;
+  font-weight: 700;
+  gap: 8px;
+}
+
+.customer-selector-meta {
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.customer-tabs {
+  align-items: center;
+  border-bottom: 1px solid var(--color-rule);
+  display: flex;
+  gap: 12px;
+}
+
+.customer-tabs button {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  font-weight: 700;
+  padding: 10px 0;
+}
+
+.customer-tabs button.active {
+  border-bottom-color: var(--color-signal);
+  color: var(--color-signal);
+}
+
+.customer-overview-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+}
+
+.customer-health-strip {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.customer-health-card {
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-panel);
+  display: grid;
+  gap: 4px;
+  min-height: 74px;
+  padding: 12px;
+}
+
+.customer-health-card strong {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.customer-health-card span {
+  color: var(--color-ink-soft);
+  font-size: 12px;
+}
+
+.customer-health-card.good {
+  background: rgb(13 158 114 / 0.08);
+  border-color: rgb(13 158 114 / 0.35);
+}
+
+.customer-health-card.bad {
+  background: rgb(220 38 38 / 0.07);
+  border-color: rgb(220 38 38 / 0.24);
+}
+
+.customer-health-card.wait {
+  background: rgb(217 119 6 / 0.08);
+  border-color: rgb(217 119 6 / 0.28);
+}
+
+.customer-function-card p {
+  color: var(--color-ink-soft);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.customer-function-card-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.customer-function-help {
+  background: var(--color-background);
+  border-radius: var(--radius-control);
+  color: var(--color-ink-soft);
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: auto;
+  padding: 10px;
+}
+
+.customer-function-help strong {
+  color: var(--color-ink);
+}
+
+.customer-context-note {
+  border: 1px dashed rgb(99 102 241 / 0.35);
+  border-radius: var(--radius-panel);
+  color: var(--color-ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 14px;
+}
+
 .os-command-hero {
   background:
     radial-gradient(circle at 92% 8%, rgb(139 92 255 / 0.2), transparent 32%),
@@ -4284,6 +4471,10 @@ textarea.input {
   .grid-3,
   .grid-4,
   .grid-2,
+  .customer-selector-grid,
+  .customer-function-grid,
+  .customer-overview-grid,
+  .customer-health-strip,
   .earnings-command-header,
   .consumer-principle-grid,
   .consumer-value-map,

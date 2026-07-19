@@ -35,7 +35,9 @@ describe("Sidebar", () => {
       "href",
       "/admin/referral-saas/campaigns",
     );
-    expect(screen.getByRole("link", { name: /Account Maintenance/ })).toHaveAttribute(
+    expect(screen.getByText("While in a customer")).toBeInTheDocument();
+    expect(screen.getByText("Global")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Customer profile/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/account-maintenance",
     );

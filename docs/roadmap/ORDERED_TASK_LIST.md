@@ -4931,6 +4931,31 @@ Rollback notes: Revert the physical checker, checker tests, verification doc, an
 Explicit non-goals: Do not add schema, migrations, product tenant creation APIs, account lifecycle updates, durable profile updates, membership writes, invitations, activation, seat assignment, auth/session claim changes, credential rotation, webhook delivery, campaign activation, go-live, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, destructive local cleanup, or source-code forks.
 Definition of done: Fresh Account Setup to Client Workspace physical proof is repeatable on a local DB by creating a bounded unlinked test tenant seed before invoking the existing guarded account creation path. Priority: P0.
 
+## TASK-231: Reframe Client Workspace as a customer profile landing experience
+
+Status: Complete (2026-07-19). Output: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `frontend/src/layout/Sidebar.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing Account Maintenance read model, account registry selector, onboarding readiness projection, Referral SaaS routes, and shared app shell/sidebar primitives. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer profile selection; customer-scoped workspace; customer landing page; Referral SaaS frontend IA.
+Objective: Reframe the selected Client Workspace into a customer profile landing experience where operators select the customer first, then open account health, account setup, campaigns, links/codes, reports, people/access, support, attribution, and progress from that customer context.
+Why now: User testing showed the correct product model is not a maintenance dashboard. Operators expect to choose a customer profile, land on a customer home, and then perform all Referral SaaS activities inside that selected customer context.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `frontend/src/layout/Sidebar.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Renames the experience around customer profile selection, adds customer-home header/context chips, customer workspace tabs, plain-language health summary, prioritized next actions, customer-scoped function cards, people/access metrics, and sidebar grouping for in-customer versus global navigation.
+API impact: None. Existing account registry, onboarding state, and draft selector reads are reused.
+Tests to add/update: Updates Account Maintenance page tests to assert customer-first selection, customer-home next actions, customer-scoped route query context, fallback draft evidence positioning, and no internal identifier leakage.
+Validation method: `npm.cmd test -- ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd test -- Sidebar.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: The screen starts with customer profile selection; after selecting a durable customer, the page becomes a customer home with plain-language health, next actions, and customer-scoped function cards; activities carry selected customer references in route context; setup drafts are fallback evidence only; sidebar navigation separates in-customer actions from global workspace entry; internal `tenant_code`, secrets, raw payloads, money, and DLaaS marketplace details are not exposed; no backend route, schema, account lifecycle command, durable profile update command, membership write, invitation delivery, credential lifecycle, webhook delivery, campaign activation, go-live, support-case write, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, or broad DLaaS marketplace behavior is added.
+Dependencies: TASK-230.
+Blocked by: None. True customer context propagation into every downstream page remains a follow-up product capability because many existing pages do not yet read the selected customer query context.
+Risk level: Medium.
+Rollback notes: Revert the Account Maintenance page/test, sidebar, style, and roadmap/gap/task-list updates.
+Explicit non-goals: Do not add schema, migrations, account lifecycle commands, durable account updates, durable profile updates, membership writes, invitations, activation, seat assignment, auth/session claim changes, credential rotation, webhook delivery, campaign activation, go-live, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Maintenance reads as a customer profile landing page and customer-scoped workspace entry point rather than a technical maintenance dashboard. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

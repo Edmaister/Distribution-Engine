@@ -202,6 +202,7 @@ greenfield referral construction.
 94. TASK-228: Reframe Account Maintenance as a Client Workspace hub.
 95. TASK-229: Add Client Workspace physical verification.
 96. TASK-230: Add repeatable fresh-client physical seed proof.
+97. TASK-231: Reframe Client Workspace as a customer profile landing experience.
 
 ## 10/10 Exit Criteria
 
@@ -648,6 +649,13 @@ greenfield referral construction.
 - TASK-230: `scripts/referral_saas_fresh_client_workspace_physical_check.py`;
   `test/test_referral_saas_fresh_client_workspace_physical_check.py`;
   `docs/sa/referral-saas/REFERRAL_SAAS_FRESH_CLIENT_PHYSICAL_SEED_VERIFICATION.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-231: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `frontend/src/layout/Sidebar.tsx`;
+  `frontend/src/styles/base.css`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`

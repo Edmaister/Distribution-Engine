@@ -42,10 +42,11 @@ function renderWorkspace(ui: ReactElement) {
       children: [
         { index: true, element: ui },
         { path: "admin/referral-saas/account-setup", element: <div>Account Setup Target</div> },
-        { path: "admin/onboarding/webhook-api", element: <div>Technical Setup Target</div> },
+        { path: "admin/referral-saas/account-maintenance", element: <div>Customer Profile Target</div> },
         { path: "admin/referral-saas/campaigns", element: <div>Campaign Target</div> },
         { path: "admin/referral-saas/link-codes", element: <div>Links Target</div> },
         { path: "admin/referral-saas/attribution-trace", element: <div>Trace Target</div> },
+        { path: "admin/referral-saas/progress-status", element: <div>Progress Target</div> },
         { path: "admin/referral-saas/reports", element: <div>Reports Target</div> },
         { path: "admin/referral-saas/support", element: <div>Support Target</div> },
       ],
@@ -110,22 +111,22 @@ function mockMaintenanceState(): AdminOnboardingStateResponse {
           next_actions: ["Draft owner and campaign manager access."],
         },
         {
-          category: "WEBHOOK_API",
-          display_label: "Webhook and API setup",
-          status: "MISSING_EVIDENCE",
+          category: "CAMPAIGN_READINESS",
+          display_label: "Campaign readiness",
+          status: "READY",
           safe_display_status: {
-            status: "NEEDS_ATTENTION",
-            label: "Needs evidence",
-            action_required: true,
+            status: "READY",
+            label: "Ready",
+            action_required: false,
             go_live_enabled: false,
           },
-          evidence_summary: "Integration owner and callback intent are incomplete.",
+          evidence_summary: "Campaign setup is ready for a test campaign.",
           blockers: [],
-          next_actions: ["Capture API and webhook setup intent."],
+          next_actions: ["Open campaign readiness."],
         },
       ],
       summary: {
-        ready_count: 1,
+        ready_count: 2,
         in_progress_count: 0,
         blocked_count: 1,
         missing_evidence_count: 2,
@@ -210,43 +211,70 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     cleanup();
   });
 
-  it("renders the client workspace from external references", async () => {
+  it("starts with customer profile selection before scoped customer work", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
 
-    expect(await screen.findByRole("heading", { name: "Client workspace" })).toBeInTheDocument();
-    await waitFor(() =>
-      expect(mockedGetAdminOnboardingState).toHaveBeenCalledWith({
-        external_tenant_ref: "demo-platform-operator",
-        organisation_ref: "demo-organisation",
-      }),
-    );
-
-    expect(screen.getByText("Client-scoped")).toBeInTheDocument();
-    expect(screen.getByText("Do this next: open the client workspace")).toBeInTheDocument();
-    expect(screen.getAllByText("Client profile").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Users and access").length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: "Client workspace summary" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Client activities and dashboards" })).toBeInTheDocument();
-    expect(screen.getByText("Technical setup posture")).toBeInTheDocument();
-    expect(screen.getByText("1 blocked area, 2 evidence gaps")).toBeInTheDocument();
-    expect(screen.getByText("Step 1: select the client")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /FNB Referral SaaS/ })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "Setup draft fallback" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Choose a customer profile" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Customer profile selection" })).toBeInTheDocument();
+    expect(screen.getByText("Pick the customer before opening campaigns, links, reports, support, attribution, or setup work.")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /FNB Referral SaaS/ })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Client workspace" })).not.toBeInTheDocument();
     expect(mockedListReferralSaasAccounts).toHaveBeenCalledWith(50);
-    expect(mockedGetAdminOnboardingDrafts).toHaveBeenCalledWith({
-      external_tenant_ref: "demo-platform-operator",
-      organisation_ref: "demo-organisation",
-      limit: 10,
-    });
-    expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
+    expect(JSON.stringify(mockedListReferralSaasAccounts.mock.calls)).not.toMatch(
+      /tenant_code|api_key|client_secret/i,
+    );
   });
 
-  it("keeps scope typing local until the tester checks maintenance evidence", async () => {
+  it("turns a selected customer into a customer home with plain next actions", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
 
-    await screen.findByRole("heading", { name: "Client workspace" });
+    fireEvent.click(await screen.findByRole("button", { name: /FNB Referral SaaS/ }));
+
+    expect(await screen.findByRole("heading", { name: "FNB Referral SaaS" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Overview" })).toHaveClass("active");
+    expect(screen.getByText("This is the customer home. Campaigns, links, reports, attribution, and support stay inside this customer context.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Health at a glance" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Do this next" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Add who can manage this account/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance?external_tenant_ref=fnb-referrals&organisation_ref=fnb-org",
+    );
+    expect(screen.getByRole("link", { name: /Open Campaigns/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/campaigns?external_tenant_ref=fnb-referrals&organisation_ref=fnb-org",
+    );
+    expect(await screen.findByText("Everything opens against FNB Referral SaaS until you switch customer.")).toBeInTheDocument();
+  });
+
+  it("keeps customer functions scoped to the selected customer context", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /FNB Referral SaaS/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "What you can do" }));
+
+    expect(screen.getByRole("heading", { name: "What you can do for this customer" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Links and codes/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/link-codes?external_tenant_ref=fnb-referrals&organisation_ref=fnb-org",
+    );
+    expect(screen.getByRole("link", { name: /Reports/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/reports?external_tenant_ref=fnb-referrals&organisation_ref=fnb-org",
+    );
+    expect(screen.getByRole("link", { name: /Attribution/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/attribution-trace?external_tenant_ref=fnb-referrals&organisation_ref=fnb-org",
+    );
+    expect(screen.getByText(/not as separate global tools that forget who you are working on/i)).toBeInTheDocument();
+  });
+
+  it("keeps manual lookup local until the tester checks the customer", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />);
+
+    await screen.findByRole("heading", { name: "Customer profile selection" });
     await waitFor(() => expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1));
 
+    fireEvent.click(screen.getByText("Manual customer lookup"));
     fireEvent.change(screen.getByLabelText("Customer reference"), {
       target: { value: "fnb-referral-account" },
     });
@@ -255,22 +283,14 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     });
 
     expect(screen.getByText("Changes not checked")).toBeInTheDocument();
-    expect(screen.getByText("Do this next: check the client again")).toBeInTheDocument();
     expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Check client evidence" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check customer" }));
 
     await waitFor(() =>
       expect(mockedGetAdminOnboardingState).toHaveBeenLastCalledWith({
         external_tenant_ref: "fnb-referral-account",
         organisation_ref: "fnb-demo-org",
-      }),
-    );
-    await waitFor(() =>
-      expect(mockedGetAdminOnboardingDrafts).toHaveBeenLastCalledWith({
-        external_tenant_ref: "fnb-referral-account",
-        organisation_ref: "fnb-demo-org",
-        limit: 10,
       }),
     );
     expect(JSON.stringify(mockedGetAdminOnboardingState.mock.calls)).not.toMatch(
@@ -278,106 +298,16 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
   });
 
-  it("loads maintenance scope from the durable account registry", async () => {
-    renderWorkspace(<ReferralSaasAccountMaintenancePage />);
-
-    fireEvent.click(await screen.findByRole("button", { name: /FNB Referral SaaS/ }));
-
-    await waitFor(() =>
-      expect(mockedGetAdminOnboardingState).toHaveBeenLastCalledWith({
-        external_tenant_ref: "fnb-referrals",
-        organisation_ref: "fnb-org",
-      }),
-    );
-    expect(await screen.findByText("Step 1: select the client")).toBeInTheDocument();
-    expect(screen.getAllByText("fnb-referrals / fnb-org").length).toBeGreaterThan(0);
-    expect(screen.getByText("Durable client")).toBeInTheDocument();
-    expect(screen.getByText("Selected")).toBeInTheDocument();
-    expect(JSON.stringify(mockedListReferralSaasAccounts.mock.calls)).not.toMatch(
-      /tenant_code|api_key|client_secret/i,
-    );
-  });
-
-  it("loads maintenance scope from a safe saved setup draft selector", async () => {
-    mockedGetAdminOnboardingDrafts.mockResolvedValueOnce(mockDraftSelector()).mockResolvedValueOnce({
-      ...mockDraftSelector(),
-      items: [
-        {
-          ...mockDraftSelector().items[0],
-          draft_ref: "draft_fnb_setup",
-          external_tenant_ref: "fnb-referral-account",
-          organisation_ref: "fnb-demo-org",
-        },
-      ],
-    });
+  it("retains setup drafts as fallback evidence, not the primary workspace", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
 
     expect(await screen.findByRole("heading", { name: "Setup draft fallback" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /demo-organisation/ }));
-
-    await waitFor(() =>
-      expect(mockedGetAdminOnboardingState).toHaveBeenLastCalledWith({
-        external_tenant_ref: "demo-platform-operator",
-        organisation_ref: "demo-organisation",
-      }),
-    );
-    expect(screen.getByText(/draft_referral_saas_setup/)).toBeInTheDocument();
-    expect(JSON.stringify(mockedGetAdminOnboardingDrafts.mock.calls)).not.toMatch(
-      /tenant_code|api_key|client_secret/i,
-    );
-  });
-
-  it("routes fixes to existing product surfaces without adding maintenance commands", async () => {
-    renderWorkspace(<ReferralSaasAccountMaintenancePage />);
-
-    await screen.findByRole("heading", { name: "Client readiness details" });
-
-    expect(screen.getAllByRole("link", { name: /Client profile/ })[0]).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-setup",
-    );
-    expect(screen.getByRole("link", { name: /Technical setup posture/ })).toHaveAttribute(
-      "href",
-      "/admin/onboarding/webhook-api",
-    );
-    expect(screen.getByRole("link", { name: /Campaign handoff/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/campaigns",
-    );
-    expect(screen.getByRole("link", { name: /Links and codes/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/link-codes",
-    );
-    expect(screen.getByRole("link", { name: /Attribution trace/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/attribution-trace",
-    );
-    expect(screen.getByRole("link", { name: /Reporting posture/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/reports",
-    );
-    expect(screen.getByRole("link", { name: /Audit and support posture/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/support",
-    );
-
-    expect(screen.queryByRole("button", { name: /create account/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /invite/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /rotate/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /go-live/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /money/i })).not.toBeInTheDocument();
-  });
-
-  it("shows blocked future commands as unavailable read-only evidence", async () => {
-    renderWorkspace(<ReferralSaasAccountMaintenancePage />);
-
-    expect(await screen.findByRole("heading", { name: "Unavailable maintenance commands" })).toBeInTheDocument();
-    expect(screen.getByText("Create, activate, suspend, or disable account")).toBeInTheDocument();
-    expect(screen.getByText("Invite, remove, or change user roles")).toBeInTheDocument();
-    expect(screen.getByText("Rotate credentials or enable webhook delivery")).toBeInTheDocument();
-    expect(
-      screen.getByText("Reward, funding, fulfilment, settlement, payout, invoice, wallet, or money movement"),
-    ).toBeInTheDocument();
-    expect(screen.getAllByText("Unavailable").length).toBeGreaterThan(0);
+    expect(screen.getByText("Use this only when saved setup evidence exists but the customer has not become a durable customer profile yet.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /demo-organisation/ })).toBeInTheDocument();
+    expect(mockedGetAdminOnboardingDrafts).toHaveBeenCalledWith({
+      external_tenant_ref: "demo-platform-operator",
+      organisation_ref: "demo-organisation",
+      limit: 10,
+    });
   });
 });
