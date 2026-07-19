@@ -485,12 +485,15 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.getByText(/Capture the company evidence inside this wizard/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save company profile" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Operating jurisdiction" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: /Organisation type/ })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /Customer type/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Agency / implementation partner" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Referral Management SaaS" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "RMCAaaS Enterprise" })).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Industry" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Automotive" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Referral management and campaign attribution" })).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /Intended role/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /commercial relationship/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Product package and billing plan are configured separately/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /does not invite a user or grant access/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Company profile/ })).not.toBeInTheDocument();
     await recordRoleIntent();
@@ -552,7 +555,7 @@ describe("ReferralSaasAccountSetupPage", () => {
           external_tenant_ref: "demo-platform-operator",
           organisation_ref: "demo-organisation",
           country: "South Africa",
-          organisation_type: "Referral SaaS customer",
+          organisation_type: "Direct customer",
           industry: "Automotive",
           admin_contact: "referrals-admin@example.test",
           intended_role: "Campaign manager",

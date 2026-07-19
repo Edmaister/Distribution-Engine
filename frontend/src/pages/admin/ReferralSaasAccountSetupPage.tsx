@@ -144,7 +144,7 @@ export function ReferralSaasAccountSetupPage() {
   const [companyProfile, setCompanyProfile] = useState<CompanyProfileForm>({
     organisationName: `${defaultOrganisationRef} Referral SaaS setup`,
     country: "South Africa",
-    organisationType: "Referral SaaS customer",
+    organisationType: "Direct customer",
     industry: "Banking and financial services",
     adminContact: "setup-owner@example.test",
     intendedRole: "Referral SaaS account admin",
@@ -731,8 +731,8 @@ export function ReferralSaasAccountSetupPage() {
                         </label>
                         <div className="field">
                           <label htmlFor="referral-saas-company-organisation-type">
-                            Organisation type{" "}
-                            <InfoTooltip text="Choose the customer's commercial relationship to this Referral SaaS account. This controls setup evidence only; it does not activate billing, funding, or money movement." />
+                            Customer type{" "}
+                            <InfoTooltip text="Describes the customer's relationship to this account setup. Product package and billing plan are configured separately." />
                           </label>
                           <select
                             className="input"
@@ -740,10 +740,11 @@ export function ReferralSaasAccountSetupPage() {
                             onChange={(event) => updateCompanyProfile("organisationType", event.target.value)}
                             value={companyProfile.organisationType}
                           >
-                            <option value="Referral SaaS customer">Referral SaaS customer</option>
-                            <option value="Producer / sponsor">Producer / sponsor</option>
-                            <option value="Partner">Partner</option>
+                            <option value="Direct customer">Direct customer</option>
                             <option value="Enterprise customer">Enterprise customer</option>
+                            <option value="Agency / implementation partner">Agency / implementation partner</option>
+                            <option value="Producer / sponsor">Producer / sponsor</option>
+                            <option value="Partner operator">Partner operator</option>
                           </select>
                         </div>
                         <label className="field">
