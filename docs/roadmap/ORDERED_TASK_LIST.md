@@ -4879,6 +4879,32 @@ Rollback notes: Revert the Account Maintenance page/test updates and roadmap/gap
 Explicit non-goals: Do not add schema, migrations, account lifecycle commands, durable account updates, durable profile updates, membership writes, invitations, activation, seat assignment, auth/session claim changes, credential rotation, webhook delivery, campaign activation, go-live, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Account Maintenance is the selected Client Workspace entry point for Referral SaaS client activities and dashboards, while unsupported maintenance writes stay visibly out of scope. Priority: P0.
 
+## TASK-229: Add Client Workspace physical verification
+
+Status: Complete (2026-07-19). Output: `scripts/referral_saas_client_workspace_physical_check.py`; `test/test_referral_saas_client_workspace_physical_check.py`; `docs/sa/referral-saas/REFERRAL_SAAS_CLIENT_WORKSPACE_PHYSICAL_VERIFICATION.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing Account Setup physical checker, Referral SaaS account registry wrapper, onboarding readiness projection, and Client Workspace route boundary. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup to Client Workspace physical proof; selected-client maintenance verification; route-boundary guardrails.
+Objective: Add a repeatable local physical checker that proves a durable Referral SaaS client can be selected from the account registry and used to hydrate Client Workspace readiness evidence without leaving the Referral SaaS boundary.
+Why now: TASK-228 reframed Account Maintenance as a selected Client Workspace. Before campaign deepening resumes, the product needs physical proof that the local API can move from account setup evidence to selected-client maintenance scope.
+Files involved: `scripts/referral_saas_client_workspace_physical_check.py`; `test/test_referral_saas_client_workspace_physical_check.py`; `docs/sa/referral-saas/REFERRAL_SAAS_CLIENT_WORKSPACE_PHYSICAL_VERIFICATION.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `scripts/referral_saas_account_setup_ui_physical_check.py`; `test/test_referral_saas_account_setup_ui_physical_check.py`; `apps/api/routers/referral_saas_accounts.py`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: No migration changes. Local DB inspection showed every available local tenant seed is already attached to an account owner, so the strict create-first proof is blocked until a fresh unlinked local seed exists.
+Backend impact: Adds script-only physical verification over existing API behavior; no backend route or service changes.
+Frontend impact: None. The checker verifies the current Client Workspace route boundary and selected-client API state; it does not change UI code.
+API impact: None.
+Tests to add/update: Adds unit tests for account registry selection, selected-client maintenance scope validation, bounded Client Workspace routes, strict setup chaining, and reuse-existing-client physical mode.
+Validation method: `.venv_codex\Scripts\python.exe -m py_compile scripts\referral_saas_client_workspace_physical_check.py test\test_referral_saas_client_workspace_physical_check.py`; `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_client_workspace_physical_check.py test\test_referral_saas_account_setup_ui_physical_check.py`; `.venv_codex\Scripts\python.exe scripts\referral_saas_client_workspace_physical_check.py --reuse-existing-client --suffix local-229`; strict create-first run attempted and returned guarded `409 DUPLICATE_EXTERNAL_REFERENCE` because the local internal tenant seed pool is exhausted.
+Acceptance criteria: The checker proves an existing durable Referral SaaS client appears in the safe account registry, can be selected by external customer and organisation references, hydrates Account Maintenance/Client Workspace readiness state for that selected scope, keeps route targets bounded to Referral SaaS surfaces, rejects forbidden DLaaS/money routes, and confirms no profile update, invitation delivery, campaign activation, go-live, or money movement occurs.
+Dependencies: TASK-228.
+Blocked by: Fresh create-first local physical proof needs a new local internal tenant seed that is not already attached to an account owner. Existing-client Client Workspace proof is complete.
+Risk level: Low.
+Rollback notes: Revert the physical checker, checker tests, verification doc, and roadmap/gap/task-list updates.
+Explicit non-goals: Do not add schema, migrations, account lifecycle commands, durable account updates, durable profile updates, membership writes, invitations, activation, seat assignment, auth/session claim changes, credential rotation, webhook delivery, campaign activation, go-live, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has a repeatable physical checker for selected Client Workspace readiness using safe external identifiers, with the fresh-create local seed gap documented separately. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
