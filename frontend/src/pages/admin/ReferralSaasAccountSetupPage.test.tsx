@@ -611,7 +611,8 @@ describe("ReferralSaasAccountSetupPage", () => {
       },
     });
     expect(JSON.stringify(draftRequest).toLowerCase()).not.toMatch(/tenant_code|api_key|client_secret|wallet|settlement|money/);
-    expect(await screen.findByText("Setup draft saved.")).toBeInTheDocument();
+    expect(await screen.findByText(/Company profile saved/)).toBeInTheDocument();
+    expect(screen.queryByText("Setup draft saved.")).not.toBeInTheDocument();
     expect(screen.getAllByText("Draft saved").length).toBeGreaterThan(0);
   });
 
@@ -630,8 +631,9 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.getByDisplayValue("Automotive")).toBeInTheDocument();
     expect(screen.getByDisplayValue("saved-admin@example.test")).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /Contact responsibility/ })).toHaveValue("Implementation lead");
-    expect(screen.getByText(/Company profile draft saved/)).toBeInTheDocument();
-    expect(screen.getByText(/Saved draft: draft_saved_company_profile - version 4 - updated 2026-07-19T06:00:00Z/)).toBeInTheDocument();
+    expect(screen.getByText(/Company profile saved/)).toBeInTheDocument();
+    expect(screen.getByText(/Saved profile evidence - version 4 - updated 2026-07-19T06:00:00Z/)).toBeInTheDocument();
+    expect(screen.queryByText(/draft_saved_company_profile/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
 
     fireEvent.change(screen.getByLabelText("Organisation name"), {
