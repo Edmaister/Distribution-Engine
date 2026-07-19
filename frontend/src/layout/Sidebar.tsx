@@ -26,23 +26,33 @@ import { useBackendSession, workspaceForPath } from "../auth/useBackendSession";
 
 const referralSaasSections = [
   {
-    label: "Referral SaaS",
+    label: "While in a customer",
     links: [
-      { to: "/admin/referral-saas", label: "Workspace Home", icon: Gauge, sub: "Home" },
-      { to: "/admin/referral-saas/account-setup", label: "Account Setup", icon: Building2, sub: "Account" },
-      { to: "/admin/referral-saas/account-maintenance", label: "Account Maintenance", icon: ShieldCheck, sub: "Maintain" },
-      { to: "/admin/referral-saas/campaigns", label: "Campaigns", icon: Target, sub: "Ready" },
-      { to: "/admin/referral-saas/link-codes", label: "Links & Codes", icon: Link2, sub: "Codes" },
-      { to: "/admin/referral-saas/reports", label: "Reports", icon: ChartNoAxesColumn, sub: "Reports" },
+      { to: "/admin/referral-saas/account-maintenance", label: "Customer profile", icon: ShieldCheck, sub: "Home" },
+      { to: "/admin/referral-saas/campaigns", label: "Campaigns", icon: Target, sub: "Scoped" },
+      { to: "/admin/referral-saas/link-codes", label: "Links & Codes", icon: Link2, sub: "Scoped" },
+      { to: "/admin/referral-saas/reports", label: "Reports", icon: ChartNoAxesColumn, sub: "Scoped" },
+      { to: "/admin/referral-saas/support", label: "Support", icon: ShieldCheck, sub: "Scoped" },
     ],
   },
   {
-    label: "Attribution & Support",
+    label: "Setup",
     links: [
-      { to: "/admin/referral-saas/support", label: "Support Hub", icon: ShieldCheck, sub: "Hub" },
+      { to: "/admin/referral-saas/account-setup", label: "Account Setup", icon: Building2, sub: "Account" },
+    ],
+  },
+  {
+    label: "Diagnostics",
+    links: [
       { to: "/admin/referral-saas/operator-links", label: "Link Inspection", icon: ShieldCheck, sub: "Inspect" },
       { to: "/admin/referral-saas/attribution-trace", label: "Attribution Trace", icon: Split, sub: "Trace" },
       { to: "/admin/referral-saas/progress-status", label: "Progress Status", icon: ListChecks, sub: "Status" },
+    ],
+  },
+  {
+    label: "Global",
+    links: [
+      { to: "/admin/referral-saas", label: "Workspace Home", icon: Gauge, sub: "Home" },
     ],
   },
 ];

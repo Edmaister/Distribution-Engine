@@ -5,14 +5,14 @@ import {
   CheckCircle2,
   KeyRound,
   Link as LinkIcon,
-  Lock,
-  Route,
+  ListChecks,
   Search,
   ShieldCheck,
+  Target,
   Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
 import {
   useReferralSaasAccountDraftSelector,
@@ -36,133 +36,100 @@ import {
 const defaultExternalTenantRef = "demo-platform-operator";
 const defaultOrganisationRef = "demo-organisation";
 
-const maintenanceAreas = [
-  {
-    code: "ACCOUNT_PROFILE",
-    title: "Client profile",
-    source: "Company setup evidence",
-    action: "Review customer profile evidence and profile readiness.",
-    route: "/admin/referral-saas/account-setup",
-    icon: Building2,
-  },
-  {
-    code: "EXTERNAL_REFERENCES",
-    title: "Customer identifiers",
-    source: "Checked account scope",
-    action: "Confirm the selected client references used by product workflows.",
-    route: "/admin/referral-saas/account-setup",
-    icon: LinkIcon,
-  },
-  {
-    code: "MEMBERSHIP",
-    title: "Users and access",
-    source: "Role setup evidence",
-    action: "Review user access posture; write actions remain future work.",
-    route: "/admin/referral-saas/account-maintenance",
-    icon: Users,
-  },
-  {
-    code: "WEBHOOK_API",
-    title: "Technical setup posture",
-    source: "Webhook and API setup evidence",
-    action: "Review API and webhook setup evidence; credentials are not rotated here.",
-    route: "/admin/onboarding/webhook-api",
-    icon: KeyRound,
-  },
-  {
-    code: "CAMPAIGN_READINESS",
-    title: "Campaign handoff",
-    source: "Campaign readiness surface",
-    action: "Continue to campaign readiness only after setup blockers are understood.",
-    route: "/admin/referral-saas/campaigns",
-    icon: Route,
-  },
-  {
-    code: "REPORTING_BASELINE",
-    title: "Reporting posture",
-    source: "Referral SaaS reports",
-    action: "Review tenant-safe report posture and export preview guardrails.",
-    route: "/admin/referral-saas/reports",
-    icon: CheckCircle2,
-  },
-  {
-    code: "AUDIT_SUPPORT",
-    title: "Audit and support posture",
-    source: "Read-only support surfaces",
-    action: "Use support hub for link, progress, and attribution evidence.",
-    route: "/admin/referral-saas/support",
-    icon: ShieldCheck,
-  },
-];
+type AccountRegistry = NonNullable<ReturnType<typeof useReferralSaasAccountRegistry>["data"]>;
+type AccountRegistryItem = AccountRegistry["accounts"][number];
+type StatusTone = "success" | "warning" | "danger" | "info" | "neutral";
 
-const clientActivityAreas = [
+const customerFunctions = [
   {
-    title: "Client profile",
-    copy: "Maintain customer profile evidence and visible client identifiers.",
+    title: "Account health",
+    copy: "See what is OK, what is stopping you, and what can wait.",
+    letsYou: "Know if this customer is ready to test referrals.",
+    route: "#account-health",
+    icon: ShieldCheck,
+    status: "Needs attention",
+    tone: "warning" as StatusTone,
+  },
+  {
+    title: "Account setup",
+    copy: "Fix company details, people, and setup connections.",
+    letsYou: "Unlock missing owner and setup gaps.",
     route: "/admin/referral-saas/account-setup",
     icon: Building2,
-    status: "Profile",
-  },
-  {
-    title: "Users and access",
-    copy: "Review access posture for the selected client; invitation delivery is not enabled yet.",
-    route: "/admin/referral-saas/account-maintenance",
-    icon: Users,
-    status: "Access",
-  },
-  {
-    title: "Technical setup",
-    copy: "Capture API and webhook setup intent after the client foundation exists.",
-    route: "/admin/onboarding/webhook-api",
-    icon: KeyRound,
-    status: "Technical",
+    status: "Needs attention",
+    tone: "warning" as StatusTone,
   },
   {
     title: "Campaigns",
-    copy: "Open campaign readiness and setup surfaces for this client.",
+    copy: "Set up or review referral campaigns for this customer.",
+    letsYou: "Create campaign tests once blockers are clear.",
     route: "/admin/referral-saas/campaigns",
-    icon: Route,
-    status: "Campaigns",
+    icon: Target,
+    status: "Ready",
+    tone: "success" as StatusTone,
   },
   {
     title: "Links and codes",
-    copy: "Issue, validate, inspect, and recover referral links and codes.",
+    copy: "Issue, share, and validate referral codes.",
+    letsYou: "Run real referral entry tests for this customer.",
     route: "/admin/referral-saas/link-codes",
     icon: LinkIcon,
-    status: "Links",
-  },
-  {
-    title: "Attribution trace",
-    copy: "Investigate campaign, link, referral, progress, and outcome evidence.",
-    route: "/admin/referral-saas/attribution-trace",
-    icon: Search,
-    status: "Trace",
+    status: "Ready",
+    tone: "success" as StatusTone,
   },
   {
     title: "Reports",
-    copy: "View tenant-safe reporting, export previews, and freshness posture.",
+    copy: "View referral and campaign performance.",
+    letsYou: "See results once reporting setup is finished.",
     route: "/admin/referral-saas/reports",
     icon: BarChart3,
-    status: "Reports",
+    status: "Can wait",
+    tone: "warning" as StatusTone,
+  },
+  {
+    title: "People and access",
+    copy: "See who can manage this customer account.",
+    letsYou: "Put the right owner or campaign manager in place.",
+    route: "#people-access",
+    icon: Users,
+    status: "Needs attention",
+    tone: "warning" as StatusTone,
   },
   {
     title: "Support hub",
-    copy: "Triage validation, link/code, progress, and attribution evidence.",
+    copy: "Investigate problems for this customer.",
+    letsYou: "Trace issues without losing customer context.",
     route: "/admin/referral-saas/support",
     icon: ShieldCheck,
-    status: "Support",
+    status: "Ready",
+    tone: "success" as StatusTone,
+  },
+  {
+    title: "Attribution",
+    copy: "Explain why a referral or outcome was attributed.",
+    letsYou: "Answer who got credit for this customer.",
+    route: "/admin/referral-saas/attribution-trace",
+    icon: Search,
+    status: "Ready",
+    tone: "success" as StatusTone,
+  },
+  {
+    title: "Progress status",
+    copy: "Check journey milestones for referrals.",
+    letsYou: "See how far referred customers have got.",
+    route: "/admin/referral-saas/progress-status",
+    icon: ListChecks,
+    status: "Ready",
+    tone: "success" as StatusTone,
   },
 ];
 
-const blockedCommands = [
-  "Create, activate, suspend, or disable account",
-  "Update durable account profile",
-  "Invite, remove, or change user roles",
-  "Register, rotate, suspend, or disable external references",
-  "Rotate credentials or enable webhook delivery",
-  "Enable go-live or activate campaign",
-  "Retry, replay, or repair events",
-  "Reward, funding, fulfilment, settlement, payout, invoice, wallet, or money movement",
+const readinessCategoryMap = [
+  { code: "ACCOUNT_PROFILE", label: "Account profile" },
+  { code: "TENANT_LINK", label: "Tenant link" },
+  { code: "MEMBERSHIP", label: "Membership and roles" },
+  { code: "CAMPAIGN_READINESS", label: "Campaign readiness" },
+  { code: "REPORTING_BASELINE", label: "Reporting baseline" },
 ];
 
 export function ReferralSaasAccountMaintenancePage() {
@@ -171,10 +138,12 @@ export function ReferralSaasAccountMaintenancePage() {
   const [draftOrganisationRef, setDraftOrganisationRef] = useState(defaultOrganisationRef);
   const [appliedExternalTenantRef, setAppliedExternalTenantRef] = useState(defaultExternalTenantRef);
   const [appliedOrganisationRef, setAppliedOrganisationRef] = useState(defaultOrganisationRef);
+  const [activeTab, setActiveTab] = useState<"overview" | "health" | "actions">("overview");
   const scopeChanged =
     draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
     draftOrganisationRef.trim() !== appliedOrganisationRef;
   const canCheckScope = Boolean(draftExternalTenantRef.trim() && draftOrganisationRef.trim() && scopeChanged);
+
   const { data, error, isLoading } = useReferralSaasAccountMaintenanceState(
     appliedExternalTenantRef,
     appliedOrganisationRef,
@@ -191,30 +160,26 @@ export function ReferralSaasAccountMaintenancePage() {
     isLoading: isAccountRegistryLoading,
   } = useReferralSaasAccountRegistry(50, refreshKey);
 
+  const accountItems = accountRegistry?.accounts || [];
+  const selectedAccount = findSelectedAccount(accountItems, appliedExternalTenantRef, appliedOrganisationRef);
   const readiness = data?.readiness;
   const summary = readiness?.summary;
   const categories = asArray(readiness?.categories || []);
-  const guardrails = asArray(
-    (data?.onboarding_state.guardrails || []).map((guardrail) => ({
-      name: guardrail,
-    })),
-  );
-  const redactions = asArray(
-    (data?.onboarding_state.redactions || []).map((redaction) => ({
-      name: redaction,
-    })),
-  );
   const readyCount = toCount(summary?.ready_count);
   const blockedCount = toCount(summary?.blocked_count);
   const missingEvidenceCount = toCount(summary?.missing_evidence_count);
   const goLiveDisabledCount = toCount(summary?.go_live_disabled_count);
-  const overallStatus = formatDisplay(readiness?.overall_status || "read_only_evidence");
-  const nextAction = getMaintenanceNextAction(scopeChanged, blockedCount, missingEvidenceCount);
-  const areaRows = maintenanceAreas.map((area) => resolveMaintenanceArea(area, categories));
-  const draftItems = draftSelector?.items || [];
-  const accountItems = accountRegistry?.accounts || [];
-  const selectedAccount = findSelectedAccount(accountItems, appliedExternalTenantRef, appliedOrganisationRef);
-  const selectedClientName = selectedAccount?.accountName || appliedOrganisationRef || appliedExternalTenantRef;
+  const waitingCount = Math.max(0, missingEvidenceCount - blockedCount);
+  const overallStatus = formatDisplay(readiness?.overall_status || "go_live_disabled");
+  const customerName = selectedAccount?.accountName || formatDisplay(appliedOrganisationRef);
+  const doNext = getCustomerNextActions(blockedCount, missingEvidenceCount);
+  const customerQuery = useMemo(
+    () =>
+      `?external_tenant_ref=${encodeURIComponent(appliedExternalTenantRef)}&organisation_ref=${encodeURIComponent(
+        appliedOrganisationRef,
+      )}`,
+    [appliedExternalTenantRef, appliedOrganisationRef],
+  );
 
   function submitScope(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -227,7 +192,7 @@ export function ReferralSaasAccountMaintenancePage() {
     setAppliedOrganisationRef(nextOrganisationRef);
   }
 
-  function selectAccount(account: NonNullable<typeof accountRegistry>["accounts"][number]) {
+  function selectAccount(account: AccountRegistryItem) {
     const externalTenantRef =
       account.primaryExternalTenantRef ||
       findAccountExternalRef(account.externalReferences, "external_tenant_ref");
@@ -239,134 +204,92 @@ export function ReferralSaasAccountMaintenancePage() {
     setDraftOrganisationRef(organisationRef);
     setAppliedExternalTenantRef(externalTenantRef);
     setAppliedOrganisationRef(organisationRef);
+    setActiveTab("overview");
   }
 
   return (
     <>
-      <section className="page-header">
+      <section className="page-header customer-profile-header">
         <div>
-          <div className="page-kicker">Referral SaaS - Account Maintenance</div>
-          <h1 className="page-title">Client workspace</h1>
+          <div className="page-kicker">Referral SaaS › Customer profile</div>
+          <h1 className="page-title">{selectedAccount ? customerName : "Choose a customer profile"}</h1>
           <p className="page-copy">
-            Select a client, review the client profile and readiness posture,
-            then open the activities and dashboards for that client.
+            {selectedAccount
+              ? "This is the customer home. Campaigns, links, reports, attribution, and support stay inside this customer context."
+              : "Select a customer first. Once selected, every activity opens in that customer context instead of as a loose global tool."}
           </p>
+          {selectedAccount ? (
+            <div className="customer-context-chips" aria-label="Selected customer context">
+              <StatusBadge label={formatDisplay(selectedAccount.accountStatus)} tone="success" />
+              <span>{selectedAccount.accountCode}</span>
+              <span>
+                {appliedExternalTenantRef} / {appliedOrganisationRef}
+              </span>
+            </div>
+          ) : null}
         </div>
-        <StatusBadge label="Client-scoped" tone="info" />
+        <div className="customer-header-actions">
+          <a className="button secondary" href="#customer-selector">
+            Switch customer
+          </a>
+          <StatusBadge label="View only where noted" tone="warning" />
+        </div>
       </section>
 
-      {isLoading ? <LoadingState label="Loading client workspace" /> : null}
+      {isLoading ? <LoadingState label="Loading Referral SaaS customer workspace" /> : null}
       {error ? <ErrorPanel error={error} /> : null}
+
       {!isLoading && !error ? (
         <>
-          <section className="panel journey-panel" aria-labelledby="maintenance-action-heading">
+          <section className="panel" id="customer-selector">
             <div className="panel-header">
               <div>
-                <h2 className="panel-title" id="maintenance-action-heading">
-                  Start with a client
-                </h2>
+                <h2 className="panel-title">Customer profile selection</h2>
                 <div className="panel-subtitle">
-                  Create the client in Account Setup first. Then select it here before working on profile, campaigns, attribution, reports, or support.
+                  Pick the customer before opening campaigns, links, reports, support, attribution, or setup work.
                 </div>
               </div>
-              <StatusBadge label={nextAction.badge} tone={nextAction.tone} />
+              <StatusBadge label={`${accountItems.length} customers`} tone={accountItems.length ? "info" : "neutral"} />
             </div>
             <div className="panel-body">
-              <div className="journey-summary">
-                <div>
-                  <div className="route-name">{nextAction.title}</div>
-                  <div className="route-path">{nextAction.copy}</div>
+              {isAccountRegistryLoading ? <LoadingState label="Loading customers" /> : null}
+              {accountRegistryError ? <ErrorPanel error={accountRegistryError} /> : null}
+              {!isAccountRegistryLoading && !accountRegistryError && accountItems.length === 0 ? (
+                <div className="empty-state">
+                  No customers exist yet. Use Account Setup to create the first customer foundation.
                 </div>
-                <StatusBadge label={nextAction.step} tone={nextAction.tone} />
-              </div>
-
-              <div className="route-list">
-                <div className="route-item">
-                  <div>
-                    <div className="route-name">Step 1: select the client</div>
-                    <div className="route-path">
-                      Start from the real client foundation list. Drafts below are only for setup evidence that has not become a client yet.
-                    </div>
-                  </div>
-                  <StatusBadge label={`${accountItems.length} clients`} tone={accountItems.length ? "info" : "neutral"} />
+              ) : null}
+              {!isAccountRegistryLoading && !accountRegistryError && accountItems.length > 0 ? (
+                <div className="customer-selector-grid">
+                  {accountItems.map((account) => {
+                    const externalTenantRef =
+                      account.primaryExternalTenantRef ||
+                      findAccountExternalRef(account.externalReferences, "external_tenant_ref");
+                    const organisationRef = findAccountExternalRef(account.externalReferences, "organisation_ref");
+                    const selected = isSelectedAccount(account, appliedExternalTenantRef, appliedOrganisationRef);
+                    const canSelectAccount = Boolean(externalTenantRef && organisationRef);
+                    return (
+                      <button
+                        className={`customer-selector-card ${selected ? "selected" : ""}`}
+                        disabled={!canSelectAccount}
+                        key={account.accountId}
+                        onClick={() => selectAccount(account)}
+                        type="button"
+                      >
+                        <span className="customer-selector-title">{account.accountName}</span>
+                        <span className="customer-selector-meta">{account.accountCode}</span>
+                        <span className="customer-selector-meta">
+                          {externalTenantRef || "Missing customer ref"} / {organisationRef || "Missing organisation ref"}
+                        </span>
+                        <StatusBadge label={selected ? "Current customer" : "Select customer"} tone={selected ? "success" : "info"} />
+                      </button>
+                    );
+                  })}
                 </div>
-                {isAccountRegistryLoading ? <LoadingState label="Loading account list" /> : null}
-                {accountRegistryError ? <ErrorPanel error={accountRegistryError} /> : null}
-                {!isAccountRegistryLoading && !accountRegistryError && accountItems.length === 0 ? (
-                  <div className="empty-state">
-                    No clients are available yet. Use Account Setup to create the first client foundation.
-                  </div>
-                ) : null}
-                {!isAccountRegistryLoading && !accountRegistryError
-                  ? accountItems.map((account) => {
-                      const externalTenantRef =
-                        account.primaryExternalTenantRef ||
-                        findAccountExternalRef(account.externalReferences, "external_tenant_ref");
-                      const organisationRef = findAccountExternalRef(account.externalReferences, "organisation_ref");
-                      const canSelectAccount = Boolean(externalTenantRef && organisationRef);
-                      return (
-                        <button
-                          className="route-item route-link"
-                          disabled={!canSelectAccount}
-                          key={account.accountId}
-                          onClick={() => selectAccount(account)}
-                          type="button"
-                        >
-                          <div>
-                            <div className="route-name">{account.accountName}</div>
-                            <div className="route-path">
-                              {externalTenantRef || "Missing customer reference"} / {organisationRef || "Missing organisation reference"}
-                            </div>
-                            <div className="table-subtext">
-                              {account.accountCode} - {formatDisplay(account.accountStatus)} - onboarding {formatDisplay(account.onboardingStatus)}
-                            </div>
-                          </div>
-                          <StatusBadge label={isSelectedAccount(account, appliedExternalTenantRef, appliedOrganisationRef) ? "Selected" : canSelectAccount ? "Select" : "Incomplete refs"} tone={isSelectedAccount(account, appliedExternalTenantRef, appliedOrganisationRef) ? "success" : canSelectAccount ? "info" : "warning"} />
-                        </button>
-                      );
-                    })
-                  : null}
-              </div>
-
-              <div className="grid-3">
-                <div className="route-item">
-                  <div>
-                    <div className="route-name">Selected client</div>
-                    <div className="route-path">{selectedClientName}</div>
-                    <div className="table-subtext">
-                      {appliedExternalTenantRef} / {appliedOrganisationRef}
-                    </div>
-                  </div>
-                  <StatusBadge label={selectedAccount ? "Durable client" : "Manual lookup"} tone={selectedAccount ? "success" : "warning"} />
-                </div>
-                <div className="route-item">
-                  <div>
-                    <div className="route-name">Client status</div>
-                    <div className="route-path">
-                      {selectedAccount
-                        ? `${formatDisplay(selectedAccount.accountStatus)} - onboarding ${formatDisplay(selectedAccount.onboardingStatus)}`
-                        : "No durable client selected from the registry yet."}
-                    </div>
-                  </div>
-                  <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
-                </div>
-                <Link className="route-item route-link" to="/admin/referral-saas/account-setup">
-                  <div>
-                    <div className="route-name">Create new client</div>
-                    <div className="route-path">Start a new client foundation before profile, campaign, or reporting work.</div>
-                  </div>
-                  <StatusBadge label="Account Setup" tone="info" />
-                </Link>
-              </div>
-
-              <div className="account-setup-action-grid">
+              ) : null}
+              <details className="wizard-details">
+                <summary>Manual customer lookup</summary>
                 <form className="account-setup-scope-form" onSubmit={submitScope}>
-                  <div>
-                    <h3 className="panel-title">Manual lookup</h3>
-                    <p className="journey-step-copy">
-                      Use only when a client is not listed yet or you need to inspect saved setup evidence by customer identifiers.
-                    </p>
-                  </div>
                   <label className="field">
                     <span>Customer reference</span>
                     <input
@@ -384,163 +307,203 @@ export function ReferralSaasAccountMaintenancePage() {
                     />
                   </label>
                   <button className="button" disabled={!canCheckScope} type="submit">
-                    Check client evidence
+                    Check customer
                   </button>
                   <StatusBadge label={scopeChanged ? "Changes not checked" : "Loaded"} tone={scopeChanged ? "warning" : "success"} />
                 </form>
-
-                <div className="route-list">
-                  <div className="route-item">
-                    <div>
-                      <div className="route-name">Step 2: review client health</div>
-                      <div className="route-path">
-                        Use the workspace summary to see what is ready, blocked, or missing evidence for the selected client.
-                      </div>
-                    </div>
-                    <AlertCircle size={18} />
-                  </div>
-                  <div className="route-item">
-                    <div>
-                      <div className="route-name">Current scope</div>
-                      <div className="route-path">
-                        {appliedExternalTenantRef} / {appliedOrganisationRef}
-                      </div>
-                    </div>
-                    <StatusBadge label="External refs" tone="info" />
-                  </div>
-                </div>
-
-                <div className="route-list">
-                  <div className="route-item">
-                    <div>
-                      <div className="route-name">Step 3: open the right client activity</div>
-                      <div className="route-path">
-                        Use the activity cards below for profile, users, technical setup, campaigns, links, attribution, reports, or support.
-                      </div>
-                    </div>
-                    <ShieldCheck size={18} />
-                  </div>
-                  <Link className="route-item route-link" to="/admin/referral-saas/account-setup">
-                    <div>
-                      <div className="route-name">Open Account Setup</div>
-                      <div className="route-path">Correct setup evidence using guarded draft actions.</div>
-                    </div>
-                    <StatusBadge label="Fix setup" tone="warning" />
-                  </Link>
-                </div>
-              </div>
+              </details>
             </div>
           </section>
 
-          <section className="grid-4">
-            <KpiCard label="Ready areas" value={formatDisplay(readyCount)} footnote="Usable for client testing" icon={CheckCircle2} />
-            <KpiCard label="Blocked areas" value={formatDisplay(blockedCount)} footnote="Needs client setup work" icon={ShieldCheck} />
-            <KpiCard label="Evidence gaps" value={formatDisplay(missingEvidenceCount)} footnote="Missing client proof" icon={Building2} />
-            <KpiCard label="Live actions" value="0" footnote={`${goLiveDisabledCount} go-live blocker shown`} icon={Lock} />
-          </section>
+          {selectedAccount ? (
+            <>
+              <section className="customer-tabs" aria-label="Customer workspace sections">
+                <button className={activeTab === "overview" ? "active" : ""} onClick={() => setActiveTab("overview")} type="button">
+                  Overview
+                </button>
+                <button className={activeTab === "health" ? "active" : ""} onClick={() => setActiveTab("health")} type="button">
+                  Account health
+                </button>
+                <button className={activeTab === "actions" ? "active" : ""} onClick={() => setActiveTab("actions")} type="button">
+                  What you can do
+                </button>
+              </section>
 
-          <section className="panel">
-            <div className="panel-header">
-              <div>
-                <h2 className="panel-title">Client workspace summary</h2>
-                <div className="panel-subtitle">
-                  This is the selected client posture. It tells you whether to complete profile/setup work or continue into product activities.
-                </div>
-              </div>
-              <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
-            </div>
-            <div className="panel-body route-list">
-              <div className={`wizard-summary-strip ${blockedCount || missingEvidenceCount ? "warning" : "success"}`}>
-                <StatusBadge label={blockedCount || missingEvidenceCount ? "Needs attention" : "Ready"} tone={blockedCount || missingEvidenceCount ? "warning" : "success"} />
-                <div>
-                  <strong>{formatAreaCount(blockedCount, "blocked area")}, {formatAreaCount(missingEvidenceCount, "evidence gap")}</strong>
-                  <span>
-                    {formatDisplay(readyCount)} areas ready. Profile, access, technical setup, campaign readiness, reporting, guardrails, and redactions are reviewed here.
-                  </span>
-                </div>
-              </div>
-              <DataTable
-                rows={categories}
-                emptyText="No readiness categories returned."
-                columns={[
-                  {
-                    key: "category",
-                    header: "Area",
-                    render: (row) => (
-                      <span className="mono">
-                        {formatDisplay(getValue(row, ["display_label"], getValue(row, ["category"], "Readiness area")))}
-                      </span>
-                    ),
-                  },
-                  {
-                    key: "status",
-                    header: "Status",
-                    render: (row) => {
-                      const label = formatDisplay(
-                        getNestedValue(row, ["safe_display_status", "label"], getNestedValue(row, ["status"], "Check")),
+              {(activeTab === "overview" || activeTab === "health") ? (
+                <section className="customer-overview-grid" id="account-health">
+                  <div className="panel">
+                    <div className="panel-header">
+                      <div>
+                        <h2 className="panel-title">Health at a glance</h2>
+                        <div className="panel-subtitle">Based on the services we check for this customer.</div>
+                      </div>
+                      <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
+                    </div>
+                    <div className="panel-body">
+                      <div className="customer-health-strip">
+                        <div className="customer-health-card good">
+                          <strong>{readyCount}</strong>
+                          <span>Looking fine</span>
+                        </div>
+                        <div className="customer-health-card bad">
+                          <strong>{blockedCount}</strong>
+                          <span>Stopping you</span>
+                        </div>
+                        <div className="customer-health-card wait">
+                          <strong>{waitingCount}</strong>
+                          <span>Can wait</span>
+                        </div>
+                      </div>
+                      <div className={`wizard-summary-strip ${blockedCount || missingEvidenceCount ? "warning" : "success"}`}>
+                        <div>
+                          <strong>In plain English:</strong>{" "}
+                          {blockedCount || missingEvidenceCount
+                            ? `Most of ${customerName} is ready. ${formatAreaCount(blockedCount || missingEvidenceCount, "thing")} needs attention before safe referral testing.`
+                            : `${customerName} has no visible setup blocker count. Continue with campaign, link/code, attribution, or reporting tests.`}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="panel">
+                    <div className="panel-header">
+                      <div>
+                        <h2 className="panel-title">Do this next</h2>
+                        <div className="panel-subtitle">Highest-value actions for this customer right now.</div>
+                      </div>
+                    </div>
+                    <div className="panel-body route-list">
+                      {doNext.map((action) => (
+                        <Link className="route-item route-link" key={action.title} to={`${action.route}${customerQuery}`}>
+                          <div>
+                            <div className="route-name">{action.title}</div>
+                            <div className="route-path">{action.copy}</div>
+                          </div>
+                          <StatusBadge label={action.priority} tone={action.tone} />
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              ) : null}
+
+              {(activeTab === "overview" || activeTab === "actions") ? (
+                <section className="panel">
+                  <div className="panel-header">
+                    <div>
+                      <h2 className="panel-title">What you can do for this customer</h2>
+                      <div className="panel-subtitle">
+                        Everything opens against {customerName} until you switch customer.
+                      </div>
+                    </div>
+                    <StatusBadge label="Customer scoped" tone="success" />
+                  </div>
+                  <div className="panel-body customer-function-grid">
+                    {customerFunctions.map((item) => {
+                      const Icon = item.icon;
+                      const href = item.route.startsWith("#") ? item.route : `${item.route}${customerQuery}`;
+                      return (
+                        <Link className="customer-function-card" key={item.title} to={href}>
+                          <div className="customer-function-card-header">
+                            <span className="customer-function-title">
+                              <Icon size={16} />
+                              {item.title}
+                            </span>
+                            <StatusBadge label={item.status} tone={item.tone} />
+                          </div>
+                          <p>{item.copy}</p>
+                          <div className="customer-function-help">
+                            <strong>This lets you:</strong> {item.letsYou}
+                          </div>
+                        </Link>
                       );
-                      return <StatusBadge label={label} tone={statusTone(label)} />;
-                    },
-                  },
-                  {
-                    key: "evidence",
-                    header: "Evidence",
-                    render: (row) => <span className="table-subtext">{formatDisplay(getValue(row, ["evidence_summary"], "No evidence summary returned."))}</span>,
-                  },
-                ]}
-              />
-            </div>
-          </section>
+                    })}
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="grid-3" id="people-access">
+                <KpiCard label="Active users" value="0" footnote="Activation remains a future bounded workflow" icon={Users} />
+                <KpiCard label="Named or invited" value="1" footnote="Setup contact exists as profile evidence" icon={CheckCircle2} />
+                <KpiCard label="Roles still missing" value={blockedCount ? "1" : "0"} footnote="Access writes belong in Account Maintenance follow-up" icon={AlertCircle} />
+              </section>
+
+              <section className="panel">
+                <div className="panel-header">
+                  <div>
+                    <h2 className="panel-title">Account health detail</h2>
+                    <div className="panel-subtitle">Plain-language setup gates for the selected customer.</div>
+                  </div>
+                  <StatusBadge label={`${goLiveDisabledCount} go-live blockers`} tone={goLiveDisabledCount ? "warning" : "success"} />
+                </div>
+                <div className="panel-body">
+                  <DataTable
+                    rows={readinessCategoryMap.map((area) => resolveReadinessArea(area, categories))}
+                    emptyText="No readiness categories returned."
+                    columns={[
+                      {
+                        key: "area",
+                        header: "Area",
+                        render: (row) => <strong>{formatDisplay(getValue(row, ["label"], "Area"))}</strong>,
+                      },
+                      {
+                        key: "status",
+                        header: "Status",
+                        render: (row) => {
+                          const label = formatDisplay(getValue(row, ["status"], "Check"));
+                          return <StatusBadge label={label} tone={statusTone(label)} />;
+                        },
+                      },
+                      {
+                        key: "evidence",
+                        header: "What it means",
+                        render: (row) => <span className="table-subtext">{formatDisplay(getValue(row, ["evidence"], "No evidence summary returned."))}</span>,
+                      },
+                    ]}
+                  />
+                </div>
+              </section>
+
+              <section className="customer-context-note">
+                This is the customer home. Campaigns, links, reports, attribution, progress, and support should open inside this customer context, not as separate global tools that forget who you are working on.
+              </section>
+            </>
+          ) : (
+            <section className="panel">
+              <div className="panel-header">
+                <div>
+                  <h2 className="panel-title">No customer selected yet</h2>
+                  <div className="panel-subtitle">
+                    Select a customer above, or create one if the list is empty.
+                  </div>
+                </div>
+                <Link className="button" to="/admin/referral-saas/account-setup">
+                  Create customer
+                </Link>
+              </div>
+            </section>
+          )}
 
           <section className="panel">
             <div className="panel-header">
               <div>
-                <h2 className="panel-title">Client activities and dashboards</h2>
+                <h2 className="panel-title">Setup draft fallback</h2>
                 <div className="panel-subtitle">
-                  Open these after selecting the client. Each surface remains bounded to Referral SaaS referral management and campaign attribution work.
+                  Use this only when saved setup evidence exists but the customer has not become a durable customer profile yet.
                 </div>
               </div>
-              <StatusBadge label="Referral SaaS only" tone="success" />
-            </div>
-            <div className="panel-body grid-4">
-              {clientActivityAreas.map((area) => {
-                const Icon = area.icon;
-                return (
-                  <Link className="route-item route-link" key={area.title} to={area.route}>
-                    <div>
-                      <div className="route-name">{area.title}</div>
-                      <div className="route-path">{area.copy}</div>
-                    </div>
-                    <span className="support-hub-route">
-                      <Icon size={15} />
-                      {area.status}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="panel">
-            <div className="panel-header">
-              <div>
-                  <h2 className="panel-title">Setup draft fallback</h2>
-                <div className="panel-subtitle">
-                  Use this only when the customer has saved setup evidence but no durable account foundation is available in the account list.
-                </div>
-              </div>
-              <StatusBadge label={`${draftItems.length} drafts`} tone={draftItems.length ? "info" : "neutral"} />
+              <StatusBadge label={`${draftSelector?.items?.length || 0} drafts`} tone={draftSelector?.items?.length ? "info" : "neutral"} />
             </div>
             <div className="panel-body route-list">
               {isDraftSelectorLoading ? <LoadingState label="Loading setup drafts" /> : null}
               {draftSelectorError ? <ErrorPanel error={draftSelectorError} /> : null}
-              {!isDraftSelectorLoading && !draftSelectorError && draftItems.length === 0 ? (
+              {!isDraftSelectorLoading && !draftSelectorError && (draftSelector?.items || []).length === 0 ? (
                 <div className="empty-state">
-                  No saved setup drafts found for this external scope. Use Account Setup to save setup intent first.
+                  No saved setup drafts found for this customer scope.
                 </div>
               ) : null}
               {!isDraftSelectorLoading && !draftSelectorError
-                ? draftItems.map((draft) => (
+                ? (draftSelector?.items || []).map((draft) => (
                     <button
                       className="route-item route-link"
                       key={draft.draft_ref}
@@ -555,113 +518,13 @@ export function ReferralSaasAccountMaintenancePage() {
                       <div>
                         <div className="route-name">{draft.organisation_ref || draft.draft_ref}</div>
                         <div className="route-path">
-                          {draft.external_tenant_ref} - {draft.draft_status || "Draft evidence"}
-                        </div>
-                        <div className="table-subtext">
-                          {draft.draft_ref} - readiness {formatDisplay(draft.readiness_status || "unknown")} - blockers {formatDisplay(draft.blocker_count || 0)}
+                          {draft.external_tenant_ref} - {formatDisplay(draft.draft_status || "Draft evidence")}
                         </div>
                       </div>
-                      <StatusBadge label="Load evidence" tone="info" />
+                      <StatusBadge label="Load draft evidence" tone="info" />
                     </button>
                   ))
                 : null}
-            </div>
-          </section>
-
-          <section className="grid-2">
-            <div className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Client readiness details</h2>
-                  <div className="panel-subtitle">
-                    Read-only health grouped by the product areas operators expect to maintain.
-                  </div>
-                </div>
-                <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
-              </div>
-              <div className="panel-body route-list">
-                {areaRows.map((area) => {
-                  const Icon = area.icon;
-                  return (
-                    <Link className="route-item route-link" key={area.code} to={area.route}>
-                      <div>
-                        <div className="route-name">{area.title}</div>
-                        <div className="route-path">{area.evidence}</div>
-                        <div className="table-subtext">{area.action}</div>
-                      </div>
-                      <span className="support-hub-route">
-                        <Icon size={15} />
-                        {area.status}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Unavailable maintenance commands</h2>
-                  <div className="panel-subtitle">
-                    These are intentionally absent until real account, membership, lifecycle, and audit primitives exist.
-                  </div>
-                </div>
-                <StatusBadge label="Blocked by design" tone="warning" />
-              </div>
-              <div className="panel-body route-list">
-                {blockedCommands.map((command) => (
-                  <div className="route-item" key={command}>
-                    <div>
-                      <div className="route-name">{command}</div>
-                      <div className="route-path">No action is available from this read-only maintenance shell.</div>
-                    </div>
-                    <StatusBadge label="Unavailable" tone="neutral" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="grid-2">
-            <div className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Guardrails</h2>
-                  <div className="panel-subtitle">Boundaries returned by the current onboarding projection.</div>
-                </div>
-              </div>
-              <DataTable
-                rows={guardrails}
-                emptyText="No guardrails returned."
-                columns={[
-                  {
-                    key: "guardrail",
-                    header: "Guardrail",
-                    render: (row) => <span className="mono">{getValue(row, ["name"])}</span>,
-                  },
-                ]}
-              />
-            </div>
-
-            <div className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Redactions</h2>
-                  <div className="panel-subtitle">Fields hidden from the Referral SaaS maintenance surface.</div>
-                </div>
-              </div>
-              <DataTable
-                rows={redactions}
-                emptyText="No redactions returned."
-                columns={[
-                  {
-                    key: "redaction",
-                    header: "Redaction",
-                    render: (row) => <span className="mono">{getValue(row, ["name"])}</span>,
-                  },
-                ]}
-              />
             </div>
           </section>
         </>
@@ -670,64 +533,75 @@ export function ReferralSaasAccountMaintenancePage() {
   );
 }
 
-function resolveMaintenanceArea(
-  area: (typeof maintenanceAreas)[number],
+function getCustomerNextActions(blockedCount: number, missingEvidenceCount: number) {
+  if (blockedCount > 0 || missingEvidenceCount > 0) {
+    return [
+      {
+        title: "Add who can manage this account",
+        copy: "Complete owner and campaign manager setup for day-to-day referral work.",
+        priority: "First",
+        route: "/admin/referral-saas/account-maintenance",
+        tone: "warning" as StatusTone,
+      },
+      {
+        title: "Open Campaigns",
+        copy: "Account setup is far enough to set up or review a campaign.",
+        priority: "Next",
+        route: "/admin/referral-saas/campaigns",
+        tone: "info" as StatusTone,
+      },
+      {
+        title: "Finish reporting setup",
+        copy: "Useful for performance views, not a hard stop for first testing.",
+        priority: "Later",
+        route: "/admin/referral-saas/reports",
+        tone: "neutral" as StatusTone,
+      },
+    ];
+  }
+  return [
+    {
+      title: "Open Campaigns",
+      copy: "The customer is ready for campaign setup or review.",
+      priority: "First",
+      route: "/admin/referral-saas/campaigns",
+      tone: "success" as StatusTone,
+    },
+    {
+      title: "Run link and code tests",
+      copy: "Issue and validate referral codes inside this customer context.",
+      priority: "Next",
+      route: "/admin/referral-saas/link-codes",
+      tone: "info" as StatusTone,
+    },
+    {
+      title: "Check reporting",
+      copy: "Review tenant-safe performance and export posture.",
+      priority: "Later",
+      route: "/admin/referral-saas/reports",
+      tone: "neutral" as StatusTone,
+    },
+  ];
+}
+
+function resolveReadinessArea(
+  area: (typeof readinessCategoryMap)[number],
   categories: Record<string, unknown>[],
 ) {
   const matchingCategory = categories.find((category) => categoryMatches(category, area.code));
   const status = formatDisplay(
-    getNestedValue(matchingCategory, ["safe_display_status", "label"], getNestedValue(matchingCategory, ["status"], "Check")),
+    getNestedValue(matchingCategory, ["safe_display_status", "label"], getNestedValue(matchingCategory, ["status"], "Not ready")),
   );
   return {
-    ...area,
-    evidence: formatDisplay(getNestedValue(matchingCategory, ["evidence_summary"], area.source)),
+    label: area.label,
     status,
+    evidence: formatDisplay(getNestedValue(matchingCategory, ["evidence_summary"], "No customer evidence has been returned for this area yet.")),
   };
 }
 
 function categoryMatches(category: Record<string, unknown>, code: string) {
   const categoryCode = getValue(category, ["category"], "").toUpperCase();
-  if (categoryCode === code) {
-    return true;
-  }
-  if (code === "EXTERNAL_REFERENCES") {
-    return categoryCode === "TENANT_LINK";
-  }
-  if (code === "WEBHOOK_API") {
-    return categoryCode.includes("WEBHOOK") || categoryCode.includes("API");
-  }
-  if (code === "AUDIT_SUPPORT") {
-    return categoryCode.includes("AUDIT") || categoryCode.includes("SUPPORT");
-  }
-  return false;
-}
-
-function getMaintenanceNextAction(scopeChanged: boolean, blockedCount: number, missingEvidenceCount: number) {
-  if (scopeChanged) {
-    return {
-      badge: "Check changes",
-      copy: "You changed the client identifiers. Check client evidence before trusting the workspace view.",
-      step: "Step 1",
-      title: "Do this next: check the client again",
-      tone: "warning" as const,
-    };
-  }
-  if (blockedCount > 0 || missingEvidenceCount > 0) {
-    return {
-      badge: "Needs attention",
-      copy: "Review the selected client summary, then open the matching activity card for profile, access, technical setup, campaign readiness, reports, or support.",
-      step: "Workspace",
-      title: "Do this next: open the client workspace",
-      tone: "warning" as const,
-    };
-  }
-  return {
-    badge: "Review complete",
-    copy: "No blocker count is visible for this client. Continue to campaign readiness, links/codes, attribution, reports, or support diagnostics as needed.",
-    step: "Activities",
-    title: "Do this next: continue with client activities",
-    tone: "success" as const,
-  };
+  return categoryCode === code;
 }
 
 function toCount(value: unknown) {
@@ -747,7 +621,7 @@ function findAccountExternalRef(
 }
 
 function findSelectedAccount(
-  accounts: NonNullable<ReturnType<typeof useReferralSaasAccountRegistry>["data"]>["accounts"] = [],
+  accounts: AccountRegistryItem[] = [],
   externalTenantRef: string,
   organisationRef: string,
 ) {
@@ -755,7 +629,7 @@ function findSelectedAccount(
 }
 
 function isSelectedAccount(
-  account: NonNullable<ReturnType<typeof useReferralSaasAccountRegistry>["data"]>["accounts"][number],
+  account: AccountRegistryItem,
   externalTenantRef: string,
   organisationRef: string,
 ) {
