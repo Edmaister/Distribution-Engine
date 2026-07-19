@@ -482,11 +482,9 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.getByRole("heading", { name: "Find or start the account" })).toBeInTheDocument();
     await confirmAccountScope();
     fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
-    expect(screen.getByText(/Use the existing company onboarding surface/)).toBeInTheDocument();
-    expect(lastMatch(screen.getAllByRole("link", { name: /Company profile/ }))).toHaveAttribute(
-      "href",
-      "/admin/onboarding/company",
-    );
+    expect(screen.getByText(/Capture the company evidence inside this wizard/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save company profile" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Company profile/ })).not.toBeInTheDocument();
     await recordRoleIntent();
     expect(screen.getByRole("button", { name: "Record role intent" })).toBeInTheDocument();
     fireEvent.click(screen.getByText("Integration intent"));
@@ -505,6 +503,57 @@ describe("ReferralSaasAccountSetupPage", () => {
       "href",
       "/admin/referral-saas/campaigns",
     );
+  });
+
+  it("keeps Company Profile setup inside the wizard and saves profile evidence", async () => {
+    renderWorkspace(<ReferralSaasAccountSetupPage />);
+
+    await screen.findByRole("heading", { name: "Account setup wizard" });
+    await waitForWizard();
+    await confirmAccountScope();
+    fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
+
+    fireEvent.change(screen.getByLabelText("Organisation name"), {
+      target: { value: "FNB Referral Programme" },
+    });
+    fireEvent.change(screen.getByLabelText("Country"), {
+      target: { value: "South Africa" },
+    });
+    fireEvent.change(screen.getByLabelText("Industry"), {
+      target: { value: "Banking" },
+    });
+    fireEvent.change(screen.getByLabelText("Admin contact"), {
+      target: { value: "referrals-admin@example.test" },
+    });
+    fireEvent.change(screen.getByLabelText("Intended role"), {
+      target: { value: "Campaign manager" },
+    });
+
+    expect(screen.queryByRole("link", { name: /Company profile/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save company profile" }));
+
+    await waitFor(() => expect(mockedSaveAdminOnboardingDraft).toHaveBeenCalledTimes(1));
+    const draftRequest = mockedSaveAdminOnboardingDraft.mock.calls[0][0];
+    expect(draftRequest).toMatchObject({
+      external_tenant_ref: "demo-platform-operator",
+      organisation_ref: "demo-organisation",
+      correlation_id: "referral-saas-account-setup-draft",
+      sections: {
+        company: {
+          organisation_name: "FNB Referral Programme",
+          external_tenant_ref: "demo-platform-operator",
+          organisation_ref: "demo-organisation",
+          country: "South Africa",
+          organisation_type: "Referral SaaS customer",
+          industry: "Banking",
+          admin_contact: "referrals-admin@example.test",
+          intended_role: "Campaign manager",
+        },
+      },
+    });
+    expect(JSON.stringify(draftRequest).toLowerCase()).not.toMatch(/tenant_code|api_key|client_secret|wallet|settlement|money/);
+    expect(await screen.findByText("Setup draft saved.")).toBeInTheDocument();
+    expect(screen.getByText("Profile saved")).toBeInTheDocument();
   });
 
   it("keeps scope typing local until the tester checks setup", async () => {
@@ -792,10 +841,8 @@ describe("ReferralSaasAccountSetupPage", () => {
     await waitForWizard();
     await confirmAccountScope();
     fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
-    expect(lastMatch(screen.getAllByRole("link", { name: /Company profile/ }))).toHaveAttribute(
-      "href",
-      "/admin/onboarding/company",
-    );
+    expect(screen.getByRole("button", { name: "Save company profile" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Company profile/ })).not.toBeInTheDocument();
     await recordRoleIntent();
     fireEvent.click(screen.getByRole("button", { name: "Integration intent" }));
     expect(lastMatch(screen.getAllByRole("link", { name: /Integration setup/ }))).toHaveAttribute(

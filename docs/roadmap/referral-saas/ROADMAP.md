@@ -190,6 +190,7 @@ greenfield referral construction.
 82. TASK-216: Redesign Account Setup as guided wizard.
 83. TASK-217: Gate Account Setup wizard navigation by completed steps.
 84. TASK-218: Require explicit Account Setup Step 1 account check.
+85. TASK-219: Keep Account Setup Company Profile inside the wizard.
 
 ## 10/10 Exit Criteria
 
@@ -557,6 +558,11 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`
 - TASK-218: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-219: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;

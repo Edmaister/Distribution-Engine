@@ -4619,6 +4619,32 @@ Rollback notes: Revert the Account Setup page/test updates and roadmap/gap/task-
 Explicit non-goals: Do not add backend routes, service writes, schema, migrations, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Account Setup Step 1 completion is controlled by explicit operator confirmation rather than background preload, and the wizard remains ready for local UI-driven E2E readiness proof. Priority: P0.
 
+## TASK-219: Keep Account Setup Company Profile inside the wizard
+
+Status: Complete (2026-07-19). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses existing admin onboarding draft persistence and Account Setup wizard primitives while removing the broader onboarding page jump from Step 2. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup wizard coherence; inline company-profile draft evidence; no-adjacent-action guardrails.
+Objective: Keep Company Profile setup inside the Referral SaaS Account Setup wizard so operators can complete Step 2 without being redirected into the broader Amplifi onboarding workspace.
+Why now: User testing showed that Step 2 still behaved like a route card. Clicking Company Profile changed navigation context and made the wizard feel disjointed after the Step 1 journey-control fixes.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `frontend/src/pages/admin/CompanyOnboardingPage.tsx`; `frontend/src/pages/admin/CompanyOnboardingPage.test.tsx`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Replaces the Step 2 Company Profile route link with inline organisation name, country, organisation type, industry, admin contact, and intended role fields; saves those fields through the existing guarded setup draft API; shows account scope and save confirmation inside the wizard; allows Step 3 only after readiness evidence or a saved profile draft.
+API impact: None. Uses existing `saveAdminOnboardingDraft` behavior.
+Tests to add/update: Updates Account Setup page tests to assert the inline Step 2 form, no `/admin/onboarding/company` link, profile draft payload shape, safe no-internal/no-money payload posture, and preserved later-step links.
+Validation method: `npm.cmd test -- ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Clicking Company Profile in Step 2 does not navigate away from `/admin/referral-saas/account-setup`; the operator can save company evidence inside the wizard; saved payload carries the confirmed Step 1 external references and inline profile fields; Step 2 completion can be based on saved draft evidence; existing review/create, membership intent, readiness, integration intent, and campaign handoff behavior remains bounded and unchanged.
+Dependencies: TASK-218.
+Blocked by: None for inline Company Profile setup. Local UI-driven Account Setup wizard E2E proof remains the next account setup readiness task.
+Risk level: Medium.
+Rollback notes: Revert the Account Setup page/test updates and roadmap/gap/task-list entries.
+Explicit non-goals: Do not add backend routes, service writes beyond existing draft save, schema, migrations, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Setup Step 2 Company Profile is an inline wizard step that saves guarded setup draft evidence and no longer redirects operators into a separate onboarding workspace. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

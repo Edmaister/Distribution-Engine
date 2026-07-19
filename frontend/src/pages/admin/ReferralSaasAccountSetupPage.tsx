@@ -45,6 +45,14 @@ const defaultOrganisationRef = "demo-organisation";
 const trustedInternalTenantScopeKey = "amplifi.referralSaas.accountSetup.trustedTenantScope";
 const defaultTrustedInternalTenantScope = "FNB";
 type SetupActionState = "idle" | "loading" | "success" | "error";
+type CompanyProfileForm = {
+  organisationName: string;
+  country: string;
+  organisationType: string;
+  industry: string;
+  adminContact: string;
+  intendedRole: string;
+};
 
 const accountChecklist = [
   {
@@ -104,6 +112,14 @@ export function ReferralSaasAccountSetupPage() {
   const [createState, setCreateState] = useState<SetupActionState>("idle");
   const [createResponse, setCreateResponse] = useState<ReferralSaasAccountCreateFromDraftResponse | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfileForm>({
+    organisationName: `${defaultOrganisationRef} Referral SaaS setup`,
+    country: "South Africa",
+    organisationType: "Referral SaaS customer",
+    industry: "Referral management and campaign attribution",
+    adminContact: "setup-owner@example.test",
+    intendedRole: "Referral SaaS account admin",
+  });
   const [memberSubject, setMemberSubject] = useState("setup-owner");
   const [memberDisplayName, setMemberDisplayName] = useState("Referral SaaS setup owner");
   const [memberEmailHash, setMemberEmailHash] = useState("");
@@ -174,8 +190,8 @@ export function ReferralSaasAccountSetupPage() {
     accountResolutionError,
   );
   const setupSections = useMemo(
-    () => buildReferralSaasSetupSections(appliedExternalTenantRef, appliedOrganisationRef),
-    [appliedExternalTenantRef, appliedOrganisationRef],
+    () => buildReferralSaasSetupSections(appliedExternalTenantRef, appliedOrganisationRef, companyProfile),
+    [appliedExternalTenantRef, appliedOrganisationRef, companyProfile],
   );
   const actionScopeReady = Boolean(appliedExternalTenantRef && appliedOrganisationRef && !scopeChanged);
   const draftIdempotencyKey = useMemo(
@@ -212,6 +228,16 @@ export function ReferralSaasAccountSetupPage() {
     [durableAccount?.accountCode, durableAccount?.accountId, memberRoleFamily, memberSubject],
   );
   const canSubmitForReview = Boolean(actionScopeReady && draftResponse?.draft_ref && draftState === "success");
+  const canSaveCompanyProfile = Boolean(
+    actionScopeReady &&
+      companyProfile.organisationName.trim() &&
+      companyProfile.country.trim() &&
+      companyProfile.organisationType.trim() &&
+      companyProfile.industry.trim() &&
+      companyProfile.adminContact.trim() &&
+      companyProfile.intendedRole.trim() &&
+      draftState !== "loading",
+  );
   const canRecordReview = Boolean(
     actionScopeReady &&
       submitResponse?.draft_ref &&
@@ -270,7 +296,7 @@ export function ReferralSaasAccountSetupPage() {
   );
   const wizardStepCompletion = {
     1: actionScopeReady && scopeCheckConfirmed && !scopeChanged,
-    2: isReadyStatus(accountProfileRow?.status),
+    2: isReadyStatus(accountProfileRow?.status) || Boolean(draftResponse?.draft_ref),
     3: hasMembershipEvidence,
     4: true,
     5: validationState === "success" || !needsSetupWork,
@@ -291,8 +317,16 @@ export function ReferralSaasAccountSetupPage() {
     }
     setAppliedExternalTenantRef(nextExternalTenantRef);
     setAppliedOrganisationRef(nextOrganisationRef);
+    setCompanyProfile((current) => ({
+      ...current,
+      organisationName: current.organisationName.trim() || `${nextOrganisationRef} Referral SaaS setup`,
+    }));
     setScopeCheckConfirmed(true);
     resetSetupActionState();
+  }
+
+  function updateCompanyProfile(field: keyof CompanyProfileForm, value: string) {
+    setCompanyProfile((current) => ({ ...current, [field]: value }));
   }
 
   function goToWizardStep(step: number) {
@@ -642,10 +676,59 @@ export function ReferralSaasAccountSetupPage() {
                     <div>
                       <div className="page-kicker">Company profile</div>
                       <h3 className="account-wizard-title">Capture company setup evidence</h3>
-                      <p className="page-copy">Use the existing company onboarding surface for the profile evidence that feeds this setup draft.</p>
+                      <p className="page-copy">Capture the company evidence inside this wizard. Saving here creates a setup draft only; it does not leave Account Setup or create the final account.</p>
                     </div>
-                    <div className="wizard-card route-list">
-                      <SetupLink to="/admin/onboarding/company" title="Company profile" copy="Open the company setup form and save the required organisation evidence." />
+                    <div className="wizard-card">
+                      <div className="wizard-status-card">
+                        <div>
+                          <strong>Account scope</strong>
+                          <p>These references were confirmed in Step 1 and are used for the saved company profile evidence.</p>
+                          <span>{appliedExternalTenantRef} / {appliedOrganisationRef}</span>
+                        </div>
+                        <StatusBadge label="Confirmed" tone="success" />
+                      </div>
+                      <div className="form-grid">
+                        <label className="field">
+                          <span>Organisation name</span>
+                          <input className="input" onChange={(event) => updateCompanyProfile("organisationName", event.target.value)} value={companyProfile.organisationName} />
+                        </label>
+                        <label className="field">
+                          <span>Country</span>
+                          <input className="input" onChange={(event) => updateCompanyProfile("country", event.target.value)} value={companyProfile.country} />
+                        </label>
+                        <label className="field">
+                          <span>Organisation type</span>
+                          <select className="input" onChange={(event) => updateCompanyProfile("organisationType", event.target.value)} value={companyProfile.organisationType}>
+                            <option value="Referral SaaS customer">Referral SaaS customer</option>
+                            <option value="Producer / sponsor">Producer / sponsor</option>
+                            <option value="Partner">Partner</option>
+                            <option value="Enterprise customer">Enterprise customer</option>
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>Industry</span>
+                          <input className="input" onChange={(event) => updateCompanyProfile("industry", event.target.value)} value={companyProfile.industry} />
+                        </label>
+                        <label className="field">
+                          <span>Admin contact</span>
+                          <input className="input" onChange={(event) => updateCompanyProfile("adminContact", event.target.value)} value={companyProfile.adminContact} />
+                        </label>
+                        <label className="field">
+                          <span>Intended role</span>
+                          <select className="input" onChange={(event) => updateCompanyProfile("intendedRole", event.target.value)} value={companyProfile.intendedRole}>
+                            <option value="Referral SaaS account admin">Referral SaaS account admin</option>
+                            <option value="Campaign manager">Campaign manager</option>
+                            <option value="Support lead">Support lead</option>
+                            <option value="Reporting analyst">Reporting analyst</option>
+                          </select>
+                        </label>
+                      </div>
+                      <div className="action-button-row">
+                        <button className="button" disabled={!canSaveCompanyProfile} onClick={handleSaveSetupDraft} type="button">
+                          {draftState === "loading" ? "Saving company profile" : "Save company profile"}
+                        </button>
+                        <StatusBadge label={draftResponse ? "Profile saved" : "Draft only"} tone={draftResponse ? "success" : "warning"} />
+                      </div>
                       <div className="wizard-status-card">
                         <div>
                           <strong>Company setup status</strong>
@@ -653,6 +736,18 @@ export function ReferralSaasAccountSetupPage() {
                         </div>
                         <StatusBadge label={resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE")?.status || "Pending"} tone={statusTone(resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE")?.status || "Pending")} />
                       </div>
+                      <SetupActionResult
+                        createError={null}
+                        createResponse={null}
+                        draftResponse={draftResponse}
+                        draftError={draftError}
+                        reviewError={null}
+                        reviewResponse={null}
+                        submitError={null}
+                        submitResponse={null}
+                        validationError={null}
+                        validationResponse={null}
+                      />
                     </div>
                   </>
                 ) : null}
@@ -1031,24 +1126,28 @@ function getMembershipPostureStatus(
   };
 }
 
-function buildReferralSaasSetupSections(externalTenantRef: string, organisationRef: string) {
+function buildReferralSaasSetupSections(
+  externalTenantRef: string,
+  organisationRef: string,
+  companyProfile: CompanyProfileForm,
+) {
   const producerRef = `${organisationRef}-producer`;
   const sponsorRef = `${organisationRef}-sponsor`;
   const distributorRef = `${organisationRef}-distributor`;
   const campaignCode = `${organisationRef}-setup-campaign`;
   const opportunityRef = `${organisationRef}-setup-opportunity`;
-  const adminContact = "setup-owner@example.test";
+  const adminContact = companyProfile.adminContact.trim();
 
   return {
     company: {
-      organisation_name: `${organisationRef} Referral SaaS setup`,
+      organisation_name: companyProfile.organisationName.trim(),
       external_tenant_ref: externalTenantRef,
       organisation_ref: organisationRef,
-      country: "South Africa",
-      organisation_type: "Referral SaaS customer",
-      industry: "Referral management and campaign attribution",
+      country: companyProfile.country.trim(),
+      organisation_type: companyProfile.organisationType.trim(),
+      industry: companyProfile.industry.trim(),
       admin_contact: adminContact,
-      intended_role: "Referral SaaS admin",
+      intended_role: companyProfile.intendedRole.trim(),
     },
     producer_sponsor: {
       producer_sponsor_name: `${organisationRef} sponsor setup`,
