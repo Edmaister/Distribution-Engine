@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from typing import Any, Iterable
 
 from utils.db import db_connection
@@ -98,6 +99,34 @@ class AccountFoundationContext:
         if include_internal:
             payload["tenantCode"] = self.tenant_code
         return payload
+
+
+@dataclass(frozen=True)
+class AccountFoundationListItem:
+    account_id: str
+    account_code: str
+    account_name: str
+    account_type: str
+    account_status: str
+    onboarding_status: str
+    primary_external_tenant_ref: str | None
+    external_references: tuple[dict[str, str], ...]
+    created_at: str
+    updated_at: str
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "accountId": self.account_id,
+            "accountCode": self.account_code,
+            "accountName": self.account_name,
+            "accountType": self.account_type,
+            "accountStatus": self.account_status,
+            "onboardingStatus": self.onboarding_status,
+            "primaryExternalTenantRef": self.primary_external_tenant_ref,
+            "externalReferences": list(self.external_references),
+            "createdAt": self.created_at,
+            "updatedAt": self.updated_at,
+        }
 
 
 def _normalise_ref_type(ref_type: str) -> str:
@@ -245,3 +274,94 @@ async def resolve_setup_account_by_external_reference(
         allowed_account_statuses=SETUP_ACCOUNT_STATUSES,
         allowed_tenant_link_statuses=SETUP_TENANT_LINK_STATUSES,
     )
+
+
+async def list_referral_saas_accounts(*, limit: int = 50) -> list[AccountFoundationListItem]:
+    safe_limit = max(1, min(int(limit or 50), 100))
+    async with db_connection() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT
+                account.account_id,
+                account.account_code,
+                account.account_name,
+                account.account_type,
+                account.status AS account_status,
+                account.onboarding_status,
+                account.primary_external_tenant_ref,
+                account.created_at,
+                account.updated_at,
+                COALESCE(
+                    jsonb_agg(
+                        jsonb_build_object(
+                            'refType', external_ref.ref_type,
+                            'externalRef', external_ref.external_ref,
+                            'referenceStatus', external_ref.status
+                        )
+                        ORDER BY
+                            CASE external_ref.ref_type
+                                WHEN 'external_tenant_ref' THEN 0
+                                WHEN 'organisation_ref' THEN 1
+                                ELSE 2
+                            END,
+                            external_ref.updated_at DESC
+                    ) FILTER (WHERE external_ref.external_ref_id IS NOT NULL),
+                    '[]'::jsonb
+                ) AS external_references
+            FROM platform_accounts account
+            LEFT JOIN platform_external_tenant_refs external_ref
+                ON external_ref.account_id = account.account_id
+               AND external_ref.status = 'ACTIVE'
+            WHERE account.status IN ('PENDING_ONBOARDING', 'ACTIVE', 'SUSPENDED')
+              AND account.archived_at IS NULL
+            GROUP BY account.account_id
+            ORDER BY account.updated_at DESC, account.created_at DESC
+            LIMIT $1
+            """,
+            safe_limit,
+        )
+
+    accounts: list[AccountFoundationListItem] = []
+    for raw_row in rows:
+        row = dict(raw_row)
+        external_references = _normalise_external_reference_rows(
+            row["external_references"]
+        )
+        accounts.append(
+            AccountFoundationListItem(
+                account_id=str(row["account_id"]),
+                account_code=str(row["account_code"]),
+                account_name=str(row["account_name"]),
+                account_type=str(row["account_type"]),
+                account_status=str(row["account_status"]),
+                onboarding_status=str(row["onboarding_status"]),
+                primary_external_tenant_ref=(
+                    str(row["primary_external_tenant_ref"])
+                    if row.get("primary_external_tenant_ref")
+                    else None
+                ),
+                external_references=tuple(
+                    {
+                        "refType": str(ref.get("refType") or ""),
+                        "externalRef": str(ref.get("externalRef") or ""),
+                        "referenceStatus": str(ref.get("referenceStatus") or ""),
+                    }
+                    for ref in external_references
+                    if ref.get("refType") and ref.get("externalRef")
+                ),
+                created_at=row["created_at"].isoformat(),
+                updated_at=row["updated_at"].isoformat(),
+            )
+        )
+    return accounts
+
+
+def _normalise_external_reference_rows(value: Any) -> list[dict[str, Any]]:
+    if not value:
+        return []
+    if isinstance(value, str):
+        decoded = json.loads(value)
+        return decoded if isinstance(decoded, list) else []
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, dict)]
+    return []

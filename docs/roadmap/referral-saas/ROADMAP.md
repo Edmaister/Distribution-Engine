@@ -198,6 +198,7 @@ greenfield referral construction.
 90. TASK-224: Remove People and Roles from Account Setup.
 91. TASK-225: Split Technical Setup from Account Setup and align customer identification language.
 92. TASK-226: Move full Account Setup readiness evidence to Account Maintenance.
+93. TASK-227: Add Account Maintenance durable account selector.
 
 ## 10/10 Exit Criteria
 
@@ -614,6 +615,18 @@ greenfield referral construction.
 - TASK-226: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
   `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-227: `services/referral_saas_account_foundation_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/referralSaasAccountQueries.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `test/test_referral_saas_account_foundation_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
   `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;

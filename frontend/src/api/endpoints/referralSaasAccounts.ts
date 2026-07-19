@@ -26,6 +26,31 @@ export type ReferralSaasAccountSummary = {
   source?: string;
 };
 
+export type ReferralSaasAccountRegistryItem = {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  accountType: string;
+  accountStatus: string;
+  onboardingStatus: string;
+  primaryExternalTenantRef?: string | null;
+  externalReferences: {
+    refType: string;
+    externalRef: string;
+    referenceStatus: string;
+  }[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ReferralSaasAccountRegistryResponse = {
+  status: string;
+  count: number;
+  accounts: ReferralSaasAccountRegistryItem[];
+  guardrail: string;
+  redactions: string[];
+};
+
 export type ReferralSaasAccountResolutionResponse = {
   status: string;
   context: ReferralSaasAccountResolutionContext;
@@ -161,6 +186,14 @@ export function resolveReferralSaasAccount({
       ref_type: refType,
       external_ref: externalRef.trim(),
       context,
+    },
+  });
+}
+
+export function listReferralSaasAccounts(limit = 50): Promise<ReferralSaasAccountRegistryResponse> {
+  return apiRequest<ReferralSaasAccountRegistryResponse>("v1/referral-saas/accounts", {
+    query: {
+      limit,
     },
   });
 }

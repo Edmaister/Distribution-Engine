@@ -15,6 +15,7 @@ import { useState, type FormEvent } from "react";
 import {
   useReferralSaasAccountDraftSelector,
   useReferralSaasAccountMaintenanceState,
+  useReferralSaasAccountRegistry,
 } from "../../api/referralSaasAccountQueries";
 import { DataTable } from "../../components/DataTable";
 import { ErrorPanel } from "../../components/ErrorPanel";
@@ -123,6 +124,11 @@ export function ReferralSaasAccountMaintenancePage() {
     error: draftSelectorError,
     isLoading: isDraftSelectorLoading,
   } = useReferralSaasAccountDraftSelector(appliedExternalTenantRef, appliedOrganisationRef, refreshKey);
+  const {
+    data: accountRegistry,
+    error: accountRegistryError,
+    isLoading: isAccountRegistryLoading,
+  } = useReferralSaasAccountRegistry(50, refreshKey);
 
   const readiness = data?.readiness;
   const summary = readiness?.summary;
@@ -145,6 +151,7 @@ export function ReferralSaasAccountMaintenancePage() {
   const nextAction = getMaintenanceNextAction(scopeChanged, blockedCount, missingEvidenceCount);
   const areaRows = maintenanceAreas.map((area) => resolveMaintenanceArea(area, categories));
   const draftItems = draftSelector?.items || [];
+  const accountItems = accountRegistry?.accounts || [];
 
   function submitScope(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -155,6 +162,20 @@ export function ReferralSaasAccountMaintenancePage() {
     }
     setAppliedExternalTenantRef(nextExternalTenantRef);
     setAppliedOrganisationRef(nextOrganisationRef);
+  }
+
+  function selectAccount(account: NonNullable<typeof accountRegistry>["accounts"][number]) {
+    const externalTenantRef =
+      account.primaryExternalTenantRef ||
+      findAccountExternalRef(account.externalReferences, "external_tenant_ref");
+    const organisationRef = findAccountExternalRef(account.externalReferences, "organisation_ref");
+    if (!externalTenantRef || !organisationRef) {
+      return;
+    }
+    setDraftExternalTenantRef(externalTenantRef);
+    setDraftOrganisationRef(organisationRef);
+    setAppliedExternalTenantRef(externalTenantRef);
+    setAppliedOrganisationRef(organisationRef);
   }
 
   return (
@@ -197,10 +218,58 @@ export function ReferralSaasAccountMaintenancePage() {
                 <StatusBadge label={nextAction.step} tone={nextAction.tone} />
               </div>
 
+              <div className="route-list">
+                <div className="route-item">
+                  <div>
+                    <div className="route-name">Step 1: select the account to maintain</div>
+                    <div className="route-path">
+                      Start from the real account foundation list. Drafts below are only for setup evidence that has not become an account yet.
+                    </div>
+                  </div>
+                  <StatusBadge label={`${accountItems.length} accounts`} tone={accountItems.length ? "info" : "neutral"} />
+                </div>
+                {isAccountRegistryLoading ? <LoadingState label="Loading account list" /> : null}
+                {accountRegistryError ? <ErrorPanel error={accountRegistryError} /> : null}
+                {!isAccountRegistryLoading && !accountRegistryError && accountItems.length === 0 ? (
+                  <div className="empty-state">
+                    No account foundations are available yet. Use Account Setup to create the first account foundation.
+                  </div>
+                ) : null}
+                {!isAccountRegistryLoading && !accountRegistryError
+                  ? accountItems.map((account) => {
+                      const externalTenantRef =
+                        account.primaryExternalTenantRef ||
+                        findAccountExternalRef(account.externalReferences, "external_tenant_ref");
+                      const organisationRef = findAccountExternalRef(account.externalReferences, "organisation_ref");
+                      const canSelectAccount = Boolean(externalTenantRef && organisationRef);
+                      return (
+                        <button
+                          className="route-item route-link"
+                          disabled={!canSelectAccount}
+                          key={account.accountId}
+                          onClick={() => selectAccount(account)}
+                          type="button"
+                        >
+                          <div>
+                            <div className="route-name">{account.accountName}</div>
+                            <div className="route-path">
+                              {externalTenantRef || "Missing customer reference"} / {organisationRef || "Missing organisation reference"}
+                            </div>
+                            <div className="table-subtext">
+                              {account.accountCode} - {formatDisplay(account.accountStatus)} - onboarding {formatDisplay(account.onboardingStatus)}
+                            </div>
+                          </div>
+                          <StatusBadge label={canSelectAccount ? "Maintain" : "Incomplete refs"} tone={canSelectAccount ? "info" : "warning"} />
+                        </button>
+                      );
+                    })
+                  : null}
+              </div>
+
               <div className="account-setup-action-grid">
                 <form className="account-setup-scope-form" onSubmit={submitScope}>
                   <div>
-                    <h3 className="panel-title">Step 1: load account evidence</h3>
+                    <h3 className="panel-title">Manual lookup</h3>
                     <p className="journey-step-copy">
                       Choose the external references to inspect. Typing stays local until you run the check.
                     </p>
@@ -333,9 +402,9 @@ export function ReferralSaasAccountMaintenancePage() {
           <section className="panel">
             <div className="panel-header">
               <div>
-                <h2 className="panel-title">Account/draft selector</h2>
+                  <h2 className="panel-title">Setup draft fallback</h2>
                 <div className="panel-subtitle">
-                  Select from safe onboarding draft evidence for this external scope. This is not a durable account registry yet.
+                  Use this only when the customer has saved setup evidence but no durable account foundation is available in the account list.
                 </div>
               </div>
               <StatusBadge label={`${draftItems.length} drafts`} tone={draftItems.length ? "info" : "neutral"} />
@@ -546,4 +615,11 @@ function toCount(value: unknown) {
 
 function formatAreaCount(count: number, singularLabel: string) {
   return `${formatDisplay(count)} ${count === 1 ? singularLabel : `${singularLabel}s`}`;
+}
+
+function findAccountExternalRef(
+  references: { refType: string; externalRef: string }[] = [],
+  refType: string,
+) {
+  return references.find((reference) => reference.refType === refType)?.externalRef || "";
 }

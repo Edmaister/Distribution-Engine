@@ -10,15 +10,23 @@ import {
   type AdminOnboardingDraftSelectorResponse,
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
+import {
+  listReferralSaasAccounts,
+  type ReferralSaasAccountRegistryResponse,
+} from "../../api/endpoints/referralSaasAccounts";
 import { ReferralSaasAccountMaintenancePage } from "./ReferralSaasAccountMaintenancePage";
 
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
   getAdminOnboardingDrafts: vi.fn(),
   getAdminOnboardingState: vi.fn(),
 }));
+vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
+  listReferralSaasAccounts: vi.fn(),
+}));
 
 const mockedGetAdminOnboardingDrafts = vi.mocked(getAdminOnboardingDrafts);
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
+const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 
 function renderWorkspace(ui: ReactElement) {
   const client = new QueryClient({
@@ -154,11 +162,46 @@ function mockDraftSelector(): AdminOnboardingDraftSelectorResponse {
   };
 }
 
+function mockAccountRegistry(): ReferralSaasAccountRegistryResponse {
+  return {
+    status: "ok",
+    count: 1,
+    accounts: [
+      {
+        accountId: "acct-fnb",
+        accountCode: "ACCT_FNB",
+        accountName: "FNB Referral SaaS",
+        accountType: "ORGANISATION",
+        accountStatus: "PENDING_ONBOARDING",
+        onboardingStatus: "READY_FOR_REVIEW",
+        primaryExternalTenantRef: "fnb-referrals",
+        externalReferences: [
+          {
+            refType: "external_tenant_ref",
+            externalRef: "fnb-referrals",
+            referenceStatus: "ACTIVE",
+          },
+          {
+            refType: "organisation_ref",
+            externalRef: "fnb-org",
+            referenceStatus: "ACTIVE",
+          },
+        ],
+        createdAt: "2026-07-19T00:00:00",
+        updatedAt: "2026-07-19T01:00:00",
+      },
+    ],
+    guardrail: "Read-only Referral SaaS account registry.",
+    redactions: ["internal_tenant_identifier"],
+  };
+}
+
 describe("ReferralSaasAccountMaintenancePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetAdminOnboardingDrafts.mockResolvedValue(mockDraftSelector());
     mockedGetAdminOnboardingState.mockResolvedValue(mockMaintenanceState());
+    mockedListReferralSaasAccounts.mockResolvedValue(mockAccountRegistry());
   });
 
   afterEach(() => {
@@ -183,7 +226,10 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByRole("heading", { name: "Readiness check" })).toBeInTheDocument();
     expect(screen.getByText("Technical setup posture")).toBeInTheDocument();
     expect(screen.getByText("1 blocked area, 2 evidence gaps")).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "Account/draft selector" })).toBeInTheDocument();
+    expect(screen.getByText("Step 1: select the account to maintain")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /FNB Referral SaaS/ })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Setup draft fallback" })).toBeInTheDocument();
+    expect(mockedListReferralSaasAccounts).toHaveBeenCalledWith(50);
     expect(mockedGetAdminOnboardingDrafts).toHaveBeenCalledWith({
       external_tenant_ref: "demo-platform-operator",
       organisation_ref: "demo-organisation",
@@ -229,6 +275,24 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
   });
 
+  it("loads maintenance scope from the durable account registry", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /FNB Referral SaaS/ }));
+
+    await waitFor(() =>
+      expect(mockedGetAdminOnboardingState).toHaveBeenLastCalledWith({
+        external_tenant_ref: "fnb-referrals",
+        organisation_ref: "fnb-org",
+      }),
+    );
+    expect(await screen.findByText("Step 1: select the account to maintain")).toBeInTheDocument();
+    expect(screen.getAllByText("fnb-referrals / fnb-org").length).toBeGreaterThan(0);
+    expect(JSON.stringify(mockedListReferralSaasAccounts.mock.calls)).not.toMatch(
+      /tenant_code|api_key|client_secret/i,
+    );
+  });
+
   it("loads maintenance scope from a safe saved setup draft selector", async () => {
     mockedGetAdminOnboardingDrafts.mockResolvedValueOnce(mockDraftSelector()).mockResolvedValueOnce({
       ...mockDraftSelector(),
@@ -243,7 +307,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     });
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
 
-    expect(await screen.findByRole("heading", { name: "Account/draft selector" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Setup draft fallback" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /demo-organisation/ }));
 
     await waitFor(() =>

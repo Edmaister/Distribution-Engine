@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import datetime
+import json
 
 import pytest
 
@@ -187,3 +189,43 @@ async def test_disabled_tenant_link_is_rejected(monkeypatch):
             ref_type="external_tenant_ref",
             external_ref="disabled-link",
         )
+
+
+async def test_lists_safe_account_registry_without_internal_tenant_code(monkeypatch):
+    conn = FakeConnection(
+        [
+            {
+                "account_id": "acct-1",
+                "account_code": "ACCT_FNB",
+                "account_name": "FNB Referral SaaS",
+                "account_type": "ORGANISATION",
+                "account_status": "PENDING_ONBOARDING",
+                "onboarding_status": "READY_FOR_REVIEW",
+                "primary_external_tenant_ref": "fnb-referrals",
+                "created_at": datetime(2026, 7, 19),
+                "updated_at": datetime(2026, 7, 19, 1),
+                "external_references": json.dumps([
+                    {
+                        "refType": "external_tenant_ref",
+                        "externalRef": "fnb-referrals",
+                        "referenceStatus": "ACTIVE",
+                    },
+                    {
+                        "refType": "organisation_ref",
+                        "externalRef": "fnb-org",
+                        "referenceStatus": "ACTIVE",
+                    },
+                ]),
+            }
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    accounts = await svc.list_referral_saas_accounts(limit=250)
+
+    assert accounts[0].account_code == "ACCT_FNB"
+    safe_payload = accounts[0].to_safe_dict()
+    assert safe_payload["primaryExternalTenantRef"] == "fnb-referrals"
+    assert safe_payload["externalReferences"][1]["externalRef"] == "fnb-org"
+    assert "tenantCode" not in safe_payload
+    assert conn.calls[0][1] == (100,)
