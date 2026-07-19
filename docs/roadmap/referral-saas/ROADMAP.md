@@ -200,6 +200,7 @@ greenfield referral construction.
 92. TASK-226: Move full Account Setup readiness evidence to Account Maintenance.
 93. TASK-227: Add Account Maintenance durable account selector.
 94. TASK-228: Reframe Account Maintenance as a Client Workspace hub.
+95. TASK-229: Add Client Workspace physical verification.
 
 ## 10/10 Exit Criteria
 
@@ -634,6 +635,12 @@ greenfield referral construction.
   `docs/roadmap/ORDERED_TASK_LIST.md`
 - TASK-228: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
   `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-229: `scripts/referral_saas_client_workspace_physical_check.py`;
+  `test/test_referral_saas_client_workspace_physical_check.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_CLIENT_WORKSPACE_PHYSICAL_VERIFICATION.md`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`
