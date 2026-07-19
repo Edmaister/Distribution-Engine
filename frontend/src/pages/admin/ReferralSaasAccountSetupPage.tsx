@@ -911,7 +911,7 @@ export function ReferralSaasAccountSetupPage() {
                         </div>
                         <div className="summary-item">
                           <div className="summary-label">Setup checkpoint</div>
-                          <div className="summary-value">{accountSetupCheckpoint.label}</div>
+                          <div className="summary-value">{accountSetupCheckpoint.title}</div>
                           <div className="table-subtext">{accountSetupCheckpoint.copy}</div>
                         </div>
                         <div className="summary-item">
