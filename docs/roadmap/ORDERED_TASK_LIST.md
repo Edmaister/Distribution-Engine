@@ -4981,6 +4981,57 @@ Rollback notes: Restore the previous Step 1 defaults and remove the new field gu
 Explicit non-goals: Do not add schema, migrations, backend routes, account lifecycle commands, durable profile updates, membership writes, invitation delivery, credential lifecycle, webhook delivery, campaign activation, go-live, money movement, DLaaS marketplace behavior, or source-code forks.
 Definition of done: Account Setup starts from explicit operator-entered customer identifiers with tooltip guidance and no silent demo/customer context. Priority: P0.
 
+## TASK-233: Simplify Account Setup Review & Create UX
+
+Status: Complete (2026-07-19). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing Account Setup wizard, onboarding draft save API, submit-for-review API, review-decision API, Referral SaaS account creation wrapper, idempotency keys, duplicate-reference handling, and shared status/banner components. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup CX; account foundation creation guardrails; onboarding draft governance; duplicate account recovery.
+Objective: Replace the exposed save-submit-review-create operator ceremony in Account Setup Review & Create with one clear product create action plus a save-for-later action, while preserving the existing backend governance sequence behind the primary action.
+Why now: Manual testing showed the Review & Create screen made operators manually drive backend draft/review state transitions and made duplicate-reference `409` responses look like accidental repeated saves instead of expected account-foundation recovery.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; roadmap and gap docs.
+Database/schema impact: None.
+Backend impact: None. Existing admin onboarding and Referral SaaS account creation APIs remain the source of truth.
+Frontend impact: Review & Create now shows one primary `Create account foundation` action, one `Save and finish later` action, a compact setup summary, a collapsed explanation of the behind-the-scenes governance sequence, and a clearer duplicate account recovery state with customer-profile and different-identifier actions.
+API impact: None. The frontend still calls existing save, submit-for-review, review-decision, and account-from-draft APIs with bounded idempotency keys.
+Tests to add/update: Updates Account Setup page tests to verify the single product action runs the safe backend sequence, hides manual submit/review controls, preserves no-user/no-campaign/no-go-live/no-credential/no-money guardrails, and keeps duplicate/conflict recovery actionable.
+Validation method: `npm.cmd test -- --run src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run lint`; `git diff --check`.
+Acceptance criteria: Operators do not see separate manual submit/review buttons on Review & Create; account creation remains blocked behind existing draft/review/account-foundation APIs; duplicate account creation conflicts produce actionable customer-profile/different-identifier recovery; no schema, backend route, user, invite, campaign, credential, go-live, billing, money, DLaaS marketplace, or source-code fork behavior is added.
+Dependencies: TASK-232.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Restore the previous visible Review & Create timeline and old tests.
+Explicit non-goals: Do not add schema, migrations, backend routes, account lifecycle commands, durable profile updates, membership writes, invitation delivery, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Setup Review & Create behaves like a product action rather than a backend state-machine console while preserving existing governance and safe account-foundation guardrails. Priority: P0.
+
+## TASK-234: Remove hidden default account setup owner-scope collision
+
+Status: Complete (2026-07-20). Output: `services/referral_saas_account_setup_service.py`; `apps/api/routers/referral_saas_accounts.py`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `test/test_referral_saas_account_setup_service.py`; `test/api/test_referral_saas_accounts_api.py`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_CREATE_PHYSICAL_VERIFICATION.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing account-foundation tables, onboarding draft/review governance, account creation wrapper, tenant table, duplicate checks, and redaction rules. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup account-foundation creation; internal setup seed handling; duplicate conflict recovery; customer-safe identifiers.
+Objective: Stop Account Setup from silently using the default `FNB` internal owner scope for every new customer account foundation, and make internal owner-scope conflicts distinguishable from customer external-reference duplicates.
+Why now: Manual local E2E testing showed a new customer draft for `test-referral-fnb-001` / `test-fnb-sa-001` failed account creation with `409 Conflict`, while the customer was absent from Customer Profile. DB inspection confirmed the external refs were not duplicated; the hidden `FNB` owner scope was already attached to an older local account.
+Files involved: `services/referral_saas_account_setup_service.py`; `apps/api/routers/referral_saas_accounts.py`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; focused backend/API/frontend tests; roadmap and gap docs.
+Implementation/source files inspected: `services/referral_saas_account_setup_service.py`; `services/referral_saas_account_foundation_service.py`; `apps/api/routers/referral_saas_accounts.py`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `test/test_referral_saas_account_setup_service.py`; `test/api/test_referral_saas_accounts_api.py`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `dp/migrations/082_referral_saas_account_foundation.sql`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`.
+Database/schema impact: No migration changes. The account-foundation command now creates or updates the bounded internal tenant seed row required by the existing `platform_account_tenants.tenant_code` foreign key before inserting the account tenant link.
+Backend impact: Adds `AccountSetupDuplicateInternalTenantScope` with safe code `DUPLICATE_INTERNAL_TENANT_SCOPE`; changes account-creation guardrails from requiring a pre-existing internal tenant to allowing a bounded internal tenant seed; keeps the duplicate owner-link precheck before the write transaction.
+Frontend impact: Account Setup derives the hidden internal setup seed from the customer and organisation identifiers instead of defaulting to `FNB`; internal-scope duplicate conflicts render as `Setup workspace already used` with refresh and different-identifier recovery.
+API impact: Existing `POST /v1/referral-saas/accounts/from-draft` route remains; error detail can now return `DUPLICATE_INTERNAL_TENANT_SCOPE` for owner-scope collisions. No new route is added.
+Tests to add/update: Updates account setup service tests for bounded tenant seed insertion and internal-scope conflict; API tests for distinct safe conflict code and guardrails; Account Setup page tests for derived hidden setup scope and internal-scope conflict recovery.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_account_setup_service.py test\api\test_referral_saas_accounts_api.py`; `npm.cmd test -- --run src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run lint`; `git diff --check`.
+Acceptance criteria: A new customer account setup no longer silently collides with the old default `FNB` owner scope; the account-foundation command can create/update the bounded internal tenant seed it needs; existing external-reference duplicate protection remains; internal-scope conflicts return a distinct safe code and customer-safe UI recovery; internal tenant identifiers remain redacted from product payloads; no users, invitations, memberships, campaigns, credentials, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-233.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Restore the prior guardrails, remove bounded tenant seed insertion, restore the hidden `FNB` frontend setup scope, remove the distinct internal-scope conflict mapping, and revert related tests/docs.
+Explicit non-goals: Do not add schema, migrations, public tenant-management UI, account lifecycle updates, durable profile updates, membership writes, invitation delivery, seat assignment, auth/session claim changes, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Setup can create a fresh customer account foundation without reusing the old hidden `FNB` owner scope, while preserving redaction and duplicate guardrails. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

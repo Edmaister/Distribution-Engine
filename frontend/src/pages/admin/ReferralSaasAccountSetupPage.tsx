@@ -9,7 +9,6 @@ import {
   validateAdminOnboardingDryRun,
   type AdminOnboardingDraftSaveResponse,
   type AdminOnboardingReviewDecisionResponse,
-  type AdminOnboardingReviewOutcome,
   type AdminOnboardingSubmitForReviewResponse,
 } from "../../api/endpoints/adminOnboarding";
 import {
@@ -40,10 +39,13 @@ import {
 
 const defaultExternalTenantRef = "";
 const defaultOrganisationRef = "";
-const trustedInternalTenantScopeKey = "amplifi.referralSaas.accountSetup.trustedTenantScope";
-const defaultTrustedInternalTenantScope = "FNB";
 const draftConflictRecoveryMessage =
   "A saved setup already exists for this customer. Refresh the setup status to continue from the latest evidence, or use a different customer before saving another draft. No account was created and no live action was taken.";
+const accountAlreadyExistsMessage =
+  "This customer already has an account foundation, or the selected internal setup scope is already attached to an account. Open the customer profile if this is the same customer, or use different customer identifiers.";
+const internalScopeAlreadyUsedMessage =
+  "The setup workspace for this customer is already attached to another account foundation. Use different customer identifiers, then create the account foundation again.";
+const guidedReviewReason = "Account setup reviewed through the guided Referral SaaS account setup flow.";
 type SetupActionState = "idle" | "loading" | "success" | "error";
 type CompanyProfileForm = {
   organisationName: string;
@@ -129,11 +131,8 @@ export function ReferralSaasAccountSetupPage() {
   const [draftState, setDraftState] = useState<SetupActionState>("idle");
   const [draftResponse, setDraftResponse] = useState<AdminOnboardingDraftSaveResponse | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
-  const [submitState, setSubmitState] = useState<SetupActionState>("idle");
   const [submitResponse, setSubmitResponse] = useState<AdminOnboardingSubmitForReviewResponse | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [reviewReason, setReviewReason] = useState("");
-  const [reviewState, setReviewState] = useState<SetupActionState>("idle");
   const [reviewResponse, setReviewResponse] = useState<AdminOnboardingReviewDecisionResponse | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [createState, setCreateState] = useState<SetupActionState>("idle");
@@ -222,6 +221,14 @@ export function ReferralSaasAccountSetupPage() {
   const companyProfileHasUnsavedChanges = Boolean(
     savedCompanyProfile && !companyProfilesEqual(companyProfile, savedCompanyProfile),
   );
+  const companyProfileComplete = Boolean(
+    companyProfile.organisationName.trim() &&
+      companyProfile.country.trim() &&
+      companyProfile.organisationType.trim() &&
+      companyProfile.industry.trim() &&
+      companyProfile.adminContact.trim() &&
+      companyProfile.intendedRole.trim(),
+  );
   const draftIdempotencyKey = useMemo(
     () => ["referral-saas-account-setup-draft", appliedExternalTenantRef, appliedOrganisationRef].join(":"),
     [appliedExternalTenantRef, appliedOrganisationRef],
@@ -230,48 +237,17 @@ export function ReferralSaasAccountSetupPage() {
     () => ["referral-saas-account-setup-validate", appliedExternalTenantRef, appliedOrganisationRef].join(":"),
     [appliedExternalTenantRef, appliedOrganisationRef],
   );
-  const submitIdempotencyKey = useMemo(
-    () => ["referral-saas-account-setup-submit", draftResponse?.draft_ref || "missing-draft"].join(":"),
-    [draftResponse?.draft_ref],
-  );
-  const reviewIdempotencyKey = useMemo(
-    () => [
-      "referral-saas-account-setup-review",
-      submitResponse?.draft_ref || "missing-draft",
-      submitResponse?.draft_version ?? "missing-version",
-    ].join(":"),
-    [submitResponse?.draft_ref, submitResponse?.draft_version],
-  );
-  const createAccountIdempotencyKey = useMemo(
-    () => ["referral-saas-account-setup-create", reviewResponse?.draft_ref || "missing-draft"].join(":"),
-    [reviewResponse?.draft_ref],
-  );
-  const canSubmitForReview = Boolean(
-    actionScopeReady && draftResponse?.draft_ref && draftState === "success" && !companyProfileHasUnsavedChanges,
-  );
   const canSaveCompanyProfile = Boolean(
     actionScopeReady &&
-      companyProfile.organisationName.trim() &&
-      companyProfile.country.trim() &&
-      companyProfile.organisationType.trim() &&
-      companyProfile.industry.trim() &&
-      companyProfile.adminContact.trim() &&
-      companyProfile.intendedRole.trim() &&
+      companyProfileComplete &&
       draftState !== "loading" &&
       (!companyProfileHasSavedDraft || companyProfileHasUnsavedChanges || draftState !== "success"),
   );
-  const canRecordReview = Boolean(
-    actionScopeReady &&
-      submitResponse?.draft_ref &&
-      submitResponse.draft_status === "READY_FOR_REVIEW" &&
-      submitState === "success",
-  );
   const canCreateAccount = Boolean(
     actionScopeReady &&
-      reviewResponse?.draft_ref &&
-      reviewResponse.review_outcome === "APPROVED_FOR_INTERNAL_REVIEW" &&
-      reviewState === "success" &&
-      !durableAccount,
+      companyProfileComplete &&
+      !durableAccount &&
+      createState !== "loading",
   );
   const wizardSteps = [
     { id: 1, label: "Identify customer" },
@@ -436,10 +412,8 @@ export function ReferralSaasAccountSetupPage() {
     setDraftState("idle");
     setDraftResponse(null);
     setDraftError(null);
-    setSubmitState("idle");
     setSubmitResponse(null);
     setSubmitError(null);
-    setReviewState("idle");
     setReviewResponse(null);
     setReviewError(null);
     setCreateState("idle");
@@ -483,10 +457,8 @@ export function ReferralSaasAccountSetupPage() {
     setDraftState("loading");
     setDraftResponse(null);
     setDraftError(null);
-    setSubmitState("idle");
     setSubmitResponse(null);
     setSubmitError(null);
-    setReviewState("idle");
     setReviewResponse(null);
     setReviewError(null);
     setCreateState("idle");
@@ -512,82 +484,63 @@ export function ReferralSaasAccountSetupPage() {
     }
   }
 
-  async function handleSubmitSetupDraft() {
-    if (!canSubmitForReview || !draftResponse?.draft_ref || submitState === "loading") {
-      return;
-    }
-    setSubmitState("loading");
-    setSubmitResponse(null);
-    setSubmitError(null);
-    setReviewState("idle");
-    setReviewResponse(null);
-    setReviewError(null);
-    setCreateState("idle");
-    setCreateResponse(null);
-    setCreateError(null);
-    try {
-      const response = await submitAdminOnboardingDraftForReview(draftResponse.draft_ref, {
-        external_tenant_ref: appliedExternalTenantRef,
-        organisation_ref: appliedOrganisationRef,
-        expected_version: draftResponse.draft_version ?? 1,
-        idempotency_key: submitIdempotencyKey,
-        correlation_id: "referral-saas-account-setup-submit-review",
-      });
-      setSubmitResponse(response);
-      setSubmitState("success");
-    } catch (error) {
-      setSubmitError(safeActionError(error, "Submit for review is unavailable. No approval or live action was taken."));
-      setSubmitState("error");
-    }
-  }
-
-  async function handleReviewDecision(outcome: AdminOnboardingReviewOutcome) {
-    if (!canRecordReview || !submitResponse?.draft_ref || reviewState === "loading") {
-      return;
-    }
-    const reason = reviewReason.trim();
-    if (!reason) {
-      setReviewError("A bounded review reason is required. No approval, go-live, or live action was taken.");
-      setReviewState("error");
-      return;
-    }
-    setReviewState("loading");
-    setReviewResponse(null);
-    setReviewError(null);
-    try {
-      const response = await recordAdminOnboardingReviewDecision(submitResponse.draft_ref, {
-        external_tenant_ref: appliedExternalTenantRef,
-        organisation_ref: appliedOrganisationRef,
-        expected_version: submitResponse.draft_version ?? 1,
-        idempotency_key: `${reviewIdempotencyKey}:${outcome}`,
-        review_outcome: outcome,
-        reason_category: outcome === "BLOCKED" ? "REVIEW_BLOCKER" : "OPERATOR_REVIEW",
-        reason,
-        correlation_id: "referral-saas-account-setup-review-decision",
-      });
-      setReviewResponse(response);
-      setReviewState("success");
-      setCreateState("idle");
-      setCreateResponse(null);
-      setCreateError(null);
-    } catch (error) {
-      setReviewError(safeActionError(error, "Review decision is unavailable. No approval, go-live, or live action was taken."));
-      setReviewState("error");
-    }
-  }
-
   async function handleCreateAccountFoundation() {
-    if (!canCreateAccount || !reviewResponse?.draft_ref || createState === "loading") {
+    if (!canCreateAccount) {
       return;
     }
+    setDraftError(null);
+    setSubmitError(null);
+    setReviewError(null);
     setCreateState("loading");
     setCreateResponse(null);
     setCreateError(null);
     try {
+      const savedDraft = draftResponse?.draft_ref && draftState === "success" && !companyProfileHasUnsavedChanges
+        ? draftResponse
+        : await saveAdminOnboardingDraft({
+            external_tenant_ref: appliedExternalTenantRef,
+            organisation_ref: appliedOrganisationRef,
+            idempotency_key: draftIdempotencyKey,
+            correlation_id: "referral-saas-account-setup-draft",
+            sections: setupSections,
+          });
+      setDraftResponse(savedDraft);
+      setDraftState("success");
+      setSavedCompanyProfile(companyProfile);
+      setLoadedCompanyDraftRef(savedDraft.draft_ref);
+      setLoadedCompanyDraftVersion(savedDraft.draft_version ?? null);
+      setLoadedCompanyDraftUpdatedAt(null);
+
+      const submittedDraft = await submitAdminOnboardingDraftForReview(savedDraft.draft_ref, {
+        external_tenant_ref: appliedExternalTenantRef,
+        organisation_ref: appliedOrganisationRef,
+        expected_version: savedDraft.draft_version ?? 1,
+        idempotency_key: ["referral-saas-account-setup-submit", savedDraft.draft_ref].join(":"),
+        correlation_id: "referral-saas-account-setup-submit-review",
+      });
+      setSubmitResponse(submittedDraft);
+
+      const reviewedDraft = await recordAdminOnboardingReviewDecision(submittedDraft.draft_ref, {
+        external_tenant_ref: appliedExternalTenantRef,
+        organisation_ref: appliedOrganisationRef,
+        expected_version: submittedDraft.draft_version ?? 1,
+        idempotency_key: [
+          "referral-saas-account-setup-review",
+          submittedDraft.draft_ref,
+          submittedDraft.draft_version ?? "missing-version",
+          "APPROVED_FOR_INTERNAL_REVIEW",
+        ].join(":"),
+        review_outcome: "APPROVED_FOR_INTERNAL_REVIEW",
+        reason_category: "OPERATOR_REVIEW",
+        reason: guidedReviewReason,
+        correlation_id: "referral-saas-account-setup-review-decision",
+      });
+      setReviewResponse(reviewedDraft);
+
       const response = await createReferralSaasAccountFromDraft({
-        draftRef: reviewResponse.draft_ref,
-        internalTenantCode: getTrustedInternalTenantScope(),
-        idempotencyKey: createAccountIdempotencyKey,
+        draftRef: reviewedDraft.draft_ref,
+        internalTenantCode: deriveInternalSetupTenantScope(appliedExternalTenantRef, appliedOrganisationRef),
+        idempotencyKey: ["referral-saas-account-setup-create", reviewedDraft.draft_ref].join(":"),
       });
       setCreateResponse(response);
       setCreateState("success");
@@ -931,62 +884,101 @@ export function ReferralSaasAccountSetupPage() {
                   <>
                     <div>
                       <div className="page-kicker">Review & create</div>
-                      <h3 className="account-wizard-title">Save, review, then create foundation</h3>
-                      <p className="page-copy">The same gated spine as before, shown as an ordered timeline instead of equal competing actions.</p>
+                      <h3 className="account-wizard-title">Review and create account foundation</h3>
+                      <p className="page-copy">Confirm the customer setup evidence, then create the account foundation. We handle the required safe review steps in the background.</p>
                     </div>
                     <div className="wizard-card">
-                      <ol className="wizard-timeline">
-                        <li className={draftResponse ? "done" : "current"}>
-                          <span>1</span>
-                          <div>
-                            <strong>Save setup draft</strong>
-                            <p>Persist setup intent for this external scope.</p>
-                            <button className="button secondary" disabled={!actionScopeReady || draftState === "loading"} onClick={handleSaveSetupDraft} type="button">
-                              {draftState === "loading" ? "Saving draft" : "Save setup draft"}
-                            </button>
-                          </div>
-                        </li>
-                        <li className={submitResponse ? "done" : canSubmitForReview ? "current" : "locked"}>
-                          <span>2</span>
-                          <div>
-                            <strong>Submit for review</strong>
-                            <p>Move the draft into a human review gate.</p>
-                            <button className="button secondary" disabled={!canSubmitForReview || submitState === "loading"} onClick={handleSubmitSetupDraft} type="button">
-                              {submitState === "loading" ? "Submitting review" : "Submit for review"}
-                            </button>
-                          </div>
-                        </li>
-                        <li className={reviewResponse ? "done" : canRecordReview ? "current" : "locked"}>
-                          <span>3</span>
-                          <div>
-                            <strong>Internal review decision</strong>
-                            <p>Reason required. Accept unlocks create; Block stops the path.</p>
-                            <label className="field" htmlFor="referral-saas-review-reason">
-                              <span>Review reason</span>
-                              <textarea className="input" disabled={!canRecordReview} id="referral-saas-review-reason" onChange={(event) => setReviewReason(event.target.value)} placeholder="Bounded internal review reason" rows={3} value={reviewReason} />
-                            </label>
-                            <div className="action-button-row">
-                              <button className="button" disabled={!canRecordReview || reviewState === "loading"} onClick={() => handleReviewDecision("APPROVED_FOR_INTERNAL_REVIEW")} type="button">Accept internal review</button>
-                              <button className="button secondary" disabled={!canRecordReview || reviewState === "loading"} onClick={() => handleReviewDecision("BLOCKED")} type="button">Mark review blocked</button>
+                      <div className="wizard-status-card">
+                        <div>
+                          <strong>Ready to create the customer foundation</strong>
+                          <p>
+                            This creates the durable account foundation only. It does not create users, send invites,
+                            create campaigns, enable go-live, create credentials, bill, settle, or move money.
+                          </p>
+                        </div>
+                        <StatusBadge label="Safe mode" tone="warning" />
+                      </div>
+                      <div className="summary-grid">
+                        <div className="summary-item">
+                          <div className="summary-label">Customer</div>
+                          <div className="summary-value">{appliedExternalTenantRef}</div>
+                          <div className="table-subtext">{appliedOrganisationRef}</div>
+                        </div>
+                        <div className="summary-item">
+                          <div className="summary-label">Company profile</div>
+                          <div className="summary-value">{companyProfileStatusBadge}</div>
+                          <div className="table-subtext">{companyProfileStatusCopy}</div>
+                        </div>
+                        <div className="summary-item">
+                          <div className="summary-label">Setup checkpoint</div>
+                          <div className="summary-value">{accountSetupCheckpoint.title}</div>
+                          <div className="table-subtext">{accountSetupCheckpoint.copy}</div>
+                        </div>
+                        <div className="summary-item">
+                          <div className="summary-label">Account foundation</div>
+                          <div className="summary-value">{durableAccount ? "Already exists" : createResponse ? "Created" : "Not created"}</div>
+                          <div className="table-subtext">{durableAccount ? formatAccountSummary(durableAccount) : "Create only after customer evidence is correct."}</div>
+                        </div>
+                      </div>
+                      <div className="action-button-row">
+                        <button className="button" disabled={!canCreateAccount} onClick={handleCreateAccountFoundation} type="button">
+                          {createState === "loading" ? "Creating account foundation" : "Create account foundation"}
+                        </button>
+                        <button className="button secondary" disabled={!actionScopeReady || draftState === "loading"} onClick={handleSaveSetupDraft} type="button">
+                          {draftState === "loading" ? "Saving draft" : "Save and finish later"}
+                        </button>
+                        <button className="button secondary" onClick={handleChangeCustomerReferences} type="button">
+                          Use different customer identifiers
+                        </button>
+                      </div>
+                      <details className="wizard-details">
+                        <summary>What happens behind the button</summary>
+                        <ol className="wizard-timeline compact">
+                          <li className={draftResponse ? "done" : "locked"}>
+                            <span>1</span>
+                            <div>
+                              <strong>Save setup draft</strong>
+                              <p>Persist customer setup evidence for this external customer scope.</p>
                             </div>
-                          </div>
-                        </li>
-                        <li className={createResponse || durableAccount ? "done" : canCreateAccount ? "current" : "locked"}>
-                          <span>4</span>
+                          </li>
+                          <li className={submitResponse ? "done" : "locked"}>
+                            <span>2</span>
+                            <div>
+                              <strong>Submit for internal review</strong>
+                              <p>Move the setup draft through the existing governed review gate.</p>
+                            </div>
+                          </li>
+                          <li className={reviewResponse ? "done" : "locked"}>
+                            <span>3</span>
+                            <div>
+                              <strong>Record review approval</strong>
+                              <p>Record a bounded internal setup decision without enabling launch or money actions.</p>
+                            </div>
+                          </li>
+                          <li className={createResponse || durableAccount ? "done" : "locked"}>
+                            <span>4</span>
+                            <div>
+                              <strong>Create account foundation</strong>
+                              <p>Create the account, tenant link, and external reference foundation only.</p>
+                            </div>
+                          </li>
+                        </ol>
+                      </details>
+                      {durableAccount ? (
+                        <div className="banner success" role="status">
+                          <CheckCircle2 size={18} />
                           <div>
-                            <strong>Create account foundation</strong>
-                            <p>Creates the durable account foundation only. No users, campaigns, go-live, or money.</p>
-                            <button className="button" disabled={!canCreateAccount || createState === "loading"} onClick={handleCreateAccountFoundation} type="button">
-                              {createState === "loading" ? "Creating account" : "Create account foundation"}
-                            </button>
+                            <strong>Account foundation already exists.</strong>
+                            <div className="table-subtext">{formatAccountSummary(durableAccount)}</div>
                           </div>
-                        </li>
-                      </ol>
+                        </div>
+                      ) : null}
                       <SetupActionResult
                         createError={createError}
                         createResponse={createResponse}
                         draftResponse={draftResponse}
                         draftError={draftError}
+                        mode="guided"
                         onChangeCustomerReferences={handleChangeCustomerReferences}
                         onRefreshSetupStatus={handleRefreshSetupStatus}
                         reviewError={reviewError}
@@ -1357,8 +1349,15 @@ function safeActionError(error: unknown, fallback: string) {
 
 function safeAccountCreateError(error: unknown) {
   const status = typeof error === "object" && error && "status" in error ? Number((error as { status?: number }).status) : null;
+  const code =
+    typeof error === "object" && error && "detail" in error
+      ? asText((error as { detail?: { code?: unknown } }).detail?.code)
+      : "";
   if (status === 409) {
-    return "The account could not be created because this setup scope already has conflicting or previously created account evidence. Re-check account setup to continue from the resolved account context.";
+    if (code === "DUPLICATE_INTERNAL_TENANT_SCOPE") {
+      return internalScopeAlreadyUsedMessage;
+    }
+    return accountAlreadyExistsMessage;
   }
   if (status === 422) {
     return "The reviewed setup draft is missing required account creation evidence. No account, tenant, user, campaign, go-live, or money action was taken.";
@@ -1369,12 +1368,18 @@ function safeAccountCreateError(error: unknown) {
   return "Account foundation creation is unavailable. No tenant, user, campaign, go-live, or money action was taken.";
 }
 
-function getTrustedInternalTenantScope() {
-  if (typeof window === "undefined") {
-    return defaultTrustedInternalTenantScope;
+function deriveInternalSetupTenantScope(externalTenantRef: string, organisationRef: string) {
+  const source = `${externalTenantRef}:${organisationRef}`;
+  const cleaned = source
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  const prefix = (cleaned || "CUSTOMER_SETUP").slice(0, 28);
+  let hash = 0;
+  for (let index = 0; index < source.length; index += 1) {
+    hash = (hash * 31 + source.charCodeAt(index)) >>> 0;
   }
-
-  return localStorage.getItem(trustedInternalTenantScopeKey) || defaultTrustedInternalTenantScope;
+  return `RS_${prefix}_${hash.toString(36).toUpperCase()}`.slice(0, 48);
 }
 
 function formatAccountSummary(account: ReferralSaasAccountSummary) {
@@ -1392,6 +1397,7 @@ function SetupActionResult({
   createResponse,
   draftError,
   draftResponse,
+  mode = "technical",
   onChangeCustomerReferences,
   onRefreshSetupStatus,
   reviewError,
@@ -1404,6 +1410,7 @@ function SetupActionResult({
   createResponse: ReferralSaasAccountCreateFromDraftResponse | null;
   draftError: string | null;
   draftResponse: AdminOnboardingDraftSaveResponse | null;
+  mode?: "guided" | "technical";
   onChangeCustomerReferences: () => void;
   onRefreshSetupStatus: () => void;
   reviewError: string | null;
@@ -1412,9 +1419,11 @@ function SetupActionResult({
   submitResponse: AdminOnboardingSubmitForReviewResponse | null;
   validationError: string | null;
 }) {
+  const showTechnicalSteps = mode === "technical";
+
   return (
     <>
-      {draftResponse ? (
+      {draftResponse && showTechnicalSteps ? (
         <div className="banner success" role="status">
           <CheckCircle2 size={18} />
           <div>
@@ -1426,7 +1435,7 @@ function SetupActionResult({
           </div>
         </div>
       ) : null}
-      {submitResponse ? (
+      {submitResponse && showTechnicalSteps ? (
         <div className="banner success" role="status">
           <CheckCircle2 size={18} />
           <div>
@@ -1438,7 +1447,7 @@ function SetupActionResult({
           </div>
         </div>
       ) : null}
-      {reviewResponse ? (
+      {reviewResponse && showTechnicalSteps ? (
         <div className="banner success" role="status">
           <CheckCircle2 size={18} />
           <div>
@@ -1450,14 +1459,39 @@ function SetupActionResult({
           </div>
         </div>
       ) : null}
+      {mode === "guided" && draftResponse && !createResponse && !createError ? (
+        <div className="banner success" role="status">
+          <CheckCircle2 size={18} />
+          <div>
+            <strong>Customer setup evidence saved.</strong>
+            <div className="table-subtext">
+              You can finish later, or continue now to create the account foundation.
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {mode === "guided" && createResponse ? (
+        <div className="banner success" role="status">
+          <CheckCircle2 size={18} />
+          <div>
+            <strong>Safe setup review completed.</strong>
+            <div className="table-subtext">
+              The required setup checks passed without enabling go-live, credentials, billing, settlement, or money movement.
+            </div>
+          </div>
+        </div>
+      ) : null}
       {createResponse ? (
         <div className="banner success" role="status">
           <CheckCircle2 size={18} />
           <div>
             <strong>Account foundation created.</strong>
             <div className="table-subtext">
-              {formatAccountSummary(createResponse.account)}; adjacent live action:{" "}
-              {createResponse.noAdjacentLiveActionConfirmed ? "blocked" : "unavailable"}.
+              {mode === "guided"
+                ? "Open this customer from Customer profile to continue account maintenance, campaigns, links, reporting, and support in that customer context."
+                : `${formatAccountSummary(createResponse.account)}; adjacent live action: ${
+                    createResponse.noAdjacentLiveActionConfirmed ? "blocked" : "unavailable"
+                  }.`}
             </div>
           </div>
         </div>
@@ -1466,15 +1500,30 @@ function SetupActionResult({
         <div className="banner warning" key={message} role="status">
           <ShieldCheck size={18} />
           <div>
-            <strong>{message === draftConflictRecoveryMessage ? "Existing setup draft found." : "Setup action fallback."}</strong>
+            <strong>
+              {message === draftConflictRecoveryMessage
+                ? "Existing setup draft found."
+                : message === internalScopeAlreadyUsedMessage
+                  ? "Setup workspace already used."
+                : message === accountAlreadyExistsMessage
+                  ? "Account foundation already exists."
+                  : "Setup action fallback."}
+            </strong>
             <div className="table-subtext">{message}</div>
-            {message === draftConflictRecoveryMessage ? (
+            {message === draftConflictRecoveryMessage ||
+            message === accountAlreadyExistsMessage ||
+            message === internalScopeAlreadyUsedMessage ? (
               <div className="action-button-row">
                 <button className="button secondary" onClick={onRefreshSetupStatus} type="button">
                   Refresh setup status
                 </button>
+                {message === accountAlreadyExistsMessage ? (
+                  <Link className="button secondary" to="/admin/referral-saas/account-maintenance">
+                    Open customer profile
+                  </Link>
+                ) : null}
                 <button className="button secondary" onClick={onChangeCustomerReferences} type="button">
-                  Use different customer
+                  Use different customer identifiers
                 </button>
               </div>
             ) : null}

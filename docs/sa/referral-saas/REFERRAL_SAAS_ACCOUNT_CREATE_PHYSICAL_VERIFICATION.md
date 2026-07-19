@@ -13,9 +13,11 @@ account foundation from a reviewed onboarding draft, resolve that account throug
 the product resolver, and preserve the Referral SaaS boundary before the frontend
 create action is wired.
 
-This proof is intentionally limited to account foundation creation. It does not
-create tenants, memberships, invitations, campaigns, credentials, webhooks,
-go-live actions, rewards, funding, fulfilment, settlement, or money movement.
+This proof is intentionally limited to account foundation creation. It may
+create or update the bounded internal tenant seed required by the account
+foundation link, but it does not expose that internal identifier or create
+memberships, invitations, campaigns, credentials, webhooks, go-live actions,
+rewards, funding, fulfilment, settlement, or money movement.
 
 ## Verified Path
 
@@ -52,8 +54,8 @@ product payload.
 The physical proof confirmed these account creation guardrails:
 
 - `DURABLE_ACCOUNT_FOUNDATION_ONLY`
-- `EXISTING_INTERNAL_TENANT_REQUIRED`
-- `NO_TENANT_CREATION`
+- `BOUNDED_INTERNAL_TENANT_SEED`
+- `NO_EXTERNAL_TENANT_IDENTIFIER_EXPOSURE`
 - `NO_MEMBERSHIP_WRITE`
 - `NO_INVITE_DELIVERY`
 - `NO_CAMPAIGN_PUBLICATION`
