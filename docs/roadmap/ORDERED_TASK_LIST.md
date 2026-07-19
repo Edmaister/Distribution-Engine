@@ -4749,6 +4749,32 @@ Rollback notes: Revert the Account Setup page/test updates and roadmap/gap/task-
 Explicit non-goals: Do not add backend routes, service writes, schema, migrations, account lifecycle commands, draft overwrite/delete, stale draft override, permission changes, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Account Setup Step 2 treats saved Company Profile evidence as a clear product milestone with a next action instead of exposing internal draft workflow details. Priority: P0.
 
+## TASK-224: Remove People and Roles from Account Setup
+
+Status: Complete (2026-07-19). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Keeps the existing membership posture and invitation intent primitives intact, but removes the invitation-write UX from Account Setup so users/access can be handled in Account Maintenance. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup/Account Maintenance boundary; access-role UX separation; wizard coherence.
+Objective: Remove the People and Roles form from Account Setup and route user-access management to Account Maintenance after account foundation creation.
+Why now: User testing showed that role family, permission set, user subject, and email hash fields made Account Setup feel like access maintenance before the account existed. Step 2 already captures the primary setup contact, while ongoing users, roles, permissions, invites, removals, and access changes belong to Account Maintenance.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: None. The membership posture read API and invitation intent command remain available for future Account Maintenance work.
+Frontend impact: Converts Account Setup from seven steps to six steps: Identify customer, Company profile, Integration intent, Readiness check, Review & create, and Handoff. Removes the People and Roles setup form, invitation intent CTA, raw role-family selector, raw permission-set selector, user-subject field, and email-hash field from Account Setup. Updates copy to state that users, access roles, and permissions are managed later in Account Maintenance.
+API impact: None.
+Tests to add/update: Updates Account Setup tests to assert the six-step journey, direct Company Profile to Integration Intent progression, absence of People and Roles and Record role intent controls, and preserved account creation guardrails.
+Validation method: `npm.cmd test -- ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Account Setup no longer asks operators to create or plan additional users/roles; the primary setup contact remains captured in Company Profile; wizard gating works across six steps; Account Setup still shows safe membership posture on handoff when available; no membership API/service, backend route, schema, account command, campaign activation, go-live, money, or DLaaS marketplace behavior is removed or changed.
+Dependencies: TASK-223.
+Blocked by: None. Account Maintenance user-access write UX remains a future task.
+Risk level: Medium.
+Rollback notes: Revert the Account Setup page/test updates and roadmap/gap/task-list entries.
+Explicit non-goals: Do not delete membership services/APIs/tests, add backend routes, service writes, schema, migrations, account lifecycle commands, draft overwrite/delete, stale draft override, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Setup contains only onboarding/foundation steps, while users/access are clearly deferred to Account Maintenance. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

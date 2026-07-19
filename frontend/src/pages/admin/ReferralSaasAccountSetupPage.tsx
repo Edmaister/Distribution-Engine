@@ -15,11 +15,9 @@ import {
 } from "../../api/endpoints/adminOnboarding";
 import {
   createReferralSaasAccountFromDraft,
-  recordReferralSaasMembershipInvitationIntent,
   type ReferralSaasAccountMembershipPosture,
   type ReferralSaasAccountCreateFromDraftResponse,
   type ReferralSaasAccountSummary,
-  type ReferralSaasMembershipInvitationResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import {
   useReferralSaasAccountDraftSelector,
@@ -156,14 +154,6 @@ export function ReferralSaasAccountSetupPage() {
   const [loadedCompanyDraftRef, setLoadedCompanyDraftRef] = useState<string | null>(null);
   const [loadedCompanyDraftVersion, setLoadedCompanyDraftVersion] = useState<number | null>(null);
   const [loadedCompanyDraftUpdatedAt, setLoadedCompanyDraftUpdatedAt] = useState<string | null>(null);
-  const [memberSubject, setMemberSubject] = useState("setup-owner");
-  const [memberDisplayName, setMemberDisplayName] = useState("Referral SaaS setup owner");
-  const [memberEmailHash, setMemberEmailHash] = useState("");
-  const [memberRoleFamily, setMemberRoleFamily] = useState("DISTRIBUTION_ADMIN");
-  const [memberPermissionSet, setMemberPermissionSet] = useState("REFERRAL_SAAS_ACCOUNT_ADMIN");
-  const [membershipInviteState, setMembershipInviteState] = useState<SetupActionState>("idle");
-  const [membershipInviteResponse, setMembershipInviteResponse] = useState<ReferralSaasMembershipInvitationResponse | null>(null);
-  const [membershipInviteError, setMembershipInviteError] = useState<string | null>(null);
   const [setupRefreshKey, setSetupRefreshKey] = useState(0);
   const [accountRefreshKey, setAccountRefreshKey] = useState(0);
   const { data, error, isLoading } = useReferralSaasAccountSetupState(
@@ -279,15 +269,6 @@ export function ReferralSaasAccountSetupPage() {
     () => ["referral-saas-account-setup-create", reviewResponse?.draft_ref || "missing-draft"].join(":"),
     [reviewResponse?.draft_ref],
   );
-  const membershipInvitationIdempotencyKey = useMemo(
-    () => [
-      "referral-saas-account-setup-membership-invitation",
-      durableAccount?.accountId || durableAccount?.accountCode || "missing-account",
-      memberSubject.trim() || "missing-subject",
-      memberRoleFamily,
-    ].join(":"),
-    [durableAccount?.accountCode, durableAccount?.accountId, memberRoleFamily, memberSubject],
-  );
   const canSubmitForReview = Boolean(
     actionScopeReady && draftResponse?.draft_ref && draftState === "success" && !companyProfileHasUnsavedChanges,
   );
@@ -315,23 +296,13 @@ export function ReferralSaasAccountSetupPage() {
       reviewState === "success" &&
       !durableAccount,
   );
-  const canRecordMembershipInvitation = Boolean(
-    actionScopeReady &&
-      durableAccount &&
-      (durableAccount.accountId || durableAccount.accountCode) &&
-      memberSubject.trim() &&
-      memberRoleFamily &&
-      memberPermissionSet &&
-      membershipInviteState !== "loading",
-  );
   const wizardSteps = [
     { id: 1, label: "Identify customer" },
     { id: 2, label: "Company profile" },
-    { id: 3, label: "People & roles" },
-    { id: 4, label: "Integration intent" },
-    { id: 5, label: "Readiness check" },
-    { id: 6, label: "Review & create" },
-    { id: 7, label: "Handoff" },
+    { id: 3, label: "Integration intent" },
+    { id: 4, label: "Readiness check" },
+    { id: 5, label: "Review & create" },
+    { id: 6, label: "Handoff" },
   ];
   const resolvedRows = accountChecklist.map((item) => {
     const matchingCategory = categories.find((category) => categoryMatches(category, item));
@@ -350,26 +321,16 @@ export function ReferralSaasAccountSetupPage() {
     ["Blocked", "Missing evidence", "Needs evidence", "Needs attention", "Pending"].includes(row.status),
   );
   const accountProfileRow = resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE");
-  const membershipRow = resolvedRows.find((row) => row.code === "MEMBERSHIP");
-  const hasMembershipEvidence = Boolean(
-    membershipInviteResponse ||
-      (membershipPosture &&
-        (membershipPosture.activeCount > 0 ||
-          membershipPosture.invitedCount > 0 ||
-          membershipPosture.totalMemberships > 0)),
-  );
   const wizardStepCompletion = {
     1: actionScopeReady && scopeCheckConfirmed && !scopeChanged,
     2: isReadyStatus(accountProfileRow?.status) || Boolean(companyProfileHasSavedDraft && !companyProfileHasUnsavedChanges),
-    3: hasMembershipEvidence,
-    4: true,
-    5: validationState === "success" || !needsSetupWork,
-    6: Boolean(durableAccount || createResponse),
-    7: false,
+    3: true,
+    4: validationState === "success" || !needsSetupWork,
+    5: Boolean(durableAccount || createResponse),
+    6: false,
   } as const;
   const wizardStepPassable = {
     ...wizardStepCompletion,
-    3: wizardStepCompletion[3] || !durableAccount,
   } as const;
 
   useEffect(() => {
@@ -502,9 +463,6 @@ export function ReferralSaasAccountSetupPage() {
     setCreateState("idle");
     setCreateResponse(null);
     setCreateError(null);
-    setMembershipInviteState("idle");
-    setMembershipInviteResponse(null);
-    setMembershipInviteError(null);
   }
 
   async function handleValidateSetupDraft() {
@@ -660,50 +618,6 @@ export function ReferralSaasAccountSetupPage() {
     }
   }
 
-  async function handleRecordMembershipInvitationIntent() {
-    if (!canRecordMembershipInvitation || !durableAccount) {
-      return;
-    }
-    const accountRef = durableAccount.accountId || durableAccount.accountCode;
-    if (!accountRef) {
-      return;
-    }
-
-    setMembershipInviteState("loading");
-    setMembershipInviteResponse(null);
-    setMembershipInviteError(null);
-    try {
-      const response = await recordReferralSaasMembershipInvitationIntent({
-        accountRef,
-        accountScope: {
-          refType: "external_tenant_ref",
-          externalRef: appliedExternalTenantRef,
-          context: "setup",
-        },
-        actor: {
-          actorType: "USER",
-          subject: memberSubject,
-          emailHash: memberEmailHash,
-          displayName: memberDisplayName,
-        },
-        membership: {
-          roleFamily: memberRoleFamily,
-          permissionSet: memberPermissionSet,
-          tenantScope: "PRIMARY_ACCOUNT_TENANT",
-        },
-        reasonCode: "ACCOUNT_SETUP_USER_ROLE",
-        correlationId: "referral-saas-account-setup-membership-invitation",
-        idempotencyKey: membershipInvitationIdempotencyKey,
-      });
-      setMembershipInviteResponse(response);
-      setMembershipInviteState("success");
-      setAccountRefreshKey((current) => current + 1);
-    } catch (error) {
-      setMembershipInviteError(safeMembershipInvitationError(error));
-      setMembershipInviteState("error");
-    }
-  }
-
   const readinessEvidenceLabel = resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE")?.status || "Pending";
   const readinessEvidenceCopy =
     resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE")?.evidence ||
@@ -711,10 +625,10 @@ export function ReferralSaasAccountSetupPage() {
   const companyProfileStatusCopy = companyProfileHasUnsavedChanges
     ? "You changed the company profile after the last saved draft. Save these changes before continuing."
     : companyProfileHasSavedDraft
-      ? "Company profile saved. Continue to People & roles."
+      ? "Company profile saved. Continue to Integration intent."
       : draftSelectorLoading
         ? "Checking for a saved company profile draft for this customer."
-        : "Save the company profile draft before moving to People & roles.";
+        : "Save the company profile draft before moving to Integration intent.";
   const companyProfileStatusBadge = companyProfileHasUnsavedChanges
     ? "Unsaved changes"
     : companyProfileHasSavedDraft
@@ -889,7 +803,7 @@ export function ReferralSaasAccountSetupPage() {
                         <div className="field">
                           <label htmlFor="referral-saas-company-intended-role">
                             Contact responsibility{" "}
-                            <InfoTooltip text="Describes why this contact is involved in setup. Access roles and permissions are captured later in People & roles." />
+                            <InfoTooltip text="Describes why this contact is involved in setup. Users, access roles, and permissions are managed later in Account Maintenance." />
                           </label>
                           <select
                             className="input"
@@ -947,63 +861,6 @@ export function ReferralSaasAccountSetupPage() {
                 {activeWizardStep === 3 ? (
                   <>
                     <div>
-                      <div className="page-kicker">People & roles</div>
-                      <h3 className="account-wizard-title">Record role invitation intent</h3>
-                      <p className="page-copy">Capture who should administer this account. This records intent only; it does not send email or activate login.</p>
-                    </div>
-                    <div className="wizard-card route-list">
-                      <div className="wizard-status-card">
-                        <div>
-                          <strong>User access status</strong>
-                          <p>{membershipPostureStatus.copy}</p>
-                          {membershipPosture ? <span>{membershipPosture.activeCount} active, {membershipPosture.invitedCount} invited, {membershipPosture.totalMemberships} total memberships.</span> : null}
-                        </div>
-                        <StatusBadge label={membershipPostureStatus.label} tone={membershipPostureStatus.tone} />
-                      </div>
-                      <div className="form-grid">
-                        <label className="field">
-                          <span>User subject</span>
-                          <input className="input" onChange={(event) => setMemberSubject(event.target.value)} placeholder="future identity subject" value={memberSubject} />
-                        </label>
-                        <label className="field">
-                          <span>Display name</span>
-                          <input className="input" onChange={(event) => setMemberDisplayName(event.target.value)} placeholder="Setup owner name" value={memberDisplayName} />
-                        </label>
-                        <label className="field">
-                          <span>Email hash</span>
-                          <input className="input" onChange={(event) => setMemberEmailHash(event.target.value)} placeholder="Optional privacy-safe hash" value={memberEmailHash} />
-                        </label>
-                        <label className="field">
-                          <span>Role family</span>
-                          <select className="input" onChange={(event) => setMemberRoleFamily(event.target.value)} value={memberRoleFamily}>
-                            <option value="DISTRIBUTION_ADMIN">Distribution admin</option>
-                            <option value="PLATFORM_ADMIN">Platform admin</option>
-                            <option value="SYSTEM_ADMIN">System admin</option>
-                            <option value="PARTNER">Partner</option>
-                            <option value="SUPPORT">Support</option>
-                          </select>
-                        </label>
-                        <label className="field">
-                          <span>Permission set</span>
-                          <select className="input" onChange={(event) => setMemberPermissionSet(event.target.value)} value={memberPermissionSet}>
-                            <option value="REFERRAL_SAAS_ACCOUNT_ADMIN">Referral SaaS account admin</option>
-                            <option value="REFERRAL_SAAS_CAMPAIGN_MANAGER">Referral SaaS campaign manager</option>
-                            <option value="REFERRAL_SAAS_ANALYST">Referral SaaS analyst</option>
-                            <option value="REFERRAL_SAAS_SUPPORT">Referral SaaS support</option>
-                          </select>
-                        </label>
-                      </div>
-                      <button className="button" disabled={!canRecordMembershipInvitation} onClick={handleRecordMembershipInvitationIntent} type="button">
-                        {membershipInviteState === "loading" ? "Recording role intent" : "Record role intent"}
-                      </button>
-                      <MembershipInvitationResult error={membershipInviteError} response={membershipInviteResponse} />
-                    </div>
-                  </>
-                ) : null}
-
-                {activeWizardStep === 4 ? (
-                  <>
-                    <div>
                       <div className="page-kicker">Integration intent</div>
                       <h3 className="account-wizard-title">Document API and webhook intent</h3>
                       <p className="page-copy">Capture setup intent without creating credentials, sending webhooks, or exposing secrets.</p>
@@ -1019,7 +876,7 @@ export function ReferralSaasAccountSetupPage() {
                   </>
                 ) : null}
 
-                {activeWizardStep === 5 ? (
+                {activeWizardStep === 4 ? (
                   <>
                     <div>
                       <div className="page-kicker">Readiness check</div>
@@ -1094,7 +951,7 @@ export function ReferralSaasAccountSetupPage() {
                   </>
                 ) : null}
 
-                {activeWizardStep === 6 ? (
+                {activeWizardStep === 5 ? (
                   <>
                     <div>
                       <div className="page-kicker">Review & create</div>
@@ -1167,7 +1024,7 @@ export function ReferralSaasAccountSetupPage() {
                   </>
                 ) : null}
 
-                {activeWizardStep === 7 ? (
+                {activeWizardStep === 6 ? (
                   <>
                     <div>
                       <div className="page-kicker">Handoff</div>
@@ -1178,7 +1035,7 @@ export function ReferralSaasAccountSetupPage() {
                       <div className="wizard-status-card">
                         <div>
                           <strong>{durableAccount ? formatAccountSummary(durableAccount) : "Account not created yet"}</strong>
-                          <p>{membershipPostureStatus.copy}</p>
+                          <p>{membershipPostureStatus.copy} Manage users and access in Account Maintenance after the account foundation exists.</p>
                           {membershipPosture ? <span>{membershipPosture.activeCount} active, {membershipPosture.invitedCount} invited, {membershipPosture.totalMemberships} total memberships.</span> : null}
                         </div>
                         <StatusBadge label={durableAccount ? "Account found" : "Setup incomplete"} tone={durableAccount ? "success" : "warning"} />
@@ -1471,20 +1328,6 @@ function safeAccountCreateError(error: unknown) {
   return "Account foundation creation is unavailable. No tenant, user, campaign, go-live, or money action was taken.";
 }
 
-function safeMembershipInvitationError(error: unknown) {
-  const status = typeof error === "object" && error && "status" in error ? Number((error as { status?: number }).status) : null;
-  if (status === 409) {
-    return "Membership invitation intent was not recorded because the account, idempotency key, or existing membership evidence conflicts. No email, access, seat, campaign, go-live, or money action was taken.";
-  }
-  if (status === 422) {
-    return "Membership invitation intent needs a valid subject, role family, permission set, account scope, correlation ID, and idempotency key. No delivery or activation was attempted.";
-  }
-  if (status === 403) {
-    return "Your current session is not allowed to record membership invitation intent for this account. No membership, delivery, access, or money action was taken.";
-  }
-  return "Membership invitation intent is unavailable. No email delivery, active access, seat assignment, auth claim, campaign, go-live, or money action was taken.";
-}
-
 function getTrustedInternalTenantScope() {
   if (typeof window === "undefined") {
     return defaultTrustedInternalTenantScope;
@@ -1613,56 +1456,6 @@ function SetupActionResult({
         </div>
       ))}
     </>
-  );
-}
-
-function MembershipInvitationResult({
-  error,
-  response,
-}: {
-  error: string | null;
-  response: ReferralSaasMembershipInvitationResponse | null;
-}) {
-  if (response) {
-    return (
-      <div className="banner success" role="status">
-        <CheckCircle2 size={18} />
-        <div>
-          <strong>Role intent recorded.</strong>
-          <div className="table-subtext">
-            {response.invitation.commandStatus} - {response.invitation.membership.status} -{" "}
-            {response.invitation.membership.roleFamily}; delivery: {response.invitation.delivery.status}.
-          </div>
-          <div className="table-subtext">
-            Next: {response.invitation.delivery.nextAction}. No active access, seat, auth claim, campaign, go-live, or money action was taken.
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="banner warning" role="status">
-        <ShieldCheck size={18} />
-        <div>
-          <strong>Role intent fallback.</strong>
-          <div className="table-subtext">{error}</div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="banner info">
-      <ShieldCheck size={18} />
-      <div>
-        <strong>What this records</strong>
-        <div className="table-subtext">
-          A bounded invited membership record for setup evidence. It is not an email invitation, login activation, seat assignment, or campaign launch.
-        </div>
-      </div>
-    </div>
   );
 }
 
