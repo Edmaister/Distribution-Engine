@@ -4853,6 +4853,32 @@ Rollback notes: Revert the account registry service/API/client/hook/page/test up
 Explicit non-goals: Do not add schema, migrations, account lifecycle commands, durable account updates, membership writes, invitations, activation, seat assignment, auth/session claim changes, credential rotation, webhook delivery, campaign activation, go-live, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Account Maintenance starts from a real read-only Referral SaaS account selector, while setup drafts are clearly positioned as fallback evidence for accounts that do not yet have durable account foundations. Priority: P0.
 
+## TASK-228: Reframe Account Maintenance as a Client Workspace hub
+
+Status: Complete (2026-07-19). Output: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing Account Maintenance read model, account registry selector, onboarding readiness projection, and existing Referral SaaS product routes. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-client workspace; client-scoped activity routing; Account Setup/Account Maintenance product boundary.
+Objective: Reframe Account Maintenance from an evidence screen into the selected Client Workspace where operators choose a durable client and then open profile, access, technical setup, campaign, link/code, attribution, reporting, or support surfaces for that client.
+Why now: User testing showed the correct product model is create client first, select that client, then maintain profile and perform client-scoped activities. The previous Account Maintenance screen had the right data but still read like a technical evidence dashboard.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/referralSaasAccountQueries.ts`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Renames the page to `Client workspace`, starts the screen with client selection, shows the selected client summary and current identifiers, repositions manual lookup as a fallback, adds client activity/dashboard cards for profile, users/access, technical setup, campaigns, links/codes, attribution trace, reports, and support, and keeps setup drafts as fallback evidence only.
+API impact: None.
+Tests to add/update: Updates Account Maintenance tests to assert client-workspace language, selected durable-client state, existing route links for client activities/dashboards, and no leaked internal identifiers or unavailable live-action commands.
+Validation method: `npm.cmd test -- ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Account Maintenance clearly operates as a selected Client Workspace; selecting a durable client scopes the workspace by external customer and organisation references; activity cards route only to existing bounded Referral SaaS surfaces; setup drafts remain fallback evidence; internal `tenant_code`, secrets, raw payloads, money, and DLaaS marketplace details are not exposed; no backend route, schema, account lifecycle command, durable profile update command, membership write, invitation delivery, credential lifecycle, webhook delivery, campaign activation, go-live, support-case write, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, or broad DLaaS marketplace behavior is added.
+Dependencies: TASK-227.
+Blocked by: None. Durable client profile update commands and local UI-driven Account Setup plus Client Workspace E2E proof remain future work.
+Risk level: Low.
+Rollback notes: Revert the Account Maintenance page/test updates and roadmap/gap/task-list entries.
+Explicit non-goals: Do not add schema, migrations, account lifecycle commands, durable account updates, durable profile updates, membership writes, invitations, activation, seat assignment, auth/session claim changes, credential rotation, webhook delivery, campaign activation, go-live, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Maintenance is the selected Client Workspace entry point for Referral SaaS client activities and dashboards, while unsupported maintenance writes stay visibly out of scope. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
