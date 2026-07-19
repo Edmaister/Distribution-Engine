@@ -28,30 +28,34 @@ const mockedGetAdminOnboardingDrafts = vi.mocked(getAdminOnboardingDrafts);
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
 const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 
-function renderWorkspace(ui: ReactElement) {
+function renderWorkspace(ui: ReactElement, initialEntry = "/admin/referral-saas/account-maintenance") {
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
     },
   });
-  const router = createMemoryRouter([
-    {
-      path: "/",
-      element: <Outlet context={{ refreshKey: 0 }} />,
-      children: [
-        { index: true, element: ui },
-        { path: "admin/referral-saas/account-setup", element: <div>Account Setup Target</div> },
-        { path: "admin/referral-saas/account-maintenance", element: <div>Customer Profile Target</div> },
-        { path: "admin/referral-saas/campaigns", element: <div>Campaign Target</div> },
-        { path: "admin/referral-saas/link-codes", element: <div>Links Target</div> },
-        { path: "admin/referral-saas/attribution-trace", element: <div>Trace Target</div> },
-        { path: "admin/referral-saas/progress-status", element: <div>Progress Target</div> },
-        { path: "admin/referral-saas/reports", element: <div>Reports Target</div> },
-        { path: "admin/referral-saas/support", element: <div>Support Target</div> },
-      ],
-    },
-  ]);
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/",
+        element: <Outlet context={{ refreshKey: 0 }} />,
+        children: [
+          { index: true, element: <div>Index</div> },
+          { path: "admin/referral-saas/account-setup", element: <div>Account Setup Target</div> },
+          { path: "admin/referral-saas/account-maintenance", element: ui },
+          { path: "admin/referral-saas/account-maintenance/:accountId", element: ui },
+          { path: "admin/referral-saas/campaigns", element: <div>Campaign Target</div> },
+          { path: "admin/referral-saas/link-codes", element: <div>Links Target</div> },
+          { path: "admin/referral-saas/attribution-trace", element: <div>Trace Target</div> },
+          { path: "admin/referral-saas/progress-status", element: <div>Progress Target</div> },
+          { path: "admin/referral-saas/reports", element: <div>Reports Target</div> },
+          { path: "admin/referral-saas/support", element: <div>Support Target</div> },
+        ],
+      },
+    ],
+    { initialEntries: [initialEntry] },
+  );
 
   return render(
     <QueryClientProvider client={client}>
@@ -168,7 +172,7 @@ function mockDraftSelector(): AdminOnboardingDraftSelectorResponse {
 function mockAccountRegistry(): ReferralSaasAccountRegistryResponse {
   return {
     status: "ok",
-    count: 1,
+    count: 3,
     accounts: [
       {
         accountId: "acct-fnb",
@@ -177,6 +181,7 @@ function mockAccountRegistry(): ReferralSaasAccountRegistryResponse {
         accountType: "ORGANISATION",
         accountStatus: "PENDING_ONBOARDING",
         onboardingStatus: "READY_FOR_REVIEW",
+        operatingJurisdictionCode: "ZA",
         primaryExternalTenantRef: "fnb-referrals",
         externalReferences: [
           {
@@ -187,6 +192,54 @@ function mockAccountRegistry(): ReferralSaasAccountRegistryResponse {
           {
             refType: "organisation_ref",
             externalRef: "fnb-org",
+            referenceStatus: "ACTIVE",
+          },
+        ],
+        createdAt: "2026-07-19T00:00:00",
+        updatedAt: "2026-07-19T01:00:00",
+      },
+      {
+        accountId: "acct-gabs",
+        accountCode: "ACC-2201",
+        accountName: "Gaborone Partners",
+        accountType: "ORGANISATION",
+        accountStatus: "ACTIVE",
+        onboardingStatus: "APPROVED",
+        operatingJurisdictionCode: "BW",
+        primaryExternalTenantRef: "gabs-platform",
+        externalReferences: [
+          {
+            refType: "external_tenant_ref",
+            externalRef: "gabs-platform",
+            referenceStatus: "ACTIVE",
+          },
+          {
+            refType: "organisation_ref",
+            externalRef: "gabs-org",
+            referenceStatus: "ACTIVE",
+          },
+        ],
+        createdAt: "2026-07-19T00:00:00",
+        updatedAt: "2026-07-19T01:00:00",
+      },
+      {
+        accountId: "acct-cape",
+        accountCode: "ACC-1770",
+        accountName: "Cape Commerce Hub",
+        accountType: "ORGANISATION",
+        accountStatus: "ACTIVE",
+        onboardingStatus: "APPROVED",
+        operatingJurisdictionCode: "ZA",
+        primaryExternalTenantRef: "cape-commerce",
+        externalReferences: [
+          {
+            refType: "external_tenant_ref",
+            externalRef: "cape-commerce",
+            referenceStatus: "ACTIVE",
+          },
+          {
+            refType: "organisation_ref",
+            externalRef: "cape-hub",
             referenceStatus: "ACTIVE",
           },
         ],
@@ -211,13 +264,19 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     cleanup();
   });
 
-  it("starts with customer profile selection before scoped customer work", async () => {
+  it("starts with jurisdiction selection before scoped customer work", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
 
-    expect(await screen.findByRole("heading", { name: "Choose a customer profile" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "Customer profile selection" })).toBeInTheDocument();
-    expect(screen.getByText("Pick the customer before opening campaigns, links, reports, support, attribution, or setup work.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Find the customer to work on" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "1. Where do you operate?" })).toBeInTheDocument();
+    expect(screen.getByText("Pick the country. You will only see customers in that market.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /South Africa/ })).toHaveTextContent("2 accounts");
+    expect(screen.getByRole("button", { name: /Botswana/ })).toHaveTextContent("1 account");
+    expect(screen.getByRole("button", { name: /Zambia/ })).toHaveTextContent("0 accounts");
+    expect(await screen.findByRole("heading", { name: "2. Which customer?" })).toBeInTheDocument();
+    expect(screen.getByText("Only accounts in South Africa.")).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: /FNB Referral SaaS/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open customer profile" })).toHaveAttribute("aria-disabled", "true");
     expect(screen.queryByRole("heading", { name: "Client workspace" })).not.toBeInTheDocument();
     expect(mockedListReferralSaasAccounts).toHaveBeenCalledWith(50);
     expect(JSON.stringify(mockedListReferralSaasAccounts.mock.calls)).not.toMatch(
@@ -225,31 +284,43 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
   });
 
-  it("turns a selected customer into a customer home with plain next actions", async () => {
+  it("filters customers by jurisdiction and opens the selected customer home", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /FNB Referral SaaS/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Botswana/ }));
+    expect(screen.getByText("Only accounts in Botswana.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Gaborone Partners/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /FNB Referral SaaS/ })).not.toBeInTheDocument();
 
-    expect(await screen.findByRole("heading", { name: "FNB Referral SaaS" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Gaborone Partners/ }));
+    expect(screen.getByRole("link", { name: "Open customer profile" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs",
+    );
+    fireEvent.click(screen.getByRole("link", { name: "Open customer profile" }));
+
+    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Botswana");
     expect(await screen.findByRole("button", { name: "Overview" })).toHaveClass("active");
     expect(screen.getByText("This is the customer home. Campaigns, links, reports, attribution, and support stay inside this customer context.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Health at a glance" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Do this next" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Add who can manage this account/ })).toHaveAttribute(
       "href",
-      "/admin/referral-saas/account-maintenance?external_tenant_ref=fnb-referrals&organisation_ref=fnb-org",
+      "/admin/referral-saas/account-maintenance?external_tenant_ref=gabs-platform&organisation_ref=gabs-org",
     );
     expect(screen.getByRole("link", { name: /Open Campaigns/ })).toHaveAttribute(
       "href",
-      "/admin/referral-saas/campaigns?external_tenant_ref=fnb-referrals&organisation_ref=fnb-org",
+      "/admin/referral-saas/campaigns?external_tenant_ref=gabs-platform&organisation_ref=gabs-org",
     );
-    expect(await screen.findByText("Everything opens against FNB Referral SaaS until you switch customer.")).toBeInTheDocument();
+    expect(await screen.findByText("Everything opens against Gaborone Partners until you switch customer.")).toBeInTheDocument();
   });
 
   it("keeps customer functions scoped to the selected customer context", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
 
     fireEvent.click(await screen.findByRole("button", { name: /FNB Referral SaaS/ }));
+    fireEvent.click(screen.getByRole("link", { name: "Open customer profile" }));
     fireEvent.click(await screen.findByRole("button", { name: "What you can do" }));
 
     expect(screen.getByRole("heading", { name: "What you can do for this customer" })).toBeInTheDocument();
@@ -271,7 +342,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
   it("keeps manual lookup local until the tester checks the customer", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
 
-    await screen.findByRole("heading", { name: "Customer profile selection" });
+    await screen.findByRole("heading", { name: "1. Where do you operate?" });
     await waitFor(() => expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByText("Manual customer lookup"));

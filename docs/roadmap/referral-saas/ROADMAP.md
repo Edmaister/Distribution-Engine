@@ -654,11 +654,16 @@ greenfield referral construction.
   `docs/roadmap/ORDERED_TASK_LIST.md`
 - TASK-231: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
   `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `dp/migrations/083_referral_saas_account_operating_jurisdiction.sql`;
+  `services/referral_saas_account_foundation_service.py`;
+  `services/referral_saas_account_setup_service.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/app/App.tsx`;
   `frontend/src/layout/Sidebar.tsx`;
   `frontend/src/styles/base.css`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
-  `docs/roadmap/ORDERED_TASK_LIST.md`
+  `docs/roadmap/ORDERED_TASK_LIST.md` - persisted account operating jurisdiction, jurisdiction-first customer finder, and standalone selected-customer profile route.
 
 ## Explicit Deferrals
 

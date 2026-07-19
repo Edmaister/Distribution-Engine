@@ -111,6 +111,17 @@ def patch_draft(monkeypatch, draft):
 
     monkeypatch.setattr(service.draft_repo, "get_draft_by_ref", fake_get_draft_by_ref)
 
+    async def fake_get_draft_sections(draft_id):
+        assert draft_id == "draft-uuid"
+        return [
+            {
+                "section_key": "company",
+                "section_payload": json.dumps({"country": "South Africa"}),
+            }
+        ]
+
+    monkeypatch.setattr(service.draft_repo, "get_draft_sections", fake_get_draft_sections)
+
 
 async def test_create_durable_account_from_ready_draft(monkeypatch):
     conn = FakeConnection()
@@ -141,7 +152,10 @@ async def test_create_durable_account_from_ready_draft(monkeypatch):
     assert account_params[2] == "ORGANISATION"
     assert account_params[3] == "PENDING_ONBOARDING"
     assert account_params[4] == "READY_FOR_REVIEW"
-    assert json.loads(account_params[6])["draft_ref"] == "draft_001"
+    assert account_params[5] == "ZA"
+    assert account_params[6] == "fnb-referrals"
+    assert json.loads(account_params[7])["draft_ref"] == "draft_001"
+    assert json.loads(account_params[7])["operating_jurisdiction_code"] == "ZA"
 
     tenant_query, tenant_params = conn.fetchrow_calls[4]
     assert "INSERT INTO platform_account_tenants" in tenant_query

@@ -3,7 +3,6 @@ import {
   BarChart3,
   Building2,
   CheckCircle2,
-  KeyRound,
   Link as LinkIcon,
   ListChecks,
   Search,
@@ -11,8 +10,8 @@ import {
   Target,
   Users,
 } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useMemo, useState, type FormEvent } from "react";
+import { Link, useParams } from "react-router-dom";
+import { useState, type FormEvent } from "react";
 
 import {
   useReferralSaasAccountDraftSelector,
@@ -35,6 +34,7 @@ import {
 
 const defaultExternalTenantRef = "demo-platform-operator";
 const defaultOrganisationRef = "demo-organisation";
+const defaultOperatingMarket = "South Africa";
 
 type AccountRegistry = NonNullable<ReturnType<typeof useReferralSaasAccountRegistry>["data"]>;
 type AccountRegistryItem = AccountRegistry["accounts"][number];
@@ -133,27 +133,20 @@ const readinessCategoryMap = [
 ];
 
 export function ReferralSaasAccountMaintenancePage() {
+  const { accountId } = useParams<{ accountId?: string }>();
   const { refreshKey } = useRefreshContext();
   const [draftExternalTenantRef, setDraftExternalTenantRef] = useState(defaultExternalTenantRef);
   const [draftOrganisationRef, setDraftOrganisationRef] = useState(defaultOrganisationRef);
   const [appliedExternalTenantRef, setAppliedExternalTenantRef] = useState(defaultExternalTenantRef);
   const [appliedOrganisationRef, setAppliedOrganisationRef] = useState(defaultOrganisationRef);
+  const [selectedOperatingMarket, setSelectedOperatingMarket] = useState(defaultOperatingMarket);
+  const [pendingAccountId, setPendingAccountId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "health" | "actions">("overview");
   const scopeChanged =
     draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
     draftOrganisationRef.trim() !== appliedOrganisationRef;
   const canCheckScope = Boolean(draftExternalTenantRef.trim() && draftOrganisationRef.trim() && scopeChanged);
 
-  const { data, error, isLoading } = useReferralSaasAccountMaintenanceState(
-    appliedExternalTenantRef,
-    appliedOrganisationRef,
-    refreshKey,
-  );
-  const {
-    data: draftSelector,
-    error: draftSelectorError,
-    isLoading: isDraftSelectorLoading,
-  } = useReferralSaasAccountDraftSelector(appliedExternalTenantRef, appliedOrganisationRef, refreshKey);
   const {
     data: accountRegistry,
     error: accountRegistryError,
@@ -161,7 +154,31 @@ export function ReferralSaasAccountMaintenancePage() {
   } = useReferralSaasAccountRegistry(50, refreshKey);
 
   const accountItems = accountRegistry?.accounts || [];
-  const selectedAccount = findSelectedAccount(accountItems, appliedExternalTenantRef, appliedOrganisationRef);
+  const selectedAccount =
+    accountItems.find((account) => account.accountId === accountId) ||
+    findSelectedAccount(accountItems, appliedExternalTenantRef, appliedOrganisationRef);
+  const selectedExternalTenantRef = selectedAccount
+    ? selectedAccount.primaryExternalTenantRef ||
+      findAccountExternalRef(selectedAccount.externalReferences, "external_tenant_ref")
+    : appliedExternalTenantRef;
+  const selectedOrganisationRef = selectedAccount
+    ? findAccountExternalRef(selectedAccount.externalReferences, "organisation_ref")
+    : appliedOrganisationRef;
+  const { data, error, isLoading } = useReferralSaasAccountMaintenanceState(
+    selectedExternalTenantRef,
+    selectedOrganisationRef,
+    refreshKey,
+  );
+  const {
+    data: draftSelector,
+    error: draftSelectorError,
+    isLoading: isDraftSelectorLoading,
+  } = useReferralSaasAccountDraftSelector(selectedExternalTenantRef, selectedOrganisationRef, refreshKey);
+  const pendingAccount = accountItems.find((account) => account.accountId === pendingAccountId);
+  const operatingMarkets = getOperatingMarkets(accountItems);
+  const accountsForMarket = accountItems.filter(
+    (account) => operatingMarketFromAccount(account).name === selectedOperatingMarket,
+  );
   const readiness = data?.readiness;
   const summary = readiness?.summary;
   const categories = asArray(readiness?.categories || []);
@@ -173,13 +190,9 @@ export function ReferralSaasAccountMaintenancePage() {
   const overallStatus = formatDisplay(readiness?.overall_status || "go_live_disabled");
   const customerName = selectedAccount?.accountName || formatDisplay(appliedOrganisationRef);
   const doNext = getCustomerNextActions(blockedCount, missingEvidenceCount);
-  const customerQuery = useMemo(
-    () =>
-      `?external_tenant_ref=${encodeURIComponent(appliedExternalTenantRef)}&organisation_ref=${encodeURIComponent(
-        appliedOrganisationRef,
-      )}`,
-    [appliedExternalTenantRef, appliedOrganisationRef],
-  );
+  const customerQuery = `?external_tenant_ref=${encodeURIComponent(
+    selectedExternalTenantRef,
+  )}&organisation_ref=${encodeURIComponent(selectedOrganisationRef)}`;
 
   function submitScope(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -190,48 +203,46 @@ export function ReferralSaasAccountMaintenancePage() {
     }
     setAppliedExternalTenantRef(nextExternalTenantRef);
     setAppliedOrganisationRef(nextOrganisationRef);
+    setPendingAccountId(null);
   }
 
-  function selectAccount(account: AccountRegistryItem) {
-    const externalTenantRef =
-      account.primaryExternalTenantRef ||
-      findAccountExternalRef(account.externalReferences, "external_tenant_ref");
-    const organisationRef = findAccountExternalRef(account.externalReferences, "organisation_ref");
-    if (!externalTenantRef || !organisationRef) {
-      return;
-    }
-    setDraftExternalTenantRef(externalTenantRef);
-    setDraftOrganisationRef(organisationRef);
-    setAppliedExternalTenantRef(externalTenantRef);
-    setAppliedOrganisationRef(organisationRef);
-    setActiveTab("overview");
+  function selectOperatingMarket(marketName: string) {
+    setSelectedOperatingMarket(marketName);
+    setPendingAccountId(null);
+  }
+
+  function stageAccount(account: AccountRegistryItem) {
+    setPendingAccountId(account.accountId);
   }
 
   return (
     <>
       <section className="page-header customer-profile-header">
         <div>
-          <div className="page-kicker">Referral SaaS › Customer profile</div>
-          <h1 className="page-title">{selectedAccount ? customerName : "Choose a customer profile"}</h1>
+          <div className="page-kicker">
+            {selectedAccount ? "Referral SaaS > Customer profile" : "Referral SaaS > Open a customer"}
+          </div>
+          <h1 className="page-title">{accountId && selectedAccount ? customerName : "Find the customer to work on"}</h1>
           <p className="page-copy">
-            {selectedAccount
+            {accountId && selectedAccount
               ? "This is the customer home. Campaigns, links, reports, attribution, and support stay inside this customer context."
-              : "Select a customer first. Once selected, every activity opens in that customer context instead of as a loose global tool."}
+              : "Country first, then account, then open their profile."}
           </p>
-          {selectedAccount ? (
+          {accountId && selectedAccount ? (
             <div className="customer-context-chips" aria-label="Selected customer context">
+              <span>{operatingMarketFromAccount(selectedAccount).name}</span>
               <StatusBadge label={formatDisplay(selectedAccount.accountStatus)} tone="success" />
               <span>{selectedAccount.accountCode}</span>
               <span>
-                {appliedExternalTenantRef} / {appliedOrganisationRef}
+                {selectedExternalTenantRef} / {selectedOrganisationRef}
               </span>
             </div>
           ) : null}
         </div>
         <div className="customer-header-actions">
-          <a className="button secondary" href="#customer-selector">
+          <Link className="button secondary" to="/admin/referral-saas/account-maintenance">
             Switch customer
-          </a>
+          </Link>
           <StatusBadge label="View only where noted" tone="warning" />
         </div>
       </section>
@@ -244,12 +255,12 @@ export function ReferralSaasAccountMaintenancePage() {
           <section className="panel" id="customer-selector">
             <div className="panel-header">
               <div>
-                <h2 className="panel-title">Customer profile selection</h2>
+                <h2 className="panel-title">1. Where do you operate?</h2>
                 <div className="panel-subtitle">
-                  Pick the customer before opening campaigns, links, reports, support, attribution, or setup work.
+                  Pick the country. You will only see customers in that market.
                 </div>
               </div>
-              <StatusBadge label={`${accountItems.length} customers`} tone={accountItems.length ? "info" : "neutral"} />
+              <StatusBadge label="Entry" tone="info" />
             </div>
             <div className="panel-body">
               {isAccountRegistryLoading ? <LoadingState label="Loading customers" /> : null}
@@ -260,32 +271,69 @@ export function ReferralSaasAccountMaintenancePage() {
                 </div>
               ) : null}
               {!isAccountRegistryLoading && !accountRegistryError && accountItems.length > 0 ? (
-                <div className="customer-selector-grid">
-                  {accountItems.map((account) => {
-                    const externalTenantRef =
-                      account.primaryExternalTenantRef ||
-                      findAccountExternalRef(account.externalReferences, "external_tenant_ref");
-                    const organisationRef = findAccountExternalRef(account.externalReferences, "organisation_ref");
-                    const selected = isSelectedAccount(account, appliedExternalTenantRef, appliedOrganisationRef);
-                    const canSelectAccount = Boolean(externalTenantRef && organisationRef);
-                    return (
-                      <button
-                        className={`customer-selector-card ${selected ? "selected" : ""}`}
-                        disabled={!canSelectAccount}
-                        key={account.accountId}
-                        onClick={() => selectAccount(account)}
-                        type="button"
-                      >
-                        <span className="customer-selector-title">{account.accountName}</span>
-                        <span className="customer-selector-meta">{account.accountCode}</span>
-                        <span className="customer-selector-meta">
-                          {externalTenantRef || "Missing customer ref"} / {organisationRef || "Missing organisation ref"}
-                        </span>
-                        <StatusBadge label={selected ? "Current customer" : "Select customer"} tone={selected ? "success" : "info"} />
-                      </button>
-                    );
-                  })}
-                </div>
+                <>
+                  <div className="customer-selector-grid market-selector-grid">
+                    {operatingMarkets.map((market) => {
+                      const selected = market.name === selectedOperatingMarket;
+                      return (
+                        <button
+                          className={`customer-selector-card compact ${selected ? "selected" : ""}`}
+                          key={market.name}
+                          onClick={() => selectOperatingMarket(market.name)}
+                          type="button"
+                        >
+                          <span className="customer-selector-title">{market.name}</span>
+                          <span className="customer-selector-copy">{market.description}</span>
+                          <span className="customer-selector-count">{formatAreaCount(market.count, "account")}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="customer-picker-step">
+                    <h2 className="panel-title">2. Which customer?</h2>
+                    <div className="panel-subtitle">Only accounts in {selectedOperatingMarket}.</div>
+                  </div>
+                  {accountsForMarket.length === 0 ? (
+                    <div className="empty-state">No customers exist in {selectedOperatingMarket} yet.</div>
+                  ) : (
+                    <div className="customer-selector-grid">
+                      {accountsForMarket.map((account) => {
+                        const externalTenantRef =
+                          account.primaryExternalTenantRef ||
+                          findAccountExternalRef(account.externalReferences, "external_tenant_ref");
+                        const organisationRef = findAccountExternalRef(account.externalReferences, "organisation_ref");
+                        const pending = account.accountId === pendingAccountId;
+                        const opened = account.accountId === accountId;
+                        const canSelectAccount = Boolean(externalTenantRef && organisationRef);
+                        return (
+                          <button
+                            className={`customer-selector-card ${pending || opened ? "selected" : ""}`}
+                            disabled={!canSelectAccount}
+                            key={account.accountId}
+                            onClick={() => stageAccount(account)}
+                            type="button"
+                          >
+                            <span className="customer-selector-title">{account.accountName}</span>
+                            <span className="customer-selector-meta">
+                              {externalTenantRef || "Missing customer ref"} / {organisationRef || "Missing organisation ref"}
+                            </span>
+                            <span className="customer-selector-count">{account.accountCode}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="customer-open-row">
+                    <Link
+                      aria-disabled={!pendingAccount}
+                      className={`button ${pendingAccount ? "" : "disabled"}`}
+                      to={pendingAccount ? `/admin/referral-saas/account-maintenance/${pendingAccount.accountId}` : "#"}
+                    >
+                      Open customer profile
+                    </Link>
+                  </div>
+                </>
               ) : null}
               <details className="wizard-details">
                 <summary>Manual customer lookup</summary>
@@ -315,7 +363,7 @@ export function ReferralSaasAccountMaintenancePage() {
             </div>
           </section>
 
-          {selectedAccount ? (
+          {accountId && selectedAccount ? (
             <>
               <section className="customer-tabs" aria-label="Customer workspace sections">
                 <button className={activeTab === "overview" ? "active" : ""} onClick={() => setActiveTab("overview")} type="button">
@@ -618,6 +666,56 @@ function findAccountExternalRef(
   refType: string,
 ) {
   return references.find((reference) => reference.refType === refType)?.externalRef || "";
+}
+
+const knownOperatingMarkets = [
+  { name: "South Africa", description: "South African referral accounts" },
+  { name: "Botswana", description: "Botswana operating market" },
+  { name: "Namibia", description: "Namibia operating market" },
+  { name: "Zambia", description: "Zambia operating market" },
+];
+
+function getOperatingMarkets(accounts: AccountRegistryItem[]) {
+  const counts = accounts.reduce<Record<string, number>>((marketCounts, account) => {
+    const market = operatingMarketFromAccount(account).name;
+    marketCounts[market] = (marketCounts[market] || 0) + 1;
+    return marketCounts;
+  }, {});
+
+  const knownMarkets = knownOperatingMarkets.map((market) => ({
+    ...market,
+    count: counts[market.name] || 0,
+  }));
+  const unknownCount = counts["Other markets"] || 0;
+  return unknownCount
+    ? [
+        ...knownMarkets,
+        {
+          name: "Other markets",
+          description: "Accounts without a mapped operating market",
+          count: unknownCount,
+        },
+      ]
+    : knownMarkets;
+}
+
+function operatingMarketFromAccount(account: AccountRegistryItem) {
+  return operatingMarketFromCode(account.operatingJurisdictionCode);
+}
+
+function operatingMarketFromCode(code: string | undefined) {
+  switch ((code || "OTHER").toUpperCase()) {
+    case "ZA":
+      return { name: "South Africa", description: "South African referral accounts" };
+    case "BW":
+      return { name: "Botswana", description: "Botswana operating market" };
+    case "NA":
+      return { name: "Namibia", description: "Namibia operating market" };
+    case "ZM":
+      return { name: "Zambia", description: "Zambia operating market" };
+    default:
+      return { name: "Other markets", description: "Accounts without a mapped operating market" };
+  }
 }
 
 function findSelectedAccount(

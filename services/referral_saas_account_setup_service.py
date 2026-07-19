@@ -146,10 +146,12 @@ async def create_durable_account_from_onboarding_draft(
 
     account_code = _account_code(external_tenant_ref, organisation_ref)
     account_name = _account_name(draft, organisation_ref)
+    operating_jurisdiction_code = await _operating_jurisdiction_code_from_draft(draft)
     safe_summary = {
         "draft_ref": safe_draft_ref,
         "external_tenant_ref": external_tenant_ref,
         "organisation_ref": organisation_ref,
+        "operating_jurisdiction_code": operating_jurisdiction_code,
         "source": "referral_saas_account_setup",
         "no_live_action_confirmed": True,
     }
@@ -203,13 +205,14 @@ async def create_durable_account_from_onboarding_draft(
                     account_type,
                     status,
                     onboarding_status,
+                    operating_jurisdiction_code,
                     primary_external_tenant_ref,
                     safe_summary,
                     metadata,
                     created_by_ref,
                     updated_by_ref
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $9)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $10)
                 RETURNING account_id, account_code, account_name, status, onboarding_status
                 """,
                 account_code,
@@ -217,6 +220,7 @@ async def create_durable_account_from_onboarding_draft(
                 ACCOUNT_TYPE_ORGANISATION,
                 ACCOUNT_STATUS_PENDING,
                 ACCOUNT_ONBOARDING_STATUS,
+                operating_jurisdiction_code,
                 external_tenant_ref,
                 _jsonb(safe_summary),
                 _jsonb(metadata),
@@ -412,6 +416,53 @@ def _account_name(draft: Mapping[str, Any], organisation_ref: str) -> str:
         if candidate:
             return candidate
     return organisation_ref
+
+
+async def _operating_jurisdiction_code_from_draft(draft: Mapping[str, Any]) -> str:
+    draft_id = _safe_text(draft.get("draft_id"))
+    if draft_id:
+        section_rows = await draft_repo.get_draft_sections(draft_id)
+        for row in section_rows:
+            if _safe_text(row.get("section_key")) != "company":
+                continue
+            section_payload = _mapping_from_jsonb(row.get("section_payload"))
+            code = _jurisdiction_code(section_payload.get("country"))
+            if code:
+                return code
+
+    safe_summary = draft.get("safe_summary")
+    if isinstance(safe_summary, Mapping):
+        code = _jurisdiction_code(safe_summary.get("country"))
+        if code:
+            return code
+    return "ZA"
+
+
+def _mapping_from_jsonb(value: Any) -> Mapping[str, Any]:
+    if isinstance(value, Mapping):
+        return value
+    if isinstance(value, str):
+        try:
+            decoded = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+        return decoded if isinstance(decoded, Mapping) else {}
+    return {}
+
+
+def _jurisdiction_code(value: Any) -> str | None:
+    normalised = _safe_text(value).lower()
+    if normalised in {"south africa", "za", "zaf"}:
+        return "ZA"
+    if normalised in {"botswana", "bw", "bwa"}:
+        return "BW"
+    if normalised in {"namibia", "na", "nam"}:
+        return "NA"
+    if normalised in {"zambia", "zm", "zam"}:
+        return "ZM"
+    if normalised:
+        return "OTHER"
+    return None
 
 
 def _normalise_role(value: Any) -> str:

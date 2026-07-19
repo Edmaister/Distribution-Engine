@@ -262,6 +262,7 @@ async def test_referral_saas_account_reader_can_list_safe_account_registry(monke
                 account_type="ORGANISATION",
                 account_status="PENDING_ONBOARDING",
                 onboarding_status="READY_FOR_REVIEW",
+                operating_jurisdiction_code="ZA",
                 primary_external_tenant_ref="fnb-referrals",
                 external_references=(
                     {
@@ -294,6 +295,7 @@ async def test_referral_saas_account_reader_can_list_safe_account_registry(monke
     assert body["status"] == "ok"
     assert body["count"] == 1
     assert body["accounts"][0]["accountCode"] == "ACCT_FNB"
+    assert body["accounts"][0]["operatingJurisdictionCode"] == "ZA"
     assert body["accounts"][0]["externalReferences"][0]["externalRef"] == "fnb-referrals"
     assert body["redactions"] == ["internal_tenant_identifier"]
     assert "tenantCode" not in str(body)

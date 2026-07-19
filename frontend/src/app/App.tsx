@@ -204,6 +204,7 @@ export function App() {
         <Route path="/admin/referral-saas" element={lazyWorkspace(<ReferralSaasWorkspacePage />)} />
         <Route path="/admin/referral-saas/account-setup" element={lazyWorkspace(<ReferralSaasAccountSetupPage />)} />
         <Route path="/admin/referral-saas/account-maintenance" element={lazyWorkspace(<ReferralSaasAccountMaintenancePage />)} />
+        <Route path="/admin/referral-saas/account-maintenance/:accountId" element={lazyWorkspace(<ReferralSaasAccountMaintenancePage />)} />
         <Route path="/admin/referral-saas/campaigns" element={lazyWorkspace(<ReferralSaasCampaignReadinessPage />)} />
         <Route path="/admin/referral-saas/link-codes" element={lazyWorkspace(<ReferralSaasLinkCodeWorkflowPage />)} />
         <Route path="/admin/referral-saas/operator-links" element={lazyWorkspace(<ReferralSaasOperatorLinkInspectPage />)} />
