@@ -32,8 +32,8 @@ ONBOARDING_ACCOUNT_SETUP_ROLES: Final = frozenset(
 
 NO_LIVE_ACTION_GUARDRAILS: Final = [
     "DURABLE_ACCOUNT_FOUNDATION_ONLY",
-    "EXISTING_INTERNAL_TENANT_REQUIRED",
-    "NO_TENANT_CREATION",
+    "BOUNDED_INTERNAL_TENANT_SEED",
+    "NO_EXTERNAL_TENANT_IDENTIFIER_EXPOSURE",
     "NO_MEMBERSHIP_WRITE",
     "NO_INVITE_DELIVERY",
     "NO_CAMPAIGN_PUBLICATION",
@@ -70,6 +70,10 @@ class AccountSetupMissingScope(AccountSetupCommandError):
 
 class AccountSetupDuplicateReference(AccountSetupCommandError):
     safe_code = "DUPLICATE_EXTERNAL_REFERENCE"
+
+
+class AccountSetupDuplicateInternalTenantScope(AccountSetupCommandError):
+    safe_code = "DUPLICATE_INTERNAL_TENANT_SCOPE"
 
 
 @dataclass(frozen=True)
@@ -147,6 +151,7 @@ async def create_durable_account_from_onboarding_draft(
     account_code = _account_code(external_tenant_ref, organisation_ref)
     account_name = _account_name(draft, organisation_ref)
     operating_jurisdiction_code = await _operating_jurisdiction_code_from_draft(draft)
+    tenant_seed_industry = await _tenant_seed_industry_from_draft(draft)
     safe_summary = {
         "draft_ref": safe_draft_ref,
         "external_tenant_ref": external_tenant_ref,
@@ -192,7 +197,7 @@ async def create_durable_account_from_onboarding_draft(
             RELATIONSHIP_OWNER,
         )
         if duplicate_owner_link:
-            raise AccountSetupDuplicateReference(
+            raise AccountSetupDuplicateInternalTenantScope(
                 "Internal tenant scope is already attached to an account owner."
             )
 
@@ -227,6 +232,20 @@ async def create_durable_account_from_onboarding_draft(
                 _safe_text(actor_ref) or "ACCOUNT_SETUP_OPERATOR",
             )
             account_id = account["account_id"]
+
+            await conn.fetchrow(
+                """
+                INSERT INTO tenants (tenant_code, tenant_name, industry)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (tenant_code) DO UPDATE SET
+                    tenant_name = EXCLUDED.tenant_name,
+                    industry = EXCLUDED.industry
+                RETURNING tenant_code
+                """,
+                safe_tenant_code,
+                account_name,
+                tenant_seed_industry,
+            )
 
             await conn.fetchrow(
                 """
@@ -436,6 +455,26 @@ async def _operating_jurisdiction_code_from_draft(draft: Mapping[str, Any]) -> s
         if code:
             return code
     return "ZA"
+
+
+async def _tenant_seed_industry_from_draft(draft: Mapping[str, Any]) -> str:
+    draft_id = _safe_text(draft.get("draft_id"))
+    if draft_id:
+        section_rows = await draft_repo.get_draft_sections(draft_id)
+        for row in section_rows:
+            if _safe_text(row.get("section_key")) != "company":
+                continue
+            section_payload = _mapping_from_jsonb(row.get("section_payload"))
+            industry = _safe_text(section_payload.get("industry"))
+            if industry:
+                return industry
+
+    safe_summary = draft.get("safe_summary")
+    if isinstance(safe_summary, Mapping):
+        industry = _safe_text(safe_summary.get("industry"))
+        if industry:
+            return industry
+    return "Referral management and campaign attribution"
 
 
 def _mapping_from_jsonb(value: Any) -> Mapping[str, Any]:

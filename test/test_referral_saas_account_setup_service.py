@@ -52,6 +52,7 @@ class FakeConnection:
                 "status": "PENDING_ONBOARDING",
                 "onboarding_status": "READY_FOR_REVIEW",
             },
+            "tenant_seed": {"tenant_code": "FNB"},
             "organisation": {"organisation_id": "org-uuid"},
             "tenant": {
                 "account_tenant_id": "acct-tenant-uuid",
@@ -83,6 +84,8 @@ class FakeConnection:
             return self.duplicate_owner_link
         if "INSERT INTO platform_accounts" in query:
             return self.inserted["account"]
+        if "INSERT INTO tenants" in query:
+            return self.inserted["tenant_seed"]
         if "INSERT INTO platform_organisations" in query:
             return self.inserted["organisation"]
         if "INSERT INTO platform_account_tenants" in query:
@@ -157,17 +160,23 @@ async def test_create_durable_account_from_ready_draft(monkeypatch):
     assert json.loads(account_params[7])["draft_ref"] == "draft_001"
     assert json.loads(account_params[7])["operating_jurisdiction_code"] == "ZA"
 
-    tenant_query, tenant_params = conn.fetchrow_calls[4]
+    tenant_seed_query, tenant_seed_params = conn.fetchrow_calls[3]
+    assert "INSERT INTO tenants" in tenant_seed_query
+    assert tenant_seed_params[0] == "FNB"
+    assert tenant_seed_params[1] == "FNB Referral SaaS"
+    assert tenant_seed_params[2] == "Referral management and campaign attribution"
+
+    tenant_query, tenant_params = conn.fetchrow_calls[5]
     assert "INSERT INTO platform_account_tenants" in tenant_query
     assert tenant_params[1] == "FNB"
     assert tenant_params[2] == "OWNER"
 
-    external_ref_query, external_ref_params = conn.fetchrow_calls[5]
+    external_ref_query, external_ref_params = conn.fetchrow_calls[6]
     assert "INSERT INTO platform_external_tenant_refs" in external_ref_query
     assert external_ref_params[3] == "external_tenant_ref"
     assert external_ref_params[5] == "ACTIVE"
 
-    audit_query, audit_params = conn.fetchrow_calls[7]
+    audit_query, audit_params = conn.fetchrow_calls[8]
     assert "INSERT INTO platform_account_audit_events" in audit_query
     assert audit_params[4] == "ACCOUNT_FOUNDATION_CREATED"
     assert audit_params[5] == "RECORDED"
@@ -244,7 +253,7 @@ async def test_rejects_duplicate_internal_tenant_owner_before_transaction(monkey
     patch_db(monkeypatch, conn)
     patch_draft(monkeypatch, _draft())
 
-    with pytest.raises(service.AccountSetupDuplicateReference):
+    with pytest.raises(service.AccountSetupDuplicateInternalTenantScope):
         await service.create_durable_account_from_onboarding_draft(
             draft_ref="draft_001",
             tenant_code="FNB",

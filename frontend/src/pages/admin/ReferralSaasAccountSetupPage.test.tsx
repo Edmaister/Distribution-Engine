@@ -339,7 +339,7 @@ function mockAccountCreateResponse() {
       onboardingStatus: "READY_FOR_REVIEW",
       tenantLinkStatus: "PENDING_SETUP",
     },
-    guardrails: ["DURABLE_ACCOUNT_FOUNDATION_ONLY", "NO_TENANT_CREATION", "NO_MONEY_MOVEMENT"],
+    guardrails: ["DURABLE_ACCOUNT_FOUNDATION_ONLY", "BOUNDED_INTERNAL_TENANT_SEED", "NO_MONEY_MOVEMENT"],
     redactions: ["internal_tenant_identifier"],
     noAdjacentLiveActionConfirmed: true,
   };
@@ -843,7 +843,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     await waitFor(() => expect(mockedCreateReferralSaasAccountFromDraft).toHaveBeenCalledTimes(1));
     expect(mockedCreateReferralSaasAccountFromDraft).toHaveBeenCalledWith({
       draftRef: "draft_referral_saas_setup",
-      internalTenantCode: "FNB",
+      internalTenantCode: "RS_DEMO_PLATFORM_OPERATOR_DEMO__1EVY6SE",
       idempotencyKey: "referral-saas-account-setup-create:draft_referral_saas_setup",
     });
     expect(JSON.stringify(mockedCreateReferralSaasAccountFromDraft.mock.calls).toLowerCase()).not.toMatch(
@@ -858,6 +858,34 @@ describe("ReferralSaasAccountSetupPage", () => {
       "href",
       "/admin/onboarding/webhook-api",
     );
+  });
+
+  it("explains internal setup scope conflicts without claiming the customer already exists", async () => {
+    mockedResolveReferralSaasAccount.mockRejectedValue({
+      status: 404,
+      message: "External reference was not found.",
+    });
+    mockedCreateReferralSaasAccountFromDraft.mockRejectedValueOnce({
+      status: 409,
+      detail: { code: "DUPLICATE_INTERNAL_TENANT_SCOPE" },
+    });
+
+    renderWorkspace(<ReferralSaasAccountSetupPage />);
+
+    await screen.findByRole("heading", { name: "Account setup wizard" });
+    await waitForWizard();
+    await confirmAccountScope();
+    fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
+    fillRequiredCompanyProfile();
+    await validateSetup();
+    fireEvent.click(screen.getByRole("button", { name: "Review & create" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create account foundation" }));
+
+    expect(await screen.findByText("Setup workspace already used.")).toBeInTheDocument();
+    expect(screen.getByText(/setup workspace for this customer is already attached/)).toBeInTheDocument();
+    expect(screen.queryByText("Account foundation already exists.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh setup status" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Use different customer identifiers" })).not.toHaveLength(0);
   });
 
   it("keeps user access writes out of Account Setup", async () => {

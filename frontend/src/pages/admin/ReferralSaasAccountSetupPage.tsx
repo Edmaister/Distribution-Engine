@@ -39,12 +39,12 @@ import {
 
 const defaultExternalTenantRef = "";
 const defaultOrganisationRef = "";
-const trustedInternalTenantScopeKey = "amplifi.referralSaas.accountSetup.trustedTenantScope";
-const defaultTrustedInternalTenantScope = "FNB";
 const draftConflictRecoveryMessage =
   "A saved setup already exists for this customer. Refresh the setup status to continue from the latest evidence, or use a different customer before saving another draft. No account was created and no live action was taken.";
 const accountAlreadyExistsMessage =
   "This customer already has an account foundation, or the selected internal setup scope is already attached to an account. Open the customer profile if this is the same customer, or use different customer identifiers.";
+const internalScopeAlreadyUsedMessage =
+  "The setup workspace for this customer is already attached to another account foundation. Use different customer identifiers, then create the account foundation again.";
 const guidedReviewReason = "Account setup reviewed through the guided Referral SaaS account setup flow.";
 type SetupActionState = "idle" | "loading" | "success" | "error";
 type CompanyProfileForm = {
@@ -539,7 +539,7 @@ export function ReferralSaasAccountSetupPage() {
 
       const response = await createReferralSaasAccountFromDraft({
         draftRef: reviewedDraft.draft_ref,
-        internalTenantCode: getTrustedInternalTenantScope(),
+        internalTenantCode: deriveInternalSetupTenantScope(appliedExternalTenantRef, appliedOrganisationRef),
         idempotencyKey: ["referral-saas-account-setup-create", reviewedDraft.draft_ref].join(":"),
       });
       setCreateResponse(response);
@@ -1349,7 +1349,14 @@ function safeActionError(error: unknown, fallback: string) {
 
 function safeAccountCreateError(error: unknown) {
   const status = typeof error === "object" && error && "status" in error ? Number((error as { status?: number }).status) : null;
+  const code =
+    typeof error === "object" && error && "detail" in error
+      ? asText((error as { detail?: { code?: unknown } }).detail?.code)
+      : "";
   if (status === 409) {
+    if (code === "DUPLICATE_INTERNAL_TENANT_SCOPE") {
+      return internalScopeAlreadyUsedMessage;
+    }
     return accountAlreadyExistsMessage;
   }
   if (status === 422) {
@@ -1361,12 +1368,18 @@ function safeAccountCreateError(error: unknown) {
   return "Account foundation creation is unavailable. No tenant, user, campaign, go-live, or money action was taken.";
 }
 
-function getTrustedInternalTenantScope() {
-  if (typeof window === "undefined") {
-    return defaultTrustedInternalTenantScope;
+function deriveInternalSetupTenantScope(externalTenantRef: string, organisationRef: string) {
+  const source = `${externalTenantRef}:${organisationRef}`;
+  const cleaned = source
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  const prefix = (cleaned || "CUSTOMER_SETUP").slice(0, 28);
+  let hash = 0;
+  for (let index = 0; index < source.length; index += 1) {
+    hash = (hash * 31 + source.charCodeAt(index)) >>> 0;
   }
-
-  return localStorage.getItem(trustedInternalTenantScopeKey) || defaultTrustedInternalTenantScope;
+  return `RS_${prefix}_${hash.toString(36).toUpperCase()}`.slice(0, 48);
 }
 
 function formatAccountSummary(account: ReferralSaasAccountSummary) {
@@ -1490,12 +1503,16 @@ function SetupActionResult({
             <strong>
               {message === draftConflictRecoveryMessage
                 ? "Existing setup draft found."
+                : message === internalScopeAlreadyUsedMessage
+                  ? "Setup workspace already used."
                 : message === accountAlreadyExistsMessage
                   ? "Account foundation already exists."
                   : "Setup action fallback."}
             </strong>
             <div className="table-subtext">{message}</div>
-            {message === draftConflictRecoveryMessage || message === accountAlreadyExistsMessage ? (
+            {message === draftConflictRecoveryMessage ||
+            message === accountAlreadyExistsMessage ||
+            message === internalScopeAlreadyUsedMessage ? (
               <div className="action-button-row">
                 <button className="button secondary" onClick={onRefreshSetupStatus} type="button">
                   Refresh setup status

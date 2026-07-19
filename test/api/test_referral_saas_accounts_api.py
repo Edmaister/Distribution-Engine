@@ -17,6 +17,7 @@ from services.referral_saas_account_foundation_service import (
 )
 from services.referral_saas_account_setup_service import (
     AccountSetupDraftNotFound,
+    AccountSetupDuplicateInternalTenantScope,
     AccountSetupDuplicateReference,
     AccountSetupInvalidDraftState,
     DurableAccountSetupResult,
@@ -140,7 +141,7 @@ async def test_referral_saas_account_create_rejects_missing_required_fields():
     assert response.status_code == 422
     detail = response.json()["detail"]
     assert detail["code"] == "validation_error"
-    assert "NO_TENANT_CREATION" in detail["guardrails"]
+    assert "BOUNDED_INTERNAL_TENANT_SEED" in detail["guardrails"]
     assert detail["redactions"] == ["internal_tenant_identifier"]
 
 
@@ -176,6 +177,11 @@ async def test_referral_saas_account_create_rejects_adjacent_role():
             AccountSetupDuplicateReference("Duplicate reference."),
             409,
             "DUPLICATE_EXTERNAL_REFERENCE",
+        ),
+        (
+            AccountSetupDuplicateInternalTenantScope("Internal tenant scope is already attached to an account owner."),
+            409,
+            "DUPLICATE_INTERNAL_TENANT_SCOPE",
         ),
     ],
 )

@@ -19,6 +19,7 @@ from services.referral_saas_account_foundation_service import (
 from services.referral_saas_account_setup_service import (
     AccountSetupCommandError,
     AccountSetupDraftNotFound,
+    AccountSetupDuplicateInternalTenantScope,
     AccountSetupDuplicateReference,
     AccountSetupInvalidDraftState,
     AccountSetupMissingScope,
@@ -105,6 +106,7 @@ def _command_error(exc: AccountSetupCommandError) -> HTTPException:
         (
             AccountSetupInvalidDraftState,
             AccountSetupMissingScope,
+            AccountSetupDuplicateInternalTenantScope,
             AccountSetupDuplicateReference,
         ),
     ):
@@ -485,8 +487,8 @@ async def read_referral_saas_account_membership_posture(
 def _account_creation_guardrails() -> list[str]:
     return [
         "DURABLE_ACCOUNT_FOUNDATION_ONLY",
-        "EXISTING_INTERNAL_TENANT_REQUIRED",
-        "NO_TENANT_CREATION",
+        "BOUNDED_INTERNAL_TENANT_SEED",
+        "NO_EXTERNAL_TENANT_IDENTIFIER_EXPOSURE",
         "NO_MEMBERSHIP_WRITE",
         "NO_INVITE_DELIVERY",
         "NO_ACCOUNT_ACTIVATION",

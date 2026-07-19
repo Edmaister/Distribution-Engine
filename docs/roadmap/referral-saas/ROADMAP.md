@@ -675,6 +675,16 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Account Setup Review & Create now presents one primary create action and one save-for-later action while preserving the existing save, submit, review, and account-creation guardrails behind the product action.
+- TASK-234: `services/referral_saas_account_setup_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
+  `test/test_referral_saas_account_setup_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_CREATE_PHYSICAL_VERIFICATION.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Account Setup no longer silently reuses the default `FNB` owner scope for new customer account foundations; it derives a bounded internal setup seed from the customer identifiers, creates/updates that seed inside the guarded account-foundation transaction, and returns a distinct internal-scope duplicate conflict when needed.
 
 ## Explicit Deferrals
 
