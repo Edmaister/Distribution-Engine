@@ -484,9 +484,11 @@ describe("ReferralSaasAccountSetupPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
     expect(screen.getByText(/Capture the company evidence inside this wizard/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save company profile" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Country" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Operating jurisdiction" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /Organisation type/ })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Industry" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Automotive" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Referral management and campaign attribution" })).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /Intended role/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /commercial relationship/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /does not invite a user or grant access/ })).toBeInTheDocument();
@@ -522,11 +524,11 @@ describe("ReferralSaasAccountSetupPage", () => {
     fireEvent.change(screen.getByLabelText("Organisation name"), {
       target: { value: "FNB Referral Programme" },
     });
-    fireEvent.change(screen.getByRole("combobox", { name: "Country" }), {
+    fireEvent.change(screen.getByRole("combobox", { name: "Operating jurisdiction" }), {
       target: { value: "South Africa" },
     });
     fireEvent.change(screen.getByRole("combobox", { name: "Industry" }), {
-      target: { value: "Banking" },
+      target: { value: "Automotive" },
     });
     fireEvent.change(screen.getByLabelText("Admin contact"), {
       target: { value: "referrals-admin@example.test" },
@@ -551,7 +553,7 @@ describe("ReferralSaasAccountSetupPage", () => {
           organisation_ref: "demo-organisation",
           country: "South Africa",
           organisation_type: "Referral SaaS customer",
-          industry: "Banking",
+          industry: "Automotive",
           admin_contact: "referrals-admin@example.test",
           intended_role: "Campaign manager",
         },

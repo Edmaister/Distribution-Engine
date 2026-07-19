@@ -55,14 +55,31 @@ type CompanyProfileForm = {
   intendedRole: string;
 };
 
-const companyCountryOptions = ["South Africa", "United Kingdom", "United States", "European Union", "Other"];
+const companyJurisdictionOptions = [
+  "South Africa",
+  "United Kingdom",
+  "United States",
+  "European Union",
+  "Canada",
+  "Australia",
+  "United Arab Emirates",
+  "Singapore",
+  "India",
+  "Brazil",
+  "Other",
+];
 const companyIndustryOptions = [
-  "Banking",
+  "Banking and financial services",
   "Insurance",
-  "Retail",
+  "Retail and ecommerce",
   "Telecommunications",
-  "Financial services",
-  "Referral management and campaign attribution",
+  "Automotive",
+  "Travel and hospitality",
+  "Healthcare",
+  "Education",
+  "Real estate",
+  "Energy and utilities",
+  "Technology and SaaS",
   "Other",
 ];
 
@@ -128,7 +145,7 @@ export function ReferralSaasAccountSetupPage() {
     organisationName: `${defaultOrganisationRef} Referral SaaS setup`,
     country: "South Africa",
     organisationType: "Referral SaaS customer",
-    industry: "Referral management and campaign attribution",
+    industry: "Banking and financial services",
     adminContact: "setup-owner@example.test",
     intendedRole: "Referral SaaS account admin",
   });
@@ -705,10 +722,10 @@ export function ReferralSaasAccountSetupPage() {
                           <input className="input" onChange={(event) => updateCompanyProfile("organisationName", event.target.value)} value={companyProfile.organisationName} />
                         </label>
                         <label className="field">
-                          <span>Country</span>
+                          <span>Operating jurisdiction</span>
                           <select className="input" onChange={(event) => updateCompanyProfile("country", event.target.value)} value={companyProfile.country}>
-                            {companyCountryOptions.map((country) => (
-                              <option key={country} value={country}>{country}</option>
+                            {companyJurisdictionOptions.map((jurisdiction) => (
+                              <option key={jurisdiction} value={jurisdiction}>{jurisdiction}</option>
                             ))}
                           </select>
                         </label>
@@ -1191,7 +1208,7 @@ function buildReferralSaasSetupSections(
       producer_ref: producerRef,
       sponsor_ref: sponsorRef,
       organisation_ref: organisationRef,
-      industry: "Referral management and campaign attribution",
+      industry: companyProfile.industry.trim(),
       funding_model_intention: "No value transfer during account setup",
       admin_contact: adminContact,
       campaign_opportunity_role: "Referral SaaS sponsor owner",
