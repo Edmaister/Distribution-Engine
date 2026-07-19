@@ -149,7 +149,7 @@ export function ReferralSaasAccountSetupPage() {
     organisationType: "Direct customer",
     industry: "Banking and financial services",
     adminContact: "setup-owner@example.test",
-    intendedRole: "Referral SaaS account admin",
+    intendedRole: "Account owner",
   });
   const [memberSubject, setMemberSubject] = useState("setup-owner");
   const [memberDisplayName, setMemberDisplayName] = useState("Referral SaaS setup owner");
@@ -776,8 +776,8 @@ export function ReferralSaasAccountSetupPage() {
                         </label>
                         <div className="field">
                           <label htmlFor="referral-saas-company-intended-role">
-                            Intended role{" "}
-                            <InfoTooltip text="Select the setup role the primary contact is expected to hold later. This records onboarding intent only; it does not invite a user or grant access." />
+                            Contact responsibility{" "}
+                            <InfoTooltip text="Describes why this contact is involved in setup. Access roles and permissions are captured later in People & roles." />
                           </label>
                           <select
                             className="input"
@@ -785,10 +785,12 @@ export function ReferralSaasAccountSetupPage() {
                             onChange={(event) => updateCompanyProfile("intendedRole", event.target.value)}
                             value={companyProfile.intendedRole}
                           >
-                            <option value="Referral SaaS account admin">Referral SaaS account admin</option>
+                            <option value="Account owner">Account owner</option>
+                            <option value="Implementation lead">Implementation lead</option>
                             <option value="Campaign manager">Campaign manager</option>
+                            <option value="Technical integration lead">Technical integration lead</option>
+                            <option value="Reporting lead">Reporting lead</option>
                             <option value="Support lead">Support lead</option>
-                            <option value="Reporting analyst">Reporting analyst</option>
                           </select>
                         </div>
                       </div>

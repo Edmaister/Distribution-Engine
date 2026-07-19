@@ -492,9 +492,11 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.getByRole("combobox", { name: "Industry" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Automotive" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Referral management and campaign attribution" })).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: /Intended role/ })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /Contact responsibility/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Implementation lead" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Referral SaaS account admin" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Product package and billing plan are configured separately/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /does not invite a user or grant access/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Access roles and permissions are captured later in People & roles/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Company profile/ })).not.toBeInTheDocument();
     await recordRoleIntent();
     expect(screen.getByRole("button", { name: "Record role intent" })).toBeInTheDocument();
@@ -536,7 +538,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     fireEvent.change(screen.getByLabelText("Admin contact"), {
       target: { value: "referrals-admin@example.test" },
     });
-    fireEvent.change(screen.getByRole("combobox", { name: /Intended role/ }), {
+    fireEvent.change(screen.getByRole("combobox", { name: /Contact responsibility/ }), {
       target: { value: "Campaign manager" },
     });
 
