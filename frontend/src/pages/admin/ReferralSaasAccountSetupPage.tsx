@@ -38,8 +38,8 @@ import {
   useRefreshContext,
 } from "../pageUtils";
 
-const defaultExternalTenantRef = "demo-platform-operator";
-const defaultOrganisationRef = "demo-organisation";
+const defaultExternalTenantRef = "";
+const defaultOrganisationRef = "";
 const trustedInternalTenantScopeKey = "amplifi.referralSaas.accountSetup.trustedTenantScope";
 const defaultTrustedInternalTenantScope = "FNB";
 const draftConflictRecoveryMessage =
@@ -140,11 +140,11 @@ export function ReferralSaasAccountSetupPage() {
   const [createResponse, setCreateResponse] = useState<ReferralSaasAccountCreateFromDraftResponse | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfileForm>({
-    organisationName: `${defaultOrganisationRef} Referral SaaS setup`,
+    organisationName: "",
     country: "South Africa",
     organisationType: "Direct customer",
     industry: "Banking and financial services",
-    adminContact: "setup-owner@example.test",
+    adminContact: "",
     intendedRole: "Account owner",
   });
   const [savedCompanyProfile, setSavedCompanyProfile] = useState<CompanyProfileForm | null>(null);
@@ -701,14 +701,32 @@ export function ReferralSaasAccountSetupPage() {
                         <StatusBadge label="External only" tone="info" />
                       </div>
                       <div className="form-grid">
-                        <label className="field">
-                          <span>Customer reference</span>
-                          <input className="input" onChange={(event) => setDraftExternalTenantRef(event.target.value)} value={draftExternalTenantRef} />
-                        </label>
-                        <label className="field">
-                          <span>Organisation reference</span>
-                          <input className="input" onChange={(event) => setDraftOrganisationRef(event.target.value)} value={draftOrganisationRef} />
-                        </label>
+                        <div className="field">
+                          <label htmlFor="referral-saas-customer-reference">
+                            Customer reference{" "}
+                            <InfoTooltip text="Enter the stable customer-facing reference for this account, such as a customer slug or external tenant reference. We use it to find an existing Referral SaaS account, save setup evidence, and keep later customer work scoped without exposing internal tenant IDs." />
+                          </label>
+                          <input
+                            className="input"
+                            id="referral-saas-customer-reference"
+                            onChange={(event) => setDraftExternalTenantRef(event.target.value)}
+                            placeholder="Example: fnb-sa-referrals"
+                            value={draftExternalTenantRef}
+                          />
+                        </div>
+                        <div className="field">
+                          <label htmlFor="referral-saas-organisation-reference">
+                            Organisation reference{" "}
+                            <InfoTooltip text="Enter the customer organisation reference that pairs with the customer reference. We use it in setup drafts, readiness checks, and customer profile routing so the account can be selected again consistently." />
+                          </label>
+                          <input
+                            className="input"
+                            id="referral-saas-organisation-reference"
+                            onChange={(event) => setDraftOrganisationRef(event.target.value)}
+                            placeholder="Example: fnb-retail-bank"
+                            value={draftOrganisationRef}
+                          />
+                        </div>
                       </div>
                       <div className="action-button-row">
                         <button className="button" disabled={!canCheckScope} type="submit">Find account</button>

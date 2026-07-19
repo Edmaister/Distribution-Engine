@@ -357,8 +357,21 @@ async function waitForWizard() {
   await screen.findByRole("button", { name: "Identify customer" });
 }
 
+const testCustomerReference = "demo-platform-operator";
+const testOrganisationReference = "demo-organisation";
+
 async function confirmAccountScope() {
-  fireEvent.click(screen.getByRole("button", { name: "Find account" }));
+  const customerReference = screen.getByPlaceholderText("Example: fnb-sa-referrals");
+  const organisationReference = screen.getByPlaceholderText("Example: fnb-retail-bank");
+  if (!(customerReference as HTMLInputElement).value) {
+    fireEvent.change(customerReference, { target: { value: testCustomerReference } });
+  }
+  if (!(organisationReference as HTMLInputElement).value) {
+    fireEvent.change(organisationReference, { target: { value: testOrganisationReference } });
+  }
+  const findAccountButton = screen.getByRole("button", { name: "Find account" });
+  await waitFor(() => expect(findAccountButton).toBeEnabled());
+  fireEvent.click(findAccountButton);
   await screen.findByText("Checked");
 }
 
@@ -366,6 +379,15 @@ async function validateSetup() {
   fireEvent.click(screen.getByRole("button", { name: "Setup checkpoint" }));
   fireEvent.click(screen.getByRole("button", { name: "Refresh setup checkpoint" }));
   await screen.findByText("Checkpoint refreshed");
+}
+
+function fillRequiredCompanyProfile() {
+  fireEvent.change(screen.getByLabelText("Organisation name"), {
+    target: { value: "FNB Referral Programme" },
+  });
+  fireEvent.change(screen.getByLabelText("Admin contact"), {
+    target: { value: "referrals-admin@example.test" },
+  });
 }
 
 describe("ReferralSaasAccountSetupPage", () => {
@@ -397,6 +419,12 @@ describe("ReferralSaasAccountSetupPage", () => {
 
     expect(await screen.findByRole("heading", { name: "Account setup wizard" })).toBeInTheDocument();
     await waitForWizard();
+    expect(screen.getByPlaceholderText("Example: fnb-sa-referrals")).toHaveValue("");
+    expect(screen.getByPlaceholderText("Example: fnb-retail-bank")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Find account" })).toBeDisabled();
+    expect(mockedGetAdminOnboardingState).not.toHaveBeenCalled();
+    expect(mockedResolveReferralSaasAccount).not.toHaveBeenCalled();
+    await confirmAccountScope();
     await waitFor(() =>
       expect(mockedGetAdminOnboardingState).toHaveBeenCalledWith({
         external_tenant_ref: "demo-platform-operator",
@@ -419,7 +447,6 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.getByText("Safe mode: no go-live / money / credentials")).toBeInTheDocument();
     expect(screen.getByText("Account status")).toBeInTheDocument();
     expect(screen.getByText("FNB Referral SaaS - ACTIVE - tenant link ACTIVE")).toBeInTheDocument();
-    await confirmAccountScope();
     expect(screen.queryByRole("button", { name: "Integration intent" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "People & roles" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Record role intent" })).not.toBeInTheDocument();
@@ -615,6 +642,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     await confirmAccountScope();
 
     fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
+    fillRequiredCompanyProfile();
     fireEvent.click(screen.getByRole("button", { name: "Save company profile" }));
 
     expect(await screen.findByText("Existing setup draft found.")).toBeInTheDocument();
@@ -634,18 +662,20 @@ describe("ReferralSaasAccountSetupPage", () => {
 
     await screen.findByRole("heading", { name: "Account setup wizard" });
     await waitForWizard();
-    await waitFor(() => expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1));
+    expect(mockedGetAdminOnboardingState).not.toHaveBeenCalled();
+    expect(mockedResolveReferralSaasAccount).not.toHaveBeenCalled();
+    expect(mockedGetReferralSaasAccountMembershipPosture).not.toHaveBeenCalled();
 
-    fireEvent.change(screen.getByLabelText("Customer reference"), {
+    fireEvent.change(screen.getByPlaceholderText("Example: fnb-sa-referrals"), {
       target: { value: "org-fnb-referrals" },
     });
-    fireEvent.change(screen.getByLabelText("Organisation reference"), {
+    fireEvent.change(screen.getByPlaceholderText("Example: fnb-retail-bank"), {
       target: { value: "fnb-referral-org" },
     });
 
     expect(screen.getByText("Changes not checked")).toBeInTheDocument();
-    expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1);
-    expect(mockedGetReferralSaasAccountMembershipPosture).toHaveBeenCalledTimes(1);
+    expect(mockedGetAdminOnboardingState).not.toHaveBeenCalled();
+    expect(mockedGetReferralSaasAccountMembershipPosture).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Find account" }));
 
