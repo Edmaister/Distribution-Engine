@@ -144,6 +144,8 @@ def test_run_prepares_seed_then_runs_fresh_client_workspace_proof(monkeypatch):
     assert result["no_money_movement"] is True
 
 
-def test_run_requires_db_dsn():
+def test_run_requires_db_dsn(monkeypatch):
+    monkeypatch.delenv("APP_DB_DSN", raising=False)
+
     with pytest.raises(RuntimeError, match="APP_DB_DSN"):
         script.run(script.parse_args(["--suffix", "local-230"]))
