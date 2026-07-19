@@ -534,7 +534,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Refresh setup checkpoint" }));
     await screen.findByText("Checkpoint refreshed");
     fireEvent.click(screen.getByRole("button", { name: "Review & create" }));
-    expect(screen.getByRole("button", { name: "Save setup draft" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save and finish later" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Handoff" }));
     expect(lastMatch(screen.getAllByRole("link", { name: /Technical setup/ }))).toHaveAttribute(
       "href",
@@ -648,7 +648,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(await screen.findByText("Existing setup draft found.")).toBeInTheDocument();
     expect(screen.getByText(/A saved setup already exists for this customer/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Refresh setup status" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Use different customer" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use different customer identifiers" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Change customer references" })).not.toBeInTheDocument();
     expect(screen.queryByText("Setup action fallback.")).not.toBeInTheDocument();
 
@@ -705,7 +705,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     );
     await validateSetup();
     fireEvent.click(screen.getByRole("button", { name: "Review & create" }));
-    expect(screen.getByRole("button", { name: "Save setup draft" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save and finish later" })).toBeEnabled();
   });
 
   it("keeps first-time setup usable when no durable account exists yet", async () => {
@@ -723,16 +723,23 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.getByText("Start setup")).toBeInTheDocument();
     await validateSetup();
     fireEvent.click(screen.getByRole("button", { name: "Review & create" }));
-    expect(screen.getByRole("button", { name: "Save setup draft" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save and finish later" })).toBeEnabled();
     expect(screen.queryByText(/tenant_code/i)).not.toBeInTheDocument();
   });
 
-  it("connects setup workflow actions to existing onboarding draft APIs safely", async () => {
+  it("connects the single create action to existing onboarding draft APIs safely", async () => {
+    mockedResolveReferralSaasAccount.mockRejectedValue({
+      status: 404,
+      message: "External reference was not found.",
+    });
+
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
     await screen.findByRole("heading", { name: "Account setup wizard" });
     await waitForWizard();
     await confirmAccountScope();
+    fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
+    fillRequiredCompanyProfile();
 
     fireEvent.click(screen.getByRole("button", { name: "Setup checkpoint" }));
     fireEvent.click(screen.getByRole("button", { name: "Refresh setup checkpoint" }));
@@ -764,7 +771,11 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(await screen.findByText("Checkpoint refreshed")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Review & create" }));
-    fireEvent.click(screen.getByRole("button", { name: "Save setup draft" }));
+    expect(screen.queryByRole("button", { name: "Submit for review" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Accept internal review" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Review reason")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Create account foundation" }));
+
     await waitFor(() => expect(mockedSaveAdminOnboardingDraft).toHaveBeenCalledTimes(1));
     const draftRequest = mockedSaveAdminOnboardingDraft.mock.calls[0][0];
     expect(draftRequest).toMatchObject({
@@ -774,9 +785,8 @@ describe("ReferralSaasAccountSetupPage", () => {
     });
     expect(draftRequest.idempotency_key).toContain("referral-saas-account-setup-draft");
     expect(JSON.stringify(draftRequest).toLowerCase()).not.toMatch(/tenant_code|api_key|client_secret|wallet|settlement|money/);
-    expect(await screen.findByText("Setup draft saved.")).toBeInTheDocument();
+    expect(screen.queryByText("Setup draft saved.")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
     await waitFor(() => expect(mockedSubmitAdminOnboardingDraftForReview).toHaveBeenCalledTimes(1));
     const [draftRef, submitRequest] = mockedSubmitAdminOnboardingDraftForReview.mock.calls[0];
     expect(draftRef).toBe("draft_referral_saas_setup");
@@ -788,12 +798,8 @@ describe("ReferralSaasAccountSetupPage", () => {
     });
     expect(submitRequest.idempotency_key).toContain("referral-saas-account-setup-submit");
     expect(JSON.stringify(submitRequest).toLowerCase()).not.toMatch(/tenant_code|api_key|client_secret|wallet|settlement|money/);
-    expect(await screen.findByText("Setup draft submitted for review.")).toBeInTheDocument();
+    expect(screen.queryByText("Setup draft submitted for review.")).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Review reason"), {
-      target: { value: "Setup evidence is complete enough for internal review." },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Accept internal review" }));
     await waitFor(() => expect(mockedRecordAdminOnboardingReviewDecision).toHaveBeenCalledTimes(1));
     const [reviewDraftRef, reviewRequest] = mockedRecordAdminOnboardingReviewDecision.mock.calls[0];
     expect(reviewDraftRef).toBe("draft_referral_saas_setup");
@@ -803,14 +809,15 @@ describe("ReferralSaasAccountSetupPage", () => {
       expected_version: 2,
       review_outcome: "APPROVED_FOR_INTERNAL_REVIEW",
       reason_category: "OPERATOR_REVIEW",
-      reason: "Setup evidence is complete enough for internal review.",
+      reason: "Account setup reviewed through the guided Referral SaaS account setup flow.",
       correlation_id: "referral-saas-account-setup-review-decision",
     });
     expect(reviewRequest.idempotency_key).toContain("referral-saas-account-setup-review");
     expect(JSON.stringify(reviewRequest).toLowerCase()).not.toMatch(/tenant_code|api_key|client_secret|wallet|settlement|money/);
-    expect(await screen.findByText("Internal review decision recorded.")).toBeInTheDocument();
-    expect(screen.getByText(/go-live: disabled/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create account foundation" })).toBeDisabled();
+    expect(await screen.findByText("Safe setup review completed.")).toBeInTheDocument();
+    expect(screen.queryByText("Internal review decision recorded.")).not.toBeInTheDocument();
+    expect(screen.queryByText(/go-live: disabled/)).not.toBeInTheDocument();
+    await waitFor(() => expect(mockedCreateReferralSaasAccountFromDraft).toHaveBeenCalledTimes(1));
   });
 
   it("creates the account foundation only after accepted internal review when no durable account exists", async () => {
@@ -825,22 +832,10 @@ describe("ReferralSaasAccountSetupPage", () => {
     await waitForWizard();
     await confirmAccountScope();
     expect(await screen.findByText(/No account exists for these customer identifiers yet/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
+    fillRequiredCompanyProfile();
     await validateSetup();
     fireEvent.click(screen.getByRole("button", { name: "Review & create" }));
-    expect(screen.getByRole("button", { name: "Create account foundation" })).toBeDisabled();
-
-    fireEvent.click(screen.getByRole("button", { name: "Save setup draft" }));
-    await screen.findByText("Setup draft saved.");
-
-    fireEvent.click(screen.getByRole("button", { name: "Submit for review" }));
-    await screen.findByText("Setup draft submitted for review.");
-
-    fireEvent.change(screen.getByLabelText("Review reason"), {
-      target: { value: "Setup evidence is ready for account foundation creation." },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Accept internal review" }));
-    await screen.findByText("Internal review decision recorded.");
-
     const createButton = screen.getByRole("button", { name: "Create account foundation" });
     await waitFor(() => expect(createButton).toBeEnabled());
     fireEvent.click(createButton);
@@ -855,7 +850,7 @@ describe("ReferralSaasAccountSetupPage", () => {
       /client_secret|wallet|settlement|money_movement|go_live_enabled/,
     );
     expect(await screen.findByText("Account foundation created.")).toBeInTheDocument();
-    expect(screen.getByText(/PENDING_ONBOARDING/)).toBeInTheDocument();
+    expect(screen.getByText(/Open this customer from Customer profile/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Handoff" }));
     expect(screen.getByText(/Manage users and access in Account Maintenance after the account foundation exists/)).toBeInTheDocument();
     expect(screen.getByText(/Technical setup is separate/)).toBeInTheDocument();
@@ -887,8 +882,9 @@ describe("ReferralSaasAccountSetupPage", () => {
     await validateSetup();
     fireEvent.click(screen.getByRole("button", { name: "Review & create" }));
     expect(screen.getByRole("button", { name: "Create account foundation" })).toBeInTheDocument();
-    expect(screen.getByText(/No users, campaigns, go-live, or money/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create account foundation" })).toBeDisabled();
+    expect(screen.getByText(/does not create users, send invites, create campaigns, enable go-live, create credentials, bill, settle, or move money/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Submit for review" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Accept internal review" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "People & roles" })).not.toBeInTheDocument();
   });
 

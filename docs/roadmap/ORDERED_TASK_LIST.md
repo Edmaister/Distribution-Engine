@@ -4981,6 +4981,31 @@ Rollback notes: Restore the previous Step 1 defaults and remove the new field gu
 Explicit non-goals: Do not add schema, migrations, backend routes, account lifecycle commands, durable profile updates, membership writes, invitation delivery, credential lifecycle, webhook delivery, campaign activation, go-live, money movement, DLaaS marketplace behavior, or source-code forks.
 Definition of done: Account Setup starts from explicit operator-entered customer identifiers with tooltip guidance and no silent demo/customer context. Priority: P0.
 
+## TASK-233: Simplify Account Setup Review & Create UX
+
+Status: Complete (2026-07-19). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing Account Setup wizard, onboarding draft save API, submit-for-review API, review-decision API, Referral SaaS account creation wrapper, idempotency keys, duplicate-reference handling, and shared status/banner components. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup CX; account foundation creation guardrails; onboarding draft governance; duplicate account recovery.
+Objective: Replace the exposed save-submit-review-create operator ceremony in Account Setup Review & Create with one clear product create action plus a save-for-later action, while preserving the existing backend governance sequence behind the primary action.
+Why now: Manual testing showed the Review & Create screen made operators manually drive backend draft/review state transitions and made duplicate-reference `409` responses look like accidental repeated saves instead of expected account-foundation recovery.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; roadmap and gap docs.
+Database/schema impact: None.
+Backend impact: None. Existing admin onboarding and Referral SaaS account creation APIs remain the source of truth.
+Frontend impact: Review & Create now shows one primary `Create account foundation` action, one `Save and finish later` action, a compact setup summary, a collapsed explanation of the behind-the-scenes governance sequence, and a clearer duplicate account recovery state with customer-profile and different-identifier actions.
+API impact: None. The frontend still calls existing save, submit-for-review, review-decision, and account-from-draft APIs with bounded idempotency keys.
+Tests to add/update: Updates Account Setup page tests to verify the single product action runs the safe backend sequence, hides manual submit/review controls, preserves no-user/no-campaign/no-go-live/no-credential/no-money guardrails, and keeps duplicate/conflict recovery actionable.
+Validation method: `npm.cmd test -- --run src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run lint`; `git diff --check`.
+Acceptance criteria: Operators do not see separate manual submit/review buttons on Review & Create; account creation remains blocked behind existing draft/review/account-foundation APIs; duplicate account creation conflicts produce actionable customer-profile/different-identifier recovery; no schema, backend route, user, invite, campaign, credential, go-live, billing, money, DLaaS marketplace, or source-code fork behavior is added.
+Dependencies: TASK-232.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Restore the previous visible Review & Create timeline and old tests.
+Explicit non-goals: Do not add schema, migrations, backend routes, account lifecycle commands, durable profile updates, membership writes, invitation delivery, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Setup Review & Create behaves like a product action rather than a backend state-machine console while preserving existing governance and safe account-foundation guardrails. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
