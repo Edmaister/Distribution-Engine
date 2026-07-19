@@ -5,6 +5,7 @@ import { createMemoryRouter, Outlet, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  getAdminOnboardingDrafts,
   getAdminOnboardingState,
   recordAdminOnboardingReviewDecision,
   saveAdminOnboardingDraft,
@@ -21,6 +22,7 @@ import {
 import { ReferralSaasAccountSetupPage } from "./ReferralSaasAccountSetupPage";
 
 vi.mock("../../api/endpoints/adminOnboarding", () => ({
+  getAdminOnboardingDrafts: vi.fn(),
   getAdminOnboardingState: vi.fn(),
   recordAdminOnboardingReviewDecision: vi.fn(),
   saveAdminOnboardingDraft: vi.fn(),
@@ -34,6 +36,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   resolveReferralSaasAccount: vi.fn(),
 }));
 
+const mockedGetAdminOnboardingDrafts = vi.mocked(getAdminOnboardingDrafts);
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
 const mockedRecordAdminOnboardingReviewDecision = vi.mocked(recordAdminOnboardingReviewDecision);
 const mockedSaveAdminOnboardingDraft = vi.mocked(saveAdminOnboardingDraft);
@@ -184,6 +187,42 @@ function mockDraftSaveResponse() {
     guardrails: ["NO_LIVE_ACTION"],
     redactions: ["INTERNAL_IDENTIFIER"],
     no_live_action_confirmed: true,
+  };
+}
+
+function mockDraftSelectorResponse() {
+  return {
+    status: "ok",
+    count: 1,
+    guardrails: ["READ_ONLY_DRAFT_SELECTOR", "NO_LIVE_ACTION"],
+    redactions: ["internal_identifier"],
+    items: [
+      {
+        draft_ref: "draft_saved_company_profile",
+        draft_version: 4,
+        draft_status: "DRAFT_CREATED",
+        external_tenant_ref: "demo-platform-operator",
+        organisation_ref: "demo-organisation",
+        readiness_status: "GO_LIVE_DISABLED",
+        validation_status: "VALID",
+        missing_evidence_count: 1,
+        blocker_count: 0,
+        updated_at: "2026-07-19T06:00:00Z",
+        redactions: ["internal_identifier"],
+        draft_sections: {
+          company: {
+            organisation_name: "Saved Referral Company",
+            external_tenant_ref: "demo-platform-operator",
+            organisation_ref: "demo-organisation",
+            country: "South Africa",
+            organisation_type: "Enterprise customer",
+            industry: "Automotive",
+            admin_contact: "saved-admin@example.test",
+            intended_role: "Implementation lead",
+          },
+        },
+      },
+    ],
   };
 }
 
@@ -379,6 +418,13 @@ async function validateSetup() {
 describe("ReferralSaasAccountSetupPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedGetAdminOnboardingDrafts.mockResolvedValue({
+      status: "ok",
+      items: [],
+      count: 0,
+      guardrails: ["READ_ONLY_DRAFT_SELECTOR"],
+      redactions: ["internal_identifier"],
+    });
     mockedGetAdminOnboardingState.mockResolvedValue(mockAccountSetupState());
     mockedValidateAdminOnboardingDryRun.mockResolvedValue(mockValidationResponse());
     mockedSaveAdminOnboardingDraft.mockResolvedValue(mockDraftSaveResponse());
@@ -566,7 +612,36 @@ describe("ReferralSaasAccountSetupPage", () => {
     });
     expect(JSON.stringify(draftRequest).toLowerCase()).not.toMatch(/tenant_code|api_key|client_secret|wallet|settlement|money/);
     expect(await screen.findByText("Setup draft saved.")).toBeInTheDocument();
-    expect(screen.getByText("Profile saved")).toBeInTheDocument();
+    expect(screen.getAllByText("Draft saved").length).toBeGreaterThan(0);
+  });
+
+  it("loads saved company profile draft evidence and blocks continuing after unsaved edits", async () => {
+    mockedGetAdminOnboardingState.mockResolvedValue(mockAccountSetupStateWithMissingCompanyProfile());
+    mockedGetAdminOnboardingDrafts.mockResolvedValue(mockDraftSelectorResponse());
+
+    renderWorkspace(<ReferralSaasAccountSetupPage />);
+
+    await screen.findByRole("heading", { name: "Account setup wizard" });
+    await waitForWizard();
+    await confirmAccountScope();
+    fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
+
+    expect(await screen.findByDisplayValue("Saved Referral Company")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Automotive")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("saved-admin@example.test")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /Contact responsibility/ })).toHaveValue("Implementation lead");
+    expect(screen.getByText(/Company profile draft saved/)).toBeInTheDocument();
+    expect(screen.getByText(/Saved draft: draft_saved_company_profile - version 4 - updated 2026-07-19T06:00:00Z/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
+
+    fireEvent.change(screen.getByLabelText("Organisation name"), {
+      target: { value: "Saved Referral Company Updated" },
+    });
+
+    expect(screen.getByText(/You changed the company profile after the last saved draft/)).toBeInTheDocument();
+    expect(screen.getAllByText("Unsaved changes").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save company changes" })).toBeEnabled();
   });
 
   it("shows actionable recovery when company profile save hits an existing draft conflict", async () => {

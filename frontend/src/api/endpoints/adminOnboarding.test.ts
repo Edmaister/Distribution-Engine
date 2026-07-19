@@ -143,6 +143,18 @@ const draftSelectorResponse = {
       missing_evidence_count: 1,
       blocker_count: 0,
       redactions: ["internal_identifier"],
+      draft_sections: {
+        company: {
+          organisation_name: "Acme Distribution Ltd",
+          external_tenant_ref: "acme-distribution",
+          organisation_ref: "org-acme",
+          country: "South Africa",
+          organisation_type: "Enterprise customer",
+          industry: "Automotive",
+          admin_contact: "ops@example.test",
+          intended_role: "Implementation lead",
+        },
+      },
     },
   ],
   guardrails: ["READ_ONLY_DRAFT_SELECTOR", "NO_ACCOUNT_CREATION"],
@@ -575,6 +587,13 @@ describe("admin onboarding api helper", () => {
       external_tenant_ref: "acme-distribution",
       organisation_ref: "org-acme",
       readiness_status: "GO_LIVE_DISABLED",
+      draft_sections: {
+        company: {
+          organisation_name: "Acme Distribution Ltd",
+          admin_contact: "ops@example.test",
+          intended_role: "Implementation lead",
+        },
+      },
     });
 
     const [url, options] = fetchMock.mock.calls[0] as unknown as [

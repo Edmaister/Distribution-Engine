@@ -1,6 +1,6 @@
 import { CheckCircle2, ShieldCheck, Users } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import {
   recordAdminOnboardingReviewDecision,
@@ -22,6 +22,7 @@ import {
   type ReferralSaasMembershipInvitationResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import {
+  useReferralSaasAccountDraftSelector,
   useReferralSaasAccountMembershipPosture,
   useReferralSaasAccountResolver,
   useReferralSaasAccountSetupState,
@@ -151,6 +152,10 @@ export function ReferralSaasAccountSetupPage() {
     adminContact: "setup-owner@example.test",
     intendedRole: "Account owner",
   });
+  const [savedCompanyProfile, setSavedCompanyProfile] = useState<CompanyProfileForm | null>(null);
+  const [loadedCompanyDraftRef, setLoadedCompanyDraftRef] = useState<string | null>(null);
+  const [loadedCompanyDraftVersion, setLoadedCompanyDraftVersion] = useState<number | null>(null);
+  const [loadedCompanyDraftUpdatedAt, setLoadedCompanyDraftUpdatedAt] = useState<string | null>(null);
   const [memberSubject, setMemberSubject] = useState("setup-owner");
   const [memberDisplayName, setMemberDisplayName] = useState("Referral SaaS setup owner");
   const [memberEmailHash, setMemberEmailHash] = useState("");
@@ -162,6 +167,15 @@ export function ReferralSaasAccountSetupPage() {
   const [setupRefreshKey, setSetupRefreshKey] = useState(0);
   const [accountRefreshKey, setAccountRefreshKey] = useState(0);
   const { data, error, isLoading } = useReferralSaasAccountSetupState(
+    appliedExternalTenantRef,
+    appliedOrganisationRef,
+    refreshKey + setupRefreshKey,
+  );
+  const {
+    data: draftSelector,
+    error: draftSelectorError,
+    isLoading: draftSelectorLoading,
+  } = useReferralSaasAccountDraftSelector(
     appliedExternalTenantRef,
     appliedOrganisationRef,
     refreshKey + setupRefreshKey,
@@ -225,7 +239,22 @@ export function ReferralSaasAccountSetupPage() {
     () => buildReferralSaasSetupSections(appliedExternalTenantRef, appliedOrganisationRef, companyProfile),
     [appliedExternalTenantRef, appliedOrganisationRef, companyProfile],
   );
+  const latestCompanyDraft = useMemo(
+    () =>
+      (draftSelector?.items || []).find((draft) =>
+        Boolean(companyProfileFromDraftSection(draft.draft_sections?.company)),
+      ),
+    [draftSelector],
+  );
+  const latestSavedCompanyProfile = useMemo(
+    () => companyProfileFromDraftSection(latestCompanyDraft?.draft_sections?.company),
+    [latestCompanyDraft],
+  );
   const actionScopeReady = Boolean(appliedExternalTenantRef && appliedOrganisationRef && !scopeChanged);
+  const companyProfileHasSavedDraft = Boolean(savedCompanyProfile && loadedCompanyDraftRef);
+  const companyProfileHasUnsavedChanges = Boolean(
+    savedCompanyProfile && !companyProfilesEqual(companyProfile, savedCompanyProfile),
+  );
   const draftIdempotencyKey = useMemo(
     () => ["referral-saas-account-setup-draft", appliedExternalTenantRef, appliedOrganisationRef].join(":"),
     [appliedExternalTenantRef, appliedOrganisationRef],
@@ -259,7 +288,9 @@ export function ReferralSaasAccountSetupPage() {
     ].join(":"),
     [durableAccount?.accountCode, durableAccount?.accountId, memberRoleFamily, memberSubject],
   );
-  const canSubmitForReview = Boolean(actionScopeReady && draftResponse?.draft_ref && draftState === "success");
+  const canSubmitForReview = Boolean(
+    actionScopeReady && draftResponse?.draft_ref && draftState === "success" && !companyProfileHasUnsavedChanges,
+  );
   const canSaveCompanyProfile = Boolean(
     actionScopeReady &&
       companyProfile.organisationName.trim() &&
@@ -268,7 +299,8 @@ export function ReferralSaasAccountSetupPage() {
       companyProfile.industry.trim() &&
       companyProfile.adminContact.trim() &&
       companyProfile.intendedRole.trim() &&
-      draftState !== "loading",
+      draftState !== "loading" &&
+      (!companyProfileHasSavedDraft || companyProfileHasUnsavedChanges || draftState !== "success"),
   );
   const canRecordReview = Boolean(
     actionScopeReady &&
@@ -328,7 +360,7 @@ export function ReferralSaasAccountSetupPage() {
   );
   const wizardStepCompletion = {
     1: actionScopeReady && scopeCheckConfirmed && !scopeChanged,
-    2: isReadyStatus(accountProfileRow?.status) || Boolean(draftResponse?.draft_ref),
+    2: isReadyStatus(accountProfileRow?.status) || Boolean(companyProfileHasSavedDraft && !companyProfileHasUnsavedChanges),
     3: hasMembershipEvidence,
     4: true,
     5: validationState === "success" || !needsSetupWork,
@@ -339,6 +371,43 @@ export function ReferralSaasAccountSetupPage() {
     ...wizardStepCompletion,
     3: wizardStepCompletion[3] || !durableAccount,
   } as const;
+
+  useEffect(() => {
+    if (!latestCompanyDraft || !latestSavedCompanyProfile || scopeChanged) {
+      return;
+    }
+    if (
+      loadedCompanyDraftRef === latestCompanyDraft.draft_ref &&
+      savedCompanyProfile &&
+      !companyProfilesEqual(companyProfile, savedCompanyProfile)
+    ) {
+      return;
+    }
+    setCompanyProfile(latestSavedCompanyProfile);
+    setSavedCompanyProfile(latestSavedCompanyProfile);
+    setLoadedCompanyDraftRef(latestCompanyDraft.draft_ref);
+    setLoadedCompanyDraftVersion(latestCompanyDraft.draft_version ?? null);
+    setLoadedCompanyDraftUpdatedAt(latestCompanyDraft.updated_at || null);
+    setDraftResponse({
+      status: "ok",
+      draft_ref: latestCompanyDraft.draft_ref,
+      draft_status: latestCompanyDraft.draft_status || "DRAFT_LOADED",
+      draft_version: latestCompanyDraft.draft_version,
+      idempotency_status: "LOADED_SAVED_DRAFT",
+      guardrails: ["READ_ONLY_DRAFT_SELECTOR", "NO_LIVE_ACTION"],
+      redactions: latestCompanyDraft.redactions || ["internal_identifier"],
+      no_live_action_confirmed: true,
+    });
+    setDraftState("success");
+    setDraftError(null);
+  }, [
+    companyProfile,
+    latestCompanyDraft,
+    latestSavedCompanyProfile,
+    loadedCompanyDraftRef,
+    savedCompanyProfile,
+    scopeChanged,
+  ]);
 
   function submitScope(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -353,6 +422,10 @@ export function ReferralSaasAccountSetupPage() {
       ...current,
       organisationName: current.organisationName.trim() || `${nextOrganisationRef} Referral SaaS setup`,
     }));
+    setSavedCompanyProfile(null);
+    setLoadedCompanyDraftRef(null);
+    setLoadedCompanyDraftVersion(null);
+    setLoadedCompanyDraftUpdatedAt(null);
     setScopeCheckConfirmed(true);
     resetSetupActionState();
   }
@@ -491,6 +564,10 @@ export function ReferralSaasAccountSetupPage() {
       });
       setDraftResponse(response);
       setDraftState("success");
+      setSavedCompanyProfile(companyProfile);
+      setLoadedCompanyDraftRef(response.draft_ref);
+      setLoadedCompanyDraftVersion(response.draft_version ?? null);
+      setLoadedCompanyDraftUpdatedAt(null);
     } catch (error) {
       setDraftError(safeActionError(error, "Draft save is unavailable. No account was created and no live action was taken."));
       setDraftState("error");
@@ -626,6 +703,41 @@ export function ReferralSaasAccountSetupPage() {
       setMembershipInviteState("error");
     }
   }
+
+  const readinessEvidenceLabel = resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE")?.status || "Pending";
+  const readinessEvidenceCopy =
+    resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE")?.evidence ||
+    "Company readiness evidence has not been returned yet.";
+  const companyProfileStatusCopy = companyProfileHasUnsavedChanges
+    ? "You changed the company profile after the last saved draft. Save these changes before continuing."
+    : companyProfileHasSavedDraft
+      ? "Company profile draft saved. Continue to People & roles, or refresh setup status if you want the latest readiness evidence."
+      : draftSelectorLoading
+        ? "Checking for a saved company profile draft for this customer."
+        : "Save the company profile draft before moving to People & roles.";
+  const companyProfileStatusBadge = companyProfileHasUnsavedChanges
+    ? "Unsaved changes"
+    : companyProfileHasSavedDraft
+      ? "Draft saved"
+      : draftSelectorLoading
+        ? "Checking drafts"
+        : "Not saved";
+  const companyProfileStatusTone = companyProfileHasUnsavedChanges
+    ? ("warning" as const)
+    : companyProfileHasSavedDraft
+      ? ("success" as const)
+      : draftSelectorLoading
+        ? ("info" as const)
+        : ("warning" as const);
+  const savedCompanyDraftSummary = loadedCompanyDraftRef
+    ? [
+        `Saved draft: ${loadedCompanyDraftRef}`,
+        loadedCompanyDraftVersion ? `version ${loadedCompanyDraftVersion}` : null,
+        loadedCompanyDraftUpdatedAt ? `updated ${loadedCompanyDraftUpdatedAt}` : null,
+      ]
+        .filter(Boolean)
+        .join(" - ")
+    : null;
 
   return (
     <>
@@ -796,17 +908,24 @@ export function ReferralSaasAccountSetupPage() {
                       </div>
                       <div className="action-button-row">
                         <button className="button" disabled={!canSaveCompanyProfile} onClick={handleSaveSetupDraft} type="button">
-                          {draftState === "loading" ? "Saving company profile" : "Save company profile"}
+                          {draftState === "loading"
+                            ? "Saving company profile"
+                            : companyProfileHasUnsavedChanges
+                              ? "Save company changes"
+                              : "Save company profile"}
                         </button>
-                        <StatusBadge label={draftResponse ? "Profile saved" : "Draft only"} tone={draftResponse ? "success" : "warning"} />
+                        <StatusBadge label={companyProfileStatusBadge} tone={companyProfileStatusTone} />
                       </div>
                       <div className="wizard-status-card">
                         <div>
-                          <strong>Company setup status</strong>
-                          <p>{resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE")?.evidence || "Company evidence has not been returned yet."}</p>
+                          <strong>Readiness evidence status</strong>
+                          <p>{companyProfileStatusCopy}</p>
+                          {savedCompanyDraftSummary ? <span>{savedCompanyDraftSummary}</span> : null}
+                          <span>Backend readiness: {readinessEvidenceLabel} - {readinessEvidenceCopy}</span>
                         </div>
-                        <StatusBadge label={resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE")?.status || "Pending"} tone={statusTone(resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE")?.status || "Pending")} />
+                        <StatusBadge label={companyProfileStatusBadge} tone={companyProfileStatusTone} />
                       </div>
+                      {draftSelectorError ? <ErrorPanel error={draftSelectorError} /> : null}
                       <SetupActionResult
                         createError={null}
                         createResponse={null}
@@ -1287,6 +1406,44 @@ function buildReferralSaasSetupSections(
       go_live_readiness_status: "GO_LIVE_DISABLED",
     },
   };
+}
+
+function companyProfileFromDraftSection(section: Record<string, unknown> | undefined): CompanyProfileForm | null {
+  if (!section) {
+    return null;
+  }
+  const organisationName = asText(section.organisation_name);
+  const country = asText(section.country);
+  const organisationType = asText(section.organisation_type);
+  const industry = asText(section.industry);
+  const adminContact = asText(section.admin_contact);
+  const intendedRole = asText(section.intended_role);
+  if (!organisationName || !country || !organisationType || !industry || !adminContact || !intendedRole) {
+    return null;
+  }
+  return {
+    organisationName,
+    country,
+    organisationType,
+    industry,
+    adminContact,
+    intendedRole,
+  };
+}
+
+function companyProfilesEqual(left: CompanyProfileForm, right: CompanyProfileForm) {
+  return (
+    left.organisationName.trim() === right.organisationName.trim() &&
+    left.country.trim() === right.country.trim() &&
+    left.organisationType.trim() === right.organisationType.trim() &&
+    left.industry.trim() === right.industry.trim() &&
+    left.adminContact.trim() === right.adminContact.trim() &&
+    left.intendedRole.trim() === right.intendedRole.trim()
+  );
+}
+
+function asText(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function safeActionError(error: unknown, fallback: string) {

@@ -1336,6 +1336,7 @@ async def test_admin_onboarding_draft_selector_returns_safe_scope(monkeypatch):
                 created_by_ref="actor-secret",
             )
         ],
+        draft_sections=_saved_draft_sections(),
     )
 
     async with AsyncClient(
@@ -1363,6 +1364,7 @@ async def test_admin_onboarding_draft_selector_returns_safe_scope(monkeypatch):
             "limit": 50,
         }
     ]
+    assert calls["get_draft_sections"] == ["draft-uuid"]
     item = body["items"][0]
     assert item["draft_ref"] == "draft-safe-1"
     assert item["draft_status"] == "READY_FOR_REVIEW"
@@ -1371,6 +1373,16 @@ async def test_admin_onboarding_draft_selector_returns_safe_scope(monkeypatch):
     assert item["readiness_status"] == "GO_LIVE_DISABLED"
     assert item["validation_status"] == "VALID"
     assert item["blocker_count"] == 0
+    assert item["draft_sections"]["company"] == {
+        "organisation_name": "Acme Distribution",
+        "external_tenant_ref": "acme-distribution",
+        "organisation_ref": "org-acme",
+        "country": "ZA",
+        "organisation_type": "Producer",
+        "industry": "Insurance",
+        "admin_contact": "ops@example.test",
+        "intended_role": "producer_admin",
+    }
     assert "READ_ONLY_DRAFT_SELECTOR" in body["guardrails"]
     assert "tenant_code" not in rendered
     assert "INTERNAL-ACME" not in rendered

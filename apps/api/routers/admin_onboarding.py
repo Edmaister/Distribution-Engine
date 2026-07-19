@@ -358,7 +358,15 @@ async def list_admin_onboarding_drafts(
         status=_maybe_text(status_filter) or None,
         limit=limit,
     )
-    items = [_draft_selector_item(draft) for draft in drafts]
+    items = []
+    for draft in drafts:
+        section_rows = await draft_repo.get_draft_sections(str(draft.get("draft_id") or ""))
+        items.append(
+            _draft_selector_item(
+                draft,
+                draft_sections=_sections_from_saved_rows(section_rows),
+            )
+        )
     return {
         "status": "ok",
         "items": items,
@@ -658,7 +666,11 @@ def _scope_from_payload(payload: Mapping[str, Any]) -> dict[str, str]:
     }
 
 
-def _draft_selector_item(draft: Mapping[str, Any]) -> dict[str, Any]:
+def _draft_selector_item(
+    draft: Mapping[str, Any],
+    *,
+    draft_sections: Mapping[str, Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
     safe_summary = _as_mapping(draft.get("safe_summary"))
     return {
         "draft_ref": _optional_text(draft.get("draft_ref")),
@@ -680,6 +692,7 @@ def _draft_selector_item(draft: Mapping[str, Any]) -> dict[str, Any]:
         "updated_at": _optional_text(draft.get("updated_at")),
         "expires_at": _optional_text(draft.get("expires_at")),
         "redactions": _as_list(draft.get("redactions")),
+        "draft_sections": _safe_draft_sections(draft_sections or {}),
     }
 
 
@@ -762,8 +775,29 @@ def _sections_from_saved_rows(rows: list[dict[str, Any]]) -> dict[str, dict[str,
             continue
         payload = _mapping_from_saved_jsonb(row.get("section_payload"))
         if isinstance(payload, Mapping):
-            sections[section_key] = dict(payload)
+            allowed_fields = SECTION_DEFINITIONS[section_key]["fields"]
+            sections[section_key] = {
+                field: payload.get(field)
+                for field in allowed_fields
+                if payload.get(field) is not None
+            }
     return sections
+
+
+def _safe_draft_sections(
+    sections: Mapping[str, Mapping[str, Any]]
+) -> dict[str, dict[str, Any]]:
+    safe_sections: dict[str, dict[str, Any]] = {}
+    for section_key, payload in sections.items():
+        if section_key not in SECTION_DEFINITIONS or not isinstance(payload, Mapping):
+            continue
+        allowed_fields = SECTION_DEFINITIONS[section_key]["fields"]
+        safe_sections[section_key] = {
+            field: payload.get(field)
+            for field in allowed_fields
+            if payload.get(field) is not None
+        }
+    return safe_sections
 
 
 def _mapping_from_saved_jsonb(value: Any) -> Mapping[str, Any] | None:
