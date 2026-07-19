@@ -10,8 +10,9 @@ TASK-165 adds the validation-only report export gate; TASK-167 adds inline
 export preview; TASK-178 adds the read-only operator link/code inspection
 wrapper; TASK-180 adds the operator attribution trace wrapper; TASK-182 adds
 the operator progress/status diagnostics wrapper; TASK-200 adds the read-only
-account resolver wrapper. No schema, frontend, live database, persisted export,
-or write behavior is introduced by this inventory.
+account resolver wrapper; TASK-227 adds the read-only account registry wrapper.
+No schema, live database, persisted export, or write behavior is introduced by
+this inventory.
 
 ## Boundary
 
@@ -59,6 +60,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Read-only product diagnostic | GET | `/v1/referral-saas/operator/links/inspect` | Referral SaaS operator link/code inspection wrapper |
 | Read-only product diagnostic | GET | `/v1/referral-saas/operator/outcomes/{referral_track_id}/trace` | Referral SaaS operator attribution trace wrapper |
 | Read-only product diagnostic | GET | `/v1/referral-saas/operator/referrals/{referral_track_id}/progress-status` | Referral SaaS operator progress/status diagnostics wrapper |
+| Read-only product account | GET | `/v1/referral-saas/accounts` | Referral SaaS account registry wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/resolve` | Referral SaaS account resolver wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/membership-posture` | Referral SaaS account membership posture wrapper |
 | Read-only product report | GET | `/v1/referral-saas/reports/{report_type}` | Referral SaaS report wrapper |
@@ -87,6 +89,7 @@ read-only or side-effect-free `/v1/referral-saas/*` product wrappers:
 - `GET /v1/referral-saas/operator/links/inspect`
 - `GET /v1/referral-saas/operator/outcomes/{referral_track_id}/trace`
 - `GET /v1/referral-saas/operator/referrals/{referral_track_id}/progress-status`
+- `GET /v1/referral-saas/accounts`
 - `GET /v1/referral-saas/accounts/resolve`
 - `GET /v1/referral-saas/accounts/membership-posture`
 - `GET /v1/referral-saas/reports/{report_type}`
@@ -113,13 +116,13 @@ progress/status wrapper composes the existing dashboard progress read and
 Referral SaaS safe-status projection helper, returning safe progress, safe
 status, missing evidence, redactions, and next diagnostics without mutating
 progress ingestion, retrying, replaying, repairing, creating support cases, or
-exposing raw UCN values. The account resolver wrapper composes the TASK-199
-read-only account foundation resolver and returns safe account context without
-exposing internal `tenant_code` by default or creating accounts, tenants,
-memberships, invitations, lifecycle changes, maintenance commands, go-live
-actions, or money/DLaaS records. The account membership posture wrapper remains
-read-only, and no progress/status frontend or persisted export wrapper is
-implied.
+exposing raw UCN values. The account registry and resolver wrappers compose the
+TASK-199 read-only account foundation primitives and return safe account context
+without exposing internal `tenant_code` by default or creating accounts,
+tenants, memberships, invitations, lifecycle changes, maintenance commands,
+go-live actions, or money/DLaaS records. The account membership posture wrapper
+remains read-only, and no progress/status frontend or persisted export wrapper
+is implied.
 TASK-211 adds a seeded local/staging-only membership invitation intent wrapper.
 It records invited membership intent and account audit evidence only; it does
 not send invitations, activate membership, assign seats, mutate auth claims,
@@ -138,6 +141,7 @@ auth permits and test subjects are known:
 - Referral SaaS operator link/code inspection wrapper
 - Referral SaaS operator attribution trace wrapper
 - Referral SaaS operator progress/status diagnostics wrapper
+- Referral SaaS account registry wrapper
 - Referral SaaS account resolver wrapper
 - Referral SaaS export preview wrapper
 - Referral SaaS export validation wrapper
@@ -179,8 +183,8 @@ Remaining blockers before a 10/10 claim:
 `test/test_referral_saas_route_smoke_inventory.py` asserts that the current
 read-only and seeded-write smoke route families are mounted, and that the
 `/v1/referral-saas/*` route surface remains bounded to the report, export,
-operator inspection, attribution trace, progress/status, account resolver, and
-account membership posture wrappers.
+operator inspection, attribution trace, progress/status, account registry,
+account resolver, and account membership posture wrappers.
 
 `scripts/referral_saas_route_smoke_plan.py` builds dry-run command templates
 for the read-only smoke routes by default. Local/staging write-route templates

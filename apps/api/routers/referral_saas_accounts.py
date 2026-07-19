@@ -12,6 +12,7 @@ from services.referral_saas_account_foundation_service import (
     ExternalReferenceNotFound,
     InvalidExternalReferenceType,
     TenantLinkNotResolvable,
+    list_referral_saas_accounts,
     resolve_account_by_external_reference,
     resolve_setup_account_by_external_reference,
 )
@@ -51,6 +52,7 @@ REFERRAL_SAAS_ACCOUNT_READER_ROLES = {
 }
 
 REFERRAL_SAAS_ACCOUNT_CONTEXTS = {"runtime", "setup"}
+MAX_ACCOUNT_LIST_LIMIT = 100
 
 
 def _require_referral_saas_account_reader(identity: dict[str, Any]) -> dict[str, Any]:
@@ -514,6 +516,36 @@ def _membership_invitation_redactions() -> list[str]:
         "email_hash",
         "idempotency_key_hash",
     ]
+
+
+@router.get("/accounts")
+async def list_referral_saas_account_registry(
+    limit: Annotated[
+        int,
+        Query(
+            ge=1,
+            le=MAX_ACCOUNT_LIST_LIMIT,
+            description="Maximum number of Referral SaaS account foundations to return.",
+        ),
+    ] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    accounts = await list_referral_saas_accounts(limit=limit)
+    return {
+        "status": "ok",
+        "count": len(accounts),
+        "accounts": [account.to_safe_dict() for account in accounts],
+        "guardrail": (
+            "Read-only Referral SaaS account registry. This endpoint does not "
+            "create accounts, create tenants, convert onboarding drafts, invite "
+            "users, write memberships, rotate references, activate campaigns, "
+            "trigger go-live, write audit events, repair, replay, retry, or "
+            "mutate funding, fulfilment, settlement, reward, commission, wallet, "
+            "invoice, billing, or DLaaS marketplace records."
+        ),
+        "redactions": ["internal_tenant_identifier"],
+    }
 
 
 UNSAFE_INVITATION_KEYS = {

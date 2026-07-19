@@ -148,6 +148,23 @@ READ_ONLY_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_account_registry",
+        method="GET",
+        path="/v1/referral-saas/accounts",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS account reader role",
+        environment_rule="local/staging/production read-only where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -H "Authorization: Bearer {admin_token}" '
+            '"{base_url}/v1/referral-saas/accounts?limit=50"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_account_resolve",
         method="GET",
         path="/v1/referral-saas/accounts/resolve",

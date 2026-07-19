@@ -4,6 +4,7 @@ import { apiRequest } from "../client";
 import {
   createReferralSaasAccountFromDraft,
   getReferralSaasAccountMembershipPosture,
+  listReferralSaasAccounts,
   recordReferralSaasMembershipInvitationIntent,
   resolveReferralSaasAccount,
 } from "./referralSaasAccounts";
@@ -53,6 +54,46 @@ describe("referralSaasAccounts endpoint client", () => {
     });
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|wallet|settlement|money/,
+    );
+  });
+
+  it("lists Referral SaaS accounts through the read-only account registry wrapper", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      count: 1,
+      accounts: [
+        {
+          accountId: "acct-1",
+          accountCode: "ACCT_FNB",
+          accountName: "FNB Referral SaaS",
+          accountStatus: "PENDING_ONBOARDING",
+          onboardingStatus: "READY_FOR_REVIEW",
+          primaryExternalTenantRef: "fnb-referrals",
+          externalReferences: [
+            {
+              refType: "external_tenant_ref",
+              externalRef: "fnb-referrals",
+              referenceStatus: "ACTIVE",
+            },
+          ],
+        },
+      ],
+      guardrail: "Read-only Referral SaaS account registry.",
+      redactions: ["internal_tenant_identifier"],
+    });
+
+    await expect(listReferralSaasAccounts(25)).resolves.toMatchObject({
+      count: 1,
+      accounts: [{ accountCode: "ACCT_FNB" }],
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts", {
+      query: {
+        limit: 25,
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement/,
     );
   });
 

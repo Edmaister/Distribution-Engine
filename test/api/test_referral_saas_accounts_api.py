@@ -7,6 +7,7 @@ from apps.api.main import app
 from apps.api.routers import referral_saas_accounts
 from services.referral_saas_account_foundation_service import (
     AccountFoundationContext,
+    AccountFoundationListItem,
     AccountNotResolvable,
     ExternalReferenceConflict,
     ExternalReferenceNotActive,
@@ -246,6 +247,65 @@ async def test_referral_saas_account_reader_can_resolve_runtime_account(monkeypa
             "external_ref": "fnb-referrals",
         }
     ]
+
+
+async def test_referral_saas_account_reader_can_list_safe_account_registry(monkeypatch):
+    calls: list[dict] = []
+
+    async def fake_list_referral_saas_accounts(**kwargs):
+        calls.append(kwargs)
+        return [
+            AccountFoundationListItem(
+                account_id="acct-1",
+                account_code="ACCT_FNB",
+                account_name="FNB Referral SaaS",
+                account_type="ORGANISATION",
+                account_status="PENDING_ONBOARDING",
+                onboarding_status="READY_FOR_REVIEW",
+                primary_external_tenant_ref="fnb-referrals",
+                external_references=(
+                    {
+                        "refType": "external_tenant_ref",
+                        "externalRef": "fnb-referrals",
+                        "referenceStatus": "ACTIVE",
+                    },
+                    {
+                        "refType": "organisation_ref",
+                        "externalRef": "fnb-org",
+                        "referenceStatus": "ACTIVE",
+                    },
+                ),
+                created_at="2026-07-19T00:00:00",
+                updated_at="2026-07-19T01:00:00",
+            )
+        ]
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_accounts",
+        fake_list_referral_saas_accounts,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get("/v1/referral-saas/accounts", params={"limit": 20})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["count"] == 1
+    assert body["accounts"][0]["accountCode"] == "ACCT_FNB"
+    assert body["accounts"][0]["externalReferences"][0]["externalRef"] == "fnb-referrals"
+    assert body["redactions"] == ["internal_tenant_identifier"]
+    assert "tenantCode" not in str(body)
+    assert calls == [{"limit": 20}]
+
+
+async def test_referral_saas_account_registry_rejects_adjacent_role():
+    async with AsyncClient(app=app, base_url="http://test", headers=PARTNER_HEADERS) as client:
+        response = await client.get("/v1/referral-saas/accounts")
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "permission_denied"
 
 
 async def test_referral_saas_account_admin_can_record_membership_invitation_intent(

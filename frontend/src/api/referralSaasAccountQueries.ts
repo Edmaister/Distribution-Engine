@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getAdminOnboardingDrafts, getAdminOnboardingState } from "./endpoints/adminOnboarding";
 import {
   getReferralSaasAccountMembershipPosture,
+  listReferralSaasAccounts,
   resolveReferralSaasAccount,
 } from "./endpoints/referralSaasAccounts";
 import { queryKeys } from "./queryKeys";
@@ -74,6 +75,13 @@ export function useReferralSaasAccountDraftSelector(
         limit: 10,
       }),
     enabled: Boolean(cleanedExternalTenantRef && cleanedOrganisationRef),
+  });
+}
+
+export function useReferralSaasAccountRegistry(limit = 50, refreshKey = 0) {
+  return useQuery({
+    queryKey: queryKeys.referralSaasAccountRegistry(limit, refreshKey),
+    queryFn: () => listReferralSaasAccounts(limit),
   });
 }
 
