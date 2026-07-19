@@ -197,6 +197,7 @@ async def list_drafts(
         rows = await conn.fetch(
             """
             SELECT
+                draft_id,
                 draft_ref,
                 draft_version,
                 status,

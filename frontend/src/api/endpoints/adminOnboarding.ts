@@ -123,6 +123,9 @@ export type AdminOnboardingDraftSelectorItem = {
   updated_at?: string;
   expires_at?: string;
   redactions?: string[];
+  draft_sections?: Partial<
+    Record<AdminOnboardingDraftSectionKey, Record<string, unknown>>
+  >;
 };
 
 export type AdminOnboardingDraftSelectorResponse = {
