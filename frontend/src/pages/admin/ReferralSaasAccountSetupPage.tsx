@@ -8,7 +8,6 @@ import {
   submitAdminOnboardingDraftForReview,
   validateAdminOnboardingDryRun,
   type AdminOnboardingDraftSaveResponse,
-  type AdminOnboardingDryRunValidationResponse,
   type AdminOnboardingReviewDecisionResponse,
   type AdminOnboardingReviewOutcome,
   type AdminOnboardingSubmitForReviewResponse,
@@ -25,7 +24,6 @@ import {
   useReferralSaasAccountResolver,
   useReferralSaasAccountSetupState,
 } from "../../api/referralSaasAccountQueries";
-import { DataTable } from "../../components/DataTable";
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { InfoTooltip } from "../../components/InfoTooltip";
 import { LoadingState } from "../../components/LoadingState";
@@ -127,7 +125,6 @@ export function ReferralSaasAccountSetupPage() {
   const [appliedExternalTenantRef, setAppliedExternalTenantRef] = useState(defaultExternalTenantRef);
   const [appliedOrganisationRef, setAppliedOrganisationRef] = useState(defaultOrganisationRef);
   const [validationState, setValidationState] = useState<SetupActionState>("idle");
-  const [validationResponse, setValidationResponse] = useState<AdminOnboardingDryRunValidationResponse | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [draftState, setDraftState] = useState<SetupActionState>("idle");
   const [draftResponse, setDraftResponse] = useState<AdminOnboardingDraftSaveResponse | null>(null);
@@ -190,28 +187,8 @@ export function ReferralSaasAccountSetupPage() {
   const canCheckScope = Boolean(draftExternalTenantRef.trim() && draftOrganisationRef.trim());
 
   const readiness = asRecord(data?.readiness);
-  const summary = asRecord(getNestedValue(readiness, ["summary"], {}));
   const categories = asArray(getNestedValue(readiness, ["categories"], []));
-  const guardrails = asArray(
-    (getNestedValue(data?.onboarding_state, ["guardrails"], []) as unknown[]).map((guardrail) => ({
-      name: guardrail,
-    })),
-  );
-  const redactions = asArray(
-    (getNestedValue(data?.onboarding_state, ["redactions"], []) as unknown[]).map((redaction) => ({
-      name: redaction,
-    })),
-  );
   const overallStatus = formatDisplay(getNestedValue(readiness, ["overall_status"], "pending"));
-  const readyCountValue = toCount(getNestedValue(summary, ["ready_count"], 0));
-  const blockedCountValue = toCount(getNestedValue(summary, ["blocked_count"], 0));
-  const missingEvidenceCountValue = toCount(getNestedValue(summary, ["missing_evidence_count"], 0));
-  const goLiveDisabledCountValue = toCount(getNestedValue(summary, ["go_live_disabled_count"], 0));
-  const readyCount = formatDisplay(readyCountValue);
-  const blockedCount = formatDisplay(blockedCountValue);
-  const missingEvidenceCount = formatDisplay(missingEvidenceCountValue);
-  const goLiveDisabledCount = formatDisplay(goLiveDisabledCountValue);
-  const needsSetupWork = blockedCountValue > 0 || missingEvidenceCountValue > 0;
   const durableAccount = accountResolution?.account;
   const membershipPosture = membershipPostureResponse?.membershipPosture;
   const membershipPostureStatus = getMembershipPostureStatus(
@@ -299,7 +276,7 @@ export function ReferralSaasAccountSetupPage() {
   const wizardSteps = [
     { id: 1, label: "Identify customer" },
     { id: 2, label: "Company profile" },
-    { id: 3, label: "Readiness check" },
+    { id: 3, label: "Setup checkpoint" },
     { id: 4, label: "Review & create" },
     { id: 5, label: "Handoff" },
   ];
@@ -316,14 +293,22 @@ export function ReferralSaasAccountSetupPage() {
       blocker: formatDisplay(getNestedValue(matchingCategory, ["blockers", "0"], "-")),
     };
   });
-  const failingReadinessRows = resolvedRows.filter((row) =>
-    ["Blocked", "Missing evidence", "Needs evidence", "Needs attention", "Pending"].includes(row.status),
-  );
   const accountProfileRow = resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE");
+  const accountProfileReady =
+    isReadyStatus(accountProfileRow?.status) ||
+    Boolean(companyProfileHasSavedDraft && !companyProfileHasUnsavedChanges);
+  const accountSetupCheckpoint = getAccountSetupCheckpoint({
+    accountProfileReady,
+    actionScopeReady,
+    companyProfileHasUnsavedChanges,
+    companyProfileHasSavedDraft,
+    durableAccount: Boolean(durableAccount),
+    validationState,
+  });
   const wizardStepCompletion = {
     1: actionScopeReady && scopeCheckConfirmed && !scopeChanged,
-    2: isReadyStatus(accountProfileRow?.status) || Boolean(companyProfileHasSavedDraft && !companyProfileHasUnsavedChanges),
-    3: validationState === "success" || !needsSetupWork,
+    2: accountProfileReady,
+    3: accountProfileReady && !companyProfileHasUnsavedChanges,
     4: Boolean(durableAccount || createResponse),
     5: false,
   } as const;
@@ -447,7 +432,6 @@ export function ReferralSaasAccountSetupPage() {
 
   function resetSetupActionState() {
     setValidationState("idle");
-    setValidationResponse(null);
     setValidationError(null);
     setDraftState("idle");
     setDraftResponse(null);
@@ -468,10 +452,9 @@ export function ReferralSaasAccountSetupPage() {
       return;
     }
     setValidationState("loading");
-    setValidationResponse(null);
     setValidationError(null);
     try {
-      const response = await validateAdminOnboardingDryRun({
+      await validateAdminOnboardingDryRun({
         external_tenant_ref: appliedExternalTenantRef,
         organisation_ref: appliedOrganisationRef,
         validation_scope: [
@@ -486,7 +469,6 @@ export function ReferralSaasAccountSetupPage() {
         correlation_id: "referral-saas-account-setup-validate",
         sections: setupSections,
       });
-      setValidationResponse(response);
       setValidationState("success");
     } catch {
       setValidationError("Validation is unavailable. No draft was saved and no live action was taken.");
@@ -623,10 +605,10 @@ export function ReferralSaasAccountSetupPage() {
   const companyProfileStatusCopy = companyProfileHasUnsavedChanges
     ? "You changed the company profile after the last saved draft. Save these changes before continuing."
     : companyProfileHasSavedDraft
-      ? "Company profile saved. Continue to Readiness check."
+      ? "Company profile saved. Continue to Setup checkpoint."
       : draftSelectorLoading
         ? "Checking for a saved company profile draft for this customer."
-        : "Save the company profile draft before moving to Readiness check.";
+        : "Save the company profile draft before moving to Setup checkpoint.";
   const companyProfileStatusBadge = companyProfileHasUnsavedChanges
     ? "Unsaved changes"
     : companyProfileHasSavedDraft
@@ -658,10 +640,10 @@ export function ReferralSaasAccountSetupPage() {
           <div className="page-kicker">Referral SaaS - Account Setup</div>
           <h1 className="page-title">Account setup wizard</h1>
           <p className="page-copy">
-            Work through customer identification, company profile, readiness,
-            review, and handoff before testing campaigns, links, attribution, or
-            reports. Technical integration setup is handled after the account
-            foundation is ready.
+            Work through customer identification, company profile, setup
+            checkpoint, review, and handoff before testing campaigns, links,
+            attribution, or reports. Technical integration setup is handled
+            after the account foundation is ready.
           </p>
         </div>
         <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
@@ -858,7 +840,6 @@ export function ReferralSaasAccountSetupPage() {
                         submitError={null}
                         submitResponse={null}
                         validationError={null}
-                        validationResponse={null}
                       />
                     </div>
                   </>
@@ -867,36 +848,50 @@ export function ReferralSaasAccountSetupPage() {
                 {activeWizardStep === 3 ? (
                   <>
                     <div>
-                      <div className="page-kicker">Readiness check</div>
-                      <h3 className="account-wizard-title">Check what is blocking setup</h3>
-                      <p className="page-copy">Validate once, show the failing gates, and keep full evidence in the details drawer.</p>
+                      <div className="page-kicker">Setup checkpoint</div>
+                      <h3 className="account-wizard-title">Confirm account setup can continue</h3>
+                      <p className="page-copy">
+                        This checkpoint only confirms the Account Setup path.
+                        Full readiness evidence now lives in Account Maintenance.
+                      </p>
                     </div>
                     <div className="wizard-card route-list">
-                      <div className={`wizard-summary-strip ${needsSetupWork ? "warning" : "success"}`}>
-                        <StatusBadge label={needsSetupWork ? "Needs work" : "Ready"} tone={needsSetupWork ? "warning" : "success"} />
+                      <div className={`wizard-summary-strip ${accountSetupCheckpoint.tone === "success" ? "success" : "warning"}`}>
+                        <StatusBadge label={accountSetupCheckpoint.badge} tone={accountSetupCheckpoint.tone} />
                         <div>
-                          <strong>{blockedCount} blocked gates, {missingEvidenceCount} evidence gaps</strong>
-                          <span>{readyCount} setup gates ready. {goLiveDisabledCount} go-live blocker shown.</span>
+                          <strong>{accountSetupCheckpoint.title}</strong>
+                          <span>{accountSetupCheckpoint.copy}</span>
                         </div>
                       </div>
                       <div className="route-list">
-                        {failingReadinessRows.length ? (
-                          failingReadinessRows.map((row) => (
-                            <div className="route-item" key={row.code}>
-                              <div>
-                                <div className="route-name">{row.label}</div>
-                                <div className="route-path">{row.evidence}</div>
-                              </div>
-                              <StatusBadge label={row.status} tone={statusTone(row.status)} />
-                            </div>
-                          ))
-                        ) : (
-                          <div className="empty-state">No failing setup gates returned.</div>
-                        )}
+                        <div className="route-item">
+                          <div>
+                            <div className="route-name">Customer identifiers confirmed</div>
+                            <div className="route-path">Step 1 checked the visible customer and organisation identifiers.</div>
+                          </div>
+                          <StatusBadge label={actionScopeReady && scopeCheckConfirmed ? "Confirmed" : "Check first"} tone={actionScopeReady && scopeCheckConfirmed ? "success" : "warning"} />
+                        </div>
+                        <div className="route-item">
+                          <div>
+                            <div className="route-name">Company profile saved</div>
+                            <div className="route-path">Step 2 saved the company evidence used by review and account foundation creation.</div>
+                          </div>
+                          <StatusBadge label={accountProfileReady ? "Saved" : "Save first"} tone={accountProfileReady ? "success" : "warning"} />
+                        </div>
+                        <SetupLink to="/admin/referral-saas/account-maintenance" title="Account Maintenance readiness" copy="Review users, access posture, technical setup, campaign readiness, reporting baseline, guardrails, and redactions there." />
                       </div>
-                      <button className="button" disabled={!actionScopeReady || validationState === "loading"} onClick={handleValidateSetupDraft} type="button">
-                        {validationState === "loading" ? "Validating setup" : "Validate setup"}
+                      <button className="button secondary" disabled={!actionScopeReady || validationState === "loading"} onClick={handleValidateSetupDraft} type="button">
+                        {validationState === "loading" ? "Refreshing checkpoint" : "Refresh setup checkpoint"}
                       </button>
+                      {validationState === "success" ? (
+                        <div className="wizard-status-card">
+                          <div>
+                            <strong>Checkpoint refreshed</strong>
+                            <p>Continue to Review & create. Maintenance readiness remains separate from this setup checkpoint.</p>
+                          </div>
+                          <StatusBadge label="Continue" tone="success" />
+                        </div>
+                      ) : null}
                       <SetupActionResult
                         createError={null}
                         createResponse={null}
@@ -909,32 +904,7 @@ export function ReferralSaasAccountSetupPage() {
                         submitError={null}
                         submitResponse={null}
                         validationError={validationError}
-                        validationResponse={validationResponse}
                       />
-                      <details className="wizard-details">
-                        <summary>Full evidence and system boundaries</summary>
-                        <div className="grid-2">
-                          <DataTable
-                            rows={resolvedRows}
-                            emptyText="No setup checklist rows returned."
-                            columns={[
-                              { key: "gate", header: "Gate", render: (row) => <span className="mono">{row.code}</span> },
-                              { key: "status", header: "Status", render: (row) => <StatusBadge label={row.status} tone={statusTone(row.status)} /> },
-                              { key: "evidence", header: "Evidence", render: (row) => <span className="table-subtext">{row.evidence}</span> },
-                            ]}
-                          />
-                          <DataTable
-                            rows={guardrails}
-                            emptyText="No guardrails returned."
-                            columns={[{ key: "guardrail", header: "Guardrail", render: (row) => <span className="mono">{getValue(row, ["name"])}</span> }]}
-                          />
-                        </div>
-                        <DataTable
-                          rows={redactions}
-                          emptyText="No redactions returned."
-                          columns={[{ key: "redaction", header: "Redaction", render: (row) => <span className="mono">{getValue(row, ["name"])}</span> }]}
-                        />
-                      </details>
                     </div>
                   </>
                 ) : null}
@@ -1006,7 +976,6 @@ export function ReferralSaasAccountSetupPage() {
                         submitError={submitError}
                         submitResponse={submitResponse}
                         validationError={null}
-                        validationResponse={null}
                       />
                     </div>
                   </>
@@ -1074,11 +1043,6 @@ function isReadyStatus(status: string | undefined) {
   return status === "Ready" || status === "READY";
 }
 
-function toCount(value: unknown) {
-  const count = Number(value);
-  return Number.isFinite(count) ? count : 0;
-}
-
 function getDurableAccountStatus(hasAccount: boolean, isLoading: boolean, error: unknown) {
   if (isLoading) {
     return {
@@ -1114,6 +1078,69 @@ function getDurableAccountStatus(hasAccount: boolean, isLoading: boolean, error:
     copy: "Run Step 1 before moving to setup actions.",
     label: "Unchecked",
     tone: "neutral" as const,
+  };
+}
+
+function getAccountSetupCheckpoint({
+  accountProfileReady,
+  actionScopeReady,
+  companyProfileHasSavedDraft,
+  companyProfileHasUnsavedChanges,
+  durableAccount,
+  validationState,
+}: {
+  accountProfileReady: boolean;
+  actionScopeReady: boolean;
+  companyProfileHasSavedDraft: boolean;
+  companyProfileHasUnsavedChanges: boolean;
+  durableAccount: boolean;
+  validationState: SetupActionState;
+}) {
+  if (!actionScopeReady) {
+    return {
+      badge: "Check customer",
+      copy: "Confirm the customer identifiers before continuing.",
+      title: "Customer identifiers still need to be checked",
+      tone: "warning" as const,
+    };
+  }
+  if (companyProfileHasUnsavedChanges) {
+    return {
+      badge: "Save changes",
+      copy: "Save the changed company profile before moving to review.",
+      title: "Company profile has unsaved changes",
+      tone: "warning" as const,
+    };
+  }
+  if (!companyProfileHasSavedDraft && !accountProfileReady) {
+    return {
+      badge: "Save profile",
+      copy: "Save the company profile evidence before moving to review.",
+      title: "Company profile evidence is not saved yet",
+      tone: "warning" as const,
+    };
+  }
+  if (durableAccount) {
+    return {
+      badge: "Account found",
+      copy: "A durable account already exists for this customer. Continue to handoff or use Account Maintenance for operational readiness.",
+      title: "Account foundation already exists",
+      tone: "success" as const,
+    };
+  }
+  if (validationState === "success") {
+    return {
+      badge: "Checked",
+      copy: "The setup checkpoint was refreshed. Continue to review and create when ready.",
+      title: "Account Setup can continue",
+      tone: "success" as const,
+    };
+  }
+  return {
+    badge: "Ready to review",
+    copy: "Customer identifiers and company profile are ready for the guarded review/create path.",
+    title: "Account Setup can continue",
+    tone: "success" as const,
   };
 }
 
@@ -1354,7 +1381,6 @@ function SetupActionResult({
   submitError,
   submitResponse,
   validationError,
-  validationResponse,
 }: {
   createError: string | null;
   createResponse: ReferralSaasAccountCreateFromDraftResponse | null;
@@ -1367,23 +1393,9 @@ function SetupActionResult({
   submitError: string | null;
   submitResponse: AdminOnboardingSubmitForReviewResponse | null;
   validationError: string | null;
-  validationResponse: AdminOnboardingDryRunValidationResponse | null;
 }) {
   return (
     <>
-      {validationResponse ? (
-        <div className="banner info" role="status">
-          <ShieldCheck size={18} />
-          <div>
-            <strong>Validation completed without saving.</strong>
-            <div className="table-subtext">
-              Readiness: {validationResponse.readiness_preview.overall_status}; no persistence:{" "}
-              {validationResponse.no_persistence_confirmed ? "confirmed" : "unavailable"}; no live action:{" "}
-              {validationResponse.no_live_action_confirmed ? "confirmed" : "unavailable"}.
-            </div>
-          </div>
-        </div>
-      ) : null}
       {draftResponse ? (
         <div className="banner success" role="status">
           <CheckCircle2 size={18} />

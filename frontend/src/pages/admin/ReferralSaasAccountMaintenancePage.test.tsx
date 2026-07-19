@@ -34,6 +34,7 @@ function renderWorkspace(ui: ReactElement) {
       children: [
         { index: true, element: ui },
         { path: "admin/referral-saas/account-setup", element: <div>Account Setup Target</div> },
+        { path: "admin/onboarding/webhook-api", element: <div>Technical Setup Target</div> },
         { path: "admin/referral-saas/campaigns", element: <div>Campaign Target</div> },
         { path: "admin/referral-saas/reports", element: <div>Reports Target</div> },
         { path: "admin/referral-saas/support", element: <div>Support Target</div> },
@@ -177,9 +178,11 @@ describe("ReferralSaasAccountMaintenancePage", () => {
 
     expect(screen.getByText("Read-only evidence")).toBeInTheDocument();
     expect(screen.getByText("Do this next: route the fix to Account Setup")).toBeInTheDocument();
-    expect(screen.getByText("Account profile")).toBeInTheDocument();
+    expect(screen.getAllByText("Account profile").length).toBeGreaterThan(0);
     expect(screen.getByText("Users and roles")).toBeInTheDocument();
-    expect(screen.getByText("Integration posture")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Readiness check" })).toBeInTheDocument();
+    expect(screen.getByText("Technical setup posture")).toBeInTheDocument();
+    expect(screen.getByText("1 blocked area, 2 evidence gaps")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Account/draft selector" })).toBeInTheDocument();
     expect(mockedGetAdminOnboardingDrafts).toHaveBeenCalledWith({
       external_tenant_ref: "demo-platform-operator",
@@ -195,10 +198,10 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     await screen.findByRole("heading", { name: "Account maintenance evidence" });
     await waitFor(() => expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(1));
 
-    fireEvent.change(screen.getByLabelText("External tenant ref"), {
+    fireEvent.change(screen.getByLabelText("Customer reference"), {
       target: { value: "fnb-referral-account" },
     });
-    fireEvent.change(screen.getByLabelText("Organisation ref"), {
+    fireEvent.change(screen.getByLabelText("Organisation reference"), {
       target: { value: "fnb-demo-org" },
     });
 
@@ -263,6 +266,10 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getAllByRole("link", { name: /Account profile/ })[0]).toHaveAttribute(
       "href",
       "/admin/referral-saas/account-setup",
+    );
+    expect(screen.getByRole("link", { name: /Technical setup posture/ })).toHaveAttribute(
+      "href",
+      "/admin/onboarding/webhook-api",
     );
     expect(screen.getByRole("link", { name: /Campaign handoff/ })).toHaveAttribute(
       "href",
