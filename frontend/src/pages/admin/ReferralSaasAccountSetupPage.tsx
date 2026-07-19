@@ -711,7 +711,7 @@ export function ReferralSaasAccountSetupPage() {
   const companyProfileStatusCopy = companyProfileHasUnsavedChanges
     ? "You changed the company profile after the last saved draft. Save these changes before continuing."
     : companyProfileHasSavedDraft
-      ? "Company profile draft saved. Continue to People & roles, or refresh setup status if you want the latest readiness evidence."
+      ? "Company profile saved. Continue to People & roles."
       : draftSelectorLoading
         ? "Checking for a saved company profile draft for this customer."
         : "Save the company profile draft before moving to People & roles.";
@@ -731,7 +731,7 @@ export function ReferralSaasAccountSetupPage() {
         : ("warning" as const);
   const savedCompanyDraftSummary = loadedCompanyDraftRef
     ? [
-        `Saved draft: ${loadedCompanyDraftRef}`,
+        "Saved profile evidence",
         loadedCompanyDraftVersion ? `version ${loadedCompanyDraftVersion}` : null,
         loadedCompanyDraftUpdatedAt ? `updated ${loadedCompanyDraftUpdatedAt}` : null,
       ]
@@ -918,7 +918,7 @@ export function ReferralSaasAccountSetupPage() {
                       </div>
                       <div className="wizard-status-card">
                         <div>
-                          <strong>Readiness evidence status</strong>
+                          <strong>Company profile status</strong>
                           <p>{companyProfileStatusCopy}</p>
                           {savedCompanyDraftSummary ? <span>{savedCompanyDraftSummary}</span> : null}
                           <span>Backend readiness: {readinessEvidenceLabel} - {readinessEvidenceCopy}</span>
@@ -929,7 +929,7 @@ export function ReferralSaasAccountSetupPage() {
                       <SetupActionResult
                         createError={null}
                         createResponse={null}
-                        draftResponse={draftResponse}
+                        draftResponse={null}
                         draftError={draftError}
                         onChangeCustomerReferences={handleChangeCustomerReferences}
                         onRefreshSetupStatus={handleRefreshSetupStatus}

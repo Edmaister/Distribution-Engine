@@ -4723,6 +4723,32 @@ Rollback notes: Revert the admin onboarding selector/repository updates, fronten
 Explicit non-goals: Do not add schema, migrations, account lifecycle commands, draft overwrite/delete, stale draft override, permission changes, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Account Setup Step 2 treats saved Company Profile evidence as persisted customer setup data and prevents accidental continuation with unsaved edits. Priority: P0.
 
+## TASK-223: Clarify Account Setup saved Company Profile next action
+
+Status: Complete (2026-07-19). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing Account Setup wizard state and onboarding draft response; changes only the Referral SaaS product-facing copy and rendered success state. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup persistence UX; operator next-action clarity; no-internal-status leakage.
+Objective: Replace confusing Step 2 saved-draft technical feedback with a plain-language company-profile saved state and an obvious next action.
+Why now: Local UI testing showed the wizard displayed both `Company profile draft saved` and `Setup draft saved` with raw draft/status/idempotency tokens, leaving the operator unsure what the saved draft meant and whether to continue.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Renames the Step 2 status panel to `Company profile status`, changes saved copy to `Company profile saved. Continue to People & roles.`, hides the raw draft reference/status/idempotency banner from Step 2, keeps conflict/error recovery visible, and keeps the detailed draft workflow feedback available in later Review & create actions.
+API impact: None.
+Tests to add/update: Updates Account Setup page tests to assert the plain-language saved state, next-action copy, hidden raw draft reference in Step 2, and absence of the duplicate `Setup draft saved` banner after saving Company Profile.
+Validation method: `npm.cmd test -- ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Saving or loading Company Profile evidence in Step 2 tells the operator that the company profile is saved and to continue to People & roles; Step 2 does not display raw draft refs, draft statuses, or idempotency statuses as the main CTA; unsaved-change blocking and existing-draft conflict recovery remain intact; no backend, schema, permission, invitation, campaign, go-live, money, or DLaaS marketplace behavior changes are introduced.
+Dependencies: TASK-222.
+Blocked by: None. Local UI-driven Account Setup wizard E2E readiness proof remains next.
+Risk level: Low.
+Rollback notes: Revert the Account Setup page/test updates and roadmap/gap/task-list entries.
+Explicit non-goals: Do not add backend routes, service writes, schema, migrations, account lifecycle commands, draft overwrite/delete, stale draft override, permission changes, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Setup Step 2 treats saved Company Profile evidence as a clear product milestone with a next action instead of exposing internal draft workflow details. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
