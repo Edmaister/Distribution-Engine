@@ -359,6 +359,11 @@ async function waitForWizard() {
   await screen.findByRole("button", { name: "Identify customer" });
 }
 
+async function confirmAccountScope() {
+  fireEvent.click(screen.getByRole("button", { name: "Find account" }));
+  await screen.findByText("Checked");
+}
+
 async function recordRoleIntent() {
   fireEvent.click(screen.getByRole("button", { name: "People & roles" }));
   fireEvent.click(screen.getByRole("button", { name: "Record role intent" }));
@@ -416,7 +421,8 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.getByText("Safe mode: no go-live / money / credentials")).toBeInTheDocument();
     expect(screen.getByText("Account status")).toBeInTheDocument();
     expect(screen.getByText("FNB Referral SaaS - ACTIVE - tenant link ACTIVE")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("People & roles"));
+    await confirmAccountScope();
+    fireEvent.click(screen.getByRole("button", { name: "People & roles" }));
     expect(screen.getByText("User access status")).toBeInTheDocument();
     expect(screen.getByText("No membership")).toBeInTheDocument();
     expect(screen.getByText(/Capture who should administer this account/)).toBeInTheDocument();
@@ -446,18 +452,24 @@ describe("ReferralSaasAccountSetupPage", () => {
     await screen.findByRole("heading", { name: "Account setup wizard" });
     await waitForWizard();
 
-    expect(screen.getByRole("button", { name: "Company profile" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Company profile" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "People & roles" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Integration intent" })).toBeDisabled();
+    expect(screen.getByText("Not checked")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "People & roles" }));
 
     expect(screen.getByRole("heading", { name: "Find or start the account" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Company profile" })).not.toHaveClass("done");
+    expect(screen.getByRole("button", { name: "Identify customer" })).not.toHaveClass("done");
+
+    await confirmAccountScope();
+    expect(screen.getByRole("button", { name: "Company profile" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(screen.getByRole("heading", { name: "Capture company setup evidence" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Identify customer" })).toHaveClass("done");
     expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "People & roles" })).toBeDisabled();
   });
@@ -468,7 +480,8 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(await screen.findByRole("heading", { name: "Account setup wizard" })).toBeInTheDocument();
     await waitForWizard();
     expect(screen.getByRole("heading", { name: "Find or start the account" })).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Company profile"));
+    await confirmAccountScope();
+    fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
     expect(screen.getByText(/Use the existing company onboarding surface/)).toBeInTheDocument();
     expect(lastMatch(screen.getAllByRole("link", { name: /Company profile/ }))).toHaveAttribute(
       "href",
@@ -534,7 +547,7 @@ describe("ReferralSaasAccountSetupPage", () => {
         context: "setup",
       }),
     );
-    expect(await screen.findByText("Loaded")).toBeInTheDocument();
+    expect(await screen.findByText("Checked")).toBeInTheDocument();
     expect(JSON.stringify(mockedGetAdminOnboardingState.mock.calls)).not.toMatch(
       /account_ref|tenant_code|api_key|client_secret/i,
     );
@@ -554,6 +567,7 @@ describe("ReferralSaasAccountSetupPage", () => {
 
     expect(await screen.findByRole("heading", { name: "Account setup wizard" })).toBeInTheDocument();
     await waitForWizard();
+    await confirmAccountScope();
     expect(await screen.findByText("No account exists for these references yet. Start the company setup draft to create one.")).toBeInTheDocument();
     expect(screen.getByText("Start setup")).toBeInTheDocument();
     await validateSetup();
@@ -567,6 +581,7 @@ describe("ReferralSaasAccountSetupPage", () => {
 
     await screen.findByRole("heading", { name: "Account setup wizard" });
     await waitForWizard();
+    await confirmAccountScope();
 
     await recordRoleIntent();
     fireEvent.click(screen.getByRole("button", { name: "Readiness check" }));
@@ -658,6 +673,7 @@ describe("ReferralSaasAccountSetupPage", () => {
 
     await screen.findByRole("heading", { name: "Account setup wizard" });
     await waitForWizard();
+    await confirmAccountScope();
     expect(await screen.findByText(/No account exists for these references yet/)).toBeInTheDocument();
     await validateSetup();
     fireEvent.click(screen.getByRole("button", { name: "Review & create" }));
@@ -699,6 +715,7 @@ describe("ReferralSaasAccountSetupPage", () => {
 
     await screen.findByRole("heading", { name: "Account setup wizard" });
     await waitForWizard();
+    await confirmAccountScope();
     await waitFor(() => expect(mockedResolveReferralSaasAccount).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByText("People & roles"));
 
@@ -755,6 +772,7 @@ describe("ReferralSaasAccountSetupPage", () => {
 
     await screen.findByRole("heading", { name: "Account setup wizard" });
     await waitForWizard();
+    await confirmAccountScope();
     expect(screen.getByText("Safe mode: no go-live / money / credentials")).toBeInTheDocument();
     await recordRoleIntent();
     await validateSetup();
@@ -772,6 +790,7 @@ describe("ReferralSaasAccountSetupPage", () => {
 
     await screen.findByRole("heading", { name: "Account setup wizard" });
     await waitForWizard();
+    await confirmAccountScope();
     fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
     expect(lastMatch(screen.getAllByRole("link", { name: /Company profile/ }))).toHaveAttribute(
       "href",
