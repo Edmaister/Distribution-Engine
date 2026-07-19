@@ -4567,6 +4567,32 @@ Rollback notes: Revert the Account Setup page, page test, style, roadmap, gap ma
 Explicit non-goals: Do not add backend routes, service writes, schema, migrations, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS Account Setup is presented as a guided wizard over existing guarded primitives and is ready for a local UI-driven E2E readiness proof. Priority: P0.
 
+## TASK-217: Gate Account Setup wizard navigation by completed steps
+
+Status: Complete (2026-07-19). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses existing onboarding readiness evidence, account resolver state, validation state, account creation state, and membership intent/posture state. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup wizard journey control; completion-state UX; no-adjacent-action guardrails.
+Objective: Prevent the Account Setup wizard rail from behaving like a free-form tab bar and ensure operators can only move forward when prior steps are complete or explicitly passable.
+Why now: User testing showed that clicking a later rail item could skip required steps and incorrectly mark previous steps as `OK`, making the wizard feel misleading and uncontrolled.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `frontend/src/styles/base.css`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Adds evidence-based wizard completion/passability rules, disables locked future rail steps, keeps backward navigation available, disables Continue when the next step is blocked, and shows `OK` only for completed steps instead of position-based prior steps.
+API impact: None.
+Tests to add/update: Adds Account Setup page coverage proving future steps are locked when Company Profile evidence is incomplete; updates wizard workflow tests to complete role intent and validation before later navigation.
+Validation method: `npm.cmd test -- ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Operators cannot skip incomplete required steps through the rail or Continue button; completed state is based on existing evidence/actions rather than visited position; backward navigation remains available; existing account setup, validation, draft, review, create, membership intent, and campaign handoff behavior remains bounded and unchanged.
+Dependencies: TASK-216.
+Blocked by: None for frontend wizard navigation gating. Local UI-driven Account Setup wizard E2E proof remains the next account setup readiness task.
+Risk level: Medium.
+Rollback notes: Revert the Account Setup page, page test, style, roadmap, gap matrix, and ordered task list updates.
+Explicit non-goals: Do not add backend routes, service writes, schema, migrations, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Setup wizard navigation is controlled by step completion evidence and is ready for local UI-driven E2E readiness proof. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

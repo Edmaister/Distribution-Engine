@@ -188,6 +188,7 @@ greenfield referral construction.
 80. TASK-214: Define membership activation and invitation delivery boundary.
 81. TASK-215: Clarify Account Setup find-or-start CX copy.
 82. TASK-216: Redesign Account Setup as guided wizard.
+83. TASK-217: Gate Account Setup wizard navigation by completed steps.
 
 ## 10/10 Exit Criteria
 
@@ -543,6 +544,12 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`
 - TASK-216: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
+  `frontend/src/styles/base.css`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-217: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
   `frontend/src/styles/base.css`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
