@@ -4593,6 +4593,32 @@ Rollback notes: Revert the Account Setup page, page test, style, roadmap, gap ma
 Explicit non-goals: Do not add backend routes, service writes, schema, migrations, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Account Setup wizard navigation is controlled by step completion evidence and is ready for local UI-driven E2E readiness proof. Priority: P0.
 
+## TASK-218: Require explicit Account Setup Step 1 account check
+
+Status: Complete (2026-07-19). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses existing account resolver preload, onboarding readiness state, and wizard completion primitives, but separates background load from operator-confirmed Step 1 completion. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup wizard journey control; explicit operator confirmation; completion-state UX.
+Objective: Prevent the initial account resolver preload from marking Identify Customer complete or unlocking Company Profile until the operator clicks Find account.
+Why now: User testing showed Step 1 could flip to OK and allow movement to Step 2 without an explicit operator action, which undermined the wizard as a controlled journey.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Adds a session-local Step 1 confirmation gate, changes the Step 1 action badge to Not checked/Checked, keeps Company Profile and later steps locked until the operator confirms Find account, and preserves backward navigation.
+API impact: None.
+Tests to add/update: Updates Account Setup page tests to prove initial preload does not complete Step 1, future steps remain locked before Find account, Step 1 becomes complete only after explicit confirmation, and existing wizard flows still work.
+Validation method: `npm.cmd test -- ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Operators cannot reach Step 2 from the rail or Continue until they click Find account with both references present; Step 1 shows Not checked before explicit confirmation and Checked/OK only after confirmation; changing references resets the confirmation to Changes not checked; existing account setup, validation, draft, review, create, membership intent, and campaign handoff behavior remains bounded and unchanged.
+Dependencies: TASK-217.
+Blocked by: None for frontend Step 1 confirmation. Local UI-driven Account Setup wizard E2E proof remains the next account setup readiness task.
+Risk level: Low.
+Rollback notes: Revert the Account Setup page/test updates and roadmap/gap/task-list entries.
+Explicit non-goals: Do not add backend routes, service writes, schema, migrations, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Setup Step 1 completion is controlled by explicit operator confirmation rather than background preload, and the wizard remains ready for local UI-driven E2E readiness proof. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

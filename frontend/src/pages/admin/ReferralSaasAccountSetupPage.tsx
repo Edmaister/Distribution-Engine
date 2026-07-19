@@ -83,6 +83,7 @@ export function ReferralSaasAccountSetupPage() {
   const navigate = useNavigate();
   const { refreshKey } = useRefreshContext();
   const [activeWizardStep, setActiveWizardStep] = useState(1);
+  const [scopeCheckConfirmed, setScopeCheckConfirmed] = useState(false);
   const [draftExternalTenantRef, setDraftExternalTenantRef] = useState(defaultExternalTenantRef);
   const [draftOrganisationRef, setDraftOrganisationRef] = useState(defaultOrganisationRef);
   const [appliedExternalTenantRef, setAppliedExternalTenantRef] = useState(defaultExternalTenantRef);
@@ -134,7 +135,7 @@ export function ReferralSaasAccountSetupPage() {
     Boolean(accountResolution?.account && !scopeChanged),
     refreshKey + accountRefreshKey,
   );
-  const canCheckScope = Boolean(draftExternalTenantRef.trim() && draftOrganisationRef.trim() && scopeChanged);
+  const canCheckScope = Boolean(draftExternalTenantRef.trim() && draftOrganisationRef.trim());
 
   const readiness = asRecord(data?.readiness);
   const summary = asRecord(getNestedValue(readiness, ["summary"], {}));
@@ -268,7 +269,7 @@ export function ReferralSaasAccountSetupPage() {
           membershipPosture.totalMemberships > 0)),
   );
   const wizardStepCompletion = {
-    1: actionScopeReady,
+    1: actionScopeReady && scopeCheckConfirmed && !scopeChanged,
     2: isReadyStatus(accountProfileRow?.status),
     3: hasMembershipEvidence,
     4: true,
@@ -290,6 +291,7 @@ export function ReferralSaasAccountSetupPage() {
     }
     setAppliedExternalTenantRef(nextExternalTenantRef);
     setAppliedOrganisationRef(nextOrganisationRef);
+    setScopeCheckConfirmed(true);
     resetSetupActionState();
   }
 
@@ -618,7 +620,10 @@ export function ReferralSaasAccountSetupPage() {
                       </div>
                       <div className="action-button-row">
                         <button className="button" disabled={!canCheckScope} type="submit">Find account</button>
-                        <StatusBadge label={scopeChanged ? "Changes not checked" : "Loaded"} tone={scopeChanged ? "warning" : "success"} />
+                        <StatusBadge
+                          label={scopeChanged ? "Changes not checked" : scopeCheckConfirmed ? "Checked" : "Not checked"}
+                          tone={scopeChanged || !scopeCheckConfirmed ? "warning" : "success"}
+                        />
                       </div>
                       <div className="wizard-status-card">
                         <div>
