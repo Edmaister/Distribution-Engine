@@ -28,6 +28,7 @@ import {
 } from "../../api/referralSaasAccountQueries";
 import { DataTable } from "../../components/DataTable";
 import { ErrorPanel } from "../../components/ErrorPanel";
+import { InfoTooltip } from "../../components/InfoTooltip";
 import { LoadingState } from "../../components/LoadingState";
 import { StatusBadge } from "../../components/StatusBadge";
 import {
@@ -53,6 +54,17 @@ type CompanyProfileForm = {
   adminContact: string;
   intendedRole: string;
 };
+
+const companyCountryOptions = ["South Africa", "United Kingdom", "United States", "European Union", "Other"];
+const companyIndustryOptions = [
+  "Banking",
+  "Insurance",
+  "Retail",
+  "Telecommunications",
+  "Financial services",
+  "Referral management and campaign attribution",
+  "Other",
+];
 
 const accountChecklist = [
   {
@@ -694,34 +706,58 @@ export function ReferralSaasAccountSetupPage() {
                         </label>
                         <label className="field">
                           <span>Country</span>
-                          <input className="input" onChange={(event) => updateCompanyProfile("country", event.target.value)} value={companyProfile.country} />
+                          <select className="input" onChange={(event) => updateCompanyProfile("country", event.target.value)} value={companyProfile.country}>
+                            {companyCountryOptions.map((country) => (
+                              <option key={country} value={country}>{country}</option>
+                            ))}
+                          </select>
                         </label>
-                        <label className="field">
-                          <span>Organisation type</span>
-                          <select className="input" onChange={(event) => updateCompanyProfile("organisationType", event.target.value)} value={companyProfile.organisationType}>
+                        <div className="field">
+                          <label htmlFor="referral-saas-company-organisation-type">
+                            Organisation type{" "}
+                            <InfoTooltip text="Choose the customer's commercial relationship to this Referral SaaS account. This controls setup evidence only; it does not activate billing, funding, or money movement." />
+                          </label>
+                          <select
+                            className="input"
+                            id="referral-saas-company-organisation-type"
+                            onChange={(event) => updateCompanyProfile("organisationType", event.target.value)}
+                            value={companyProfile.organisationType}
+                          >
                             <option value="Referral SaaS customer">Referral SaaS customer</option>
                             <option value="Producer / sponsor">Producer / sponsor</option>
                             <option value="Partner">Partner</option>
                             <option value="Enterprise customer">Enterprise customer</option>
                           </select>
-                        </label>
+                        </div>
                         <label className="field">
                           <span>Industry</span>
-                          <input className="input" onChange={(event) => updateCompanyProfile("industry", event.target.value)} value={companyProfile.industry} />
+                          <select className="input" onChange={(event) => updateCompanyProfile("industry", event.target.value)} value={companyProfile.industry}>
+                            {companyIndustryOptions.map((industry) => (
+                              <option key={industry} value={industry}>{industry}</option>
+                            ))}
+                          </select>
                         </label>
                         <label className="field">
                           <span>Admin contact</span>
                           <input className="input" onChange={(event) => updateCompanyProfile("adminContact", event.target.value)} value={companyProfile.adminContact} />
                         </label>
-                        <label className="field">
-                          <span>Intended role</span>
-                          <select className="input" onChange={(event) => updateCompanyProfile("intendedRole", event.target.value)} value={companyProfile.intendedRole}>
+                        <div className="field">
+                          <label htmlFor="referral-saas-company-intended-role">
+                            Intended role{" "}
+                            <InfoTooltip text="Select the setup role the primary contact is expected to hold later. This records onboarding intent only; it does not invite a user or grant access." />
+                          </label>
+                          <select
+                            className="input"
+                            id="referral-saas-company-intended-role"
+                            onChange={(event) => updateCompanyProfile("intendedRole", event.target.value)}
+                            value={companyProfile.intendedRole}
+                          >
                             <option value="Referral SaaS account admin">Referral SaaS account admin</option>
                             <option value="Campaign manager">Campaign manager</option>
                             <option value="Support lead">Support lead</option>
                             <option value="Reporting analyst">Reporting analyst</option>
                           </select>
-                        </label>
+                        </div>
                       </div>
                       <div className="action-button-row">
                         <button className="button" disabled={!canSaveCompanyProfile} onClick={handleSaveSetupDraft} type="button">

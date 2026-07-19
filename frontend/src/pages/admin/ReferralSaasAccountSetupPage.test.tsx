@@ -484,6 +484,12 @@ describe("ReferralSaasAccountSetupPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
     expect(screen.getByText(/Capture the company evidence inside this wizard/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save company profile" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Country" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /Organisation type/ })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Industry" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /Intended role/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /commercial relationship/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /does not invite a user or grant access/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Company profile/ })).not.toBeInTheDocument();
     await recordRoleIntent();
     expect(screen.getByRole("button", { name: "Record role intent" })).toBeInTheDocument();
@@ -516,16 +522,16 @@ describe("ReferralSaasAccountSetupPage", () => {
     fireEvent.change(screen.getByLabelText("Organisation name"), {
       target: { value: "FNB Referral Programme" },
     });
-    fireEvent.change(screen.getByLabelText("Country"), {
+    fireEvent.change(screen.getByRole("combobox", { name: "Country" }), {
       target: { value: "South Africa" },
     });
-    fireEvent.change(screen.getByLabelText("Industry"), {
+    fireEvent.change(screen.getByRole("combobox", { name: "Industry" }), {
       target: { value: "Banking" },
     });
     fireEvent.change(screen.getByLabelText("Admin contact"), {
       target: { value: "referrals-admin@example.test" },
     });
-    fireEvent.change(screen.getByLabelText("Intended role"), {
+    fireEvent.change(screen.getByRole("combobox", { name: /Intended role/ }), {
       target: { value: "Campaign manager" },
     });
 

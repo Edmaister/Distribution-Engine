@@ -190,7 +190,7 @@ greenfield referral construction.
 82. TASK-216: Redesign Account Setup as guided wizard.
 83. TASK-217: Gate Account Setup wizard navigation by completed steps.
 84. TASK-218: Require explicit Account Setup Step 1 account check.
-85. TASK-219: Keep Account Setup Company Profile inside the wizard.
+85. TASK-219: Keep Account Setup Company Profile inside the wizard with bounded field controls.
 
 ## 10/10 Exit Criteria
 
