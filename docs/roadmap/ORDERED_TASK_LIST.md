@@ -4775,6 +4775,32 @@ Rollback notes: Revert the Account Setup page/test updates and roadmap/gap/task-
 Explicit non-goals: Do not delete membership services/APIs/tests, add backend routes, service writes, schema, migrations, account lifecycle commands, draft overwrite/delete, stale draft override, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Account Setup contains only onboarding/foundation steps, while users/access are clearly deferred to Account Maintenance. Priority: P0.
 
+## TASK-225: Split Technical Setup from Account Setup and align customer identification language
+
+Status: Complete (2026-07-19). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing Account Setup wizard and existing webhook/API setup route as separate product surfaces. Shared draft validation payloads remain unchanged until a dedicated Technical Setup contract is introduced. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup/Technical Setup boundary; customer identifier language; setup handoff clarity.
+Objective: Remove Technical Setup from the required Account Setup wizard path and align Step 1/conflict recovery copy around customer identifiers rather than unexplained customer references.
+Why now: User testing showed Webhook/API setup made Account Setup feel like a mixed customer-and-technical workflow, while the existing-draft conflict recovery used "Change customer references" without first establishing that terminology.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Converts Account Setup from five product steps after removing the required technical step: Identify customer, Company profile, Readiness check, Review & create, and Handoff. Moves the API/webhook route into Handoff as a separate Technical Setup workflow link. Renames Step 1 field labels to Customer reference and Organisation reference, adds Customer identifiers context, changes conflict recovery to "Use different customer", and updates copy to distinguish customer/account setup from later technical setup.
+API impact: None.
+Tests to add/update: Updates Account Setup tests to assert the five-step path, absence of Integration Intent from the wizard rail, Technical Setup handoff link, new customer-identifier labels, and the replacement of "Change customer references" with "Use different customer".
+Validation method: `npm.cmd test -- ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Account Setup no longer presents Webhook/API setup as a required wizard step; technical setup remains discoverable as a separate handoff workflow; Step 1 and draft-conflict recovery use consistent customer-identifier language; no backend route, schema, credential lifecycle, webhook delivery, account command, campaign activation, go-live, money, or DLaaS marketplace behavior changes are introduced.
+Dependencies: TASK-224.
+Blocked by: None. Dedicated Technical Setup productization and local UI-driven Account Setup wizard E2E proof remain future tasks.
+Risk level: Low.
+Rollback notes: Revert the Account Setup page/test updates and roadmap/gap/task-list entries.
+Explicit non-goals: Do not add backend routes, service writes, schema, migrations, account lifecycle commands, draft overwrite/delete, stale draft override, permission changes, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Setup is a focused customer/account foundation wizard, while Technical Setup is a clearly separate handoff workflow. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

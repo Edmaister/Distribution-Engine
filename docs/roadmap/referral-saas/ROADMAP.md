@@ -196,6 +196,7 @@ greenfield referral construction.
 88. TASK-222: Load saved Account Setup Company Profile drafts.
 89. TASK-223: Clarify Account Setup saved Company Profile next action.
 90. TASK-224: Remove People and Roles from Account Setup.
+91. TASK-225: Split Technical Setup from Account Setup and align customer identification language.
 
 ## 10/10 Exit Criteria
 
@@ -601,6 +602,11 @@ greenfield referral construction.
   `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
   `apps/api/routers/admin_onboarding.py`;
   `test/api/test_admin_onboarding_api.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`
+- TASK-225: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`
