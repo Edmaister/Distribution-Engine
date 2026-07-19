@@ -45,6 +45,8 @@ const defaultExternalTenantRef = "demo-platform-operator";
 const defaultOrganisationRef = "demo-organisation";
 const trustedInternalTenantScopeKey = "amplifi.referralSaas.accountSetup.trustedTenantScope";
 const defaultTrustedInternalTenantScope = "FNB";
+const draftConflictRecoveryMessage =
+  "A setup draft already exists for this customer. Refresh the setup status to continue from the latest evidence, or change the customer references before saving another draft. No account was created and no live action was taken.";
 type SetupActionState = "idle" | "loading" | "success" | "error";
 type CompanyProfileForm = {
   organisationName: string;
@@ -157,11 +159,12 @@ export function ReferralSaasAccountSetupPage() {
   const [membershipInviteState, setMembershipInviteState] = useState<SetupActionState>("idle");
   const [membershipInviteResponse, setMembershipInviteResponse] = useState<ReferralSaasMembershipInvitationResponse | null>(null);
   const [membershipInviteError, setMembershipInviteError] = useState<string | null>(null);
+  const [setupRefreshKey, setSetupRefreshKey] = useState(0);
   const [accountRefreshKey, setAccountRefreshKey] = useState(0);
   const { data, error, isLoading } = useReferralSaasAccountSetupState(
     appliedExternalTenantRef,
     appliedOrganisationRef,
-    refreshKey,
+    refreshKey + setupRefreshKey,
   );
   const {
     data: accountResolution,
@@ -374,6 +377,18 @@ export function ReferralSaasAccountSetupPage() {
     if (canOpenWizardStep(activeWizardStep + 1)) {
       goToWizardStep(activeWizardStep + 1);
     }
+  }
+
+  function handleRefreshSetupStatus() {
+    resetSetupActionState();
+    setSetupRefreshKey((current) => current + 1);
+    setAccountRefreshKey((current) => current + 1);
+  }
+
+  function handleChangeCustomerReferences() {
+    resetSetupActionState();
+    setScopeCheckConfirmed(false);
+    setActiveWizardStep(1);
   }
 
   function canOpenWizardStep(step: number) {
@@ -795,6 +810,8 @@ export function ReferralSaasAccountSetupPage() {
                         createResponse={null}
                         draftResponse={draftResponse}
                         draftError={draftError}
+                        onChangeCustomerReferences={handleChangeCustomerReferences}
+                        onRefreshSetupStatus={handleRefreshSetupStatus}
                         reviewError={null}
                         reviewResponse={null}
                         submitError={null}
@@ -919,6 +936,8 @@ export function ReferralSaasAccountSetupPage() {
                         createResponse={null}
                         draftResponse={null}
                         draftError={null}
+                        onChangeCustomerReferences={handleChangeCustomerReferences}
+                        onRefreshSetupStatus={handleRefreshSetupStatus}
                         reviewError={null}
                         reviewResponse={null}
                         submitError={null}
@@ -1014,6 +1033,8 @@ export function ReferralSaasAccountSetupPage() {
                         createResponse={createResponse}
                         draftResponse={draftResponse}
                         draftError={draftError}
+                        onChangeCustomerReferences={handleChangeCustomerReferences}
+                        onRefreshSetupStatus={handleRefreshSetupStatus}
                         reviewError={reviewError}
                         reviewResponse={reviewResponse}
                         submitError={submitError}
@@ -1269,7 +1290,7 @@ function buildReferralSaasSetupSections(
 function safeActionError(error: unknown, fallback: string) {
   const status = typeof error === "object" && error && "status" in error ? Number((error as { status?: number }).status) : null;
   if (status === 409) {
-    return "The request conflicts with a previous setup action or stale draft. No approval or live action was taken.";
+    return draftConflictRecoveryMessage;
   }
   if (status === 422) {
     return "The setup evidence has blockers or unsafe input. No account was created and no live action was taken.";
@@ -1328,6 +1349,8 @@ function SetupActionResult({
   createResponse,
   draftError,
   draftResponse,
+  onChangeCustomerReferences,
+  onRefreshSetupStatus,
   reviewError,
   reviewResponse,
   submitError,
@@ -1339,6 +1362,8 @@ function SetupActionResult({
   createResponse: ReferralSaasAccountCreateFromDraftResponse | null;
   draftError: string | null;
   draftResponse: AdminOnboardingDraftSaveResponse | null;
+  onChangeCustomerReferences: () => void;
+  onRefreshSetupStatus: () => void;
   reviewError: string | null;
   reviewResponse: AdminOnboardingReviewDecisionResponse | null;
   submitError: string | null;
@@ -1413,8 +1438,18 @@ function SetupActionResult({
         <div className="banner warning" key={message} role="status">
           <ShieldCheck size={18} />
           <div>
-            <strong>Setup action fallback.</strong>
+            <strong>{message === draftConflictRecoveryMessage ? "Existing setup draft found." : "Setup action fallback."}</strong>
             <div className="table-subtext">{message}</div>
+            {message === draftConflictRecoveryMessage ? (
+              <div className="action-button-row">
+                <button className="button secondary" onClick={onRefreshSetupStatus} type="button">
+                  Refresh setup status
+                </button>
+                <button className="button secondary" onClick={onChangeCustomerReferences} type="button">
+                  Change customer references
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       ))}

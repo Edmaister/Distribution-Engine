@@ -567,6 +567,32 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.getByText("Profile saved")).toBeInTheDocument();
   });
 
+  it("shows actionable recovery when company profile save hits an existing draft conflict", async () => {
+    mockedSaveAdminOnboardingDraft.mockRejectedValueOnce({
+      status: 409,
+      message: "Conflict",
+    });
+
+    renderWorkspace(<ReferralSaasAccountSetupPage />);
+
+    await screen.findByRole("heading", { name: "Account setup wizard" });
+    await waitForWizard();
+    await confirmAccountScope();
+
+    fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save company profile" }));
+
+    expect(await screen.findByText("Existing setup draft found.")).toBeInTheDocument();
+    expect(screen.getByText(/A setup draft already exists for this customer/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh setup status" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Change customer references" })).toBeInTheDocument();
+    expect(screen.queryByText("Setup action fallback.")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh setup status" }));
+    await waitFor(() => expect(mockedGetAdminOnboardingState).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText("Existing setup draft found.")).not.toBeInTheDocument();
+  });
+
   it("keeps scope typing local until the tester checks setup", async () => {
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
