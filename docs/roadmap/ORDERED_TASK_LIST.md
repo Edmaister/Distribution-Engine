@@ -4801,6 +4801,32 @@ Rollback notes: Revert the Account Setup page/test updates and roadmap/gap/task-
 Explicit non-goals: Do not add backend routes, service writes, schema, migrations, account lifecycle commands, draft overwrite/delete, stale draft override, permission changes, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Account Setup is a focused customer/account foundation wizard, while Technical Setup is a clearly separate handoff workflow. Priority: P0.
 
+## TASK-226: Move full Account Setup readiness evidence to Account Maintenance
+
+Status: Complete (2026-07-19). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing onboarding readiness projection in Account Maintenance and keeps Account Setup on the existing guarded draft/review/create primitives. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup/Account Maintenance readiness boundary; customer identifier language; operator next-action clarity.
+Objective: Stop rendering full backend readiness categories as the Account Setup step and make Account Maintenance the home for full operational readiness evidence.
+Why now: User testing showed Account Setup Step 3 still exposed blocked gates, evidence gaps, `SHELL_ONLY`, and unrelated maintenance categories after People/Roles and Technical Setup were removed from setup.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Renames Account Setup Step 3 to `Setup checkpoint`, removes the full readiness blocker list and details drawer from Account Setup, keeps a bounded checkpoint refresh action, links full readiness to Account Maintenance, adds a dedicated Account Maintenance `Readiness check` panel, aligns maintenance scope labels with customer identifier language, and routes technical posture to Technical Setup.
+API impact: None.
+Tests to add/update: Updates Account Setup page tests for the setup checkpoint and Account Maintenance readiness handoff. Updates Account Maintenance page tests for the full readiness panel, customer identifier labels, and Technical Setup route.
+Validation method: `npm.cmd test -- ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd test -- ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Account Setup no longer presents full readiness categories as a setup step; Account Setup can continue from customer identifiers plus saved company profile evidence; full readiness evidence is visible in Account Maintenance; technical posture routes to Technical Setup; no backend route, schema, account command, permission, credential, webhook delivery, campaign activation, go-live, money, or DLaaS marketplace behavior changes are introduced.
+Dependencies: TASK-225.
+Blocked by: None. Local UI-driven Account Setup wizard E2E readiness proof remains future work.
+Risk level: Low.
+Rollback notes: Revert the Account Setup page/test, Account Maintenance page/test, roadmap, gap, and task-list updates.
+Explicit non-goals: Do not add backend routes, service writes, schema, migrations, account lifecycle commands, draft overwrite/delete, stale draft override, permission changes, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Setup contains only a product-facing setup checkpoint, while full readiness evidence lives in Account Maintenance. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

@@ -44,9 +44,9 @@ const maintenanceAreas = [
   },
   {
     code: "EXTERNAL_REFERENCES",
-    title: "External references",
+    title: "Customer identifiers",
     source: "Checked account scope",
-    action: "Check references again before trusting this maintenance view.",
+    action: "Check customer identifiers again before trusting this maintenance view.",
     route: "/admin/referral-saas/account-setup",
     icon: LinkIcon,
   },
@@ -60,10 +60,10 @@ const maintenanceAreas = [
   },
   {
     code: "WEBHOOK_API",
-    title: "Integration posture",
+    title: "Technical setup posture",
     source: "Webhook and API setup evidence",
-    action: "Correct integration setup evidence; credentials are not rotated here.",
-    route: "/admin/referral-saas/account-setup",
+    action: "Review API and webhook setup evidence; credentials are not rotated here.",
+    route: "/admin/onboarding/webhook-api",
     icon: KeyRound,
   },
   {
@@ -164,9 +164,9 @@ export function ReferralSaasAccountMaintenancePage() {
           <div className="page-kicker">Referral SaaS - Account Maintenance</div>
           <h1 className="page-title">Account maintenance evidence</h1>
           <p className="page-copy">
-            Review account health, setup drift, and safe maintenance evidence.
-            Changes still go through Account Setup until durable account and
-            membership commands exist.
+            Review account health, setup drift, readiness evidence, and safe
+            maintenance posture after the customer account foundation has been
+            started.
           </p>
         </div>
         <StatusBadge label="Read-only evidence" tone="info" />
@@ -206,7 +206,7 @@ export function ReferralSaasAccountMaintenancePage() {
                     </p>
                   </div>
                   <label className="field">
-                    <span>External tenant ref</span>
+                    <span>Customer reference</span>
                     <input
                       className="input"
                       onChange={(event) => setDraftExternalTenantRef(event.target.value)}
@@ -214,7 +214,7 @@ export function ReferralSaasAccountMaintenancePage() {
                     />
                   </label>
                   <label className="field">
-                    <span>Organisation ref</span>
+                    <span>Organisation reference</span>
                     <input
                       className="input"
                       onChange={(event) => setDraftOrganisationRef(event.target.value)}
@@ -232,7 +232,7 @@ export function ReferralSaasAccountMaintenancePage() {
                     <div>
                       <div className="route-name">Step 2: review health and drift</div>
                       <div className="route-path">
-                        Use the maintenance areas below to see what is ready, blocked, or missing evidence.
+                        Use the readiness check and maintenance areas below to see what is ready, blocked, or missing evidence.
                       </div>
                     </div>
                     <AlertCircle size={18} />
@@ -253,7 +253,7 @@ export function ReferralSaasAccountMaintenancePage() {
                     <div>
                       <div className="route-name">Step 3: fix in the right workflow</div>
                       <div className="route-path">
-                        Use Account Setup for evidence corrections, Campaigns for readiness, Reports for reporting posture, or Support for diagnostics.
+                        Use Account Setup for account evidence, Technical Setup for API/webhook posture, Campaigns for campaign readiness, Reports for reporting posture, or Support for diagnostics.
                       </div>
                     </div>
                     <ShieldCheck size={18} />
@@ -275,6 +275,59 @@ export function ReferralSaasAccountMaintenancePage() {
             <KpiCard label="Blocked areas" value={formatDisplay(blockedCount)} footnote="Route back to setup" icon={ShieldCheck} />
             <KpiCard label="Evidence gaps" value={formatDisplay(missingEvidenceCount)} footnote="Missing setup proof" icon={Building2} />
             <KpiCard label="Maintenance commands" value="0" footnote={`${goLiveDisabledCount} go-live blocker shown`} icon={Lock} />
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <div>
+                <h2 className="panel-title">Readiness check</h2>
+                <div className="panel-subtitle">
+                  This is the full operational readiness posture for the selected customer. Account Setup only handles the guarded account foundation path.
+                </div>
+              </div>
+              <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
+            </div>
+            <div className="panel-body route-list">
+              <div className={`wizard-summary-strip ${blockedCount || missingEvidenceCount ? "warning" : "success"}`}>
+                <StatusBadge label={blockedCount || missingEvidenceCount ? "Needs attention" : "Ready"} tone={blockedCount || missingEvidenceCount ? "warning" : "success"} />
+                <div>
+                  <strong>{formatAreaCount(blockedCount, "blocked area")}, {formatAreaCount(missingEvidenceCount, "evidence gap")}</strong>
+                  <span>
+                    {formatDisplay(readyCount)} areas ready. User access, technical setup, campaign readiness, reporting, guardrails, and redactions are reviewed here.
+                  </span>
+                </div>
+              </div>
+              <DataTable
+                rows={categories}
+                emptyText="No readiness categories returned."
+                columns={[
+                  {
+                    key: "category",
+                    header: "Area",
+                    render: (row) => (
+                      <span className="mono">
+                        {formatDisplay(getValue(row, ["display_label"], getValue(row, ["category"], "Readiness area")))}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "status",
+                    header: "Status",
+                    render: (row) => {
+                      const label = formatDisplay(
+                        getNestedValue(row, ["safe_display_status", "label"], getNestedValue(row, ["status"], "Check")),
+                      );
+                      return <StatusBadge label={label} tone={statusTone(label)} />;
+                    },
+                  },
+                  {
+                    key: "evidence",
+                    header: "Evidence",
+                    render: (row) => <span className="table-subtext">{formatDisplay(getValue(row, ["evidence_summary"], "No evidence summary returned."))}</span>,
+                  },
+                ]}
+              />
+            </div>
           </section>
 
           <section className="panel">
@@ -489,4 +542,8 @@ function getMaintenanceNextAction(scopeChanged: boolean, blockedCount: number, m
 function toCount(value: unknown) {
   const count = Number(value);
   return Number.isFinite(count) ? count : 0;
+}
+
+function formatAreaCount(count: number, singularLabel: string) {
+  return `${formatDisplay(count)} ${count === 1 ? singularLabel : `${singularLabel}s`}`;
 }
