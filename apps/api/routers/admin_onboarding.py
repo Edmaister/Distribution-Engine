@@ -435,7 +435,7 @@ async def submit_admin_onboarding_draft_for_review(
         )
 
     section_rows = await draft_repo.get_draft_sections(str(saved_draft["draft_id"]))
-    saved_sections = _sections_from_saved_rows(section_rows)
+    saved_sections = _raw_sections_from_saved_rows(section_rows)
     saved_scope = _scope_from_draft(saved_draft)
     validation = validate_onboarding_draft(
         {
@@ -523,7 +523,7 @@ async def record_admin_onboarding_draft_review_decision(
         )
 
     section_rows = await draft_repo.get_draft_sections(str(saved_draft["draft_id"]))
-    saved_sections = _sections_from_saved_rows(section_rows)
+    saved_sections = _raw_sections_from_saved_rows(section_rows)
     validation = validate_onboarding_draft(
         {
             "scope": _scope_from_draft(saved_draft),
@@ -781,6 +781,20 @@ def _sections_from_saved_rows(rows: list[dict[str, Any]]) -> dict[str, dict[str,
                 for field in allowed_fields
                 if payload.get(field) is not None
             }
+    return sections
+
+
+def _raw_sections_from_saved_rows(
+    rows: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    sections: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        section_key = _optional_text(row.get("section_key"))
+        if section_key not in SECTION_DEFINITIONS:
+            continue
+        payload = _mapping_from_saved_jsonb(row.get("section_payload"))
+        if isinstance(payload, Mapping):
+            sections[section_key] = dict(payload)
     return sections
 
 

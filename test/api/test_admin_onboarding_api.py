@@ -673,6 +673,7 @@ def _existing_idempotency_for(payload, *, request_hash=None):
 
 def test_saved_section_rows_decode_jsonb_strings_for_submit_validation():
     payload = _complete_draft_payload()
+    payload["sections"]["campaign_opportunity"]["publish_campaign"] = True
     rows = [
         {
             "section_key": section_key,
@@ -681,10 +682,13 @@ def test_saved_section_rows_decode_jsonb_strings_for_submit_validation():
         for section_key, section_payload in payload["sections"].items()
     ]
 
-    sections = admin_onboarding._sections_from_saved_rows(rows)
+    safe_sections = admin_onboarding._sections_from_saved_rows(rows)
+    sections = admin_onboarding._raw_sections_from_saved_rows(rows)
 
     assert set(sections) == set(payload["sections"])
     assert sections["company"]["organisation_ref"] == "org-acme"
+    assert sections["campaign_opportunity"]["publish_campaign"] is True
+    assert "publish_campaign" not in safe_sections["campaign_opportunity"]
     validation = admin_onboarding.validate_onboarding_draft(
         {
             "scope": admin_onboarding._scope_from_payload(payload),
@@ -692,7 +696,7 @@ def test_saved_section_rows_decode_jsonb_strings_for_submit_validation():
         },
         actor_context={"role": "PLATFORM_ADMIN"},
     )
-    assert validation["validation_result"]["status"] == "VALID"
+    assert validation["validation_result"]["status"] == "BLOCKED"
 
 
 def _saved_draft(**overrides):
