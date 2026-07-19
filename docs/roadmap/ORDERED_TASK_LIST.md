@@ -4645,6 +4645,32 @@ Rollback notes: Revert the Account Setup page/test updates and roadmap/gap/task-
 Explicit non-goals: Do not add backend routes, service writes beyond existing draft save, schema, migrations, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Account Setup Step 2 Company Profile is an inline wizard step with bounded selectors and contextual field guidance that saves guarded setup draft evidence and no longer redirects operators into a separate onboarding workspace. Priority: P0.
 
+## TASK-220: Add Account Setup draft conflict recovery UX
+
+Status: Complete (2026-07-19). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses existing onboarding draft conflict behavior and Account Setup refresh/query state. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup conflict recovery; safe draft/idempotency UX; no-adjacent-action guardrails.
+Objective: Turn the real `409 Conflict` returned by `/admin/onboarding/drafts` into an actionable Account Setup recovery state.
+Why now: Local UI testing hit `POST /admin/onboarding/drafts` `409 Conflict` after saving company profile evidence for an existing setup scope. The backend was correctly protecting draft/idempotency state, but the wizard showed a generic fallback that did not explain what the operator should do next.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `frontend/src/pages/admin/CompanyOnboardingPage.tsx`; `frontend/src/api/referralSaasAccountQueries.ts`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Replaces generic draft-save `409` fallback copy with a specific "existing setup draft found" recovery state, adds Refresh setup status and Change customer references actions, and refetches setup/account state through local refresh keys.
+API impact: None. Uses existing `saveAdminOnboardingDraft` conflict semantics.
+Tests to add/update: Adds Account Setup page coverage for `409 Conflict` from `saveAdminOnboardingDraft`, actionable recovery copy, recovery buttons, and setup-state refresh behavior.
+Validation method: `npm.cmd test -- ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: When Step 2 company profile save returns `409`, the wizard explains that a setup draft already exists for the customer, confirms no account or live action was taken, offers Refresh setup status and Change customer references actions, clears the stale banner on refresh, refetches setup state, and does not add account creation, approval, live action, draft deletion, conflict override, source fork, or broad DLaaS behavior.
+Dependencies: TASK-219.
+Blocked by: None for draft conflict recovery UX. A future draft selector/load-existing-draft workflow may deepen this recovery path before full E2E testing.
+Risk level: Low.
+Rollback notes: Revert the Account Setup page/test updates and roadmap/gap/task-list entries.
+Explicit non-goals: Do not add backend routes, service writes, schema, migrations, draft deletion, stale draft override, account creation, approval, invitation delivery, membership activation, seat assignment, auth/session claim changes, campaign activation, go-live, credential lifecycle, webhook delivery, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Setup Step 2 handles existing-draft `409 Conflict` as a clear recoverable product state with tested refresh and reference-change actions. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
