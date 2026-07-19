@@ -203,6 +203,7 @@ greenfield referral construction.
 95. TASK-229: Add Client Workspace physical verification.
 96. TASK-230: Add repeatable fresh-client physical seed proof.
 97. TASK-231: Reframe Client Workspace as a customer profile landing experience.
+98. TASK-232: Start Account Setup from blank customer identifiers with field guidance.
 
 ## 10/10 Exit Criteria
 
@@ -664,6 +665,11 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - persisted account operating jurisdiction, jurisdiction-first customer finder, and standalone selected-customer profile route.
+- TASK-232: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Account Setup starts from blank customer identifiers with tooltip guidance and no silent demo lookup.
 
 ## Explicit Deferrals
 

@@ -4956,6 +4956,31 @@ Rollback notes: Revert the additive jurisdiction migration, account foundation/s
 Explicit non-goals: Do not add account lifecycle commands, durable account updates, durable profile updates, membership writes, invitations, activation, seat assignment, auth/session claim changes, credential rotation, webhook delivery, campaign activation, go-live, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Customer Profile has a persisted-jurisdiction-backed entry page and a standalone customer profile page that acts as the customer-scoped workspace entry point rather than a technical maintenance dashboard. Priority: P0.
 
+## TASK-232: Start Account Setup from blank customer identifiers with field guidance
+
+Status: Complete (2026-07-19). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing Account Setup wizard, onboarding readiness queries, account resolver, and shared tooltip component. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Explicit customer identification; Account Setup UX clarity; customer-safe setup scope.
+Objective: Remove demo customer defaults from Account Setup Step 1 and add operator guidance for the customer identifiers before any setup/readiness lookup runs.
+Why now: Manual testing showed the wizard started with `demo-platform-operator` / `demo-organisation`, which could confuse operators and accidentally scope setup work to a demo customer.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; roadmap and gap docs.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Account Setup now starts with blank customer and organisation references, disables `Find account` until both are entered, adds examples, and adds info tooltips explaining what each identifier is used for.
+API impact: None; existing frontend query guards continue preventing backend calls until refs are applied.
+Tests to add/update: Updates Account Setup page tests for blank initial refs, no premature backend calls, tooltip-safe field selection, and explicit lookup after operator input.
+Validation method: `npm.cmd test -- --run src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run lint`; `git diff --check`.
+Acceptance criteria: Account Setup Step 1 does not preload demo identifiers, does not call setup/readiness/account-resolver APIs before the operator enters both identifiers and clicks `Find account`, and gives clear tooltip guidance on what the identifiers are and why they are used.
+Dependencies: TASK-231.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Restore the previous Step 1 defaults and remove the new field guidance/test expectations.
+Explicit non-goals: Do not add schema, migrations, backend routes, account lifecycle commands, durable profile updates, membership writes, invitation delivery, credential lifecycle, webhook delivery, campaign activation, go-live, money movement, DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Setup starts from explicit operator-entered customer identifiers with tooltip guidance and no silent demo/customer context. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
