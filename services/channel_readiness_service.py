@@ -641,9 +641,7 @@ def list_channel_deliveries(
 
 def list_channel_audit(limit: int = 50) -> dict[str, Any]:
     capped_limit = max(1, min(int(limit or 50), 200))
-    recent_items = sorted(_CHANNEL_AUDIT, key=lambda item: item["created_at"])[
-        -capped_limit:
-    ]
+    recent_items = _CHANNEL_AUDIT[-capped_limit:]
     return {
         "status": "ok",
         "items": recent_items,
