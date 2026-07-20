@@ -441,6 +441,21 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(await screen.findByText("Everything opens against Gaborone Partners until you switch customer.")).toBeInTheDocument();
   });
 
+  it("opens the People and Access module from the next-best action", async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs");
+
+    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Overview" })).toHaveClass("active");
+
+    fireEvent.click(screen.getByRole("link", { name: /Add who can manage this account/ }));
+
+    expect(screen.getByRole("button", { name: "What you can do" })).toHaveClass("active");
+    expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "start", behavior: "smooth" }));
+  });
+
   it("records customer-scoped people access intent without leaving Customer Profile", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs#people-access");
 

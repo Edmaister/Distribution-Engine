@@ -348,6 +348,16 @@ export function ReferralSaasAccountMaintenancePage() {
     setPendingAccountId(account.accountId);
   }
 
+  function openCustomerModule(route: string) {
+    if (!route.startsWith("#")) {
+      return;
+    }
+    setActiveTab("actions");
+    window.setTimeout(() => {
+      document.getElementById(route.slice(1))?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }, 0);
+  }
+
   function submitAccessIntent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedAccount || !selectedExternalTenantRef || !accessSubject.trim()) {
@@ -608,12 +618,20 @@ export function ReferralSaasAccountMaintenancePage() {
                     </div>
                     <div className="panel-body route-list">
                       {doNext.map((action) => (
-                        <Link className="route-item route-link" key={action.title} to={buildCustomerModuleRoute(selectedCustomerPath, action.route, customerQuery)}>
+                        <Link
+                          className="route-item route-link"
+                          key={action.title}
+                          onClick={() => openCustomerModule(action.route)}
+                          to={buildCustomerModuleRoute(selectedCustomerPath, action.route, customerQuery)}
+                        >
                           <div>
                             <div className="route-name">{action.title}</div>
                             <div className="route-path">{action.copy}</div>
                           </div>
-                          <StatusBadge label={action.priority} tone={action.tone} />
+                          <div className="route-action-stack">
+                            <StatusBadge label={action.priority} tone={action.tone} />
+                            {action.route.startsWith("#") ? <span className="route-action">Open</span> : null}
+                          </div>
                         </Link>
                       ))}
                     </div>
@@ -637,7 +655,12 @@ export function ReferralSaasAccountMaintenancePage() {
                       const Icon = item.icon;
                       const href = buildCustomerModuleRoute(selectedCustomerPath, item.route, customerQuery);
                       return (
-                        <Link className="customer-function-card" key={item.title} to={href}>
+                        <Link
+                          className="customer-function-card"
+                          key={item.title}
+                          onClick={() => openCustomerModule(item.route)}
+                          to={href}
+                        >
                           <div className="customer-function-card-header">
                             <span className="customer-function-title">
                               <Icon size={16} />
