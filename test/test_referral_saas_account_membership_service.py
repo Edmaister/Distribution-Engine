@@ -244,6 +244,54 @@ async def test_membership_invitation_intent_records_user_membership_and_audit(
     assert "platform_seats" not in joined_queries
 
 
+async def test_membership_invitation_intent_accepts_campaign_manager_role(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            None,
+            None,
+            {"user_id": "user-1", "status": "INVITED"},
+            {
+                "membership_id": "membership-1",
+                "status": "INVITED",
+                "role_family": "CAMPAIGN_MANAGER",
+                "permission_set": "REFERRAL_SAAS_CAMPAIGN_MANAGER",
+            },
+            {"account_audit_event_id": "audit-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.record_referral_saas_membership_invitation_intent(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        actor_type="USER",
+        subject="campaign.manager@example.com",
+        display_name="Campaign Manager",
+        role_family="CAMPAIGN_MANAGER",
+        permission_set="REFERRAL_SAAS_CAMPAIGN_MANAGER",
+        tenant_scope="PRIMARY_ACCOUNT_TENANT",
+        reason_code="CUSTOMER_PROFILE_ACCESS_MAINTENANCE",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+        command_payload={
+            "actor": {"actorType": "USER", "subject": "campaign.manager@example.com"},
+            "membership": {"roleFamily": "CAMPAIGN_MANAGER"},
+        },
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["membership"]["roleFamily"] == "CAMPAIGN_MANAGER"
+    assert safe_payload["membership"]["permissionSet"] == "REFERRAL_SAAS_CAMPAIGN_MANAGER"
+    assert safe_payload["membership"]["status"] == "INVITED"
+
+
 async def test_membership_invitation_intent_replays_matching_idempotency_key(
     monkeypatch,
 ):

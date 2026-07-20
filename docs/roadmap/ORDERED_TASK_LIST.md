@@ -5136,6 +5136,31 @@ Rollback notes: Remove the profile maintenance service/route/API wrapper, restor
 Explicit non-goals: Do not add schema, migrations, account lifecycle commands, external-reference rotation, user creation, membership activation, invite delivery, seat assignment, role activation, auth/session claim changes, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Selected Customer Profile has a bounded durable Customer Settings save path with audit evidence and no live adjacent actions. Priority: P0.
 
+## TASK-239: Fix People and Access email identity, campaign manager role, and error wrapping
+
+Status: Complete (2026-07-20). Output: `services/referral_saas_account_membership_service.py`; `dp/migrations/082_referral_saas_account_foundation.sql`; `dp/migrations/084_referral_saas_campaign_manager_role_family.sql`; `frontend/src/api/client.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/styles/base.css`; `test/test_referral_saas_account_membership_service.py`; `test/test_referral_saas_account_foundation_migration.py`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Extends the existing account membership role-family constraint and command validation for a Referral SaaS product role. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile People and Access; customer-scoped membership invitation intent; safe API error rendering.
+Objective: Make People and Access collect a work email as the user identity, allow the Campaign manager responsibility through the backend and DB constraint, and prevent long API errors from stretching the selected Customer Profile page.
+Why now: Manual UI testing showed `Campaign manager` produced a `422 Unprocessable Entity` because `CAMPAIGN_MANAGER` was not in the durable membership role-family contract, and the raw validation error stretched the page horizontally.
+Files involved: Membership service, account foundation migrations, Customer Profile page, shared error/CSS rendering, and focused tests.
+Database/schema impact: Adds migration `084_referral_saas_campaign_manager_role_family.sql` to update `platform_memberships_role_family_chk`; updates the clean foundation migration for new DB builds.
+Backend impact: `CAMPAIGN_MANAGER` is accepted as a bounded Referral SaaS membership role family. No activation, seat assignment, invite delivery, auth-claim mutation, billing, or money movement is added.
+Frontend impact: People and Access uses Work email as the customer-facing identity field, normalizes it before submit, shows friendly saved-role feedback, and wraps long error/banner text without widening the page.
+API impact: Reuses `POST /v1/referral-saas/accounts/{account_ref}/membership-invitations`; no new route.
+Tests to add/update: Service test for campaign-manager invitation intent, migration test for the role-family constraint, and Customer Profile test for work-email identity.
+Validation method: Focused backend and frontend tests, frontend build/lint, and diff check.
+Acceptance criteria: Campaign manager access intent no longer returns role-family validation `422`; People and Access captures Work email, not a technical subject; same person can be recorded under product responsibilities using valid role families; long API messages wrap inside the page; no live invite, login activation, seat assignment, auth-claim change, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-237; TASK-238.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert the role-family migration/service addition and restore the previous People and Access field/feedback behavior.
+Explicit non-goals: Do not implement live email delivery, identity-provider writes, membership activation, seat assignment, role activation, auth/session claim changes, account lifecycle commands, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: People and Access records customer-scoped owner/support/campaign-manager intent with a real email identity and safe page rendering while preserving bounded no-live-action guardrails. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

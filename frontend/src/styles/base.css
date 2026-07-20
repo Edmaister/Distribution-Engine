@@ -868,6 +868,7 @@ a {
   border-radius: var(--radius-panel);
   display: grid;
   gap: 12px;
+  min-width: 0;
   padding: 14px;
 }
 
@@ -998,6 +999,7 @@ a {
   border-radius: var(--radius-panel);
   display: grid;
   gap: 16px;
+  min-width: 0;
   padding: 18px;
 }
 
@@ -1010,6 +1012,8 @@ a {
   display: flex;
   gap: 14px;
   justify-content: space-between;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 14px;
 }
 
@@ -1543,6 +1547,8 @@ a {
   border-radius: var(--radius-panel);
   display: flex;
   gap: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 12px 14px;
 }
 

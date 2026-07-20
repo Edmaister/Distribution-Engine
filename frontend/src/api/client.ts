@@ -131,7 +131,19 @@ function formatErrorDetail(detail: unknown): string {
   }
 
   if (detail && typeof detail === "object") {
-    return JSON.stringify(detail);
+    const record = detail as Record<string, unknown>;
+    const code = record.code ? String(record.code) : "";
+    const message = record.message ? String(record.message) : "";
+    if (code && message) {
+      return `${code}: ${message}`;
+    }
+    if (message) {
+      return message;
+    }
+    if (code) {
+      return code;
+    }
+    return "The request could not be completed.";
   }
 
   return "The request could not be completed.";
