@@ -641,12 +641,12 @@ def list_channel_deliveries(
 
 def list_channel_audit(limit: int = 50) -> dict[str, Any]:
     capped_limit = max(1, min(int(limit or 50), 200))
-    items = sorted(_CHANNEL_AUDIT, key=lambda item: item["created_at"], reverse=True)[
-        :capped_limit
+    recent_items = sorted(_CHANNEL_AUDIT, key=lambda item: item["created_at"])[
+        -capped_limit:
     ]
     return {
         "status": "ok",
-        "items": items,
+        "items": recent_items,
         "guardrail": "Channel audit records are append-only operational evidence with sensitive values redacted.",
     }
 
