@@ -11,6 +11,57 @@ ACTIVE_EXTERNAL_REFERENCE_STATUSES = frozenset({"ACTIVE"})
 ACTIVE_TENANT_LINK_STATUSES = frozenset({"ACTIVE"})
 SETUP_ACCOUNT_STATUSES = frozenset({"PENDING_ONBOARDING", "ACTIVE", "SUSPENDED"})
 SETUP_TENANT_LINK_STATUSES = frozenset({"PENDING_SETUP", "ACTIVE", "SUSPENDED"})
+PROFILE_MAINTENANCE_ROLES = frozenset(
+    {"ADMIN", "SYSTEM_ADMIN", "DISTRIBUTION_ADMIN", "PLATFORM_ADMIN"}
+)
+PROFILE_MAINTENANCE_ACCOUNT_STATUSES = frozenset(
+    {"PENDING_ONBOARDING", "ACTIVE", "SUSPENDED"}
+)
+PROFILE_MAINTENANCE_GUARDRAILS = [
+    "DURABLE_PROFILE_FIELDS_ONLY",
+    "NO_EXTERNAL_REFERENCE_ROTATION",
+    "NO_ACCOUNT_ACTIVATION",
+    "NO_MEMBERSHIP_WRITE",
+    "NO_INVITE_DELIVERY",
+    "NO_CREDENTIAL_LIFECYCLE",
+    "NO_WEBHOOK_DISPATCH",
+    "NO_CAMPAIGN_PUBLICATION",
+    "NO_GO_LIVE_ACTION",
+    "NO_MONEY_MOVEMENT",
+]
+PROFILE_MAINTENANCE_REDACTIONS = [
+    "internal_tenant_identifier",
+    "raw_secret",
+    "idempotency_key_hash",
+]
+ALLOWED_PROFILE_ACCOUNT_TYPES = frozenset(
+    {
+        "ORGANISATION",
+        "PRODUCER",
+        "PARTNER",
+        "DISTRIBUTOR",
+        "SPONSOR",
+        "MIXED",
+    }
+)
+ALLOWED_PROFILE_JURISDICTIONS = frozenset({"ZA", "BW", "NA", "ZM", "OTHER"})
+ALLOWED_CUSTOMER_TYPES = frozenset(
+    {"DIRECT_CUSTOMER", "ENTERPRISE_CUSTOMER", "PARTNER_MANAGED_CUSTOMER"}
+)
+ALLOWED_INDUSTRIES = frozenset(
+    {
+        "BANKING_FINANCIAL_SERVICES",
+        "INSURANCE",
+        "TELECOMS",
+        "RETAIL_ECOMMERCE",
+        "AUTOMOTIVE",
+        "REAL_ESTATE",
+        "EDUCATION",
+        "HEALTHCARE",
+        "TRAVEL_HOSPITALITY",
+        "OTHER",
+    }
+)
 
 EXTERNAL_REFERENCE_TYPES = frozenset(
     {
@@ -57,6 +108,35 @@ class AccountNotResolvable(AccountFoundationResolutionError):
 
 class TenantLinkNotResolvable(AccountFoundationResolutionError):
     safe_code = "TENANT_LINK_NOT_RESOLVABLE"
+
+
+class AccountProfileMaintenanceError(Exception):
+    safe_code = "ACCOUNT_PROFILE_MAINTENANCE_FAILED"
+
+    def __init__(self, message: str, *, safe_code: str | None = None):
+        super().__init__(message)
+        if safe_code:
+            self.safe_code = safe_code
+
+
+class AccountProfilePermissionDenied(AccountProfileMaintenanceError):
+    safe_code = "PERMISSION_DENIED"
+
+
+class AccountProfileValidationError(AccountProfileMaintenanceError):
+    safe_code = "VALIDATION_ERROR"
+
+
+class AccountProfileNotFound(AccountProfileMaintenanceError):
+    safe_code = "ACCOUNT_NOT_FOUND"
+
+
+class AccountProfileNotMaintainable(AccountProfileMaintenanceError):
+    safe_code = "ACCOUNT_NOT_MAINTAINABLE"
+
+
+class AccountProfileUnsafePayload(AccountProfileMaintenanceError):
+    safe_code = "REJECTED_UNSAFE_PAYLOAD"
 
 
 @dataclass(frozen=True)
@@ -128,6 +208,38 @@ class AccountFoundationListItem:
             "externalReferences": list(self.external_references),
             "createdAt": self.created_at,
             "updatedAt": self.updated_at,
+        }
+
+
+@dataclass(frozen=True)
+class AccountProfileMaintenanceResult:
+    account_id: str
+    account_code: str
+    account_name: str
+    account_type: str
+    account_status: str
+    onboarding_status: str
+    operating_jurisdiction_code: str
+    customer_type: str | None
+    industry: str | None
+    audit_event_id: str | None
+    guardrails: list[str]
+    redactions: list[str]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "accountId": self.account_id,
+            "accountCode": self.account_code,
+            "accountName": self.account_name,
+            "accountType": self.account_type,
+            "accountStatus": self.account_status,
+            "onboardingStatus": self.onboarding_status,
+            "operatingJurisdictionCode": self.operating_jurisdiction_code,
+            "customerType": self.customer_type,
+            "industry": self.industry,
+            "auditEventId": self.audit_event_id,
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
         }
 
 
@@ -362,6 +474,183 @@ async def list_referral_saas_accounts(*, limit: int = 50) -> list[AccountFoundat
     return accounts
 
 
+async def update_referral_saas_account_profile(
+    *,
+    account_ref: str,
+    account_name: str,
+    account_type: str,
+    operating_jurisdiction_code: str,
+    customer_type: str | None,
+    industry: str | None,
+    actor_ref: str,
+    actor_role: str,
+    correlation_id: str | None = None,
+    idempotency_key_hash: str | None = None,
+    command_payload_hash: str | None = None,
+) -> AccountProfileMaintenanceResult:
+    role = _safe_text(actor_role).upper()
+    if role not in PROFILE_MAINTENANCE_ROLES:
+        raise AccountProfilePermissionDenied(
+            "Actor is not authorised to maintain Referral SaaS account profiles."
+        )
+
+    safe_account_ref = _safe_text(account_ref)
+    safe_account_name = _safe_text(account_name)
+    safe_account_type = _safe_text(account_type).upper()
+    safe_jurisdiction = _safe_text(operating_jurisdiction_code).upper()
+    safe_customer_type = _safe_text(customer_type).upper() if customer_type else None
+    safe_industry = _safe_text(industry).upper() if industry else None
+
+    if not safe_account_ref:
+        raise AccountProfileNotFound("Account reference is required.")
+    if len(safe_account_name) < 2 or len(safe_account_name) > 160:
+        raise AccountProfileValidationError(
+            "Customer name must be between 2 and 160 characters."
+        )
+    if safe_account_type not in ALLOWED_PROFILE_ACCOUNT_TYPES:
+        raise AccountProfileValidationError("Account type is not supported.")
+    if safe_jurisdiction not in ALLOWED_PROFILE_JURISDICTIONS:
+        raise AccountProfileValidationError("Operating jurisdiction is not supported.")
+    if safe_customer_type and safe_customer_type not in ALLOWED_CUSTOMER_TYPES:
+        raise AccountProfileValidationError("Customer type is not supported.")
+    if safe_industry and safe_industry not in ALLOWED_INDUSTRIES:
+        raise AccountProfileValidationError("Industry is not supported.")
+
+    profile_summary = {
+        "customer_type": safe_customer_type,
+        "industry": safe_industry,
+        "source": "referral_saas_customer_profile_maintenance",
+        "no_live_action_confirmed": True,
+    }
+    metadata = {
+        "customer_type": safe_customer_type,
+        "industry": safe_industry,
+        "source": "TASK-238",
+        "command_payload_hash": _safe_text(command_payload_hash) or None,
+    }
+
+    async with db_connection() as conn:
+        current = await conn.fetchrow(
+            """
+            SELECT
+                account_id,
+                account_code,
+                account_name,
+                account_type,
+                status AS account_status,
+                onboarding_status,
+                COALESCE(operating_jurisdiction_code, 'ZA') AS operating_jurisdiction_code
+            FROM platform_accounts
+            WHERE (account_id::text = $1 OR account_code = $1)
+              AND archived_at IS NULL
+            LIMIT 1
+            """,
+            safe_account_ref,
+        )
+        if not current:
+            raise AccountProfileNotFound("Account was not found.")
+        if str(current["account_status"]).upper() not in PROFILE_MAINTENANCE_ACCOUNT_STATUSES:
+            raise AccountProfileNotMaintainable(
+                "Account is not in a maintainable state for profile updates."
+            )
+
+        async with conn.transaction():
+            updated = await conn.fetchrow(
+                """
+                UPDATE platform_accounts
+                SET account_name = $2,
+                    account_type = $3,
+                    operating_jurisdiction_code = $4,
+                    safe_summary = COALESCE(safe_summary, '{}'::jsonb) || $5::jsonb,
+                    metadata = COALESCE(metadata, '{}'::jsonb) || $6::jsonb,
+                    updated_by_ref = $7,
+                    updated_at = NOW()
+                WHERE account_id = $1
+                RETURNING
+                    account_id,
+                    account_code,
+                    account_name,
+                    account_type,
+                    status AS account_status,
+                    onboarding_status,
+                    operating_jurisdiction_code
+                """,
+                current["account_id"],
+                safe_account_name,
+                safe_account_type,
+                safe_jurisdiction,
+                _jsonb(profile_summary),
+                _jsonb(metadata),
+                _safe_text(actor_ref) or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+            )
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, 'ACCOUNT_PROFILE_UPDATED', 'RECORDED', $2, $3,
+                    $4, $5, 'CUSTOMER_PROFILE_MAINTENANCE', $6, $7,
+                    $8::jsonb, $9::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                current["account_id"],
+                _safe_text(actor_ref) or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                role,
+                str(current["account_status"]),
+                str(updated["account_status"]),
+                _safe_text(correlation_id) or None,
+                _safe_text(idempotency_key_hash) or None,
+                _jsonb(
+                    {
+                        "changed_fields": [
+                            "account_name",
+                            "account_type",
+                            "operating_jurisdiction_code",
+                            "customer_type",
+                            "industry",
+                        ],
+                        "previous_account_name": str(current["account_name"]),
+                        "previous_operating_jurisdiction_code": str(
+                            current["operating_jurisdiction_code"]
+                        ),
+                        "no_external_reference_rotation_confirmed": True,
+                        "no_live_action_confirmed": True,
+                    }
+                ),
+                _jsonb(PROFILE_MAINTENANCE_REDACTIONS),
+            )
+
+    return AccountProfileMaintenanceResult(
+        account_id=str(updated["account_id"]),
+        account_code=str(updated["account_code"]),
+        account_name=str(updated["account_name"]),
+        account_type=str(updated["account_type"]),
+        account_status=str(updated["account_status"]),
+        onboarding_status=str(updated["onboarding_status"]),
+        operating_jurisdiction_code=str(updated["operating_jurisdiction_code"]),
+        customer_type=safe_customer_type,
+        industry=safe_industry,
+        audit_event_id=(
+            str(audit_event["account_audit_event_id"]) if audit_event else None
+        ),
+        guardrails=list(PROFILE_MAINTENANCE_GUARDRAILS),
+        redactions=list(PROFILE_MAINTENANCE_REDACTIONS),
+    )
+
+
 def _normalise_external_reference_rows(value: Any) -> list[dict[str, Any]]:
     if not value:
         return []
@@ -371,3 +660,11 @@ def _normalise_external_reference_rows(value: Any) -> list[dict[str, Any]]:
     if isinstance(value, list):
         return [item for item in value if isinstance(item, dict)]
     return []
+
+
+def _safe_text(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _jsonb(value: Any) -> str:
+    return json.dumps(value, sort_keys=True)

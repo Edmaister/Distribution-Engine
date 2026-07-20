@@ -20,7 +20,10 @@ import {
   useReferralSaasAccountMembershipPosture,
   useReferralSaasAccountRegistry,
 } from "../../api/referralSaasAccountQueries";
-import { recordReferralSaasMembershipInvitationIntent } from "../../api/endpoints/referralSaasAccounts";
+import {
+  recordReferralSaasMembershipInvitationIntent,
+  updateReferralSaasAccountProfile,
+} from "../../api/endpoints/referralSaasAccounts";
 import { DataTable } from "../../components/DataTable";
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { KpiCard } from "../../components/KpiCard";
@@ -42,6 +45,13 @@ const defaultOperatingMarket = "South Africa";
 type AccountRegistry = NonNullable<ReturnType<typeof useReferralSaasAccountRegistry>["data"]>;
 type AccountRegistryItem = AccountRegistry["accounts"][number];
 type StatusTone = "success" | "warning" | "danger" | "info" | "neutral";
+type ProfileDraft = {
+  accountId: string;
+  accountName: string;
+  operatingJurisdictionCode: string;
+  customerType: string;
+  industry: string;
+};
 
 const customerFunctions = [
   {
@@ -156,6 +166,45 @@ const accessRoleOptions = [
   },
 ];
 
+const customerTypeOptions = [
+  {
+    value: "DIRECT_CUSTOMER",
+    label: "Direct customer",
+    copy: "The customer buys and operates Referral SaaS directly.",
+  },
+  {
+    value: "ENTERPRISE_CUSTOMER",
+    label: "Enterprise customer",
+    copy: "The customer has multiple teams, brands, or business units using the product.",
+  },
+  {
+    value: "PARTNER_MANAGED_CUSTOMER",
+    label: "Partner-managed customer",
+    copy: "A partner or agency manages Referral SaaS activity for this customer.",
+  },
+];
+
+const industryOptions = [
+  { value: "BANKING_FINANCIAL_SERVICES", label: "Banking and financial services" },
+  { value: "INSURANCE", label: "Insurance" },
+  { value: "TELECOMS", label: "Telecommunications" },
+  { value: "RETAIL_ECOMMERCE", label: "Retail and ecommerce" },
+  { value: "AUTOMOTIVE", label: "Automotive" },
+  { value: "REAL_ESTATE", label: "Real estate" },
+  { value: "EDUCATION", label: "Education" },
+  { value: "HEALTHCARE", label: "Healthcare" },
+  { value: "TRAVEL_HOSPITALITY", label: "Travel and hospitality" },
+  { value: "OTHER", label: "Other" },
+];
+
+const jurisdictionOptions = [
+  { code: "ZA", label: "South Africa" },
+  { code: "BW", label: "Botswana" },
+  { code: "NA", label: "Namibia" },
+  { code: "ZM", label: "Zambia" },
+  { code: "OTHER", label: "Other operating market" },
+];
+
 export function ReferralSaasAccountMaintenancePage() {
   const { accountId } = useParams<{ accountId?: string }>();
   const { refreshKey } = useRefreshContext();
@@ -170,6 +219,8 @@ export function ReferralSaasAccountMaintenancePage() {
   const [accessSubject, setAccessSubject] = useState("");
   const [accessRoleLabel, setAccessRoleLabel] = useState(accessRoleOptions[0].label);
   const [accessResult, setAccessResult] = useState<string | null>(null);
+  const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
+  const [profileResult, setProfileResult] = useState<string | null>(null);
   const scopeChanged =
     draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
     draftOrganisationRef.trim() !== appliedOrganisationRef;
@@ -179,6 +230,7 @@ export function ReferralSaasAccountMaintenancePage() {
     data: accountRegistry,
     error: accountRegistryError,
     isLoading: isAccountRegistryLoading,
+    refetch: refetchAccountRegistry,
   } = useReferralSaasAccountRegistry(50, refreshKey);
 
   const accountItems = accountRegistry?.accounts || [];
@@ -221,6 +273,15 @@ export function ReferralSaasAccountMaintenancePage() {
       void refetchMembershipPosture();
     },
   });
+  const profileMutation = useMutation({
+    mutationFn: updateReferralSaasAccountProfile,
+    onSuccess: (response) => {
+      setProfileResult(
+        `${response.profile.accountName} was updated. Customer identifiers stayed unchanged, and no account activation, membership, campaign, credential, go-live, or money action was performed.`,
+      );
+      void refetchAccountRegistry();
+    },
+  });
   const pendingAccount = accountItems.find((account) => account.accountId === pendingAccountId);
   const operatingMarkets = getOperatingMarkets(accountItems);
   const accountsForMarket = accountItems.filter(
@@ -243,6 +304,28 @@ export function ReferralSaasAccountMaintenancePage() {
   const customerQuery = `?external_tenant_ref=${encodeURIComponent(
     selectedExternalTenantRef,
   )}&organisation_ref=${encodeURIComponent(selectedOrganisationRef)}`;
+  const selectedProfileDraft =
+    selectedAccount && profileDraft?.accountId === selectedAccount.accountId
+      ? profileDraft
+      : {
+          accountId: selectedAccount?.accountId || "",
+          accountName: selectedAccount?.accountName || "",
+          operatingJurisdictionCode: selectedAccount?.operatingJurisdictionCode || "ZA",
+          customerType: "DIRECT_CUSTOMER",
+          industry: "BANKING_FINANCIAL_SERVICES",
+        };
+
+  function updateProfileDraft(values: Partial<Omit<ProfileDraft, "accountId">>) {
+    if (!selectedAccount) {
+      return;
+    }
+    setProfileDraft({
+      ...selectedProfileDraft,
+      accountId: selectedAccount.accountId,
+      ...values,
+    });
+    setProfileResult(null);
+  }
 
   function submitScope(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -292,6 +375,27 @@ export function ReferralSaasAccountMaintenancePage() {
       reasonCode: "CUSTOMER_PROFILE_ACCESS_MAINTENANCE",
       correlationId: `customer-profile-access-${selectedAccount.accountId}`,
       idempotencyKey: `customer-profile-access-${selectedAccount.accountId}-${cleanedSubject}-${selectedRole.roleFamily}`
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-"),
+    });
+  }
+
+  function submitProfileSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedAccount || !selectedProfileDraft.accountName.trim()) {
+      return;
+    }
+    profileMutation.mutate({
+      accountRef: selectedAccount.accountId,
+      profile: {
+        accountName: selectedProfileDraft.accountName,
+        accountType: selectedAccount.accountType || "ORGANISATION",
+        operatingJurisdictionCode: selectedProfileDraft.operatingJurisdictionCode,
+        customerType: selectedProfileDraft.customerType,
+        industry: selectedProfileDraft.industry,
+      },
+      correlationId: `customer-profile-settings-${selectedAccount.accountId}`,
+      idempotencyKey: `customer-profile-settings-${selectedAccount.accountId}-${selectedProfileDraft.accountName}-${selectedProfileDraft.operatingJurisdictionCode}-${selectedProfileDraft.customerType}-${selectedProfileDraft.industry}`
         .toLowerCase()
         .replace(/[^a-z0-9-]+/g, "-"),
     });
@@ -565,20 +669,94 @@ export function ReferralSaasAccountMaintenancePage() {
                 <div className="panel-body route-list">
                   <div className="wizard-status-card">
                     <div>
-                      <strong>{customerName}</strong>
+                      <strong>Customer identifiers</strong>
                       <p>
                         {operatingMarketFromAccount(selectedAccount).name} - {selectedExternalTenantRef} / {selectedOrganisationRef}
                       </p>
+                      <span className="table-subtext">
+                        These references stay read-only here. Changing them is reference rotation, not profile maintenance.
+                      </span>
                     </div>
-                    <StatusBadge label={formatDisplay(selectedAccount.onboardingStatus)} tone="info" />
+                    <StatusBadge label="Read only" tone="info" />
                   </div>
-                  <div className="wizard-status-card">
-                    <div>
-                      <strong>Profile maintenance command</strong>
-                      <p>Durable profile edits remain a bounded follow-up. Account Setup is only for first-time account foundation creation.</p>
+                  <form className="account-setup-scope-form" onSubmit={submitProfileSettings}>
+                    <label className="field">
+                      <span>Customer name</span>
+                      <input
+                        className="input"
+                        onChange={(event) => updateProfileDraft({ accountName: event.target.value })}
+                        value={selectedProfileDraft.accountName}
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Operating jurisdiction</span>
+                      <select
+                        className="input"
+                        onChange={(event) => updateProfileDraft({ operatingJurisdictionCode: event.target.value })}
+                        value={selectedProfileDraft.operatingJurisdictionCode}
+                      >
+                        {jurisdictionOptions.map((option) => (
+                          <option key={option.code} value={option.code}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Customer type</span>
+                      <select
+                        className="input"
+                        onChange={(event) => updateProfileDraft({ customerType: event.target.value })}
+                        value={selectedProfileDraft.customerType}
+                      >
+                        {customerTypeOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="wizard-status-card">
+                      <div>
+                        <strong>
+                          {customerTypeOptions.find((option) => option.value === selectedProfileDraft.customerType)
+                            ?.label}
+                        </strong>
+                        <p>
+                          {customerTypeOptions.find((option) => option.value === selectedProfileDraft.customerType)
+                            ?.copy}
+                        </p>
+                      </div>
+                      <StatusBadge label="Billing-ready category" tone="info" />
                     </div>
-                    <StatusBadge label="Future command" tone="warning" />
-                  </div>
+                    <label className="field">
+                      <span>Industry</span>
+                      <select
+                        className="input"
+                        onChange={(event) => updateProfileDraft({ industry: event.target.value })}
+                        value={selectedProfileDraft.industry}
+                      >
+                        {industryOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      className="button"
+                      disabled={!selectedProfileDraft.accountName.trim() || profileMutation.isPending}
+                      type="submit"
+                    >
+                      {profileMutation.isPending ? "Saving customer profile" : "Save customer profile"}
+                    </button>
+                  </form>
+                  {profileMutation.error ? <ErrorPanel error={profileMutation.error} /> : null}
+                  {profileResult ? (
+                    <div className="wizard-summary-strip success">
+                      <strong>Customer profile saved.</strong> {profileResult}
+                    </div>
+                  ) : null}
                 </div>
               </section>
 

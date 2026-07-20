@@ -7,6 +7,7 @@ import {
   listReferralSaasAccounts,
   recordReferralSaasMembershipInvitationIntent,
   resolveReferralSaasAccount,
+  updateReferralSaasAccountProfile,
 } from "./referralSaasAccounts";
 
 vi.mock("../client", () => ({
@@ -297,6 +298,73 @@ describe("referralSaasAccounts endpoint client", () => {
     });
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|wallet|settlement|money_movement|send_invite|activate/,
+    );
+  });
+
+  it("updates Referral SaaS customer profile settings through the bounded product wrapper", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      profile: {
+        accountId: "acct-1",
+        accountCode: "ACCT_FNB",
+        accountName: "FNB Referral SaaS Updated",
+        accountType: "ORGANISATION",
+        accountStatus: "PENDING_ONBOARDING",
+        onboardingStatus: "READY_FOR_REVIEW",
+        operatingJurisdictionCode: "ZA",
+        customerType: "ENTERPRISE_CUSTOMER",
+        industry: "AUTOMOTIVE",
+        auditEventId: "audit-1",
+        guardrails: ["DURABLE_PROFILE_FIELDS_ONLY", "NO_EXTERNAL_REFERENCE_ROTATION"],
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrails: ["DURABLE_PROFILE_FIELDS_ONLY", "NO_EXTERNAL_REFERENCE_ROTATION"],
+      redactions: ["internal_tenant_identifier"],
+      no_external_reference_rotation_confirmed: true,
+      no_account_activation_confirmed: true,
+      no_membership_write_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      updateReferralSaasAccountProfile({
+        accountRef: " acct-1 ",
+        profile: {
+          accountName: " FNB Referral SaaS Updated ",
+          accountType: " ORGANISATION ",
+          operatingJurisdictionCode: " ZA ",
+          customerType: " ENTERPRISE_CUSTOMER ",
+          industry: " AUTOMOTIVE ",
+        },
+        correlationId: "customer-profile-settings-acct-1",
+        idempotencyKey: "customer-profile-settings-acct-1",
+      }),
+    ).resolves.toMatchObject({
+      profile: {
+        accountName: "FNB Referral SaaS Updated",
+        customerType: "ENTERPRISE_CUSTOMER",
+      },
+      no_external_reference_rotation_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts/acct-1/profile", {
+      method: "PATCH",
+      body: {
+        profile: {
+          accountName: "FNB Referral SaaS Updated",
+          accountType: "ORGANISATION",
+          operatingJurisdictionCode: "ZA",
+          customerType: "ENTERPRISE_CUSTOMER",
+          industry: "AUTOMOTIVE",
+        },
+        correlationId: "customer-profile-settings-acct-1",
+        idempotencyKey: "customer-profile-settings-acct-1",
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|externaltenantref|client_secret|wallet|settlement|money_movement|activate/,
     );
   });
 });
