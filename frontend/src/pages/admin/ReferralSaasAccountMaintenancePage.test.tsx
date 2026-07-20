@@ -462,11 +462,11 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "People and access" })).toBeInTheDocument();
     expect(screen.getByText(/It does not send an email, activate login, assign a seat, or change auth permissions/i)).toBeInTheDocument();
+    expect(screen.getByText(/Used as the access identity for this customer/i)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Person name"), {
       target: { value: "Gaborone campaign owner" },
     });
-    expect(screen.getByText(/Used as the access identity for this customer/i)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/Work email/), {
       target: { value: "Gabs.Campaign.Owner@Example.COM" },
     });

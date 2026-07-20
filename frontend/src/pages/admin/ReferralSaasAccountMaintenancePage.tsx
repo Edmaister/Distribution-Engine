@@ -852,11 +852,7 @@ export function ReferralSaasAccountMaintenancePage() {
                       </div>
                       <StatusBadge label="Customer scoped" tone="success" />
                     </div>
-                    <button
-                      className="button"
-                      disabled={!isValidEmail(accessEmail.trim()) || accessMutation.isPending}
-                      type="submit"
-                    >
+                    <button className="button" disabled={!isValidEmail(accessEmail.trim()) || accessMutation.isPending} type="submit">
                       {accessMutation.isPending ? "Recording access intent" : "Record access intent"}
                     </button>
                   </form>
