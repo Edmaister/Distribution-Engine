@@ -216,7 +216,7 @@ export function ReferralSaasAccountMaintenancePage() {
   const [pendingAccountId, setPendingAccountId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "health" | "actions">("overview");
   const [accessDisplayName, setAccessDisplayName] = useState("");
-  const [accessSubject, setAccessSubject] = useState("");
+  const [accessEmail, setAccessEmail] = useState("");
   const [accessRoleLabel, setAccessRoleLabel] = useState(accessRoleOptions[0].label);
   const [accessResult, setAccessResult] = useState<string | null>(null);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
@@ -360,11 +360,11 @@ export function ReferralSaasAccountMaintenancePage() {
 
   function submitAccessIntent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedAccount || !selectedExternalTenantRef || !accessSubject.trim()) {
+    const cleanedEmail = accessEmail.trim().toLowerCase();
+    if (!selectedAccount || !selectedExternalTenantRef || !isValidEmail(cleanedEmail)) {
       return;
     }
     const selectedRole = accessRoleOptions.find((option) => option.label === accessRoleLabel) || accessRoleOptions[0];
-    const cleanedSubject = accessSubject.trim();
     accessMutation.mutate({
       accountRef: selectedAccount.accountId,
       accountScope: {
@@ -374,8 +374,8 @@ export function ReferralSaasAccountMaintenancePage() {
       },
       actor: {
         actorType: "USER",
-        subject: cleanedSubject,
-        displayName: accessDisplayName.trim() || cleanedSubject,
+        subject: cleanedEmail,
+        displayName: accessDisplayName.trim() || cleanedEmail,
       },
       membership: {
         roleFamily: selectedRole.roleFamily,
@@ -384,7 +384,7 @@ export function ReferralSaasAccountMaintenancePage() {
       },
       reasonCode: "CUSTOMER_PROFILE_ACCESS_MAINTENANCE",
       correlationId: `customer-profile-access-${selectedAccount.accountId}`,
-      idempotencyKey: `customer-profile-access-${selectedAccount.accountId}-${cleanedSubject}-${selectedRole.roleFamily}`
+      idempotencyKey: `customer-profile-access-${selectedAccount.accountId}-${cleanedEmail}-${selectedRole.roleFamily}`
         .toLowerCase()
         .replace(/[^a-z0-9-]+/g, "-"),
     });
@@ -819,13 +819,17 @@ export function ReferralSaasAccountMaintenancePage() {
                       />
                     </label>
                     <label className="field">
-                      <span>User subject</span>
+                      <span>Work email</span>
                       <input
                         className="input"
-                        onChange={(event) => setAccessSubject(event.target.value)}
-                        placeholder="Example: user-referral-owner"
-                        value={accessSubject}
+                        onChange={(event) => setAccessEmail(event.target.value)}
+                        placeholder="Example: owner@customer.com"
+                        type="email"
+                        value={accessEmail}
                       />
+                      <span className="field-hint">
+                        Used as the access identity for this customer. No invitation email is sent from this step.
+                      </span>
                     </label>
                     <label className="field">
                       <span>Access responsibility</span>
@@ -848,7 +852,11 @@ export function ReferralSaasAccountMaintenancePage() {
                       </div>
                       <StatusBadge label="Customer scoped" tone="success" />
                     </div>
-                    <button className="button" disabled={!accessSubject.trim() || accessMutation.isPending} type="submit">
+                    <button
+                      className="button"
+                      disabled={!isValidEmail(accessEmail.trim()) || accessMutation.isPending}
+                      type="submit"
+                    >
                       {accessMutation.isPending ? "Recording access intent" : "Record access intent"}
                     </button>
                   </form>
@@ -1042,6 +1050,10 @@ function getCustomerNextActions(blockedCount: number, missingEvidenceCount: numb
 
 function buildCustomerModuleRoute(selectedCustomerPath: string, route: string, customerQuery: string) {
   return route.startsWith("#") ? `${selectedCustomerPath}${route}` : `${route}${customerQuery}`;
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 function resolveReadinessArea(
