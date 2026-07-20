@@ -307,8 +307,10 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByRole("heading", { name: "Do this next" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Add who can manage this account/ })).toHaveAttribute(
       "href",
-      "/admin/referral-saas/account-maintenance?external_tenant_ref=gabs-platform&organisation_ref=gabs-org",
+      "/admin/referral-saas/account-maintenance/acct-gabs#people-access",
     );
+    expect(screen.getByRole("heading", { name: "People and access" })).toBeInTheDocument();
+    expect(screen.getByText("Manage who can operate this customer account from this module, not from Account Setup.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open Campaigns/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/campaigns?external_tenant_ref=gabs-platform&organisation_ref=gabs-org",
@@ -324,6 +326,15 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "What you can do" }));
 
     expect(screen.getByRole("heading", { name: "What you can do for this customer" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Customer settings/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-fnb#customer-settings",
+    );
+    expect(screen.getByRole("link", { name: /People and access/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-fnb#people-access",
+    );
+    expect(screen.queryByRole("link", { name: /Account setup/ })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Links and codes/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/link-codes?external_tenant_ref=fnb-referrals&organisation_ref=fnb-org",
