@@ -5032,6 +5032,32 @@ Rollback notes: Restore the prior guardrails, remove bounded tenant seed inserti
 Explicit non-goals: Do not add schema, migrations, public tenant-management UI, account lifecycle updates, durable profile updates, membership writes, invitation delivery, seat assignment, auth/session claim changes, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Account Setup can create a fresh customer account foundation without reusing the old hidden `FNB` owner scope, while preserving redaction and duplicate guardrails. Priority: P0.
 
+## TASK-235: End Account Setup at Review & Create and route successful creation to Customer Profile
+
+Status: Complete (2026-07-20). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing Account Setup wizard, guarded onboarding draft/review/create sequence, customer profile route, Account Maintenance route, Campaigns route, and Technical Setup route. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup completion; customer-profile-first operating model; Account Setup/Account Maintenance/Technical Setup boundary.
+Objective: Make Review & Create the terminal Account Setup step and move downstream activity routing into a post-create success state instead of presenting Handoff as another setup step.
+Why now: Manual UI testing showed the Handoff screen made Account Setup feel like it also owned technical setup and campaign readiness. The product model is cleaner if Account Setup creates the customer account foundation and then sends the operator to Customer Profile or other selected-customer workflows.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; roadmap and gap docs.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`.
+Database/schema impact: None.
+Backend impact: None. Existing account foundation creation and customer profile read routes remain the source of truth.
+Frontend impact: Converts Account Setup to four steps: Identify customer, Company profile, Setup checkpoint, and Review & create. Removes the separate Handoff step and `Go to Campaigns` footer. After account foundation creation, Review & Create shows `Open customer profile` as the primary next action plus bounded secondary routes for Account Maintenance, Campaigns, and Technical Setup.
+API impact: None.
+Tests to add/update: Updates Account Setup page tests to assert the four-step journey, absence of the Handoff navigation target, absence of downstream technical/campaign links before account creation, and post-create next-best-action routing to Customer Profile, Account Maintenance, Campaigns, and Technical Setup.
+Validation method: `npm.cmd test -- --run src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Account Setup ends at Review & Create; no separate Handoff step or final `Go to Campaigns` CTA remains; technical setup and campaign setup are downstream next-best actions after account foundation creation, not wizard steps; the primary post-create action opens the selected customer profile; no backend route, schema, membership write, invitation delivery, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-234.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Restore the Handoff step, final campaign footer behavior, and prior Account Setup test expectations.
+Explicit non-goals: Do not add schema, migrations, backend routes, account lifecycle commands, durable profile updates, membership writes, invitation delivery, seat assignment, auth/session claim changes, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Account Setup behaves as a focused account-foundation wizard that completes at Review & Create and hands operators into selected-customer work from a clear post-create success state. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

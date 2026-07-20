@@ -1,5 +1,5 @@
 import { CheckCircle2, ShieldCheck, Users } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import {
@@ -13,13 +13,11 @@ import {
 } from "../../api/endpoints/adminOnboarding";
 import {
   createReferralSaasAccountFromDraft,
-  type ReferralSaasAccountMembershipPosture,
   type ReferralSaasAccountCreateFromDraftResponse,
   type ReferralSaasAccountSummary,
 } from "../../api/endpoints/referralSaasAccounts";
 import {
   useReferralSaasAccountDraftSelector,
-  useReferralSaasAccountMembershipPosture,
   useReferralSaasAccountResolver,
   useReferralSaasAccountSetupState,
 } from "../../api/referralSaasAccountQueries";
@@ -118,7 +116,6 @@ const accountChecklist = [
 ];
 
 export function ReferralSaasAccountSetupPage() {
-  const navigate = useNavigate();
   const { refreshKey } = useRefreshContext();
   const [activeWizardStep, setActiveWizardStep] = useState(1);
   const [scopeCheckConfirmed, setScopeCheckConfirmed] = useState(false);
@@ -174,28 +171,12 @@ export function ReferralSaasAccountSetupPage() {
   const scopeChanged =
     draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
     draftOrganisationRef.trim() !== appliedOrganisationRef;
-  const {
-    data: membershipPostureResponse,
-    error: membershipPostureError,
-    isLoading: membershipPostureLoading,
-  } = useReferralSaasAccountMembershipPosture(
-    appliedExternalTenantRef,
-    Boolean(accountResolution?.account && !scopeChanged),
-    refreshKey + accountRefreshKey,
-  );
   const canCheckScope = Boolean(draftExternalTenantRef.trim() && draftOrganisationRef.trim());
 
   const readiness = asRecord(data?.readiness);
   const categories = asArray(getNestedValue(readiness, ["categories"], []));
   const overallStatus = formatDisplay(getNestedValue(readiness, ["overall_status"], "pending"));
   const durableAccount = accountResolution?.account;
-  const membershipPosture = membershipPostureResponse?.membershipPosture;
-  const membershipPostureStatus = getMembershipPostureStatus(
-    membershipPosture,
-    membershipPostureLoading,
-    membershipPostureError,
-    Boolean(durableAccount),
-  );
   const durableAccountStatus = getDurableAccountStatus(
     Boolean(durableAccount),
     accountResolutionLoading,
@@ -254,7 +235,6 @@ export function ReferralSaasAccountSetupPage() {
     { id: 2, label: "Company profile" },
     { id: 3, label: "Setup checkpoint" },
     { id: 4, label: "Review & create" },
-    { id: 5, label: "Handoff" },
   ];
   const resolvedRows = accountChecklist.map((item) => {
     const matchingCategory = categories.find((category) => categoryMatches(category, item));
@@ -286,7 +266,6 @@ export function ReferralSaasAccountSetupPage() {
     2: accountProfileReady,
     3: accountProfileReady && !companyProfileHasUnsavedChanges,
     4: Boolean(durableAccount || createResponse),
-    5: false,
   } as const;
   const wizardStepPassable = {
     ...wizardStepCompletion,
@@ -363,10 +342,6 @@ export function ReferralSaasAccountSetupPage() {
   }
 
   function continueWizard() {
-    if (activeWizardStep === wizardSteps.length) {
-      navigate("/admin/referral-saas/campaigns");
-      return;
-    }
     if (canOpenWizardStep(activeWizardStep + 1)) {
       goToWizardStep(activeWizardStep + 1);
     }
@@ -594,9 +569,9 @@ export function ReferralSaasAccountSetupPage() {
           <h1 className="page-title">Account setup wizard</h1>
           <p className="page-copy">
             Work through customer identification, company profile, setup
-            checkpoint, review, and handoff before testing campaigns, links,
-            attribution, or reports. Technical integration setup is handled
-            after the account foundation is ready.
+            checkpoint, and account foundation creation before testing
+            campaigns, links, attribution, or reports. Technical integration
+            setup is handled after the account foundation is ready.
           </p>
         </div>
         <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
@@ -991,41 +966,15 @@ export function ReferralSaasAccountSetupPage() {
                   </>
                 ) : null}
 
-                {activeWizardStep === 5 ? (
-                  <>
-                    <div>
-                      <div className="page-kicker">Handoff</div>
-                      <h3 className="account-wizard-title">Account ready for campaign setup</h3>
-                      <p className="page-copy">Confirm account posture, then leave Account Setup for campaign readiness or technical setup.</p>
-                    </div>
-                    <div className="wizard-card route-list">
-                      <div className="wizard-status-card">
-                        <div>
-                          <strong>{durableAccount ? formatAccountSummary(durableAccount) : "Account not created yet"}</strong>
-                          <p>{membershipPostureStatus.copy} Manage users and access in Account Maintenance after the account foundation exists.</p>
-                          {membershipPosture ? <span>{membershipPosture.activeCount} active, {membershipPosture.invitedCount} invited, {membershipPosture.totalMemberships} total memberships.</span> : null}
-                        </div>
-                        <StatusBadge label={durableAccount ? "Account found" : "Setup incomplete"} tone={durableAccount ? "success" : "warning"} />
-                      </div>
-                      <div className="wizard-status-card">
-                        <div>
-                          <strong>Technical setup is separate</strong>
-                          <p>Configure API environment intent, webhook callbacks, credentials, and test delivery outside Account Setup.</p>
-                        </div>
-                        <StatusBadge label="Separate workflow" tone="info" />
-                      </div>
-                      <SetupLink to="/admin/onboarding/webhook-api" title="Technical setup" copy="Configure API and webhook setup after the customer account foundation is ready." />
-                      <SetupLink to="/admin/referral-saas/campaigns" title="Campaign readiness" copy="Go to campaign setup only after account evidence is clear enough for referral testing." />
-                    </div>
-                  </>
-                ) : null}
               </div>
 
               <div className="account-wizard-footer">
                 <button className="button secondary" disabled={activeWizardStep === 1} onClick={() => goToWizardStep(activeWizardStep - 1)} type="button">Back</button>
-                <button className="button" disabled={activeWizardStep < wizardSteps.length && !canOpenWizardStep(activeWizardStep + 1)} onClick={continueWizard} type="button">
-                  {activeWizardStep === wizardSteps.length ? "Go to Campaigns" : "Continue"}
-                </button>
+                {activeWizardStep < wizardSteps.length ? (
+                  <button className="button" disabled={!canOpenWizardStep(activeWizardStep + 1)} onClick={continueWizard} type="button">
+                    Continue
+                  </button>
+                ) : null}
               </div>
             </div>
           </section>
@@ -1133,7 +1082,7 @@ function getAccountSetupCheckpoint({
   if (durableAccount) {
     return {
       badge: "Account found",
-      copy: "A durable account already exists for this customer. Continue to handoff or use Account Maintenance for operational readiness.",
+      copy: "A durable account already exists for this customer. Open the customer profile to continue account maintenance and customer-scoped work.",
       title: "Account foundation already exists",
       tone: "success" as const,
     };
@@ -1151,64 +1100,6 @@ function getAccountSetupCheckpoint({
     copy: "Customer identifiers and company profile are ready for the guarded review/create path.",
     title: "Account Setup can continue",
     tone: "success" as const,
-  };
-}
-
-function getMembershipPostureStatus(
-  posture: ReferralSaasAccountMembershipPosture | undefined,
-  isLoading: boolean,
-  error: unknown,
-  hasAccount: boolean,
-) {
-  if (!hasAccount) {
-    return {
-      copy: "User access can be checked after an account is found or created.",
-      label: "Wait for account",
-      tone: "neutral" as const,
-    };
-  }
-  if (isLoading) {
-    return {
-      copy: "Checking read-only membership posture for this account.",
-      label: "Checking",
-      tone: "info" as const,
-    };
-  }
-  if (error) {
-    return {
-      copy: "Membership posture is unavailable. Keep setup actions bounded until access evidence can be checked.",
-      label: "Unavailable",
-      tone: "warning" as const,
-    };
-  }
-
-  const actorStatus = posture?.currentActor?.status || "NO_MEMBERSHIP_EVIDENCE";
-  if (actorStatus === "MEMBERSHIP_CONFIRMED") {
-    return {
-      copy: "The current actor has active account membership evidence. Continue setup actions in order.",
-      label: "Membership active",
-      tone: "success" as const,
-    };
-  }
-  if (actorStatus === "INVITED_NOT_ACTIVE") {
-    return {
-      copy: "The current actor has invited membership evidence, but it is not active. Complete access activation outside this Account Setup page.",
-      label: "Invited only",
-      tone: "warning" as const,
-    };
-  }
-  if (actorStatus === "MEMBERSHIP_NOT_USABLE") {
-    return {
-      copy: "The current actor membership evidence is suspended or disabled. Resolve account access outside this Account Setup page.",
-      label: "Blocked access",
-      tone: "warning" as const,
-    };
-  }
-
-  return {
-    copy: "No active account membership evidence matched the current actor yet. This page remains a read-only setup wrapper for access posture.",
-    label: "No membership",
-    tone: "warning" as const,
   };
 }
 
@@ -1392,6 +1283,12 @@ function formatAccountSummary(account: ReferralSaasAccountSummary) {
     .join(" - ");
 }
 
+function customerProfileRoute(account: ReferralSaasAccountSummary | undefined) {
+  return account?.accountId
+    ? `/admin/referral-saas/account-maintenance/${encodeURIComponent(account.accountId)}`
+    : "/admin/referral-saas/account-maintenance";
+}
+
 function SetupActionResult({
   createError,
   createResponse,
@@ -1420,6 +1317,7 @@ function SetupActionResult({
   validationError: string | null;
 }) {
   const showTechnicalSteps = mode === "technical";
+  const createdCustomerProfileRoute = customerProfileRoute(createResponse?.account);
 
   return (
     <>
@@ -1482,19 +1380,52 @@ function SetupActionResult({
         </div>
       ) : null}
       {createResponse ? (
-        <div className="banner success" role="status">
-          <CheckCircle2 size={18} />
-          <div>
-            <strong>Account foundation created.</strong>
-            <div className="table-subtext">
-              {mode === "guided"
-                ? "Open this customer from Customer profile to continue account maintenance, campaigns, links, reporting, and support in that customer context."
-                : `${formatAccountSummary(createResponse.account)}; adjacent live action: ${
-                    createResponse.noAdjacentLiveActionConfirmed ? "blocked" : "unavailable"
-                  }.`}
+        <>
+          <div className="banner success" role="status">
+            <CheckCircle2 size={18} />
+            <div>
+              <strong>Account foundation created.</strong>
+              <div className="table-subtext">
+                {mode === "guided"
+                  ? "Account Setup is complete. Open the customer profile to continue in the selected customer context."
+                  : `${formatAccountSummary(createResponse.account)}; adjacent live action: ${
+                      createResponse.noAdjacentLiveActionConfirmed ? "blocked" : "unavailable"
+                    }.`}
+              </div>
             </div>
           </div>
-        </div>
+          {mode === "guided" ? (
+            <div className="wizard-card route-list" aria-label="Account setup next best actions">
+              <div className="wizard-status-card">
+                <div>
+                  <strong>Next best actions</strong>
+                  <p>Choose where to continue now that the customer account foundation exists.</p>
+                </div>
+                <StatusBadge label="Setup complete" tone="success" />
+              </div>
+              <SetupLink
+                to={createdCustomerProfileRoute}
+                title="Open customer profile"
+                copy="Use this customer home for account health, customer-scoped actions, reports, support, attribution, and progress."
+              />
+              <SetupLink
+                to="/admin/referral-saas/account-maintenance"
+                title="Manage access"
+                copy="Add or review users, roles, and account access from Account Maintenance."
+              />
+              <SetupLink
+                to="/admin/referral-saas/campaigns"
+                title="Start campaign setup"
+                copy="Create or review Referral SaaS campaigns after the customer foundation exists."
+              />
+              <SetupLink
+                to="/admin/onboarding/webhook-api"
+                title="Configure technical integration"
+                copy="Set up API and webhook intent outside Account Setup when the customer is ready."
+              />
+            </div>
+          ) : null}
+        </>
       ) : null}
       {[validationError, draftError, submitError, reviewError, createError].filter(Boolean).map((message) => (
         <div className="banner warning" key={message} role="status">

@@ -204,6 +204,9 @@ greenfield referral construction.
 96. TASK-230: Add repeatable fresh-client physical seed proof.
 97. TASK-231: Reframe Client Workspace as a customer profile landing experience.
 98. TASK-232: Start Account Setup from blank customer identifiers with field guidance.
+99. TASK-233: Simplify Account Setup Review & Create UX.
+100. TASK-234: Remove hidden default account setup owner-scope collision.
+101. TASK-235: End Account Setup at Review & Create and route successful creation to Customer Profile.
 
 ## 10/10 Exit Criteria
 
@@ -685,6 +688,11 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Account Setup no longer silently reuses the default `FNB` owner scope for new customer account foundations; it derives a bounded internal setup seed from the customer identifiers, creates/updates that seed inside the guarded account-foundation transaction, and returns a distinct internal-scope duplicate conflict when needed.
+- TASK-235: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Account Setup now ends at Review & Create, removes the separate Handoff step and `Go to Campaigns` footer, and shows customer-profile-first next-best actions after account foundation creation.
 
 ## Explicit Deferrals
 
