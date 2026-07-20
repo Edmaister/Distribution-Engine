@@ -238,6 +238,7 @@ CREATE TABLE IF NOT EXISTS platform_memberships (
             'SYSTEM_ADMIN',
             'FINANCE_ADMIN',
             'DISTRIBUTION_ADMIN',
+            'CAMPAIGN_MANAGER',
             'PARTNER',
             'PRODUCER',
             'DISTRIBUTOR',

@@ -235,6 +235,9 @@ def test_account_foundation_migration_is_ordered_after_onboarding_drafts() -> No
     assert migration_names.index(MIGRATION_NAME) < migration_names.index(
         "083_referral_saas_account_operating_jurisdiction.sql"
     )
+    assert migration_names.index("083_referral_saas_account_operating_jurisdiction.sql") < (
+        migration_names.index("084_referral_saas_campaign_manager_role_family.sql")
+    )
 
 
 def test_account_foundation_tables_and_key_columns_are_declared() -> None:
@@ -277,6 +280,17 @@ def test_account_foundation_lifecycle_constraints_are_declared() -> None:
         "ARCHIVED",
     ):
         assert f"'{status}'" in sql
+
+
+def test_account_foundation_membership_role_families_include_referral_saas_roles() -> None:
+    sql = _sql()
+
+    for role_family in (
+        "DISTRIBUTION_ADMIN",
+        "CAMPAIGN_MANAGER",
+        "SUPPORT",
+    ):
+        assert f"'{role_family}'" in sql
 
 
 def test_account_foundation_uniqueness_and_lookup_indexes_are_declared() -> None:

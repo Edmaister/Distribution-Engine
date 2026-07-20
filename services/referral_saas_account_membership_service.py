@@ -20,6 +20,7 @@ ROLE_FAMILIES: Final = frozenset(
         "SYSTEM_ADMIN",
         "FINANCE_ADMIN",
         "DISTRIBUTION_ADMIN",
+        "CAMPAIGN_MANAGER",
         "PARTNER",
         "PRODUCER",
         "DISTRIBUTOR",

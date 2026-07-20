@@ -265,8 +265,12 @@ export function ReferralSaasAccountMaintenancePage() {
   const accessMutation = useMutation({
     mutationFn: recordReferralSaasMembershipInvitationIntent,
     onSuccess: (response) => {
+      const savedRole =
+        accessRoleOptions.find(
+          (option) => option.roleFamily === response.invitation.membership.roleFamily,
+        )?.label || formatDisplay(response.invitation.membership.roleFamily);
       setAccessResult(
-        `${response.invitation.membership.roleFamily} intent recorded as ${formatDisplay(
+        `${savedRole} access recorded as ${formatDisplay(
           response.invitation.membership.status,
         )}. No invitation email, login activation, seat assignment, or auth claim change was performed.`,
       );
