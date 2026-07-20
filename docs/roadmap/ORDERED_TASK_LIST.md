@@ -5138,7 +5138,7 @@ Definition of done: Selected Customer Profile has a bounded durable Customer Set
 
 ## TASK-239: Fix People and Access email identity, campaign manager role, and error wrapping
 
-Status: Complete (2026-07-20). Output: `services/referral_saas_account_membership_service.py`; `dp/migrations/082_referral_saas_account_foundation.sql`; `dp/migrations/084_referral_saas_campaign_manager_role_family.sql`; `frontend/src/api/client.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/styles/base.css`; `test/test_referral_saas_account_membership_service.py`; `test/test_referral_saas_account_foundation_migration.py`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Status: Complete (2026-07-20). Output: `services/referral_saas_account_membership_service.py`; `dp/migrations/082_referral_saas_account_foundation.sql`; `dp/migrations/084_referral_saas_campaign_manager_role_family.sql`; `frontend/src/api/client.ts`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/styles/base.css`; `test/test_referral_saas_account_membership_service.py`; `test/test_referral_saas_account_foundation_migration.py`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Extends the existing account membership role-family constraint and command validation for a Referral SaaS product role. Source duplication: No.
@@ -5149,11 +5149,11 @@ Why now: Manual UI testing showed `Campaign manager` produced a `422 Unprocessab
 Files involved: Membership service, account foundation migrations, Customer Profile page, shared error/CSS rendering, and focused tests.
 Database/schema impact: Adds migration `084_referral_saas_campaign_manager_role_family.sql` to update `platform_memberships_role_family_chk`; updates the clean foundation migration for new DB builds.
 Backend impact: `CAMPAIGN_MANAGER` is accepted as a bounded Referral SaaS membership role family. No activation, seat assignment, invite delivery, auth-claim mutation, billing, or money movement is added.
-Frontend impact: People and Access uses Work email as the customer-facing identity field, normalizes it before submit, shows friendly saved-role feedback, and wraps long error/banner text without widening the page.
+Frontend impact: People and Access uses Work email as the customer-facing identity field, normalizes it before submit, shows friendly saved-role feedback, renders named/invited people with their responsibility and status, and wraps long error/banner text without widening the page.
 API impact: Reuses `POST /v1/referral-saas/accounts/{account_ref}/membership-invitations`; no new route.
 Tests to add/update: Service test for campaign-manager invitation intent, migration test for the role-family constraint, and Customer Profile test for work-email identity.
 Validation method: Focused backend and frontend tests, frontend build/lint, and diff check.
-Acceptance criteria: Campaign manager access intent no longer returns role-family validation `422`; People and Access captures Work email, not a technical subject; same person can be recorded under product responsibilities using valid role families; long API messages wrap inside the page; no live invite, login activation, seat assignment, auth-claim change, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Acceptance criteria: Campaign manager access intent no longer returns role-family validation `422`; People and Access captures Work email, not a technical subject; same person can be recorded under product responsibilities using valid role families; the membership posture returns a safe people list for the selected customer; long API messages wrap inside the page; no live invite, login activation, seat assignment, auth-claim change, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
 Dependencies: TASK-237; TASK-238.
 Blocked by: None.
 Risk level: Medium.

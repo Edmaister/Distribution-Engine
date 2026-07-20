@@ -162,6 +162,28 @@ class MembershipActorPosture:
 
 
 @dataclass(frozen=True)
+class MembershipPersonSummary:
+    actor_type: str
+    subject: str | None
+    display_name: str | None
+    role_family: str
+    permission_set: str
+    status: str
+    delivery_status: str
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "actorType": self.actor_type,
+            "subject": self.subject,
+            "displayName": self.display_name,
+            "roleFamily": self.role_family,
+            "permissionSet": self.permission_set,
+            "status": self.status,
+            "deliveryStatus": self.delivery_status,
+        }
+
+
+@dataclass(frozen=True)
 class ReferralSaasAccountMembershipPosture:
     account_id: str
     total_memberships: int
@@ -171,6 +193,7 @@ class ReferralSaasAccountMembershipPosture:
     disabled_count: int
     archived_count: int
     role_families: tuple[MembershipRoleFamilySummary, ...]
+    memberships: tuple[MembershipPersonSummary, ...]
     current_actor: MembershipActorPosture
     guardrails: tuple[str, ...]
     redactions: tuple[str, ...]
@@ -187,6 +210,7 @@ class ReferralSaasAccountMembershipPosture:
             "roleFamilies": [
                 role_family.to_safe_dict() for role_family in self.role_families
             ],
+            "memberships": [membership.to_safe_dict() for membership in self.memberships],
             "currentActor": self.current_actor.to_safe_dict(),
             "guardrails": list(self.guardrails),
             "redactions": list(self.redactions),
@@ -211,33 +235,42 @@ async def get_referral_saas_account_membership_posture(
         rows = await conn.fetch(
             """
             SELECT
-                membership_id,
-                role_family,
-                permission_set,
-                status,
+                platform_memberships.membership_id,
+                platform_memberships.role_family,
+                platform_memberships.permission_set,
+                platform_memberships.status,
+                COALESCE(
+                    platform_memberships.metadata->>'delivery_status',
+                    'DELIVERY_NOT_CONFIGURED'
+                ) AS delivery_status,
                 CASE
-                    WHEN user_id IS NOT NULL THEN 'USER'
-                    WHEN client_id IS NOT NULL THEN 'CLIENT'
+                    WHEN platform_memberships.user_id IS NOT NULL THEN 'USER'
+                    WHEN platform_memberships.client_id IS NOT NULL THEN 'CLIENT'
                     ELSE 'UNKNOWN'
                 END AS actor_type,
+                actor_user.subject AS user_subject,
+                actor_user.display_name AS user_display_name,
+                platform_memberships.client_id AS client_id,
                 CASE
-                    WHEN $3::text <> '' AND client_id = $3 THEN TRUE
-                    WHEN $4::text <> '' AND user_id::text = $4 THEN TRUE
+                    WHEN $3::text <> '' AND platform_memberships.client_id = $3 THEN TRUE
+                    WHEN $4::text <> '' AND platform_memberships.user_id::text = $4 THEN TRUE
                     ELSE FALSE
                 END AS is_current_actor
             FROM platform_memberships
-            WHERE account_id = $1
-              AND (tenant_code = $2 OR tenant_code IS NULL)
-              AND status <> 'ARCHIVED'
+            LEFT JOIN platform_users actor_user
+                ON actor_user.user_id = platform_memberships.user_id
+            WHERE platform_memberships.account_id = $1
+              AND (platform_memberships.tenant_code = $2 OR platform_memberships.tenant_code IS NULL)
+              AND platform_memberships.status <> 'ARCHIVED'
             ORDER BY
-                CASE status
+                CASE platform_memberships.status
                     WHEN 'ACTIVE' THEN 0
                     WHEN 'INVITED' THEN 1
                     WHEN 'SUSPENDED' THEN 2
                     WHEN 'DISABLED' THEN 3
                     ELSE 4
                 END,
-                updated_at DESC
+                platform_memberships.updated_at DESC
             """,
             safe_account_id,
             safe_tenant_code,
@@ -248,6 +281,7 @@ async def get_referral_saas_account_membership_posture(
     safe_rows = [dict(row) for row in rows]
     counts = _status_counts(safe_rows)
     role_families = _role_family_summaries(safe_rows)
+    memberships = _membership_person_summaries(safe_rows)
     current_actor = _current_actor_posture(safe_rows)
 
     return ReferralSaasAccountMembershipPosture(
@@ -259,6 +293,7 @@ async def get_referral_saas_account_membership_posture(
         disabled_count=counts["DISABLED"],
         archived_count=counts["ARCHIVED"],
         role_families=tuple(role_families),
+        memberships=tuple(memberships),
         current_actor=current_actor,
         guardrails=(
             "READ_ONLY_MEMBERSHIP_POSTURE",
@@ -643,6 +678,35 @@ def _role_family_summaries(
         )
         for role_family, counts in sorted(summaries.items())
     ]
+
+
+def _membership_person_summaries(
+    rows: list[dict[str, Any]],
+) -> list[MembershipPersonSummary]:
+    summaries: list[MembershipPersonSummary] = []
+    for row in rows:
+        actor_type = _optional_text(row.get("actor_type")) or "UNKNOWN"
+        subject = (
+            _optional_text(row.get("user_subject"))
+            if actor_type == USER_ACTOR
+            else _optional_text(row.get("client_id"))
+        )
+        display_name = _optional_text(row.get("user_display_name")) or subject
+        summaries.append(
+            MembershipPersonSummary(
+                actor_type=actor_type,
+                subject=subject or None,
+                display_name=display_name or None,
+                role_family=_optional_text(row.get("role_family")) or "UNKNOWN",
+                permission_set=_optional_text(row.get("permission_set")) or "UNKNOWN",
+                status=_normalise_status(row.get("status")),
+                delivery_status=(
+                    _optional_text(row.get("delivery_status"))
+                    or "DELIVERY_NOT_CONFIGURED"
+                ),
+            )
+        )
+    return summaries
 
 
 def _normalise_status(value: Any) -> str:

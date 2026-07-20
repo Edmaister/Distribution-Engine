@@ -76,6 +76,16 @@ export type ReferralSaasMembershipRoleFamilySummary = {
   archivedCount: number;
 };
 
+export type ReferralSaasMembershipPersonSummary = {
+  actorType: string;
+  subject?: string | null;
+  displayName?: string | null;
+  roleFamily: string;
+  permissionSet: string;
+  status: string;
+  deliveryStatus: string;
+};
+
 export type ReferralSaasAccountMembershipPosture = {
   accountId: string;
   totalMemberships: number;
@@ -85,6 +95,7 @@ export type ReferralSaasAccountMembershipPosture = {
   disabledCount: number;
   archivedCount: number;
   roleFamilies: ReferralSaasMembershipRoleFamilySummary[];
+  memberships: ReferralSaasMembershipPersonSummary[];
   currentActor: ReferralSaasMembershipActorPosture;
   guardrails: string[];
   redactions: string[];

@@ -291,6 +291,17 @@ function mockMembershipPosture(): ReferralSaasAccountMembershipPostureResponse {
           archivedCount: 0,
         },
       ],
+      memberships: [
+        {
+          actorType: "USER",
+          subject: "owner@gabs.example",
+          displayName: "Gaborone owner",
+          roleFamily: "DISTRIBUTION_ADMIN",
+          permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+          status: "INVITED",
+          deliveryStatus: "DELIVERY_NOT_CONFIGURED",
+        },
+      ],
       currentActor: {
         status: "NO_MEMBERSHIP_EVIDENCE",
         roleFamily: null,
@@ -463,6 +474,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByRole("heading", { name: "People and access" })).toBeInTheDocument();
     expect(screen.getByText(/It does not send an email, activate login, assign a seat, or change auth permissions/i)).toBeInTheDocument();
     expect(screen.getByText(/Used as the access identity for this customer/i)).toBeInTheDocument();
+    expect(screen.getByText("Gaborone owner")).toBeInTheDocument();
+    expect(screen.getByText("owner@gabs.example")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Person name"), {
       target: { value: "Gaborone campaign owner" },

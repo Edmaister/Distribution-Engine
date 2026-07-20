@@ -16,6 +16,10 @@ def _row(**overrides):
         "permission_set": "ACCOUNT_SETUP",
         "status": "ACTIVE",
         "actor_type": "CLIENT",
+        "delivery_status": "DELIVERY_NOT_CONFIGURED",
+        "user_subject": None,
+        "user_display_name": None,
+        "client_id": "client-1",
         "is_current_actor": False,
     }
     row.update(overrides)
@@ -99,6 +103,9 @@ async def test_membership_posture_confirms_active_current_actor(monkeypatch):
                     role_family="DISTRIBUTION_ADMIN",
                     permission_set="ACCOUNT_SETUP_ADMIN",
                     status="ACTIVE",
+                    actor_type="USER",
+                    user_subject="owner@example.test",
+                    user_display_name="Setup Owner",
                     is_current_actor=True,
                 ),
                 _row(role_family="SUPPORT", status="INVITED"),
@@ -141,6 +148,15 @@ async def test_membership_posture_confirms_active_current_actor(monkeypatch):
             "archivedCount": 0,
         },
     ]
+    assert safe_payload["memberships"][0] == {
+        "actorType": "USER",
+        "subject": "owner@example.test",
+        "displayName": "Setup Owner",
+        "roleFamily": "DISTRIBUTION_ADMIN",
+        "permissionSet": "ACCOUNT_SETUP_ADMIN",
+        "status": "ACTIVE",
+        "deliveryStatus": "DELIVERY_NOT_CONFIGURED",
+    }
 
 
 async def test_membership_posture_keeps_invited_actor_non_operational(monkeypatch):

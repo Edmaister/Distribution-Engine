@@ -866,25 +866,40 @@ export function ReferralSaasAccountMaintenancePage() {
                       <strong>Access intent saved.</strong> {accessResult}
                     </div>
                   ) : null}
-                  {(membershipPosture?.membershipPosture.roleFamilies || []).length ? (
+                  {(membershipPosture?.membershipPosture.memberships || []).length ? (
                     <DataTable
-                      rows={membershipPosture?.membershipPosture.roleFamilies || []}
-                      emptyText="No role-family evidence returned."
+                      rows={membershipPosture?.membershipPosture.memberships || []}
+                      emptyText="No people or access intent has been recorded for this customer yet."
                       columns={[
                         {
+                          key: "person",
+                          header: "Person",
+                          render: (row) => (
+                            <div>
+                              <strong>{formatDisplay(getValue(row, ["displayName"], "Named person"))}</strong>
+                              <div className="table-subtext">{formatDisplay(getValue(row, ["subject"], "No email identity returned"))}</div>
+                            </div>
+                          ),
+                        },
+                        {
                           key: "roleFamily",
-                          header: "Role family",
-                          render: (row) => <strong>{formatDisplay(getValue(row, ["roleFamily"], "Role"))}</strong>,
+                          header: "Access responsibility",
+                          render: (row) => formatDisplay(getValue(row, ["roleFamily"], "Role")),
                         },
                         {
-                          key: "invitedCount",
-                          header: "Invited",
-                          render: (row) => getValue(row, ["invitedCount"], "0"),
+                          key: "status",
+                          header: "Status",
+                          render: (row) => (
+                            <StatusBadge
+                              label={formatDisplay(getValue(row, ["status"], "Status"))}
+                              tone={statusTone(getValue(row, ["status"], "Status"))}
+                            />
+                          ),
                         },
                         {
-                          key: "activeCount",
-                          header: "Active",
-                          render: (row) => getValue(row, ["activeCount"], "0"),
+                          key: "deliveryStatus",
+                          header: "Invite delivery",
+                          render: (row) => formatDisplay(getValue(row, ["deliveryStatus"], "Delivery not configured")),
                         },
                       ]}
                     />
