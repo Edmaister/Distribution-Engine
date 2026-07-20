@@ -11,7 +11,10 @@ import {
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
 import {
+  getReferralSaasAccountMembershipPosture,
   listReferralSaasAccounts,
+  recordReferralSaasMembershipInvitationIntent,
+  type ReferralSaasAccountMembershipPostureResponse,
   type ReferralSaasAccountRegistryResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import { ReferralSaasAccountMaintenancePage } from "./ReferralSaasAccountMaintenancePage";
@@ -21,12 +24,16 @@ vi.mock("../../api/endpoints/adminOnboarding", () => ({
   getAdminOnboardingState: vi.fn(),
 }));
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
+  getReferralSaasAccountMembershipPosture: vi.fn(),
   listReferralSaasAccounts: vi.fn(),
+  recordReferralSaasMembershipInvitationIntent: vi.fn(),
 }));
 
 const mockedGetAdminOnboardingDrafts = vi.mocked(getAdminOnboardingDrafts);
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
+const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
 const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
+const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordReferralSaasMembershipInvitationIntent);
 
 function renderWorkspace(ui: ReactElement, initialEntry = "/admin/referral-saas/account-maintenance") {
   const client = new QueryClient({
@@ -252,12 +259,101 @@ function mockAccountRegistry(): ReferralSaasAccountRegistryResponse {
   };
 }
 
+function mockMembershipPosture(): ReferralSaasAccountMembershipPostureResponse {
+  return {
+    status: "ok",
+    context: "setup",
+    account: {
+      accountId: "acct-gabs",
+      accountCode: "ACC-2201",
+      accountName: "Gaborone Partners",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "APPROVED",
+    },
+    membershipPosture: {
+      accountId: "acct-gabs",
+      totalMemberships: 1,
+      invitedCount: 1,
+      activeCount: 0,
+      suspendedCount: 0,
+      disabledCount: 0,
+      archivedCount: 0,
+      roleFamilies: [
+        {
+          roleFamily: "DISTRIBUTION_ADMIN",
+          invitedCount: 1,
+          activeCount: 0,
+          suspendedCount: 0,
+          disabledCount: 0,
+          archivedCount: 0,
+        },
+      ],
+      currentActor: {
+        status: "NO_MEMBERSHIP_EVIDENCE",
+        roleFamily: null,
+        permissionSet: null,
+        canOperateSetup: false,
+        evidence: "No active account membership matched the current actor.",
+      },
+      guardrails: ["NO_INVITE_DELIVERY", "NO_AUTH_CLAIM_CHANGE"],
+      redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+      noMembershipWriteConfirmed: false,
+      noInviteDeliveryConfirmed: true,
+    },
+    guardrail: "Read-only Referral SaaS account membership posture.",
+    no_membership_write_confirmed: false,
+    no_invite_delivery_confirmed: true,
+  };
+}
+
 describe("ReferralSaasAccountMaintenancePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetAdminOnboardingDrafts.mockResolvedValue(mockDraftSelector());
     mockedGetAdminOnboardingState.mockResolvedValue(mockMaintenanceState());
+    mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockMembershipPosture());
     mockedListReferralSaasAccounts.mockResolvedValue(mockAccountRegistry());
+    mockedRecordReferralSaasMembershipInvitationIntent.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACC-2201",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+        onboardingStatus: "APPROVED",
+      },
+      invitation: {
+        commandStatus: "INVITATION_INTENT_RECORDED",
+        membership: {
+          membershipRef: "membership-1",
+          status: "INVITED",
+          roleFamily: "DISTRIBUTION_ADMIN",
+          permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+          canOperateSetup: false,
+        },
+        delivery: {
+          status: "DELIVERY_NOT_CONFIGURED",
+          nextAction: "Configure approved invitation delivery provider",
+        },
+        idempotency: {
+          status: "NEW_REQUEST",
+        },
+        auditEventId: "audit-1",
+        guardrails: ["NO_INVITE_DELIVERY"],
+        redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+        noInviteDeliveryConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noMoneyMovementConfirmed: true,
+      },
+      guardrails: ["NO_INVITE_DELIVERY"],
+      redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+      no_invite_delivery_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
   });
 
   afterEach(() => {
@@ -310,12 +406,56 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       "/admin/referral-saas/account-maintenance/acct-gabs#people-access",
     );
     expect(screen.getByRole("heading", { name: "People and access" })).toBeInTheDocument();
-    expect(screen.getByText("Manage who can operate this customer account from this module, not from Account Setup.")).toBeInTheDocument();
+    expect(screen.getByText("Add who should manage this customer from inside the selected customer profile.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open Campaigns/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/campaigns?external_tenant_ref=gabs-platform&organisation_ref=gabs-org",
     );
     expect(await screen.findByText("Everything opens against Gaborone Partners until you switch customer.")).toBeInTheDocument();
+  });
+
+  it("records customer-scoped people access intent without leaving Customer Profile", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs#people-access");
+
+    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "People and access" })).toBeInTheDocument();
+    expect(screen.getByText(/It does not send an email, activate login, assign a seat, or change auth permissions/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Person name"), {
+      target: { value: "Gaborone campaign owner" },
+    });
+    fireEvent.change(screen.getByLabelText("User subject"), {
+      target: { value: "gabs-campaign-owner" },
+    });
+    fireEvent.change(screen.getByLabelText("Access responsibility"), {
+      target: { value: "Campaign manager" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Record access intent" }));
+
+    await waitFor(() => expect(mockedRecordReferralSaasMembershipInvitationIntent).toHaveBeenCalledTimes(1));
+    expect(mockedRecordReferralSaasMembershipInvitationIntent.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      actor: {
+        actorType: "USER",
+        subject: "gabs-campaign-owner",
+        displayName: "Gaborone campaign owner",
+      },
+      membership: {
+        roleFamily: "CAMPAIGN_MANAGER",
+        permissionSet: "REFERRAL_SAAS_CAMPAIGN_MANAGER",
+        tenantScope: "PRIMARY_ACCOUNT_TENANT",
+      },
+      reasonCode: "CUSTOMER_PROFILE_ACCESS_MAINTENANCE",
+      correlationId: "customer-profile-access-acct-gabs",
+      idempotencyKey: "customer-profile-access-acct-gabs-gabs-campaign-owner-campaign-manager",
+    });
+    expect(await screen.findByText("Access intent saved.")).toBeInTheDocument();
+    expect(screen.getByText(/No invitation email, login activation, seat assignment, or auth claim change was performed/i)).toBeInTheDocument();
   });
 
   it("keeps customer functions scoped to the selected customer context", async () => {

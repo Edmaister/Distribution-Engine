@@ -208,6 +208,7 @@ greenfield referral construction.
 100. TASK-234: Remove hidden default account setup owner-scope collision.
 101. TASK-235: End Account Setup at Review & Create and route successful creation to Customer Profile.
 102. TASK-236: Keep selected-customer access actions inside Customer Profile modules.
+103. TASK-237: Add customer-scoped People and Access maintenance flow.
 
 ## 10/10 Exit Criteria
 
@@ -699,6 +700,11 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - selected-customer next actions now route people/access and customer settings into customer-profile modules instead of sending existing customers back into Account Setup.
+- TASK-237: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - People and Access in the selected Customer Profile now records customer-scoped access intent through the existing guarded membership invitation API without sending invite email, activating login, assigning seats, changing auth claims, or leaving customer context.
 
 ## Explicit Deferrals
 
