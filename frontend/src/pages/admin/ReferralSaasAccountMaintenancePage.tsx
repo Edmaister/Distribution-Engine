@@ -51,10 +51,10 @@ const customerFunctions = [
     tone: "warning" as StatusTone,
   },
   {
-    title: "Account setup",
-    copy: "Fix company details, people, and setup connections.",
-    letsYou: "Unlock missing owner and setup gaps.",
-    route: "/admin/referral-saas/account-setup",
+    title: "Customer settings",
+    copy: "Review company details, customer identifiers, and operating market.",
+    letsYou: "Keep profile work inside this customer context.",
+    route: "#customer-settings",
     icon: Building2,
     status: "Needs attention",
     tone: "warning" as StatusTone,
@@ -190,6 +190,9 @@ export function ReferralSaasAccountMaintenancePage() {
   const overallStatus = formatDisplay(readiness?.overall_status || "go_live_disabled");
   const customerName = selectedAccount?.accountName || formatDisplay(appliedOrganisationRef);
   const doNext = getCustomerNextActions(blockedCount, missingEvidenceCount);
+  const selectedCustomerPath = selectedAccount
+    ? `/admin/referral-saas/account-maintenance/${encodeURIComponent(selectedAccount.accountId)}`
+    : "/admin/referral-saas/account-maintenance";
   const customerQuery = `?external_tenant_ref=${encodeURIComponent(
     selectedExternalTenantRef,
   )}&organisation_ref=${encodeURIComponent(selectedOrganisationRef)}`;
@@ -422,7 +425,7 @@ export function ReferralSaasAccountMaintenancePage() {
                     </div>
                     <div className="panel-body route-list">
                       {doNext.map((action) => (
-                        <Link className="route-item route-link" key={action.title} to={`${action.route}${customerQuery}`}>
+                        <Link className="route-item route-link" key={action.title} to={buildCustomerModuleRoute(selectedCustomerPath, action.route, customerQuery)}>
                           <div>
                             <div className="route-name">{action.title}</div>
                             <div className="route-path">{action.copy}</div>
@@ -449,7 +452,7 @@ export function ReferralSaasAccountMaintenancePage() {
                   <div className="panel-body customer-function-grid">
                     {customerFunctions.map((item) => {
                       const Icon = item.icon;
-                      const href = item.route.startsWith("#") ? item.route : `${item.route}${customerQuery}`;
+                      const href = buildCustomerModuleRoute(selectedCustomerPath, item.route, customerQuery);
                       return (
                         <Link className="customer-function-card" key={item.title} to={href}>
                           <div className="customer-function-card-header">
@@ -470,10 +473,74 @@ export function ReferralSaasAccountMaintenancePage() {
                 </section>
               ) : null}
 
-              <section className="grid-3" id="people-access">
-                <KpiCard label="Active users" value="0" footnote="Activation remains a future bounded workflow" icon={Users} />
-                <KpiCard label="Named or invited" value="1" footnote="Setup contact exists as profile evidence" icon={CheckCircle2} />
-                <KpiCard label="Roles still missing" value={blockedCount ? "1" : "0"} footnote="Access writes belong in Account Maintenance follow-up" icon={AlertCircle} />
+              <section className="panel" id="customer-settings">
+                <div className="panel-header">
+                  <div>
+                    <h2 className="panel-title">Customer settings</h2>
+                    <div className="panel-subtitle">
+                      Maintain profile context from the selected customer home, not from Account Setup.
+                    </div>
+                  </div>
+                  <StatusBadge label="Customer scoped" tone="success" />
+                </div>
+                <div className="panel-body route-list">
+                  <div className="wizard-status-card">
+                    <div>
+                      <strong>{customerName}</strong>
+                      <p>
+                        {operatingMarketFromAccount(selectedAccount).name} - {selectedExternalTenantRef} / {selectedOrganisationRef}
+                      </p>
+                    </div>
+                    <StatusBadge label={formatDisplay(selectedAccount.onboardingStatus)} tone="info" />
+                  </div>
+                  <div className="wizard-status-card">
+                    <div>
+                      <strong>Profile maintenance command</strong>
+                      <p>Durable profile edits remain a bounded follow-up. Account Setup is only for first-time account foundation creation.</p>
+                    </div>
+                    <StatusBadge label="Future command" tone="warning" />
+                  </div>
+                </div>
+              </section>
+
+              <section className="panel" id="people-access">
+                <div className="panel-header">
+                  <div>
+                    <h2 className="panel-title">People and access</h2>
+                    <div className="panel-subtitle">
+                      Manage who can operate this customer account from this module, not from Account Setup.
+                    </div>
+                  </div>
+                  <StatusBadge label="Account Maintenance" tone="info" />
+                </div>
+                <div className="panel-body route-list">
+                  <div className="grid-3">
+                    <KpiCard label="Active users" value="0" footnote="Activation remains a future bounded workflow" icon={Users} />
+                    <KpiCard label="Named or invited" value="1" footnote="Setup contact exists as profile evidence" icon={CheckCircle2} />
+                    <KpiCard label="Roles still missing" value={blockedCount ? "1" : "0"} footnote="Access writes belong in Account Maintenance follow-up" icon={AlertCircle} />
+                  </div>
+                  <div className="wizard-status-card">
+                    <div>
+                      <strong>Owner access</strong>
+                      <p>Add or confirm the person accountable for this customer's Referral SaaS workspace.</p>
+                    </div>
+                    <StatusBadge label="Needs attention" tone="warning" />
+                  </div>
+                  <div className="wizard-status-card">
+                    <div>
+                      <strong>Campaign manager access</strong>
+                      <p>Keep campaign setup authority scoped to this customer before live campaign work.</p>
+                    </div>
+                    <StatusBadge label="Needs attention" tone="warning" />
+                  </div>
+                  <div className="wizard-status-card">
+                    <div>
+                      <strong>Support and analyst access</strong>
+                      <p>Review read-only operational roles after owner and campaign manager intent is clear.</p>
+                    </div>
+                    <StatusBadge label="Can wait" tone="neutral" />
+                  </div>
+                </div>
               </section>
 
               <section className="panel">
@@ -588,7 +655,7 @@ function getCustomerNextActions(blockedCount: number, missingEvidenceCount: numb
         title: "Add who can manage this account",
         copy: "Complete owner and campaign manager setup for day-to-day referral work.",
         priority: "First",
-        route: "/admin/referral-saas/account-maintenance",
+        route: "#people-access",
         tone: "warning" as StatusTone,
       },
       {
@@ -630,6 +697,10 @@ function getCustomerNextActions(blockedCount: number, missingEvidenceCount: numb
       tone: "neutral" as StatusTone,
     },
   ];
+}
+
+function buildCustomerModuleRoute(selectedCustomerPath: string, route: string, customerQuery: string) {
+  return route.startsWith("#") ? `${selectedCustomerPath}${route}` : `${route}${customerQuery}`;
 }
 
 function resolveReadinessArea(

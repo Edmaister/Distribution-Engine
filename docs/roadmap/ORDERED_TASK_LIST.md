@@ -5058,6 +5058,32 @@ Rollback notes: Restore the Handoff step, final campaign footer behavior, and pr
 Explicit non-goals: Do not add schema, migrations, backend routes, account lifecycle commands, durable profile updates, membership writes, invitation delivery, seat assignment, auth/session claim changes, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Account Setup behaves as a focused account-foundation wizard that completes at Review & Create and hands operators into selected-customer work from a clear post-create success state. Priority: P0.
 
+## TASK-236: Keep selected-customer access actions inside Customer Profile modules
+
+Status: Complete (2026-07-20). Output: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the selected customer profile route, existing account registry read model, customer-context query propagation, and read-only maintenance evidence. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile modular workspace; Account Setup/Account Maintenance boundary; people/access routing.
+Objective: Keep existing-customer people/access and customer settings actions inside selected Customer Profile modules instead of routing operators back into Account Setup.
+Why now: Manual UI testing after customer creation showed the `Add who can manage this account` next action could move the operator away from the selected customer profile context. That makes Account Setup feel like the maintenance destination, which conflicts with the agreed product model.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; roadmap and gap docs.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `frontend/src/app/App.tsx`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/referralSaasAccountQueries.ts`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Adds selected-customer module routing for Customer Settings and People and Access, changes `Add who can manage this account` to target `/admin/referral-saas/account-maintenance/:accountId#people-access`, and removes the existing-customer `Account setup` function card route back to the Account Setup wizard.
+API impact: None.
+Tests to add/update: Updates Customer Profile/Account Maintenance tests to assert selected-customer hash routing for people/access and settings modules, preserved customer-scoped downstream routes, and no Account Setup link for existing-customer access work.
+Validation method: `npm.cmd test -- --run src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Customer Profile next actions and function cards keep people/access and customer settings inside the selected account route; `Add who can manage this account` no longer navigates to Account Setup or the unselected maintenance root; Account Setup remains for first-time account foundation creation; no backend route, schema, user write, membership write, invitation delivery, role assignment, auth-claim change, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-235.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Restore the prior Customer Profile action routes and test expectations.
+Explicit non-goals: Do not add schema, migrations, backend routes, account lifecycle commands, durable profile updates, membership writes, invitation delivery, seat assignment, role assignment, auth/session claim changes, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Selected Customer Profile behaves like the modular home for existing-customer settings and people/access work, while Account Setup remains a first-time customer foundation wizard. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
