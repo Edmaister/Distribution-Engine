@@ -462,12 +462,13 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "People and access" })).toBeInTheDocument();
     expect(screen.getByText(/It does not send an email, activate login, assign a seat, or change auth permissions/i)).toBeInTheDocument();
+    expect(screen.getByText(/Used as the access identity for this customer/i)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Person name"), {
       target: { value: "Gaborone campaign owner" },
     });
-    fireEvent.change(screen.getByLabelText("User subject"), {
-      target: { value: "gabs-campaign-owner" },
+    fireEvent.change(screen.getByLabelText(/Work email/), {
+      target: { value: "Gabs.Campaign.Owner@Example.COM" },
     });
     fireEvent.change(screen.getByLabelText("Access responsibility"), {
       target: { value: "Campaign manager" },
@@ -484,7 +485,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       },
       actor: {
         actorType: "USER",
-        subject: "gabs-campaign-owner",
+        subject: "gabs.campaign.owner@example.com",
         displayName: "Gaborone campaign owner",
       },
       membership: {
@@ -494,7 +495,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       },
       reasonCode: "CUSTOMER_PROFILE_ACCESS_MAINTENANCE",
       correlationId: "customer-profile-access-acct-gabs",
-      idempotencyKey: "customer-profile-access-acct-gabs-gabs-campaign-owner-campaign-manager",
+      idempotencyKey: "customer-profile-access-acct-gabs-gabs-campaign-owner-example-com-campaign-manager",
     });
     expect(await screen.findByText("Access intent saved.")).toBeInTheDocument();
     expect(screen.getByText(/No invitation email, login activation, seat assignment, or auth claim change was performed/i)).toBeInTheDocument();
