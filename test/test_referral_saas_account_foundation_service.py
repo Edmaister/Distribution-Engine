@@ -43,6 +43,29 @@ class FakeConnection:
         return self.rows
 
 
+class FakeTransaction:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+
+class FakeProfileConnection:
+    def __init__(self, rows):
+        self.rows = list(rows)
+        self.calls = []
+
+    async def fetchrow(self, query, *args):
+        self.calls.append((query, args))
+        if not self.rows:
+            return None
+        return self.rows.pop(0)
+
+    def transaction(self):
+        return FakeTransaction()
+
+
 class FakeDbConnection:
     def __init__(self, connection):
         self.connection = connection
@@ -231,3 +254,104 @@ async def test_lists_safe_account_registry_without_internal_tenant_code(monkeypa
     assert safe_payload["externalReferences"][1]["externalRef"] == "fnb-org"
     assert "tenantCode" not in safe_payload
     assert conn.calls[0][1] == (100,)
+
+
+async def test_updates_referral_saas_account_profile_with_audit_guardrails(monkeypatch):
+    conn = FakeProfileConnection(
+        [
+            {
+                "account_id": "acct-1",
+                "account_code": "ACCT_FNB",
+                "account_name": "FNB Referral SaaS",
+                "account_type": "ORGANISATION",
+                "account_status": "PENDING_ONBOARDING",
+                "onboarding_status": "READY_FOR_REVIEW",
+                "operating_jurisdiction_code": "ZA",
+            },
+            {
+                "account_id": "acct-1",
+                "account_code": "ACCT_FNB",
+                "account_name": "FNB Referral SaaS Updated",
+                "account_type": "ORGANISATION",
+                "account_status": "PENDING_ONBOARDING",
+                "onboarding_status": "READY_FOR_REVIEW",
+                "operating_jurisdiction_code": "BW",
+            },
+            {"account_audit_event_id": "audit-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.update_referral_saas_account_profile(
+        account_ref=" acct-1 ",
+        account_name=" FNB Referral SaaS Updated ",
+        account_type="organisation",
+        operating_jurisdiction_code="bw",
+        customer_type="enterprise_customer",
+        industry="automotive",
+        actor_ref="operator-1",
+        actor_role="ADMIN",
+        correlation_id="corr-1",
+        idempotency_key_hash="hash-1",
+        command_payload_hash="payload-hash",
+    )
+
+    assert result.account_name == "FNB Referral SaaS Updated"
+    assert result.operating_jurisdiction_code == "BW"
+    assert result.customer_type == "ENTERPRISE_CUSTOMER"
+    assert result.industry == "AUTOMOTIVE"
+    assert "NO_EXTERNAL_REFERENCE_ROTATION" in result.guardrails
+    assert "internal_tenant_identifier" in result.redactions
+    assert conn.calls[1][1][1:5] == (
+        "FNB Referral SaaS Updated",
+        "ORGANISATION",
+        "BW",
+        json.dumps(
+            {
+                "customer_type": "ENTERPRISE_CUSTOMER",
+                "industry": "AUTOMOTIVE",
+                "source": "referral_saas_customer_profile_maintenance",
+                "no_live_action_confirmed": True,
+            },
+            sort_keys=True,
+        ),
+    )
+    assert "ACCOUNT_PROFILE_UPDATED" in conn.calls[2][0]
+
+
+async def test_rejects_profile_update_for_adjacent_role_before_query(monkeypatch):
+    conn = FakeProfileConnection([])
+    patch_db(monkeypatch, conn)
+
+    with pytest.raises(svc.AccountProfilePermissionDenied):
+        await svc.update_referral_saas_account_profile(
+            account_ref="acct-1",
+            account_name="FNB",
+            account_type="ORGANISATION",
+            operating_jurisdiction_code="ZA",
+            customer_type="DIRECT_CUSTOMER",
+            industry="BANKING_FINANCIAL_SERVICES",
+            actor_ref="partner-1",
+            actor_role="PARTNER",
+        )
+
+    assert conn.calls == []
+
+
+async def test_rejects_unsupported_profile_update_fields(monkeypatch):
+    conn = FakeProfileConnection([])
+    patch_db(monkeypatch, conn)
+
+    with pytest.raises(svc.AccountProfileValidationError):
+        await svc.update_referral_saas_account_profile(
+            account_ref="acct-1",
+            account_name="FNB",
+            account_type="ORGANISATION",
+            operating_jurisdiction_code="GB",
+            customer_type="DIRECT_CUSTOMER",
+            industry="BANKING_FINANCIAL_SERVICES",
+            actor_ref="operator-1",
+            actor_role="ADMIN",
+        )
+
+    assert conn.calls == []

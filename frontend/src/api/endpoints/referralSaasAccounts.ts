@@ -141,6 +141,44 @@ export type ReferralSaasMembershipInvitationRequest = {
   idempotencyKey: string;
 };
 
+export type ReferralSaasAccountProfileUpdateRequest = {
+  accountRef: string;
+  profile: {
+    accountName: string;
+    accountType: string;
+    operatingJurisdictionCode: string;
+    customerType?: string;
+    industry?: string;
+  };
+  correlationId: string;
+  idempotencyKey: string;
+};
+
+export type ReferralSaasAccountProfileUpdateResponse = {
+  status: string;
+  profile: {
+    accountId: string;
+    accountCode: string;
+    accountName: string;
+    accountType: string;
+    accountStatus: string;
+    onboardingStatus: string;
+    operatingJurisdictionCode: string;
+    customerType?: string | null;
+    industry?: string | null;
+    auditEventId?: string | null;
+    guardrails: string[];
+    redactions: string[];
+  };
+  guardrails: string[];
+  redactions: string[];
+  no_external_reference_rotation_confirmed: boolean;
+  no_account_activation_confirmed: boolean;
+  no_membership_write_confirmed: boolean;
+  no_invite_delivery_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasMembershipInvitationResponse = {
   status: string;
   context: ReferralSaasAccountResolutionContext;
@@ -277,6 +315,31 @@ export function recordReferralSaasMembershipInvitationIntent({
           tenantScope: membership.tenantScope || "PRIMARY_ACCOUNT_TENANT",
         },
         reasonCode,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function updateReferralSaasAccountProfile({
+  accountRef,
+  profile,
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasAccountProfileUpdateRequest): Promise<ReferralSaasAccountProfileUpdateResponse> {
+  return apiRequest<ReferralSaasAccountProfileUpdateResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/profile`,
+    {
+      method: "PATCH",
+      body: {
+        profile: {
+          accountName: profile.accountName.trim(),
+          accountType: profile.accountType.trim(),
+          operatingJurisdictionCode: profile.operatingJurisdictionCode.trim(),
+          customerType: profile.customerType?.trim() || undefined,
+          industry: profile.industry?.trim() || undefined,
+        },
         correlationId,
         idempotencyKey,
       },

@@ -1610,6 +1610,32 @@ a {
   padding: 14px;
 }
 
+.route-link {
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.route-link:hover,
+.route-link:focus-visible {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  outline: none;
+}
+
+.route-action-stack {
+  align-items: flex-end;
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.route-action {
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .route-name {
   font-weight: 700;
 }

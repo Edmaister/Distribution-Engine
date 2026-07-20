@@ -14,6 +14,7 @@ import {
   getReferralSaasAccountMembershipPosture,
   listReferralSaasAccounts,
   recordReferralSaasMembershipInvitationIntent,
+  updateReferralSaasAccountProfile,
   type ReferralSaasAccountMembershipPostureResponse,
   type ReferralSaasAccountRegistryResponse,
 } from "../../api/endpoints/referralSaasAccounts";
@@ -27,6 +28,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   getReferralSaasAccountMembershipPosture: vi.fn(),
   listReferralSaasAccounts: vi.fn(),
   recordReferralSaasMembershipInvitationIntent: vi.fn(),
+  updateReferralSaasAccountProfile: vi.fn(),
 }));
 
 const mockedGetAdminOnboardingDrafts = vi.mocked(getAdminOnboardingDrafts);
@@ -34,6 +36,7 @@ const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
 const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
 const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordReferralSaasMembershipInvitationIntent);
+const mockedUpdateReferralSaasAccountProfile = vi.mocked(updateReferralSaasAccountProfile);
 
 function renderWorkspace(ui: ReactElement, initialEntry = "/admin/referral-saas/account-maintenance") {
   const client = new QueryClient({
@@ -354,6 +357,30 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       no_seat_assignment_confirmed: true,
       no_money_movement_confirmed: true,
     });
+    mockedUpdateReferralSaasAccountProfile.mockResolvedValue({
+      status: "ok",
+      profile: {
+        accountId: "acct-gabs",
+        accountCode: "ACC-2201",
+        accountName: "Gaborone Partners Updated",
+        accountType: "ORGANISATION",
+        accountStatus: "ACTIVE",
+        onboardingStatus: "APPROVED",
+        operatingJurisdictionCode: "BW",
+        customerType: "ENTERPRISE_CUSTOMER",
+        industry: "AUTOMOTIVE",
+        auditEventId: "audit-1",
+        guardrails: ["DURABLE_PROFILE_FIELDS_ONLY", "NO_EXTERNAL_REFERENCE_ROTATION"],
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrails: ["DURABLE_PROFILE_FIELDS_ONLY", "NO_EXTERNAL_REFERENCE_ROTATION"],
+      redactions: ["internal_tenant_identifier"],
+      no_external_reference_rotation_confirmed: true,
+      no_account_activation_confirmed: true,
+      no_membership_write_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
   });
 
   afterEach(() => {
@@ -414,6 +441,21 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(await screen.findByText("Everything opens against Gaborone Partners until you switch customer.")).toBeInTheDocument();
   });
 
+  it("opens the People and Access module from the next-best action", async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs");
+
+    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Overview" })).toHaveClass("active");
+
+    fireEvent.click(screen.getByRole("link", { name: /Add who can manage this account/ }));
+
+    expect(screen.getByRole("button", { name: "What you can do" })).toHaveClass("active");
+    expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "start", behavior: "smooth" }));
+  });
+
   it("records customer-scoped people access intent without leaving Customer Profile", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs#people-access");
 
@@ -456,6 +498,44 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     });
     expect(await screen.findByText("Access intent saved.")).toBeInTheDocument();
     expect(screen.getByText(/No invitation email, login activation, seat assignment, or auth claim change was performed/i)).toBeInTheDocument();
+  });
+
+  it("saves selected customer profile settings through the maintenance command", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs#customer-settings");
+
+    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Customer settings" })).toBeInTheDocument();
+    expect(screen.getByText(/Changing them is reference rotation, not profile maintenance/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Customer name"), {
+      target: { value: "Gaborone Partners Updated" },
+    });
+    fireEvent.change(screen.getByLabelText("Customer type"), {
+      target: { value: "ENTERPRISE_CUSTOMER" },
+    });
+    fireEvent.change(screen.getByLabelText("Industry"), {
+      target: { value: "AUTOMOTIVE" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save customer profile" }));
+
+    await waitFor(() => expect(mockedUpdateReferralSaasAccountProfile).toHaveBeenCalledTimes(1));
+    expect(mockedUpdateReferralSaasAccountProfile.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      profile: {
+        accountName: "Gaborone Partners Updated",
+        accountType: "ORGANISATION",
+        operatingJurisdictionCode: "BW",
+        customerType: "ENTERPRISE_CUSTOMER",
+        industry: "AUTOMOTIVE",
+      },
+      correlationId: "customer-profile-settings-acct-gabs",
+      idempotencyKey: "customer-profile-settings-acct-gabs-gaborone-partners-updated-bw-enterprise-customer-automotive",
+    });
+    expect(await screen.findByText("Customer profile saved.")).toBeInTheDocument();
+    expect(screen.getByText(/Customer identifiers stayed unchanged/i)).toBeInTheDocument();
+    expect(JSON.stringify(mockedUpdateReferralSaasAccountProfile.mock.calls)).not.toMatch(
+      /externalTenantRef|organisationRef|tenantCode|activate|money/i,
+    );
   });
 
   it("keeps customer functions scoped to the selected customer context", async () => {

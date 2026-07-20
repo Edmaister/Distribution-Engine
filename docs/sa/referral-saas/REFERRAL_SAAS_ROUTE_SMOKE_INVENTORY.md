@@ -79,6 +79,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Seeded local/staging write | POST | `/referrals/referees/ucn` | Referee UCN capture |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/from-draft` | Referral SaaS account foundation create wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations` | Referral SaaS membership invitation intent wrapper |
+| Seeded local/staging write | PATCH | `/v1/referral-saas/accounts/{account_ref}/profile` | Referral SaaS customer profile settings maintenance wrapper |
 | Seeded local/staging write | POST | `/v1/progress` | Progress ingestion |
 
 ## Product Wrapper Fact
@@ -127,6 +128,12 @@ TASK-211 adds a seeded local/staging-only membership invitation intent wrapper.
 It records invited membership intent and account audit evidence only; it does
 not send invitations, activate membership, assign seats, mutate auth claims,
 trigger go-live, activate campaigns, or move money.
+TASK-238 adds a seeded local/staging-only customer profile settings wrapper.
+It updates bounded durable profile metadata and account audit evidence only;
+customer identifiers remain read-only, and it does not rotate references,
+activate accounts, write memberships, deliver invitations, assign seats, mutate
+auth claims, create credentials, launch campaigns, trigger go-live, or move
+money.
 
 ## Smoke Safety Classification
 

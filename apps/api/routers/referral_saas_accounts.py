@@ -7,6 +7,12 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from services.referral_saas_account_foundation_service import (
     AccountFoundationResolutionError,
     AccountNotResolvable,
+    AccountProfileMaintenanceError,
+    AccountProfileNotFound,
+    AccountProfileNotMaintainable,
+    AccountProfilePermissionDenied,
+    AccountProfileUnsafePayload,
+    AccountProfileValidationError,
     ExternalReferenceConflict,
     ExternalReferenceNotActive,
     ExternalReferenceNotFound,
@@ -15,6 +21,7 @@ from services.referral_saas_account_foundation_service import (
     list_referral_saas_accounts,
     resolve_account_by_external_reference,
     resolve_setup_account_by_external_reference,
+    update_referral_saas_account_profile,
 )
 from services.referral_saas_account_setup_service import (
     AccountSetupCommandError,
@@ -153,6 +160,33 @@ def _membership_invitation_error(exc: MembershipInvitationCommandError) -> HTTPE
             "no_invite_delivery_confirmed": True,
             "no_auth_claim_change_confirmed": True,
             "no_seat_assignment_confirmed": True,
+            "no_money_movement_confirmed": True,
+        },
+    )
+
+
+def _profile_maintenance_error(exc: AccountProfileMaintenanceError) -> HTTPException:
+    if isinstance(exc, AccountProfilePermissionDenied):
+        status_code = status.HTTP_403_FORBIDDEN
+    elif isinstance(exc, AccountProfileNotFound):
+        status_code = status.HTTP_404_NOT_FOUND
+    elif isinstance(exc, AccountProfileValidationError):
+        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    elif isinstance(exc, (AccountProfileNotMaintainable, AccountProfileUnsafePayload)):
+        status_code = status.HTTP_409_CONFLICT
+    else:
+        status_code = status.HTTP_400_BAD_REQUEST
+
+    return HTTPException(
+        status_code=status_code,
+        detail={
+            "code": exc.safe_code,
+            "message": str(exc),
+            "guardrails": _profile_maintenance_guardrails(),
+            "redactions": _profile_maintenance_redactions(),
+            "no_external_reference_rotation_confirmed": True,
+            "no_account_activation_confirmed": True,
+            "no_membership_write_confirmed": True,
             "no_money_movement_confirmed": True,
         },
     )
@@ -331,6 +365,81 @@ async def record_referral_saas_membership_invitation(
         "no_invite_delivery_confirmed": True,
         "no_auth_claim_change_confirmed": True,
         "no_seat_assignment_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.patch("/accounts/{account_ref}/profile")
+async def update_referral_saas_account_profile_route(
+    account_ref: str,
+    payload: dict[str, Any] = Body(default_factory=dict),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    _reject_unsafe_profile_payload(payload)
+
+    profile = payload.get("profile") or {}
+    idempotency_key = _optional_text(payload.get("idempotencyKey"))
+    correlation_id = _optional_text(payload.get("correlationId"))
+    if not isinstance(profile, dict):
+        raise _profile_maintenance_error(
+            AccountProfileValidationError("profile must be an object.")
+        )
+    if not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "idempotencyKey and correlationId are required.",
+                "guardrails": _profile_maintenance_guardrails(),
+                "redactions": _profile_maintenance_redactions(),
+                "no_external_reference_rotation_confirmed": True,
+                "no_account_activation_confirmed": True,
+                "no_membership_write_confirmed": True,
+                "no_money_movement_confirmed": True,
+            },
+        )
+
+    command_payload = {
+        "accountRef": _optional_text(account_ref),
+        "profile": profile,
+        "correlationId": correlation_id,
+    }
+
+    try:
+        result = await update_referral_saas_account_profile(
+            account_ref=account_ref,
+            account_name=_optional_text(profile.get("accountName")),
+            account_type=_optional_text(profile.get("accountType")) or "ORGANISATION",
+            operating_jurisdiction_code=(
+                _optional_text(profile.get("operatingJurisdictionCode")) or "ZA"
+            ),
+            customer_type=_optional_text(profile.get("customerType")) or None,
+            industry=_optional_text(profile.get("industry")) or None,
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_ACCOUNT_PROFILE_UPDATE",
+                    "account_ref": _optional_text(account_ref),
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            command_payload_hash=hash_payload(command_payload),
+        )
+    except AccountProfileMaintenanceError as exc:
+        raise _profile_maintenance_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "profile": result.to_safe_dict(),
+        "guardrails": _profile_maintenance_guardrails(),
+        "redactions": _profile_maintenance_redactions(),
+        "no_external_reference_rotation_confirmed": True,
+        "no_account_activation_confirmed": True,
+        "no_membership_write_confirmed": True,
+        "no_invite_delivery_confirmed": True,
         "no_money_movement_confirmed": True,
     }
 
@@ -520,6 +629,29 @@ def _membership_invitation_redactions() -> list[str]:
     ]
 
 
+def _profile_maintenance_guardrails() -> list[str]:
+    return [
+        "DURABLE_PROFILE_FIELDS_ONLY",
+        "NO_EXTERNAL_REFERENCE_ROTATION",
+        "NO_ACCOUNT_ACTIVATION",
+        "NO_MEMBERSHIP_WRITE",
+        "NO_INVITE_DELIVERY",
+        "NO_CREDENTIAL_LIFECYCLE",
+        "NO_WEBHOOK_DISPATCH",
+        "NO_CAMPAIGN_PUBLICATION",
+        "NO_GO_LIVE_ACTION",
+        "NO_MONEY_MOVEMENT",
+    ]
+
+
+def _profile_maintenance_redactions() -> list[str]:
+    return [
+        "internal_tenant_identifier",
+        "raw_secret",
+        "idempotency_key_hash",
+    ]
+
+
 @router.get("/accounts")
 async def list_referral_saas_account_registry(
     limit: Annotated[
@@ -580,6 +712,42 @@ UNSAFE_INVITATION_KEYS = {
     "sponsorBilling",
 }
 
+UNSAFE_PROFILE_KEYS = {
+    "tenant_code",
+    "tenantCode",
+    "internal_tenant_code",
+    "internalTenantCode",
+    "externalRef",
+    "external_ref",
+    "externalTenantRef",
+    "external_tenant_ref",
+    "organisationRef",
+    "organisation_ref",
+    "email",
+    "rawEmail",
+    "password",
+    "secret",
+    "token",
+    "credentials",
+    "authClaims",
+    "seatId",
+    "sendInvite",
+    "delivery",
+    "activate",
+    "goLive",
+    "campaignActivation",
+    "webhook",
+    "reward",
+    "funding",
+    "fulfilment",
+    "settlement",
+    "commission",
+    "wallet",
+    "invoice",
+    "payout",
+    "sponsorBilling",
+}
+
 
 def _reject_unsafe_invitation_payload(value: Any) -> None:
     if isinstance(value, dict):
@@ -605,6 +773,33 @@ def _reject_unsafe_invitation_payload(value: Any) -> None:
     elif isinstance(value, list):
         for item in value:
             _reject_unsafe_invitation_payload(item)
+
+
+def _reject_unsafe_profile_payload(value: Any) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if str(key) in UNSAFE_PROFILE_KEYS:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "code": "REJECTED_UNSAFE_PAYLOAD",
+                        "message": (
+                            "Customer profile payload includes fields that belong "
+                            "to reference rotation, access, activation, credentials, "
+                            "or adjacent money workflows."
+                        ),
+                        "guardrails": _profile_maintenance_guardrails(),
+                        "redactions": _profile_maintenance_redactions(),
+                        "no_external_reference_rotation_confirmed": True,
+                        "no_account_activation_confirmed": True,
+                        "no_membership_write_confirmed": True,
+                        "no_money_movement_confirmed": True,
+                    },
+                )
+            _reject_unsafe_profile_payload(child)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_unsafe_profile_payload(item)
 
 
 def _actor_ref(identity: dict[str, Any]) -> str:

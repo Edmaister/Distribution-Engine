@@ -350,6 +350,39 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_account_profile_update",
+        method="PATCH",
+        path="/v1/referral-saas/accounts/{account_ref}/profile",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin role",
+        environment_rule="local/staging seeded account only; profile fields only",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "account_name",
+            "operating_jurisdiction_code",
+            "idempotency_key",
+        ],
+        expected_state_change=(
+            "updates durable profile fields and records account audit evidence; "
+            "does not rotate external references, activate accounts, write "
+            "memberships, create credentials, publish campaigns, or move money"
+        ),
+        curl_template=(
+            'curl -sS -X PATCH -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"profile":{"accountName":"{account_name}",'
+            '"accountType":"ORGANISATION",'
+            '"operatingJurisdictionCode":"{operating_jurisdiction_code}",'
+            '"customerType":"DIRECT_CUSTOMER",'
+            '"industry":"BANKING_FINANCIAL_SERVICES"},'
+            '"correlationId":"smoke-profile-update",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}/profile"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_membership_invitation_intent",
         method="POST",
         path="/v1/referral-saas/accounts/{account_ref}/membership-invitations",

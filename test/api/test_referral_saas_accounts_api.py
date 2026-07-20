@@ -9,6 +9,8 @@ from services.referral_saas_account_foundation_service import (
     AccountFoundationContext,
     AccountFoundationListItem,
     AccountNotResolvable,
+    AccountProfileMaintenanceResult,
+    AccountProfileNotFound,
     ExternalReferenceConflict,
     ExternalReferenceNotActive,
     ExternalReferenceNotFound,
@@ -90,6 +92,25 @@ def _invitation_result(**overrides) -> MembershipInvitationIntentResult:
     }
     values.update(overrides)
     return MembershipInvitationIntentResult(**values)
+
+
+def _profile_result(**overrides) -> AccountProfileMaintenanceResult:
+    values = {
+        "account_id": "acct-1",
+        "account_code": "ACCT_FNB",
+        "account_name": "FNB Referral SaaS Updated",
+        "account_type": "ORGANISATION",
+        "account_status": "PENDING_ONBOARDING",
+        "onboarding_status": "READY_FOR_REVIEW",
+        "operating_jurisdiction_code": "ZA",
+        "customer_type": "ENTERPRISE_CUSTOMER",
+        "industry": "AUTOMOTIVE",
+        "audit_event_id": "audit-1",
+        "guardrails": ["DURABLE_PROFILE_FIELDS_ONLY", "NO_EXTERNAL_REFERENCE_ROTATION"],
+        "redactions": ["internal_tenant_identifier"],
+    }
+    values.update(overrides)
+    return AccountProfileMaintenanceResult(**values)
 
 
 async def test_referral_saas_account_admin_can_create_account_from_draft(monkeypatch):
@@ -306,6 +327,114 @@ async def test_referral_saas_account_reader_can_list_safe_account_registry(monke
     assert body["redactions"] == ["internal_tenant_identifier"]
     assert "tenantCode" not in str(body)
     assert calls == [{"limit": 20}]
+
+
+async def test_referral_saas_account_admin_can_update_customer_profile(monkeypatch):
+    calls: list[dict] = []
+
+    async def fake_update_referral_saas_account_profile(**kwargs):
+        calls.append(kwargs)
+        return _profile_result()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "update_referral_saas_account_profile",
+        fake_update_referral_saas_account_profile,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.patch(
+            "/v1/referral-saas/accounts/acct-1/profile",
+            json={
+                "profile": {
+                    "accountName": " FNB Referral SaaS Updated ",
+                    "accountType": "ORGANISATION",
+                    "operatingJurisdictionCode": "ZA",
+                    "customerType": "ENTERPRISE_CUSTOMER",
+                    "industry": "AUTOMOTIVE",
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "profile-update-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["profile"]["accountName"] == "FNB Referral SaaS Updated"
+    assert body["profile"]["customerType"] == "ENTERPRISE_CUSTOMER"
+    assert body["no_external_reference_rotation_confirmed"] is True
+    assert body["no_account_activation_confirmed"] is True
+    assert body["no_membership_write_confirmed"] is True
+    assert body["no_money_movement_confirmed"] is True
+    assert "tenantCode" not in str(body)
+    assert calls[0]["account_ref"] == "acct-1"
+    assert calls[0]["account_name"] == "FNB Referral SaaS Updated"
+    assert calls[0]["customer_type"] == "ENTERPRISE_CUSTOMER"
+    assert calls[0]["industry"] == "AUTOMOTIVE"
+    assert calls[0]["idempotency_key_hash"]
+    assert calls[0]["command_payload_hash"]
+
+
+async def test_referral_saas_profile_update_rejects_unsafe_reference_rotation_payload():
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.patch(
+            "/v1/referral-saas/accounts/acct-1/profile",
+            json={
+                "profile": {
+                    "accountName": "FNB Referral SaaS Updated",
+                    "accountType": "ORGANISATION",
+                    "operatingJurisdictionCode": "ZA",
+                    "externalTenantRef": "new-ref",
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "profile-update-1",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert detail["no_external_reference_rotation_confirmed"] is True
+
+
+async def test_referral_saas_profile_update_maps_safe_not_found(monkeypatch):
+    async def fake_update_referral_saas_account_profile(**kwargs):
+        raise AccountProfileNotFound("Account missing.")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "update_referral_saas_account_profile",
+        fake_update_referral_saas_account_profile,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.patch(
+            "/v1/referral-saas/accounts/acct-missing/profile",
+            json={
+                "profile": {
+                    "accountName": "FNB Referral SaaS Updated",
+                    "accountType": "ORGANISATION",
+                    "operatingJurisdictionCode": "ZA",
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "profile-update-1",
+            },
+        )
+
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "ACCOUNT_NOT_FOUND"
+
+
+async def test_referral_saas_profile_update_rejects_adjacent_role():
+    async with AsyncClient(app=app, base_url="http://test", headers=PARTNER_HEADERS) as client:
+        response = await client.patch(
+            "/v1/referral-saas/accounts/acct-1/profile",
+            json={},
+        )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "permission_denied"
 
 
 async def test_referral_saas_account_registry_rejects_adjacent_role():

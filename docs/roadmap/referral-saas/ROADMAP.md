@@ -209,6 +209,7 @@ greenfield referral construction.
 101. TASK-235: End Account Setup at Review & Create and route successful creation to Customer Profile.
 102. TASK-236: Keep selected-customer access actions inside Customer Profile modules.
 103. TASK-237: Add customer-scoped People and Access maintenance flow.
+104. TASK-238: Add customer profile settings maintenance command.
 
 ## 10/10 Exit Criteria
 
@@ -705,6 +706,15 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - People and Access in the selected Customer Profile now records customer-scoped access intent through the existing guarded membership invitation API without sending invite email, activating login, assigning seats, changing auth claims, or leaving customer context.
+- TASK-238: `services/referral_saas_account_foundation_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Customer Settings in the selected Customer Profile now saves bounded durable profile fields through a guarded account profile maintenance command, preserving read-only customer identifiers and no activation, membership, campaign, credential, go-live, billing, money, or DLaaS behavior.
 
 ## Explicit Deferrals
 
