@@ -5084,6 +5084,32 @@ Rollback notes: Restore the prior Customer Profile action routes and test expect
 Explicit non-goals: Do not add schema, migrations, backend routes, account lifecycle commands, durable profile updates, membership writes, invitation delivery, seat assignment, role assignment, auth/session claim changes, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Selected Customer Profile behaves like the modular home for existing-customer settings and people/access work, while Account Setup remains a first-time customer foundation wizard. Priority: P0.
 
+## TASK-237: Add customer-scoped People and Access maintenance flow
+
+Status: Complete (2026-07-20). Output: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the selected Customer Profile route, existing account registry read model, customer-context query propagation, existing membership posture read API, and existing guarded membership invitation intent API. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile modular workspace; Account Maintenance People and Access; membership invitation intent boundary.
+Objective: Let operators record customer-scoped access intent from the selected Customer Profile People and Access module instead of routing back into Account Setup or a global workflow.
+Why now: TASK-236 fixed routing into the People and Access module, but the module still behaved like mostly read-only explanation. To keep progressing toward a 10/10 SaaS product, selected customers need a bounded way to capture who should manage the account while preserving the existing no-live-invite and no-auth-change guardrails.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; roadmap and gap docs.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/referralSaasAccountQueries.ts`; `services/referral_saas_account_membership_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/test_referral_saas_account_membership_service.py`; `test/api/test_referral_saas_accounts_api.py`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`.
+Database/schema impact: None.
+Backend impact: None. Existing membership invitation intent and posture APIs remain the source of truth.
+Frontend impact: Adds a People and Access form inside the selected Customer Profile. Operators can enter a display name, user subject, and access responsibility. The form posts a customer-scoped membership invitation intent, refreshes membership posture, and confirms that no invite delivery, login activation, seat assignment, auth claim change, or money movement occurred.
+API impact: Reuses `POST /v1/referral-saas/accounts/{account_ref}/membership-invitations` and `GET /v1/referral-saas/accounts/membership-posture`; no new route.
+Tests to add/update: Updates Account Maintenance tests to mock membership posture and assert the People and Access module records a customer-scoped access intent payload for the selected account, with no Account Setup navigation and no unsafe live-action fields.
+Validation method: `npm.cmd test -- --run src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Selected Customer Profile shows a People and Access form; access intent is posted against the selected account id and selected external customer scope; saved intent feedback confirms no live invite/email, auth claim, login activation, seat assignment, or money movement; membership posture is refreshed after save; Account Setup remains only for first-time customer foundation creation; no backend route, schema, durable profile update command, membership activation, invite delivery provider integration, role activation, auth/session claim change, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-236.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Remove the People and Access form and restore the prior read-only module cards and tests.
+Explicit non-goals: Do not add schema, migrations, backend routes, account lifecycle commands, durable profile updates, live invitation delivery, membership activation, seat assignment, role activation, auth/session claim changes, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Selected Customer Profile can record bounded customer-scoped People and Access intent through the existing membership API while preserving all no-live-action guardrails. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

@@ -12,12 +12,15 @@ import {
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useState, type FormEvent } from "react";
+import { useMutation } from "@tanstack/react-query";
 
 import {
   useReferralSaasAccountDraftSelector,
   useReferralSaasAccountMaintenanceState,
+  useReferralSaasAccountMembershipPosture,
   useReferralSaasAccountRegistry,
 } from "../../api/referralSaasAccountQueries";
+import { recordReferralSaasMembershipInvitationIntent } from "../../api/endpoints/referralSaasAccounts";
 import { DataTable } from "../../components/DataTable";
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { KpiCard } from "../../components/KpiCard";
@@ -132,6 +135,27 @@ const readinessCategoryMap = [
   { code: "REPORTING_BASELINE", label: "Reporting baseline" },
 ];
 
+const accessRoleOptions = [
+  {
+    label: "Account owner",
+    roleFamily: "DISTRIBUTION_ADMIN",
+    permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+    copy: "Owns customer setup decisions and can manage day-to-day Referral SaaS operations.",
+  },
+  {
+    label: "Campaign manager",
+    roleFamily: "CAMPAIGN_MANAGER",
+    permissionSet: "REFERRAL_SAAS_CAMPAIGN_MANAGER",
+    copy: "Manages referral campaigns for this customer once setup is ready.",
+  },
+  {
+    label: "Support analyst",
+    roleFamily: "SUPPORT",
+    permissionSet: "REFERRAL_SAAS_SUPPORT",
+    copy: "Can investigate customer support evidence without changing setup or campaign state.",
+  },
+];
+
 export function ReferralSaasAccountMaintenancePage() {
   const { accountId } = useParams<{ accountId?: string }>();
   const { refreshKey } = useRefreshContext();
@@ -142,6 +166,10 @@ export function ReferralSaasAccountMaintenancePage() {
   const [selectedOperatingMarket, setSelectedOperatingMarket] = useState(defaultOperatingMarket);
   const [pendingAccountId, setPendingAccountId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "health" | "actions">("overview");
+  const [accessDisplayName, setAccessDisplayName] = useState("");
+  const [accessSubject, setAccessSubject] = useState("");
+  const [accessRoleLabel, setAccessRoleLabel] = useState(accessRoleOptions[0].label);
+  const [accessResult, setAccessResult] = useState<string | null>(null);
   const scopeChanged =
     draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
     draftOrganisationRef.trim() !== appliedOrganisationRef;
@@ -174,6 +202,25 @@ export function ReferralSaasAccountMaintenancePage() {
     error: draftSelectorError,
     isLoading: isDraftSelectorLoading,
   } = useReferralSaasAccountDraftSelector(selectedExternalTenantRef, selectedOrganisationRef, refreshKey);
+  const {
+    data: membershipPosture,
+    refetch: refetchMembershipPosture,
+  } = useReferralSaasAccountMembershipPosture(
+    selectedExternalTenantRef,
+    Boolean(accountId && selectedAccount && selectedExternalTenantRef),
+    refreshKey,
+  );
+  const accessMutation = useMutation({
+    mutationFn: recordReferralSaasMembershipInvitationIntent,
+    onSuccess: (response) => {
+      setAccessResult(
+        `${response.invitation.membership.roleFamily} intent recorded as ${formatDisplay(
+          response.invitation.membership.status,
+        )}. No invitation email, login activation, seat assignment, or auth claim change was performed.`,
+      );
+      void refetchMembershipPosture();
+    },
+  });
   const pendingAccount = accountItems.find((account) => account.accountId === pendingAccountId);
   const operatingMarkets = getOperatingMarkets(accountItems);
   const accountsForMarket = accountItems.filter(
@@ -216,6 +263,38 @@ export function ReferralSaasAccountMaintenancePage() {
 
   function stageAccount(account: AccountRegistryItem) {
     setPendingAccountId(account.accountId);
+  }
+
+  function submitAccessIntent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedAccount || !selectedExternalTenantRef || !accessSubject.trim()) {
+      return;
+    }
+    const selectedRole = accessRoleOptions.find((option) => option.label === accessRoleLabel) || accessRoleOptions[0];
+    const cleanedSubject = accessSubject.trim();
+    accessMutation.mutate({
+      accountRef: selectedAccount.accountId,
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: selectedExternalTenantRef,
+        context: "setup",
+      },
+      actor: {
+        actorType: "USER",
+        subject: cleanedSubject,
+        displayName: accessDisplayName.trim() || cleanedSubject,
+      },
+      membership: {
+        roleFamily: selectedRole.roleFamily,
+        permissionSet: selectedRole.permissionSet,
+        tenantScope: "PRIMARY_ACCOUNT_TENANT",
+      },
+      reasonCode: "CUSTOMER_PROFILE_ACCESS_MAINTENANCE",
+      correlationId: `customer-profile-access-${selectedAccount.accountId}`,
+      idempotencyKey: `customer-profile-access-${selectedAccount.accountId}-${cleanedSubject}-${selectedRole.roleFamily}`
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-"),
+    });
   }
 
   return (
@@ -508,38 +587,99 @@ export function ReferralSaasAccountMaintenancePage() {
                   <div>
                     <h2 className="panel-title">People and access</h2>
                     <div className="panel-subtitle">
-                      Manage who can operate this customer account from this module, not from Account Setup.
+                      Add who should manage this customer from inside the selected customer profile.
                     </div>
                   </div>
-                  <StatusBadge label="Account Maintenance" tone="info" />
+                  <StatusBadge label="Intent only" tone="info" />
                 </div>
                 <div className="panel-body route-list">
                   <div className="grid-3">
-                    <KpiCard label="Active users" value="0" footnote="Activation remains a future bounded workflow" icon={Users} />
-                    <KpiCard label="Named or invited" value="1" footnote="Setup contact exists as profile evidence" icon={CheckCircle2} />
-                    <KpiCard label="Roles still missing" value={blockedCount ? "1" : "0"} footnote="Access writes belong in Account Maintenance follow-up" icon={AlertCircle} />
+                    <KpiCard label="Active users" value={String(membershipPosture?.membershipPosture.activeCount ?? 0)} footnote="Activation remains a future bounded workflow" icon={Users} />
+                    <KpiCard label="Named or invited" value={String(membershipPosture?.membershipPosture.invitedCount ?? 0)} footnote="Invitation intent is stored without email delivery" icon={CheckCircle2} />
+                    <KpiCard label="Roles still missing" value={blockedCount ? "1" : "0"} footnote="Add owner and campaign manager intent here" icon={AlertCircle} />
                   </div>
-                  <div className="wizard-status-card">
-                    <div>
-                      <strong>Owner access</strong>
-                      <p>Add or confirm the person accountable for this customer's Referral SaaS workspace.</p>
+                  <form className="account-setup-scope-form" onSubmit={submitAccessIntent}>
+                    <div className="wizard-status-card">
+                      <div>
+                        <strong>Add access intent</strong>
+                        <p>
+                          This records who should manage {customerName}. It does not send an email, activate login, assign a seat, or change auth permissions.
+                        </p>
+                      </div>
+                      <StatusBadge label="No live invite" tone="warning" />
                     </div>
-                    <StatusBadge label="Needs attention" tone="warning" />
-                  </div>
-                  <div className="wizard-status-card">
-                    <div>
-                      <strong>Campaign manager access</strong>
-                      <p>Keep campaign setup authority scoped to this customer before live campaign work.</p>
+                    <label className="field">
+                      <span>Person name</span>
+                      <input
+                        className="input"
+                        onChange={(event) => setAccessDisplayName(event.target.value)}
+                        placeholder="Example: Referral operations owner"
+                        value={accessDisplayName}
+                      />
+                    </label>
+                    <label className="field">
+                      <span>User subject</span>
+                      <input
+                        className="input"
+                        onChange={(event) => setAccessSubject(event.target.value)}
+                        placeholder="Example: user-referral-owner"
+                        value={accessSubject}
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Access responsibility</span>
+                      <select
+                        className="input"
+                        onChange={(event) => setAccessRoleLabel(event.target.value)}
+                        value={accessRoleLabel}
+                      >
+                        {accessRoleOptions.map((option) => (
+                          <option key={option.label} value={option.label}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="wizard-status-card">
+                      <div>
+                        <strong>{accessRoleLabel}</strong>
+                        <p>{(accessRoleOptions.find((option) => option.label === accessRoleLabel) || accessRoleOptions[0]).copy}</p>
+                      </div>
+                      <StatusBadge label="Customer scoped" tone="success" />
                     </div>
-                    <StatusBadge label="Needs attention" tone="warning" />
-                  </div>
-                  <div className="wizard-status-card">
-                    <div>
-                      <strong>Support and analyst access</strong>
-                      <p>Review read-only operational roles after owner and campaign manager intent is clear.</p>
+                    <button className="button" disabled={!accessSubject.trim() || accessMutation.isPending} type="submit">
+                      {accessMutation.isPending ? "Recording access intent" : "Record access intent"}
+                    </button>
+                  </form>
+                  {accessMutation.error ? <ErrorPanel error={accessMutation.error} /> : null}
+                  {accessResult ? (
+                    <div className="wizard-summary-strip success">
+                      <strong>Access intent saved.</strong> {accessResult}
                     </div>
-                    <StatusBadge label="Can wait" tone="neutral" />
-                  </div>
+                  ) : null}
+                  {(membershipPosture?.membershipPosture.roleFamilies || []).length ? (
+                    <DataTable
+                      rows={membershipPosture?.membershipPosture.roleFamilies || []}
+                      emptyText="No role-family evidence returned."
+                      columns={[
+                        {
+                          key: "roleFamily",
+                          header: "Role family",
+                          render: (row) => <strong>{formatDisplay(getValue(row, ["roleFamily"], "Role"))}</strong>,
+                        },
+                        {
+                          key: "invitedCount",
+                          header: "Invited",
+                          render: (row) => getValue(row, ["invitedCount"], "0"),
+                        },
+                        {
+                          key: "activeCount",
+                          header: "Active",
+                          render: (row) => getValue(row, ["activeCount"], "0"),
+                        },
+                      ]}
+                    />
+                  ) : null}
                 </div>
               </section>
 
