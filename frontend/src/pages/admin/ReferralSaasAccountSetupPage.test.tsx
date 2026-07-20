@@ -15,7 +15,6 @@ import {
 } from "../../api/endpoints/adminOnboarding";
 import {
   createReferralSaasAccountFromDraft,
-  getReferralSaasAccountMembershipPosture,
   resolveReferralSaasAccount,
 } from "../../api/endpoints/referralSaasAccounts";
 import { ReferralSaasAccountSetupPage } from "./ReferralSaasAccountSetupPage";
@@ -30,7 +29,6 @@ vi.mock("../../api/endpoints/adminOnboarding", () => ({
 }));
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   createReferralSaasAccountFromDraft: vi.fn(),
-  getReferralSaasAccountMembershipPosture: vi.fn(),
   resolveReferralSaasAccount: vi.fn(),
 }));
 
@@ -41,7 +39,6 @@ const mockedSaveAdminOnboardingDraft = vi.mocked(saveAdminOnboardingDraft);
 const mockedSubmitAdminOnboardingDraftForReview = vi.mocked(submitAdminOnboardingDraftForReview);
 const mockedValidateAdminOnboardingDryRun = vi.mocked(validateAdminOnboardingDryRun);
 const mockedCreateReferralSaasAccountFromDraft = vi.mocked(createReferralSaasAccountFromDraft);
-const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
 const mockedResolveReferralSaasAccount = vi.mocked(resolveReferralSaasAccount);
 
 function renderWorkspace(ui: ReactElement) {
@@ -296,38 +293,6 @@ function mockAccountResolutionResponse() {
   };
 }
 
-function mockMembershipPostureResponse() {
-  return {
-    status: "ok",
-    context: "setup" as const,
-    account: mockAccountResolutionResponse().account,
-    membershipPosture: {
-      accountId: "acc_fnb",
-      totalMemberships: 0,
-      invitedCount: 0,
-      activeCount: 0,
-      suspendedCount: 0,
-      disabledCount: 0,
-      archivedCount: 0,
-      roleFamilies: [],
-      currentActor: {
-        status: "NO_MEMBERSHIP_EVIDENCE",
-        roleFamily: null,
-        permissionSet: null,
-        canOperateSetup: false,
-        evidence: "No active account membership matched the current actor.",
-      },
-      guardrails: ["READ_ONLY_MEMBERSHIP_POSTURE", "NO_MEMBERSHIP_WRITE", "NO_INVITE_DELIVERY"],
-      redactions: ["internal_tenant_identifier", "user_identifier", "client_identifier"],
-      noMembershipWriteConfirmed: true,
-      noInviteDeliveryConfirmed: true,
-    },
-    guardrail: "Read-only Referral SaaS account membership posture.",
-    no_membership_write_confirmed: true,
-    no_invite_delivery_confirmed: true,
-  };
-}
-
 function mockAccountCreateResponse() {
   return {
     status: "created",
@@ -406,7 +371,6 @@ describe("ReferralSaasAccountSetupPage", () => {
     mockedSubmitAdminOnboardingDraftForReview.mockResolvedValue(mockSubmitResponse());
     mockedRecordAdminOnboardingReviewDecision.mockResolvedValue(mockReviewResponse());
     mockedCreateReferralSaasAccountFromDraft.mockResolvedValue(mockAccountCreateResponse());
-    mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockMembershipPostureResponse());
     mockedResolveReferralSaasAccount.mockResolvedValue(mockAccountResolutionResponse());
   });
 
@@ -436,13 +400,6 @@ describe("ReferralSaasAccountSetupPage", () => {
       externalRef: "demo-platform-operator",
       context: "setup",
     });
-    await waitFor(() =>
-      expect(mockedGetReferralSaasAccountMembershipPosture).toHaveBeenCalledWith({
-        refType: "external_tenant_ref",
-        externalRef: "demo-platform-operator",
-        context: "setup",
-      }),
-    );
     expect(screen.getByText("GO_LIVE_DISABLED")).toBeInTheDocument();
     expect(screen.getByText("Safe mode: no go-live / money / credentials")).toBeInTheDocument();
     expect(screen.getByText("Account status")).toBeInTheDocument();
@@ -463,7 +420,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.queryByRole("button", { name: "Integration intent" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Setup checkpoint" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Review & create" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Handoff" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Handoff" })).not.toBeInTheDocument();
     expect(screen.getByText(/Set up a customer account foundation before campaign and attribution testing/)).toBeInTheDocument();
     expect(screen.getByText(/Technical integration setup is handled after the account foundation is ready/)).toBeInTheDocument();
   });
@@ -535,16 +492,9 @@ describe("ReferralSaasAccountSetupPage", () => {
     await screen.findByText("Checkpoint refreshed");
     fireEvent.click(screen.getByRole("button", { name: "Review & create" }));
     expect(screen.getByRole("button", { name: "Save and finish later" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Handoff" }));
-    expect(lastMatch(screen.getAllByRole("link", { name: /Technical setup/ }))).toHaveAttribute(
-      "href",
-      "/admin/onboarding/webhook-api",
-    );
-    expect(screen.getByText(/Technical setup is separate/)).toBeInTheDocument();
-    expect(lastMatch(screen.getAllByRole("link", { name: /Campaign readiness/ }))).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/campaigns",
-    );
+    expect(screen.queryByRole("button", { name: "Handoff" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Configure technical integration/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Start campaign setup/ })).not.toBeInTheDocument();
   });
 
   it("keeps Company Profile setup inside the wizard and saves profile evidence", async () => {
@@ -664,7 +614,6 @@ describe("ReferralSaasAccountSetupPage", () => {
     await waitForWizard();
     expect(mockedGetAdminOnboardingState).not.toHaveBeenCalled();
     expect(mockedResolveReferralSaasAccount).not.toHaveBeenCalled();
-    expect(mockedGetReferralSaasAccountMembershipPosture).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByPlaceholderText("Example: fnb-sa-referrals"), {
       target: { value: "org-fnb-referrals" },
@@ -675,7 +624,6 @@ describe("ReferralSaasAccountSetupPage", () => {
 
     expect(screen.getByText("Changes not checked")).toBeInTheDocument();
     expect(mockedGetAdminOnboardingState).not.toHaveBeenCalled();
-    expect(mockedGetReferralSaasAccountMembershipPosture).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Find account" }));
 
@@ -687,13 +635,6 @@ describe("ReferralSaasAccountSetupPage", () => {
     );
     await waitFor(() =>
       expect(mockedResolveReferralSaasAccount).toHaveBeenLastCalledWith({
-        refType: "external_tenant_ref",
-        externalRef: "org-fnb-referrals",
-        context: "setup",
-      }),
-    );
-    await waitFor(() =>
-      expect(mockedGetReferralSaasAccountMembershipPosture).toHaveBeenLastCalledWith({
         refType: "external_tenant_ref",
         externalRef: "org-fnb-referrals",
         context: "setup",
@@ -850,13 +791,22 @@ describe("ReferralSaasAccountSetupPage", () => {
       /client_secret|wallet|settlement|money_movement|go_live_enabled/,
     );
     expect(await screen.findByText("Account foundation created.")).toBeInTheDocument();
-    expect(screen.getByText(/Open this customer from Customer profile/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Handoff" }));
-    expect(screen.getByText(/Manage users and access in Account Maintenance after the account foundation exists/)).toBeInTheDocument();
-    expect(screen.getByText(/Technical setup is separate/)).toBeInTheDocument();
-    expect(lastMatch(screen.getAllByRole("link", { name: /Technical setup/ }))).toHaveAttribute(
+    expect(screen.getByText(/Account Setup is complete/)).toBeInTheDocument();
+    expect(lastMatch(screen.getAllByRole("link", { name: /Open customer profile/ }))).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acc_created",
+    );
+    expect(lastMatch(screen.getAllByRole("link", { name: /Manage access/ }))).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance",
+    );
+    expect(lastMatch(screen.getAllByRole("link", { name: /Configure technical integration/ }))).toHaveAttribute(
       "href",
       "/admin/onboarding/webhook-api",
+    );
+    expect(lastMatch(screen.getAllByRole("link", { name: /Start campaign setup/ }))).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/campaigns",
     );
   });
 
@@ -917,23 +867,30 @@ describe("ReferralSaasAccountSetupPage", () => {
   });
 
   it("links to existing setup surfaces without forking source workflows", async () => {
+    mockedResolveReferralSaasAccount.mockRejectedValue({
+      status: 404,
+      message: "External reference was not found.",
+    });
+
     renderWorkspace(<ReferralSaasAccountSetupPage />);
 
     await screen.findByRole("heading", { name: "Account setup wizard" });
     await waitForWizard();
     await confirmAccountScope();
     fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
+    fillRequiredCompanyProfile();
     expect(screen.getByRole("button", { name: "Save company profile" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Company profile/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Integration intent" })).not.toBeInTheDocument();
     await validateSetup();
     fireEvent.click(screen.getByRole("button", { name: "Review & create" }));
-    fireEvent.click(screen.getByRole("button", { name: "Handoff" }));
-    expect(lastMatch(screen.getAllByRole("link", { name: /Technical setup/ }))).toHaveAttribute(
+    fireEvent.click(screen.getByRole("button", { name: "Create account foundation" }));
+    expect(await screen.findByText("Account foundation created.")).toBeInTheDocument();
+    expect(lastMatch(screen.getAllByRole("link", { name: /Configure technical integration/ }))).toHaveAttribute(
       "href",
       "/admin/onboarding/webhook-api",
     );
-    expect(lastMatch(screen.getAllByRole("link", { name: /Campaign readiness/ }))).toHaveAttribute(
+    expect(lastMatch(screen.getAllByRole("link", { name: /Start campaign setup/ }))).toHaveAttribute(
       "href",
       "/admin/referral-saas/campaigns",
     );
