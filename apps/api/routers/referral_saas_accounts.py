@@ -50,6 +50,10 @@ from services.referral_saas_account_membership_service import (
     request_referral_saas_membership_activation,
     request_referral_saas_membership_invitation_delivery,
 )
+from services.referral_saas_campaign_service import (
+    list_referral_saas_account_campaigns,
+    get_referral_saas_account_campaign,
+)
 from services.referral_saas_technical_setup_service import (
     build_referral_saas_technical_setup_readiness,
 )
@@ -92,6 +96,50 @@ def _has_readiness_blocker(readiness: dict[str, Any], codes: set[str]) -> bool:
         for blocker in readiness.get("blockers", [])
         if isinstance(blocker, dict)
     )
+
+
+async def _resolve_referral_saas_account_context(
+    *,
+    ref_type: str,
+    external_ref: str,
+    context: str,
+) -> tuple[str, Any]:
+    normalised_context = str(context or "").strip().lower()
+    if normalised_context not in REFERRAL_SAAS_ACCOUNT_CONTEXTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": "context must be runtime or setup.",
+            },
+        )
+
+    try:
+        if normalised_context == "setup":
+            account = await resolve_setup_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+        else:
+            account = await resolve_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+    except AccountFoundationResolutionError as exc:
+        raise _resolution_error(exc) from exc
+
+    return normalised_context, account
+
+
+def _assert_account_path_scope(account_ref: str, account: Any) -> str:
+    safe_account_ref = _optional_text(account_ref)
+    if safe_account_ref not in {account.account_id, account.account_code}:
+        raise _membership_invitation_error(
+            MembershipInvitationUnsafeScope(
+                "Path account reference does not match resolved account context."
+            )
+        )
+    return safe_account_ref
 
 
 def _resolution_error(exc: AccountFoundationResolutionError) -> HTTPException:
@@ -1099,6 +1147,140 @@ async def read_referral_saas_technical_setup_readiness(
         "no_membership_activation_confirmed": True,
         "no_auth_claim_change_confirmed": True,
         "no_seat_assignment_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/campaigns")
+async def list_referral_saas_account_campaign_registry(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    campaigns = await list_referral_saas_account_campaigns(
+        tenant_code=account.tenant_code,
+        limit=limit,
+    )
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "count": len(campaigns),
+        "campaigns": [campaign.to_safe_dict() for campaign in campaigns],
+        "guardrail": (
+            "Read-only Referral SaaS customer-scoped campaign list. This "
+            "endpoint resolves the selected account internally and does not "
+            "expose tenant_code, create campaigns, update policies, generate "
+            "links, activate campaigns, trigger go-live, or move money."
+        ),
+        "redactions": ["internal_tenant_identifier"],
+        "no_campaign_mutation_confirmed": True,
+        "no_policy_write_confirmed": True,
+        "no_link_generation_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/campaigns/{campaign_code}")
+async def read_referral_saas_account_campaign(
+    account_ref: str,
+    campaign_code: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    campaign = await get_referral_saas_account_campaign(
+        tenant_code=account.tenant_code,
+        campaign_code=campaign_code,
+    )
+    if campaign is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "campaign_not_found",
+                "message": "Campaign was not found for the selected customer.",
+                "redactions": ["internal_tenant_identifier"],
+            },
+        )
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "campaign": campaign.to_safe_dict(),
+        "guardrail": (
+            "Read-only Referral SaaS customer-scoped campaign detail. This "
+            "endpoint resolves the selected account internally and does not "
+            "expose tenant_code, create campaigns, update policies, generate "
+            "links, activate campaigns, trigger go-live, or move money."
+        ),
+        "redactions": ["internal_tenant_identifier"],
+        "no_campaign_mutation_confirmed": True,
+        "no_policy_write_confirmed": True,
+        "no_link_generation_confirmed": True,
         "no_campaign_activation_confirmed": True,
         "no_money_movement_confirmed": True,
     }

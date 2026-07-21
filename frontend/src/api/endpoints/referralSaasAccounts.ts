@@ -232,6 +232,60 @@ export type ReferralSaasAccountCampaignReadinessRequest = ReferralSaasAccountRes
   includeEvidence?: boolean;
 };
 
+export type ReferralSaasAccountCampaignSummary = {
+  campaignCode: string;
+  name: string;
+  segment: string;
+  status: string;
+  lifecycle: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  maxUses?: number | null;
+  usesCount: number;
+  policyStatus: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type ReferralSaasAccountCampaignListRequest = ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+  limit?: number;
+};
+
+export type ReferralSaasAccountCampaignListResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  count: number;
+  campaigns: ReferralSaasAccountCampaignSummary[];
+  guardrail: string;
+  redactions: string[];
+  no_campaign_mutation_confirmed: boolean;
+  no_policy_write_confirmed: boolean;
+  no_link_generation_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
+export type ReferralSaasAccountCampaignReadRequest = ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+  campaignCode: string;
+};
+
+export type ReferralSaasAccountCampaignReadResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  campaign: ReferralSaasAccountCampaignSummary;
+  guardrail: string;
+  redactions: string[];
+  no_campaign_mutation_confirmed: boolean;
+  no_policy_write_confirmed: boolean;
+  no_link_generation_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasAccountCampaignReadinessResponse = {
   status: string;
   context: ReferralSaasAccountResolutionContext;
@@ -537,6 +591,47 @@ export function getReferralSaasTechnicalSetupReadiness({
 }: ReferralSaasTechnicalSetupReadinessRequest): Promise<ReferralSaasTechnicalSetupReadinessResponse> {
   return apiRequest<ReferralSaasTechnicalSetupReadinessResponse>(
     `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/technical-setup-readiness`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+      },
+    },
+  );
+}
+
+export function listReferralSaasAccountCampaigns({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+  limit = 50,
+}: ReferralSaasAccountCampaignListRequest): Promise<ReferralSaasAccountCampaignListResponse> {
+  return apiRequest<ReferralSaasAccountCampaignListResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaigns`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+        limit,
+      },
+    },
+  );
+}
+
+export function getReferralSaasAccountCampaign({
+  accountRef,
+  campaignCode,
+  refType,
+  externalRef,
+  context = "setup",
+}: ReferralSaasAccountCampaignReadRequest): Promise<ReferralSaasAccountCampaignReadResponse> {
+  return apiRequest<ReferralSaasAccountCampaignReadResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaigns/${encodeURIComponent(
+      campaignCode.trim(),
+    )}`,
     {
       query: {
         ref_type: refType,

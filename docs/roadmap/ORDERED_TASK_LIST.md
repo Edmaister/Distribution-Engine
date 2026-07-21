@@ -5514,6 +5514,31 @@ Rollback notes: Remove the account campaign readiness route, frontend endpoint/q
 Explicit non-goals: Do not create campaigns, update campaign policy, generate links, activate campaigns, trigger go-live, create credentials, send webhooks, send invites, activate memberships, assign seats, change auth/session claims, create reports/exports, bill, move money, implement broad DLaaS marketplace behavior, or fork source code.
 Definition of done: Referral SaaS Campaigns can be checked from inside the selected customer profile without exposing internal tenant-code entry or leaving customer context. Priority: P0.
 
+## TASK-254: Add customer-scoped campaign list and read wrappers
+
+Status: Complete (2026-07-22). Output: `services/referral_saas_campaign_service.py`; `apps/api/routers/referral_saas_accounts.py`; `scripts/referral_saas_route_smoke_plan.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; `test/test_referral_saas_route_smoke_plan.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/api/referralSaasAccountQueries.ts`; `frontend/src/api/queryKeys.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses existing account resolution and campaign tables while keeping tenant identifiers behind the selected customer/account boundary. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile Campaigns; customer-scoped campaign list/read; tenant-safe campaign operations boundary.
+Objective: Add read-only campaign list/read wrappers for a selected Referral SaaS customer and wire the Customer Profile Campaigns page to choose from that list before readiness checks.
+Why now: TASK-253 removed tenant-code entry from campaign readiness, but the page still required a manually typed campaign code. Operators need to see campaigns for the selected customer before running readiness checks or starting future campaign setup work.
+Files involved: Referral SaaS campaign read model service, account API router, route smoke plan/inventory, frontend endpoint/query wrappers, selected Customer Profile Campaigns page, focused API/page tests, roadmap, and gap matrix.
+Database/schema impact: None.
+Backend impact: Adds `GET /v1/referral-saas/accounts/{account_ref}/campaigns` and `GET /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}` as read-only account-scoped wrappers over existing campaign tables and policies.
+Frontend impact: Selected Customer Profile > Campaigns now loads customer-scoped campaigns, renders selectable campaign rows, defaults readiness to a campaign from that list, and keeps manual campaign-code entry as a fallback.
+API impact: Two new read-only Referral SaaS account-scoped campaign routes; no campaign create/update/policy/activation command.
+Tests to add/update: Backend API wrapper tests, route smoke inventory/plan tests, frontend endpoint test, and selected Customer Profile Campaigns page test.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\api\test_referral_saas_accounts_api.py test\test_referral_saas_route_smoke_inventory.py test\test_referral_saas_route_smoke_plan.py`; `npm.cmd test -- --run src/api/endpoints/referralSaasAccounts.test.ts src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `npm.cmd run lint -- --quiet`; `git diff --check`.
+Acceptance criteria: Customer Profile Campaigns lists only campaigns for the selected account, selected campaign readiness uses account scope and external customer reference, operators do not enter tenant code, internal tenant identifiers remain redacted, and the UI/API confirm no campaign mutation, policy write, link generation, activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork occurred.
+Dependencies: TASK-231; TASK-241; TASK-253.
+Blocked by: Productized campaign draft/create, campaign policy maintenance, campaign submit/review, activation/go-live command boundaries, and deeper campaign setup UX.
+Risk level: Medium.
+Rollback notes: Remove the campaign read model service, account campaign list/read routes, frontend endpoint/query/page wiring, tests, smoke-plan entries, and roadmap/gap updates.
+Explicit non-goals: Do not create campaigns, update campaign policy, generate links, activate campaigns, trigger go-live, create credentials, send webhooks, send invites, activate memberships, assign seats, change auth/session claims, create reports/exports, bill, move money, implement broad DLaaS marketplace behavior, or fork source code.
+Definition of done: Referral SaaS Campaigns can be selected and checked from inside the selected customer profile using account-scoped read-only campaign data. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

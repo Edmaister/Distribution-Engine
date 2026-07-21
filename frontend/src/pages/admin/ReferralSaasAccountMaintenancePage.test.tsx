@@ -15,12 +15,14 @@ import {
   getReferralSaasAccountMembershipPosture,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
+  listReferralSaasAccountCampaigns,
   listReferralSaasAccounts,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   updateReferralSaasAccountProfile,
   type ReferralSaasAccountMembershipPostureResponse,
+  type ReferralSaasAccountCampaignListResponse,
   type ReferralSaasAccountRegistryResponse,
   type ReferralSaasAccountCampaignReadinessResponse,
   type ReferralSaasMembershipActivationReadinessResponse,
@@ -37,6 +39,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   getReferralSaasAccountMembershipPosture: vi.fn(),
   getReferralSaasMembershipActivationReadiness: vi.fn(),
   getReferralSaasTechnicalSetupReadiness: vi.fn(),
+  listReferralSaasAccountCampaigns: vi.fn(),
   listReferralSaasAccounts: vi.fn(),
   recordReferralSaasMembershipInvitationIntent: vi.fn(),
   requestReferralSaasMembershipInvitationDelivery: vi.fn(),
@@ -50,6 +53,7 @@ const mockedGetReferralSaasAccountCampaignReadiness = vi.mocked(getReferralSaasA
 const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
 const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferralSaasMembershipActivationReadiness);
 const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTechnicalSetupReadiness);
+const mockedListReferralSaasAccountCampaigns = vi.mocked(listReferralSaasAccountCampaigns);
 const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordReferralSaasMembershipInvitationIntent);
 const mockedRequestReferralSaasMembershipInvitationDelivery = vi.mocked(requestReferralSaasMembershipInvitationDelivery);
@@ -525,6 +529,54 @@ function mockCampaignReadiness(): ReferralSaasAccountCampaignReadinessResponse {
   };
 }
 
+function mockCampaignList(): ReferralSaasAccountCampaignListResponse {
+  return {
+    status: "ok",
+    context: "setup",
+    account: {
+      accountId: "acct-gabs",
+      accountCode: "ACC-2201",
+      accountName: "Gaborone Partners",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "APPROVED",
+    },
+    count: 2,
+    campaigns: [
+      {
+        campaignCode: "CAMP001",
+        name: "Summer Referrals",
+        segment: "REFERRAL",
+        status: "ACTIVE",
+        lifecycle: "ACTIVE",
+        startsAt: "2026-07-01T00:00:00+00:00",
+        endsAt: null,
+        maxUses: 100,
+        usesCount: 7,
+        policyStatus: "ACTIVE_POLICY",
+      },
+      {
+        campaignCode: "CAMP002",
+        name: "Partner Pilot",
+        segment: "PARTNER",
+        status: "DRAFT",
+        lifecycle: "DRAFT",
+        startsAt: null,
+        endsAt: null,
+        maxUses: null,
+        usesCount: 0,
+        policyStatus: "NO_ACTIVE_POLICY",
+      },
+    ],
+    guardrail: "Read-only Referral SaaS customer-scoped campaign list.",
+    redactions: ["internal_tenant_identifier"],
+    no_campaign_mutation_confirmed: true,
+    no_policy_write_confirmed: true,
+    no_link_generation_confirmed: true,
+    no_campaign_activation_confirmed: true,
+    no_money_movement_confirmed: true,
+  };
+}
+
 describe("ReferralSaasAccountMaintenancePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -533,6 +585,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockMembershipPosture());
     mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockMembershipActivationReadiness());
     mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadiness());
+    mockedListReferralSaasAccountCampaigns.mockResolvedValue(mockCampaignList());
     mockedGetReferralSaasAccountCampaignReadiness.mockResolvedValue(mockCampaignReadiness());
     mockedListReferralSaasAccounts.mockResolvedValue(mockAccountRegistry());
     mockedRecordReferralSaasMembershipInvitationIntent.mockResolvedValue({
@@ -929,7 +982,10 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByRole("heading", { name: "Campaigns" })).toBeInTheDocument();
     expect(screen.getByText(/Check campaign readiness inside this customer profile/i)).toBeInTheDocument();
     expect(screen.getByText("No tenant code entry")).toBeInTheDocument();
-    expect(screen.getByLabelText("Campaign code")).toHaveValue("CAMP001");
+    expect(await screen.findByText("Campaigns for this customer")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Summer Referrals" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Partner Pilot" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Selected campaign code")).toHaveValue("CAMP001"));
     expect(await screen.findByText("Campaign posture")).toBeInTheDocument();
     expect(screen.getByText("Ready With Warnings")).toBeInTheDocument();
     expect(screen.getByText("Reporting Baseline Pending")).toBeInTheDocument();
@@ -945,6 +1001,13 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       context: "setup",
       opportunityId: "",
       includeEvidence: true,
+    });
+    expect(mockedListReferralSaasAccountCampaigns).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      refType: "external_tenant_ref",
+      externalRef: "gabs-platform",
+      context: "setup",
+      limit: 50,
     });
     expect(JSON.stringify(mockedGetReferralSaasAccountCampaignReadiness.mock.calls)).not.toMatch(
       /tenantCode|tenant_code|activateCampaign|money/i,

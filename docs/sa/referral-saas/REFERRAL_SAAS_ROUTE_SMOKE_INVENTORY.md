@@ -72,6 +72,8 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Read-only product account | GET | `/v1/referral-saas/accounts/membership-posture` | Referral SaaS account membership posture wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/membership-activation-readiness` | Referral SaaS membership activation readiness wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/technical-setup-readiness` | Referral SaaS technical setup readiness wrapper |
+| Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/campaigns` | Referral SaaS customer-scoped campaign list wrapper |
+| Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}` | Referral SaaS customer-scoped campaign read wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/readiness` | Referral SaaS customer-scoped campaign readiness wrapper |
 | Read-only product report | GET | `/v1/referral-saas/reports/{report_type}` | Referral SaaS report wrapper |
 | Inline product export preview | POST | `/v1/referral-saas/reports/{report_type}/exports/preview` | Referral SaaS export payload preview |
@@ -107,6 +109,8 @@ read-only or side-effect-free `/v1/referral-saas/*` product wrappers:
 - `GET /v1/referral-saas/accounts/membership-posture`
 - `GET /v1/referral-saas/accounts/{account_ref}/membership-activation-readiness`
 - `GET /v1/referral-saas/accounts/{account_ref}/technical-setup-readiness`
+- `GET /v1/referral-saas/accounts/{account_ref}/campaigns`
+- `GET /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}`
 - `GET /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/readiness`
 - `GET /v1/referral-saas/reports/{report_type}`
 - `POST /v1/referral-saas/reports/{report_type}/exports/preview`

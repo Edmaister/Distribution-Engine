@@ -26,6 +26,7 @@ from services.referral_saas_account_setup_service import (
     AccountSetupInvalidDraftState,
     DurableAccountSetupResult,
 )
+from services.referral_saas_campaign_service import ReferralSaasCampaignSummary
 from services.referral_saas_account_membership_service import (
     MembershipActivationRequestResult,
     MembershipInvitationDuplicate,
@@ -156,6 +157,25 @@ def _profile_result(**overrides) -> AccountProfileMaintenanceResult:
     }
     values.update(overrides)
     return AccountProfileMaintenanceResult(**values)
+
+
+def _campaign_summary(**overrides) -> ReferralSaasCampaignSummary:
+    values = {
+        "campaign_code": "CAMP001",
+        "name": "Summer Referrals",
+        "segment": "REFERRAL",
+        "status": "ACTIVE",
+        "lifecycle": "ACTIVE",
+        "starts_at": "2026-07-01T00:00:00+00:00",
+        "ends_at": None,
+        "max_uses": 100,
+        "uses_count": 7,
+        "policy_status": "ACTIVE_POLICY",
+        "created_at": "2026-07-01T00:00:00+00:00",
+        "updated_at": "2026-07-02T00:00:00+00:00",
+    }
+    values.update(overrides)
+    return ReferralSaasCampaignSummary(**values)
 
 
 async def test_referral_saas_account_admin_can_create_account_from_draft(monkeypatch):
@@ -1096,6 +1116,175 @@ async def test_referral_saas_account_admin_can_read_customer_scoped_campaign_rea
             "include_evidence": True,
         }
     ]
+
+
+async def test_referral_saas_account_admin_can_list_customer_scoped_campaigns(
+    monkeypatch,
+):
+    resolve_calls: list[dict] = []
+    campaign_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    async def fake_list_referral_saas_account_campaigns(**kwargs):
+        campaign_calls.append(kwargs)
+        return [_campaign_summary()]
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_account_campaigns",
+        fake_list_referral_saas_account_campaigns,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/campaigns",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+                "limit": 25,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["count"] == 1
+    assert body["campaigns"][0]["campaignCode"] == "CAMP001"
+    assert body["campaigns"][0]["policyStatus"] == "ACTIVE_POLICY"
+    assert body["no_campaign_mutation_confirmed"] is True
+    assert body["no_policy_write_confirmed"] is True
+    assert body["no_link_generation_confirmed"] is True
+    assert body["no_campaign_activation_confirmed"] is True
+    assert body["no_money_movement_confirmed"] is True
+    assert "tenantCode" not in str(body)
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert campaign_calls == [{"tenant_code": "FNB", "limit": 25}]
+
+
+async def test_referral_saas_account_admin_can_read_customer_scoped_campaign(
+    monkeypatch,
+):
+    campaign_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(tenant_code="FNB")
+
+    async def fake_get_referral_saas_account_campaign(**kwargs):
+        campaign_calls.append(kwargs)
+        return _campaign_summary(campaign_code="CAMP002", status="NEEDS_POLICY")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_account_campaign",
+        fake_get_referral_saas_account_campaign,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP002",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["campaign"]["campaignCode"] == "CAMP002"
+    assert body["campaign"]["status"] == "NEEDS_POLICY"
+    assert body["redactions"] == ["internal_tenant_identifier"]
+    assert body["no_campaign_mutation_confirmed"] is True
+    assert "tenantCode" not in str(body)
+    assert campaign_calls == [{"tenant_code": "FNB", "campaign_code": "CAMP002"}]
+
+
+async def test_referral_saas_account_campaign_list_rejects_path_scope_mismatch(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-other/campaigns",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_SCOPE"
+    assert detail["no_invite_delivery_confirmed"] is True
+    assert detail["no_auth_claim_change_confirmed"] is True
+
+
+async def test_referral_saas_account_campaign_read_maps_missing_campaign(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(tenant_code="FNB")
+
+    async def fake_get_referral_saas_account_campaign(**kwargs):
+        return None
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_account_campaign",
+        fake_get_referral_saas_account_campaign,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/campaigns/UNKNOWN",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 404
+    detail = response.json()["detail"]
+    assert detail["code"] == "campaign_not_found"
+    assert detail["redactions"] == ["internal_tenant_identifier"]
 
 
 async def test_referral_saas_account_campaign_readiness_rejects_path_scope_mismatch(
