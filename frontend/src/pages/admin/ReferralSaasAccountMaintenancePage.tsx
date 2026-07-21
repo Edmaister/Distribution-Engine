@@ -1000,6 +1000,9 @@ export function ReferralSaasAccountMaintenancePage() {
                               <div className="table-subtext">
                                 Invite delivery: {formatDisplay(getValue(row, ["deliveryReadiness"], "Blocked"))}
                               </div>
+                              <div className="table-subtext">
+                                Contact: {formatDisplay(getValue(row, ["recipientContactStatus"], "Contact reference missing"))}
+                              </div>
                             </div>
                           ),
                         },
@@ -1027,6 +1030,7 @@ export function ReferralSaasAccountMaintenancePage() {
                             <div>
                               <strong>{formatDisplay(getValue(row, ["displayName"], "Named person"))}</strong>
                               <div className="table-subtext">{formatDisplay(getValue(row, ["subject"], "No email identity returned"))}</div>
+                              <div className="table-subtext">{formatDisplay(getValue(row, ["recipientContactStatus"], "Contact reference missing"))}</div>
                             </div>
                           ),
                         },

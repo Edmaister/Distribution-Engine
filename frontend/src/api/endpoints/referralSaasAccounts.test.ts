@@ -227,6 +227,7 @@ describe("referralSaasAccounts endpoint client", () => {
             roleFamily: "DISTRIBUTION_ADMIN",
             membershipStatus: "INVITED",
             deliveryStatus: "DELIVERY_NOT_CONFIGURED",
+            recipientContactStatus: "CONTACT_REFERENCE_PRESENT",
             deliveryReadiness: "BLOCKED",
             activationReadiness: "BLOCKED",
             blockers: ["DELIVERY_PROVIDER_NOT_CONFIGURED"],

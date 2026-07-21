@@ -236,6 +236,7 @@ class MembershipPersonSummary:
     permission_set: str
     status: str
     delivery_status: str
+    recipient_contact_status: str
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
@@ -246,6 +247,7 @@ class MembershipPersonSummary:
             "permissionSet": self.permission_set,
             "status": self.status,
             "deliveryStatus": self.delivery_status,
+            "recipientContactStatus": self.recipient_contact_status,
         }
 
 
@@ -292,6 +294,7 @@ class MembershipActivationReadinessItem:
     role_family: str
     membership_status: str
     delivery_status: str
+    recipient_contact_status: str
     delivery_readiness: str
     activation_readiness: str
     blockers: tuple[str, ...]
@@ -304,6 +307,7 @@ class MembershipActivationReadinessItem:
             "roleFamily": self.role_family,
             "membershipStatus": self.membership_status,
             "deliveryStatus": self.delivery_status,
+            "recipientContactStatus": self.recipient_contact_status,
             "deliveryReadiness": self.delivery_readiness,
             "activationReadiness": self.activation_readiness,
             "blockers": list(self.blockers),
@@ -374,6 +378,14 @@ async def get_referral_saas_account_membership_posture(
                 END AS actor_type,
                 actor_user.subject AS user_subject,
                 actor_user.display_name AS user_display_name,
+                CASE
+                    WHEN actor_user.email_hash IS NOT NULL
+                         AND actor_user.email_hash <> ''
+                    THEN 'CONTACT_REFERENCE_PRESENT'
+                    WHEN platform_memberships.client_id IS NOT NULL
+                    THEN 'CLIENT_CONTACT_REFERENCE_NOT_REQUIRED'
+                    ELSE 'CONTACT_REFERENCE_MISSING'
+                END AS recipient_contact_status,
                 platform_memberships.client_id AS client_id,
                 CASE
                     WHEN $3::text <> '' AND platform_memberships.client_id = $3 THEN TRUE
@@ -1112,6 +1124,10 @@ def _membership_person_summaries(
                     _optional_text(row.get("delivery_status"))
                     or "DELIVERY_NOT_CONFIGURED"
                 ),
+                recipient_contact_status=(
+                    _optional_text(row.get("recipient_contact_status"))
+                    or "CONTACT_REFERENCE_MISSING"
+                ),
             )
         )
     return summaries
@@ -1135,6 +1151,7 @@ def _activation_readiness_item(
             role_family=membership.role_family,
             membership_status=membership_status,
             delivery_status=delivery_status or "NOT_REQUIRED",
+            recipient_contact_status=membership.recipient_contact_status,
             delivery_readiness="DELIVERY_NOT_REQUIRED",
             activation_readiness="ACTIVE",
             blockers=(),
@@ -1148,6 +1165,7 @@ def _activation_readiness_item(
             role_family=membership.role_family,
             membership_status=membership_status,
             delivery_status=delivery_status or "DELIVERY_NOT_CONFIGURED",
+            recipient_contact_status=membership.recipient_contact_status,
             delivery_readiness="BLOCKED",
             activation_readiness="BLOCKED",
             blockers=(f"MEMBERSHIP_{membership_status}",),
@@ -1156,6 +1174,8 @@ def _activation_readiness_item(
 
     if delivery_status in {"", "DELIVERY_NOT_CONFIGURED"}:
         blockers.append("DELIVERY_PROVIDER_NOT_CONFIGURED")
+    if membership.recipient_contact_status == "CONTACT_REFERENCE_MISSING":
+        blockers.append("RECIPIENT_CONTACT_REFERENCE_MISSING")
 
     activation_blockers = list(blockers)
     if account_status != "ACTIVE":
@@ -1174,6 +1194,7 @@ def _activation_readiness_item(
         role_family=membership.role_family,
         membership_status=membership_status,
         delivery_status=delivery_status or "DELIVERY_NOT_CONFIGURED",
+        recipient_contact_status=membership.recipient_contact_status,
         delivery_readiness=(
             "READY_TO_REQUEST_DELIVERY" if not blockers else "BLOCKED"
         ),
@@ -1198,6 +1219,8 @@ def _missing_required_role_families(
 
 
 def _activation_next_action(blockers: list[str]) -> str:
+    if "RECIPIENT_CONTACT_REFERENCE_MISSING" in blockers:
+        return "Add a safe work email contact reference before invite delivery can be requested."
     if "DELIVERY_PROVIDER_NOT_CONFIGURED" in blockers:
         return "Configure an approved invitation delivery provider before sending invites."
     if "ACCOUNT_NOT_ACTIVE" in blockers:

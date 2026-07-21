@@ -309,6 +309,7 @@ function mockMembershipPosture(): ReferralSaasAccountMembershipPostureResponse {
           permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
           status: "INVITED",
           deliveryStatus: "DELIVERY_NOT_CONFIGURED",
+          recipientContactStatus: "CONTACT_REFERENCE_PRESENT",
         },
       ],
       currentActor: {
@@ -355,6 +356,7 @@ function mockMembershipActivationReadiness(): ReferralSaasMembershipActivationRe
           roleFamily: "DISTRIBUTION_ADMIN",
           membershipStatus: "INVITED",
           deliveryStatus: "DELIVERY_NOT_CONFIGURED",
+          recipientContactStatus: "CONTACT_REFERENCE_PRESENT",
           deliveryReadiness: "BLOCKED",
           activationReadiness: "BLOCKED",
           blockers: ["DELIVERY_PROVIDER_NOT_CONFIGURED"],

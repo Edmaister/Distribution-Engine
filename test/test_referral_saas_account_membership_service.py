@@ -19,6 +19,7 @@ def _row(**overrides):
         "delivery_status": "DELIVERY_NOT_CONFIGURED",
         "user_subject": None,
         "user_display_name": None,
+        "recipient_contact_status": "CONTACT_REFERENCE_MISSING",
         "client_id": "client-1",
         "is_current_actor": False,
     }
@@ -106,6 +107,7 @@ async def test_membership_posture_confirms_active_current_actor(monkeypatch):
                     actor_type="USER",
                     user_subject="owner@example.test",
                     user_display_name="Setup Owner",
+                    recipient_contact_status="CONTACT_REFERENCE_PRESENT",
                     is_current_actor=True,
                 ),
                 _row(role_family="SUPPORT", status="INVITED"),
@@ -156,6 +158,7 @@ async def test_membership_posture_confirms_active_current_actor(monkeypatch):
         "permissionSet": "ACCOUNT_SETUP_ADMIN",
         "status": "ACTIVE",
         "deliveryStatus": "DELIVERY_NOT_CONFIGURED",
+        "recipientContactStatus": "CONTACT_REFERENCE_PRESENT",
     }
 
 
@@ -223,6 +226,7 @@ def _membership(**overrides):
         "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
         "status": "INVITED",
         "delivery_status": "DELIVERY_NOT_CONFIGURED",
+        "recipient_contact_status": "CONTACT_REFERENCE_PRESENT",
     }
     values.update(overrides)
     return svc.MembershipPersonSummary(**values)
@@ -268,11 +272,42 @@ async def test_membership_activation_readiness_explains_invited_blockers():
         safe_payload["items"][0]["nextAction"]
         == "Configure an approved invitation delivery provider before sending invites."
     )
+    assert safe_payload["items"][0]["recipientContactStatus"] == "CONTACT_REFERENCE_PRESENT"
     assert safe_payload["items"][1]["blockers"] == [
         "ACCOUNT_NOT_ACTIVE",
         "TENANT_LINK_NOT_ACTIVE",
         "IDENTITY_ACCEPTANCE_NOT_RECORDED",
     ]
+
+
+async def test_membership_activation_readiness_blocks_missing_contact_reference():
+    readiness = svc.build_membership_activation_readiness(
+        posture=_posture_with_memberships(
+            _membership(
+                subject="owner@example.test",
+                display_name="Setup Owner",
+                recipient_contact_status="CONTACT_REFERENCE_MISSING",
+            ),
+        ),
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+    )
+
+    item = readiness.to_safe_dict()["items"][0]
+
+    assert item["recipientContactStatus"] == "CONTACT_REFERENCE_MISSING"
+    assert item["deliveryReadiness"] == "BLOCKED"
+    assert item["blockers"] == [
+        "DELIVERY_PROVIDER_NOT_CONFIGURED",
+        "RECIPIENT_CONTACT_REFERENCE_MISSING",
+        "IDENTITY_ACCEPTANCE_NOT_RECORDED",
+        "INVITATION_NOT_DELIVERED",
+    ]
+    assert (
+        item["nextAction"]
+        == "Add a safe work email contact reference before invite delivery can be requested."
+    )
 
 
 async def test_membership_activation_readiness_reports_missing_required_roles():

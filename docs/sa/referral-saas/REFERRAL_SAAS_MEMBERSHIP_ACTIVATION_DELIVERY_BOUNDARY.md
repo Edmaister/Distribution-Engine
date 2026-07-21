@@ -69,6 +69,12 @@ reference scoped for Referral SaaS invitation delivery. This does not send
 email or activate memberships; it only makes the provider approval requirement
 visible in Technical Setup.
 
+TASK-247 implementation note: People and Access activation readiness now exposes
+safe recipient contact readiness from existing hashed contact evidence. Product
+responses show statuses such as `CONTACT_REFERENCE_PRESENT` or
+`CONTACT_REFERENCE_MISSING`, but they do not expose the email hash, raw email,
+provider secrets, user identifiers, or internal tenant identifiers.
+
 Future request shape:
 
 ```json
@@ -99,6 +105,8 @@ Required delivery gates:
   archived.
 - External reference is `ACTIVE`.
 - Delivery provider is configured, approved, and scoped for Referral SaaS.
+- Recipient contact evidence exists as a safe reference; raw email is not
+  persisted or returned by product responses.
 - Recipient data is hashed/redacted in product responses.
 - Idempotency key and payload hash are stored for replay/conflict detection.
 - Audit evidence records provider reference, channel, template reference,
