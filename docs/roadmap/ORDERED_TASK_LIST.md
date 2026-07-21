@@ -5239,6 +5239,31 @@ Rollback notes: Remove the activation readiness service projection/route/API wra
 Explicit non-goals: Do not add schema, migrations, invitation delivery provider integration, email delivery, identity-provider writes, membership activation, seat assignment, role activation, auth/session claim changes, account lifecycle commands, external-reference rotation, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: People and Access tells the operator why customer access is not active yet and what to do next, using a read-only customer-scoped product wrapper. Priority: P0.
 
+## TASK-243: Add Referral SaaS invitation delivery request boundary
+
+Status: Complete (2026-07-21). Output: `services/referral_saas_account_membership_service.py`; `apps/api/routers/referral_saas_accounts.py`; `scripts/referral_saas_route_smoke_plan.py`; `test/test_referral_saas_account_membership_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; `test/test_referral_saas_route_smoke_plan.py`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_DELIVERY_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses durable account resolution, existing platform membership schema, account audit events, idempotency hashing, product route smoke inventory, and Referral SaaS account API wrapper patterns. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile People and Access; invitation delivery boundary; account audit/idempotency posture.
+Objective: Add a customer/account-scoped invitation delivery request boundary that validates the selected account and invited membership, records blocked provider evidence, and returns safe provider-not-configured guidance until an approved delivery provider exists.
+Why now: TASK-242 exposed why invited people are not active yet. The next production-grade slice is to make invite delivery a real audited command boundary without pretending that email delivery, login activation, seats, or auth-claim changes already exist.
+Files involved: Membership service, Referral SaaS account API router, route smoke plan/inventory, service/API/route tests, roadmap, and gap matrix.
+Database/schema impact: None.
+Backend impact: Adds `POST /v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery`, which records a blocked account audit event when provider delivery is requested but no approved provider is configured.
+Frontend impact: None in this task; the boundary is intentionally not surfaced as a primary UI action until Technical Setup/provider configuration exists.
+API impact: Adds a seeded local/staging Referral SaaS product command route with account-scope matching, membership-scope validation, idempotency conflict/replay checks, provider/channel/template/recipient-hash validation, redactions, and no-live-action guardrails.
+Tests to add/update: Service command tests, API route tests, route smoke inventory test, and route smoke plan test.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_account_membership_service.py test\api\test_referral_saas_accounts_api.py test\test_referral_saas_route_smoke_inventory.py test\test_referral_saas_route_smoke_plan.py`; `git diff --check`.
+Acceptance criteria: Delivery request validates an invited membership inside the selected account scope; same idempotency key replays the same safe blocked result; changed payload with same idempotency key conflicts; non-invited memberships are rejected; unsafe live-action payload fields are rejected; audit evidence is recorded as blocked provider-not-configured state; response redacts internal tenant identifiers, recipient hashes, provider secrets, and idempotency hashes; no email delivery, membership activation, seat assignment, auth/session claim change, credential creation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-214; TASK-237; TASK-242.
+Blocked by: Approved delivery provider configuration/integration for real invite delivery.
+Risk level: Medium.
+Rollback notes: Remove the delivery request service/route and restore smoke inventory/plan docs to the previous surface.
+Explicit non-goals: Do not implement email provider delivery, user login activation, identity-provider writes, seat assignment, role activation, auth/session claim changes, account activation, external-reference rotation, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has a real audited invitation delivery request boundary that safely explains provider-not-configured state before live delivery is built. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

@@ -214,6 +214,7 @@ greenfield referral construction.
 106. TASK-240: Simplify Account Setup customer workspace language.
 107. TASK-241: Split Customer Profile modules into customer-scoped pages.
 108. TASK-242: Add Referral SaaS membership activation readiness read model.
+109. TASK-243: Add Referral SaaS invitation delivery request boundary.
 
 ## 10/10 Exit Criteria
 
@@ -755,6 +756,17 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - People and Access now has a read-only membership activation readiness view that explains invite-delivery, account, tenant-link, external-reference, identity-acceptance, and missing-responsibility blockers without sending invites, activating users, assigning seats, changing auth claims, or moving money.
+- TASK-243: `services/referral_saas_account_membership_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Referral SaaS now has a customer/account-scoped invitation delivery request boundary that validates the selected account and invited membership, records blocked provider evidence with idempotency and audit posture, and returns a safe `DELIVERY_PROVIDER_NOT_CONFIGURED` result without sending email, activating memberships, assigning seats, changing auth claims, creating credentials, or moving money.
 
 ## Explicit Deferrals
 

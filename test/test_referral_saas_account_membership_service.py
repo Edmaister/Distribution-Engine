@@ -436,6 +436,157 @@ async def test_membership_invitation_intent_accepts_campaign_manager_role(
     assert safe_payload["membership"]["status"] == "INVITED"
 
 
+async def test_membership_invitation_delivery_request_records_blocked_audit(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "membership_id": "membership-1",
+                "status": "INVITED",
+                "role_family": "DISTRIBUTION_ADMIN",
+                "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                "delivery_status": "DELIVERY_NOT_CONFIGURED",
+            },
+            {"account_audit_event_id": "audit-delivery-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.request_referral_saas_membership_invitation_delivery(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        membership_id="membership-1",
+        provider_ref="mail-provider-1",
+        channel="EMAIL",
+        template_ref="referral-saas-account-invite-v1",
+        recipient_hash="recipient-hash",
+        reason_code="CUSTOMER_PROFILE_INVITE_DELIVERY_REQUEST",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+        command_payload={
+            "delivery": {
+                "providerRef": "mail-provider-1",
+                "channel": "EMAIL",
+                "templateRef": "referral-saas-account-invite-v1",
+                "recipientHash": "recipient-hash",
+            }
+        },
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "DELIVERY_PROVIDER_NOT_CONFIGURED"
+    assert safe_payload["membership"]["membershipRef"] == "membership-1"
+    assert safe_payload["membership"]["status"] == "INVITED"
+    assert safe_payload["delivery"] == {
+        "status": "DELIVERY_PROVIDER_NOT_CONFIGURED",
+        "nextAction": "Configure approved invitation delivery provider before sending email invites.",
+        "providerRef": "mail-provider-1",
+        "channel": "EMAIL",
+        "templateRef": "referral-saas-account-invite-v1",
+    }
+    assert safe_payload["idempotency"]["status"] == "RECORDED"
+    assert safe_payload["noInviteDeliveryConfirmed"] is True
+    assert safe_payload["noMembershipActivationConfirmed"] is True
+    assert safe_payload["noAuthClaimChangeConfirmed"] is True
+    assert safe_payload["noSeatAssignmentConfirmed"] is True
+    assert safe_payload["noMoneyMovementConfirmed"] is True
+    assert "recipient_hash" in safe_payload["redactions"]
+    assert "provider_secret" in safe_payload["redactions"]
+
+    joined_queries = "\n".join(call[0] for call in conn.fetchrow_calls)
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+    assert "UPDATE platform_memberships" not in joined_queries
+    assert "platform_seats" not in joined_queries
+
+
+async def test_membership_invitation_delivery_request_replays_matching_idempotency(
+    monkeypatch,
+):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                {
+                    "account_audit_event_id": "audit-delivery-1",
+                    "membership_id": "membership-1",
+                    "evidence_summary": {
+                        "membership_id": "membership-1",
+                        "membership_status": "INVITED",
+                        "role_family": "DISTRIBUTION_ADMIN",
+                        "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                        "provider_ref": "mail-provider-1",
+                        "channel": "EMAIL",
+                        "template_ref": "referral-saas-account-invite-v1",
+                        "command_payload_hash": "payload-hash",
+                    },
+                }
+            ]
+        ),
+    )
+
+    result = await svc.request_referral_saas_membership_invitation_delivery(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        membership_id="membership-1",
+        provider_ref="mail-provider-1",
+        channel="EMAIL",
+        template_ref="referral-saas-account-invite-v1",
+        recipient_hash="recipient-hash",
+        reason_code="CUSTOMER_PROFILE_INVITE_DELIVERY_REQUEST",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+    )
+
+    assert result.to_safe_dict()["idempotency"]["status"] == "REPLAYED"
+
+
+async def test_membership_invitation_delivery_request_rejects_active_membership(
+    monkeypatch,
+):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                None,
+                {
+                    "membership_id": "membership-1",
+                    "status": "ACTIVE",
+                    "role_family": "DISTRIBUTION_ADMIN",
+                    "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                    "delivery_status": "DELIVERED",
+                },
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.MembershipInvitationDeliveryNotInvited):
+        await svc.request_referral_saas_membership_invitation_delivery(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            membership_id="membership-1",
+            provider_ref="mail-provider-1",
+            channel="EMAIL",
+            template_ref="referral-saas-account-invite-v1",
+            recipient_hash="recipient-hash",
+            reason_code="CUSTOMER_PROFILE_INVITE_DELIVERY_REQUEST",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="payload-hash",
+        )
+
+
 async def test_membership_invitation_intent_replays_matching_idempotency_key(
     monkeypatch,
 ):

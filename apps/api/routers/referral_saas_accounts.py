@@ -37,6 +37,8 @@ from services.referral_saas_account_membership_service import (
     MembershipInvitationAccountNotReady,
     MembershipInvitationCommandError,
     MembershipInvitationDuplicate,
+    MembershipInvitationDeliveryNotInvited,
+    MembershipInvitationDeliveryProviderNotConfigured,
     MembershipInvitationIdempotencyConflict,
     MembershipInvitationUnsafePayload,
     MembershipInvitationUnsafeScope,
@@ -44,6 +46,7 @@ from services.referral_saas_account_membership_service import (
     get_referral_saas_membership_activation_readiness,
     get_referral_saas_account_membership_posture,
     record_referral_saas_membership_invitation_intent,
+    request_referral_saas_membership_invitation_delivery,
 )
 from services.onboarding.onboarding_draft_idempotency_service import hash_payload
 from utils.security import require_session_key
@@ -144,6 +147,8 @@ def _membership_invitation_error(exc: MembershipInvitationCommandError) -> HTTPE
         (
             MembershipInvitationAccountNotReady,
             MembershipInvitationDuplicate,
+            MembershipInvitationDeliveryNotInvited,
+            MembershipInvitationDeliveryProviderNotConfigured,
             MembershipInvitationIdempotencyConflict,
         ),
     ):
@@ -364,6 +369,156 @@ async def record_referral_saas_membership_invitation(
         "guardrails": _membership_invitation_guardrails(),
         "redactions": _membership_invitation_redactions(),
         "no_invite_delivery_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery")
+async def request_referral_saas_membership_invitation_delivery_route(
+    account_ref: str,
+    membership_ref: str,
+    payload: dict[str, Any] = Body(default_factory=dict),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+
+    account_scope = payload.get("accountScope") or {}
+    delivery = payload.get("delivery") or {}
+    idempotency_key = _optional_text(payload.get("idempotencyKey"))
+    correlation_id = _optional_text(payload.get("correlationId"))
+    reason_code = (
+        _optional_text(payload.get("reasonCode"))
+        or "CUSTOMER_PROFILE_INVITE_DELIVERY_REQUEST"
+    )
+
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    provider_ref = _optional_text(delivery.get("providerRef"))
+    channel = _optional_text(delivery.get("channel"))
+    template_ref = _optional_text(delivery.get("templateRef"))
+    recipient_hash = _optional_text(delivery.get("recipientHash"))
+
+    if (
+        not ref_type
+        or not external_ref
+        or not idempotency_key
+        or not correlation_id
+        or not provider_ref
+        or not channel
+        or not template_ref
+        or not recipient_hash
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, delivery.providerRef, "
+                    "delivery.channel, delivery.templateRef, delivery.recipientHash, "
+                    "idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": _membership_invitation_guardrails()
+                + ["NO_PROVIDER_SECRET_EXPOSURE"],
+                "redactions": _membership_invitation_redactions()
+                + ["recipient_hash", "provider_secret"],
+                "no_invite_delivery_confirmed": True,
+                "no_membership_activation_confirmed": True,
+                "no_auth_claim_change_confirmed": True,
+                "no_seat_assignment_confirmed": True,
+                "no_money_movement_confirmed": True,
+            },
+        )
+    if context not in REFERRAL_SAAS_ACCOUNT_CONTEXTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope.context must be runtime or setup.",
+            },
+        )
+
+    try:
+        if context == "setup":
+            account = await resolve_setup_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+        else:
+            account = await resolve_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+    except AccountFoundationResolutionError as exc:
+        raise _resolution_error(exc) from exc
+
+    safe_account_ref = _optional_text(account_ref)
+    if safe_account_ref not in {account.account_id, account.account_code}:
+        raise _membership_invitation_error(
+            MembershipInvitationUnsafeScope(
+                "Path account reference does not match resolved account context."
+            )
+        )
+
+    command_payload = {
+        "accountScope": {
+            "accountRef": safe_account_ref,
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": context,
+        },
+        "membershipRef": _optional_text(membership_ref),
+        "delivery": {
+            "providerRef": provider_ref,
+            "channel": channel,
+            "templateRef": template_ref,
+            "recipientHashPresent": bool(recipient_hash),
+        },
+        "reasonCode": reason_code,
+    }
+
+    try:
+        result = await request_referral_saas_membership_invitation_delivery(
+            account_id=account.account_id,
+            tenant_code=account.tenant_code,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            membership_id=membership_ref,
+            provider_ref=provider_ref,
+            channel=channel,
+            template_ref=template_ref,
+            recipient_hash=recipient_hash,
+            reason_code=reason_code,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_MEMBERSHIP_INVITATION_DELIVERY_REQUEST",
+                    "account_ref": safe_account_ref,
+                    "membership_ref": _optional_text(membership_ref),
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            command_payload_hash=hash_payload(command_payload),
+            command_payload=payload,
+            command_actor_ref=_actor_ref(admin_identity),
+            command_actor_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except MembershipInvitationCommandError as exc:
+        raise _membership_invitation_error(exc) from exc
+
+    return {
+        "status": "blocked",
+        "context": context,
+        "account": account.to_safe_dict(),
+        "deliveryRequest": result.to_safe_dict(),
+        "guardrails": _membership_invitation_guardrails()
+        + ["NO_PROVIDER_SECRET_EXPOSURE"],
+        "redactions": _membership_invitation_redactions()
+        + ["recipient_hash", "provider_secret"],
+        "no_invite_delivery_confirmed": True,
+        "no_membership_activation_confirmed": True,
         "no_auth_claim_change_confirmed": True,
         "no_seat_assignment_confirmed": True,
         "no_money_movement_confirmed": True,
