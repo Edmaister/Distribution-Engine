@@ -5339,6 +5339,31 @@ Rollback notes: Remove the provider approval fields from settings/readiness, res
 Explicit non-goals: Do not implement provider credential creation, live email delivery, webhook dispatch, identity-provider writes, membership activation, seat assignment, role activation, auth/session claim changes, account activation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS Technical Setup clearly shows whether an Email provider is configured and approved for Referral SaaS invitation delivery before live delivery or activation tasks begin. Priority: P0.
 
+## TASK-247: Add Referral SaaS membership recipient readiness
+
+Status: Complete (2026-07-21). Output: `services/referral_saas_account_membership_service.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `test/test_referral_saas_account_membership_service.py`; `test/api/test_referral_saas_accounts_api.py`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_DELIVERY_BOUNDARY.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_DELIVERY_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses existing hashed platform user contact evidence; no raw-email storage or new contact table is introduced. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile People and Access; membership activation readiness; safe invitation delivery prerequisites.
+Objective: Make safe recipient contact readiness explicit before any live invite delivery or membership activation implementation.
+Why now: TASK-246 made provider approval explicit, but invite delivery also needs a safe recipient/contact reference. Operators need to see whether each named access intent has contact evidence without exposing email hashes or sending email.
+Files involved: Membership service/read models, Referral SaaS account API response fixtures, People and Access UI, service/API/frontend tests, activation/delivery boundary doc, roadmap, and gap matrix.
+Database/schema impact: None.
+Backend impact: Membership posture now derives `recipientContactStatus` from existing `platform_users.email_hash` evidence; activation readiness blocks future delivery when contact evidence is missing.
+Frontend impact: People and Access readiness tables now show contact readiness for each named person.
+API impact: Existing membership posture and activation-readiness responses include `recipientContactStatus`; no new route.
+Tests to add/update: Membership service readiness test for missing contact evidence, API response fixtures, frontend endpoint/page tests.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_account_membership_service.py test\api\test_referral_saas_accounts_api.py`; `npm.cmd test -- --run src/api/endpoints/referralSaasAccounts.test.ts src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `npm.cmd run lint -- --quiet`; `git diff --check`.
+Acceptance criteria: People and Access exposes contact readiness without exposing raw email or email hashes; future delivery is blocked when safe contact evidence is missing; existing invite intent, duplicate handling, provider approval, and activation-readiness behavior remain intact; no invite email, membership activation, seat assignment, auth/session claim change, credential creation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-242; TASK-243; TASK-246.
+Blocked by: Guarded live invite delivery command integration and membership activation command.
+Risk level: Medium.
+Rollback notes: Remove `recipientContactStatus` from membership read models, frontend contract/UI, tests, and docs; activation readiness returns to provider-only delivery blocking.
+Explicit non-goals: Do not implement raw-email storage, live email delivery, provider credentials, webhook dispatch, identity-provider writes, membership activation, seat assignment, role activation, auth/session claim changes, account activation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS People and Access clearly shows whether each named person has safe contact evidence for future invite delivery while preserving all no-live-action guardrails. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

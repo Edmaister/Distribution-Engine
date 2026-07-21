@@ -1061,6 +1061,7 @@ async def test_referral_saas_account_reader_can_read_membership_activation_readi
                         "roleFamily": "DISTRIBUTION_ADMIN",
                         "membershipStatus": "INVITED",
                         "deliveryStatus": "DELIVERY_NOT_CONFIGURED",
+                        "recipientContactStatus": "CONTACT_REFERENCE_PRESENT",
                         "deliveryReadiness": "BLOCKED",
                         "activationReadiness": "BLOCKED",
                         "blockers": ["DELIVERY_PROVIDER_NOT_CONFIGURED"],

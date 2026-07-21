@@ -84,6 +84,7 @@ export type ReferralSaasMembershipPersonSummary = {
   permissionSet: string;
   status: string;
   deliveryStatus: string;
+  recipientContactStatus: string;
 };
 
 export type ReferralSaasAccountMembershipPosture = {
@@ -119,6 +120,7 @@ export type ReferralSaasMembershipActivationReadinessItem = {
   roleFamily: string;
   membershipStatus: string;
   deliveryStatus: string;
+  recipientContactStatus: string;
   deliveryReadiness: string;
   activationReadiness: string;
   blockers: string[];

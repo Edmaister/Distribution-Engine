@@ -218,6 +218,7 @@ greenfield referral construction.
 110. TASK-244: Add Referral SaaS technical setup readiness read model.
 111. TASK-245: Add Referral SaaS customer technical setup page.
 112. TASK-246: Add Referral SaaS invite provider approval readiness.
+113. TASK-247: Add Referral SaaS membership recipient readiness.
 
 ## 10/10 Exit Criteria
 
@@ -806,6 +807,17 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Referral SaaS technical setup now distinguishes channel provider configuration from approved Referral SaaS invite-provider scope. Email can be configured at the shared channel layer while invite delivery remains blocked until an approved provider reference and Referral SaaS scope are present; no credentials are created, no invites are sent, no memberships are activated, and no money moves.
+- TASK-247: `services/referral_saas_account_membership_service.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_DELIVERY_BOUNDARY.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - People and Access now exposes safe recipient contact readiness from existing hashed contact evidence. Activation readiness and People tables show whether a future invite has a contact reference without exposing email hashes or sending email; live delivery, activation, seats, auth claims, credentials, campaigns, go-live, billing, money movement, and DLaaS marketplace behavior remain blocked.
 
 ## Explicit Deferrals
 
