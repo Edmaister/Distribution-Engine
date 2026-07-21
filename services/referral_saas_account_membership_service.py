@@ -8,6 +8,9 @@ from utils.db import db_connection
 
 MEMBERSHIP_STATUSES = ("INVITED", "ACTIVE", "SUSPENDED", "DISABLED", "ARCHIVED")
 MEMBERSHIP_INVITATION_EVENT: Final = "REFERRAL_SAAS_MEMBERSHIP_INVITATION_INTENT"
+MEMBERSHIP_INVITATION_DELIVERY_EVENT: Final = (
+    "REFERRAL_SAAS_MEMBERSHIP_INVITATION_DELIVERY_REQUEST"
+)
 EVENT_RECORDED: Final = "RECORDED"
 EVENT_DUPLICATE: Final = "DUPLICATE"
 USER_ACTOR: Final = "USER"
@@ -80,6 +83,16 @@ class MembershipInvitationIdempotencyConflict(MembershipInvitationCommandError):
     safe_code = "IDEMPOTENCY_CONFLICT"
 
 
+class MembershipInvitationDeliveryNotInvited(MembershipInvitationCommandError):
+    safe_code = "DELIVERY_REJECTED_MEMBERSHIP_NOT_INVITED"
+
+
+class MembershipInvitationDeliveryProviderNotConfigured(
+    MembershipInvitationCommandError
+):
+    safe_code = "DELIVERY_PROVIDER_NOT_CONFIGURED"
+
+
 @dataclass(frozen=True)
 class MembershipInvitationIntentResult:
     command_status: str
@@ -117,6 +130,59 @@ class MembershipInvitationIntentResult:
             "guardrails": list(self.guardrails),
             "redactions": list(self.redactions),
             "noInviteDeliveryConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class MembershipInvitationDeliveryRequestResult:
+    command_status: str
+    account_id: str
+    membership_id: str
+    membership_status: str
+    role_family: str
+    permission_set: str
+    delivery_status: str
+    delivery_next_action: str
+    provider_ref: str
+    channel: str
+    template_ref: str
+    idempotency_status: str
+    audit_event_id: str | None
+    guardrails: tuple[str, ...] = INVITATION_GUARDRAILS + (
+        "NO_PROVIDER_SECRET_EXPOSURE",
+    )
+    redactions: tuple[str, ...] = INVITATION_REDACTIONS + (
+        "recipient_hash",
+        "provider_secret",
+    )
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "membership": {
+                "membershipRef": self.membership_id,
+                "status": self.membership_status,
+                "roleFamily": self.role_family,
+                "permissionSet": self.permission_set,
+            },
+            "delivery": {
+                "status": self.delivery_status,
+                "nextAction": self.delivery_next_action,
+                "providerRef": self.provider_ref,
+                "channel": self.channel,
+                "templateRef": self.template_ref,
+            },
+            "idempotency": {
+                "status": self.idempotency_status,
+            },
+            "auditEventId": self.audit_event_id,
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noInviteDeliveryConfirmed": True,
+            "noMembershipActivationConfirmed": True,
             "noAuthClaimChangeConfirmed": True,
             "noSeatAssignmentConfirmed": True,
             "noMoneyMovementConfirmed": True,
@@ -732,6 +798,207 @@ async def record_referral_saas_membership_invitation_intent(
     )
 
 
+async def request_referral_saas_membership_invitation_delivery(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    membership_id: str,
+    provider_ref: str,
+    channel: str,
+    template_ref: str,
+    recipient_hash: str,
+    reason_code: str,
+    correlation_id: str,
+    idempotency_key_hash: str,
+    command_payload_hash: str,
+    command_payload: dict[str, Any] | None = None,
+    command_actor_ref: str | None = None,
+    command_actor_role: str | None = None,
+) -> MembershipInvitationDeliveryRequestResult:
+    safe_account_id = _required_account_id(account_id)
+    safe_tenant_code = _required_text(tenant_code)
+    safe_account_tenant_id = _optional_text(account_tenant_id) or None
+    safe_external_ref_id = _optional_text(external_ref_id) or None
+    safe_membership_id = _required_text(membership_id)
+    safe_provider_ref = _required_text(provider_ref)
+    safe_channel = _required_choice(channel, {"EMAIL"})
+    safe_template_ref = _required_text(template_ref)
+    safe_recipient_hash = _required_text(recipient_hash)
+    safe_reason_code = _required_text(reason_code).upper()
+    safe_correlation_id = _required_text(correlation_id)
+    safe_idempotency_hash = _required_text(idempotency_key_hash)
+    safe_payload_hash = _required_text(command_payload_hash)
+    safe_command_payload = command_payload or {}
+
+    _reject_unsafe_delivery_payload(safe_command_payload)
+
+    async with db_connection() as conn:
+        existing_audit = await conn.fetchrow(
+            """
+            SELECT
+                account_audit_event_id,
+                membership_id,
+                evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            MEMBERSHIP_INVITATION_DELIVERY_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_audit:
+            evidence = _as_mapping(existing_audit.get("evidence_summary"))
+            if _optional_text(evidence.get("command_payload_hash")) != safe_payload_hash:
+                raise MembershipInvitationIdempotencyConflict(
+                    "Idempotency key was reused with different invitation delivery content."
+                )
+            return MembershipInvitationDeliveryRequestResult(
+                command_status="DELIVERY_PROVIDER_NOT_CONFIGURED",
+                account_id=safe_account_id,
+                membership_id=_optional_text(evidence.get("membership_id"))
+                or safe_membership_id,
+                membership_status=_optional_text(evidence.get("membership_status"))
+                or "INVITED",
+                role_family=_optional_text(evidence.get("role_family")) or "UNKNOWN",
+                permission_set=_optional_text(evidence.get("permission_set"))
+                or "UNKNOWN",
+                delivery_status="DELIVERY_PROVIDER_NOT_CONFIGURED",
+                delivery_next_action="Configure approved invitation delivery provider before sending email invites.",
+                provider_ref=_optional_text(evidence.get("provider_ref"))
+                or safe_provider_ref,
+                channel=_optional_text(evidence.get("channel")) or safe_channel,
+                template_ref=_optional_text(evidence.get("template_ref"))
+                or safe_template_ref,
+                idempotency_status="REPLAYED",
+                audit_event_id=_optional_text(
+                    existing_audit.get("account_audit_event_id")
+                )
+                or None,
+            )
+
+        membership = await conn.fetchrow(
+            """
+            SELECT
+                membership_id,
+                status,
+                role_family,
+                permission_set,
+                COALESCE(metadata->>'delivery_status', 'DELIVERY_NOT_CONFIGURED')
+                    AS delivery_status
+            FROM platform_memberships
+            WHERE membership_id = $1
+              AND account_id = $2
+              AND (tenant_code = $3 OR tenant_code IS NULL)
+              AND status <> 'ARCHIVED'
+            LIMIT 1
+            """,
+            safe_membership_id,
+            safe_account_id,
+            safe_tenant_code,
+        )
+        if not membership:
+            raise MembershipInvitationUnsafeScope(
+                "Membership reference does not match the resolved account context."
+            )
+
+        membership_status = _normalise_status(membership.get("status"))
+        if membership_status != "INVITED":
+            raise MembershipInvitationDeliveryNotInvited(
+                "Invitation delivery can only be requested for invited memberships."
+            )
+
+        audit_evidence = {
+            "membership_id": safe_membership_id,
+            "membership_status": membership_status,
+            "role_family": _optional_text(membership.get("role_family")),
+            "permission_set": _optional_text(membership.get("permission_set")),
+            "provider_ref": safe_provider_ref,
+            "channel": safe_channel,
+            "template_ref": safe_template_ref,
+            "recipient_hash_present": bool(safe_recipient_hash),
+            "command_payload_hash": safe_payload_hash,
+            "provider_configured": False,
+            "no_email_delivery_confirmed": True,
+            "no_membership_activation_confirmed": True,
+            "no_auth_claim_change_confirmed": True,
+            "no_seat_assignment_confirmed": True,
+            "no_money_movement_confirmed": True,
+        }
+        audit_event = await conn.fetchrow(
+            """
+            INSERT INTO platform_account_audit_events (
+                account_id,
+                account_tenant_id,
+                external_ref_id,
+                membership_id,
+                tenant_code,
+                event_type,
+                event_status,
+                actor_ref,
+                actor_role,
+                previous_status,
+                next_status,
+                reason_code,
+                correlation_id,
+                idempotency_key_hash,
+                evidence_summary,
+                redactions
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, $6, 'BLOCKED', $7, $8,
+                $9, 'DELIVERY_PROVIDER_NOT_CONFIGURED', $10, $11, $12,
+                $13::jsonb, $14::jsonb
+            )
+            RETURNING account_audit_event_id
+            """,
+            safe_account_id,
+            safe_account_tenant_id,
+            safe_external_ref_id,
+            safe_membership_id,
+            safe_tenant_code,
+            MEMBERSHIP_INVITATION_DELIVERY_EVENT,
+            _optional_text(command_actor_ref)
+            or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+            _optional_text(command_actor_role) or "UNKNOWN",
+            _optional_text(membership.get("delivery_status"))
+            or "DELIVERY_NOT_CONFIGURED",
+            safe_reason_code,
+            safe_correlation_id,
+            safe_idempotency_hash,
+            _jsonb(audit_evidence),
+            _jsonb(
+                list(
+                    INVITATION_REDACTIONS
+                    + ("recipient_hash", "provider_secret")
+                )
+            ),
+        )
+
+    return MembershipInvitationDeliveryRequestResult(
+        command_status="DELIVERY_PROVIDER_NOT_CONFIGURED",
+        account_id=safe_account_id,
+        membership_id=safe_membership_id,
+        membership_status=membership_status,
+        role_family=_optional_text(membership.get("role_family")) or "UNKNOWN",
+        permission_set=_optional_text(membership.get("permission_set")) or "UNKNOWN",
+        delivery_status="DELIVERY_PROVIDER_NOT_CONFIGURED",
+        delivery_next_action="Configure approved invitation delivery provider before sending email invites.",
+        provider_ref=safe_provider_ref,
+        channel=safe_channel,
+        template_ref=safe_template_ref,
+        idempotency_status=EVENT_RECORDED,
+        audit_event_id=(
+            str(audit_event["account_audit_event_id"]) if audit_event else None
+        ),
+    )
+
+
 def _current_actor_posture(rows: list[dict[str, Any]]) -> MembershipActorPosture:
     actor_rows = [row for row in rows if bool(row.get("is_current_actor"))]
     active = _first_with_status(actor_rows, "ACTIVE")
@@ -1042,3 +1309,55 @@ def _reject_unsafe_payload(value: Any) -> None:
     elif isinstance(value, list):
         for item in value:
             _reject_unsafe_payload(item)
+
+
+UNSAFE_DELIVERY_PAYLOAD_KEYS: Final = frozenset(
+    {
+        "tenant_code",
+        "tenantCode",
+        "internal_tenant_code",
+        "internalTenantCode",
+        "email",
+        "raw_email",
+        "rawEmail",
+        "password",
+        "secret",
+        "token",
+        "credential",
+        "credentials",
+        "auth_claim",
+        "authClaims",
+        "seat_id",
+        "seatId",
+        "activate",
+        "go_live",
+        "goLive",
+        "campaign_activation",
+        "campaignActivation",
+        "webhook_secret",
+        "webhookSecret",
+        "reward",
+        "funding",
+        "fulfilment",
+        "settlement",
+        "commission",
+        "wallet",
+        "invoice",
+        "payout",
+        "sponsor_billing",
+        "sponsorBilling",
+    }
+)
+
+
+def _reject_unsafe_delivery_payload(value: Any) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if str(key) in UNSAFE_DELIVERY_PAYLOAD_KEYS:
+                raise MembershipInvitationUnsafePayload(
+                    "Invitation delivery payload includes unsafe live-action fields."
+                )
+            _reject_unsafe_delivery_payload(child)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_unsafe_delivery_payload(item)

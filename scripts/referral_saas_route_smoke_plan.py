@@ -442,6 +442,45 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_membership_invitation_delivery_request",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin role",
+        environment_rule="local/staging seeded account only; records blocked delivery request when provider is absent",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "membership_ref",
+            "ref_type",
+            "external_ref",
+            "provider_ref",
+            "recipient_hash",
+            "idempotency_key",
+        ],
+        expected_state_change=(
+            "records account audit evidence for an invitation delivery request "
+            "boundary; does not send email, activate membership, assign seats, "
+            "mutate auth claims, create credentials, or move money"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"delivery":{"providerRef":"{provider_ref}",'
+            '"channel":"EMAIL",'
+            '"templateRef":"referral-saas-account-invite-v1",'
+            '"recipientHash":"{recipient_hash}"},'
+            '"reasonCode":"CUSTOMER_PROFILE_INVITE_DELIVERY_REQUEST",'
+            '"correlationId":"smoke-membership-delivery",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/membership-invitations/{membership_ref}/delivery"'
+        ),
+    ),
+    SmokeRoute(
         name="public_referral_validate",
         method="POST",
         path="/public/referrals/validate",

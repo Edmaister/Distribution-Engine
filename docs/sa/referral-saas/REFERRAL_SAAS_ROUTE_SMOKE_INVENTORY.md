@@ -11,8 +11,12 @@ export preview; TASK-178 adds the read-only operator link/code inspection
 wrapper; TASK-180 adds the operator attribution trace wrapper; TASK-182 adds
 the operator progress/status diagnostics wrapper; TASK-200 adds the read-only
 account resolver wrapper; TASK-227 adds the read-only account registry wrapper.
-No schema, live database, persisted export, or write behavior is introduced by
-this inventory.
+TASK-242 adds membership activation readiness; TASK-243 adds the seeded-only
+invitation delivery request boundary that records blocked provider evidence
+without sending email.
+No schema, live database mutation, or persisted export is introduced by this
+inventory document; seeded write routes remain local/staging-only smoke
+candidates and are classified explicitly below.
 
 ## Boundary
 
@@ -63,6 +67,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Read-only product account | GET | `/v1/referral-saas/accounts` | Referral SaaS account registry wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/resolve` | Referral SaaS account resolver wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/membership-posture` | Referral SaaS account membership posture wrapper |
+| Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/membership-activation-readiness` | Referral SaaS membership activation readiness wrapper |
 | Read-only product report | GET | `/v1/referral-saas/reports/{report_type}` | Referral SaaS report wrapper |
 | Inline product export preview | POST | `/v1/referral-saas/reports/{report_type}/exports/preview` | Referral SaaS export payload preview |
 | Validation-only product export | POST | `/v1/referral-saas/reports/{report_type}/exports/validate` | Referral SaaS export request validation gate |
@@ -79,6 +84,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Seeded local/staging write | POST | `/referrals/referees/ucn` | Referee UCN capture |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/from-draft` | Referral SaaS account foundation create wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations` | Referral SaaS membership invitation intent wrapper |
+| Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery` | Referral SaaS invitation delivery request boundary; records blocked provider evidence only |
 | Seeded local/staging write | PATCH | `/v1/referral-saas/accounts/{account_ref}/profile` | Referral SaaS customer profile settings maintenance wrapper |
 | Seeded local/staging write | POST | `/v1/progress` | Progress ingestion |
 
@@ -93,6 +99,7 @@ read-only or side-effect-free `/v1/referral-saas/*` product wrappers:
 - `GET /v1/referral-saas/accounts`
 - `GET /v1/referral-saas/accounts/resolve`
 - `GET /v1/referral-saas/accounts/membership-posture`
+- `GET /v1/referral-saas/accounts/{account_ref}/membership-activation-readiness`
 - `GET /v1/referral-saas/reports/{report_type}`
 - `POST /v1/referral-saas/reports/{report_type}/exports/preview`
 - `POST /v1/referral-saas/reports/{report_type}/exports/validate`
