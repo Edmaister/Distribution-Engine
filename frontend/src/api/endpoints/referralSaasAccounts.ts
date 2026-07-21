@@ -1,4 +1,5 @@
 import { apiRequest } from "../client";
+import type { CampaignReadinessOperation } from "./adminCampaignReadiness";
 
 export type ReferralSaasAccountResolutionContext = "runtime" | "setup";
 
@@ -219,6 +220,28 @@ export type ReferralSaasTechnicalSetupReadinessResponse = {
   no_membership_activation_confirmed: boolean;
   no_auth_claim_change_confirmed: boolean;
   no_seat_assignment_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
+export type ReferralSaasAccountCampaignReadinessRequest = ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+  campaignCode: string;
+  operation?: CampaignReadinessOperation;
+  opportunityId?: string;
+  includeEvidence?: boolean;
+};
+
+export type ReferralSaasAccountCampaignReadinessResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  readiness: Record<string, unknown>;
+  guardrail: string;
+  redactions: string[];
+  no_campaign_mutation_confirmed: boolean;
+  no_policy_write_confirmed: boolean;
+  no_link_generation_confirmed: boolean;
   no_campaign_activation_confirmed: boolean;
   no_money_movement_confirmed: boolean;
 };
@@ -519,6 +542,33 @@ export function getReferralSaasTechnicalSetupReadiness({
         ref_type: refType,
         external_ref: externalRef.trim(),
         context,
+      },
+    },
+  );
+}
+
+export function getReferralSaasAccountCampaignReadiness({
+  accountRef,
+  campaignCode,
+  refType,
+  externalRef,
+  operation = "CONTROL_PLANE_VIEW",
+  context = "setup",
+  opportunityId,
+  includeEvidence = true,
+}: ReferralSaasAccountCampaignReadinessRequest): Promise<ReferralSaasAccountCampaignReadinessResponse> {
+  return apiRequest<ReferralSaasAccountCampaignReadinessResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaigns/${encodeURIComponent(
+      campaignCode.trim(),
+    )}/readiness`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        operation,
+        context,
+        opportunity_id: opportunityId?.trim() || undefined,
+        include_evidence: includeEvidence,
       },
     },
   );

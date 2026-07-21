@@ -4,6 +4,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
+from services.campaign_readiness_service import get_campaign_readiness
 from services.referral_saas_account_foundation_service import (
     AccountFoundationResolutionError,
     AccountNotResolvable,
@@ -69,6 +70,7 @@ REFERRAL_SAAS_ACCOUNT_READER_ROLES = {
 
 REFERRAL_SAAS_ACCOUNT_CONTEXTS = {"runtime", "setup"}
 MAX_ACCOUNT_LIST_LIMIT = 100
+CAMPAIGN_READINESS_NOT_FOUND_BLOCKERS = {"CAMPAIGN_NOT_FOUND", "TENANT_MISMATCH"}
 
 
 def _require_referral_saas_account_reader(identity: dict[str, Any]) -> dict[str, Any]:
@@ -82,6 +84,14 @@ def _require_referral_saas_account_reader(identity: dict[str, Any]) -> dict[str,
             },
         )
     return identity
+
+
+def _has_readiness_blocker(readiness: dict[str, Any], codes: set[str]) -> bool:
+    return any(
+        str(blocker.get("code") or "").upper() in codes
+        for blocker in readiness.get("blockers", [])
+        if isinstance(blocker, dict)
+    )
 
 
 def _resolution_error(exc: AccountFoundationResolutionError) -> HTTPException:
@@ -1089,6 +1099,121 @@ async def read_referral_saas_technical_setup_readiness(
         "no_membership_activation_confirmed": True,
         "no_auth_claim_change_confirmed": True,
         "no_seat_assignment_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/campaigns/{campaign_code}/readiness")
+async def read_referral_saas_account_campaign_readiness(
+    account_ref: str,
+    campaign_code: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    operation: Annotated[str, Query(min_length=1)] = "CONTROL_PLANE_VIEW",
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    opportunity_id: str | None = Query(default=None),
+    include_evidence: bool = Query(default=True),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+
+    normalised_context = str(context or "").strip().lower()
+    if normalised_context not in REFERRAL_SAAS_ACCOUNT_CONTEXTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": "context must be runtime or setup.",
+            },
+        )
+
+    try:
+        if normalised_context == "setup":
+            account = await resolve_setup_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+        else:
+            account = await resolve_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+    except AccountFoundationResolutionError as exc:
+        raise _resolution_error(exc) from exc
+
+    safe_account_ref = _optional_text(account_ref)
+    if safe_account_ref not in {account.account_id, account.account_code}:
+        raise _membership_invitation_error(
+            MembershipInvitationUnsafeScope(
+                "Path account reference does not match resolved account context."
+            )
+        )
+
+    try:
+        readiness = await get_campaign_readiness(
+            tenant_code=account.tenant_code,
+            campaign_code=campaign_code,
+            operation=operation,
+            opportunity_id=opportunity_id,
+            include_evidence=include_evidence,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": str(exc),
+            },
+        ) from exc
+
+    if _has_readiness_blocker(readiness, CAMPAIGN_READINESS_NOT_FOUND_BLOCKERS):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "campaign_readiness_not_found",
+                "message": (
+                    "Campaign readiness was not found for the selected customer."
+                ),
+                "redactions": ["internal_tenant_identifier"],
+            },
+        )
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "readiness": readiness,
+        "guardrail": (
+            "Read-only Referral SaaS customer-scoped campaign readiness. This "
+            "endpoint resolves the selected account internally and does not "
+            "expose tenant_code, create campaigns, update policies, generate "
+            "links, activate campaigns, trigger go-live, or move money."
+        ),
+        "redactions": ["internal_tenant_identifier"],
+        "no_campaign_mutation_confirmed": True,
+        "no_policy_write_confirmed": True,
+        "no_link_generation_confirmed": True,
         "no_campaign_activation_confirmed": True,
         "no_money_movement_confirmed": True,
     }

@@ -11,6 +11,7 @@ import {
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
 import {
+  getReferralSaasAccountCampaignReadiness,
   getReferralSaasAccountMembershipPosture,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
@@ -21,6 +22,7 @@ import {
   updateReferralSaasAccountProfile,
   type ReferralSaasAccountMembershipPostureResponse,
   type ReferralSaasAccountRegistryResponse,
+  type ReferralSaasAccountCampaignReadinessResponse,
   type ReferralSaasMembershipActivationReadinessResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
@@ -31,6 +33,7 @@ vi.mock("../../api/endpoints/adminOnboarding", () => ({
   getAdminOnboardingState: vi.fn(),
 }));
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
+  getReferralSaasAccountCampaignReadiness: vi.fn(),
   getReferralSaasAccountMembershipPosture: vi.fn(),
   getReferralSaasMembershipActivationReadiness: vi.fn(),
   getReferralSaasTechnicalSetupReadiness: vi.fn(),
@@ -43,6 +46,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
 
 const mockedGetAdminOnboardingDrafts = vi.mocked(getAdminOnboardingDrafts);
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
+const mockedGetReferralSaasAccountCampaignReadiness = vi.mocked(getReferralSaasAccountCampaignReadiness);
 const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
 const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferralSaasMembershipActivationReadiness);
 const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTechnicalSetupReadiness);
@@ -487,6 +491,40 @@ function mockTechnicalSetupReadinessWithInviteProvider(): ReferralSaasTechnicalS
   };
 }
 
+function mockCampaignReadiness(): ReferralSaasAccountCampaignReadinessResponse {
+  return {
+    status: "ok",
+    context: "setup",
+    account: {
+      accountId: "acct-gabs",
+      accountCode: "ACC-2201",
+      accountName: "Gaborone Partners",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "APPROVED",
+    },
+    readiness: {
+      campaign_code: "CAMP001",
+      readiness: "READY_WITH_WARNINGS",
+      can_proceed: true,
+      blockers: [],
+      warnings: [
+        {
+          code: "REPORTING_BASELINE_PENDING",
+          message: "Reporting setup can follow after campaign checks.",
+        },
+      ],
+      unknowns: [],
+    },
+    guardrail: "Read-only Referral SaaS customer-scoped campaign readiness.",
+    redactions: ["internal_tenant_identifier"],
+    no_campaign_mutation_confirmed: true,
+    no_policy_write_confirmed: true,
+    no_link_generation_confirmed: true,
+    no_campaign_activation_confirmed: true,
+    no_money_movement_confirmed: true,
+  };
+}
+
 describe("ReferralSaasAccountMaintenancePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -495,6 +533,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockMembershipPosture());
     mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockMembershipActivationReadiness());
     mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadiness());
+    mockedGetReferralSaasAccountCampaignReadiness.mockResolvedValue(mockCampaignReadiness());
     mockedListReferralSaasAccounts.mockResolvedValue(mockAccountRegistry());
     mockedRecordReferralSaasMembershipInvitationIntent.mockResolvedValue({
       status: "ok",
@@ -883,6 +922,35 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.queryByRole("heading", { name: "Health at a glance" })).not.toBeInTheDocument();
   });
 
+  it("opens Campaigns as a customer-scoped readiness page without tenant code entry", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/campaigns");
+
+    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Campaigns" })).toBeInTheDocument();
+    expect(screen.getByText(/Check campaign readiness inside this customer profile/i)).toBeInTheDocument();
+    expect(screen.getByText("No tenant code entry")).toBeInTheDocument();
+    expect(screen.getByLabelText("Campaign code")).toHaveValue("CAMP001");
+    expect(await screen.findByText("Campaign posture")).toBeInTheDocument();
+    expect(screen.getByText("Ready With Warnings")).toBeInTheDocument();
+    expect(screen.getByText("Reporting Baseline Pending")).toBeInTheDocument();
+    expect(screen.getByText("Reporting setup can follow after campaign checks.")).toBeInTheDocument();
+    expect(screen.getByText(/No campaign is created, no policy is changed, no links are generated/i)).toBeInTheDocument();
+    expect(screen.queryByText("Campaign Target")).not.toBeInTheDocument();
+    expect(mockedGetReferralSaasAccountCampaignReadiness).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      campaignCode: "CAMP001",
+      refType: "external_tenant_ref",
+      externalRef: "gabs-platform",
+      operation: "CONTROL_PLANE_VIEW",
+      context: "setup",
+      opportunityId: "",
+      includeEvidence: true,
+    });
+    expect(JSON.stringify(mockedGetReferralSaasAccountCampaignReadiness.mock.calls)).not.toMatch(
+      /tenantCode|tenant_code|activateCampaign|money/i,
+    );
+  });
+
   it("saves selected customer profile settings through the maintenance command", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/settings");
 
@@ -949,6 +1017,11 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       "href",
       "/admin/referral-saas/account-maintenance/acct-fnb/technical",
     );
+    expect(
+      screen
+        .getAllByRole("link", { name: /Campaigns/ })
+        .some((link) => link.getAttribute("href") === "/admin/referral-saas/account-maintenance/acct-fnb/campaigns"),
+    ).toBe(true);
     expect(screen.getByRole("link", { name: /Attribution/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/account-maintenance/acct-fnb/attribution",

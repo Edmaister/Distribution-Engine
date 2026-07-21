@@ -2,12 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getAdminOnboardingDrafts, getAdminOnboardingState } from "./endpoints/adminOnboarding";
 import {
+  getReferralSaasAccountCampaignReadiness,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasAccountMembershipPosture,
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccounts,
   resolveReferralSaasAccount,
 } from "./endpoints/referralSaasAccounts";
+import type { CampaignReadinessOperation } from "./endpoints/adminCampaignReadiness";
 import { queryKeys } from "./queryKeys";
 
 export function useReferralSaasAccountSetupState(
@@ -190,6 +192,47 @@ export function useReferralSaasTechnicalSetupReadiness(
         context: "setup",
       }),
     enabled: Boolean(enabled && cleanedAccountRef && cleanedExternalTenantRef),
+    retry: false,
+  });
+}
+
+export function useReferralSaasAccountCampaignReadiness(
+  accountRef: string,
+  campaignCode: string,
+  externalTenantRef: string,
+  operation: CampaignReadinessOperation,
+  opportunityId: string,
+  enabled: boolean,
+  refreshKey = 0,
+) {
+  const cleanedAccountRef = accountRef.trim();
+  const cleanedCampaignCode = campaignCode.trim();
+  const cleanedExternalTenantRef = externalTenantRef.trim();
+  const cleanedOpportunityId = opportunityId.trim();
+
+  return useQuery({
+    queryKey: queryKeys.referralSaasAccountCampaignReadiness(
+      cleanedAccountRef,
+      cleanedCampaignCode,
+      "external_tenant_ref",
+      cleanedExternalTenantRef,
+      operation,
+      "setup",
+      cleanedOpportunityId,
+      refreshKey,
+    ),
+    queryFn: () =>
+      getReferralSaasAccountCampaignReadiness({
+        accountRef: cleanedAccountRef,
+        campaignCode: cleanedCampaignCode,
+        refType: "external_tenant_ref",
+        externalRef: cleanedExternalTenantRef,
+        operation,
+        context: "setup",
+        opportunityId: cleanedOpportunityId,
+        includeEvidence: true,
+      }),
+    enabled: Boolean(enabled && cleanedAccountRef && cleanedCampaignCode && cleanedExternalTenantRef),
     retry: false,
   });
 }
