@@ -22,6 +22,8 @@ def test_channel_readiness_reports_attention_when_providers_missing(monkeypatch)
         service,
         "get_settings",
         lambda: SimpleNamespace(
+            channel_email_provider_url=None,
+            channel_email_provider_secret=None,
             channel_whatsapp_provider_url=None,
             channel_whatsapp_provider_secret=None,
             channel_sms_provider_url=None,
@@ -35,9 +37,10 @@ def test_channel_readiness_reports_attention_when_providers_missing(monkeypatch)
 
     assert readiness["status"] == "ATTENTION"
     assert readiness["configuration_source"] == "channel_catalog"
-    assert readiness["summary"]["count"] == 3
-    assert readiness["summary"]["attention_count"] == 3
+    assert readiness["summary"]["count"] == 4
+    assert readiness["summary"]["attention_count"] == 4
     assert {item["channel_code"] for item in readiness["items"]} == {
+        "EMAIL",
         "WHATSAPP",
         "SMS",
         "USSD",
@@ -53,6 +56,8 @@ def test_channel_readiness_reports_ready_when_all_providers_configured(monkeypat
         service,
         "get_settings",
         lambda: SimpleNamespace(
+            channel_email_provider_url="https://channels.example/email",
+            channel_email_provider_secret="email-secret",
             channel_whatsapp_provider_url="https://channels.example/whatsapp",
             channel_whatsapp_provider_secret="whatsapp-secret",
             channel_sms_provider_url="https://channels.example/sms",
@@ -65,7 +70,7 @@ def test_channel_readiness_reports_ready_when_all_providers_configured(monkeypat
     readiness = service.get_channel_readiness()
 
     assert readiness["status"] == "READY"
-    assert readiness["summary"]["ready_count"] == 3
+    assert readiness["summary"]["ready_count"] == 4
     assert all(item["provider_configured"] for item in readiness["items"])
 
 
@@ -74,6 +79,8 @@ def test_recommend_channels_scores_event_audience_and_provider_fit(monkeypatch):
         service,
         "get_settings",
         lambda: SimpleNamespace(
+            channel_email_provider_url=None,
+            channel_email_provider_secret=None,
             channel_whatsapp_provider_url="https://channels.example/whatsapp",
             channel_whatsapp_provider_secret="whatsapp-secret",
             channel_sms_provider_url=None,
@@ -103,6 +110,8 @@ def test_recommend_channels_keeps_unconfigured_channels_visible(monkeypatch):
         service,
         "get_settings",
         lambda: SimpleNamespace(
+            channel_email_provider_url=None,
+            channel_email_provider_secret=None,
             channel_whatsapp_provider_url=None,
             channel_whatsapp_provider_secret=None,
             channel_sms_provider_url=None,
@@ -124,6 +133,34 @@ def test_recommend_channels_keeps_unconfigured_channels_visible(monkeypatch):
         item["provider_configured"] is False and item["provider_status"] == "ATTENTION"
         for item in result["items"]
     )
+
+
+def test_recommend_channels_prefers_email_for_membership_invitation(monkeypatch):
+    monkeypatch.setattr(
+        service,
+        "get_settings",
+        lambda: SimpleNamespace(
+            channel_email_provider_url="https://channels.example/email",
+            channel_email_provider_secret="email-secret",
+            channel_whatsapp_provider_url=None,
+            channel_whatsapp_provider_secret=None,
+            channel_sms_provider_url=None,
+            channel_sms_provider_secret=None,
+            channel_ussd_provider_url=None,
+            channel_ussd_provider_secret=None,
+        ),
+    )
+
+    result = service.recommend_channels(
+        event_type="MEMBERSHIP_INVITATION",
+        audience="ADMIN",
+        target_channels=["EMAIL"],
+    )
+
+    assert result["status"] == "READY"
+    assert result["top_channel"]["channel_code"] == "EMAIL"
+    assert result["top_channel"]["provider_configured"] is True
+    assert "event: supports MEMBERSHIP_INVITATION" in result["top_channel"]["reasons"]
 
 
 @pytest.mark.asyncio

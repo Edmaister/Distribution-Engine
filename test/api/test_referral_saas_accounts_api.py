@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 from httpx import AsyncClient
 
@@ -768,6 +770,103 @@ async def test_referral_saas_invitation_delivery_rejects_path_scope_mismatch(
                 },
                 "correlationId": "corr-1",
                 "idempotencyKey": "delivery-1",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_SCOPE"
+    assert detail["no_invite_delivery_confirmed"] is True
+    assert detail["no_auth_claim_change_confirmed"] is True
+
+
+async def test_referral_saas_account_admin_can_read_technical_setup_readiness(
+    monkeypatch,
+):
+    resolve_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(
+            account_status="PENDING_ONBOARDING",
+            tenant_link_status="PENDING_SETUP",
+            reference_status="ACTIVE",
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        "services.channel_readiness_service.get_settings",
+        lambda: SimpleNamespace(
+            channel_email_provider_url=None,
+            channel_email_provider_secret=None,
+            channel_whatsapp_provider_url=None,
+            channel_whatsapp_provider_secret=None,
+            channel_sms_provider_url=None,
+            channel_sms_provider_secret=None,
+            channel_ussd_provider_url=None,
+            channel_ussd_provider_secret=None,
+        ),
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/technical-setup-readiness",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["account"]["accountCode"] == "ACCT_FNB"
+    assert "tenantCode" not in body["account"]
+    assert (
+        body["technicalSetupReadiness"]["overallStatus"]
+        == "PROVIDER_CONFIGURATION_REQUIRED"
+    )
+    assert body["technicalSetupReadiness"]["providerStatus"] == "ATTENTION"
+    assert body["technicalSetupReadiness"]["capabilities"][0]["missingChannels"] == [
+        "EMAIL"
+    ]
+    assert body["technicalSetupReadiness"]["noCredentialCreationConfirmed"] is True
+    assert body["technicalSetupReadiness"]["noWebhookDispatchConfirmed"] is True
+    assert body["technicalSetupReadiness"]["noInviteDeliveryConfirmed"] is True
+    assert body["technicalSetupReadiness"]["noMembershipActivationConfirmed"] is True
+    assert body["technicalSetupReadiness"]["noMoneyMovementConfirmed"] is True
+    assert "NO_PROVIDER_SECRET_EXPOSURE" in body["technicalSetupReadiness"]["guardrails"]
+    assert "provider_secret" in body["technicalSetupReadiness"]["redactions"]
+    assert body["no_credential_creation_confirmed"] is True
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+
+
+async def test_referral_saas_technical_setup_readiness_rejects_path_scope_mismatch(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-other/technical-setup-readiness",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
             },
         )
 

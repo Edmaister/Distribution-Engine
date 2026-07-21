@@ -94,6 +94,10 @@ class Settings(BaseSettings):
     channel_ussd_provider_secret: str | None = Field(
         None, env="CHANNEL_USSD_PROVIDER_SECRET"
     )
+    channel_email_provider_url: str | None = Field(None, env="CHANNEL_EMAIL_PROVIDER_URL")
+    channel_email_provider_secret: str | None = Field(
+        None, env="CHANNEL_EMAIL_PROVIDER_SECRET"
+    )
 
     database_url: str | None = Field(None, env="APP_DB_DSN")
     redis_url: str | None = Field(None, env="REDIS_URL")

@@ -5264,6 +5264,31 @@ Rollback notes: Remove the delivery request service/route and restore smoke inve
 Explicit non-goals: Do not implement email provider delivery, user login activation, identity-provider writes, seat assignment, role activation, auth/session claim changes, account activation, external-reference rotation, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has a real audited invitation delivery request boundary that safely explains provider-not-configured state before live delivery is built. Priority: P0.
 
+## TASK-244: Add Referral SaaS technical setup readiness read model
+
+Status: Complete (2026-07-21). Output: `services/channel_readiness_service.py`; `services/referral_saas_technical_setup_service.py`; `apps/api/settings.py`; `apps/api/routers/referral_saas_accounts.py`; `scripts/referral_saas_route_smoke_plan.py`; `test/test_channel_readiness_service.py`; `test/test_referral_saas_technical_setup_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; `test/test_referral_saas_route_smoke_plan.py`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_DELIVERY_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses and extends the shared channel readiness catalog by adding Email provider readiness for account invitations. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile Technical Setup; invitation delivery provider readiness; shared channel provider readiness.
+Objective: Add a customer/account-scoped read-only Technical Setup readiness model so Referral SaaS can explain invite-delivery and journey-channel provider gaps before any live provider delivery is enabled.
+Why now: TASK-243 added the guarded invitation delivery request boundary, but it always returns provider-not-configured. The next production-grade slice is to make the missing Email/provider readiness explicit and reusable without creating credentials or sending invites.
+Files involved: Shared channel readiness/settings, Referral SaaS technical setup service, Referral SaaS account API router, route smoke plan/inventory, service/API/route tests, roadmap, and gap matrix.
+Database/schema impact: None.
+Backend impact: Adds Email to shared channel readiness settings/catalog and adds `GET /v1/referral-saas/accounts/{account_ref}/technical-setup-readiness`.
+Frontend impact: None in this task; the next bounded UI task can add a selected-customer Technical Setup page that calls the new route.
+API impact: Adds a read-only Referral SaaS account-scoped technical setup route with account-scope matching, safe account context, channel readiness summary, capability readiness, redactions, and no-live-action confirmations.
+Tests to add/update: Shared channel readiness tests, technical setup service tests, API route tests, route smoke inventory test, and route smoke plan test.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_channel_readiness_service.py test\test_referral_saas_technical_setup_service.py test\api\test_referral_saas_accounts_api.py test\test_referral_saas_route_smoke_inventory.py test\test_referral_saas_route_smoke_plan.py`; `git diff --check`.
+Acceptance criteria: Shared channel readiness includes Email provider configuration; technical setup readiness shows Email invite delivery gaps separately from referral journey messaging channels; route validates selected account scope; response redacts internal tenant identifiers and provider secrets; route is classified read-only in smoke inventory/plan; no credential creation, webhook dispatch, invite delivery, membership activation, seat assignment, auth/session claim change, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-214; TASK-242; TASK-243.
+Blocked by: Approved provider configuration UI/runtime integration for real invite delivery.
+Risk level: Medium.
+Rollback notes: Remove the technical setup readiness service/route, Email channel catalog additions, and route smoke/docs updates.
+Explicit non-goals: Do not implement provider credential creation, live email delivery, webhook dispatch, identity-provider writes, membership activation, seat assignment, role activation, auth/session claim changes, account activation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has a customer-scoped technical setup readiness API that explains Email/provider and journey-channel readiness before live delivery or activation is built. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
