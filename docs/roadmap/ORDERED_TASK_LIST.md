@@ -5414,6 +5414,31 @@ Rollback notes: Remove the activation command/result model, API route, smoke pla
 Explicit non-goals: Do not implement live email delivery, provider credentials, webhook dispatch, identity-provider writes, seat assignment, role claim propagation, auth/session claim changes, account activation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has an audited, idempotent, customer-scoped membership activation command boundary that can safely activate membership lifecycle evidence only when identity and account gates are satisfied. Priority: P0.
 
+## TASK-250: Wire selected-customer People and Access activation action
+
+Status: Complete (2026-07-21). Output: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the TASK-249 activation command boundary, selected-account resolution, membership readiness, account audit/idempotency behavior, and existing Customer Profile People and Access page. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile People and Access; membership activation action wiring; account audit/idempotency posture.
+Objective: Wire the selected-customer People and Access page to the guarded membership activation command boundary so operators can record accepted access evidence without leaving customer context.
+Why now: TASK-249 added the backend activation command boundary, but the selected-customer UI still could not call it. Operators need the activation action in the People and Access module, not Account Setup or a separate global workflow.
+Files involved: Referral SaaS account frontend API client, Customer Profile People and Access page, frontend endpoint/page tests, roadmap, and gap matrix.
+Database/schema impact: None.
+Backend impact: None; consumes the existing TASK-249 API.
+Frontend impact: Adds a customer-scoped `Record accepted access` action per invited membership readiness row; shows success/error feedback; refreshes membership posture and activation readiness after the command returns.
+API impact: Frontend client now wraps `POST /v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/activation`.
+Tests to add/update: Frontend API endpoint test and Customer Profile People and Access page test for activation action payload, no-leak/no-adjacent-action posture, and refresh behavior.
+Validation method: `npm.cmd test -- --run src/api/endpoints/referralSaasAccounts.test.ts src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `npm.cmd run lint -- --quiet`; `git diff --check`.
+Acceptance criteria: Selected Customer Profile > People and Access exposes a guarded activation action against a selected invited membership; request payload includes selected account scope, accepted subject evidence, reason, correlation ID, and idempotency key; UI feedback confirms no invite email, seat assignment, auth/session claim change, credential creation, campaign activation, go-live, billing, money movement, or DLaaS marketplace action occurred; membership posture/readiness refresh after the command; no backend route, schema, migration, live invite delivery, seat assignment, auth-claim propagation, account lifecycle command, external-reference rotation, campaign activation, go-live, money movement, broad DLaaS behavior, or source-code fork is added.
+Dependencies: TASK-242; TASK-249.
+Blocked by: Live invite delivery provider adapter/integration, seat assignment, auth/session claim integration, account lifecycle activation workflows, and customer-scoped campaign workflow productization.
+Risk level: Medium.
+Rollback notes: Remove the frontend activation API wrapper, People and Access activation action/feedback, related tests, and TASK-250 roadmap/gap entries.
+Explicit non-goals: Do not implement live email delivery, provider credentials, webhook dispatch, identity-provider writes, seat assignment, role claim propagation, auth/session claim changes, account activation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS People and Access can call the audited/idempotent membership activation boundary from inside the selected customer profile and clearly communicates the bounded no-adjacent-action result. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

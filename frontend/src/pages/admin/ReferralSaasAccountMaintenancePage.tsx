@@ -25,6 +25,7 @@ import {
 } from "../../api/referralSaasAccountQueries";
 import {
   recordReferralSaasMembershipInvitationIntent,
+  requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   updateReferralSaasAccountProfile,
   type ReferralSaasTechnicalSetupReadinessResponse,
@@ -245,6 +246,7 @@ export function ReferralSaasAccountMaintenancePage() {
   const [accessRoleLabel, setAccessRoleLabel] = useState(accessRoleOptions[0].label);
   const [accessResult, setAccessResult] = useState<string | null>(null);
   const [deliveryResult, setDeliveryResult] = useState<string | null>(null);
+  const [activationResult, setActivationResult] = useState<string | null>(null);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
   const [profileResult, setProfileResult] = useState<string | null>(null);
   const scopeChanged =
@@ -330,6 +332,18 @@ export function ReferralSaasAccountMaintenancePage() {
         `${formatDisplay(response.deliveryRequest.membership.roleFamily)} delivery check returned ${formatDisplay(
           response.deliveryRequest.delivery.status,
         )}. ${response.deliveryRequest.delivery.nextAction} No email was sent, no login was activated, no seat was assigned, and no permissions changed.`,
+      );
+      void refetchMembershipPosture();
+      void refetchActivationReadiness();
+    },
+  });
+  const activationMutation = useMutation({
+    mutationFn: requestReferralSaasMembershipActivation,
+    onSuccess: (response) => {
+      setActivationResult(
+        `${formatDisplay(response.activationRequest.membership.roleFamily)} access returned ${formatDisplay(
+          response.activationRequest.activation.status,
+        )}. ${response.activationRequest.activation.nextAction} No invite email was sent, no seat was assigned, no auth claim changed, and no money moved.`,
       );
       void refetchMembershipPosture();
       void refetchActivationReadiness();
@@ -464,6 +478,30 @@ export function ReferralSaasAccountMaintenancePage() {
       reasonCode: "CUSTOMER_PROFILE_INVITE_DELIVERY_REQUEST",
       correlationId: `customer-profile-invite-delivery-${selectedAccount.accountId}`,
       idempotencyKey: `customer-profile-invite-delivery-${selectedAccount.accountId}-${membershipRef}-${roleFamily}`
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-"),
+    });
+  }
+
+  function requestAccessActivation(membershipRef: string, subject: string, roleFamily: string) {
+    if (!selectedAccount || !selectedExternalTenantRef || !membershipRef || !subject) {
+      return;
+    }
+    activationMutation.mutate({
+      accountRef: selectedAccount.accountId,
+      membershipRef,
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: selectedExternalTenantRef,
+        context: "setup",
+      },
+      activation: {
+        acceptedSubject: subject,
+        acceptanceEvidenceRef: `customer-profile-accepted-${selectedAccount.accountId}-${membershipRef}`,
+      },
+      reasonCode: "CUSTOMER_PROFILE_ACCESS_ACCEPTANCE",
+      correlationId: `customer-profile-access-activation-${selectedAccount.accountId}`,
+      idempotencyKey: `customer-profile-access-activation-${selectedAccount.accountId}-${membershipRef}-${roleFamily}`
         .toLowerCase()
         .replace(/[^a-z0-9-]+/g, "-"),
     });
@@ -963,6 +1001,12 @@ export function ReferralSaasAccountMaintenancePage() {
                       <strong>Invite delivery checked.</strong> {deliveryResult}
                     </div>
                   ) : null}
+                  {activationMutation.error ? <ErrorPanel error={activationMutation.error} /> : null}
+                  {activationResult ? (
+                    <div className="wizard-summary-strip success">
+                      <strong>Accepted access recorded.</strong> {activationResult}
+                    </div>
+                  ) : null}
                   {activationReadiness ? (
                     <div className="wizard-status-card">
                       <div>
@@ -1087,6 +1131,41 @@ export function ReferralSaasAccountMaintenancePage() {
                                   type="button"
                                 >
                                   {deliveryMutation.isPending ? "Checking" : "Check invite delivery"}
+                                </button>
+                                <span className="table-subtext">{blocker}</span>
+                              </div>
+                            );
+                          },
+                        },
+                        {
+                          key: "accessActivation",
+                          header: "Accepted access",
+                          render: (row) => {
+                            const membershipRef = getValue(row, ["membershipRef"], "");
+                            const subject = getValue(row, ["subject"], "");
+                            const roleFamily = getValue(row, ["roleFamily"], "UNKNOWN");
+                            const membershipStatus = getValue(row, ["membershipStatus"], "");
+                            const readiness = getValue(row, ["activationReadiness"], "");
+                            const canRequest =
+                              Boolean(membershipRef && subject) && membershipStatus === "INVITED";
+                            const blocker = !subject
+                              ? "Missing person identity"
+                              : membershipStatus === "ACTIVE"
+                                ? "Already active"
+                                : membershipStatus !== "INVITED"
+                                  ? "Not invited"
+                                  : readiness === "READY_TO_ACTIVATE"
+                                    ? "Ready"
+                                    : "Will validate gates";
+                            return (
+                              <div className="action-cell">
+                                <button
+                                  className="button secondary compact"
+                                  disabled={!canRequest || activationMutation.isPending}
+                                  onClick={() => requestAccessActivation(membershipRef, subject, roleFamily)}
+                                  type="button"
+                                >
+                                  {activationMutation.isPending ? "Recording" : "Record accepted access"}
                                 </button>
                                 <span className="table-subtext">{blocker}</span>
                               </div>

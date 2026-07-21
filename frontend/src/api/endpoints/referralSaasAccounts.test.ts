@@ -8,6 +8,7 @@ import {
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccounts,
   recordReferralSaasMembershipInvitationIntent,
+  requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   resolveReferralSaasAccount,
   updateReferralSaasAccountProfile,
@@ -558,6 +559,100 @@ describe("referralSaasAccounts endpoint client", () => {
     );
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /recipienthash|tenant_code|client_secret|wallet|settlement|money_movement|send_invite|activate/,
+    );
+  });
+
+  it("requests Referral SaaS membership activation through the bounded product wrapper", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acc_fnb",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      activationRequest: {
+        commandStatus: "MEMBERSHIP_ACTIVATED",
+        membership: {
+          membershipRef: "mbr_1",
+          previousStatus: "INVITED",
+          status: "ACTIVE",
+          roleFamily: "DISTRIBUTION_ADMIN",
+          permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        },
+        activation: {
+          status: "MEMBERSHIP_ACTIVATED",
+          acceptedSubjectStatus: "ACCEPTED_SUBJECT_MATCHED",
+          nextAction: "Membership lifecycle is active. Configure seats and auth claims only through their separate governed workflows.",
+        },
+        idempotency: {
+          status: "RECORDED",
+        },
+        auditEventId: "audit-activation-1",
+        guardrails: ["NO_INVITE_DELIVERY", "NO_AUTH_PROVIDER_WRITE"],
+        redactions: ["accepted_subject", "acceptance_evidence_ref"],
+        noInviteDeliveryConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noMoneyMovementConfirmed: true,
+      },
+      guardrails: ["NO_INVITE_DELIVERY", "NO_AUTH_PROVIDER_WRITE"],
+      redactions: ["accepted_subject", "acceptance_evidence_ref"],
+      no_invite_delivery_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      requestReferralSaasMembershipActivation({
+        accountRef: " acc_fnb ",
+        membershipRef: " mbr_1 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " fnb-referrals ",
+          context: "setup",
+        },
+        activation: {
+          acceptedSubject: " owner@example.test ",
+          acceptanceEvidenceRef: " customer-profile-accepted-acc_fnb-mbr_1 ",
+        },
+        correlationId: "customer-profile-access-activation-acc_fnb",
+        idempotencyKey: "customer-profile-access-activation-acc_fnb-mbr_1-distribution_admin",
+      }),
+    ).resolves.toMatchObject({
+      activationRequest: {
+        commandStatus: "MEMBERSHIP_ACTIVATED",
+        membership: {
+          status: "ACTIVE",
+        },
+      },
+      no_auth_claim_change_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acc_fnb/memberships/mbr_1/activation",
+      {
+        method: "POST",
+        body: {
+          accountScope: {
+            refType: "external_tenant_ref",
+            externalRef: "fnb-referrals",
+            context: "setup",
+          },
+          activation: {
+            acceptedSubject: "owner@example.test",
+            acceptanceEvidenceRef: "customer-profile-accepted-acc_fnb-mbr_1",
+          },
+          reasonCode: "CUSTOMER_PROFILE_MEMBERSHIP_ACTIVATION_REQUEST",
+          correlationId: "customer-profile-access-activation-acc_fnb",
+          idempotencyKey: "customer-profile-access-activation-acc_fnb-mbr_1-distribution_admin",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement|sendinvite|seatid|authclaims|golive/,
     );
   });
 
