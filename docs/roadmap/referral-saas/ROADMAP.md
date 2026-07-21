@@ -226,6 +226,7 @@ greenfield referral construction.
 118. TASK-252: Add Referral SaaS access provisioning readiness boundary.
 119. TASK-253: Add customer-scoped campaign readiness page.
 120. TASK-254: Add customer-scoped campaign list and read wrappers.
+121. TASK-255: Define customer-scoped campaign draft/create command contract.
 
 ## 10/10 Exit Criteria
 
@@ -267,6 +268,8 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SCHEMA_FINAL_REVIEW.md`
 - TASK-210:
   `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_INVITATION_BOUNDARY.md`
+- TASK-255:
+  `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_CREATE_CONTRACT.md`
 
 ## Completed Implementation Outputs
 

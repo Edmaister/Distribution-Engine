@@ -22,6 +22,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   invitation write boundary before runtime invite/member commands.
 - `REFERRAL_SAAS_CAMPAIGN_SETUP_READINESS_CONTRACT.md` - TASK-135 campaign
   setup and readiness contract.
+- `REFERRAL_SAAS_CUSTOMER_CAMPAIGN_CREATE_CONTRACT.md` - TASK-255
+  customer-scoped campaign create command boundary.
 - `REFERRAL_SAAS_REFERRAL_CODE_ISSUE_CONTRACT.md` - TASK-136 referral code
   issue/get-or-create contract.
 - `REFERRAL_SAAS_VALIDATION_RECOVERY_CONTRACT.md` - TASK-137 validation and
