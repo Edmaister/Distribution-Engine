@@ -495,6 +495,44 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_account_campaign_setup_create",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/campaigns",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin role",
+        environment_rule=(
+            "local/staging seeded account only; creates inactive campaign setup "
+            "draft and account audit evidence only"
+        ),
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "campaign_name",
+            "campaign_segment",
+            "idempotency_key",
+        ],
+        expected_state_change=(
+            "creates inactive campaign setup definition and account audit event; "
+            "does not activate campaigns, generate links, create validation "
+            "tracks, write policy, send webhooks, or move money"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"campaign":{"name":"{campaign_name}",'
+            '"segment":"{campaign_segment}"},'
+            '"setupIntent":{"reason":"SMOKE_CAMPAIGN_SETUP"},'
+            '"correlationId":"smoke-campaign-setup",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}/campaigns"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_membership_invitation_intent",
         method="POST",
         path="/v1/referral-saas/accounts/{account_ref}/membership-invitations",

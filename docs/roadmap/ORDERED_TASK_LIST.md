@@ -5564,6 +5564,31 @@ Rollback notes: Remove the contract doc, contract test, SA index entry, roadmap 
 Explicit non-goals: Do not add runtime route behavior, schema migration, campaign write implementation, policy write implementation, campaign activation, go-live, link/code generation, campaign validation or `campaign_track_id` creation, webhooks, live invite delivery, account lifecycle commands, seat assignment, auth/session claim changes, reporting export mutation, billing, rewards, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has a source-backed customer-scoped campaign create command contract ready for guarded implementation without risking accidental campaign activation or tenant-code leakage. Priority: P0.
 
+## TASK-256: Add guarded customer-scoped campaign setup create API wrapper
+
+Status: Complete (2026-07-22). Output: `services/referral_saas_campaign_service.py`; `apps/api/routers/referral_saas_accounts.py`; `scripts/referral_saas_route_smoke_plan.py`; `test/test_referral_saas_campaign_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; `test/test_referral_saas_route_smoke_plan.py`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_CREATE_CONTRACT.md`.
+Shared primitive impact: Reuses existing account resolution, campaign storage, and account audit evidence while keeping tenant identifiers behind the selected customer/account boundary. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile Campaigns; customer-scoped campaign setup create; idempotency; audit evidence; activation guardrails.
+Objective: Implement the guarded selected-customer campaign setup create API wrapper defined by TASK-255.
+Why now: TASK-254 lets users select existing campaigns from the selected customer profile, but creating a campaign still depended on the generic tenant-scoped campaign primitive that defaults campaigns to active. The SaaS product needs a safe product route that creates only an inactive setup draft before future policy, readiness, review, and activation workflows.
+Files involved: Referral SaaS campaign service, account API router, route smoke plan/inventory, API/service tests, public API contract map, roadmap, and gap matrix.
+Database/schema impact: None.
+Backend impact: Adds `POST /v1/referral-saas/accounts/{account_ref}/campaigns`, resolving selected customer scope internally, creating an inactive `marketing_campaigns` setup draft, recording account audit/idempotency evidence, replaying same-payload idempotency keys, rejecting conflicting idempotency keys, rejecting duplicate campaign name/segment, and rejecting unsafe activation, policy, link, validation-track, webhook, and money fields.
+Frontend impact: None in this task; the next task should add the selected-customer campaign create UX against this wrapper.
+API impact: New seeded local/staging-only Referral SaaS account-scoped campaign setup create route. It does not activate campaigns, generate links, create validation tracks, write campaign policy, deliver webhooks, trigger go-live, bill, or move money.
+Tests to add/update: Campaign service create/idempotency/duplicate tests, API happy-path and unsafe-payload tests, route smoke inventory test, and route smoke plan test.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_campaign_service.py test\api\test_referral_saas_accounts_api.py test\test_referral_saas_route_smoke_inventory.py test\test_referral_saas_route_smoke_plan.py`; `git diff --check`.
+Acceptance criteria: Selected-customer campaign setup can be created only as an inactive draft from account scope, tenant code is not accepted from the caller, idempotency/audit evidence is preserved, duplicate/conflict states are safe, and the response confirms no activation, link generation, validation-track creation, policy write, webhook delivery, money movement, DLaaS marketplace behavior, or source-code fork occurred.
+Dependencies: TASK-135; TASK-231; TASK-253; TASK-254; TASK-255.
+Blocked by: Selected-customer campaign create UX, campaign policy/settings maintenance, campaign submit/review boundaries, activation/go-live command boundaries, and campaign workflow E2E tests.
+Risk level: Medium.
+Rollback notes: Remove the campaign setup create service, account route, route smoke entries, tests, and roadmap/gap/public API map updates.
+Explicit non-goals: Do not update campaign policy, create campaign validation tracks, generate links, activate campaigns, trigger go-live, create credentials, send webhooks, send invites, activate memberships, assign seats, change auth/session claims, create reports/exports, bill, reward, fund, fulfil, settle, commission, invoice, payout, sponsor bill, move money, implement broad DLaaS marketplace behavior, or fork source code.
+Definition of done: Referral SaaS has a guarded customer-scoped campaign setup create API wrapper that records inactive setup drafts with audit/idempotency evidence and keeps campaign activation concerns out of the create step. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

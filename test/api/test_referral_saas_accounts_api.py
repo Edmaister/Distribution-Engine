@@ -27,6 +27,7 @@ from services.referral_saas_account_setup_service import (
     DurableAccountSetupResult,
 )
 from services.referral_saas_campaign_service import ReferralSaasCampaignSummary
+from services.referral_saas_campaign_service import ReferralSaasCampaignSetupResult
 from services.referral_saas_account_membership_service import (
     MembershipActivationRequestResult,
     MembershipInvitationDuplicate,
@@ -176,6 +177,25 @@ def _campaign_summary(**overrides) -> ReferralSaasCampaignSummary:
     }
     values.update(overrides)
     return ReferralSaasCampaignSummary(**values)
+
+
+def _campaign_setup_result(**overrides) -> ReferralSaasCampaignSetupResult:
+    values = {
+        "command_status": "CAMPAIGN_SETUP_DRAFT_RECORDED",
+        "account_id": "acct-1",
+        "campaign_code": "FNB-RETAIL-SUMMER-1234",
+        "name": "Summer Referral",
+        "segment": "Retail",
+        "setup_status": "DRAFT",
+        "is_active": False,
+        "starts_at": "2026-08-01T00:00:00+00:00",
+        "ends_at": None,
+        "max_uses": 100,
+        "idempotency_status": "RECORDED",
+        "audit_event_id": "audit-1",
+    }
+    values.update(overrides)
+    return ReferralSaasCampaignSetupResult(**values)
 
 
 async def test_referral_saas_account_admin_can_create_account_from_draft(monkeypatch):
@@ -1177,6 +1197,122 @@ async def test_referral_saas_account_admin_can_list_customer_scoped_campaigns(
         {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
     ]
     assert campaign_calls == [{"tenant_code": "FNB", "limit": 25}]
+
+
+async def test_referral_saas_account_admin_can_create_customer_scoped_campaign_setup(
+    monkeypatch,
+):
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    async def fake_create_referral_saas_account_campaign_setup(**kwargs):
+        command_calls.append(kwargs)
+        return _campaign_setup_result()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "create_referral_saas_account_campaign_setup",
+        fake_create_referral_saas_account_campaign_setup,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/campaigns",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "campaign": {
+                    "name": "Summer Referral",
+                    "segment": "Retail",
+                    "startsAt": "2026-08-01T00:00:00Z",
+                    "maxUses": 100,
+                },
+                "setupIntent": {"reason": "Initial campaign setup"},
+                "correlationId": "corr-1",
+                "idempotencyKey": "campaign-create-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "created"
+    assert body["campaignSetup"]["commandStatus"] == "CAMPAIGN_SETUP_DRAFT_RECORDED"
+    assert body["campaignSetup"]["campaign"]["setupStatus"] == "DRAFT"
+    assert body["campaignSetup"]["campaign"]["isActive"] is False
+    assert body["no_campaign_activation_confirmed"] is True
+    assert body["no_link_generation_confirmed"] is True
+    assert body["no_validation_track_created_confirmed"] is True
+    assert body["no_policy_write_confirmed"] is True
+    assert body["no_money_movement_confirmed"] is True
+    assert "tenantCode" not in str(body)
+    assert command_calls[0]["tenant_code"] == "FNB"
+    assert command_calls[0]["account_id"] == "acct-1"
+    assert command_calls[0]["name"] == "Summer Referral"
+    assert command_calls[0]["segment"] == "Retail"
+    assert command_calls[0]["max_uses"] == 100
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["command_payload_hash"]
+
+
+async def test_referral_saas_account_campaign_create_rejects_unsafe_payload():
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/campaigns",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "tenantCode": "FNB",
+                },
+                "campaign": {
+                    "name": "Summer Referral",
+                    "segment": "Retail",
+                    "isActive": True,
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "campaign-create-1",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert "NO_TENANT_CODE_EXPOSURE" in detail["guardrails"]
+    assert detail["no_campaign_activation_confirmed"] is True
+    assert detail["no_policy_write_confirmed"] is True
+
+
+async def test_referral_saas_account_campaign_create_rejects_missing_required_fields():
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/campaigns",
+            json={
+                "accountScope": {"refType": "external_tenant_ref"},
+                "campaign": {"name": "Summer Referral", "segment": "Retail"},
+            },
+        )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "validation_error"
+    assert "NO_CAMPAIGN_ACTIVATION" in detail["guardrails"]
 
 
 async def test_referral_saas_account_admin_can_read_customer_scoped_campaign(

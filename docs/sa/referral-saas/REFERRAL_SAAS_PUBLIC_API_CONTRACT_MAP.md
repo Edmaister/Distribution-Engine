@@ -135,7 +135,8 @@ Future Referral SaaS APIs should follow these rules:
 
 | Target route | Method | Current source/wrapper | Auth | Notes |
 |---|---|---|---|---|
-| `/v1/referral-saas/campaigns` | `POST` | `POST /campaigns` plus TASK-135 contract | SaaS account admin or integration credential | Requires idempotency and audit posture before implementation. |
+| `/v1/referral-saas/accounts/{accountRef}/campaigns` | `POST` | TASK-256 wrapper over existing campaign tables and account audit evidence | SaaS account admin bridge | Implemented as guarded seeded write. Resolves selected customer account scope internally, creates an inactive campaign setup draft, records idempotency/audit evidence, and does not activate campaigns, generate links, create validation tracks, write policy, send webhooks, or move money. |
+| `/v1/referral-saas/campaigns` | `POST` | `POST /campaigns` plus TASK-135 contract | SaaS account admin or integration credential | Legacy target shape only; account-scoped create wrapper is the implemented product route. |
 | `/v1/referral-saas/campaigns/{campaignRef}` | `GET` | campaign service/readiness service | SaaS account admin/member | Product read shape only; no raw readiness internals. |
 | `/v1/referral-saas/campaigns/{campaignRef}/readiness` | `GET` | `GET /admin/campaigns/{campaign_code}/readiness` | SaaS account admin/member or operator | Must map blockers to product-safe categories. |
 | `/v1/referral-saas/campaigns/{campaignRef}/policy` | `GET` | `GET /campaigns/{campaign_code}/policy` | SaaS account admin/integration | Tenant scope must be credential-derived. |
@@ -296,6 +297,11 @@ Rules:
   provide bounded account resolver, membership posture, and membership
   invitation intent wrappers for Account Setup, but broader membership-aware
   route authorization and auth-claim integration remain future work.
+- TASK-256 adds `POST /v1/referral-saas/accounts/{accountRef}/campaigns` as a
+  customer-scoped campaign setup create wrapper. It creates inactive campaign
+  setup only and preserves idempotency/audit evidence while excluding
+  activation, link generation, validation-track creation, policy write,
+  webhook delivery, and money movement.
 - Some legacy current schemas expose raw `tenant_code`, `referrer_ucn`, or
   `referee_ucn`; TASK-174 product link/code wrappers use credential-derived
   scope for protected calls and product-shaped safe responses, while future

@@ -17,6 +17,10 @@ without sending email. TASK-249 adds the seeded-only membership activation
 request boundary that may activate the membership lifecycle after identity and
 account gates pass, without sending email, assigning seats, changing auth claims,
 creating credentials, launching campaigns, or moving money.
+TASK-256 adds the seeded-only customer-scoped campaign setup create boundary
+that records an inactive campaign setup draft and account audit evidence
+without campaign activation, link generation, validation track creation, policy
+write, webhook delivery, or money movement.
 No schema, live database mutation, or persisted export is introduced by this
 inventory document; seeded write routes remain local/staging-only smoke
 candidates and are classified explicitly below.
@@ -90,6 +94,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Seeded local/staging write | POST | `/referrals/codes` | Referral code issue/reuse |
 | Seeded local/staging write | POST | `/referrals/referees/ucn` | Referee UCN capture |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/from-draft` | Referral SaaS account foundation create wrapper |
+| Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/campaigns` | Referral SaaS customer-scoped inactive campaign setup create wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations` | Referral SaaS membership invitation intent wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery` | Referral SaaS invitation delivery request boundary; records blocked provider evidence only |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/activation` | Referral SaaS membership activation request boundary; activates membership lifecycle only after identity/account gates |
@@ -112,6 +117,7 @@ read-only or side-effect-free `/v1/referral-saas/*` product wrappers:
 - `GET /v1/referral-saas/accounts/{account_ref}/campaigns`
 - `GET /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}`
 - `GET /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/readiness`
+- `POST /v1/referral-saas/accounts/{account_ref}/campaigns`
 - `GET /v1/referral-saas/reports/{report_type}`
 - `POST /v1/referral-saas/reports/{report_type}/exports/preview`
 - `POST /v1/referral-saas/reports/{report_type}/exports/validate`
@@ -185,6 +191,7 @@ approved seeded production-safe process:
 - progress ingestion
 - Referral SaaS account foundation create from reviewed draft
 - Referral SaaS membership invitation intent
+- Referral SaaS customer-scoped inactive campaign setup create
 
 ## Launch Implication
 
@@ -200,7 +207,8 @@ Remaining blockers before a 10/10 claim:
   `scripts/referral_saas_schema_status_check.py`
 - keep product wrapper expansion bounded beyond the report route,
   validation-only export gate, inline export preview, operator inspection,
-  attribution trace, and progress/status wrappers
+  attribution trace, progress/status wrappers, and customer-scoped campaign
+  setup create boundary
 - add safe-status and reporting E2E assertions over product-ready surfaces
 - keep production smoke read-only unless separately approved
 
