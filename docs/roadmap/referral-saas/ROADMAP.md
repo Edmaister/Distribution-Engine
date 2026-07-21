@@ -225,6 +225,7 @@ greenfield referral construction.
 117. TASK-251: Clarify People and Access person-name placeholder.
 118. TASK-252: Add Referral SaaS access provisioning readiness boundary.
 119. TASK-253: Add customer-scoped campaign readiness page.
+120. TASK-254: Add customer-scoped campaign list and read wrappers.
 
 ## 10/10 Exit Criteria
 
@@ -885,6 +886,22 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Selected Customer Profile Campaigns now has a customer/account-scoped campaign readiness wrapper and standalone page. Operators check campaign readiness from the selected customer context without manually entering tenant code, while the response and UI confirm no campaign creation, policy write, link generation, activation, go-live, credential, billing, money movement, or DLaaS marketplace action occurred.
+- TASK-254: `services/referral_saas_campaign_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/api/referralSaasAccountQueries.ts`;
+  `frontend/src/api/queryKeys.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Selected Customer Profile Campaigns now loads and selects campaigns from the selected account before readiness checks. The backend adds read-only customer-scoped campaign list/read wrappers over existing campaign tables, redacts internal tenant identifiers, and confirms no campaign mutation, policy write, link generation, activation, go-live, billing, money movement, or DLaaS marketplace action occurred.
 
 ## Explicit Deferrals
 

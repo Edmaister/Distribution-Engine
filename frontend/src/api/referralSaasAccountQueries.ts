@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getAdminOnboardingDrafts, getAdminOnboardingState } from "./endpoints/adminOnboarding";
 import {
+  listReferralSaasAccountCampaigns,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasAccountMembershipPosture,
@@ -190,6 +191,38 @@ export function useReferralSaasTechnicalSetupReadiness(
         refType: "external_tenant_ref",
         externalRef: cleanedExternalTenantRef,
         context: "setup",
+      }),
+    enabled: Boolean(enabled && cleanedAccountRef && cleanedExternalTenantRef),
+    retry: false,
+  });
+}
+
+export function useReferralSaasAccountCampaignList(
+  accountRef: string,
+  externalTenantRef: string,
+  enabled: boolean,
+  refreshKey = 0,
+  limit = 50,
+) {
+  const cleanedAccountRef = accountRef.trim();
+  const cleanedExternalTenantRef = externalTenantRef.trim();
+
+  return useQuery({
+    queryKey: queryKeys.referralSaasAccountCampaignList(
+      cleanedAccountRef,
+      "external_tenant_ref",
+      cleanedExternalTenantRef,
+      "setup",
+      limit,
+      refreshKey,
+    ),
+    queryFn: () =>
+      listReferralSaasAccountCampaigns({
+        accountRef: cleanedAccountRef,
+        refType: "external_tenant_ref",
+        externalRef: cleanedExternalTenantRef,
+        context: "setup",
+        limit,
       }),
     enabled: Boolean(enabled && cleanedAccountRef && cleanedExternalTenantRef),
     retry: false,

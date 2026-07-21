@@ -12,10 +12,11 @@ import {
   Users,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 
 import {
+  useReferralSaasAccountCampaignList,
   useReferralSaasAccountCampaignReadiness,
   useReferralSaasAccountDraftSelector,
   useReferralSaasAccountMaintenanceState,
@@ -1401,9 +1402,27 @@ function CustomerCampaignsPage({
   selectedAccount?: AccountRegistryItem;
 }) {
   const { refreshKey } = useRefreshContext();
-  const [campaignCode, setCampaignCode] = useState("CAMP001");
+  const [campaignCode, setCampaignCode] = useState("");
   const [operation, setOperation] = useState<CampaignReadinessOperation>("CONTROL_PLANE_VIEW");
   const [opportunityId, setOpportunityId] = useState("");
+  const {
+    data: campaignListResponse,
+    error: campaignListError,
+    isLoading: isCampaignListLoading,
+  } = useReferralSaasAccountCampaignList(
+    selectedAccount?.accountId || "",
+    externalTenantRef,
+    Boolean(selectedAccount && externalTenantRef),
+    refreshKey,
+  );
+  const campaigns = campaignListResponse?.campaigns || [];
+
+  useEffect(() => {
+    if (!campaignCode.trim() && campaigns[0]?.campaignCode) {
+      setCampaignCode(campaigns[0].campaignCode);
+    }
+  }, [campaignCode, campaigns]);
+
   const {
     data: campaignReadinessResponse,
     error,
@@ -1414,7 +1433,7 @@ function CustomerCampaignsPage({
     externalTenantRef,
     operation,
     opportunityId,
-    Boolean(selectedAccount && externalTenantRef),
+    Boolean(selectedAccount && externalTenantRef && campaignCode.trim()),
     refreshKey,
   );
   const readiness = campaignReadinessResponse?.readiness || {};
@@ -1454,12 +1473,62 @@ function CustomerCampaignsPage({
           <StatusBadge label="No tenant code entry" tone="success" />
         </div>
 
+        <div>
+          <h3 className="section-heading">Campaigns for this customer</h3>
+          <p className="muted">Choose one campaign before checking readiness. This list is loaded from the selected customer profile.</p>
+        </div>
+        {isCampaignListLoading ? <LoadingState label="Loading customer campaigns" /> : null}
+        {campaignListError ? <ErrorPanel error={campaignListError} /> : null}
+        <DataTable
+          rows={campaigns}
+          emptyText="No campaigns are attached to this customer yet. Campaign creation remains a later guarded workflow."
+          columns={[
+            {
+              key: "campaign",
+              header: "Campaign",
+              render: (row) => {
+                const campaign = row as (typeof campaigns)[number];
+                const selected = campaign.campaignCode === campaignCode.trim();
+                return (
+                  <button
+                    className={`button ${selected ? "button-primary" : "button-secondary"}`}
+                    onClick={() => setCampaignCode(campaign.campaignCode)}
+                    type="button"
+                  >
+                    {campaign.name || campaign.campaignCode}
+                  </button>
+                );
+              },
+            },
+            {
+              key: "campaignCode",
+              header: "Code",
+              render: (row) => <strong>{formatDisplay(getValue(row, ["campaignCode"], "Unknown"))}</strong>,
+            },
+            {
+              key: "status",
+              header: "Status",
+              render: (row) => <StatusBadge label={formatDisplay(getValue(row, ["status"], "Unknown"))} tone={statusTone(String(getValue(row, ["status"], "")))} />,
+            },
+            {
+              key: "policyStatus",
+              header: "Policy",
+              render: (row) => <StatusBadge label={formatDisplay(getValue(row, ["policyStatus"], "Unknown"))} tone={statusTone(String(getValue(row, ["policyStatus"], "")))} />,
+            },
+            {
+              key: "usesCount",
+              header: "Uses",
+              render: (row) => <span>{formatDisplay(getValue(row, ["usesCount"], "0"))}</span>,
+            },
+          ]}
+        />
+
         <form className="form-grid" onSubmit={(event) => event.preventDefault()}>
           <label>
-            Campaign code
+            Selected campaign code
             <input
               onChange={(event) => setCampaignCode(event.target.value)}
-              placeholder="Example: CAMP001"
+              placeholder="Select a campaign or enter a known code"
               value={campaignCode}
             />
           </label>
@@ -1487,6 +1556,14 @@ function CustomerCampaignsPage({
 
         {isLoading ? <LoadingState label="Checking campaign readiness" /> : null}
         {error ? <ErrorPanel error={error} /> : null}
+        {!campaignCode.trim() && !isCampaignListLoading ? (
+          <div className="wizard-summary-strip warning">
+            <div>
+              <strong>In plain English:</strong> Select an existing campaign first. If none exists, campaign creation is the next product workflow.
+            </div>
+            <StatusBadge label="No campaign selected" tone="warning" />
+          </div>
+        ) : null}
         {campaignReadinessResponse ? (
           <>
             <div className="grid-3">

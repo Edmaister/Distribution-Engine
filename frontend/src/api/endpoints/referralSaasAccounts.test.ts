@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiRequest } from "../client";
 import {
   createReferralSaasAccountFromDraft,
+  getReferralSaasAccountCampaign,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasAccountMembershipPosture,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
+  listReferralSaasAccountCampaigns,
   listReferralSaasAccounts,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasMembershipActivation,
@@ -430,6 +432,122 @@ describe("referralSaasAccounts endpoint client", () => {
         },
       },
     );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement|activate_campaign/,
+    );
+  });
+
+  it("lists customer-scoped campaigns without requiring tenant code entry", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      count: 1,
+      campaigns: [
+        {
+          campaignCode: "CAMP001",
+          name: "Summer Referrals",
+          segment: "REFERRAL",
+          status: "ACTIVE",
+          lifecycle: "ACTIVE",
+          startsAt: "2026-07-01T00:00:00+00:00",
+          endsAt: null,
+          maxUses: 100,
+          usesCount: 7,
+          policyStatus: "ACTIVE_POLICY",
+        },
+      ],
+      guardrail: "Read-only Referral SaaS customer-scoped campaign list.",
+      redactions: ["internal_tenant_identifier"],
+      no_campaign_mutation_confirmed: true,
+      no_policy_write_confirmed: true,
+      no_link_generation_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      listReferralSaasAccountCampaigns({
+        accountRef: " acct-1 ",
+        refType: "external_tenant_ref",
+        externalRef: " fnb-referrals ",
+        context: "setup",
+        limit: 25,
+      }),
+    ).resolves.toMatchObject({
+      count: 1,
+      campaigns: [{ campaignCode: "CAMP001", policyStatus: "ACTIVE_POLICY" }],
+      no_campaign_mutation_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts/acct-1/campaigns", {
+      query: {
+        ref_type: "external_tenant_ref",
+        external_ref: "fnb-referrals",
+        context: "setup",
+        limit: 25,
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement|activate_campaign/,
+    );
+  });
+
+  it("reads a selected customer-scoped campaign without requiring tenant code entry", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      campaign: {
+        campaignCode: "CAMP002",
+        name: "Partner Pilot",
+        segment: "PARTNER",
+        status: "DRAFT",
+        lifecycle: "DRAFT",
+        startsAt: null,
+        endsAt: null,
+        maxUses: null,
+        usesCount: 0,
+        policyStatus: "NO_ACTIVE_POLICY",
+      },
+      guardrail: "Read-only Referral SaaS customer-scoped campaign read.",
+      redactions: ["internal_tenant_identifier"],
+      no_campaign_mutation_confirmed: true,
+      no_policy_write_confirmed: true,
+      no_link_generation_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      getReferralSaasAccountCampaign({
+        accountRef: " acct-1 ",
+        campaignCode: " CAMP002 ",
+        refType: "external_tenant_ref",
+        externalRef: " fnb-referrals ",
+        context: "setup",
+      }),
+    ).resolves.toMatchObject({
+      campaign: {
+        campaignCode: "CAMP002",
+        lifecycle: "DRAFT",
+      },
+      no_campaign_activation_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts/acct-1/campaigns/CAMP002", {
+      query: {
+        ref_type: "external_tenant_ref",
+        external_ref: "fnb-referrals",
+        context: "setup",
+      },
+    });
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|wallet|settlement|money_movement|activate_campaign/,
     );
