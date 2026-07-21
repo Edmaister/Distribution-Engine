@@ -703,6 +703,19 @@ a {
   overflow-wrap: anywhere;
 }
 
+.action-cell {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.button.compact {
+  min-height: 32px;
+  padding: 6px 10px;
+  width: fit-content;
+}
+
 .summary-grid {
   display: grid;
   gap: 12px;

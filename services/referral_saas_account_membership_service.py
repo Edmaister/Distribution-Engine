@@ -146,6 +146,7 @@ class MembershipInvitationDeliveryRequestResult:
     permission_set: str
     delivery_status: str
     delivery_next_action: str
+    recipient_contact_status: str
     provider_ref: str
     channel: str
     template_ref: str
@@ -171,6 +172,7 @@ class MembershipInvitationDeliveryRequestResult:
             "delivery": {
                 "status": self.delivery_status,
                 "nextAction": self.delivery_next_action,
+                "recipientContactStatus": self.recipient_contact_status,
                 "providerRef": self.provider_ref,
                 "channel": self.channel,
                 "templateRef": self.template_ref,
@@ -229,6 +231,7 @@ class MembershipActorPosture:
 
 @dataclass(frozen=True)
 class MembershipPersonSummary:
+    membership_id: str
     actor_type: str
     subject: str | None
     display_name: str | None
@@ -240,6 +243,7 @@ class MembershipPersonSummary:
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
+            "membershipRef": self.membership_id,
             "actorType": self.actor_type,
             "subject": self.subject,
             "displayName": self.display_name,
@@ -289,6 +293,7 @@ class ReferralSaasAccountMembershipPosture:
 
 @dataclass(frozen=True)
 class MembershipActivationReadinessItem:
+    membership_id: str
     subject: str | None
     display_name: str | None
     role_family: str
@@ -302,6 +307,7 @@ class MembershipActivationReadinessItem:
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
+            "membershipRef": self.membership_id,
             "subject": self.subject,
             "displayName": self.display_name,
             "roleFamily": self.role_family,
@@ -820,7 +826,7 @@ async def request_referral_saas_membership_invitation_delivery(
     provider_ref: str,
     channel: str,
     template_ref: str,
-    recipient_hash: str,
+    recipient_hash: str | None = None,
     reason_code: str,
     correlation_id: str,
     idempotency_key_hash: str,
@@ -837,7 +843,7 @@ async def request_referral_saas_membership_invitation_delivery(
     safe_provider_ref = _required_text(provider_ref)
     safe_channel = _required_choice(channel, {"EMAIL"})
     safe_template_ref = _required_text(template_ref)
-    safe_recipient_hash = _required_text(recipient_hash)
+    safe_recipient_hash = _optional_text(recipient_hash)
     safe_reason_code = _required_text(reason_code).upper()
     safe_correlation_id = _required_text(correlation_id)
     safe_idempotency_hash = _required_text(idempotency_key_hash)
@@ -852,6 +858,7 @@ async def request_referral_saas_membership_invitation_delivery(
             SELECT
                 account_audit_event_id,
                 membership_id,
+                next_status,
                 evidence_summary
             FROM platform_account_audit_events
             WHERE account_id = $1
@@ -870,8 +877,13 @@ async def request_referral_saas_membership_invitation_delivery(
                 raise MembershipInvitationIdempotencyConflict(
                     "Idempotency key was reused with different invitation delivery content."
                 )
+            replayed_delivery_status = (
+                _optional_text(evidence.get("delivery_status"))
+                or _optional_text(existing_audit.get("next_status"))
+                or "DELIVERY_PROVIDER_NOT_CONFIGURED"
+            )
             return MembershipInvitationDeliveryRequestResult(
-                command_status="DELIVERY_PROVIDER_NOT_CONFIGURED",
+                command_status=replayed_delivery_status,
                 account_id=safe_account_id,
                 membership_id=_optional_text(evidence.get("membership_id"))
                 or safe_membership_id,
@@ -880,8 +892,15 @@ async def request_referral_saas_membership_invitation_delivery(
                 role_family=_optional_text(evidence.get("role_family")) or "UNKNOWN",
                 permission_set=_optional_text(evidence.get("permission_set"))
                 or "UNKNOWN",
-                delivery_status="DELIVERY_PROVIDER_NOT_CONFIGURED",
-                delivery_next_action="Configure approved invitation delivery provider before sending email invites.",
+                delivery_status=replayed_delivery_status,
+                delivery_next_action=(
+                    _optional_text(evidence.get("delivery_next_action"))
+                    or "Configure approved invitation delivery provider before sending email invites."
+                ),
+                recipient_contact_status=_optional_text(
+                    evidence.get("recipient_contact_status")
+                )
+                or "CONTACT_REFERENCE_PRESENT",
                 provider_ref=_optional_text(evidence.get("provider_ref"))
                 or safe_provider_ref,
                 channel=_optional_text(evidence.get("channel")) or safe_channel,
@@ -901,13 +920,23 @@ async def request_referral_saas_membership_invitation_delivery(
                 status,
                 role_family,
                 permission_set,
-                COALESCE(metadata->>'delivery_status', 'DELIVERY_NOT_CONFIGURED')
-                    AS delivery_status
+                COALESCE(platform_memberships.metadata->>'delivery_status', 'DELIVERY_NOT_CONFIGURED')
+                    AS delivery_status,
+                CASE
+                    WHEN actor_user.email_hash IS NOT NULL
+                         AND actor_user.email_hash <> ''
+                    THEN 'CONTACT_REFERENCE_PRESENT'
+                    WHEN platform_memberships.client_id IS NOT NULL
+                    THEN 'CLIENT_CONTACT_REFERENCE_NOT_REQUIRED'
+                    ELSE 'CONTACT_REFERENCE_MISSING'
+                END AS recipient_contact_status
             FROM platform_memberships
-            WHERE membership_id = $1
-              AND account_id = $2
-              AND (tenant_code = $3 OR tenant_code IS NULL)
-              AND status <> 'ARCHIVED'
+            LEFT JOIN platform_users actor_user
+                ON actor_user.user_id = platform_memberships.user_id
+            WHERE platform_memberships.membership_id = $1
+              AND platform_memberships.account_id = $2
+              AND (platform_memberships.tenant_code = $3 OR platform_memberships.tenant_code IS NULL)
+              AND platform_memberships.status <> 'ARCHIVED'
             LIMIT 1
             """,
             safe_membership_id,
@@ -925,6 +954,25 @@ async def request_referral_saas_membership_invitation_delivery(
                 "Invitation delivery can only be requested for invited memberships."
             )
 
+        recipient_contact_status = (
+            _optional_text(membership.get("recipient_contact_status"))
+            or "CONTACT_REFERENCE_MISSING"
+        )
+        recipient_hash_present = bool(safe_recipient_hash) or recipient_contact_status in {
+            "CONTACT_REFERENCE_PRESENT",
+            "CLIENT_CONTACT_REFERENCE_NOT_REQUIRED",
+        }
+        if recipient_contact_status == "CONTACT_REFERENCE_MISSING" and not safe_recipient_hash:
+            delivery_command_status = "DELIVERY_RECIPIENT_CONTACT_MISSING"
+            delivery_next_action = (
+                "Add a safe work email contact reference before invite delivery can be requested."
+            )
+        else:
+            delivery_command_status = "DELIVERY_PROVIDER_NOT_CONFIGURED"
+            delivery_next_action = (
+                "Configure approved invitation delivery provider before sending email invites."
+            )
+
         audit_evidence = {
             "membership_id": safe_membership_id,
             "membership_status": membership_status,
@@ -933,7 +981,9 @@ async def request_referral_saas_membership_invitation_delivery(
             "provider_ref": safe_provider_ref,
             "channel": safe_channel,
             "template_ref": safe_template_ref,
-            "recipient_hash_present": bool(safe_recipient_hash),
+            "delivery_status": delivery_command_status,
+            "recipient_contact_status": recipient_contact_status,
+            "recipient_hash_present": recipient_hash_present,
             "command_payload_hash": safe_payload_hash,
             "provider_configured": False,
             "no_email_delivery_confirmed": True,
@@ -964,8 +1014,8 @@ async def request_referral_saas_membership_invitation_delivery(
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, 'BLOCKED', $7, $8,
-                $9, 'DELIVERY_PROVIDER_NOT_CONFIGURED', $10, $11, $12,
-                $13::jsonb, $14::jsonb
+                $9, $10, $11, $12, $13,
+                $14::jsonb, $15::jsonb
             )
             RETURNING account_audit_event_id
             """,
@@ -980,6 +1030,7 @@ async def request_referral_saas_membership_invitation_delivery(
             _optional_text(command_actor_role) or "UNKNOWN",
             _optional_text(membership.get("delivery_status"))
             or "DELIVERY_NOT_CONFIGURED",
+            delivery_command_status,
             safe_reason_code,
             safe_correlation_id,
             safe_idempotency_hash,
@@ -993,14 +1044,15 @@ async def request_referral_saas_membership_invitation_delivery(
         )
 
     return MembershipInvitationDeliveryRequestResult(
-        command_status="DELIVERY_PROVIDER_NOT_CONFIGURED",
+        command_status=delivery_command_status,
         account_id=safe_account_id,
         membership_id=safe_membership_id,
         membership_status=membership_status,
         role_family=_optional_text(membership.get("role_family")) or "UNKNOWN",
         permission_set=_optional_text(membership.get("permission_set")) or "UNKNOWN",
-        delivery_status="DELIVERY_PROVIDER_NOT_CONFIGURED",
-        delivery_next_action="Configure approved invitation delivery provider before sending email invites.",
+        delivery_status=delivery_command_status,
+        delivery_next_action=delivery_next_action,
+        recipient_contact_status=recipient_contact_status,
         provider_ref=safe_provider_ref,
         channel=safe_channel,
         template_ref=safe_template_ref,
@@ -1114,6 +1166,7 @@ def _membership_person_summaries(
         display_name = _optional_text(row.get("user_display_name")) or subject
         summaries.append(
             MembershipPersonSummary(
+                membership_id=_optional_text(row.get("membership_id")) or "UNKNOWN",
                 actor_type=actor_type,
                 subject=subject or None,
                 display_name=display_name or None,
@@ -1146,6 +1199,7 @@ def _activation_readiness_item(
 
     if membership_status == "ACTIVE":
         return MembershipActivationReadinessItem(
+            membership_id=membership.membership_id,
             subject=membership.subject,
             display_name=membership.display_name,
             role_family=membership.role_family,
@@ -1160,6 +1214,7 @@ def _activation_readiness_item(
 
     if membership_status != "INVITED":
         return MembershipActivationReadinessItem(
+            membership_id=membership.membership_id,
             subject=membership.subject,
             display_name=membership.display_name,
             role_family=membership.role_family,
@@ -1189,6 +1244,7 @@ def _activation_readiness_item(
         activation_blockers.append("INVITATION_NOT_DELIVERED")
 
     return MembershipActivationReadinessItem(
+        membership_id=membership.membership_id,
         subject=membership.subject,
         display_name=membership.display_name,
         role_family=membership.role_family,

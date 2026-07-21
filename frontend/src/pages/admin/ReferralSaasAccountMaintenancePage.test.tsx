@@ -16,6 +16,7 @@ import {
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccounts,
   recordReferralSaasMembershipInvitationIntent,
+  requestReferralSaasMembershipInvitationDelivery,
   updateReferralSaasAccountProfile,
   type ReferralSaasAccountMembershipPostureResponse,
   type ReferralSaasAccountRegistryResponse,
@@ -34,6 +35,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   getReferralSaasTechnicalSetupReadiness: vi.fn(),
   listReferralSaasAccounts: vi.fn(),
   recordReferralSaasMembershipInvitationIntent: vi.fn(),
+  requestReferralSaasMembershipInvitationDelivery: vi.fn(),
   updateReferralSaasAccountProfile: vi.fn(),
 }));
 
@@ -44,6 +46,7 @@ const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferral
 const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTechnicalSetupReadiness);
 const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordReferralSaasMembershipInvitationIntent);
+const mockedRequestReferralSaasMembershipInvitationDelivery = vi.mocked(requestReferralSaasMembershipInvitationDelivery);
 const mockedUpdateReferralSaasAccountProfile = vi.mocked(updateReferralSaasAccountProfile);
 
 function renderWorkspace(ui: ReactElement, initialEntry = "/admin/referral-saas/account-maintenance") {
@@ -302,6 +305,7 @@ function mockMembershipPosture(): ReferralSaasAccountMembershipPostureResponse {
       ],
       memberships: [
         {
+          membershipRef: "membership-1",
           actorType: "USER",
           subject: "owner@gabs.example",
           displayName: "Gaborone owner",
@@ -351,6 +355,7 @@ function mockMembershipActivationReadiness(): ReferralSaasMembershipActivationRe
       missingRoleFamilies: ["CAMPAIGN_MANAGER"],
       items: [
         {
+          membershipRef: "membership-1",
           subject: "owner@gabs.example",
           displayName: "Gaborone owner",
           roleFamily: "DISTRIBUTION_ADMIN",
@@ -449,6 +454,33 @@ function mockTechnicalSetupReadiness(): ReferralSaasTechnicalSetupReadinessRespo
   };
 }
 
+function mockTechnicalSetupReadinessWithInviteProvider(): ReferralSaasTechnicalSetupReadinessResponse {
+  const readiness = mockTechnicalSetupReadiness();
+  return {
+    ...readiness,
+    technicalSetupReadiness: {
+      ...readiness.technicalSetupReadiness,
+      overallStatus: "READY",
+      channelSummary: {
+        ...readiness.technicalSetupReadiness.channelSummary,
+        approvedInviteProviderCount: 1,
+      },
+      capabilities: readiness.technicalSetupReadiness.capabilities.map((capability) =>
+        capability.code === "MEMBERSHIP_INVITE_DELIVERY"
+          ? {
+              ...capability,
+              status: "READY",
+              readyChannels: ["EMAIL"],
+              missingChannels: [],
+              approvedProviderRefs: ["mail-provider-1"],
+              nextAction: "People invite delivery provider is ready for a guarded request check.",
+            }
+          : capability,
+      ),
+    },
+  };
+}
+
 describe("ReferralSaasAccountMaintenancePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -495,6 +527,52 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       guardrails: ["NO_INVITE_DELIVERY"],
       redactions: ["INTERNAL_TENANT_IDENTIFIER"],
       no_invite_delivery_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+    mockedRequestReferralSaasMembershipInvitationDelivery.mockResolvedValue({
+      status: "blocked",
+      context: "setup",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACC-2201",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+        onboardingStatus: "APPROVED",
+      },
+      deliveryRequest: {
+        commandStatus: "DELIVERY_PROVIDER_NOT_CONFIGURED",
+        membership: {
+          membershipRef: "membership-1",
+          status: "INVITED",
+          roleFamily: "DISTRIBUTION_ADMIN",
+          permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        },
+        delivery: {
+          status: "DELIVERY_PROVIDER_NOT_CONFIGURED",
+          nextAction: "Configure approved invitation delivery provider before sending email invites.",
+          recipientContactStatus: "CONTACT_REFERENCE_PRESENT",
+          providerRef: "mail-provider-1",
+          channel: "EMAIL",
+          templateRef: "referral-saas-account-invite-v1",
+        },
+        idempotency: {
+          status: "RECORDED",
+        },
+        auditEventId: "audit-delivery-1",
+        guardrails: ["NO_EMAIL_DELIVERY_WITHOUT_PROVIDER"],
+        redactions: ["recipient_hash", "provider_secret"],
+        noInviteDeliveryConfirmed: true,
+        noMembershipActivationConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noMoneyMovementConfirmed: true,
+      },
+      guardrails: ["NO_EMAIL_DELIVERY_WITHOUT_PROVIDER"],
+      redactions: ["recipient_hash", "provider_secret"],
+      no_invite_delivery_confirmed: true,
+      no_membership_activation_confirmed: true,
       no_auth_claim_change_confirmed: true,
       no_seat_assignment_confirmed: true,
       no_money_movement_confirmed: true,
@@ -616,6 +694,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText("Configure an approved invitation delivery provider before sending invites.")).toBeInTheDocument();
     expect(screen.getAllByText("Gaborone owner").length).toBeGreaterThan(0);
     expect(screen.getAllByText("owner@gabs.example").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Check invite delivery" })).toBeDisabled();
+    expect(screen.getByText("Provider not approved")).toBeInTheDocument();
     expect(mockedGetReferralSaasMembershipActivationReadiness).toHaveBeenCalledWith({
       accountRef: "acct-gabs",
       refType: "external_tenant_ref",
@@ -659,6 +739,41 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(await screen.findByText("Access intent saved.")).toBeInTheDocument();
     expect(screen.getByText(/No invitation email, login activation, seat assignment, or auth claim change was performed/i)).toBeInTheDocument();
     expect(mockedGetReferralSaasMembershipActivationReadiness).toHaveBeenCalledTimes(2);
+  });
+
+  it("checks invite delivery from People and Access when provider and contact evidence are ready", async () => {
+    mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadinessWithInviteProvider());
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/people");
+
+    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    const deliveryButton = await screen.findByRole("button", { name: "Check invite delivery" });
+    expect(deliveryButton).toBeEnabled();
+
+    fireEvent.click(deliveryButton);
+
+    await waitFor(() => expect(mockedRequestReferralSaasMembershipInvitationDelivery).toHaveBeenCalledTimes(1));
+    expect(mockedRequestReferralSaasMembershipInvitationDelivery.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      membershipRef: "membership-1",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      delivery: {
+        providerRef: "mail-provider-1",
+        channel: "EMAIL",
+        templateRef: "referral-saas-account-invite-v1",
+      },
+      reasonCode: "CUSTOMER_PROFILE_INVITE_DELIVERY_REQUEST",
+      correlationId: "customer-profile-invite-delivery-acct-gabs",
+      idempotencyKey: "customer-profile-invite-delivery-acct-gabs-membership-1-distribution-admin",
+    });
+    expect(await screen.findByText("Invite delivery checked.")).toBeInTheDocument();
+    expect(screen.getByText(/No email was sent, no login was activated, no seat was assigned/i)).toBeInTheDocument();
+    expect(JSON.stringify(mockedRequestReferralSaasMembershipInvitationDelivery.mock.calls)).not.toMatch(
+      /recipientHash|tenantCode|sendInvite|activate|seat|money/i,
+    );
   });
 
   it("opens Technical Setup as its own read-only customer page", async () => {

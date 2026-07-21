@@ -75,7 +75,17 @@ responses show statuses such as `CONTACT_REFERENCE_PRESENT` or
 `CONTACT_REFERENCE_MISSING`, but they do not expose the email hash, raw email,
 provider secrets, user identifiers, or internal tenant identifiers.
 
-Future request shape:
+TASK-248 implementation note: People and Access can now request the guarded
+delivery boundary from the selected customer profile when a membership is
+invited, recipient contact evidence exists, and an approved invite-provider
+reference is visible from Technical Setup. The request does not send email. The
+service derives recipient readiness from backend contact evidence instead of
+requiring the browser to supply a recipient hash.
+`recipientHash` is intentionally not accepted from the browser in the current
+guarded UI path; it remains a redacted backend/audit concept for delivery
+boundary evidence.
+
+Current guarded request shape:
 
 ```json
 {
@@ -87,8 +97,7 @@ Future request shape:
   "delivery": {
     "providerRef": "approved-provider-reference",
     "channel": "EMAIL",
-    "templateRef": "referral-saas-account-invite-v1",
-    "recipientHash": "privacy-safe-recipient-hash"
+    "templateRef": "referral-saas-account-invite-v1"
   },
   "reasonCode": "ACCOUNT_SETUP_INVITE_DELIVERY",
   "correlationId": "client-correlation-id",

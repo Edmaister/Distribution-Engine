@@ -8,6 +8,7 @@ import {
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccounts,
   recordReferralSaasMembershipInvitationIntent,
+  requestReferralSaasMembershipInvitationDelivery,
   resolveReferralSaasAccount,
   updateReferralSaasAccountProfile,
 } from "./referralSaasAccounts";
@@ -460,6 +461,103 @@ describe("referralSaasAccounts endpoint client", () => {
     });
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|wallet|settlement|money_movement|send_invite|activate/,
+    );
+  });
+
+  it("requests Referral SaaS invitation delivery boundary without browser recipient hashes", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "blocked",
+      context: "setup",
+      account: {
+        accountId: "acc_fnb",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      deliveryRequest: {
+        commandStatus: "DELIVERY_PROVIDER_NOT_CONFIGURED",
+        membership: {
+          membershipRef: "mbr_1",
+          status: "INVITED",
+          roleFamily: "DISTRIBUTION_ADMIN",
+          permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        },
+        delivery: {
+          status: "DELIVERY_PROVIDER_NOT_CONFIGURED",
+          nextAction: "Configure approved invitation delivery provider before sending email invites.",
+          recipientContactStatus: "CONTACT_REFERENCE_PRESENT",
+          providerRef: "mail-provider-1",
+          channel: "EMAIL",
+          templateRef: "referral-saas-account-invite-v1",
+        },
+        idempotency: {
+          status: "RECORDED",
+        },
+        auditEventId: "audit-delivery-1",
+        guardrails: ["NO_EMAIL_DELIVERY_WITHOUT_PROVIDER"],
+        redactions: ["recipient_hash", "provider_secret"],
+        noInviteDeliveryConfirmed: true,
+        noMembershipActivationConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noMoneyMovementConfirmed: true,
+      },
+      guardrails: ["NO_EMAIL_DELIVERY_WITHOUT_PROVIDER"],
+      redactions: ["recipient_hash", "provider_secret"],
+      no_invite_delivery_confirmed: true,
+      no_membership_activation_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      requestReferralSaasMembershipInvitationDelivery({
+        accountRef: " acc_fnb ",
+        membershipRef: " mbr_1 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " fnb-referrals ",
+          context: "setup",
+        },
+        delivery: {
+          providerRef: " mail-provider-1 ",
+          channel: "EMAIL",
+          templateRef: " referral-saas-account-invite-v1 ",
+        },
+        correlationId: "customer-profile-invite-delivery-acc_fnb",
+        idempotencyKey: "customer-profile-invite-delivery-acc_fnb-mbr_1-distribution_admin",
+      }),
+    ).resolves.toMatchObject({
+      deliveryRequest: {
+        delivery: {
+          recipientContactStatus: "CONTACT_REFERENCE_PRESENT",
+        },
+      },
+      no_invite_delivery_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acc_fnb/membership-invitations/mbr_1/delivery",
+      {
+        method: "POST",
+        body: {
+          accountScope: {
+            refType: "external_tenant_ref",
+            externalRef: "fnb-referrals",
+            context: "setup",
+          },
+          delivery: {
+            providerRef: "mail-provider-1",
+            channel: "EMAIL",
+            templateRef: "referral-saas-account-invite-v1",
+          },
+          reasonCode: "CUSTOMER_PROFILE_INVITE_DELIVERY_REQUEST",
+          correlationId: "customer-profile-invite-delivery-acc_fnb",
+          idempotencyKey: "customer-profile-invite-delivery-acc_fnb-mbr_1-distribution_admin",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /recipienthash|tenant_code|client_secret|wallet|settlement|money_movement|send_invite|activate/,
     );
   });
 
