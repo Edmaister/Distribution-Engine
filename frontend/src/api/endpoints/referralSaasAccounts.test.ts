@@ -295,6 +295,7 @@ describe("referralSaasAccounts endpoint client", () => {
           readyCount: 0,
           attentionCount: 4,
           supportedChannels: ["EMAIL", "WHATSAPP", "SMS", "USSD"],
+          approvedInviteProviderCount: 0,
           postureBlockers: [],
         },
         capabilities: [
@@ -305,7 +306,9 @@ describe("referralSaasAccounts endpoint client", () => {
             requiredChannels: ["EMAIL"],
             readyChannels: [],
             missingChannels: ["EMAIL"],
-            nextAction: "Configure the Email provider before sending account access invites.",
+            approvedProviderRefs: [],
+            missingApprovalChannels: [],
+            nextAction: "Configure and approve the Email provider for Referral SaaS before sending account access invites.",
           },
         ],
         guardrails: ["READ_ONLY_TECHNICAL_SETUP_READINESS"],

@@ -217,6 +217,7 @@ greenfield referral construction.
 109. TASK-243: Add Referral SaaS invitation delivery request boundary.
 110. TASK-244: Add Referral SaaS technical setup readiness read model.
 111. TASK-245: Add Referral SaaS customer technical setup page.
+112. TASK-246: Add Referral SaaS invite provider approval readiness.
 
 ## 10/10 Exit Criteria
 
@@ -792,6 +793,19 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Referral SaaS Customer Profile now has a standalone customer-scoped Technical Setup page wired to the technical setup readiness API, keeping the customer home short while explaining Email invite-delivery and referral-message provider gaps without creating credentials, dispatching webhooks, sending invites, activating memberships, assigning seats, changing auth claims, launching campaigns, or moving money.
+- TASK-246: `apps/api/settings.py`;
+  `services/channel_readiness_service.py`;
+  `services/referral_saas_technical_setup_service.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `test/test_channel_readiness_service.py`;
+  `test/test_referral_saas_technical_setup_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Referral SaaS technical setup now distinguishes channel provider configuration from approved Referral SaaS invite-provider scope. Email can be configured at the shared channel layer while invite delivery remains blocked until an approved provider reference and Referral SaaS scope are present; no credentials are created, no invites are sent, no memberships are activated, and no money moves.
 
 ## Explicit Deferrals
 

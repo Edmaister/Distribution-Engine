@@ -63,6 +63,12 @@ link status, external reference status, and audit/idempotency evidence.
 
 ## Invitation Delivery Command
 
+TASK-246 implementation note: Referral SaaS now has a readiness gate that
+distinguishes Email channel URL/secret configuration from an approved provider
+reference scoped for Referral SaaS invitation delivery. This does not send
+email or activate memberships; it only makes the provider approval requirement
+visible in Technical Setup.
+
 Future request shape:
 
 ```json

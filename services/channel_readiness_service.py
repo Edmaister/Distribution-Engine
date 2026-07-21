@@ -39,6 +39,9 @@ CHANNEL_CATALOG: tuple[dict[str, Any], ...] = (
         ],
         "provider_url_setting": "channel_email_provider_url",
         "provider_secret_setting": "channel_email_provider_secret",
+        "provider_ref_setting": "channel_email_provider_ref",
+        "provider_approved_setting": "channel_email_provider_approved",
+        "provider_scopes_setting": "channel_email_provider_scopes",
         "recommended_action": "Configure the Email provider URL and signing secret before sending live account invitations.",
     },
     {
@@ -380,6 +383,19 @@ def _channel_recommendation_action(
 def _channel_status(settings: Any, item: dict[str, Any]) -> dict[str, Any]:
     provider_url = getattr(settings, item["provider_url_setting"], None)
     provider_secret = getattr(settings, item["provider_secret_setting"], None)
+    provider_ref = getattr(settings, item.get("provider_ref_setting", ""), None)
+    provider_approved = _truthy(
+        getattr(settings, item.get("provider_approved_setting", ""), False)
+    )
+    provider_scopes = _provider_scopes(
+        getattr(settings, item.get("provider_scopes_setting", ""), "")
+    )
+    provider_configured = bool(provider_url and provider_secret)
+    approved_for_referral_saas = bool(
+        provider_configured
+        and provider_approved
+        and ("REFERRAL_SAAS" in provider_scopes or "ALL" in provider_scopes)
+    )
     missing = []
     if not provider_url:
         missing.append("provider_url")
@@ -393,9 +409,13 @@ def _channel_status(settings: Any, item: dict[str, Any]) -> dict[str, Any]:
         "target_users": item["target_users"],
         "supported_events": item["supported_events"],
         "status": "READY" if not missing else "ATTENTION",
-        "provider_configured": bool(provider_url and provider_secret),
+        "provider_configured": provider_configured,
         "provider_url_configured": bool(provider_url),
         "provider_secret_configured": bool(provider_secret),
+        "provider_ref": str(provider_ref).strip() if provider_ref else None,
+        "provider_approved": provider_approved,
+        "provider_scopes": provider_scopes,
+        "approved_for_referral_saas": approved_for_referral_saas,
         "missing_components": missing,
         "recommended_action": (
             "Provider connection is configured for live channel activation."
@@ -403,6 +423,16 @@ def _channel_status(settings: Any, item: dict[str, Any]) -> dict[str, Any]:
             else item["recommended_action"]
         ),
     }
+
+
+def _provider_scopes(value: Any) -> list[str]:
+    return sorted(
+        {
+            part.strip().upper().replace("-", "_")
+            for part in str(value or "").replace(",", " ").split()
+            if part.strip()
+        }
+    )
 
 
 async def dispatch_channel_message(

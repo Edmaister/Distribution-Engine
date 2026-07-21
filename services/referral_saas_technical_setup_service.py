@@ -36,6 +36,8 @@ class ReferralSaasTechnicalSetupCapability:
     required_channels: tuple[str, ...]
     ready_channels: tuple[str, ...]
     missing_channels: tuple[str, ...]
+    approved_provider_refs: tuple[str, ...]
+    missing_approval_channels: tuple[str, ...]
     next_action: str
 
     def to_safe_dict(self) -> dict[str, Any]:
@@ -46,6 +48,8 @@ class ReferralSaasTechnicalSetupCapability:
             "requiredChannels": list(self.required_channels),
             "readyChannels": list(self.ready_channels),
             "missingChannels": list(self.missing_channels),
+            "approvedProviderRefs": list(self.approved_provider_refs),
+            "missingApprovalChannels": list(self.missing_approval_channels),
             "nextAction": self.next_action,
         }
 
@@ -97,14 +101,16 @@ def build_referral_saas_technical_setup_readiness(
             label="People invite delivery",
             required_channels=("EMAIL",),
             channels_by_code=channels_by_code,
-            next_action_when_ready="Email provider is configured. Delivery still requires the guarded invite-delivery command.",
-            next_action_when_blocked="Configure the Email provider before sending account access invites.",
+            requires_referral_saas_approval=True,
+            next_action_when_ready="Email provider is configured and approved for Referral SaaS. Delivery still requires the guarded invite-delivery command.",
+            next_action_when_blocked="Configure and approve the Email provider for Referral SaaS before sending account access invites.",
         ),
         _capability(
             code="REFERRAL_JOURNEY_MESSAGES",
             label="Referral journey messages",
             required_channels=("WHATSAPP", "SMS", "USSD"),
             channels_by_code=channels_by_code,
+            requires_referral_saas_approval=False,
             next_action_when_ready="Journey channels are configured. Campaign setup can choose the correct channel later.",
             next_action_when_blocked="Configure at least one journey channel before live customer messaging.",
         ),
@@ -136,6 +142,7 @@ def build_referral_saas_technical_setup_readiness(
             "readyCount": channel_readiness["summary"]["ready_count"],
             "attentionCount": channel_readiness["summary"]["attention_count"],
             "supportedChannels": channel_readiness["summary"]["supported_channels"],
+            "approvedInviteProviderCount": len(capabilities[0].approved_provider_refs),
             "postureBlockers": posture_blockers,
         },
         capabilities=capabilities,
@@ -148,6 +155,7 @@ def _capability(
     label: str,
     required_channels: tuple[str, ...],
     channels_by_code: dict[str, dict[str, Any]],
+    requires_referral_saas_approval: bool,
     next_action_when_ready: str,
     next_action_when_blocked: str,
 ) -> ReferralSaasTechnicalSetupCapability:
@@ -159,15 +167,34 @@ def _capability(
     missing_channels = tuple(
         channel for channel in required_channels if channel not in ready_channels
     )
+    approved_provider_refs = tuple(
+        str(channels_by_code[channel].get("provider_ref") or channel)
+        for channel in required_channels
+        if channels_by_code.get(channel, {}).get("approved_for_referral_saas") is True
+    )
+    missing_approval_channels = (
+        tuple(
+            channel
+            for channel in required_channels
+            if channel in ready_channels
+            and channels_by_code.get(channel, {}).get("approved_for_referral_saas")
+            is not True
+        )
+        if requires_referral_saas_approval
+        else ()
+    )
+    is_ready = not missing_channels and not missing_approval_channels
     return ReferralSaasTechnicalSetupCapability(
         code=code,
         label=label,
-        status="READY" if not missing_channels else "ATTENTION",
+        status="READY" if is_ready else "ATTENTION",
         required_channels=required_channels,
         ready_channels=ready_channels,
         missing_channels=missing_channels,
+        approved_provider_refs=approved_provider_refs,
+        missing_approval_channels=missing_approval_channels,
         next_action=next_action_when_ready
-        if not missing_channels
+        if is_ready
         else next_action_when_blocked,
     )
 

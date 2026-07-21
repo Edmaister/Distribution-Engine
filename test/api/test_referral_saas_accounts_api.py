@@ -835,6 +835,12 @@ async def test_referral_saas_account_admin_can_read_technical_setup_readiness(
     assert body["technicalSetupReadiness"]["capabilities"][0]["missingChannels"] == [
         "EMAIL"
     ]
+    assert body["technicalSetupReadiness"]["capabilities"][0][
+        "missingApprovalChannels"
+    ] == []
+    assert body["technicalSetupReadiness"]["channelSummary"][
+        "approvedInviteProviderCount"
+    ] == 0
     assert body["technicalSetupReadiness"]["noCredentialCreationConfirmed"] is True
     assert body["technicalSetupReadiness"]["noWebhookDispatchConfirmed"] is True
     assert body["technicalSetupReadiness"]["noInviteDeliveryConfirmed"] is True
