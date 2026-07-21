@@ -219,6 +219,64 @@ class ReferralSaasAccountMembershipPosture:
         }
 
 
+@dataclass(frozen=True)
+class MembershipActivationReadinessItem:
+    subject: str | None
+    display_name: str | None
+    role_family: str
+    membership_status: str
+    delivery_status: str
+    delivery_readiness: str
+    activation_readiness: str
+    blockers: tuple[str, ...]
+    next_action: str
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "subject": self.subject,
+            "displayName": self.display_name,
+            "roleFamily": self.role_family,
+            "membershipStatus": self.membership_status,
+            "deliveryStatus": self.delivery_status,
+            "deliveryReadiness": self.delivery_readiness,
+            "activationReadiness": self.activation_readiness,
+            "blockers": list(self.blockers),
+            "nextAction": self.next_action,
+        }
+
+
+@dataclass(frozen=True)
+class MembershipActivationReadiness:
+    account_id: str
+    overall_status: str
+    active_count: int
+    invited_count: int
+    delivery_ready_count: int
+    activation_ready_count: int
+    missing_role_families: tuple[str, ...]
+    items: tuple[MembershipActivationReadinessItem, ...]
+    guardrails: tuple[str, ...]
+    redactions: tuple[str, ...]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "accountId": self.account_id,
+            "overallStatus": self.overall_status,
+            "activeCount": self.active_count,
+            "invitedCount": self.invited_count,
+            "deliveryReadyCount": self.delivery_ready_count,
+            "activationReadyCount": self.activation_ready_count,
+            "missingRoleFamilies": list(self.missing_role_families),
+            "items": [item.to_safe_dict() for item in self.items],
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noInviteDeliveryConfirmed": True,
+            "noMembershipActivationConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+        }
+
+
 async def get_referral_saas_account_membership_posture(
     *,
     account_id: str,
@@ -309,6 +367,89 @@ async def get_referral_saas_account_membership_posture(
             "user_identifier",
             "client_identifier",
             "email_hash",
+        ),
+    )
+
+
+async def get_referral_saas_membership_activation_readiness(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_status: str,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+) -> MembershipActivationReadiness:
+    posture = await get_referral_saas_account_membership_posture(
+        account_id=account_id,
+        tenant_code=tenant_code,
+    )
+    return build_membership_activation_readiness(
+        posture=posture,
+        account_status=account_status,
+        tenant_link_status=tenant_link_status,
+        external_reference_status=external_reference_status,
+    )
+
+
+def build_membership_activation_readiness(
+    *,
+    posture: ReferralSaasAccountMembershipPosture,
+    account_status: str,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+) -> MembershipActivationReadiness:
+    safe_account_status = _optional_text(account_status).upper()
+    safe_tenant_link_status = _optional_text(tenant_link_status).upper()
+    safe_external_reference_status = _optional_text(external_reference_status).upper()
+
+    items = tuple(
+        _activation_readiness_item(
+            membership=membership,
+            account_status=safe_account_status,
+            tenant_link_status=safe_tenant_link_status,
+            external_reference_status=safe_external_reference_status,
+        )
+        for membership in posture.memberships
+    )
+    missing_role_families = _missing_required_role_families(posture.memberships)
+    delivery_ready_count = sum(
+        1 for item in items if item.delivery_readiness == "READY_TO_REQUEST_DELIVERY"
+    )
+    activation_ready_count = sum(
+        1 for item in items if item.activation_readiness == "READY_TO_ACTIVATE"
+    )
+
+    if posture.active_count > 0 and not missing_role_families:
+        overall_status = "ACCESS_READY"
+    elif items or missing_role_families:
+        overall_status = "ACTION_REQUIRED"
+    else:
+        overall_status = "NO_ACCESS_INTENT"
+
+    return MembershipActivationReadiness(
+        account_id=posture.account_id,
+        overall_status=overall_status,
+        active_count=posture.active_count,
+        invited_count=posture.invited_count,
+        delivery_ready_count=delivery_ready_count,
+        activation_ready_count=activation_ready_count,
+        missing_role_families=missing_role_families,
+        items=items,
+        guardrails=(
+            "READ_ONLY_ACTIVATION_READINESS",
+            "NO_INVITE_DELIVERY",
+            "NO_MEMBERSHIP_ACTIVATION",
+            "NO_SEAT_ASSIGNMENT",
+            "NO_AUTH_CLAIM_CHANGE",
+            "NO_TENANT_CODE_EXPOSURE",
+            "NO_MONEY_MOVEMENT",
+        ),
+        redactions=(
+            "internal_tenant_identifier",
+            "user_identifier",
+            "client_identifier",
+            "email_hash",
+            "recipient_hash",
         ),
     )
 
@@ -707,6 +848,98 @@ def _membership_person_summaries(
             )
         )
     return summaries
+
+
+def _activation_readiness_item(
+    *,
+    membership: MembershipPersonSummary,
+    account_status: str,
+    tenant_link_status: str,
+    external_reference_status: str,
+) -> MembershipActivationReadinessItem:
+    blockers: list[str] = []
+    delivery_status = _optional_text(membership.delivery_status).upper()
+    membership_status = _normalise_status(membership.status)
+
+    if membership_status == "ACTIVE":
+        return MembershipActivationReadinessItem(
+            subject=membership.subject,
+            display_name=membership.display_name,
+            role_family=membership.role_family,
+            membership_status=membership_status,
+            delivery_status=delivery_status or "NOT_REQUIRED",
+            delivery_readiness="DELIVERY_NOT_REQUIRED",
+            activation_readiness="ACTIVE",
+            blockers=(),
+            next_action="Access is already active for this responsibility.",
+        )
+
+    if membership_status != "INVITED":
+        return MembershipActivationReadinessItem(
+            subject=membership.subject,
+            display_name=membership.display_name,
+            role_family=membership.role_family,
+            membership_status=membership_status,
+            delivery_status=delivery_status or "DELIVERY_NOT_CONFIGURED",
+            delivery_readiness="BLOCKED",
+            activation_readiness="BLOCKED",
+            blockers=(f"MEMBERSHIP_{membership_status}",),
+            next_action="Resolve the membership status before delivery or activation.",
+        )
+
+    if delivery_status in {"", "DELIVERY_NOT_CONFIGURED"}:
+        blockers.append("DELIVERY_PROVIDER_NOT_CONFIGURED")
+
+    activation_blockers = list(blockers)
+    if account_status != "ACTIVE":
+        activation_blockers.append("ACCOUNT_NOT_ACTIVE")
+    if tenant_link_status != "ACTIVE":
+        activation_blockers.append("TENANT_LINK_NOT_ACTIVE")
+    if external_reference_status != "ACTIVE":
+        activation_blockers.append("EXTERNAL_REFERENCE_NOT_ACTIVE")
+    activation_blockers.append("IDENTITY_ACCEPTANCE_NOT_RECORDED")
+    if delivery_status not in {"INVITATION_DELIVERY_REQUESTED", "DELIVERED"}:
+        activation_blockers.append("INVITATION_NOT_DELIVERED")
+
+    return MembershipActivationReadinessItem(
+        subject=membership.subject,
+        display_name=membership.display_name,
+        role_family=membership.role_family,
+        membership_status=membership_status,
+        delivery_status=delivery_status or "DELIVERY_NOT_CONFIGURED",
+        delivery_readiness=(
+            "READY_TO_REQUEST_DELIVERY" if not blockers else "BLOCKED"
+        ),
+        activation_readiness=(
+            "READY_TO_ACTIVATE" if not activation_blockers else "BLOCKED"
+        ),
+        blockers=tuple(dict.fromkeys(activation_blockers)),
+        next_action=_activation_next_action(activation_blockers),
+    )
+
+
+def _missing_required_role_families(
+    memberships: tuple[MembershipPersonSummary, ...],
+) -> tuple[str, ...]:
+    usable_roles = {
+        membership.role_family
+        for membership in memberships
+        if _normalise_status(membership.status) in {"INVITED", "ACTIVE"}
+    }
+    required = ("DISTRIBUTION_ADMIN", "CAMPAIGN_MANAGER")
+    return tuple(role for role in required if role not in usable_roles)
+
+
+def _activation_next_action(blockers: list[str]) -> str:
+    if "DELIVERY_PROVIDER_NOT_CONFIGURED" in blockers:
+        return "Configure an approved invitation delivery provider before sending invites."
+    if "ACCOUNT_NOT_ACTIVE" in blockers:
+        return "Complete account activation before runtime membership activation."
+    if "TENANT_LINK_NOT_ACTIVE" in blockers:
+        return "Activate the customer workspace link before runtime access can operate."
+    if "IDENTITY_ACCEPTANCE_NOT_RECORDED" in blockers:
+        return "Wait for identity acceptance evidence before activation."
+    return "Ready for activation once the activation command exists."
 
 
 def _normalise_status(value: Any) -> str:
