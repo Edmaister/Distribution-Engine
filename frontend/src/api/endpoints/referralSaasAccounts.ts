@@ -125,6 +125,9 @@ export type ReferralSaasMembershipActivationReadinessItem = {
   recipientContactStatus: string;
   deliveryReadiness: string;
   activationReadiness: string;
+  provisioningReadiness: string;
+  seatAssignmentStatus: string;
+  authClaimStatus: string;
   blockers: string[];
   nextAction: string;
 };

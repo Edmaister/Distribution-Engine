@@ -367,6 +367,9 @@ function mockMembershipActivationReadiness(): ReferralSaasMembershipActivationRe
           recipientContactStatus: "CONTACT_REFERENCE_PRESENT",
           deliveryReadiness: "BLOCKED",
           activationReadiness: "BLOCKED",
+          provisioningReadiness: "WAITING_FOR_MEMBERSHIP_ACTIVATION",
+          seatAssignmentStatus: "SEAT_NOT_ASSIGNED",
+          authClaimStatus: "AUTH_CLAIMS_NOT_PROPAGATED",
           blockers: ["DELIVERY_PROVIDER_NOT_CONFIGURED"],
           nextAction: "Configure an approved invitation delivery provider before sending invites.",
         },
@@ -736,6 +739,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText(/responsibility still needs to be named for this customer/i)).toBeInTheDocument();
     expect(screen.getByText("Ready to invite")).toBeInTheDocument();
     expect(screen.getByText("Ready to activate")).toBeInTheDocument();
+    expect(screen.getByText("Provisioning boundary")).toBeInTheDocument();
+    expect(screen.getByText(/Seat assignment and login permission claims remain separate controlled workflows/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Campaign Manager/i).length).toBeGreaterThan(0);
     expect(screen.getByText("Configure an approved invitation delivery provider before sending invites.")).toBeInTheDocument();
     expect(screen.getAllByText("Gaborone owner").length).toBeGreaterThan(0);

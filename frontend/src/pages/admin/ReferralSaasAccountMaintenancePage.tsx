@@ -1059,6 +1059,20 @@ export function ReferralSaasAccountMaintenancePage() {
                     </div>
                   ) : null}
                   {activationReadiness?.activationReadiness.items.length ? (
+                    <div className="wizard-status-card">
+                      <div>
+                        <strong>Provisioning boundary</strong>
+                        <p>
+                          A named person can be invited or accepted here. Seat assignment and login permission claims remain separate controlled workflows.
+                        </p>
+                        <span className="table-subtext">
+                          This keeps People and Access honest: recording access intent or active membership does not silently create live login access.
+                        </span>
+                      </div>
+                      <StatusBadge label="Separate workflow" tone="warning" />
+                    </div>
+                  ) : null}
+                  {activationReadiness?.activationReadiness.items.length ? (
                     <DataTable
                       rows={activationReadiness.activationReadiness.items}
                       emptyText="No activation readiness items returned."
@@ -1103,6 +1117,24 @@ export function ReferralSaasAccountMaintenancePage() {
                             <span className="table-subtext">
                               {formatDisplay(getValue(row, ["nextAction"], "Review the access setup."))}
                             </span>
+                          ),
+                        },
+                        {
+                          key: "provisioning",
+                          header: "Provisioning",
+                          render: (row) => (
+                            <div>
+                              <StatusBadge
+                                label={formatDisplay(getValue(row, ["provisioningReadiness"], "Separate workflow"))}
+                                tone={statusTone(getValue(row, ["provisioningReadiness"], "Separate workflow"))}
+                              />
+                              <div className="table-subtext">
+                                Seat: {formatDisplay(getValue(row, ["seatAssignmentStatus"], "Seat not assigned"))}
+                              </div>
+                              <div className="table-subtext">
+                                Login permissions: {formatDisplay(getValue(row, ["authClaimStatus"], "Auth claims not propagated"))}
+                              </div>
+                            </div>
                           ),
                         },
                         {

@@ -275,6 +275,9 @@ async def test_membership_activation_readiness_explains_invited_blockers():
         == "Configure an approved invitation delivery provider before sending invites."
     )
     assert safe_payload["items"][0]["recipientContactStatus"] == "CONTACT_REFERENCE_PRESENT"
+    assert safe_payload["items"][0]["provisioningReadiness"] == "WAITING_FOR_MEMBERSHIP_ACTIVATION"
+    assert safe_payload["items"][0]["seatAssignmentStatus"] == "SEAT_NOT_ASSIGNED"
+    assert safe_payload["items"][0]["authClaimStatus"] == "AUTH_CLAIMS_NOT_PROPAGATED"
     assert safe_payload["items"][1]["blockers"] == [
         "ACCOUNT_NOT_ACTIVE",
         "TENANT_LINK_NOT_ACTIVE",
@@ -310,6 +313,43 @@ async def test_membership_activation_readiness_blocks_missing_contact_reference(
         item["nextAction"]
         == "Add a safe work email contact reference before invite delivery can be requested."
     )
+    assert item["provisioningReadiness"] == "WAITING_FOR_MEMBERSHIP_ACTIVATION"
+
+
+async def test_membership_activation_readiness_keeps_active_membership_provisioning_separate():
+    readiness = svc.build_membership_activation_readiness(
+        posture=_posture_with_memberships(
+            _membership(
+                status="ACTIVE",
+                delivery_status="INVITATION_DELIVERY_REQUESTED",
+            ),
+            _membership(
+                subject="campaign@example.test",
+                display_name="Campaign Manager",
+                role_family="CAMPAIGN_MANAGER",
+                permission_set="REFERRAL_SAAS_CAMPAIGN_MANAGER",
+                status="ACTIVE",
+                delivery_status="INVITATION_DELIVERY_REQUESTED",
+            ),
+        ),
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+    )
+
+    safe_payload = readiness.to_safe_dict()
+
+    assert safe_payload["overallStatus"] == "ACCESS_READY"
+    assert safe_payload["items"][0]["activationReadiness"] == "ACTIVE"
+    assert safe_payload["items"][0]["provisioningReadiness"] == "PROVISIONING_BLOCKED"
+    assert safe_payload["items"][0]["seatAssignmentStatus"] == "SEAT_NOT_ASSIGNED"
+    assert safe_payload["items"][0]["authClaimStatus"] == "AUTH_CLAIMS_NOT_PROPAGATED"
+    assert (
+        safe_payload["items"][0]["nextAction"]
+        == "Membership is active. Configure seats and auth claims through their separate governed workflows before login access is live."
+    )
+    assert safe_payload["noSeatAssignmentConfirmed"] is True
+    assert safe_payload["noAuthClaimChangeConfirmed"] is True
 
 
 async def test_membership_activation_readiness_reports_missing_required_roles():

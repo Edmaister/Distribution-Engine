@@ -379,6 +379,9 @@ class MembershipActivationReadinessItem:
     recipient_contact_status: str
     delivery_readiness: str
     activation_readiness: str
+    provisioning_readiness: str
+    seat_assignment_status: str
+    auth_claim_status: str
     blockers: tuple[str, ...]
     next_action: str
 
@@ -393,6 +396,9 @@ class MembershipActivationReadinessItem:
             "recipientContactStatus": self.recipient_contact_status,
             "deliveryReadiness": self.delivery_readiness,
             "activationReadiness": self.activation_readiness,
+            "provisioningReadiness": self.provisioning_readiness,
+            "seatAssignmentStatus": self.seat_assignment_status,
+            "authClaimStatus": self.auth_claim_status,
             "blockers": list(self.blockers),
             "nextAction": self.next_action,
         }
@@ -1589,8 +1595,14 @@ def _activation_readiness_item(
             recipient_contact_status=membership.recipient_contact_status,
             delivery_readiness="DELIVERY_NOT_REQUIRED",
             activation_readiness="ACTIVE",
+            provisioning_readiness="PROVISIONING_BLOCKED",
+            seat_assignment_status="SEAT_NOT_ASSIGNED",
+            auth_claim_status="AUTH_CLAIMS_NOT_PROPAGATED",
             blockers=(),
-            next_action="Access is already active for this responsibility.",
+            next_action=(
+                "Membership is active. Configure seats and auth claims through "
+                "their separate governed workflows before login access is live."
+            ),
         )
 
     if membership_status != "INVITED":
@@ -1604,6 +1616,9 @@ def _activation_readiness_item(
             recipient_contact_status=membership.recipient_contact_status,
             delivery_readiness="BLOCKED",
             activation_readiness="BLOCKED",
+            provisioning_readiness="WAITING_FOR_MEMBERSHIP_ACTIVATION",
+            seat_assignment_status="SEAT_NOT_ASSIGNED",
+            auth_claim_status="AUTH_CLAIMS_NOT_PROPAGATED",
             blockers=(f"MEMBERSHIP_{membership_status}",),
             next_action="Resolve the membership status before delivery or activation.",
         )
@@ -1638,6 +1653,9 @@ def _activation_readiness_item(
         activation_readiness=(
             "READY_TO_ACTIVATE" if not activation_blockers else "BLOCKED"
         ),
+        provisioning_readiness="WAITING_FOR_MEMBERSHIP_ACTIVATION",
+        seat_assignment_status="SEAT_NOT_ASSIGNED",
+        auth_claim_status="AUTH_CLAIMS_NOT_PROPAGATED",
         blockers=tuple(dict.fromkeys(activation_blockers)),
         next_action=_activation_next_action(activation_blockers),
     )
