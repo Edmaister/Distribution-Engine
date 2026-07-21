@@ -5161,6 +5161,32 @@ Rollback notes: Revert the role-family migration/service addition and restore th
 Explicit non-goals: Do not implement live email delivery, identity-provider writes, membership activation, seat assignment, role activation, auth/session claim changes, account lifecycle commands, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: People and Access records customer-scoped owner/support/campaign-manager intent with a real email identity and safe page rendering while preserving bounded no-live-action guardrails. Priority: P0.
 
+## TASK-240: Simplify Account Setup customer workspace language
+
+Status: Complete (2026-07-21). Output: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Keeps the existing account-to-tenant implementation intact while changing only customer-facing Account Setup wording. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Account Setup wizard; customer workspace creation; hidden internal tenant scope boundary.
+Objective: Make Account Setup feel like creating a customer workspace instead of exposing tenant/link internals to operators.
+Why now: Manual UX review confirmed the account/tenant architecture is sound but the UI language made setup feel overcomplicated by surfacing internal tenant concepts.
+Files involved: Account Setup page, Account Setup tests, roadmap task list.
+Implementation/source files inspected: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `services/referral_saas_account_setup_service.py`; `services/referral_saas_account_foundation_service.py`; `apps/api/routers/referral_saas_accounts.py`; `dp/migrations/082_referral_saas_account_foundation.sql`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`.
+Database/schema impact: None.
+Backend impact: None. Internal `tenant_code`, account-to-tenant link, and external-reference mapping behavior remains unchanged.
+Frontend impact: Account Setup now frames the flow as finding or creating a customer workspace, hides tenant wording from the primary UX, labels the internal link as workspace scope, and makes the primary create CTA `Create customer workspace`.
+API impact: None. Existing create-from-draft request still sends the internal setup tenant seed behind the scenes.
+Tests to add/update: Updated Account Setup tests to assert customer-workspace language and preserve no visible `tenant_code` leakage.
+Validation method: `npm.cmd test -- --run src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`; `npm.cmd run build`; `npm.cmd run lint -- --quiet`; `git diff --check`.
+Acceptance criteria: Account Setup customer-facing copy uses customer workspace language; visible tenant/link wording is removed from primary setup screens; the hidden internal tenant scope remains an implementation detail; create flow still calls the same guarded account creation API; no schema, backend route, tenant lifecycle behavior, membership write, invite delivery, credential lifecycle, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-232; TASK-233; TASK-235.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Restore previous Account Setup copy and button labels; no backend or schema rollback required.
+Explicit non-goals: Do not rename database fields, API payload fields, backend service identifiers, migrations, `tenant_code`, external-reference contracts, membership behavior, campaign behavior, billing, money movement, or DLaaS marketplace behavior.
+Definition of done: Account Setup presents customer workspace creation clearly while preserving hidden internal tenant isolation. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

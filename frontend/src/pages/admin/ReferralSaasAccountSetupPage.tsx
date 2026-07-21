@@ -40,9 +40,9 @@ const defaultOrganisationRef = "";
 const draftConflictRecoveryMessage =
   "A saved setup already exists for this customer. Refresh the setup status to continue from the latest evidence, or use a different customer before saving another draft. No account was created and no live action was taken.";
 const accountAlreadyExistsMessage =
-  "This customer already has an account foundation, or the selected internal setup scope is already attached to an account. Open the customer profile if this is the same customer, or use different customer identifiers.";
+  "This customer already has a workspace, or the selected internal workspace scope is already attached to a customer. Open the customer profile if this is the same customer, or use different customer identifiers.";
 const internalScopeAlreadyUsedMessage =
-  "The setup workspace for this customer is already attached to another account foundation. Use different customer identifiers, then create the account foundation again.";
+  "The internal workspace scope for this customer is already attached to another customer workspace. Use different customer identifiers, then create the workspace again.";
 const guidedReviewReason = "Account setup reviewed through the guided Referral SaaS account setup flow.";
 type SetupActionState = "idle" | "loading" | "success" | "error";
 type CompanyProfileForm = {
@@ -91,9 +91,9 @@ const accountChecklist = [
   },
   {
     code: "TENANT_LINK",
-    label: "Tenant link",
+    label: "Workspace scope",
     source: "Existing onboarding readiness projection",
-    next: "Resolve external references to an internal tenant before campaign work.",
+    next: "Assign the hidden internal workspace scope before campaign work.",
   },
   {
     code: "MEMBERSHIP",
@@ -111,7 +111,7 @@ const accountChecklist = [
     code: "REPORTING_BASELINE",
     label: "Reporting baseline",
     source: "Referral SaaS reports",
-    next: "Use tenant-safe reports; persisted exports remain future work.",
+    next: "Use customer-safe reports; persisted exports remain future work.",
   },
 ];
 
@@ -569,9 +569,9 @@ export function ReferralSaasAccountSetupPage() {
           <h1 className="page-title">Account setup wizard</h1>
           <p className="page-copy">
             Work through customer identification, company profile, setup
-            checkpoint, and account foundation creation before testing
+            checkpoint, and customer workspace creation before testing
             campaigns, links, attribution, or reports. Technical integration
-            setup is handled after the account foundation is ready.
+            setup is handled after the customer workspace is ready.
           </p>
         </div>
         <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
@@ -607,7 +607,7 @@ export function ReferralSaasAccountSetupPage() {
                 <div>
                   <div className="page-kicker">Step {activeWizardStep} of {wizardSteps.length}</div>
                   <h2 className="panel-title" id="account-setup-wizard-heading">Guided account setup</h2>
-                  <div className="panel-subtitle">Set up a customer account foundation before campaign and attribution testing.</div>
+                  <div className="panel-subtitle">Create the customer workspace before campaign and attribution testing.</div>
                 </div>
                 <StatusBadge label="Safe mode: no go-live / money / credentials" tone="warning" />
               </div>
@@ -617,14 +617,14 @@ export function ReferralSaasAccountSetupPage() {
                   <>
                     <div>
                       <div className="page-kicker">Identify customer</div>
-                      <h3 className="account-wizard-title">Find or start the account</h3>
-                      <p className="page-copy">Enter the customer identifiers. We will tell you if a Referral SaaS account already exists.</p>
+                      <h3 className="account-wizard-title">Find or start the customer workspace</h3>
+                      <p className="page-copy">Enter the customer identifiers. We will tell you if a Referral SaaS customer workspace already exists.</p>
                     </div>
                     <form className="wizard-card" onSubmit={submitScope}>
                       <div className="wizard-status-card">
                         <div>
                           <strong>Customer identifiers</strong>
-                          <p>Use the customer's visible identifiers for setup. Internal tenant identifiers stay hidden.</p>
+                          <p>Use the customer's visible identifiers for setup. Internal workspace identifiers stay hidden.</p>
                         </div>
                         <StatusBadge label="External only" tone="info" />
                       </div>
@@ -632,7 +632,7 @@ export function ReferralSaasAccountSetupPage() {
                         <div className="field">
                           <label htmlFor="referral-saas-customer-reference">
                             Customer reference{" "}
-                            <InfoTooltip text="Enter the stable customer-facing reference for this account, such as a customer slug or external tenant reference. We use it to find an existing Referral SaaS account, save setup evidence, and keep later customer work scoped without exposing internal tenant IDs." />
+                            <InfoTooltip text="Enter the stable customer-facing reference for this workspace, such as a customer slug or external account reference. We use it to find an existing Referral SaaS customer, save setup evidence, and keep later customer work scoped without exposing internal platform identifiers." />
                           </label>
                           <input
                             className="input"
@@ -645,7 +645,7 @@ export function ReferralSaasAccountSetupPage() {
                         <div className="field">
                           <label htmlFor="referral-saas-organisation-reference">
                             Organisation reference{" "}
-                            <InfoTooltip text="Enter the customer organisation reference that pairs with the customer reference. We use it in setup drafts, readiness checks, and customer profile routing so the account can be selected again consistently." />
+                            <InfoTooltip text="Enter the customer organisation reference that pairs with the customer reference. We use it in setup drafts, readiness checks, and customer profile routing so the workspace can be selected again consistently." />
                           </label>
                           <input
                             className="input"
@@ -665,7 +665,7 @@ export function ReferralSaasAccountSetupPage() {
                       </div>
                       <div className="wizard-status-card">
                         <div>
-                          <strong>Account status</strong>
+                          <strong>Customer workspace status</strong>
                           <p>{durableAccountStatus.copy}</p>
                           {durableAccount ? <span>{formatAccountSummary(durableAccount)}</span> : null}
                         </div>
@@ -685,7 +685,7 @@ export function ReferralSaasAccountSetupPage() {
                     <div className="wizard-card">
                       <div className="wizard-status-card">
                         <div>
-                          <strong>Account scope</strong>
+                          <strong>Customer workspace scope</strong>
                           <p>These references were confirmed in Step 1 and are used for the saved company profile evidence.</p>
                           <span>{appliedExternalTenantRef} / {appliedOrganisationRef}</span>
                         </div>
@@ -795,7 +795,7 @@ export function ReferralSaasAccountSetupPage() {
                   <>
                     <div>
                       <div className="page-kicker">Setup checkpoint</div>
-                      <h3 className="account-wizard-title">Confirm account setup can continue</h3>
+                      <h3 className="account-wizard-title">Confirm customer setup can continue</h3>
                       <p className="page-copy">
                         This checkpoint only confirms the Account Setup path.
                         Full readiness evidence now lives in Account Maintenance.
@@ -820,7 +820,7 @@ export function ReferralSaasAccountSetupPage() {
                         <div className="route-item">
                           <div>
                             <div className="route-name">Company profile saved</div>
-                            <div className="route-path">Step 2 saved the company evidence used by review and account foundation creation.</div>
+                            <div className="route-path">Step 2 saved the company evidence used by review and customer workspace creation.</div>
                           </div>
                           <StatusBadge label={accountProfileReady ? "Saved" : "Save first"} tone={accountProfileReady ? "success" : "warning"} />
                         </div>
@@ -859,15 +859,15 @@ export function ReferralSaasAccountSetupPage() {
                   <>
                     <div>
                       <div className="page-kicker">Review & create</div>
-                      <h3 className="account-wizard-title">Review and create account foundation</h3>
-                      <p className="page-copy">Confirm the customer setup evidence, then create the account foundation. We handle the required safe review steps in the background.</p>
+                      <h3 className="account-wizard-title">Review and create customer workspace</h3>
+                      <p className="page-copy">Confirm the customer setup evidence, then create the customer workspace. We handle the required safe review steps in the background.</p>
                     </div>
                     <div className="wizard-card">
                       <div className="wizard-status-card">
                         <div>
-                          <strong>Ready to create the customer foundation</strong>
+                          <strong>Ready to create the customer workspace</strong>
                           <p>
-                            This creates the durable account foundation only. It does not create users, send invites,
+                            This creates the durable customer workspace and hidden internal scope only. It does not create users, send invites,
                             create campaigns, enable go-live, create credentials, bill, settle, or move money.
                           </p>
                         </div>
@@ -890,14 +890,14 @@ export function ReferralSaasAccountSetupPage() {
                           <div className="table-subtext">{accountSetupCheckpoint.copy}</div>
                         </div>
                         <div className="summary-item">
-                          <div className="summary-label">Account foundation</div>
+                          <div className="summary-label">Customer workspace</div>
                           <div className="summary-value">{durableAccount ? "Already exists" : createResponse ? "Created" : "Not created"}</div>
                           <div className="table-subtext">{durableAccount ? formatAccountSummary(durableAccount) : "Create only after customer evidence is correct."}</div>
                         </div>
                       </div>
                       <div className="action-button-row">
                         <button className="button" disabled={!canCreateAccount} onClick={handleCreateAccountFoundation} type="button">
-                          {createState === "loading" ? "Creating account foundation" : "Create account foundation"}
+                          {createState === "loading" ? "Creating customer workspace" : "Create customer workspace"}
                         </button>
                         <button className="button secondary" disabled={!actionScopeReady || draftState === "loading"} onClick={handleSaveSetupDraft} type="button">
                           {draftState === "loading" ? "Saving draft" : "Save and finish later"}
@@ -913,7 +913,7 @@ export function ReferralSaasAccountSetupPage() {
                             <span>1</span>
                             <div>
                               <strong>Save setup draft</strong>
-                              <p>Persist customer setup evidence for this external customer scope.</p>
+                              <p>Persist customer setup evidence for this customer workspace scope.</p>
                             </div>
                           </li>
                           <li className={submitResponse ? "done" : "locked"}>
@@ -933,8 +933,8 @@ export function ReferralSaasAccountSetupPage() {
                           <li className={createResponse || durableAccount ? "done" : "locked"}>
                             <span>4</span>
                             <div>
-                              <strong>Create account foundation</strong>
-                              <p>Create the account, tenant link, and external reference foundation only.</p>
+                              <strong>Create customer workspace</strong>
+                              <p>Create the customer workspace, hidden internal workspace scope, and customer-reference mapping only.</p>
                             </div>
                           </li>
                         </ol>
@@ -943,7 +943,7 @@ export function ReferralSaasAccountSetupPage() {
                         <div className="banner success" role="status">
                           <CheckCircle2 size={18} />
                           <div>
-                            <strong>Account foundation already exists.</strong>
+                            <strong>Customer workspace already exists.</strong>
                             <div className="table-subtext">{formatAccountSummary(durableAccount)}</div>
                           </div>
                         </div>
@@ -1081,9 +1081,9 @@ function getAccountSetupCheckpoint({
   }
   if (durableAccount) {
     return {
-      badge: "Account found",
-      copy: "A durable account already exists for this customer. Open the customer profile to continue account maintenance and customer-scoped work.",
-      title: "Account foundation already exists",
+      badge: "Workspace found",
+      copy: "A customer workspace already exists for this customer. Open the customer profile to continue maintenance and customer-scoped work.",
+      title: "Customer workspace already exists",
       tone: "success" as const,
     };
   }
@@ -1251,12 +1251,12 @@ function safeAccountCreateError(error: unknown) {
     return accountAlreadyExistsMessage;
   }
   if (status === 422) {
-    return "The reviewed setup draft is missing required account creation evidence. No account, tenant, user, campaign, go-live, or money action was taken.";
+    return "The reviewed setup draft is missing required customer workspace evidence. No workspace, user, campaign, go-live, or money action was taken.";
   }
   if (status === 403) {
-    return "Your current session is not allowed to create the account foundation. No adjacent setup action was taken.";
+    return "Your current session is not allowed to create the customer workspace. No adjacent setup action was taken.";
   }
-  return "Account foundation creation is unavailable. No tenant, user, campaign, go-live, or money action was taken.";
+  return "Customer workspace creation is unavailable. No user, campaign, go-live, or money action was taken.";
 }
 
 function deriveInternalSetupTenantScope(externalTenantRef: string, organisationRef: string) {
@@ -1277,7 +1277,7 @@ function formatAccountSummary(account: ReferralSaasAccountSummary) {
   return [
     account.accountName || account.accountCode || "Referral SaaS account",
     account.accountStatus || "status unavailable",
-    account.tenantLinkStatus ? `tenant link ${account.tenantLinkStatus}` : "",
+    account.tenantLinkStatus ? `workspace scope ${account.tenantLinkStatus}` : "",
   ]
     .filter(Boolean)
     .join(" - ");
@@ -1363,7 +1363,7 @@ function SetupActionResult({
           <div>
             <strong>Customer setup evidence saved.</strong>
             <div className="table-subtext">
-              You can finish later, or continue now to create the account foundation.
+              You can finish later, or continue now to create the customer workspace.
             </div>
           </div>
         </div>
@@ -1384,7 +1384,7 @@ function SetupActionResult({
           <div className="banner success" role="status">
             <CheckCircle2 size={18} />
             <div>
-              <strong>Account foundation created.</strong>
+              <strong>Customer workspace created.</strong>
               <div className="table-subtext">
                 {mode === "guided"
                   ? "Account Setup is complete. Open the customer profile to continue in the selected customer context."
@@ -1399,7 +1399,7 @@ function SetupActionResult({
               <div className="wizard-status-card">
                 <div>
                   <strong>Next best actions</strong>
-                  <p>Choose where to continue now that the customer account foundation exists.</p>
+                  <p>Choose where to continue now that the customer workspace exists.</p>
                 </div>
                 <StatusBadge label="Setup complete" tone="success" />
               </div>
@@ -1437,7 +1437,7 @@ function SetupActionResult({
                 : message === internalScopeAlreadyUsedMessage
                   ? "Setup workspace already used."
                 : message === accountAlreadyExistsMessage
-                  ? "Account foundation already exists."
+                  ? "Customer workspace already exists."
                   : "Setup action fallback."}
             </strong>
             <div className="table-subtext">{message}</div>
