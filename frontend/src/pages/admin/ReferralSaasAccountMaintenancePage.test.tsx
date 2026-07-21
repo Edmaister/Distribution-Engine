@@ -16,6 +16,7 @@ import {
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccounts,
   recordReferralSaasMembershipInvitationIntent,
+  requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   updateReferralSaasAccountProfile,
   type ReferralSaasAccountMembershipPostureResponse,
@@ -36,6 +37,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   listReferralSaasAccounts: vi.fn(),
   recordReferralSaasMembershipInvitationIntent: vi.fn(),
   requestReferralSaasMembershipInvitationDelivery: vi.fn(),
+  requestReferralSaasMembershipActivation: vi.fn(),
   updateReferralSaasAccountProfile: vi.fn(),
 }));
 
@@ -47,6 +49,7 @@ const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTe
 const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordReferralSaasMembershipInvitationIntent);
 const mockedRequestReferralSaasMembershipInvitationDelivery = vi.mocked(requestReferralSaasMembershipInvitationDelivery);
+const mockedRequestReferralSaasMembershipActivation = vi.mocked(requestReferralSaasMembershipActivation);
 const mockedUpdateReferralSaasAccountProfile = vi.mocked(updateReferralSaasAccountProfile);
 
 function renderWorkspace(ui: ReactElement, initialEntry = "/admin/referral-saas/account-maintenance") {
@@ -577,6 +580,48 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       no_seat_assignment_confirmed: true,
       no_money_movement_confirmed: true,
     });
+    mockedRequestReferralSaasMembershipActivation.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACC-2201",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+        onboardingStatus: "APPROVED",
+      },
+      activationRequest: {
+        commandStatus: "MEMBERSHIP_ACTIVATED",
+        membership: {
+          membershipRef: "membership-1",
+          previousStatus: "INVITED",
+          status: "ACTIVE",
+          roleFamily: "DISTRIBUTION_ADMIN",
+          permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        },
+        activation: {
+          status: "MEMBERSHIP_ACTIVATED",
+          acceptedSubjectStatus: "ACCEPTED_SUBJECT_MATCHED",
+          nextAction: "Membership lifecycle is active. Configure seats and auth claims only through their separate governed workflows.",
+        },
+        idempotency: {
+          status: "RECORDED",
+        },
+        auditEventId: "audit-activation-1",
+        guardrails: ["NO_INVITE_DELIVERY", "NO_AUTH_PROVIDER_WRITE"],
+        redactions: ["accepted_subject", "acceptance_evidence_ref"],
+        noInviteDeliveryConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noMoneyMovementConfirmed: true,
+      },
+      guardrails: ["NO_INVITE_DELIVERY", "NO_AUTH_PROVIDER_WRITE"],
+      redactions: ["accepted_subject", "acceptance_evidence_ref"],
+      no_invite_delivery_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
     mockedUpdateReferralSaasAccountProfile.mockResolvedValue({
       status: "ok",
       profile: {
@@ -773,6 +818,40 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText(/No email was sent, no login was activated, no seat was assigned/i)).toBeInTheDocument();
     expect(JSON.stringify(mockedRequestReferralSaasMembershipInvitationDelivery.mock.calls)).not.toMatch(
       /recipientHash|tenantCode|sendInvite|activate|seat|money/i,
+    );
+  });
+
+  it("records accepted access from People and Access through the activation boundary", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/people");
+
+    expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
+    const activationButton = await screen.findByRole("button", { name: "Record accepted access" });
+    expect(activationButton).toBeEnabled();
+    expect(screen.getByText("Will validate gates")).toBeInTheDocument();
+
+    fireEvent.click(activationButton);
+
+    await waitFor(() => expect(mockedRequestReferralSaasMembershipActivation).toHaveBeenCalledTimes(1));
+    expect(mockedRequestReferralSaasMembershipActivation.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      membershipRef: "membership-1",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      activation: {
+        acceptedSubject: "owner@gabs.example",
+        acceptanceEvidenceRef: "customer-profile-accepted-acct-gabs-membership-1",
+      },
+      reasonCode: "CUSTOMER_PROFILE_ACCESS_ACCEPTANCE",
+      correlationId: "customer-profile-access-activation-acct-gabs",
+      idempotencyKey: "customer-profile-access-activation-acct-gabs-membership-1-distribution-admin",
+    });
+    expect(await screen.findByText("Accepted access recorded.")).toBeInTheDocument();
+    expect(screen.getByText(/No invite email was sent, no seat was assigned, no auth claim changed/i)).toBeInTheDocument();
+    expect(JSON.stringify(mockedRequestReferralSaasMembershipActivation.mock.calls)).not.toMatch(
+      /tenantCode|sendInvite|seatId|authClaims|goLive|wallet|settlement|money/i,
     );
   });
 
