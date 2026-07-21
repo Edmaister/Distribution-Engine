@@ -680,6 +680,222 @@ async def test_membership_invitation_delivery_request_rejects_active_membership(
         )
 
 
+async def test_membership_activation_request_blocks_missing_identity_acceptance(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "membership_id": "membership-1",
+                "status": "INVITED",
+                "role_family": "DISTRIBUTION_ADMIN",
+                "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                "user_id": "user-1",
+                "client_id": None,
+                "delivery_status": "INVITATION_DELIVERY_REQUESTED",
+                "user_subject": "owner@example.test",
+            },
+            None,
+            {"account_audit_event_id": "audit-activation-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.request_referral_saas_membership_activation(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+        membership_id="membership-1",
+        accepted_subject=None,
+        acceptance_evidence_ref=None,
+        reason_code="CUSTOMER_PROFILE_MEMBERSHIP_ACTIVATION_REQUEST",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+        command_payload={"activation": {}},
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "ACTIVATION_REJECTED_IDENTITY_NOT_ACCEPTED"
+    assert safe_payload["membership"]["previousStatus"] == "INVITED"
+    assert safe_payload["membership"]["status"] == "INVITED"
+    assert safe_payload["activation"]["acceptedSubjectStatus"] == (
+        "ACCEPTED_SUBJECT_MISSING_OR_MISMATCHED"
+    )
+    assert safe_payload["idempotency"]["status"] == "RECORDED"
+    assert safe_payload["noInviteDeliveryConfirmed"] is True
+    assert safe_payload["noAuthClaimChangeConfirmed"] is True
+    assert safe_payload["noSeatAssignmentConfirmed"] is True
+    assert safe_payload["noMoneyMovementConfirmed"] is True
+    assert "accepted_subject" in safe_payload["redactions"]
+
+    joined_queries = "\n".join(call[0] for call in conn.fetchrow_calls)
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+    assert "UPDATE platform_memberships" not in joined_queries
+    assert "platform_seats" not in joined_queries
+
+
+async def test_membership_activation_request_activates_only_membership_lifecycle(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "membership_id": "membership-1",
+                "status": "INVITED",
+                "role_family": "DISTRIBUTION_ADMIN",
+                "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                "user_id": "user-1",
+                "client_id": None,
+                "delivery_status": "INVITATION_DELIVERY_REQUESTED",
+                "user_subject": "owner@example.test",
+            },
+            None,
+            {"status": "ACTIVE"},
+            {"account_audit_event_id": "audit-activation-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.request_referral_saas_membership_activation(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+        membership_id="membership-1",
+        accepted_subject="owner@example.test",
+        acceptance_evidence_ref="identity-acceptance-1",
+        reason_code="CUSTOMER_PROFILE_MEMBERSHIP_ACTIVATION_REQUEST",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+        command_payload={
+            "activation": {
+                "acceptedSubject": "owner@example.test",
+                "acceptanceEvidenceRef": "identity-acceptance-1",
+            }
+        },
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "MEMBERSHIP_ACTIVATED"
+    assert safe_payload["membership"]["status"] == "ACTIVE"
+    assert safe_payload["activation"]["acceptedSubjectStatus"] == (
+        "ACCEPTED_SUBJECT_MATCHED"
+    )
+    assert safe_payload["noInviteDeliveryConfirmed"] is True
+    assert safe_payload["noAuthClaimChangeConfirmed"] is True
+    assert safe_payload["noSeatAssignmentConfirmed"] is True
+
+    joined_queries = "\n".join(call[0] for call in conn.fetchrow_calls)
+    assert "UPDATE platform_memberships" in joined_queries
+    assert "accepted_by_ref" in joined_queries
+    assert "platform_seats" not in joined_queries
+    assert "auth" not in joined_queries.lower().replace("no_auth", "")
+
+
+async def test_membership_activation_request_replays_matching_idempotency(
+    monkeypatch,
+):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                {
+                    "account_audit_event_id": "audit-activation-1",
+                    "membership_id": "membership-1",
+                    "previous_status": "INVITED",
+                    "next_status": "MEMBERSHIP_ACTIVATED",
+                    "evidence_summary": {
+                        "membership_id": "membership-1",
+                        "previous_membership_status": "INVITED",
+                        "membership_status": "ACTIVE",
+                        "role_family": "DISTRIBUTION_ADMIN",
+                        "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                        "activation_status": "MEMBERSHIP_ACTIVATED",
+                        "accepted_subject_status": "ACCEPTED_SUBJECT_MATCHED",
+                        "activation_next_action": (
+                            "Membership lifecycle is active. Configure seats and "
+                            "auth claims only through their separate governed workflows."
+                        ),
+                        "command_payload_hash": "payload-hash",
+                    },
+                }
+            ]
+        ),
+    )
+
+    result = await svc.request_referral_saas_membership_activation(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+        membership_id="membership-1",
+        accepted_subject="owner@example.test",
+        acceptance_evidence_ref="identity-acceptance-1",
+        reason_code="CUSTOMER_PROFILE_MEMBERSHIP_ACTIVATION_REQUEST",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "MEMBERSHIP_ACTIVATION_REPLAYED"
+    assert safe_payload["membership"]["status"] == "ACTIVE"
+    assert safe_payload["idempotency"]["status"] == "REPLAYED"
+
+
+async def test_membership_activation_request_conflicts_on_idempotency_payload_mismatch(
+    monkeypatch,
+):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                {
+                    "account_audit_event_id": "audit-activation-1",
+                    "membership_id": "membership-1",
+                    "evidence_summary": {"command_payload_hash": "original-hash"},
+                }
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.MembershipInvitationIdempotencyConflict):
+        await svc.request_referral_saas_membership_activation(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            external_reference_status="ACTIVE",
+            membership_id="membership-1",
+            accepted_subject="owner@example.test",
+            acceptance_evidence_ref="identity-acceptance-1",
+            reason_code="CUSTOMER_PROFILE_MEMBERSHIP_ACTIVATION_REQUEST",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="new-hash",
+        )
+
+
 async def test_membership_invitation_intent_replays_matching_idempotency_key(
     monkeypatch,
 ):

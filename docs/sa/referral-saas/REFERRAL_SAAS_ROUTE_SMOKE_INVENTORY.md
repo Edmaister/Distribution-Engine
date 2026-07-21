@@ -13,7 +13,10 @@ the operator progress/status diagnostics wrapper; TASK-200 adds the read-only
 account resolver wrapper; TASK-227 adds the read-only account registry wrapper.
 TASK-242 adds membership activation readiness; TASK-243 adds the seeded-only
 invitation delivery request boundary that records blocked provider evidence
-without sending email.
+without sending email. TASK-249 adds the seeded-only membership activation
+request boundary that may activate the membership lifecycle after identity and
+account gates pass, without sending email, assigning seats, changing auth claims,
+creating credentials, launching campaigns, or moving money.
 No schema, live database mutation, or persisted export is introduced by this
 inventory document; seeded write routes remain local/staging-only smoke
 candidates and are classified explicitly below.
@@ -86,6 +89,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/from-draft` | Referral SaaS account foundation create wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations` | Referral SaaS membership invitation intent wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery` | Referral SaaS invitation delivery request boundary; records blocked provider evidence only |
+| Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/activation` | Referral SaaS membership activation request boundary; activates membership lifecycle only after identity/account gates |
 | Seeded local/staging write | PATCH | `/v1/referral-saas/accounts/{account_ref}/profile` | Referral SaaS customer profile settings maintenance wrapper |
 | Seeded local/staging write | POST | `/v1/progress` | Progress ingestion |
 

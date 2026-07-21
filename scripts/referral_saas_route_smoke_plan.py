@@ -503,6 +503,44 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_membership_activation_request",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/activation",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin role",
+        environment_rule="local/staging seeded account only; activates membership lifecycle only when all gates are proven",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "membership_ref",
+            "ref_type",
+            "external_ref",
+            "accepted_subject",
+            "acceptance_evidence_ref",
+            "idempotency_key",
+        ],
+        expected_state_change=(
+            "may move an invited platform membership to ACTIVE after identity "
+            "acceptance and active account/link/reference gates; does not send "
+            "email, assign seats, mutate auth claims, create credentials, "
+            "launch campaigns, or move money"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"activation":{"acceptedSubject":"{accepted_subject}",'
+            '"acceptanceEvidenceRef":"{acceptance_evidence_ref}"},'
+            '"reasonCode":"CUSTOMER_PROFILE_MEMBERSHIP_ACTIVATION_REQUEST",'
+            '"correlationId":"smoke-membership-activation",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/memberships/{membership_ref}/activation"'
+        ),
+    ),
+    SmokeRoute(
         name="public_referral_validate",
         method="POST",
         path="/public/referrals/validate",

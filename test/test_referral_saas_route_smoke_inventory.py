@@ -54,6 +54,10 @@ def test_referral_saas_current_smoke_routes_are_mounted():
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery",
         ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/activation",
+        ),
         ("POST", "/v1/referral-saas/referral-codes"),
         ("POST", "/v1/referral-saas/public/referrals/validate"),
         ("POST", "/v1/referral-saas/referrals/{referral_track_id}/referee-ucn"),
@@ -85,6 +89,10 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/activation",
         ),
         ("POST", "/v1/referral-saas/reports/{report_type}/exports/preview"),
         ("POST", "/v1/referral-saas/reports/{report_type}/exports/validate"),
