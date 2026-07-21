@@ -152,6 +152,7 @@ async def test_membership_posture_confirms_active_current_actor(monkeypatch):
     ]
     assert safe_payload["memberships"][0] == {
         "actorType": "USER",
+        "membershipRef": "membership-1",
         "subject": "owner@example.test",
         "displayName": "Setup Owner",
         "roleFamily": "DISTRIBUTION_ADMIN",
@@ -219,6 +220,7 @@ def _posture_with_memberships(*memberships):
 
 def _membership(**overrides):
     values = {
+        "membership_id": "membership-1",
         "actor_type": "USER",
         "subject": "owner@example.test",
         "display_name": "Setup Owner",
@@ -483,6 +485,7 @@ async def test_membership_invitation_delivery_request_records_blocked_audit(
                 "role_family": "DISTRIBUTION_ADMIN",
                 "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
                 "delivery_status": "DELIVERY_NOT_CONFIGURED",
+                "recipient_contact_status": "CONTACT_REFERENCE_PRESENT",
             },
             {"account_audit_event_id": "audit-delivery-1"},
         ]
@@ -522,6 +525,7 @@ async def test_membership_invitation_delivery_request_records_blocked_audit(
     assert safe_payload["delivery"] == {
         "status": "DELIVERY_PROVIDER_NOT_CONFIGURED",
         "nextAction": "Configure approved invitation delivery provider before sending email invites.",
+        "recipientContactStatus": "CONTACT_REFERENCE_PRESENT",
         "providerRef": "mail-provider-1",
         "channel": "EMAIL",
         "templateRef": "referral-saas-account-invite-v1",
@@ -539,6 +543,60 @@ async def test_membership_invitation_delivery_request_records_blocked_audit(
     assert "INSERT INTO platform_account_audit_events" in joined_queries
     assert "UPDATE platform_memberships" not in joined_queries
     assert "platform_seats" not in joined_queries
+
+
+async def test_membership_invitation_delivery_request_blocks_missing_recipient_contact(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "membership_id": "membership-1",
+                "status": "INVITED",
+                "role_family": "DISTRIBUTION_ADMIN",
+                "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                "delivery_status": "DELIVERY_NOT_CONFIGURED",
+                "recipient_contact_status": "CONTACT_REFERENCE_MISSING",
+            },
+            {"account_audit_event_id": "audit-delivery-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.request_referral_saas_membership_invitation_delivery(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        membership_id="membership-1",
+        provider_ref="mail-provider-1",
+        channel="EMAIL",
+        template_ref="referral-saas-account-invite-v1",
+        recipient_hash=None,
+        reason_code="CUSTOMER_PROFILE_INVITE_DELIVERY_REQUEST",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+        command_payload={
+            "delivery": {
+                "providerRef": "mail-provider-1",
+                "channel": "EMAIL",
+                "templateRef": "referral-saas-account-invite-v1",
+            }
+        },
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "DELIVERY_RECIPIENT_CONTACT_MISSING"
+    assert safe_payload["delivery"]["recipientContactStatus"] == "CONTACT_REFERENCE_MISSING"
+    assert (
+        safe_payload["delivery"]["nextAction"]
+        == "Add a safe work email contact reference before invite delivery can be requested."
+    )
+    assert conn.fetchrow_calls[-1][1][9] == "DELIVERY_RECIPIENT_CONTACT_MISSING"
 
 
 async def test_membership_invitation_delivery_request_replays_matching_idempotency(

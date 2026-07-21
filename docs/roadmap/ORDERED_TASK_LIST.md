@@ -5364,6 +5364,31 @@ Rollback notes: Remove `recipientContactStatus` from membership read models, fro
 Explicit non-goals: Do not implement raw-email storage, live email delivery, provider credentials, webhook dispatch, identity-provider writes, membership activation, seat assignment, role activation, auth/session claim changes, account activation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS People and Access clearly shows whether each named person has safe contact evidence for future invite delivery while preserving all no-live-action guardrails. Priority: P0.
 
+## TASK-248: Add Referral SaaS guarded invite delivery UI
+
+Status: Complete (2026-07-21). Output: `services/referral_saas_account_membership_service.py`; `apps/api/routers/referral_saas_accounts.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/styles/base.css`; `test/test_referral_saas_account_membership_service.py`; `test/api/test_referral_saas_accounts_api.py`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_DELIVERY_BOUNDARY.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_DELIVERY_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses existing platform user contact evidence, membership references, audit events, idempotency hashing, and technical provider readiness. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile People and Access; guarded invitation delivery boundary; technical provider readiness.
+Objective: Productize a customer-scoped People and Access action that can request the guarded invite-delivery boundary only when an invited membership has safe contact evidence and an approved invite provider reference.
+Why now: TASK-247 made recipient readiness explicit. Operators now need the action in the selected customer profile, with disabled reasons when provider/contact prerequisites are missing, without routing back to Account Setup or pretending live email delivery exists.
+Files involved: Membership service/read models, Referral SaaS account API route/client, selected Customer Profile People and Access UI, CSS, service/API/frontend tests, activation/delivery boundary doc, roadmap, and gap matrix.
+Database/schema impact: None.
+Backend impact: Membership posture and activation readiness expose safe `membershipRef`; invitation delivery request derives recipient contact readiness from stored safe evidence when the UI does not send `recipientHash`; missing contact returns a blocked `DELIVERY_RECIPIENT_CONTACT_MISSING` result instead of requiring browser-held recipient hash.
+Frontend impact: People and Access shows a guarded `Check invite delivery` action per readiness row; the action is disabled with a clear blocker when contact or provider prerequisites are missing; successful checks return plain-language no-live-action feedback.
+API impact: Existing delivery boundary no longer requires browser-provided `delivery.recipientHash`; response includes `recipientContactStatus` in the delivery result.
+Tests to add/update: Membership service delivery blocker tests, API route fixture tests, frontend endpoint contract tests, People and Access page tests.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_account_membership_service.py test\api\test_referral_saas_accounts_api.py`; `npm.cmd test -- --run src/api/endpoints/referralSaasAccounts.test.ts src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `npm.cmd run lint -- --quiet`; `git diff --check`.
+Acceptance criteria: Selected Customer Profile > People and Access can check invite-delivery readiness from the customer page; delivery checks remain blocked/safe when provider or contact evidence is missing; no raw email hash is required from the browser; audit/idempotency guardrails remain intact; no live email, membership activation, seat assignment, auth/session claim change, credential creation, webhook dispatch, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-242; TASK-243; TASK-246; TASK-247.
+Blocked by: Live invite delivery provider adapter/integration and membership activation command.
+Risk level: Medium.
+Rollback notes: Remove the People and Access delivery check action, frontend API wrapper, optional recipient-hash handling, `membershipRef` exposure in readiness rows, tests, and docs.
+Explicit non-goals: Do not implement live email delivery, provider credentials, webhook dispatch, identity-provider writes, membership activation, seat assignment, role activation, auth/session claim changes, account activation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS People and Access has a customer-scoped guarded invite-delivery check that is actionable, auditable, idempotent, provider/contact-gated, and clear that no invite email or access activation occurred. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

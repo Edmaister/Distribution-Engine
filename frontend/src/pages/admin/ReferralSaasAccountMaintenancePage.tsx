@@ -25,6 +25,7 @@ import {
 } from "../../api/referralSaasAccountQueries";
 import {
   recordReferralSaasMembershipInvitationIntent,
+  requestReferralSaasMembershipInvitationDelivery,
   updateReferralSaasAccountProfile,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
@@ -243,6 +244,7 @@ export function ReferralSaasAccountMaintenancePage() {
   const [accessEmail, setAccessEmail] = useState("");
   const [accessRoleLabel, setAccessRoleLabel] = useState(accessRoleOptions[0].label);
   const [accessResult, setAccessResult] = useState<string | null>(null);
+  const [deliveryResult, setDeliveryResult] = useState<string | null>(null);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
   const [profileResult, setProfileResult] = useState<string | null>(null);
   const scopeChanged =
@@ -316,6 +318,18 @@ export function ReferralSaasAccountMaintenancePage() {
         `${savedRole} access recorded as ${formatDisplay(
           response.invitation.membership.status,
         )}. No invitation email, login activation, seat assignment, or auth claim change was performed.`,
+      );
+      void refetchMembershipPosture();
+      void refetchActivationReadiness();
+    },
+  });
+  const deliveryMutation = useMutation({
+    mutationFn: requestReferralSaasMembershipInvitationDelivery,
+    onSuccess: (response) => {
+      setDeliveryResult(
+        `${formatDisplay(response.deliveryRequest.membership.roleFamily)} delivery check returned ${formatDisplay(
+          response.deliveryRequest.delivery.status,
+        )}. ${response.deliveryRequest.delivery.nextAction} No email was sent, no login was activated, no seat was assigned, and no permissions changed.`,
       );
       void refetchMembershipPosture();
       void refetchActivationReadiness();
@@ -424,6 +438,32 @@ export function ReferralSaasAccountMaintenancePage() {
       reasonCode: "CUSTOMER_PROFILE_ACCESS_MAINTENANCE",
       correlationId: `customer-profile-access-${selectedAccount.accountId}`,
       idempotencyKey: `customer-profile-access-${selectedAccount.accountId}-${cleanedEmail}-${selectedRole.roleFamily}`
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-"),
+    });
+  }
+
+  function requestInviteDeliveryCheck(membershipRef: string, roleFamily: string) {
+    const approvedProviderRef = inviteDeliveryProviderRef(technicalSetupReadiness);
+    if (!selectedAccount || !selectedExternalTenantRef || !membershipRef || !approvedProviderRef) {
+      return;
+    }
+    deliveryMutation.mutate({
+      accountRef: selectedAccount.accountId,
+      membershipRef,
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: selectedExternalTenantRef,
+        context: "setup",
+      },
+      delivery: {
+        providerRef: approvedProviderRef,
+        channel: "EMAIL",
+        templateRef: "referral-saas-account-invite-v1",
+      },
+      reasonCode: "CUSTOMER_PROFILE_INVITE_DELIVERY_REQUEST",
+      correlationId: `customer-profile-invite-delivery-${selectedAccount.accountId}`,
+      idempotencyKey: `customer-profile-invite-delivery-${selectedAccount.accountId}-${membershipRef}-${roleFamily}`
         .toLowerCase()
         .replace(/[^a-z0-9-]+/g, "-"),
     });
@@ -917,6 +957,12 @@ export function ReferralSaasAccountMaintenancePage() {
                       <strong>Access intent saved.</strong> {accessResult}
                     </div>
                   ) : null}
+                  {deliveryMutation.error ? <ErrorPanel error={deliveryMutation.error} /> : null}
+                  {deliveryResult ? (
+                    <div className="wizard-summary-strip success">
+                      <strong>Invite delivery checked.</strong> {deliveryResult}
+                    </div>
+                  ) : null}
                   {activationReadiness ? (
                     <div className="wizard-status-card">
                       <div>
@@ -1014,6 +1060,38 @@ export function ReferralSaasAccountMaintenancePage() {
                               {formatDisplay(getValue(row, ["nextAction"], "Review the access setup."))}
                             </span>
                           ),
+                        },
+                        {
+                          key: "deliveryCheck",
+                          header: "Delivery check",
+                          render: (row) => {
+                            const membershipRef = getValue(row, ["membershipRef"], "");
+                            const roleFamily = getValue(row, ["roleFamily"], "UNKNOWN");
+                            const providerRef = inviteDeliveryProviderRef(technicalSetupReadiness);
+                            const contactReady =
+                              getValue(row, ["recipientContactStatus"], "") === "CONTACT_REFERENCE_PRESENT";
+                            const canRequest =
+                              Boolean(membershipRef && providerRef && contactReady) &&
+                              getValue(row, ["membershipStatus"], "") === "INVITED";
+                            const blocker = !contactReady
+                              ? "Add work email first"
+                              : !providerRef
+                                ? "Provider not approved"
+                                : "Safe check";
+                            return (
+                              <div className="action-cell">
+                                <button
+                                  className="button secondary compact"
+                                  disabled={!canRequest || deliveryMutation.isPending}
+                                  onClick={() => requestInviteDeliveryCheck(membershipRef, roleFamily)}
+                                  type="button"
+                                >
+                                  {deliveryMutation.isPending ? "Checking" : "Check invite delivery"}
+                                </button>
+                                <span className="table-subtext">{blocker}</span>
+                              </div>
+                            );
+                          },
                         },
                       ]}
                     />
@@ -1472,6 +1550,13 @@ function accessReadinessSummary(overallStatus: string, missingRoleCount: number)
     return `${formatAreaCount(missingRoleCount, "responsibility")} still needs to be named for this customer.`;
   }
   return "People are named, but invite delivery or login activation is not ready yet.";
+}
+
+function inviteDeliveryProviderRef(readiness?: ReferralSaasTechnicalSetupReadinessResponse) {
+  const inviteCapability = readiness?.technicalSetupReadiness.capabilities.find(
+    (capability) => capability.code === "MEMBERSHIP_INVITE_DELIVERY",
+  );
+  return inviteCapability?.approvedProviderRefs[0] || "";
 }
 
 function buildCustomerModuleRoute(selectedCustomerPath: string, route: string, customerQuery: string) {

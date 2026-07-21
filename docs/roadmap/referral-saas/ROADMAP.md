@@ -818,6 +818,19 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - People and Access now exposes safe recipient contact readiness from existing hashed contact evidence. Activation readiness and People tables show whether a future invite has a contact reference without exposing email hashes or sending email; live delivery, activation, seats, auth claims, credentials, campaigns, go-live, billing, money movement, and DLaaS marketplace behavior remain blocked.
+- TASK-248: `services/referral_saas_account_membership_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/styles/base.css`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_DELIVERY_BOUNDARY.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - People and Access now has a guarded customer-scoped invite-delivery check. The action is disabled when contact evidence or approved invite-provider scope is missing, derives recipient readiness from backend evidence instead of browser-held hashes, records the existing blocked delivery boundary, and confirms no email, activation, seat, auth, credential, campaign, go-live, billing, money movement, or DLaaS marketplace action occurred.
 
 ## Explicit Deferrals
 

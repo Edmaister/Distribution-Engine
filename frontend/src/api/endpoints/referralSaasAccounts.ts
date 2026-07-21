@@ -77,6 +77,7 @@ export type ReferralSaasMembershipRoleFamilySummary = {
 };
 
 export type ReferralSaasMembershipPersonSummary = {
+  membershipRef: string;
   actorType: string;
   subject?: string | null;
   displayName?: string | null;
@@ -115,6 +116,7 @@ export type ReferralSaasAccountMembershipPostureResponse = {
 };
 
 export type ReferralSaasMembershipActivationReadinessItem = {
+  membershipRef: string;
   subject?: string | null;
   displayName?: string | null;
   roleFamily: string;
@@ -257,6 +259,24 @@ export type ReferralSaasMembershipInvitationRequest = {
   idempotencyKey: string;
 };
 
+export type ReferralSaasMembershipInvitationDeliveryRequest = {
+  accountRef: string;
+  membershipRef: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  delivery: {
+    providerRef: string;
+    channel: "EMAIL";
+    templateRef: string;
+  };
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
 export type ReferralSaasAccountProfileUpdateRequest = {
   accountRef: string;
   profile: {
@@ -326,6 +346,47 @@ export type ReferralSaasMembershipInvitationResponse = {
   guardrails: string[];
   redactions: string[];
   no_invite_delivery_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_seat_assignment_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
+export type ReferralSaasMembershipInvitationDeliveryResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  deliveryRequest: {
+    commandStatus: string;
+    membership: {
+      membershipRef: string;
+      status: string;
+      roleFamily: string;
+      permissionSet: string;
+    };
+    delivery: {
+      status: string;
+      nextAction: string;
+      recipientContactStatus: string;
+      providerRef: string;
+      channel: string;
+      templateRef: string;
+    };
+    idempotency: {
+      status: string;
+    };
+    auditEventId?: string | null;
+    guardrails: string[];
+    redactions: string[];
+    noInviteDeliveryConfirmed: boolean;
+    noMembershipActivationConfirmed: boolean;
+    noAuthClaimChangeConfirmed: boolean;
+    noSeatAssignmentConfirmed: boolean;
+    noMoneyMovementConfirmed: boolean;
+  };
+  guardrails: string[];
+  redactions: string[];
+  no_invite_delivery_confirmed: boolean;
+  no_membership_activation_confirmed: boolean;
   no_auth_claim_change_confirmed: boolean;
   no_seat_assignment_confirmed: boolean;
   no_money_movement_confirmed: boolean;
@@ -465,6 +526,40 @@ export function recordReferralSaasMembershipInvitationIntent({
           roleFamily: membership.roleFamily.trim(),
           permissionSet: membership.permissionSet.trim(),
           tenantScope: membership.tenantScope || "PRIMARY_ACCOUNT_TENANT",
+        },
+        reasonCode,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function requestReferralSaasMembershipInvitationDelivery({
+  accountRef,
+  membershipRef,
+  accountScope,
+  delivery,
+  reasonCode = "CUSTOMER_PROFILE_INVITE_DELIVERY_REQUEST",
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasMembershipInvitationDeliveryRequest): Promise<ReferralSaasMembershipInvitationDeliveryResponse> {
+  return apiRequest<ReferralSaasMembershipInvitationDeliveryResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/membership-invitations/${encodeURIComponent(
+      membershipRef.trim(),
+    )}/delivery`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        delivery: {
+          providerRef: delivery.providerRef.trim(),
+          channel: delivery.channel,
+          templateRef: delivery.templateRef.trim(),
         },
         reasonCode,
         correlationId,

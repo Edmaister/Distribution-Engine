@@ -107,6 +107,7 @@ def _delivery_request_result(**overrides) -> MembershipInvitationDeliveryRequest
         "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
         "delivery_status": "DELIVERY_PROVIDER_NOT_CONFIGURED",
         "delivery_next_action": "Configure approved invitation delivery provider before sending email invites.",
+        "recipient_contact_status": "CONTACT_REFERENCE_PRESENT",
         "provider_ref": "mail-provider-1",
         "channel": "EMAIL",
         "template_ref": "referral-saas-account-invite-v1",
@@ -709,7 +710,6 @@ async def test_referral_saas_account_admin_can_request_invitation_delivery_bound
                     "providerRef": "mail-provider-1",
                     "channel": "EMAIL",
                     "templateRef": "referral-saas-account-invite-v1",
-                    "recipientHash": "recipient-hash",
                 },
                 "reasonCode": "CUSTOMER_PROFILE_INVITE_DELIVERY_REQUEST",
                 "correlationId": "corr-1",
@@ -738,6 +738,7 @@ async def test_referral_saas_account_admin_can_request_invitation_delivery_bound
     assert command_calls[0]["membership_id"] == "membership-1"
     assert command_calls[0]["provider_ref"] == "mail-provider-1"
     assert command_calls[0]["channel"] == "EMAIL"
+    assert command_calls[0]["recipient_hash"] == ""
     assert command_calls[0]["idempotency_key_hash"]
     assert command_calls[0]["command_payload_hash"]
 

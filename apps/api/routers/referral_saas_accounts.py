@@ -412,7 +412,6 @@ async def request_referral_saas_membership_invitation_delivery_route(
         or not provider_ref
         or not channel
         or not template_ref
-        or not recipient_hash
     ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -420,7 +419,7 @@ async def request_referral_saas_membership_invitation_delivery_route(
                 "code": "validation_error",
                 "message": (
                     "accountScope.refType, accountScope.externalRef, delivery.providerRef, "
-                    "delivery.channel, delivery.templateRef, delivery.recipientHash, "
+                    "delivery.channel, delivery.templateRef, "
                     "idempotencyKey, and correlationId are required."
                 ),
                 "guardrails": _membership_invitation_guardrails()
