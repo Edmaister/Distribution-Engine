@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiRequest } from "../client";
 import {
   createReferralSaasAccountFromDraft,
+  getReferralSaasAccountCampaignReadiness,
   getReferralSaasAccountMembershipPosture,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
@@ -365,6 +366,72 @@ describe("referralSaasAccounts endpoint client", () => {
     );
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|wallet|settlement|money_movement/,
+    );
+  });
+
+  it("reads customer-scoped campaign readiness without requiring tenant code entry", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+        accountName: "FNB Referral SaaS",
+      },
+      readiness: {
+        campaign_code: "CAMP001",
+        readiness: "READY_WITH_WARNINGS",
+        can_proceed: true,
+        blockers: [],
+        warnings: [
+          {
+            code: "REPORTING_BASELINE_PENDING",
+            message: "Reporting setup can follow after campaign checks.",
+          },
+        ],
+      },
+      guardrail: "Read-only Referral SaaS customer-scoped campaign readiness.",
+      redactions: ["internal_tenant_identifier"],
+      no_campaign_mutation_confirmed: true,
+      no_policy_write_confirmed: true,
+      no_link_generation_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      getReferralSaasAccountCampaignReadiness({
+        accountRef: " acct-1 ",
+        campaignCode: " CAMP001 ",
+        refType: "external_tenant_ref",
+        externalRef: " fnb-referrals ",
+        operation: "GENERATE_LINKS",
+        context: "setup",
+        opportunityId: " opp-1 ",
+      }),
+    ).resolves.toMatchObject({
+      readiness: {
+        readiness: "READY_WITH_WARNINGS",
+      },
+      no_campaign_activation_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acct-1/campaigns/CAMP001/readiness",
+      {
+        query: {
+          ref_type: "external_tenant_ref",
+          external_ref: "fnb-referrals",
+          operation: "GENERATE_LINKS",
+          context: "setup",
+          opportunity_id: "opp-1",
+          include_evidence: true,
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement|activate_campaign/,
     );
   });
 

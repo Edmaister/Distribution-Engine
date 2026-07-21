@@ -224,6 +224,7 @@ greenfield referral construction.
 116. TASK-250: Wire selected-customer People and Access activation action.
 117. TASK-251: Clarify People and Access person-name placeholder.
 118. TASK-252: Add Referral SaaS access provisioning readiness boundary.
+119. TASK-253: Add customer-scoped campaign readiness page.
 
 ## 10/10 Exit Criteria
 
@@ -869,6 +870,21 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - People and Access activation readiness now exposes access provisioning readiness separately from membership lifecycle, showing seat assignment and auth-claim propagation as bounded future workflows without assigning seats, changing login permissions, or leaving customer context.
+- TASK-253: `apps/api/routers/referral_saas_accounts.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/api/referralSaasAccountQueries.ts`;
+  `frontend/src/api/queryKeys.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Selected Customer Profile Campaigns now has a customer/account-scoped campaign readiness wrapper and standalone page. Operators check campaign readiness from the selected customer context without manually entering tenant code, while the response and UI confirm no campaign creation, policy write, link generation, activation, go-live, credential, billing, money movement, or DLaaS marketplace action occurred.
 
 ## Explicit Deferrals
 

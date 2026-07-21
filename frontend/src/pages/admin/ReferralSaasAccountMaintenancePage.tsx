@@ -16,6 +16,7 @@ import { useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 
 import {
+  useReferralSaasAccountCampaignReadiness,
   useReferralSaasAccountDraftSelector,
   useReferralSaasAccountMaintenanceState,
   useReferralSaasAccountMembershipPosture,
@@ -30,6 +31,7 @@ import {
   updateReferralSaasAccountProfile,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
+import type { CampaignReadinessOperation } from "../../api/endpoints/adminCampaignReadiness";
 import { DataTable } from "../../components/DataTable";
 import { ErrorPanel } from "../../components/ErrorPanel";
 import { KpiCard } from "../../components/KpiCard";
@@ -1297,7 +1299,16 @@ export function ReferralSaasAccountMaintenancePage() {
               </section>
               ) : null}
 
-              {["campaigns", "links", "reports", "support", "attribution", "progress"].includes(selectedModule) ? (
+              {selectedModule === "campaigns" ? (
+                <CustomerCampaignsPage
+                  customerName={customerName}
+                  customerQuery={customerQuery}
+                  externalTenantRef={selectedExternalTenantRef}
+                  selectedAccount={selectedAccount}
+                />
+              ) : null}
+
+              {["links", "reports", "support", "attribution", "progress"].includes(selectedModule) ? (
                 <CustomerModulePage
                   customerName={customerName}
                   customerQuery={customerQuery}
@@ -1375,6 +1386,179 @@ export function ReferralSaasAccountMaintenancePage() {
         </>
       ) : null}
     </>
+  );
+}
+
+function CustomerCampaignsPage({
+  customerName,
+  customerQuery,
+  externalTenantRef,
+  selectedAccount,
+}: {
+  customerName: string;
+  customerQuery: string;
+  externalTenantRef: string;
+  selectedAccount?: AccountRegistryItem;
+}) {
+  const { refreshKey } = useRefreshContext();
+  const [campaignCode, setCampaignCode] = useState("CAMP001");
+  const [operation, setOperation] = useState<CampaignReadinessOperation>("CONTROL_PLANE_VIEW");
+  const [opportunityId, setOpportunityId] = useState("");
+  const {
+    data: campaignReadinessResponse,
+    error,
+    isLoading,
+  } = useReferralSaasAccountCampaignReadiness(
+    selectedAccount?.accountId || "",
+    campaignCode,
+    externalTenantRef,
+    operation,
+    opportunityId,
+    Boolean(selectedAccount && externalTenantRef),
+    refreshKey,
+  );
+  const readiness = campaignReadinessResponse?.readiness || {};
+  const blockers = asArray(getNestedValue(readiness, ["blockers"], []));
+  const warnings = asArray(getNestedValue(readiness, ["warnings"], []));
+  const unknowns = asArray(getNestedValue(readiness, ["unknowns"], []));
+  const readinessStatus = formatCampaignLabel(
+    getNestedValue(readiness, ["readiness"], getNestedValue(readiness, ["status"], "Not checked")),
+  );
+  const canProceed = Boolean(getNestedValue(readiness, ["can_proceed"], getNestedValue(readiness, ["canProceed"], false)));
+  const evidenceRows = [
+    ...blockers.map((item) => ({ ...asRecord(item), severity: "Blocker" })),
+    ...warnings.map((item) => ({ ...asRecord(item), severity: "Warning" })),
+    ...unknowns.map((item) => ({ ...asRecord(item), severity: "Unknown" })),
+  ];
+
+  return (
+    <section className="panel customer-module-page">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Campaigns</div>
+          <h2 className="panel-title">Campaigns</h2>
+          <div className="panel-subtitle">
+            Check campaign readiness inside this customer profile before creating links, launching tests, or moving to campaign setup.
+          </div>
+        </div>
+        <StatusBadge label="Customer scoped" tone="success" />
+      </div>
+      <div className="panel-body route-list">
+        <div className="wizard-status-card">
+          <div>
+            <strong>Selected customer</strong>
+            <p>
+              {selectedAccount?.accountCode || "No account code"} - {externalTenantRef || "No customer reference"}
+            </p>
+          </div>
+          <StatusBadge label="No tenant code entry" tone="success" />
+        </div>
+
+        <form className="form-grid" onSubmit={(event) => event.preventDefault()}>
+          <label>
+            Campaign code
+            <input
+              onChange={(event) => setCampaignCode(event.target.value)}
+              placeholder="Example: CAMP001"
+              value={campaignCode}
+            />
+          </label>
+          <label>
+            Readiness check
+            <select
+              onChange={(event) => setOperation(event.target.value as CampaignReadinessOperation)}
+              value={operation}
+            >
+              <option value="CONTROL_PLANE_VIEW">Review campaign setup</option>
+              <option value="CREATE_TRACK">Create referral track</option>
+              <option value="GENERATE_LINKS">Generate links</option>
+              <option value="ACTIVATE_CAMPAIGN">Activate campaign</option>
+            </select>
+          </label>
+          <label>
+            Opportunity reference
+            <input
+              onChange={(event) => setOpportunityId(event.target.value)}
+              placeholder="Optional"
+              value={opportunityId}
+            />
+          </label>
+        </form>
+
+        {isLoading ? <LoadingState label="Checking campaign readiness" /> : null}
+        {error ? <ErrorPanel error={error} /> : null}
+        {campaignReadinessResponse ? (
+          <>
+            <div className="grid-3">
+              <KpiCard
+                label="Campaign posture"
+                value={readinessStatus}
+                footnote="Resolved through the selected customer account"
+                icon={Target}
+              />
+              <KpiCard
+                label="Blockers"
+                value={String(blockers.length)}
+                footnote="Must be cleared before the selected operation"
+                icon={AlertCircle}
+              />
+              <KpiCard
+                label="Warnings"
+                value={String(warnings.length + unknowns.length)}
+                footnote={canProceed ? "Can proceed with attention" : "Needs review first"}
+                icon={ListChecks}
+              />
+            </div>
+
+            <div className={`wizard-summary-strip ${canProceed ? "success" : "warning"}`}>
+              <div>
+                <strong>In plain English:</strong>{" "}
+                {canProceed
+                  ? `${customerName} can continue with ${formatCampaignLabel(operation).toLowerCase()} for ${campaignCode.trim()}.`
+                  : `${customerName} has campaign readiness items to resolve before ${formatCampaignLabel(operation).toLowerCase()} for ${campaignCode.trim()}.`}
+              </div>
+              <StatusBadge label={canProceed ? "Can proceed" : "Needs attention"} tone={canProceed ? "success" : "warning"} />
+            </div>
+
+            <DataTable
+              rows={evidenceRows}
+              emptyText="No blockers or warnings returned for this campaign check."
+              columns={[
+                {
+                  key: "severity",
+                  header: "Type",
+                  render: (row) => <StatusBadge label={formatDisplay(getValue(row, ["severity"], "Info"))} tone={campaignEvidenceTone(getValue(row, ["severity"], "Info"))} />,
+                },
+                {
+                  key: "code",
+                  header: "Readiness item",
+                  render: (row) => <strong>{formatCampaignLabel(getValue(row, ["code"], "Campaign check"))}</strong>,
+                },
+                {
+                  key: "message",
+                  header: "What it means",
+                  render: (row) => <span className="table-subtext">{formatDisplay(getValue(row, ["message"], getValue(row, ["detail"], "No detail returned.")))}</span>,
+                },
+              ]}
+            />
+
+            <div className="wizard-status-card">
+              <div>
+                <strong>What this page will not do</strong>
+                <p>
+                  No campaign is created, no policy is changed, no links are generated, no campaign is activated, no go-live action is triggered, and no money moves.
+                </p>
+              </div>
+              <StatusBadge label="Read only" tone="info" />
+            </div>
+          </>
+        ) : null}
+
+        <Link className="button button-secondary" to={`/admin/referral-saas/campaigns${customerQuery}`}>
+          Open legacy campaign readiness workspace
+        </Link>
+      </div>
+    </section>
   );
 }
 
@@ -1668,6 +1852,28 @@ function inviteDeliveryProviderRef(readiness?: ReferralSaasTechnicalSetupReadine
     (capability) => capability.code === "MEMBERSHIP_INVITE_DELIVERY",
   );
   return inviteCapability?.approvedProviderRefs[0] || "";
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function campaignEvidenceTone(value: string): StatusTone {
+  const normalised = value.toLowerCase();
+  if (normalised.includes("blocker")) {
+    return "danger";
+  }
+  if (normalised.includes("warning") || normalised.includes("unknown")) {
+    return "warning";
+  }
+  return "info";
+}
+
+function formatCampaignLabel(value: unknown): string {
+  return formatDisplay(value)
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
 }
 
 function buildCustomerModuleRoute(selectedCustomerPath: string, route: string, customerQuery: string) {

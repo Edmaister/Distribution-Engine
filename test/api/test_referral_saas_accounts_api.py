@@ -1015,6 +1015,166 @@ async def test_referral_saas_technical_setup_readiness_rejects_path_scope_mismat
     assert detail["no_auth_claim_change_confirmed"] is True
 
 
+async def test_referral_saas_account_admin_can_read_customer_scoped_campaign_readiness(
+    monkeypatch,
+):
+    resolve_calls: list[dict] = []
+    readiness_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    async def fake_get_campaign_readiness(**kwargs):
+        readiness_calls.append(kwargs)
+        return {
+            "campaign_code": "CAMP001",
+            "readiness": "READY_WITH_WARNINGS",
+            "can_proceed": True,
+            "blockers": [],
+            "warnings": [
+                {
+                    "code": "REPORTING_BASELINE_PENDING",
+                    "message": "Reporting setup can follow after campaign checks.",
+                }
+            ],
+            "unknowns": [],
+        }
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_campaign_readiness",
+        fake_get_campaign_readiness,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/readiness",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+                "operation": "GENERATE_LINKS",
+                "opportunity_id": "opp-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["context"] == "setup"
+    assert body["account"]["accountCode"] == "ACCT_FNB"
+    assert "tenantCode" not in body["account"]
+    assert body["readiness"]["readiness"] == "READY_WITH_WARNINGS"
+    assert body["readiness"]["warnings"][0]["code"] == "REPORTING_BASELINE_PENDING"
+    assert body["no_campaign_mutation_confirmed"] is True
+    assert body["no_policy_write_confirmed"] is True
+    assert body["no_link_generation_confirmed"] is True
+    assert body["no_campaign_activation_confirmed"] is True
+    assert body["no_money_movement_confirmed"] is True
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert readiness_calls == [
+        {
+            "tenant_code": "FNB",
+            "campaign_code": "CAMP001",
+            "operation": "GENERATE_LINKS",
+            "opportunity_id": "opp-1",
+            "include_evidence": True,
+        }
+    ]
+
+
+async def test_referral_saas_account_campaign_readiness_rejects_path_scope_mismatch(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-other/campaigns/CAMP001/readiness",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_SCOPE"
+    assert detail["no_invite_delivery_confirmed"] is True
+    assert detail["no_auth_claim_change_confirmed"] is True
+
+
+async def test_referral_saas_account_campaign_readiness_maps_missing_campaign(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(tenant_code="FNB")
+
+    async def fake_get_campaign_readiness(**kwargs):
+        return {
+            "campaign_code": "UNKNOWN",
+            "readiness": "BLOCKED",
+            "can_proceed": False,
+            "blockers": [
+                {
+                    "code": "CAMPAIGN_NOT_FOUND",
+                    "message": "Campaign readiness was not found.",
+                }
+            ],
+            "warnings": [],
+            "unknowns": [],
+        }
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_campaign_readiness",
+        fake_get_campaign_readiness,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/campaigns/UNKNOWN/readiness",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 404
+    detail = response.json()["detail"]
+    assert detail["code"] == "campaign_readiness_not_found"
+    assert detail["redactions"] == ["internal_tenant_identifier"]
+
+
 async def test_referral_saas_invitation_delivery_rejects_missing_delivery_fields():
     async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
         response = await client.post(
