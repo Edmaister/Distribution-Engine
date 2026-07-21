@@ -5539,6 +5539,31 @@ Rollback notes: Remove the campaign read model service, account campaign list/re
 Explicit non-goals: Do not create campaigns, update campaign policy, generate links, activate campaigns, trigger go-live, create credentials, send webhooks, send invites, activate memberships, assign seats, change auth/session claims, create reports/exports, bill, move money, implement broad DLaaS marketplace behavior, or fork source code.
 Definition of done: Referral SaaS Campaigns can be selected and checked from inside the selected customer profile using account-scoped read-only campaign data. Priority: P0.
 
+## TASK-255: Define customer-scoped campaign draft/create command contract
+
+Status: Complete (2026-07-22). Output: `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_CREATE_CONTRACT.md`; `test/test_referral_saas_customer_campaign_create_contract.py`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CAMPAIGN_SETUP_READINESS_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses existing account resolution, campaign tables, campaign service, campaign policy service, and campaign readiness service while keeping tenant identifiers behind the selected customer/account boundary. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile Campaigns; customer-scoped campaign create command boundary; campaign idempotency/audit posture.
+Objective: Define the guarded selected-customer campaign draft/create command contract before product campaign write routes ship.
+Why now: TASK-254 made campaigns selectable from selected-account data, but create remains a generic admin primitive that accepts tenant scope and inserts active campaign definitions by default. The SaaS product needs a customer-scoped create boundary that cannot accidentally activate a campaign, generate links, create validation tracks, write policy, trigger go-live, or expose tenant identifiers.
+Files involved: Customer campaign create contract doc, contract test, Referral SaaS SA index, roadmap, gap matrix, and ordered task list.
+Database/schema impact: None.
+Backend impact: No runtime backend behavior; documents the future `POST /v1/referral-saas/accounts/{accountRef}/campaigns` command contract, idempotency, audit, duplicate/conflict handling, guardrails, redactions, and safe setup statuses.
+Frontend impact: None in this task; future selected-customer Campaigns UX should open a standalone create page and save only a safe draft or inactive setup artifact before policy/readiness/review/activation.
+API impact: No route added; future product route shape is defined.
+Tests to add/update: Contract test that anchors source-backed campaign facts, route shape, setup statuses, idempotency/audit fields, guardrails, redactions, and explicit non-goals.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_customer_campaign_create_contract.py`; `git diff --check`.
+Acceptance criteria: Contract clearly states selected-customer campaign creation must resolve tenant scope internally, preserve idempotency/audit evidence, return safe replay/conflict states, avoid activation/link/policy/validation side effects, keep internal tenant identifiers redacted, and defer broad DLaaS/money workflows.
+Dependencies: TASK-135; TASK-231; TASK-253; TASK-254.
+Blocked by: Guarded customer-scoped campaign create service/API implementation, campaign policy/settings maintenance, campaign review/activation command boundaries, and frontend create workflow.
+Risk level: Low.
+Rollback notes: Remove the contract doc, contract test, SA index entry, roadmap entry, gap matrix updates, and this task entry.
+Explicit non-goals: Do not add runtime route behavior, schema migration, campaign write implementation, policy write implementation, campaign activation, go-live, link/code generation, campaign validation or `campaign_track_id` creation, webhooks, live invite delivery, account lifecycle commands, seat assignment, auth/session claim changes, reporting export mutation, billing, rewards, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has a source-backed customer-scoped campaign create command contract ready for guarded implementation without risking accidental campaign activation or tenant-code leakage. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
