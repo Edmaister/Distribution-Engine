@@ -5,6 +5,7 @@ import {
   createReferralSaasAccountFromDraft,
   getReferralSaasAccountMembershipPosture,
   getReferralSaasMembershipActivationReadiness,
+  getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccounts,
   recordReferralSaasMembershipInvitationIntent,
   resolveReferralSaasAccount,
@@ -263,6 +264,88 @@ describe("referralSaasAccounts endpoint client", () => {
 
     expect(mockedApiRequest).toHaveBeenCalledWith(
       "v1/referral-saas/accounts/acct-1/membership-activation-readiness",
+      {
+        query: {
+          ref_type: "external_tenant_ref",
+          external_ref: "fnb-referrals",
+          context: "setup",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement/,
+    );
+  });
+
+  it("reads Referral SaaS technical setup readiness without provider or delivery writes", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+        accountName: "FNB Referral SaaS",
+      },
+      technicalSetupReadiness: {
+        accountId: "acct-1",
+        overallStatus: "PROVIDER_CONFIGURATION_REQUIRED",
+        providerStatus: "ATTENTION",
+        channelSummary: {
+          count: 4,
+          readyCount: 0,
+          attentionCount: 4,
+          supportedChannels: ["EMAIL", "WHATSAPP", "SMS", "USSD"],
+          postureBlockers: [],
+        },
+        capabilities: [
+          {
+            code: "MEMBERSHIP_INVITE_DELIVERY",
+            label: "People invite delivery",
+            status: "ATTENTION",
+            requiredChannels: ["EMAIL"],
+            readyChannels: [],
+            missingChannels: ["EMAIL"],
+            nextAction: "Configure the Email provider before sending account access invites.",
+          },
+        ],
+        guardrails: ["READ_ONLY_TECHNICAL_SETUP_READINESS"],
+        redactions: ["internal_tenant_identifier", "provider_secret"],
+        noCredentialCreationConfirmed: true,
+        noWebhookDispatchConfirmed: true,
+        noInviteDeliveryConfirmed: true,
+        noMembershipActivationConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noCampaignActivationConfirmed: true,
+        noMoneyMovementConfirmed: true,
+      },
+      guardrail: "Read-only Referral SaaS technical setup readiness.",
+      no_credential_creation_confirmed: true,
+      no_webhook_dispatch_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_membership_activation_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      getReferralSaasTechnicalSetupReadiness({
+        accountRef: " acct-1 ",
+        refType: "external_tenant_ref",
+        externalRef: " fnb-referrals ",
+        context: "setup",
+      }),
+    ).resolves.toMatchObject({
+      technicalSetupReadiness: {
+        overallStatus: "PROVIDER_CONFIGURATION_REQUIRED",
+        noCredentialCreationConfirmed: true,
+      },
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acct-1/technical-setup-readiness",
       {
         query: {
           ref_type: "external_tenant_ref",

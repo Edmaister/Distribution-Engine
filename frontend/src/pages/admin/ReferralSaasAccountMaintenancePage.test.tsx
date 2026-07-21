@@ -13,12 +13,14 @@ import {
 import {
   getReferralSaasAccountMembershipPosture,
   getReferralSaasMembershipActivationReadiness,
+  getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccounts,
   recordReferralSaasMembershipInvitationIntent,
   updateReferralSaasAccountProfile,
   type ReferralSaasAccountMembershipPostureResponse,
   type ReferralSaasAccountRegistryResponse,
   type ReferralSaasMembershipActivationReadinessResponse,
+  type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import { ReferralSaasAccountMaintenancePage } from "./ReferralSaasAccountMaintenancePage";
 
@@ -29,6 +31,7 @@ vi.mock("../../api/endpoints/adminOnboarding", () => ({
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   getReferralSaasAccountMembershipPosture: vi.fn(),
   getReferralSaasMembershipActivationReadiness: vi.fn(),
+  getReferralSaasTechnicalSetupReadiness: vi.fn(),
   listReferralSaasAccounts: vi.fn(),
   recordReferralSaasMembershipInvitationIntent: vi.fn(),
   updateReferralSaasAccountProfile: vi.fn(),
@@ -38,6 +41,7 @@ const mockedGetAdminOnboardingDrafts = vi.mocked(getAdminOnboardingDrafts);
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
 const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
 const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferralSaasMembershipActivationReadiness);
+const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTechnicalSetupReadiness);
 const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordReferralSaasMembershipInvitationIntent);
 const mockedUpdateReferralSaasAccountProfile = vi.mocked(updateReferralSaasAccountProfile);
@@ -373,6 +377,71 @@ function mockMembershipActivationReadiness(): ReferralSaasMembershipActivationRe
   };
 }
 
+function mockTechnicalSetupReadiness(): ReferralSaasTechnicalSetupReadinessResponse {
+  return {
+    status: "ok",
+    context: "setup",
+    account: {
+      accountId: "acct-gabs",
+      accountCode: "ACC-2201",
+      accountName: "Gaborone Partners",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "APPROVED",
+    },
+    technicalSetupReadiness: {
+      accountId: "acct-gabs",
+      overallStatus: "PROVIDER_CONFIGURATION_REQUIRED",
+      providerStatus: "ATTENTION",
+      channelSummary: {
+        count: 4,
+        readyCount: 1,
+        attentionCount: 3,
+        supportedChannels: ["EMAIL", "WHATSAPP", "SMS", "USSD"],
+        postureBlockers: [],
+      },
+      capabilities: [
+        {
+          code: "MEMBERSHIP_INVITE_DELIVERY",
+          label: "People invite delivery",
+          status: "ATTENTION",
+          requiredChannels: ["EMAIL"],
+          readyChannels: [],
+          missingChannels: ["EMAIL"],
+          nextAction: "Configure the Email provider before sending account access invites.",
+        },
+        {
+          code: "REFERRAL_JOURNEY_MESSAGES",
+          label: "Referral journey messages",
+          status: "READY",
+          requiredChannels: ["WHATSAPP", "SMS", "USSD"],
+          readyChannels: ["WHATSAPP"],
+          missingChannels: [],
+          nextAction: "Referral journey message providers are ready for checked channels.",
+        },
+      ],
+      guardrails: ["READ_ONLY_TECHNICAL_SETUP_READINESS", "NO_INVITE_DELIVERY"],
+      redactions: ["internal_tenant_identifier", "provider_secret"],
+      noCredentialCreationConfirmed: true,
+      noWebhookDispatchConfirmed: true,
+      noInviteDeliveryConfirmed: true,
+      noMembershipActivationConfirmed: true,
+      noAuthClaimChangeConfirmed: true,
+      noSeatAssignmentConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noMoneyMovementConfirmed: true,
+    },
+    guardrail: "Read-only Referral SaaS technical setup readiness.",
+    no_credential_creation_confirmed: true,
+    no_webhook_dispatch_confirmed: true,
+    no_invite_delivery_confirmed: true,
+    no_membership_activation_confirmed: true,
+    no_auth_claim_change_confirmed: true,
+    no_seat_assignment_confirmed: true,
+    no_campaign_activation_confirmed: true,
+    no_money_movement_confirmed: true,
+  };
+}
+
 describe("ReferralSaasAccountMaintenancePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -380,6 +449,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedGetAdminOnboardingState.mockResolvedValue(mockMaintenanceState());
     mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockMembershipPosture());
     mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockMembershipActivationReadiness());
+    mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadiness());
     mockedListReferralSaasAccounts.mockResolvedValue(mockAccountRegistry());
     mockedRecordReferralSaasMembershipInvitationIntent.mockResolvedValue({
       status: "ok",
@@ -496,6 +566,10 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       "href",
       "/admin/referral-saas/account-maintenance/acct-gabs/people",
     );
+    expect(screen.getByRole("link", { name: /Check technical setup/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs/technical",
+    );
     expect(screen.queryByRole("heading", { name: "People and access" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open Campaigns/ })).toHaveAttribute(
       "href",
@@ -580,6 +654,28 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(mockedGetReferralSaasMembershipActivationReadiness).toHaveBeenCalledTimes(2);
   });
 
+  it("opens Technical Setup as its own read-only customer page", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/technical");
+
+    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Technical setup" })).toBeInTheDocument();
+    expect(screen.getByText(/Check provider readiness for invites and referral messages/i)).toBeInTheDocument();
+    expect(await screen.findByText("Ready providers")).toBeInTheDocument();
+    expect(screen.getByText("Need setup")).toBeInTheDocument();
+    expect(screen.getByText("Supported channels")).toBeInTheDocument();
+    expect(screen.getByText("People invite delivery")).toBeInTheDocument();
+    expect(screen.getByText("Configure the Email provider before sending account access invites.")).toBeInTheDocument();
+    expect(screen.getByText("Referral journey messages")).toBeInTheDocument();
+    expect(screen.getByText(/No credentials are created, no webhook is dispatched, no invite is sent/i)).toBeInTheDocument();
+    expect(mockedGetReferralSaasTechnicalSetupReadiness).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      refType: "external_tenant_ref",
+      externalRef: "gabs-platform",
+      context: "setup",
+    });
+    expect(screen.queryByRole("heading", { name: "Health at a glance" })).not.toBeInTheDocument();
+  });
+
   it("saves selected customer profile settings through the maintenance command", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/settings");
 
@@ -641,6 +737,10 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByRole("link", { name: /Reports/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/account-maintenance/acct-fnb/reports",
+    );
+    expect(screen.getByRole("link", { name: /Technical setup/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-fnb/technical",
     );
     expect(screen.getByRole("link", { name: /Attribution/ })).toHaveAttribute(
       "href",

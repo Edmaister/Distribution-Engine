@@ -216,6 +216,7 @@ greenfield referral construction.
 108. TASK-242: Add Referral SaaS membership activation readiness read model.
 109. TASK-243: Add Referral SaaS invitation delivery request boundary.
 110. TASK-244: Add Referral SaaS technical setup readiness read model.
+111. TASK-245: Add Referral SaaS customer technical setup page.
 
 ## 10/10 Exit Criteria
 
@@ -782,6 +783,15 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Referral SaaS now has a customer/account-scoped technical setup readiness read model that reuses the shared channel catalog, adds Email provider readiness alongside messaging channels, and safely explains provider configuration gaps without creating credentials, dispatching webhooks, sending invites, activating memberships, assigning seats, changing auth claims, launching campaigns, or moving money.
+- TASK-245: `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/referralSaasAccountQueries.ts`;
+  `frontend/src/api/queryKeys.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Referral SaaS Customer Profile now has a standalone customer-scoped Technical Setup page wired to the technical setup readiness API, keeping the customer home short while explaining Email invite-delivery and referral-message provider gaps without creating credentials, dispatching webhooks, sending invites, activating memberships, assigning seats, changing auth claims, launching campaigns, or moving money.
 
 ## Explicit Deferrals
 

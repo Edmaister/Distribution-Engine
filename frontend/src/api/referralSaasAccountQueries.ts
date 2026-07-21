@@ -4,6 +4,7 @@ import { getAdminOnboardingDrafts, getAdminOnboardingState } from "./endpoints/a
 import {
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasAccountMembershipPosture,
+  getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccounts,
   resolveReferralSaasAccount,
 } from "./endpoints/referralSaasAccounts";
@@ -154,6 +155,35 @@ export function useReferralSaasMembershipActivationReadiness(
     ),
     queryFn: () =>
       getReferralSaasMembershipActivationReadiness({
+        accountRef: cleanedAccountRef,
+        refType: "external_tenant_ref",
+        externalRef: cleanedExternalTenantRef,
+        context: "setup",
+      }),
+    enabled: Boolean(enabled && cleanedAccountRef && cleanedExternalTenantRef),
+    retry: false,
+  });
+}
+
+export function useReferralSaasTechnicalSetupReadiness(
+  accountRef: string,
+  externalTenantRef: string,
+  enabled: boolean,
+  refreshKey = 0,
+) {
+  const cleanedAccountRef = accountRef.trim();
+  const cleanedExternalTenantRef = externalTenantRef.trim();
+
+  return useQuery({
+    queryKey: queryKeys.referralSaasTechnicalSetupReadiness(
+      cleanedAccountRef,
+      "external_tenant_ref",
+      cleanedExternalTenantRef,
+      "setup",
+      refreshKey,
+    ),
+    queryFn: () =>
+      getReferralSaasTechnicalSetupReadiness({
         accountRef: cleanedAccountRef,
         refType: "external_tenant_ref",
         externalRef: cleanedExternalTenantRef,
