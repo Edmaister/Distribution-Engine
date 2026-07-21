@@ -223,6 +223,7 @@ greenfield referral construction.
 115. TASK-249: Add Referral SaaS membership activation command boundary.
 116. TASK-250: Wire selected-customer People and Access activation action.
 117. TASK-251: Clarify People and Access person-name placeholder.
+118. TASK-252: Add Referral SaaS access provisioning readiness boundary.
 
 ## 10/10 Exit Criteria
 
@@ -859,6 +860,15 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - People and Access now uses a real person-name placeholder so operators enter an individual name rather than a role description.
+- TASK-252: `services/referral_saas_account_membership_service.py`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - People and Access activation readiness now exposes access provisioning readiness separately from membership lifecycle, showing seat assignment and auth-claim propagation as bounded future workflows without assigning seats, changing login permissions, or leaving customer context.
 
 ## Explicit Deferrals
 

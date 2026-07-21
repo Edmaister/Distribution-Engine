@@ -5464,6 +5464,31 @@ Rollback notes: Revert the placeholder/test/doc updates.
 Explicit non-goals: Do not change membership role mapping, permission sets, email identity handling, invite delivery, activation, account lifecycle, tenant references, campaign workflows, billing, money movement, broad DLaaS behavior, or source-code forks.
 Definition of done: People and Access uses a person-name example that helps operators enter the right kind of human-readable value. Priority: P2.
 
+## TASK-252: Add Referral SaaS access provisioning readiness boundary
+
+Status: Complete (2026-07-21). Output: `services/referral_saas_account_membership_service.py`; `test/test_referral_saas_account_membership_service.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the membership activation readiness read model and preserves seat/auth as separate shared-platform provisioning workflows. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile People and Access; membership lifecycle; future seat/auth provisioning boundary.
+Objective: Make it explicit that invited or active customer access membership does not yet assign seats or propagate login/auth claims.
+Why now: Physical UI testing showed People and Access could still imply that recording or activating access meant the person could log in with full permissions. The product needs a clear provisioning boundary before live seat and auth-provider work is implemented.
+Files involved: Membership activation readiness read model, frontend endpoint type/test, selected Customer Profile People and Access page/test, roadmap, and gap matrix.
+Database/schema impact: None.
+Backend impact: Adds read-only provisioning readiness, seat assignment status, and auth-claim status fields to membership activation readiness items.
+Frontend impact: People and Access now shows a provisioning boundary panel and per-person provisioning status for seat assignment and login permissions.
+API impact: Extends the existing read-only membership activation readiness response; no new route or command.
+Tests to add/update: Membership service readiness tests, frontend endpoint contract test, and People and Access page test.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_account_membership_service.py test\api\test_referral_saas_accounts_api.py`; `npm.cmd test -- --run src/api/endpoints/referralSaasAccounts.test.ts src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `npm.cmd run lint -- --quiet`; `git diff --check`.
+Acceptance criteria: Readiness payload explains membership activation separately from provisioning; active memberships report seats and auth claims as not assigned/propagated; People and Access displays the boundary in plain language; no seat assignment, auth/session claim change, identity-provider write, invite delivery, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, schema change, or source-code fork is added.
+Dependencies: TASK-242; TASK-249; TASK-250.
+Blocked by: Future seat assignment and auth/session claim integration workflows.
+Risk level: Low.
+Rollback notes: Remove the provisioning readiness fields, UI panel/table column, tests, and roadmap/gap entries.
+Explicit non-goals: Do not implement seat assignment, role claim propagation, auth/session claim changes, identity-provider writes, live email delivery, provider credentials, account lifecycle commands, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS People and Access clearly shows that membership lifecycle and real provisioned login access are separate states. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
