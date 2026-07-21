@@ -5289,6 +5289,31 @@ Rollback notes: Remove the technical setup readiness service/route, Email channe
 Explicit non-goals: Do not implement provider credential creation, live email delivery, webhook dispatch, identity-provider writes, membership activation, seat assignment, role activation, auth/session claim changes, account activation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has a customer-scoped technical setup readiness API that explains Email/provider and journey-channel readiness before live delivery or activation is built. Priority: P0.
 
+## TASK-245: Add Referral SaaS customer technical setup page
+
+Status: Complete (2026-07-21). Output: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/referralSaasAccountQueries.ts`; `frontend/src/api/queryKeys.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing technical setup readiness API and shared channel readiness model. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile Technical Setup; customer-scoped provider readiness; frontend workflow clarity.
+Objective: Add a selected-customer Technical Setup page that shows invite-delivery and referral-message provider readiness without expanding the customer home or returning operators to Account Setup.
+Why now: TASK-244 added the backend read model. Operators need a customer-scoped page that explains provider gaps in plain language before live invite delivery or provider configuration is built.
+Files involved: Referral SaaS frontend account API client/query hooks, customer profile maintenance page, frontend tests, roadmap, and gap matrix.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Adds a `technical` customer module route, home card, next-best action, readiness KPIs, capability list, and no-live-action guardrails.
+API impact: Consumes `GET /v1/referral-saas/accounts/{account_ref}/technical-setup-readiness`; no new route.
+Tests to add/update: Endpoint-client test for technical setup readiness and customer profile page test for the standalone Technical Setup page.
+Validation method: `npm run test -- referralSaasAccounts ReferralSaasAccountMaintenancePage`; `npm run build`; `git diff --check`.
+Acceptance criteria: Technical Setup opens as a standalone selected-customer page; the customer home stays short; provider readiness shows Email invite delivery separately from referral journey messaging; the page explains missing provider setup and read-only guardrails; no credential creation, webhook dispatch, invite delivery, membership activation, seat assignment, auth/session claim change, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, backend route, schema change, or source-code fork is added.
+Dependencies: TASK-241; TASK-242; TASK-243; TASK-244.
+Blocked by: Approved provider configuration UI/runtime integration for real invite delivery.
+Risk level: Medium.
+Rollback notes: Remove the frontend technical setup route/card/hook/test changes and restore roadmap/gap entries to TASK-244 state.
+Explicit non-goals: Do not implement provider credential creation, live email delivery, webhook dispatch, identity-provider writes, membership activation, seat assignment, role activation, auth/session claim changes, account activation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS Customer Profile has a standalone Technical Setup page wired to technical setup readiness so operators can see provider gaps before live delivery or activation work starts. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

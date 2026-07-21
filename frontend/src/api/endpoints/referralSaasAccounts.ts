@@ -159,6 +159,60 @@ export type ReferralSaasMembershipActivationReadinessResponse = {
   no_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasTechnicalSetupCapability = {
+  code: string;
+  label: string;
+  status: string;
+  requiredChannels: string[];
+  readyChannels: string[];
+  missingChannels: string[];
+  nextAction: string;
+};
+
+export type ReferralSaasTechnicalSetupReadiness = {
+  accountId: string;
+  overallStatus: string;
+  providerStatus: string;
+  channelSummary: {
+    count: number;
+    readyCount: number;
+    attentionCount: number;
+    supportedChannels: string[];
+    postureBlockers: string[];
+  };
+  capabilities: ReferralSaasTechnicalSetupCapability[];
+  guardrails: string[];
+  redactions: string[];
+  noCredentialCreationConfirmed: boolean;
+  noWebhookDispatchConfirmed: boolean;
+  noInviteDeliveryConfirmed: boolean;
+  noMembershipActivationConfirmed: boolean;
+  noAuthClaimChangeConfirmed: boolean;
+  noSeatAssignmentConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noMoneyMovementConfirmed: boolean;
+};
+
+export type ReferralSaasTechnicalSetupReadinessRequest = ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+};
+
+export type ReferralSaasTechnicalSetupReadinessResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  technicalSetupReadiness: ReferralSaasTechnicalSetupReadiness;
+  guardrail: string;
+  no_credential_creation_confirmed: boolean;
+  no_webhook_dispatch_confirmed: boolean;
+  no_invite_delivery_confirmed: boolean;
+  no_membership_activation_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_seat_assignment_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasAccountCreateFromDraftRequest = {
   draftRef: string;
   internalTenantCode: string;
@@ -319,6 +373,24 @@ export function getReferralSaasMembershipActivationReadiness({
 }: ReferralSaasMembershipActivationReadinessRequest): Promise<ReferralSaasMembershipActivationReadinessResponse> {
   return apiRequest<ReferralSaasMembershipActivationReadinessResponse>(
     `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/membership-activation-readiness`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+      },
+    },
+  );
+}
+
+export function getReferralSaasTechnicalSetupReadiness({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+}: ReferralSaasTechnicalSetupReadinessRequest): Promise<ReferralSaasTechnicalSetupReadinessResponse> {
+  return apiRequest<ReferralSaasTechnicalSetupReadinessResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/technical-setup-readiness`,
     {
       query: {
         ref_type: refType,

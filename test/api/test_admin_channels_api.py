@@ -29,6 +29,7 @@ def test_distribution_admin_can_read_channel_readiness():
     assert payload["status"] == "ok"
     assert payload["readiness"]["configuration_source"] == "channel_catalog"
     assert payload["readiness"]["summary"]["supported_channels"] == [
+        "EMAIL",
         "WHATSAPP",
         "SMS",
         "USSD",

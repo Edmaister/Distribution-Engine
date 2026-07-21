@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Link as LinkIcon,
   ListChecks,
+  PlugZap,
   Search,
   ShieldCheck,
   Target,
@@ -20,10 +21,12 @@ import {
   useReferralSaasAccountMembershipPosture,
   useReferralSaasMembershipActivationReadiness,
   useReferralSaasAccountRegistry,
+  useReferralSaasTechnicalSetupReadiness,
 } from "../../api/referralSaasAccountQueries";
 import {
   recordReferralSaasMembershipInvitationIntent,
   updateReferralSaasAccountProfile,
+  type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import { DataTable } from "../../components/DataTable";
 import { ErrorPanel } from "../../components/ErrorPanel";
@@ -51,6 +54,7 @@ type CustomerModule =
   | "health"
   | "settings"
   | "people"
+  | "technical"
   | "campaigns"
   | "links"
   | "reports"
@@ -117,6 +121,15 @@ const customerFunctions = [
     letsYou: "Put the right owner or campaign manager in place.",
     route: "people",
     icon: Users,
+    status: "Needs attention",
+    tone: "warning" as StatusTone,
+  },
+  {
+    title: "Technical setup",
+    copy: "Check invite delivery and referral message provider readiness.",
+    letsYou: "Know what provider setup is still needed before live invites or message testing.",
+    route: "technical",
+    icon: PlugZap,
     status: "Needs attention",
     tone: "warning" as StatusTone,
   },
@@ -277,6 +290,16 @@ export function ReferralSaasAccountMaintenancePage() {
     data: activationReadiness,
     refetch: refetchActivationReadiness,
   } = useReferralSaasMembershipActivationReadiness(
+    selectedAccount?.accountId || "",
+    selectedExternalTenantRef,
+    Boolean(accountId && selectedAccount && selectedExternalTenantRef),
+    refreshKey,
+  );
+  const {
+    data: technicalSetupReadiness,
+    error: technicalSetupError,
+    isLoading: isTechnicalSetupLoading,
+  } = useReferralSaasTechnicalSetupReadiness(
     selectedAccount?.accountId || "",
     selectedExternalTenantRef,
     Boolean(accountId && selectedAccount && selectedExternalTenantRef),
@@ -1034,6 +1057,15 @@ export function ReferralSaasAccountMaintenancePage() {
               </section>
               ) : null}
 
+              {selectedModule === "technical" ? (
+                <CustomerTechnicalSetupPage
+                  customerName={customerName}
+                  error={technicalSetupError}
+                  isLoading={isTechnicalSetupLoading}
+                  readiness={technicalSetupReadiness}
+                />
+              ) : null}
+
               {selectedModule === "health" ? (
               <section className="panel">
                 <div className="panel-header">
@@ -1150,6 +1182,109 @@ export function ReferralSaasAccountMaintenancePage() {
         </>
       ) : null}
     </>
+  );
+}
+
+function CustomerTechnicalSetupPage({
+  customerName,
+  error,
+  isLoading,
+  readiness,
+}: {
+  customerName: string;
+  error: unknown;
+  isLoading: boolean;
+  readiness?: ReferralSaasTechnicalSetupReadinessResponse;
+}) {
+  const technicalReadiness = readiness?.technicalSetupReadiness;
+  const channelSummary = technicalReadiness?.channelSummary;
+  const capabilities = technicalReadiness?.capabilities || [];
+  const missingCapabilities = capabilities.filter((capability) => capability.status !== "READY");
+  const supportedChannels = channelSummary?.supportedChannels || [];
+
+  return (
+    <section className="panel customer-module-page" id="technical-setup">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Technical setup</div>
+          <h2 className="panel-title">Technical setup</h2>
+          <div className="panel-subtitle">
+            Check provider readiness for invites and referral messages. This page does not create credentials or send anything.
+          </div>
+        </div>
+        <StatusBadge label="Read only" tone="info" />
+      </div>
+      <div className="panel-body route-list">
+        {isLoading ? <LoadingState label="Checking technical setup readiness" /> : null}
+        {error ? <ErrorPanel error={error} /> : null}
+        {technicalReadiness ? (
+          <>
+            <div className="grid-3">
+              <KpiCard
+                label="Ready providers"
+                value={String(channelSummary?.readyCount ?? 0)}
+                footnote="Channels currently configured for safe use"
+                icon={CheckCircle2}
+              />
+              <KpiCard
+                label="Need setup"
+                value={String(channelSummary?.attentionCount ?? 0)}
+                footnote="Provider gaps to resolve before live delivery"
+                icon={AlertCircle}
+              />
+              <KpiCard
+                label="Supported channels"
+                value={String(channelSummary?.count ?? supportedChannels.length)}
+                footnote={supportedChannels.map(formatDisplay).join(", ") || "No channels returned"}
+                icon={PlugZap}
+              />
+            </div>
+
+            <div className={`wizard-summary-strip ${missingCapabilities.length ? "warning" : "success"}`}>
+              <div>
+                <strong>In plain English:</strong>{" "}
+                {missingCapabilities.length
+                  ? `${customerName} still needs ${formatAreaCount(
+                      missingCapabilities.length,
+                      "technical setup item",
+                    )} before live invite delivery or referral message testing.`
+                  : `${customerName} has the provider readiness needed for the checked technical capabilities.`}
+              </div>
+              <StatusBadge
+                label={formatDisplay(technicalReadiness.overallStatus)}
+                tone={statusTone(technicalReadiness.overallStatus)}
+              />
+            </div>
+
+            <div className="route-list">
+              {capabilities.map((capability) => (
+                <div className="wizard-status-card" key={capability.code}>
+                  <div>
+                    <strong>{capability.label}</strong>
+                    <p>{capability.nextAction}</p>
+                    <span className="table-subtext">
+                      Needs {formatList(capability.requiredChannels)}. Ready:{" "}
+                      {formatList(capability.readyChannels)}. Missing: {formatList(capability.missingChannels)}.
+                    </span>
+                  </div>
+                  <StatusBadge label={formatDisplay(capability.status)} tone={statusTone(capability.status)} />
+                </div>
+              ))}
+            </div>
+
+            <div className="wizard-status-card">
+              <div>
+                <strong>What this page will not do</strong>
+                <p>
+                  No credentials are created, no webhook is dispatched, no invite is sent, no login is activated, no seat is assigned, no campaign is launched, and no money moves.
+                </p>
+              </div>
+              <StatusBadge label="Safe setup check" tone="success" />
+            </div>
+          </>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
@@ -1279,17 +1414,17 @@ function getCustomerNextActions(blockedCount: number, missingEvidenceCount: numb
         tone: "warning" as StatusTone,
       },
       {
-        title: "Open Campaigns",
-        copy: "Account setup is far enough to set up or review a campaign.",
+        title: "Check technical setup",
+        copy: "See whether invite delivery and referral message providers are ready.",
         priority: "Next",
-        route: "campaigns",
+        route: "technical",
         tone: "info" as StatusTone,
       },
       {
-        title: "Finish reporting setup",
-        copy: "Useful for performance views, not a hard stop for first testing.",
+        title: "Open Campaigns",
+        copy: "Account setup is far enough to set up or review a campaign.",
         priority: "Later",
-        route: "reports",
+        route: "campaigns",
         tone: "neutral" as StatusTone,
       },
     ];
@@ -1344,11 +1479,12 @@ function isCustomerModule(value: string | undefined): value is CustomerModule {
   return [
     "home",
     "health",
-    "settings",
-    "people",
-    "campaigns",
-    "links",
-    "reports",
+      "settings",
+      "people",
+      "technical",
+      "campaigns",
+      "links",
+      "reports",
     "support",
     "attribution",
     "progress",
@@ -1357,6 +1493,10 @@ function isCustomerModule(value: string | undefined): value is CustomerModule {
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function formatList(values: string[]) {
+  return values.length ? values.map(formatDisplay).join(", ") : "None";
 }
 
 function resolveReadinessArea(
