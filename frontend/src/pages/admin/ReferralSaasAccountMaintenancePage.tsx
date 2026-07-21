@@ -947,7 +947,7 @@ export function ReferralSaasAccountMaintenancePage() {
                       <input
                         className="input"
                         onChange={(event) => setAccessDisplayName(event.target.value)}
-                        placeholder="Example: Referral operations owner"
+                        placeholder="Example: John Doe"
                         value={accessDisplayName}
                       />
                     </label>

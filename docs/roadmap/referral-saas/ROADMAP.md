@@ -222,6 +222,7 @@ greenfield referral construction.
 114. TASK-248: Add Referral SaaS guarded invite delivery UI.
 115. TASK-249: Add Referral SaaS membership activation command boundary.
 116. TASK-250: Wire selected-customer People and Access activation action.
+117. TASK-251: Clarify People and Access person-name placeholder.
 
 ## 10/10 Exit Criteria
 
@@ -853,6 +854,11 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Selected Customer Profile People and Access now calls the guarded membership activation command boundary from the customer-scoped page. The action records accepted access evidence against a selected invited membership, refreshes membership posture/readiness, and confirms no invite email, seat assignment, auth/session claim change, credential creation, campaign activation, go-live, billing, money movement, or DLaaS marketplace action occurred.
+- TASK-251: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - People and Access now uses a real person-name placeholder so operators enter an individual name rather than a role description.
 
 ## Explicit Deferrals
 

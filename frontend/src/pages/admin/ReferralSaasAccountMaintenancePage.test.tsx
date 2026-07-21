@@ -731,6 +731,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByRole("heading", { name: "People and access" })).toBeInTheDocument();
     expect(screen.getByText(/It does not send an email, activate login, assign a seat, or change auth permissions/i)).toBeInTheDocument();
     expect(screen.getByText(/Used as the access identity for this customer/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Example: John Doe")).toBeInTheDocument();
     expect(await screen.findByText("Access activation readiness")).toBeInTheDocument();
     expect(screen.getByText(/responsibility still needs to be named for this customer/i)).toBeInTheDocument();
     expect(screen.getByText("Ready to invite")).toBeInTheDocument();
