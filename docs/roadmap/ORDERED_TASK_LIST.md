@@ -5314,6 +5314,31 @@ Rollback notes: Remove the frontend technical setup route/card/hook/test changes
 Explicit non-goals: Do not implement provider credential creation, live email delivery, webhook dispatch, identity-provider writes, membership activation, seat assignment, role activation, auth/session claim changes, account activation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS Customer Profile has a standalone Technical Setup page wired to technical setup readiness so operators can see provider gaps before live delivery or activation work starts. Priority: P0.
 
+## TASK-246: Add Referral SaaS invite provider approval readiness
+
+Status: Complete (2026-07-21). Output: `apps/api/settings.py`; `services/channel_readiness_service.py`; `services/referral_saas_technical_setup_service.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `test/test_channel_readiness_service.py`; `test/test_referral_saas_technical_setup_service.py`; `test/api/test_referral_saas_accounts_api.py`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_DELIVERY_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Extends the shared channel readiness model with non-secret provider reference, approval, and product-scope metadata. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile Technical Setup; approved invite-provider readiness; membership invitation delivery guardrails.
+Objective: Separate raw channel provider configuration from Referral SaaS-approved invitation provider readiness before any live invite delivery or membership activation work.
+Why now: TASK-245 made Technical Setup visible, but the page still treated provider URL/secret configuration as the only blocker. Production-grade access needs a stronger gate: a provider can be configured and still not approved or scoped for Referral SaaS invitation delivery.
+Files involved: Settings, shared channel readiness, Referral SaaS technical setup readiness service, frontend Technical Setup contract/page, service/API/frontend tests, roadmap, and gap matrix.
+Database/schema impact: None.
+Backend impact: Adds Email provider reference, approval, and scope settings; exposes those as safe readiness metadata; makes Referral SaaS invite-delivery capability require approved Referral SaaS scope in addition to Email URL/secret configuration.
+Frontend impact: Technical Setup now shows approved invite-provider count and visible approval gaps so operators can tell the difference between missing provider setup and missing product approval.
+API impact: Existing `GET /v1/referral-saas/accounts/{account_ref}/technical-setup-readiness` response now includes `approvedInviteProviderCount`, `approvedProviderRefs`, and `missingApprovalChannels`; no new route.
+Tests to add/update: Shared channel readiness tests, technical setup service tests, API route tests, frontend API fixture tests, and Technical Setup page tests.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_channel_readiness_service.py test\test_referral_saas_technical_setup_service.py test\api\test_referral_saas_accounts_api.py`; `npm.cmd test -- --run src/api/endpoints/referralSaasAccounts.test.ts src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `npm.cmd run lint -- --quiet`; `git diff --check`.
+Acceptance criteria: Email provider configuration is distinct from Referral SaaS invite-provider approval; People invite delivery stays `ATTENTION` when Email URL/secret exists but the provider is not approved/scoped for Referral SaaS; provider secrets remain redacted; Technical Setup shows the approval gap; no credential creation, live email delivery, webhook dispatch, membership activation, seat assignment, auth/session claim change, account activation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-243; TASK-244; TASK-245.
+Blocked by: Safe recipient/contact handling and guarded delivery command integration for real invite delivery.
+Risk level: Medium.
+Rollback notes: Remove the provider approval fields from settings/readiness, restore technical setup capability readiness to channel configuration only, and revert roadmap/gap entries to TASK-245 state.
+Explicit non-goals: Do not implement provider credential creation, live email delivery, webhook dispatch, identity-provider writes, membership activation, seat assignment, role activation, auth/session claim changes, account activation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS Technical Setup clearly shows whether an Email provider is configured and approved for Referral SaaS invitation delivery before live delivery or activation tasks begin. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

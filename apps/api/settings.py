@@ -98,6 +98,15 @@ class Settings(BaseSettings):
     channel_email_provider_secret: str | None = Field(
         None, env="CHANNEL_EMAIL_PROVIDER_SECRET"
     )
+    channel_email_provider_ref: str | None = Field(
+        None, env="CHANNEL_EMAIL_PROVIDER_REF"
+    )
+    channel_email_provider_approved: bool = Field(
+        False, env="CHANNEL_EMAIL_PROVIDER_APPROVED"
+    )
+    channel_email_provider_scopes: str = Field(
+        "", env="CHANNEL_EMAIL_PROVIDER_SCOPES"
+    )
 
     database_url: str | None = Field(None, env="APP_DB_DSN")
     redis_url: str | None = Field(None, env="REDIS_URL")

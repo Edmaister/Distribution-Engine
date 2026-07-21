@@ -58,6 +58,9 @@ def test_channel_readiness_reports_ready_when_all_providers_configured(monkeypat
         lambda: SimpleNamespace(
             channel_email_provider_url="https://channels.example/email",
             channel_email_provider_secret="email-secret",
+            channel_email_provider_ref="email-provider-1",
+            channel_email_provider_approved=True,
+            channel_email_provider_scopes="REFERRAL_SAAS",
             channel_whatsapp_provider_url="https://channels.example/whatsapp",
             channel_whatsapp_provider_secret="whatsapp-secret",
             channel_sms_provider_url="https://channels.example/sms",
@@ -72,6 +75,11 @@ def test_channel_readiness_reports_ready_when_all_providers_configured(monkeypat
     assert readiness["status"] == "READY"
     assert readiness["summary"]["ready_count"] == 4
     assert all(item["provider_configured"] for item in readiness["items"])
+    email = next(item for item in readiness["items"] if item["channel_code"] == "EMAIL")
+    assert email["provider_ref"] == "email-provider-1"
+    assert email["provider_approved"] is True
+    assert email["provider_scopes"] == ["REFERRAL_SAAS"]
+    assert email["approved_for_referral_saas"] is True
 
 
 def test_recommend_channels_scores_event_audience_and_provider_fit(monkeypatch):

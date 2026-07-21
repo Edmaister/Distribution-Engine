@@ -1235,7 +1235,7 @@ function CustomerTechnicalSetupPage({
               <KpiCard
                 label="Supported channels"
                 value={String(channelSummary?.count ?? supportedChannels.length)}
-                footnote={supportedChannels.map(formatDisplay).join(", ") || "No channels returned"}
+                footnote={`${channelSummary?.approvedInviteProviderCount ?? 0} approved for invite delivery`}
                 icon={PlugZap}
               />
             </div>
@@ -1265,6 +1265,12 @@ function CustomerTechnicalSetupPage({
                     <span className="table-subtext">
                       Needs {formatList(capability.requiredChannels)}. Ready:{" "}
                       {formatList(capability.readyChannels)}. Missing: {formatList(capability.missingChannels)}.
+                      {capability.missingApprovalChannels.length
+                        ? ` Approval needed: ${formatList(capability.missingApprovalChannels)}.`
+                        : ""}
+                      {capability.approvedProviderRefs.length
+                        ? ` Approved provider: ${formatList(capability.approvedProviderRefs)}.`
+                        : ""}
                     </span>
                   </div>
                   <StatusBadge label={formatDisplay(capability.status)} tone={statusTone(capability.status)} />

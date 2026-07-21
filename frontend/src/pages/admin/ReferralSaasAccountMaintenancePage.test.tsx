@@ -397,6 +397,7 @@ function mockTechnicalSetupReadiness(): ReferralSaasTechnicalSetupReadinessRespo
         readyCount: 1,
         attentionCount: 3,
         supportedChannels: ["EMAIL", "WHATSAPP", "SMS", "USSD"],
+        approvedInviteProviderCount: 0,
         postureBlockers: [],
       },
       capabilities: [
@@ -407,7 +408,9 @@ function mockTechnicalSetupReadiness(): ReferralSaasTechnicalSetupReadinessRespo
           requiredChannels: ["EMAIL"],
           readyChannels: [],
           missingChannels: ["EMAIL"],
-          nextAction: "Configure the Email provider before sending account access invites.",
+          approvedProviderRefs: [],
+          missingApprovalChannels: [],
+          nextAction: "Configure and approve the Email provider for Referral SaaS before sending account access invites.",
         },
         {
           code: "REFERRAL_JOURNEY_MESSAGES",
@@ -416,6 +419,8 @@ function mockTechnicalSetupReadiness(): ReferralSaasTechnicalSetupReadinessRespo
           requiredChannels: ["WHATSAPP", "SMS", "USSD"],
           readyChannels: ["WHATSAPP"],
           missingChannels: [],
+          approvedProviderRefs: [],
+          missingApprovalChannels: [],
           nextAction: "Referral journey message providers are ready for checked channels.",
         },
       ],
@@ -664,7 +669,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText("Need setup")).toBeInTheDocument();
     expect(screen.getByText("Supported channels")).toBeInTheDocument();
     expect(screen.getByText("People invite delivery")).toBeInTheDocument();
-    expect(screen.getByText("Configure the Email provider before sending account access invites.")).toBeInTheDocument();
+    expect(screen.getByText("Configure and approve the Email provider for Referral SaaS before sending account access invites.")).toBeInTheDocument();
     expect(screen.getByText("Referral journey messages")).toBeInTheDocument();
     expect(screen.getByText(/No credentials are created, no webhook is dispatched, no invite is sent/i)).toBeInTheDocument();
     expect(mockedGetReferralSaasTechnicalSetupReadiness).toHaveBeenCalledWith({

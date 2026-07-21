@@ -166,6 +166,8 @@ export type ReferralSaasTechnicalSetupCapability = {
   requiredChannels: string[];
   readyChannels: string[];
   missingChannels: string[];
+  approvedProviderRefs: string[];
+  missingApprovalChannels: string[];
   nextAction: string;
 };
 
@@ -178,6 +180,7 @@ export type ReferralSaasTechnicalSetupReadiness = {
     readyCount: number;
     attentionCount: number;
     supportedChannels: string[];
+    approvedInviteProviderCount: number;
     postureBlockers: string[];
   };
   capabilities: ReferralSaasTechnicalSetupCapability[];
