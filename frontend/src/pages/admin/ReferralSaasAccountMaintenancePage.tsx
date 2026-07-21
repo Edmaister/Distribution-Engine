@@ -18,6 +18,7 @@ import {
   useReferralSaasAccountDraftSelector,
   useReferralSaasAccountMaintenanceState,
   useReferralSaasAccountMembershipPosture,
+  useReferralSaasMembershipActivationReadiness,
   useReferralSaasAccountRegistry,
 } from "../../api/referralSaasAccountQueries";
 import {
@@ -272,6 +273,15 @@ export function ReferralSaasAccountMaintenancePage() {
     Boolean(accountId && selectedAccount && selectedExternalTenantRef),
     refreshKey,
   );
+  const {
+    data: activationReadiness,
+    refetch: refetchActivationReadiness,
+  } = useReferralSaasMembershipActivationReadiness(
+    selectedAccount?.accountId || "",
+    selectedExternalTenantRef,
+    Boolean(accountId && selectedAccount && selectedExternalTenantRef),
+    refreshKey,
+  );
   const accessMutation = useMutation({
     mutationFn: recordReferralSaasMembershipInvitationIntent,
     onSuccess: (response) => {
@@ -285,6 +295,7 @@ export function ReferralSaasAccountMaintenancePage() {
         )}. No invitation email, login activation, seat assignment, or auth claim change was performed.`,
       );
       void refetchMembershipPosture();
+      void refetchActivationReadiness();
     },
   });
   const profileMutation = useMutation({
@@ -883,6 +894,104 @@ export function ReferralSaasAccountMaintenancePage() {
                       <strong>Access intent saved.</strong> {accessResult}
                     </div>
                   ) : null}
+                  {activationReadiness ? (
+                    <div className="wizard-status-card">
+                      <div>
+                        <strong>Access activation readiness</strong>
+                        <p>
+                          {accessReadinessSummary(
+                            activationReadiness.activationReadiness.overallStatus,
+                            activationReadiness.activationReadiness.missingRoleFamilies.length,
+                          )}
+                        </p>
+                        <span className="table-subtext">
+                          This is a read-only check. It does not send invites, activate login, assign seats, or change permissions.
+                        </span>
+                      </div>
+                      <StatusBadge
+                        label={formatDisplay(activationReadiness.activationReadiness.overallStatus)}
+                        tone={statusTone(activationReadiness.activationReadiness.overallStatus)}
+                      />
+                    </div>
+                  ) : null}
+                  {activationReadiness ? (
+                    <div className="grid-3">
+                      <KpiCard
+                        label="Ready to invite"
+                        value={String(activationReadiness.activationReadiness.deliveryReadyCount)}
+                        footnote="People that can move to invite delivery later"
+                        icon={CheckCircle2}
+                      />
+                      <KpiCard
+                        label="Ready to activate"
+                        value={String(activationReadiness.activationReadiness.activationReadyCount)}
+                        footnote="People with no activation blocker"
+                        icon={ShieldCheck}
+                      />
+                      <KpiCard
+                        label="Responsibilities missing"
+                        value={String(activationReadiness.activationReadiness.missingRoleFamilies.length)}
+                        footnote="Owner and campaign manager are required"
+                        icon={AlertCircle}
+                      />
+                    </div>
+                  ) : null}
+                  {activationReadiness?.activationReadiness.missingRoleFamilies.length ? (
+                    <div className="wizard-summary-strip warning">
+                      <strong>Still needed:</strong>{" "}
+                      {activationReadiness.activationReadiness.missingRoleFamilies
+                        .map((roleFamily) => formatDisplay(roleFamily))
+                        .join(", ")}
+                      .
+                    </div>
+                  ) : null}
+                  {activationReadiness?.activationReadiness.items.length ? (
+                    <DataTable
+                      rows={activationReadiness.activationReadiness.items}
+                      emptyText="No activation readiness items returned."
+                      columns={[
+                        {
+                          key: "person",
+                          header: "Person",
+                          render: (row) => (
+                            <div>
+                              <strong>{formatDisplay(getValue(row, ["displayName"], "Named person"))}</strong>
+                              <div className="table-subtext">{formatDisplay(getValue(row, ["subject"], "No email identity returned"))}</div>
+                            </div>
+                          ),
+                        },
+                        {
+                          key: "responsibility",
+                          header: "Responsibility",
+                          render: (row) => formatDisplay(getValue(row, ["roleFamily"], "Role")),
+                        },
+                        {
+                          key: "readiness",
+                          header: "Readiness",
+                          render: (row) => (
+                            <div>
+                              <StatusBadge
+                                label={formatDisplay(getValue(row, ["activationReadiness"], "Blocked"))}
+                                tone={statusTone(getValue(row, ["activationReadiness"], "Blocked"))}
+                              />
+                              <div className="table-subtext">
+                                Invite delivery: {formatDisplay(getValue(row, ["deliveryReadiness"], "Blocked"))}
+                              </div>
+                            </div>
+                          ),
+                        },
+                        {
+                          key: "nextAction",
+                          header: "Next action",
+                          render: (row) => (
+                            <span className="table-subtext">
+                              {formatDisplay(getValue(row, ["nextAction"], "Review the access setup."))}
+                            </span>
+                          ),
+                        },
+                      ]}
+                    />
+                  ) : null}
                   {(membershipPosture?.membershipPosture.memberships || []).length ? (
                     <DataTable
                       rows={membershipPosture?.membershipPosture.memberships || []}
@@ -1208,6 +1317,16 @@ function getCustomerNextActions(blockedCount: number, missingEvidenceCount: numb
       tone: "neutral" as StatusTone,
     },
   ];
+}
+
+function accessReadinessSummary(overallStatus: string, missingRoleCount: number) {
+  if (overallStatus === "ACCESS_READY") {
+    return "The required customer access responsibilities are active.";
+  }
+  if (missingRoleCount > 0) {
+    return `${formatAreaCount(missingRoleCount, "responsibility")} still needs to be named for this customer.`;
+  }
+  return "People are named, but invite delivery or login activation is not ready yet.";
 }
 
 function buildCustomerModuleRoute(selectedCustomerPath: string, route: string, customerQuery: string) {

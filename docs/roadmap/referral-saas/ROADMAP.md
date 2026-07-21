@@ -213,6 +213,7 @@ greenfield referral construction.
 105. TASK-239: Fix People and Access email identity, campaign manager role, and error wrapping.
 106. TASK-240: Simplify Account Setup customer workspace language.
 107. TASK-241: Split Customer Profile modules into customer-scoped pages.
+108. TASK-242: Add Referral SaaS membership activation readiness read model.
 
 ## 10/10 Exit Criteria
 
@@ -738,6 +739,22 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Customer Profile now follows the separate-page model from the customer-profile mock: customer finder, selected customer home, and customer-scoped module routes for health, settings, people/access, campaigns, links/codes, reports, support, attribution, and progress instead of stacking every function on one page.
+- TASK-242: `services/referral_saas_account_membership_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/api/queryKeys.ts`;
+  `frontend/src/api/referralSaasAccountQueries.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - People and Access now has a read-only membership activation readiness view that explains invite-delivery, account, tenant-link, external-reference, identity-acceptance, and missing-responsibility blockers without sending invites, activating users, assigning seats, changing auth claims, or moving money.
 
 ## Explicit Deferrals
 

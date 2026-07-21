@@ -12,11 +12,13 @@ import {
 } from "../../api/endpoints/adminOnboarding";
 import {
   getReferralSaasAccountMembershipPosture,
+  getReferralSaasMembershipActivationReadiness,
   listReferralSaasAccounts,
   recordReferralSaasMembershipInvitationIntent,
   updateReferralSaasAccountProfile,
   type ReferralSaasAccountMembershipPostureResponse,
   type ReferralSaasAccountRegistryResponse,
+  type ReferralSaasMembershipActivationReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import { ReferralSaasAccountMaintenancePage } from "./ReferralSaasAccountMaintenancePage";
 
@@ -26,6 +28,7 @@ vi.mock("../../api/endpoints/adminOnboarding", () => ({
 }));
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   getReferralSaasAccountMembershipPosture: vi.fn(),
+  getReferralSaasMembershipActivationReadiness: vi.fn(),
   listReferralSaasAccounts: vi.fn(),
   recordReferralSaasMembershipInvitationIntent: vi.fn(),
   updateReferralSaasAccountProfile: vi.fn(),
@@ -34,6 +37,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
 const mockedGetAdminOnboardingDrafts = vi.mocked(getAdminOnboardingDrafts);
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
 const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
+const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferralSaasMembershipActivationReadiness);
 const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordReferralSaasMembershipInvitationIntent);
 const mockedUpdateReferralSaasAccountProfile = vi.mocked(updateReferralSaasAccountProfile);
@@ -321,12 +325,61 @@ function mockMembershipPosture(): ReferralSaasAccountMembershipPostureResponse {
   };
 }
 
+function mockMembershipActivationReadiness(): ReferralSaasMembershipActivationReadinessResponse {
+  return {
+    status: "ok",
+    context: "setup",
+    account: {
+      accountId: "acct-gabs",
+      accountCode: "ACC-2201",
+      accountName: "Gaborone Partners",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "APPROVED",
+    },
+    activationReadiness: {
+      accountId: "acct-gabs",
+      overallStatus: "ACTION_REQUIRED",
+      activeCount: 0,
+      invitedCount: 1,
+      deliveryReadyCount: 0,
+      activationReadyCount: 0,
+      missingRoleFamilies: ["CAMPAIGN_MANAGER"],
+      items: [
+        {
+          subject: "owner@gabs.example",
+          displayName: "Gaborone owner",
+          roleFamily: "DISTRIBUTION_ADMIN",
+          membershipStatus: "INVITED",
+          deliveryStatus: "DELIVERY_NOT_CONFIGURED",
+          deliveryReadiness: "BLOCKED",
+          activationReadiness: "BLOCKED",
+          blockers: ["DELIVERY_PROVIDER_NOT_CONFIGURED"],
+          nextAction: "Configure an approved invitation delivery provider before sending invites.",
+        },
+      ],
+      guardrails: ["READ_ONLY_ACTIVATION_READINESS", "NO_INVITE_DELIVERY"],
+      redactions: ["internal_tenant_identifier"],
+      noInviteDeliveryConfirmed: true,
+      noMembershipActivationConfirmed: true,
+      noSeatAssignmentConfirmed: true,
+      noAuthClaimChangeConfirmed: true,
+    },
+    guardrail: "Read-only Referral SaaS membership activation readiness.",
+    no_invite_delivery_confirmed: true,
+    no_membership_activation_confirmed: true,
+    no_auth_claim_change_confirmed: true,
+    no_seat_assignment_confirmed: true,
+    no_money_movement_confirmed: true,
+  };
+}
+
 describe("ReferralSaasAccountMaintenancePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetAdminOnboardingDrafts.mockResolvedValue(mockDraftSelector());
     mockedGetAdminOnboardingState.mockResolvedValue(mockMaintenanceState());
     mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockMembershipPosture());
+    mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockMembershipActivationReadiness());
     mockedListReferralSaasAccounts.mockResolvedValue(mockAccountRegistry());
     mockedRecordReferralSaasMembershipInvitationIntent.mockResolvedValue({
       status: "ok",
@@ -474,8 +527,20 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByRole("heading", { name: "People and access" })).toBeInTheDocument();
     expect(screen.getByText(/It does not send an email, activate login, assign a seat, or change auth permissions/i)).toBeInTheDocument();
     expect(screen.getByText(/Used as the access identity for this customer/i)).toBeInTheDocument();
-    expect(screen.getByText("Gaborone owner")).toBeInTheDocument();
-    expect(screen.getByText("owner@gabs.example")).toBeInTheDocument();
+    expect(await screen.findByText("Access activation readiness")).toBeInTheDocument();
+    expect(screen.getByText(/responsibility still needs to be named for this customer/i)).toBeInTheDocument();
+    expect(screen.getByText("Ready to invite")).toBeInTheDocument();
+    expect(screen.getByText("Ready to activate")).toBeInTheDocument();
+    expect(screen.getAllByText(/Campaign Manager/i).length).toBeGreaterThan(0);
+    expect(screen.getByText("Configure an approved invitation delivery provider before sending invites.")).toBeInTheDocument();
+    expect(screen.getAllByText("Gaborone owner").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("owner@gabs.example").length).toBeGreaterThan(0);
+    expect(mockedGetReferralSaasMembershipActivationReadiness).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      refType: "external_tenant_ref",
+      externalRef: "gabs-platform",
+      context: "setup",
+    });
 
     fireEvent.change(screen.getByLabelText("Person name"), {
       target: { value: "Gaborone campaign owner" },
@@ -512,6 +577,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     });
     expect(await screen.findByText("Access intent saved.")).toBeInTheDocument();
     expect(screen.getByText(/No invitation email, login activation, seat assignment, or auth claim change was performed/i)).toBeInTheDocument();
+    expect(mockedGetReferralSaasMembershipActivationReadiness).toHaveBeenCalledTimes(2);
   });
 
   it("saves selected customer profile settings through the maintenance command", async () => {

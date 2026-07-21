@@ -191,6 +191,134 @@ async def test_membership_posture_keeps_invited_actor_non_operational(monkeypatc
     }
 
 
+def _posture_with_memberships(*memberships):
+    return svc.ReferralSaasAccountMembershipPosture(
+        account_id="acct-1",
+        total_memberships=len(memberships),
+        invited_count=sum(1 for item in memberships if item.status == "INVITED"),
+        active_count=sum(1 for item in memberships if item.status == "ACTIVE"),
+        suspended_count=0,
+        disabled_count=0,
+        archived_count=0,
+        role_families=(),
+        memberships=memberships,
+        current_actor=svc.MembershipActorPosture(
+            status="NO_MEMBERSHIP_EVIDENCE",
+            role_family=None,
+            permission_set=None,
+            can_operate_setup=False,
+            evidence="No active account membership matched the current actor.",
+        ),
+        guardrails=("READ_ONLY_MEMBERSHIP_POSTURE",),
+        redactions=("internal_tenant_identifier",),
+    )
+
+
+def _membership(**overrides):
+    values = {
+        "actor_type": "USER",
+        "subject": "owner@example.test",
+        "display_name": "Setup Owner",
+        "role_family": "DISTRIBUTION_ADMIN",
+        "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        "status": "INVITED",
+        "delivery_status": "DELIVERY_NOT_CONFIGURED",
+    }
+    values.update(overrides)
+    return svc.MembershipPersonSummary(**values)
+
+
+async def test_membership_activation_readiness_explains_invited_blockers():
+    readiness = svc.build_membership_activation_readiness(
+        posture=_posture_with_memberships(
+            _membership(),
+            _membership(
+                subject="campaign@example.test",
+                display_name="Campaign Manager",
+                role_family="CAMPAIGN_MANAGER",
+                permission_set="REFERRAL_SAAS_CAMPAIGN_MANAGER",
+                delivery_status="INVITATION_DELIVERY_REQUESTED",
+            ),
+        ),
+        account_status="PENDING_ONBOARDING",
+        tenant_link_status="PENDING_SETUP",
+        external_reference_status="ACTIVE",
+    )
+
+    safe_payload = readiness.to_safe_dict()
+
+    assert safe_payload["overallStatus"] == "ACTION_REQUIRED"
+    assert safe_payload["missingRoleFamilies"] == []
+    assert safe_payload["invitedCount"] == 2
+    assert safe_payload["deliveryReadyCount"] == 1
+    assert safe_payload["activationReadyCount"] == 0
+    assert safe_payload["noInviteDeliveryConfirmed"] is True
+    assert safe_payload["noMembershipActivationConfirmed"] is True
+    assert safe_payload["noSeatAssignmentConfirmed"] is True
+    assert safe_payload["noAuthClaimChangeConfirmed"] is True
+    assert "tenantCode" not in safe_payload
+    assert safe_payload["items"][0]["blockers"] == [
+        "DELIVERY_PROVIDER_NOT_CONFIGURED",
+        "ACCOUNT_NOT_ACTIVE",
+        "TENANT_LINK_NOT_ACTIVE",
+        "IDENTITY_ACCEPTANCE_NOT_RECORDED",
+        "INVITATION_NOT_DELIVERED",
+    ]
+    assert (
+        safe_payload["items"][0]["nextAction"]
+        == "Configure an approved invitation delivery provider before sending invites."
+    )
+    assert safe_payload["items"][1]["blockers"] == [
+        "ACCOUNT_NOT_ACTIVE",
+        "TENANT_LINK_NOT_ACTIVE",
+        "IDENTITY_ACCEPTANCE_NOT_RECORDED",
+    ]
+
+
+async def test_membership_activation_readiness_reports_missing_required_roles():
+    readiness = svc.build_membership_activation_readiness(
+        posture=_posture_with_memberships(),
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+    )
+
+    safe_payload = readiness.to_safe_dict()
+
+    assert safe_payload["overallStatus"] == "ACTION_REQUIRED"
+    assert safe_payload["missingRoleFamilies"] == [
+        "DISTRIBUTION_ADMIN",
+        "CAMPAIGN_MANAGER",
+    ]
+    assert safe_payload["items"] == []
+
+
+async def test_membership_activation_readiness_marks_active_roles_ready():
+    readiness = svc.build_membership_activation_readiness(
+        posture=_posture_with_memberships(
+            _membership(status="ACTIVE", delivery_status="DELIVERED"),
+            _membership(
+                subject="campaign@example.test",
+                display_name="Campaign Manager",
+                role_family="CAMPAIGN_MANAGER",
+                permission_set="REFERRAL_SAAS_CAMPAIGN_MANAGER",
+                status="ACTIVE",
+                delivery_status="DELIVERED",
+            ),
+        ),
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+    )
+
+    safe_payload = readiness.to_safe_dict()
+
+    assert safe_payload["overallStatus"] == "ACCESS_READY"
+    assert safe_payload["activeCount"] == 2
+    assert safe_payload["missingRoleFamilies"] == []
+    assert all(item["activationReadiness"] == "ACTIVE" for item in safe_payload["items"])
+
+
 async def test_membership_invitation_intent_records_user_membership_and_audit(
     monkeypatch,
 ):

@@ -4,6 +4,7 @@ import { apiRequest } from "../client";
 import {
   createReferralSaasAccountFromDraft,
   getReferralSaasAccountMembershipPosture,
+  getReferralSaasMembershipActivationReadiness,
   listReferralSaasAccounts,
   recordReferralSaasMembershipInvitationIntent,
   resolveReferralSaasAccount,
@@ -196,6 +197,80 @@ describe("referralSaasAccounts endpoint client", () => {
         context: "setup",
       },
     });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement/,
+    );
+  });
+
+  it("reads Referral SaaS membership activation readiness without a write action", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+        accountName: "FNB Referral SaaS",
+      },
+      activationReadiness: {
+        accountId: "acct-1",
+        overallStatus: "ACTION_REQUIRED",
+        activeCount: 0,
+        invitedCount: 1,
+        deliveryReadyCount: 0,
+        activationReadyCount: 0,
+        missingRoleFamilies: ["CAMPAIGN_MANAGER"],
+        items: [
+          {
+            subject: "owner@example.test",
+            displayName: "Setup Owner",
+            roleFamily: "DISTRIBUTION_ADMIN",
+            membershipStatus: "INVITED",
+            deliveryStatus: "DELIVERY_NOT_CONFIGURED",
+            deliveryReadiness: "BLOCKED",
+            activationReadiness: "BLOCKED",
+            blockers: ["DELIVERY_PROVIDER_NOT_CONFIGURED"],
+            nextAction: "Configure an approved invitation delivery provider before sending invites.",
+          },
+        ],
+        guardrails: ["READ_ONLY_ACTIVATION_READINESS"],
+        redactions: ["internal_tenant_identifier"],
+        noInviteDeliveryConfirmed: true,
+        noMembershipActivationConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+      },
+      guardrail: "Read-only Referral SaaS membership activation readiness.",
+      no_invite_delivery_confirmed: true,
+      no_membership_activation_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      getReferralSaasMembershipActivationReadiness({
+        accountRef: " acct-1 ",
+        refType: "external_tenant_ref",
+        externalRef: " fnb-referrals ",
+        context: "setup",
+      }),
+    ).resolves.toMatchObject({
+      activationReadiness: {
+        overallStatus: "ACTION_REQUIRED",
+        noMembershipActivationConfirmed: true,
+      },
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acct-1/membership-activation-readiness",
+      {
+        query: {
+          ref_type: "external_tenant_ref",
+          external_ref: "fnb-referrals",
+          context: "setup",
+        },
+      },
+    );
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|wallet|settlement|money_movement/,
     );
