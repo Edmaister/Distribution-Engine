@@ -5439,6 +5439,31 @@ Rollback notes: Remove the frontend activation API wrapper, People and Access ac
 Explicit non-goals: Do not implement live email delivery, provider credentials, webhook dispatch, identity-provider writes, seat assignment, role claim propagation, auth/session claim changes, account activation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS People and Access can call the audited/idempotent membership activation boundary from inside the selected customer profile and clearly communicates the bounded no-adjacent-action result. Priority: P0.
 
+## TASK-251: Clarify People and Access person-name placeholder
+
+Status: Complete (2026-07-21). Output: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: None. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile People and Access; access intent capture UX.
+Objective: Make the People and Access `Person name` field cue an actual individual name instead of a role description.
+Why now: Physical UI testing showed the old placeholder could make operators type a role label where the product needs the named person who should manage the customer account.
+Files involved: Selected Customer Profile People and Access page, focused frontend page test, roadmap, and gap matrix.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Changes the `Person name` placeholder from `Example: Referral operations owner` to `Example: John Doe`.
+API impact: None.
+Tests to add/update: Focused People and Access page test asserts the person-name placeholder.
+Validation method: `npm.cmd test -- --run src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `npm.cmd run lint -- --quiet`; `git diff --check`.
+Acceptance criteria: The People and Access form clearly asks for a person's name; work email remains the access identity; no backend route, schema, API, membership behavior, invite delivery, activation, seat assignment, auth/session claim change, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-237; TASK-239; TASK-241.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the placeholder/test/doc updates.
+Explicit non-goals: Do not change membership role mapping, permission sets, email identity handling, invite delivery, activation, account lifecycle, tenant references, campaign workflows, billing, money movement, broad DLaaS behavior, or source-code forks.
+Definition of done: People and Access uses a person-name example that helps operators enter the right kind of human-readable value. Priority: P2.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
