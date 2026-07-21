@@ -81,6 +81,16 @@ invited, recipient contact evidence exists, and an approved invite-provider
 reference is visible from Technical Setup. The request does not send email. The
 service derives recipient readiness from backend contact evidence instead of
 requiring the browser to supply a recipient hash.
+
+TASK-249 implementation note: the membership activation command boundary now
+exists at `/v1/referral-saas/accounts/{accountRef}/memberships/{membershipRef}/activation`.
+The command resolves the selected customer account, validates membership scope,
+records account audit evidence, enforces idempotency replay/conflict behavior,
+and may move the membership lifecycle from `INVITED` to `ACTIVE` only when
+identity acceptance, active account, active tenant link, active external
+reference, and duplicate-active checks pass. It still does not send invites,
+assign seats, mutate auth/session claims, create credentials, launch campaigns,
+enable go-live, or move money.
 `recipientHash` is intentionally not accepted from the browser in the current
 guarded UI path; it remains a redacted backend/audit concept for delivery
 boundary evidence.
@@ -178,7 +188,7 @@ Allowed activation statuses:
 
 | Status | Meaning |
 | --- | --- |
-| `MEMBERSHIP_ACTIVATED` | Membership moved from `INVITED` to `ACTIVE`. |
+| `MEMBERSHIP_ACTIVATED` | Membership moved from `INVITED` to `ACTIVE`; no seat, auth claim, invite delivery, credential, campaign, go-live, or money side effect occurred. |
 | `MEMBERSHIP_ACTIVATION_REPLAYED` | Same idempotency key and payload returned the same safe result. |
 | `ACTIVATION_REJECTED_IDENTITY_NOT_ACCEPTED` | Acceptance evidence is missing or does not match the invitation. |
 | `ACTIVATION_REJECTED_ACCOUNT_NOT_ACTIVE` | Account is not active enough for the requested access mode. |

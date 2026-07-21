@@ -5389,6 +5389,31 @@ Rollback notes: Remove the People and Access delivery check action, frontend API
 Explicit non-goals: Do not implement live email delivery, provider credentials, webhook dispatch, identity-provider writes, membership activation, seat assignment, role activation, auth/session claim changes, account activation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS People and Access has a customer-scoped guarded invite-delivery check that is actionable, auditable, idempotent, provider/contact-gated, and clear that no invite email or access activation occurred. Priority: P0.
 
+## TASK-249: Add Referral SaaS membership activation command boundary
+
+Status: Complete (2026-07-21). Output: `services/referral_saas_account_membership_service.py`; `apps/api/routers/referral_saas_accounts.py`; `scripts/referral_saas_route_smoke_plan.py`; `test/test_referral_saas_account_membership_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; `test/test_referral_saas_route_smoke_plan.py`; `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_DELIVERY_BOUNDARY.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_DELIVERY_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses existing platform memberships, user subject/contact evidence, account audit events, idempotency hashing, and selected-account resolution. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile People and Access; membership activation command boundary; account audit/idempotency posture.
+Objective: Add the customer/account-scoped membership activation command boundary after invite readiness and delivery checks, while preserving separate seat/auth/provider/campaign/go-live/money workflows.
+Why now: TASK-248 made invite delivery readiness actionable. The next production-grade account/access slice is to define and test how invited membership intent becomes active membership lifecycle evidence when identity acceptance and account gates are proven.
+Files involved: Membership service command/result model, Referral SaaS account API router, route smoke plan/inventory, service/API/route tests, membership activation boundary doc, roadmap, and gap matrix.
+Database/schema impact: Uses existing `platform_memberships` lifecycle fields and `platform_account_audit_events`; no migration.
+Backend impact: Adds `POST /v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/activation`, idempotency replay/conflict detection, account/membership scope validation, identity acceptance matching, active account/link/reference gates, duplicate-active prevention, membership lifecycle activation, and account audit evidence.
+Frontend impact: None in this task; future UI can call the activation boundary from selected Customer Profile People and Access.
+API impact: Adds a seeded local/staging write route that can return blocked activation statuses or activate membership lifecycle only after all gates pass.
+Tests to add/update: Membership service activation command tests, API route tests, route smoke inventory test, and route smoke plan test.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_account_membership_service.py test\api\test_referral_saas_accounts_api.py test\test_referral_saas_route_smoke_inventory.py test\test_referral_saas_route_smoke_plan.py`; `git diff --check`.
+Acceptance criteria: Activation command validates selected account scope and invited membership; blocks safely for missing identity acceptance, inactive account, inactive tenant link, inactive external reference, duplicate active access, or unsafe payload; activates only the membership lifecycle when all gates pass; records audit/idempotency evidence; no invite email, provider credential, seat assignment, auth/session claim change, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-242; TASK-243; TASK-247; TASK-248.
+Blocked by: Frontend activation action wiring, provider-backed live invite delivery, seat assignment, auth/session claim integration, and account lifecycle activation workflows.
+Risk level: Medium.
+Rollback notes: Remove the activation command/result model, API route, smoke plan/inventory entries, tests, and docs.
+Explicit non-goals: Do not implement live email delivery, provider credentials, webhook dispatch, identity-provider writes, seat assignment, role claim propagation, auth/session claim changes, account activation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has an audited, idempotent, customer-scoped membership activation command boundary that can safely activate membership lifecycle evidence only when identity and account gates are satisfied. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

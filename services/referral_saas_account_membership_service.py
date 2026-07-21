@@ -11,6 +11,9 @@ MEMBERSHIP_INVITATION_EVENT: Final = "REFERRAL_SAAS_MEMBERSHIP_INVITATION_INTENT
 MEMBERSHIP_INVITATION_DELIVERY_EVENT: Final = (
     "REFERRAL_SAAS_MEMBERSHIP_INVITATION_DELIVERY_REQUEST"
 )
+MEMBERSHIP_ACTIVATION_EVENT: Final = (
+    "REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_REQUEST"
+)
 EVENT_RECORDED: Final = "RECORDED"
 EVENT_DUPLICATE: Final = "DUPLICATE"
 USER_ACTOR: Final = "USER"
@@ -93,6 +96,30 @@ class MembershipInvitationDeliveryProviderNotConfigured(
     safe_code = "DELIVERY_PROVIDER_NOT_CONFIGURED"
 
 
+class MembershipActivationNotInvited(MembershipInvitationCommandError):
+    safe_code = "ACTIVATION_REJECTED_MEMBERSHIP_NOT_INVITED"
+
+
+class MembershipActivationIdentityNotAccepted(MembershipInvitationCommandError):
+    safe_code = "ACTIVATION_REJECTED_IDENTITY_NOT_ACCEPTED"
+
+
+class MembershipActivationAccountNotActive(MembershipInvitationCommandError):
+    safe_code = "ACTIVATION_REJECTED_ACCOUNT_NOT_ACTIVE"
+
+
+class MembershipActivationTenantLinkNotActive(MembershipInvitationCommandError):
+    safe_code = "ACTIVATION_REJECTED_TENANT_LINK_NOT_ACTIVE"
+
+
+class MembershipActivationExternalReferenceNotActive(MembershipInvitationCommandError):
+    safe_code = "ACTIVATION_REJECTED_EXTERNAL_REFERENCE_NOT_ACTIVE"
+
+
+class MembershipActivationDuplicateActiveMembership(MembershipInvitationCommandError):
+    safe_code = "ACTIVATION_REJECTED_DUPLICATE_ACTIVE_MEMBERSHIP"
+
+
 @dataclass(frozen=True)
 class MembershipInvitationIntentResult:
     command_status: str
@@ -122,6 +149,56 @@ class MembershipInvitationIntentResult:
             "delivery": {
                 "status": self.delivery_status,
                 "nextAction": self.delivery_next_action,
+            },
+            "idempotency": {
+                "status": self.idempotency_status,
+            },
+            "auditEventId": self.audit_event_id,
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noInviteDeliveryConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class MembershipActivationRequestResult:
+    command_status: str
+    account_id: str
+    membership_id: str
+    previous_membership_status: str
+    membership_status: str
+    role_family: str
+    permission_set: str
+    accepted_subject_status: str
+    activation_next_action: str
+    idempotency_status: str
+    audit_event_id: str | None
+    guardrails: tuple[str, ...] = INVITATION_GUARDRAILS + (
+        "NO_INVITE_DELIVERY",
+        "NO_AUTH_PROVIDER_WRITE",
+    )
+    redactions: tuple[str, ...] = INVITATION_REDACTIONS + (
+        "accepted_subject",
+        "acceptance_evidence_ref",
+    )
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "membership": {
+                "membershipRef": self.membership_id,
+                "previousStatus": self.previous_membership_status,
+                "status": self.membership_status,
+                "roleFamily": self.role_family,
+                "permissionSet": self.permission_set,
+            },
+            "activation": {
+                "status": self.command_status,
+                "acceptedSubjectStatus": self.accepted_subject_status,
+                "nextAction": self.activation_next_action,
             },
             "idempotency": {
                 "status": self.idempotency_status,
@@ -1063,6 +1140,310 @@ async def request_referral_saas_membership_invitation_delivery(
     )
 
 
+async def request_referral_saas_membership_activation(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    account_status: str,
+    tenant_link_status: str,
+    external_reference_status: str,
+    membership_id: str,
+    accepted_subject: str | None,
+    acceptance_evidence_ref: str | None,
+    reason_code: str,
+    correlation_id: str,
+    idempotency_key_hash: str,
+    command_payload_hash: str,
+    command_payload: dict[str, Any] | None = None,
+    command_actor_ref: str | None = None,
+    command_actor_role: str | None = None,
+) -> MembershipActivationRequestResult:
+    safe_account_id = _required_account_id(account_id)
+    safe_tenant_code = _required_text(tenant_code)
+    safe_account_tenant_id = _optional_text(account_tenant_id) or None
+    safe_external_ref_id = _optional_text(external_ref_id) or None
+    safe_membership_id = _required_text(membership_id)
+    safe_account_status = _required_text(account_status).upper()
+    safe_tenant_link_status = _required_text(tenant_link_status).upper()
+    safe_external_reference_status = _required_text(external_reference_status).upper()
+    safe_accepted_subject = _optional_text(accepted_subject)
+    safe_acceptance_evidence_ref = _optional_text(acceptance_evidence_ref)
+    safe_reason_code = _required_text(reason_code).upper()
+    safe_correlation_id = _required_text(correlation_id)
+    safe_idempotency_hash = _required_text(idempotency_key_hash)
+    safe_payload_hash = _required_text(command_payload_hash)
+    safe_command_payload = command_payload or {}
+
+    _reject_unsafe_activation_payload(safe_command_payload)
+
+    async with db_connection() as conn:
+        existing_audit = await conn.fetchrow(
+            """
+            SELECT
+                account_audit_event_id,
+                membership_id,
+                previous_status,
+                next_status,
+                evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            MEMBERSHIP_ACTIVATION_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_audit:
+            evidence = _as_mapping(existing_audit.get("evidence_summary"))
+            if _optional_text(evidence.get("command_payload_hash")) != safe_payload_hash:
+                raise MembershipInvitationIdempotencyConflict(
+                    "Idempotency key was reused with different membership activation content."
+                )
+            replayed_status = (
+                _optional_text(evidence.get("activation_status"))
+                or _optional_text(existing_audit.get("next_status"))
+                or "MEMBERSHIP_ACTIVATION_REPLAYED"
+            )
+            return MembershipActivationRequestResult(
+                command_status=(
+                    "MEMBERSHIP_ACTIVATION_REPLAYED"
+                    if replayed_status == "MEMBERSHIP_ACTIVATED"
+                    else replayed_status
+                ),
+                account_id=safe_account_id,
+                membership_id=_optional_text(evidence.get("membership_id"))
+                or safe_membership_id,
+                previous_membership_status=_optional_text(
+                    evidence.get("previous_membership_status")
+                )
+                or _optional_text(existing_audit.get("previous_status"))
+                or "INVITED",
+                membership_status=_optional_text(evidence.get("membership_status"))
+                or _optional_text(existing_audit.get("next_status"))
+                or "INVITED",
+                role_family=_optional_text(evidence.get("role_family")) or "UNKNOWN",
+                permission_set=_optional_text(evidence.get("permission_set"))
+                or "UNKNOWN",
+                accepted_subject_status=_optional_text(
+                    evidence.get("accepted_subject_status")
+                )
+                or "ACCEPTED_SUBJECT_REPLAYED",
+                activation_next_action=(
+                    _optional_text(evidence.get("activation_next_action"))
+                    or "Activation request replayed from the existing audit record."
+                ),
+                idempotency_status="REPLAYED",
+                audit_event_id=_optional_text(
+                    existing_audit.get("account_audit_event_id")
+                )
+                or None,
+            )
+
+        membership = await conn.fetchrow(
+            """
+            SELECT
+                platform_memberships.membership_id,
+                platform_memberships.status,
+                platform_memberships.role_family,
+                platform_memberships.permission_set,
+                platform_memberships.user_id,
+                platform_memberships.client_id,
+                COALESCE(platform_memberships.metadata->>'delivery_status', 'DELIVERY_NOT_CONFIGURED')
+                    AS delivery_status,
+                actor_user.subject AS user_subject
+            FROM platform_memberships
+            LEFT JOIN platform_users actor_user
+                ON actor_user.user_id = platform_memberships.user_id
+            WHERE platform_memberships.membership_id = $1
+              AND platform_memberships.account_id = $2
+              AND (platform_memberships.tenant_code = $3 OR platform_memberships.tenant_code IS NULL)
+              AND platform_memberships.status <> 'ARCHIVED'
+            LIMIT 1
+            """,
+            safe_membership_id,
+            safe_account_id,
+            safe_tenant_code,
+        )
+        if not membership:
+            raise MembershipInvitationUnsafeScope(
+                "Membership reference does not match the resolved account context."
+            )
+
+        membership_status = _normalise_status(membership.get("status"))
+        role_family = _optional_text(membership.get("role_family")) or "UNKNOWN"
+        permission_set = _optional_text(membership.get("permission_set")) or "UNKNOWN"
+        invited_subject = _optional_text(membership.get("user_subject")) or _optional_text(
+            membership.get("client_id")
+        )
+        accepted_subject_status = "ACCEPTED_SUBJECT_MATCHED"
+        duplicate_active = None
+        if _optional_text(membership.get("user_id")) or _optional_text(
+            membership.get("client_id")
+        ):
+            duplicate_active = await conn.fetchrow(
+                """
+                SELECT membership_id
+                FROM platform_memberships
+                WHERE account_id = $1
+                  AND COALESCE(tenant_code, '') = COALESCE($2, '')
+                  AND role_family = $3
+                  AND status = 'ACTIVE'
+                  AND membership_id <> $4
+                  AND (
+                      ($5 IS NOT NULL AND user_id = $5)
+                      OR ($6 IS NOT NULL AND client_id = $6)
+                  )
+                LIMIT 1
+                """,
+                safe_account_id,
+                safe_tenant_code,
+                role_family,
+                safe_membership_id,
+                _optional_text(membership.get("user_id")) or None,
+                _optional_text(membership.get("client_id")) or None,
+            )
+
+        if membership_status != "INVITED":
+            activation_status = (
+                "ACTIVATION_REJECTED_DUPLICATE_ACTIVE_MEMBERSHIP"
+                if membership_status == "ACTIVE"
+                else "ACTIVATION_REJECTED_MEMBERSHIP_NOT_INVITED"
+            )
+            accepted_subject_status = "ACCEPTED_SUBJECT_NOT_EVALUATED"
+        elif duplicate_active:
+            activation_status = "ACTIVATION_REJECTED_DUPLICATE_ACTIVE_MEMBERSHIP"
+            accepted_subject_status = "ACCEPTED_SUBJECT_NOT_EVALUATED"
+        elif safe_account_status != "ACTIVE":
+            activation_status = "ACTIVATION_REJECTED_ACCOUNT_NOT_ACTIVE"
+            accepted_subject_status = "ACCEPTED_SUBJECT_NOT_EVALUATED"
+        elif safe_tenant_link_status != "ACTIVE":
+            activation_status = "ACTIVATION_REJECTED_TENANT_LINK_NOT_ACTIVE"
+            accepted_subject_status = "ACCEPTED_SUBJECT_NOT_EVALUATED"
+        elif safe_external_reference_status != "ACTIVE":
+            activation_status = "ACTIVATION_REJECTED_EXTERNAL_REFERENCE_NOT_ACTIVE"
+            accepted_subject_status = "ACCEPTED_SUBJECT_NOT_EVALUATED"
+        elif not safe_accepted_subject or safe_accepted_subject != invited_subject:
+            activation_status = "ACTIVATION_REJECTED_IDENTITY_NOT_ACCEPTED"
+            accepted_subject_status = "ACCEPTED_SUBJECT_MISSING_OR_MISMATCHED"
+        else:
+            activation_status = "MEMBERSHIP_ACTIVATED"
+
+        next_status = "ACTIVE" if activation_status == "MEMBERSHIP_ACTIVATED" else membership_status
+        activation_next_action = _activation_command_next_action(activation_status)
+        audit_evidence = {
+            "membership_id": safe_membership_id,
+            "previous_membership_status": membership_status,
+            "membership_status": next_status,
+            "role_family": role_family,
+            "permission_set": permission_set,
+            "delivery_status": _optional_text(membership.get("delivery_status"))
+            or "DELIVERY_NOT_CONFIGURED",
+            "activation_status": activation_status,
+            "accepted_subject_status": accepted_subject_status,
+            "acceptance_evidence_present": bool(safe_acceptance_evidence_ref),
+            "activation_next_action": activation_next_action,
+            "command_payload_hash": safe_payload_hash,
+            "no_invite_delivery_confirmed": True,
+            "no_auth_claim_change_confirmed": True,
+            "no_seat_assignment_confirmed": True,
+            "no_money_movement_confirmed": True,
+        }
+        redactions = list(
+            INVITATION_REDACTIONS + ("accepted_subject", "acceptance_evidence_ref")
+        )
+
+        if activation_status == "MEMBERSHIP_ACTIVATED":
+            async with conn.transaction():
+                updated = await conn.fetchrow(
+                    """
+                    UPDATE platform_memberships
+                    SET
+                        status = 'ACTIVE',
+                        accepted_by_ref = $1,
+                        accepted_at = NOW(),
+                        updated_at = NOW(),
+                        metadata = metadata || jsonb_build_object(
+                            'activation_status', 'MEMBERSHIP_ACTIVATED',
+                            'acceptance_evidence_ref_present', $2,
+                            'no_auth_claim_change_confirmed', true,
+                            'no_seat_assignment_confirmed', true
+                        )
+                    WHERE membership_id = $3
+                      AND account_id = $4
+                      AND status = 'INVITED'
+                    RETURNING status
+                    """,
+                    safe_accepted_subject,
+                    bool(safe_acceptance_evidence_ref),
+                    safe_membership_id,
+                    safe_account_id,
+                )
+                if not updated:
+                    raise MembershipActivationDuplicateActiveMembership(
+                        "Membership could not be activated from the invited state."
+                    )
+                audit_event = await _insert_activation_audit_event(
+                    conn,
+                    account_id=safe_account_id,
+                    account_tenant_id=safe_account_tenant_id,
+                    external_ref_id=safe_external_ref_id,
+                    membership_id=safe_membership_id,
+                    tenant_code=safe_tenant_code,
+                    event_status=EVENT_RECORDED,
+                    actor_ref=_optional_text(command_actor_ref)
+                    or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                    actor_role=_optional_text(command_actor_role) or "UNKNOWN",
+                    previous_status=membership_status,
+                    next_status=activation_status,
+                    reason_code=safe_reason_code,
+                    correlation_id=safe_correlation_id,
+                    idempotency_key_hash=safe_idempotency_hash,
+                    audit_evidence=audit_evidence,
+                    redactions=redactions,
+                )
+        else:
+            audit_event = await _insert_activation_audit_event(
+                conn,
+                account_id=safe_account_id,
+                account_tenant_id=safe_account_tenant_id,
+                external_ref_id=safe_external_ref_id,
+                membership_id=safe_membership_id,
+                tenant_code=safe_tenant_code,
+                event_status="BLOCKED",
+                actor_ref=_optional_text(command_actor_ref)
+                or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                actor_role=_optional_text(command_actor_role) or "UNKNOWN",
+                previous_status=membership_status,
+                next_status=activation_status,
+                reason_code=safe_reason_code,
+                correlation_id=safe_correlation_id,
+                idempotency_key_hash=safe_idempotency_hash,
+                audit_evidence=audit_evidence,
+                redactions=redactions,
+            )
+
+    return MembershipActivationRequestResult(
+        command_status=activation_status,
+        account_id=safe_account_id,
+        membership_id=safe_membership_id,
+        previous_membership_status=membership_status,
+        membership_status=next_status,
+        role_family=role_family,
+        permission_set=permission_set,
+        accepted_subject_status=accepted_subject_status,
+        activation_next_action=activation_next_action,
+        idempotency_status=EVENT_RECORDED,
+        audit_event_id=(
+            str(audit_event["account_audit_event_id"]) if audit_event else None
+        ),
+    )
+
+
 def _current_actor_posture(rows: list[dict[str, Any]]) -> MembershipActorPosture:
     actor_rows = [row for row in rows if bool(row.get("is_current_actor"))]
     active = _first_with_status(actor_rows, "ACTIVE")
@@ -1288,6 +1669,90 @@ def _activation_next_action(blockers: list[str]) -> str:
     return "Ready for activation once the activation command exists."
 
 
+def _activation_command_next_action(activation_status: str) -> str:
+    if activation_status == "MEMBERSHIP_ACTIVATED":
+        return (
+            "Membership lifecycle is active. Configure seats and auth claims only "
+            "through their separate governed workflows."
+        )
+    if activation_status == "ACTIVATION_REJECTED_IDENTITY_NOT_ACCEPTED":
+        return "Wait for identity acceptance evidence that matches the invited person."
+    if activation_status == "ACTIVATION_REJECTED_ACCOUNT_NOT_ACTIVE":
+        return "Activate the customer account foundation before runtime access can operate."
+    if activation_status == "ACTIVATION_REJECTED_TENANT_LINK_NOT_ACTIVE":
+        return "Activate the customer workspace link before runtime access can operate."
+    if activation_status == "ACTIVATION_REJECTED_EXTERNAL_REFERENCE_NOT_ACTIVE":
+        return "Activate the customer external reference before runtime access can operate."
+    if activation_status == "ACTIVATION_REJECTED_DUPLICATE_ACTIVE_MEMBERSHIP":
+        return "Review the existing active access for this person and responsibility."
+    return "Resolve the membership status before activation can continue."
+
+
+async def _insert_activation_audit_event(
+    conn: Any,
+    *,
+    account_id: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    membership_id: str,
+    tenant_code: str,
+    event_status: str,
+    actor_ref: str,
+    actor_role: str,
+    previous_status: str,
+    next_status: str,
+    reason_code: str,
+    correlation_id: str,
+    idempotency_key_hash: str,
+    audit_evidence: dict[str, Any],
+    redactions: list[str],
+) -> Any:
+    return await conn.fetchrow(
+        """
+        INSERT INTO platform_account_audit_events (
+            account_id,
+            account_tenant_id,
+            external_ref_id,
+            membership_id,
+            tenant_code,
+            event_type,
+            event_status,
+            actor_ref,
+            actor_role,
+            previous_status,
+            next_status,
+            reason_code,
+            correlation_id,
+            idempotency_key_hash,
+            evidence_summary,
+            redactions
+        )
+        VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9,
+            $10, $11, $12, $13, $14,
+            $15::jsonb, $16::jsonb
+        )
+        RETURNING account_audit_event_id
+        """,
+        account_id,
+        account_tenant_id,
+        external_ref_id,
+        membership_id,
+        tenant_code,
+        MEMBERSHIP_ACTIVATION_EVENT,
+        event_status,
+        actor_ref,
+        actor_role,
+        previous_status,
+        next_status,
+        reason_code,
+        correlation_id,
+        idempotency_key_hash,
+        _jsonb(audit_evidence),
+        _jsonb(redactions),
+    )
+
+
 def _normalise_status(value: Any) -> str:
     status = _optional_text(value).upper()
     return status if status in MEMBERSHIP_STATUSES else "DISABLED"
@@ -1440,3 +1905,56 @@ def _reject_unsafe_delivery_payload(value: Any) -> None:
     elif isinstance(value, list):
         for item in value:
             _reject_unsafe_delivery_payload(item)
+
+
+UNSAFE_ACTIVATION_PAYLOAD_KEYS: Final = frozenset(
+    {
+        "tenant_code",
+        "tenantCode",
+        "internal_tenant_code",
+        "internalTenantCode",
+        "email",
+        "raw_email",
+        "rawEmail",
+        "password",
+        "secret",
+        "token",
+        "credential",
+        "credentials",
+        "auth_claim",
+        "authClaims",
+        "seat_id",
+        "seatId",
+        "send_invite",
+        "sendInvite",
+        "delivery",
+        "go_live",
+        "goLive",
+        "campaign_activation",
+        "campaignActivation",
+        "webhook",
+        "reward",
+        "funding",
+        "fulfilment",
+        "settlement",
+        "commission",
+        "wallet",
+        "invoice",
+        "payout",
+        "sponsor_billing",
+        "sponsorBilling",
+    }
+)
+
+
+def _reject_unsafe_activation_payload(value: Any) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if str(key) in UNSAFE_ACTIVATION_PAYLOAD_KEYS:
+                raise MembershipInvitationUnsafePayload(
+                    "Membership activation payload includes unsafe live-action fields."
+                )
+            _reject_unsafe_activation_payload(child)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_unsafe_activation_payload(item)

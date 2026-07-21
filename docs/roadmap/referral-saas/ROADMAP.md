@@ -831,6 +831,18 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - People and Access now has a guarded customer-scoped invite-delivery check. The action is disabled when contact evidence or approved invite-provider scope is missing, derives recipient readiness from backend evidence instead of browser-held hashes, records the existing blocked delivery boundary, and confirms no email, activation, seat, auth, credential, campaign, go-live, billing, money movement, or DLaaS marketplace action occurred.
+- TASK-249: `services/referral_saas_account_membership_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_DELIVERY_BOUNDARY.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Referral SaaS now has a customer-scoped membership activation command boundary that validates account/membership scope, identity acceptance, account/link/reference status, duplicate-active access, idempotency, and audit evidence. It can activate only the membership lifecycle and still confirms no invite email, seat assignment, auth/session claim change, credential creation, campaign activation, go-live, billing, money movement, or DLaaS marketplace action occurred.
 
 ## Explicit Deferrals
 
