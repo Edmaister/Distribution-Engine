@@ -210,6 +210,9 @@ greenfield referral construction.
 102. TASK-236: Keep selected-customer access actions inside Customer Profile modules.
 103. TASK-237: Add customer-scoped People and Access maintenance flow.
 104. TASK-238: Add customer profile settings maintenance command.
+105. TASK-239: Fix People and Access email identity, campaign manager role, and error wrapping.
+106. TASK-240: Simplify Account Setup customer workspace language.
+107. TASK-241: Split Customer Profile modules into customer-scoped pages.
 
 ## 10/10 Exit Criteria
 
@@ -715,6 +718,26 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Customer Settings in the selected Customer Profile now saves bounded durable profile fields through a guarded account profile maintenance command, preserving read-only customer identifiers and no activation, membership, campaign, credential, go-live, billing, money, or DLaaS behavior.
+- TASK-239: `services/referral_saas_account_membership_service.py`;
+  `dp/migrations/082_referral_saas_account_foundation.sql`;
+  `dp/migrations/084_referral_saas_campaign_manager_role_family.sql`;
+  `frontend/src/api/client.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/styles/base.css`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `test/test_referral_saas_account_foundation_migration.py`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - People and Access now captures Work email as the customer-facing access identity, accepts Campaign manager as a bounded Referral SaaS role family, and keeps long API feedback contained inside the page.
+- TASK-240: `frontend/src/pages/admin/ReferralSaasAccountSetupPage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountSetupPage.test.tsx`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Account Setup now presents customer workspace language while keeping internal tenant/account mapping hidden behind the existing guarded APIs.
+- TASK-241: `frontend/src/app/App.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Customer Profile now follows the separate-page model from the customer-profile mock: customer finder, selected customer home, and customer-scoped module routes for health, settings, people/access, campaigns, links/codes, reports, support, attribution, and progress instead of stacking every function on one page.
 
 ## Explicit Deferrals
 

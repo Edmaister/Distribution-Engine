@@ -5187,6 +5187,32 @@ Rollback notes: Restore previous Account Setup copy and button labels; no backen
 Explicit non-goals: Do not rename database fields, API payload fields, backend service identifiers, migrations, `tenant_code`, external-reference contracts, membership behavior, campaign behavior, billing, money movement, or DLaaS marketplace behavior.
 Definition of done: Account Setup presents customer workspace creation clearly while preserving hidden internal tenant isolation. Priority: P0.
 
+## TASK-241: Split Customer Profile modules into customer-scoped pages
+
+Status: Complete (2026-07-21). Output: `frontend/src/app/App.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the selected Customer Profile route, account registry, readiness posture, membership posture, customer-context query propagation, and existing product module routes. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile modular workspace; selected-customer route architecture; customer-scoped SaaS operations.
+Objective: Split the selected Customer Profile from one stacked page into a short customer home plus separate customer-scoped pages for health, settings, people/access, campaigns, links/codes, reports, support, attribution, and progress.
+Why now: Manual UX review against `docs/customer-profile-mocks/index.html` showed the current selected-customer page was becoming cluttered because customer home, profile settings, people/access, health, and downstream service actions were stacked together.
+Files involved: Frontend route table, Customer Profile/Account Maintenance page, selected-customer route tests, roadmap, and gap matrix.
+Implementation/source files inspected: `frontend/src/app/App.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Adds route-backed customer modules under `/admin/referral-saas/account-maintenance/:accountId/:customerModule`; the selected customer home now stays summary-first, and module cards/next actions open separate customer pages instead of expanding all workflows on the home.
+API impact: None.
+Tests to add/update: Updates Customer Profile/Account Maintenance route tests to assert customer-scoped module URLs, separate people/access and settings pages, and absence of stacked module forms on the home page.
+Validation method: `npm.cmd test -- --run src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `npm.cmd run lint -- --quiet`; `git diff --check`.
+Acceptance criteria: Customer Profile starts with jurisdiction/customer selection; selected customer home shows only summary, next actions, service cards, and people snapshot; people/access, customer settings, account health, campaigns, links/codes, reports, support, attribution, and progress open on separate customer-scoped pages; customer context stays in the route/query; Account Setup remains only for first-time customer workspace creation; no backend route, schema, account lifecycle command, membership activation, invite delivery, seat assignment, auth-claim change, credential lifecycle, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-231; TASK-236; TASK-237; TASK-238.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Restore the selected-customer page to stacked module rendering and remove the `:customerModule` route.
+Explicit non-goals: Do not add backend routes, schema, migrations, account lifecycle commands, external-reference rotation, membership activation, invite delivery, seat assignment, auth/session claim changes, credential lifecycle, webhook delivery, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Customer Profile behaves like a customer-scoped application shell: home stays concise, and each operational function has its own customer page. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

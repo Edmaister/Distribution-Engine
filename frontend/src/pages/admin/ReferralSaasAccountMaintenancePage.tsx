@@ -45,6 +45,17 @@ const defaultOperatingMarket = "South Africa";
 type AccountRegistry = NonNullable<ReturnType<typeof useReferralSaasAccountRegistry>["data"]>;
 type AccountRegistryItem = AccountRegistry["accounts"][number];
 type StatusTone = "success" | "warning" | "danger" | "info" | "neutral";
+type CustomerModule =
+  | "home"
+  | "health"
+  | "settings"
+  | "people"
+  | "campaigns"
+  | "links"
+  | "reports"
+  | "support"
+  | "attribution"
+  | "progress";
 type ProfileDraft = {
   accountId: string;
   accountName: string;
@@ -58,7 +69,7 @@ const customerFunctions = [
     title: "Account health",
     copy: "See what is OK, what is stopping you, and what can wait.",
     letsYou: "Know if this customer is ready to test referrals.",
-    route: "#account-health",
+    route: "health",
     icon: ShieldCheck,
     status: "Needs attention",
     tone: "warning" as StatusTone,
@@ -67,7 +78,7 @@ const customerFunctions = [
     title: "Customer settings",
     copy: "Review company details, customer identifiers, and operating market.",
     letsYou: "Keep profile work inside this customer context.",
-    route: "#customer-settings",
+    route: "settings",
     icon: Building2,
     status: "Needs attention",
     tone: "warning" as StatusTone,
@@ -76,7 +87,7 @@ const customerFunctions = [
     title: "Campaigns",
     copy: "Set up or review referral campaigns for this customer.",
     letsYou: "Create campaign tests once blockers are clear.",
-    route: "/admin/referral-saas/campaigns",
+    route: "campaigns",
     icon: Target,
     status: "Ready",
     tone: "success" as StatusTone,
@@ -85,7 +96,7 @@ const customerFunctions = [
     title: "Links and codes",
     copy: "Issue, share, and validate referral codes.",
     letsYou: "Run real referral entry tests for this customer.",
-    route: "/admin/referral-saas/link-codes",
+    route: "links",
     icon: LinkIcon,
     status: "Ready",
     tone: "success" as StatusTone,
@@ -94,7 +105,7 @@ const customerFunctions = [
     title: "Reports",
     copy: "View referral and campaign performance.",
     letsYou: "See results once reporting setup is finished.",
-    route: "/admin/referral-saas/reports",
+    route: "reports",
     icon: BarChart3,
     status: "Can wait",
     tone: "warning" as StatusTone,
@@ -103,7 +114,7 @@ const customerFunctions = [
     title: "People and access",
     copy: "See who can manage this customer account.",
     letsYou: "Put the right owner or campaign manager in place.",
-    route: "#people-access",
+    route: "people",
     icon: Users,
     status: "Needs attention",
     tone: "warning" as StatusTone,
@@ -112,7 +123,7 @@ const customerFunctions = [
     title: "Support hub",
     copy: "Investigate problems for this customer.",
     letsYou: "Trace issues without losing customer context.",
-    route: "/admin/referral-saas/support",
+    route: "support",
     icon: ShieldCheck,
     status: "Ready",
     tone: "success" as StatusTone,
@@ -121,7 +132,7 @@ const customerFunctions = [
     title: "Attribution",
     copy: "Explain why a referral or outcome was attributed.",
     letsYou: "Answer who got credit for this customer.",
-    route: "/admin/referral-saas/attribution-trace",
+    route: "attribution",
     icon: Search,
     status: "Ready",
     tone: "success" as StatusTone,
@@ -130,7 +141,7 @@ const customerFunctions = [
     title: "Progress status",
     copy: "Check journey milestones for referrals.",
     letsYou: "See how far referred customers have got.",
-    route: "/admin/referral-saas/progress-status",
+    route: "progress",
     icon: ListChecks,
     status: "Ready",
     tone: "success" as StatusTone,
@@ -206,7 +217,7 @@ const jurisdictionOptions = [
 ];
 
 export function ReferralSaasAccountMaintenancePage() {
-  const { accountId } = useParams<{ accountId?: string }>();
+  const { accountId, customerModule } = useParams<{ accountId?: string; customerModule?: string }>();
   const { refreshKey } = useRefreshContext();
   const [draftExternalTenantRef, setDraftExternalTenantRef] = useState(defaultExternalTenantRef);
   const [draftOrganisationRef, setDraftOrganisationRef] = useState(defaultOrganisationRef);
@@ -214,7 +225,6 @@ export function ReferralSaasAccountMaintenancePage() {
   const [appliedOrganisationRef, setAppliedOrganisationRef] = useState(defaultOrganisationRef);
   const [selectedOperatingMarket, setSelectedOperatingMarket] = useState(defaultOperatingMarket);
   const [pendingAccountId, setPendingAccountId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "health" | "actions">("overview");
   const [accessDisplayName, setAccessDisplayName] = useState("");
   const [accessEmail, setAccessEmail] = useState("");
   const [accessRoleLabel, setAccessRoleLabel] = useState(accessRoleOptions[0].label);
@@ -305,6 +315,7 @@ export function ReferralSaasAccountMaintenancePage() {
   const selectedCustomerPath = selectedAccount
     ? `/admin/referral-saas/account-maintenance/${encodeURIComponent(selectedAccount.accountId)}`
     : "/admin/referral-saas/account-maintenance";
+  const selectedModule = normalizeCustomerModule(customerModule);
   const customerQuery = `?external_tenant_ref=${encodeURIComponent(
     selectedExternalTenantRef,
   )}&organisation_ref=${encodeURIComponent(selectedOrganisationRef)}`;
@@ -350,16 +361,6 @@ export function ReferralSaasAccountMaintenancePage() {
 
   function stageAccount(account: AccountRegistryItem) {
     setPendingAccountId(account.accountId);
-  }
-
-  function openCustomerModule(route: string) {
-    if (!route.startsWith("#")) {
-      return;
-    }
-    setActiveTab("actions");
-    window.setTimeout(() => {
-      document.getElementById(route.slice(1))?.scrollIntoView({ block: "start", behavior: "smooth" });
-    }, 0);
   }
 
   function submitAccessIntent(event: FormEvent<HTMLFormElement>) {
@@ -440,6 +441,11 @@ export function ReferralSaasAccountMaintenancePage() {
           ) : null}
         </div>
         <div className="customer-header-actions">
+          {accountId && selectedAccount && selectedModule !== "home" ? (
+            <Link className="button secondary" to={selectedCustomerPath}>
+              Customer home
+            </Link>
+          ) : null}
           <Link className="button secondary" to="/admin/referral-saas/account-maintenance">
             Switch customer
           </Link>
@@ -452,6 +458,7 @@ export function ReferralSaasAccountMaintenancePage() {
 
       {!isLoading && !error ? (
         <>
+          {!accountId ? (
           <section className="panel" id="customer-selector">
             <div className="panel-header">
               <div>
@@ -562,23 +569,12 @@ export function ReferralSaasAccountMaintenancePage() {
               </details>
             </div>
           </section>
+          ) : null}
 
           {accountId && selectedAccount ? (
             <>
-              <section className="customer-tabs" aria-label="Customer workspace sections">
-                <button className={activeTab === "overview" ? "active" : ""} onClick={() => setActiveTab("overview")} type="button">
-                  Overview
-                </button>
-                <button className={activeTab === "health" ? "active" : ""} onClick={() => setActiveTab("health")} type="button">
-                  Account health
-                </button>
-                <button className={activeTab === "actions" ? "active" : ""} onClick={() => setActiveTab("actions")} type="button">
-                  What you can do
-                </button>
-              </section>
-
-              {(activeTab === "overview" || activeTab === "health") ? (
-                <section className="customer-overview-grid" id="account-health">
+              {selectedModule === "home" ? (
+                <section className="customer-overview-grid">
                   <div className="panel">
                     <div className="panel-header">
                       <div>
@@ -625,7 +621,6 @@ export function ReferralSaasAccountMaintenancePage() {
                         <Link
                           className="route-item route-link"
                           key={action.title}
-                          onClick={() => openCustomerModule(action.route)}
                           to={buildCustomerModuleRoute(selectedCustomerPath, action.route, customerQuery)}
                         >
                           <div>
@@ -634,7 +629,7 @@ export function ReferralSaasAccountMaintenancePage() {
                           </div>
                           <div className="route-action-stack">
                             <StatusBadge label={action.priority} tone={action.tone} />
-                            {action.route.startsWith("#") ? <span className="route-action">Open</span> : null}
+                            <span className="route-action">Open page</span>
                           </div>
                         </Link>
                       ))}
@@ -643,7 +638,7 @@ export function ReferralSaasAccountMaintenancePage() {
                 </section>
               ) : null}
 
-              {(activeTab === "overview" || activeTab === "actions") ? (
+              {selectedModule === "home" ? (
                 <section className="panel">
                   <div className="panel-header">
                     <div>
@@ -662,7 +657,6 @@ export function ReferralSaasAccountMaintenancePage() {
                         <Link
                           className="customer-function-card"
                           key={item.title}
-                          onClick={() => openCustomerModule(item.route)}
                           to={href}
                         >
                           <div className="customer-function-card-header">
@@ -676,6 +670,7 @@ export function ReferralSaasAccountMaintenancePage() {
                           <div className="customer-function-help">
                             <strong>This lets you:</strong> {item.letsYou}
                           </div>
+                          <div className="customer-function-open">Open page</div>
                         </Link>
                       );
                     })}
@@ -683,6 +678,26 @@ export function ReferralSaasAccountMaintenancePage() {
                 </section>
               ) : null}
 
+              {selectedModule === "home" ? (
+                <section className="panel">
+                  <div className="panel-header">
+                    <div>
+                      <h2 className="panel-title">People snapshot</h2>
+                      <div className="panel-subtitle">Summary only. Open People and access to manage responsibilities.</div>
+                    </div>
+                    <Link className="button secondary" to={buildCustomerModuleRoute(selectedCustomerPath, "people", customerQuery)}>
+                      Open People and access
+                    </Link>
+                  </div>
+                  <div className="panel-body grid-3">
+                    <KpiCard label="Active users" value={String(membershipPosture?.membershipPosture.activeCount ?? 0)} footnote="Activated people on this customer" icon={Users} />
+                    <KpiCard label="Named or invited" value={String(membershipPosture?.membershipPosture.invitedCount ?? 0)} footnote="Intent recorded without email delivery" icon={CheckCircle2} />
+                    <KpiCard label="Roles still missing" value={blockedCount ? "1" : "0"} footnote="Owner or campaign manager still needs attention" icon={AlertCircle} />
+                  </div>
+                </section>
+              ) : null}
+
+              {selectedModule === "settings" ? (
               <section className="panel" id="customer-settings">
                 <div className="panel-header">
                   <div>
@@ -786,7 +801,9 @@ export function ReferralSaasAccountMaintenancePage() {
                   ) : null}
                 </div>
               </section>
+              ) : null}
 
+              {selectedModule === "people" ? (
               <section className="panel" id="people-access">
                 <div className="panel-header">
                   <div>
@@ -906,7 +923,9 @@ export function ReferralSaasAccountMaintenancePage() {
                   ) : null}
                 </div>
               </section>
+              ) : null}
 
+              {selectedModule === "health" ? (
               <section className="panel">
                 <div className="panel-header">
                   <div>
@@ -942,10 +961,21 @@ export function ReferralSaasAccountMaintenancePage() {
                   />
                 </div>
               </section>
+              ) : null}
 
+              {["campaigns", "links", "reports", "support", "attribution", "progress"].includes(selectedModule) ? (
+                <CustomerModulePage
+                  customerName={customerName}
+                  customerQuery={customerQuery}
+                  module={selectedModule}
+                />
+              ) : null}
+
+              {selectedModule === "home" ? (
               <section className="customer-context-note">
-                This is the customer home. Campaigns, links, reports, attribution, progress, and support should open inside this customer context, not as separate global tools that forget who you are working on.
+                Not on this page: customer settings form, people invite form, or full health table. Those live on their own customer routes so the home stays short.
               </section>
+              ) : null}
             </>
           ) : (
             <section className="panel">
@@ -963,6 +993,7 @@ export function ReferralSaasAccountMaintenancePage() {
             </section>
           )}
 
+          {!accountId ? (
           <section className="panel">
             <div className="panel-header">
               <div>
@@ -1006,10 +1037,126 @@ export function ReferralSaasAccountMaintenancePage() {
                 : null}
             </div>
           </section>
+          ) : null}
         </>
       ) : null}
     </>
   );
+}
+
+function CustomerModulePage({
+  customerName,
+  customerQuery,
+  module,
+}: {
+  customerName: string;
+  customerQuery: string;
+  module: CustomerModule;
+}) {
+  const details = getModulePageDetails(module);
+  return (
+    <section className="panel customer-module-page">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; {details.kicker}</div>
+          <h2 className="panel-title">{details.title}</h2>
+          <div className="panel-subtitle">{details.copy}</div>
+        </div>
+      </div>
+      <div className="panel-body route-list">
+        <div className="wizard-status-card">
+          <div>
+            <strong>{details.actionTitle}</strong>
+            <p>{details.actionCopy}</p>
+          </div>
+          <StatusBadge label="Customer scoped" tone={details.tone} />
+        </div>
+        {details.externalRoute ? (
+          <Link className="button" to={`${details.externalRoute}${customerQuery}`}>
+            Open current {details.title.toLowerCase()} workspace
+          </Link>
+        ) : null}
+        <div className="customer-context-note">
+          This is a separate customer page. It keeps {customerName} in context instead of expanding the customer home.
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function getModulePageDetails(module: CustomerModule) {
+  switch (module) {
+    case "campaigns":
+      return {
+        kicker: "Campaigns",
+        title: "Campaigns",
+        copy: "Campaign work for this customer only.",
+        actionTitle: "Campaigns for this customer",
+        actionCopy: "Set up or review referral campaigns while keeping the selected customer context.",
+        externalRoute: "/admin/referral-saas/campaigns",
+        tone: "success" as StatusTone,
+      };
+    case "links":
+      return {
+        kicker: "Links and codes",
+        title: "Links and codes",
+        copy: "Referral links and codes for this customer only.",
+        actionTitle: "Links and codes for this customer",
+        actionCopy: "Issue, inspect, and validate referral codes without leaving customer context.",
+        externalRoute: "/admin/referral-saas/link-codes",
+        tone: "success" as StatusTone,
+      };
+    case "reports":
+      return {
+        kicker: "Reports",
+        title: "Reports",
+        copy: "Tenant-safe referral and campaign reporting for this customer.",
+        actionTitle: "Reporting setup",
+        actionCopy: "Open the report workspace with this customer already scoped.",
+        externalRoute: "/admin/referral-saas/reports",
+        tone: "warning" as StatusTone,
+      };
+    case "support":
+      return {
+        kicker: "Support",
+        title: "Support",
+        copy: "Support evidence for this customer.",
+        actionTitle: "Support hub",
+        actionCopy: "Investigate validation, link/code, progress, and attribution issues in customer context.",
+        externalRoute: "/admin/referral-saas/support",
+        tone: "success" as StatusTone,
+      };
+    case "attribution":
+      return {
+        kicker: "Attribution",
+        title: "Attribution",
+        copy: "Explainable attribution evidence for this customer.",
+        actionTitle: "Attribution trace",
+        actionCopy: "Open the attribution trace workspace with customer identifiers carried forward.",
+        externalRoute: "/admin/referral-saas/attribution-trace",
+        tone: "success" as StatusTone,
+      };
+    case "progress":
+      return {
+        kicker: "Progress status",
+        title: "Progress status",
+        copy: "Referral journey progress for this customer.",
+        actionTitle: "Progress diagnostics",
+        actionCopy: "Review safe progress status and missing evidence without leaking internal identifiers.",
+        externalRoute: "/admin/referral-saas/progress-status",
+        tone: "success" as StatusTone,
+      };
+    default:
+      return {
+        kicker: "Customer page",
+        title: "Customer page",
+        copy: "Customer-scoped work area.",
+        actionTitle: "Customer-scoped action",
+        actionCopy: "This page keeps customer work separate from the profile home.",
+        externalRoute: "",
+        tone: "info" as StatusTone,
+      };
+  }
 }
 
 function getCustomerNextActions(blockedCount: number, missingEvidenceCount: number) {
@@ -1019,21 +1166,21 @@ function getCustomerNextActions(blockedCount: number, missingEvidenceCount: numb
         title: "Add who can manage this account",
         copy: "Complete owner and campaign manager setup for day-to-day referral work.",
         priority: "First",
-        route: "#people-access",
+        route: "people",
         tone: "warning" as StatusTone,
       },
       {
         title: "Open Campaigns",
         copy: "Account setup is far enough to set up or review a campaign.",
         priority: "Next",
-        route: "/admin/referral-saas/campaigns",
+        route: "campaigns",
         tone: "info" as StatusTone,
       },
       {
         title: "Finish reporting setup",
         copy: "Useful for performance views, not a hard stop for first testing.",
         priority: "Later",
-        route: "/admin/referral-saas/reports",
+        route: "reports",
         tone: "neutral" as StatusTone,
       },
     ];
@@ -1043,28 +1190,50 @@ function getCustomerNextActions(blockedCount: number, missingEvidenceCount: numb
       title: "Open Campaigns",
       copy: "The customer is ready for campaign setup or review.",
       priority: "First",
-      route: "/admin/referral-saas/campaigns",
+      route: "campaigns",
       tone: "success" as StatusTone,
     },
     {
       title: "Run link and code tests",
       copy: "Issue and validate referral codes inside this customer context.",
       priority: "Next",
-      route: "/admin/referral-saas/link-codes",
+      route: "links",
       tone: "info" as StatusTone,
     },
     {
       title: "Check reporting",
       copy: "Review tenant-safe performance and export posture.",
       priority: "Later",
-      route: "/admin/referral-saas/reports",
+      route: "reports",
       tone: "neutral" as StatusTone,
     },
   ];
 }
 
 function buildCustomerModuleRoute(selectedCustomerPath: string, route: string, customerQuery: string) {
-  return route.startsWith("#") ? `${selectedCustomerPath}${route}` : `${route}${customerQuery}`;
+  if (isCustomerModule(route)) {
+    return `${selectedCustomerPath}/${route}`;
+  }
+  return `${route}${customerQuery}`;
+}
+
+function normalizeCustomerModule(value: string | undefined): CustomerModule {
+  return isCustomerModule(value) ? value : "home";
+}
+
+function isCustomerModule(value: string | undefined): value is CustomerModule {
+  return [
+    "home",
+    "health",
+    "settings",
+    "people",
+    "campaigns",
+    "links",
+    "reports",
+    "support",
+    "attribution",
+    "progress",
+  ].includes(value || "");
 }
 
 function isValidEmail(value: string) {
