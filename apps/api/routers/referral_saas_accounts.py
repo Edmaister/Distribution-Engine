@@ -48,6 +48,9 @@ from services.referral_saas_account_membership_service import (
     record_referral_saas_membership_invitation_intent,
     request_referral_saas_membership_invitation_delivery,
 )
+from services.referral_saas_technical_setup_service import (
+    build_referral_saas_technical_setup_readiness,
+)
 from services.onboarding.onboarding_draft_idempotency_service import hash_payload
 from utils.security import require_session_key
 
@@ -835,6 +838,99 @@ async def read_referral_saas_membership_activation_readiness(
         "no_membership_activation_confirmed": True,
         "no_auth_claim_change_confirmed": True,
         "no_seat_assignment_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/technical-setup-readiness")
+async def read_referral_saas_technical_setup_readiness(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+
+    normalised_context = str(context or "").strip().lower()
+    if normalised_context not in REFERRAL_SAAS_ACCOUNT_CONTEXTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": "context must be runtime or setup.",
+            },
+        )
+
+    try:
+        if normalised_context == "setup":
+            account = await resolve_setup_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+        else:
+            account = await resolve_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+    except AccountFoundationResolutionError as exc:
+        raise _resolution_error(exc) from exc
+
+    safe_account_ref = _optional_text(account_ref)
+    if safe_account_ref not in {account.account_id, account.account_code}:
+        raise _membership_invitation_error(
+            MembershipInvitationUnsafeScope(
+                "Path account reference does not match resolved account context."
+            )
+        )
+
+    readiness = build_referral_saas_technical_setup_readiness(
+        account_id=account.account_id,
+        account_status=account.account_status,
+        tenant_link_status=account.tenant_link_status,
+        external_reference_status=account.reference_status,
+    )
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "technicalSetupReadiness": readiness.to_safe_dict(),
+        "guardrail": (
+            "Read-only Referral SaaS technical setup readiness. This endpoint "
+            "does not create credentials, expose provider secrets, dispatch "
+            "webhooks, send invitations, activate memberships, assign seats, "
+            "modify auth claims, activate campaigns, trigger go-live, expose "
+            "internal tenant codes, or mutate adjacent DLaaS money or "
+            "marketplace records."
+        ),
+        "no_credential_creation_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_membership_activation_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_campaign_activation_confirmed": True,
         "no_money_movement_confirmed": True,
     }
 

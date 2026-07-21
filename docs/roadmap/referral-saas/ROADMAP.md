@@ -215,6 +215,7 @@ greenfield referral construction.
 107. TASK-241: Split Customer Profile modules into customer-scoped pages.
 108. TASK-242: Add Referral SaaS membership activation readiness read model.
 109. TASK-243: Add Referral SaaS invitation delivery request boundary.
+110. TASK-244: Add Referral SaaS technical setup readiness read model.
 
 ## 10/10 Exit Criteria
 
@@ -767,6 +768,20 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Referral SaaS now has a customer/account-scoped invitation delivery request boundary that validates the selected account and invited membership, records blocked provider evidence with idempotency and audit posture, and returns a safe `DELIVERY_PROVIDER_NOT_CONFIGURED` result without sending email, activating memberships, assigning seats, changing auth claims, creating credentials, or moving money.
+- TASK-244: `services/channel_readiness_service.py`;
+  `services/referral_saas_technical_setup_service.py`;
+  `apps/api/settings.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/test_channel_readiness_service.py`;
+  `test/test_referral_saas_technical_setup_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Referral SaaS now has a customer/account-scoped technical setup readiness read model that reuses the shared channel catalog, adds Email provider readiness alongside messaging channels, and safely explains provider configuration gaps without creating credentials, dispatching webhooks, sending invites, activating memberships, assigning seats, changing auth claims, launching campaigns, or moving money.
 
 ## Explicit Deferrals
 

@@ -28,6 +28,20 @@ _CHANNEL_PREFERENCES: dict[tuple[str, str, str], dict[str, Any]] = {}
 
 CHANNEL_CATALOG: tuple[dict[str, Any], ...] = (
     {
+        "channel_code": "EMAIL",
+        "label": "Email",
+        "adapter_type": "MESSAGING",
+        "target_users": ["Admin", "Producer - Supply", "Distributor - Demand"],
+        "supported_events": [
+            "ACCOUNT_INVITATION",
+            "MEMBERSHIP_INVITATION",
+            "REPORT_READY",
+        ],
+        "provider_url_setting": "channel_email_provider_url",
+        "provider_secret_setting": "channel_email_provider_secret",
+        "recommended_action": "Configure the Email provider URL and signing secret before sending live account invitations.",
+    },
+    {
         "channel_code": "WHATSAPP",
         "label": "WhatsApp",
         "adapter_type": "MESSAGING",
@@ -76,10 +90,13 @@ AUDIENCE_CHANNEL_PREFERENCE = {
     "PRODUCER": ["WHATSAPP", "SMS"],
     "DISTRIBUTOR": ["WHATSAPP", "SMS", "USSD"],
     "CONSUMER": ["WHATSAPP", "SMS", "USSD"],
-    "ADMIN": ["WHATSAPP", "SMS"],
+    "ADMIN": ["EMAIL", "WHATSAPP", "SMS"],
 }
 
 EVENT_CHANNEL_PREFERENCE = {
+    "ACCOUNT_INVITATION": ["EMAIL"],
+    "MEMBERSHIP_INVITATION": ["EMAIL"],
+    "REPORT_READY": ["EMAIL"],
     "OPPORTUNITY_PUBLISHED": ["WHATSAPP", "SMS"],
     "ROUTE_ASSIGNED": ["WHATSAPP", "SMS"],
     "REFERRAL_STARTED": ["USSD", "WHATSAPP", "SMS"],
