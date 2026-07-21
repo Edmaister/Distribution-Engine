@@ -81,6 +81,9 @@ invited, recipient contact evidence exists, and an approved invite-provider
 reference is visible from Technical Setup. The request does not send email. The
 service derives recipient readiness from backend contact evidence instead of
 requiring the browser to supply a recipient hash.
+`recipientHash` is intentionally not accepted from the browser in the current
+guarded UI path; it remains a redacted backend/audit concept for delivery
+boundary evidence.
 
 Current guarded request shape:
 
