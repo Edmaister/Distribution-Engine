@@ -28,10 +28,13 @@ import {
 } from "../../api/referralSaasAccountQueries";
 import {
   createReferralSaasAccountCampaignSetup,
+  recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
+  submitReferralSaasAccountCampaignReview,
   updateReferralSaasAccountCampaignPolicySettings,
+  type ReferralSaasAccountCampaignReviewResponse,
   type ReferralSaasAccountCampaignPolicySettingsResponse,
   updateReferralSaasAccountProfile,
   type ReferralSaasAccountCampaignSetupCreateResponse,
@@ -95,6 +98,15 @@ type CampaignPolicySettingsDraft = {
   productWindowDays: string;
   requiresAcceptedTerms: string;
   rewardVisibilityNotes: string;
+};
+
+type CampaignReviewDraft = {
+  campaignCode: string;
+  setupSummary: string;
+  operatorNotes: string;
+  decisionReason: string;
+  reviewerRef: string;
+  decision: "APPROVED" | "BLOCKED";
 };
 
 const customerFunctions = [
@@ -300,6 +312,16 @@ export function ReferralSaasAccountMaintenancePage() {
   });
   const [campaignPolicyResult, setCampaignPolicyResult] =
     useState<ReferralSaasAccountCampaignPolicySettingsResponse | null>(null);
+  const [campaignReviewDraft, setCampaignReviewDraft] = useState<CampaignReviewDraft>({
+    campaignCode: "",
+    setupSummary: "Campaign setup and policy settings are ready for review.",
+    operatorNotes: "",
+    decisionReason: "Campaign setup, policy settings, and readiness evidence reviewed.",
+    reviewerRef: "amplifi-admin",
+    decision: "APPROVED",
+  });
+  const [campaignReviewResult, setCampaignReviewResult] =
+    useState<ReferralSaasAccountCampaignReviewResponse | null>(null);
   const scopeChanged =
     draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
     draftOrganisationRef.trim() !== appliedOrganisationRef;
@@ -421,6 +443,18 @@ export function ReferralSaasAccountMaintenancePage() {
       setCampaignPolicyResult(response);
     },
   });
+  const campaignReviewSubmitMutation = useMutation({
+    mutationFn: submitReferralSaasAccountCampaignReview,
+    onSuccess: (response) => {
+      setCampaignReviewResult(response);
+    },
+  });
+  const campaignReviewDecisionMutation = useMutation({
+    mutationFn: recordReferralSaasAccountCampaignReviewDecision,
+    onSuccess: (response) => {
+      setCampaignReviewResult(response);
+    },
+  });
   const pendingAccount = accountItems.find((account) => account.accountId === pendingAccountId);
   const operatingMarkets = getOperatingMarkets(accountItems);
   const accountsForMarket = accountItems.filter(
@@ -459,17 +493,29 @@ export function ReferralSaasAccountMaintenancePage() {
   useEffect(() => {
     if (
       selectedModule === "campaigns" &&
-      customerSubModule === "settings" &&
+      (customerSubModule === "settings" || customerSubModule === "review") &&
       requestedCampaignCode &&
-      campaignPolicyDraft.campaignCode !== requestedCampaignCode
+      (campaignPolicyDraft.campaignCode !== requestedCampaignCode ||
+        campaignReviewDraft.campaignCode !== requestedCampaignCode)
     ) {
       setCampaignPolicyDraft((current) => ({
         ...current,
         campaignCode: requestedCampaignCode,
       }));
+      setCampaignReviewDraft((current) => ({
+        ...current,
+        campaignCode: requestedCampaignCode,
+      }));
       setCampaignPolicyResult(null);
+      setCampaignReviewResult(null);
     }
-  }, [campaignPolicyDraft.campaignCode, customerSubModule, requestedCampaignCode, selectedModule]);
+  }, [
+    campaignPolicyDraft.campaignCode,
+    campaignReviewDraft.campaignCode,
+    customerSubModule,
+    requestedCampaignCode,
+    selectedModule,
+  ]);
 
   function updateProfileDraft(values: Partial<Omit<ProfileDraft, "accountId">>) {
     if (!selectedAccount) {
@@ -623,6 +669,14 @@ export function ReferralSaasAccountMaintenancePage() {
     setCampaignPolicyResult(null);
   }
 
+  function updateCampaignReviewDraft(values: Partial<CampaignReviewDraft>) {
+    setCampaignReviewDraft((current) => ({
+      ...current,
+      ...values,
+    }));
+    setCampaignReviewResult(null);
+  }
+
   function submitCampaignSetup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cleanedName = campaignSetupDraft.name.trim();
@@ -706,6 +760,63 @@ export function ReferralSaasAccountMaintenancePage() {
       reasonCode: "CUSTOMER_PROFILE_CAMPAIGN_POLICY_SETTINGS",
       correlationId: `customer-profile-campaign-policy-${selectedAccount.accountId}`,
       idempotencyKey: `customer-profile-campaign-policy-${selectedAccount.accountId}-${cleanedCampaignCode}-${version}-${attributionWindowDays}`
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-"),
+    });
+  }
+
+  function submitCampaignReview(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const cleanedCampaignCode = campaignReviewDraft.campaignCode.trim();
+    const cleanedSetupSummary = campaignReviewDraft.setupSummary.trim();
+    if (!selectedAccount || !selectedExternalTenantRef || !cleanedCampaignCode || !cleanedSetupSummary) {
+      return;
+    }
+    campaignReviewSubmitMutation.mutate({
+      accountRef: selectedAccount.accountId,
+      campaignCode: cleanedCampaignCode,
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: selectedExternalTenantRef,
+        context: "setup",
+      },
+      reviewSubmission: {
+        setupSummary: cleanedSetupSummary,
+        requestedReviewStatus: "READY_FOR_REVIEW",
+        operatorNotes: campaignReviewDraft.operatorNotes,
+      },
+      reasonCode: "CUSTOMER_PROFILE_CAMPAIGN_REVIEW_SUBMISSION",
+      correlationId: `customer-profile-campaign-review-submit-${selectedAccount.accountId}`,
+      idempotencyKey: `customer-profile-campaign-review-submit-${selectedAccount.accountId}-${cleanedCampaignCode}`
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-"),
+    });
+  }
+
+  function submitCampaignReviewDecision(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const cleanedCampaignCode = campaignReviewDraft.campaignCode.trim();
+    const cleanedReason = campaignReviewDraft.decisionReason.trim();
+    const cleanedReviewerRef = campaignReviewDraft.reviewerRef.trim();
+    if (!selectedAccount || !selectedExternalTenantRef || !cleanedCampaignCode || !cleanedReason || !cleanedReviewerRef) {
+      return;
+    }
+    campaignReviewDecisionMutation.mutate({
+      accountRef: selectedAccount.accountId,
+      campaignCode: cleanedCampaignCode,
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: selectedExternalTenantRef,
+        context: "setup",
+      },
+      reviewDecision: {
+        decision: campaignReviewDraft.decision,
+        reason: cleanedReason,
+        reviewerRef: cleanedReviewerRef,
+      },
+      reasonCode: "CUSTOMER_PROFILE_CAMPAIGN_REVIEW_DECISION",
+      correlationId: `customer-profile-campaign-review-decision-${selectedAccount.accountId}`,
+      idempotencyKey: `customer-profile-campaign-review-decision-${selectedAccount.accountId}-${cleanedCampaignCode}-${campaignReviewDraft.decision}`
         .toLowerCase()
         .replace(/[^a-z0-9-]+/g, "-"),
     });
@@ -1506,6 +1617,21 @@ export function ReferralSaasAccountMaintenancePage() {
                     selectedAccount={selectedAccount}
                     selectedCustomerPath={selectedCustomerPath}
                   />
+                ) : customerSubModule === "review" ? (
+                  <CustomerCampaignReviewPage
+                    customerName={customerName}
+                    draft={campaignReviewDraft}
+                    error={campaignReviewSubmitMutation.error || campaignReviewDecisionMutation.error}
+                    externalTenantRef={selectedExternalTenantRef}
+                    isDeciding={campaignReviewDecisionMutation.isPending}
+                    isSubmitting={campaignReviewSubmitMutation.isPending}
+                    onChange={updateCampaignReviewDraft}
+                    onDecisionSubmit={submitCampaignReviewDecision}
+                    onReviewSubmit={submitCampaignReview}
+                    result={campaignReviewResult}
+                    selectedAccount={selectedAccount}
+                    selectedCustomerPath={selectedCustomerPath}
+                  />
                 ) : (
                   <CustomerCampaignsPage
                     customerName={customerName}
@@ -1674,6 +1800,9 @@ function CustomerCampaignsPage({
           <Link className="button secondary" to={`${selectedCustomerPath}/campaigns/settings`}>
             Policy settings
           </Link>
+          <Link className="button secondary" to={`${selectedCustomerPath}/campaigns/review`}>
+            Review campaign
+          </Link>
           <Link className="button" to={`${selectedCustomerPath}/campaigns/new`}>
             Create campaign setup
           </Link>
@@ -1744,14 +1873,24 @@ function CustomerCampaignsPage({
               render: (row) => {
                 const campaign = row as (typeof campaigns)[number];
                 return (
-                  <Link
-                    className="button button-secondary"
-                    to={`${selectedCustomerPath}/campaigns/settings?campaign=${encodeURIComponent(
-                      campaign.campaignCode,
-                    )}`}
-                  >
-                    Policy settings
-                  </Link>
+                  <div className="customer-header-actions">
+                    <Link
+                      className="button button-secondary"
+                      to={`${selectedCustomerPath}/campaigns/settings?campaign=${encodeURIComponent(
+                        campaign.campaignCode,
+                      )}`}
+                    >
+                      Policy settings
+                    </Link>
+                    <Link
+                      className="button button-secondary"
+                      to={`${selectedCustomerPath}/campaigns/review?campaign=${encodeURIComponent(
+                        campaign.campaignCode,
+                      )}`}
+                    >
+                      Review
+                    </Link>
+                  </div>
                 );
               },
             },
@@ -2242,10 +2381,227 @@ function CustomerCampaignPolicySettingsPage({
             Back to Campaigns
           </Link>
           {result ? (
-            <Link className="button" to={`${selectedCustomerPath}/campaigns`}>
-              Review campaign readiness
+            <Link
+              className="button"
+              to={`${selectedCustomerPath}/campaigns/review?campaign=${encodeURIComponent(
+                result.policySettings.campaignRef,
+              )}`}
+            >
+              Submit for review
             </Link>
           ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CustomerCampaignReviewPage({
+  customerName,
+  draft,
+  error,
+  externalTenantRef,
+  isDeciding,
+  isSubmitting,
+  onChange,
+  onDecisionSubmit,
+  onReviewSubmit,
+  result,
+  selectedAccount,
+  selectedCustomerPath,
+}: {
+  customerName: string;
+  draft: CampaignReviewDraft;
+  error: unknown;
+  externalTenantRef: string;
+  isDeciding: boolean;
+  isSubmitting: boolean;
+  onChange: (values: Partial<CampaignReviewDraft>) => void;
+  onDecisionSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onReviewSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  result: ReferralSaasAccountCampaignReviewResponse | null;
+  selectedAccount?: AccountRegistryItem;
+  selectedCustomerPath: string;
+}) {
+  const { refreshKey } = useRefreshContext();
+  const {
+    data: campaignListResponse,
+    error: campaignListError,
+    isLoading: isCampaignListLoading,
+  } = useReferralSaasAccountCampaignList(
+    selectedAccount?.accountId || "",
+    externalTenantRef,
+    Boolean(selectedAccount && externalTenantRef),
+    refreshKey,
+  );
+  const campaigns = campaignListResponse?.campaigns || [];
+  const canSubmitReview = Boolean(selectedAccount && draft.campaignCode.trim() && draft.setupSummary.trim());
+  const canRecordDecision = Boolean(
+    selectedAccount &&
+      draft.campaignCode.trim() &&
+      draft.decisionReason.trim() &&
+      draft.reviewerRef.trim(),
+  );
+  const review = result?.campaignReview;
+
+  return (
+    <section className="panel customer-module-page">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Campaigns &gt; Review</div>
+          <h2 className="panel-title">Campaign review</h2>
+          <div className="panel-subtitle">
+            Submit campaign setup evidence and record the review decision. Approval only makes future activation eligible.
+          </div>
+        </div>
+        <StatusBadge label="No activation" tone="warning" />
+      </div>
+      <div className="panel-body route-list">
+        <div className="wizard-status-card">
+          <div>
+            <strong>Selected customer</strong>
+            <p>
+              {selectedAccount?.accountCode || "No account code"} - {externalTenantRef || "No customer reference"}
+            </p>
+          </div>
+          <StatusBadge label="No tenant code entry" tone="success" />
+        </div>
+
+        {isCampaignListLoading ? <LoadingState label="Loading customer campaigns" /> : null}
+        {campaignListError ? <ErrorPanel error={campaignListError} /> : null}
+        {error ? <ErrorPanel error={error} /> : null}
+
+        <form className="form-grid" onSubmit={onReviewSubmit}>
+          <label>
+            Campaign
+            <select
+              onChange={(event) => onChange({ campaignCode: event.target.value })}
+              value={draft.campaignCode}
+            >
+              <option value="">Select a campaign</option>
+              {campaigns.map((campaign) => (
+                <option key={campaign.campaignCode} value={campaign.campaignCode}>
+                  {campaign.name || campaign.campaignCode} ({campaign.campaignCode})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Review summary
+            <textarea
+              onChange={(event) => onChange({ setupSummary: event.target.value })}
+              placeholder="Summarise the setup and policy evidence being reviewed"
+              rows={3}
+              value={draft.setupSummary}
+            />
+          </label>
+          <label>
+            Operator notes
+            <textarea
+              onChange={(event) => onChange({ operatorNotes: event.target.value })}
+              placeholder="Optional safe notes for the reviewer"
+              rows={3}
+              value={draft.operatorNotes}
+            />
+          </label>
+          <button className="button" disabled={!canSubmitReview || isSubmitting} type="submit">
+            {isSubmitting ? "Submitting campaign review" : "Submit campaign for review"}
+          </button>
+        </form>
+
+        <form className="form-grid" onSubmit={onDecisionSubmit}>
+          <label>
+            Review decision
+            <select
+              onChange={(event) => onChange({ decision: event.target.value as CampaignReviewDraft["decision"] })}
+              value={draft.decision}
+            >
+              <option value="APPROVED">Approve review</option>
+              <option value="BLOCKED">Block and return to setup</option>
+            </select>
+          </label>
+          <label>
+            Reviewer reference
+            <input
+              onChange={(event) => onChange({ reviewerRef: event.target.value })}
+              placeholder="Example: amplifi-admin"
+              value={draft.reviewerRef}
+            />
+          </label>
+          <label>
+            Decision reason
+            <textarea
+              onChange={(event) => onChange({ decisionReason: event.target.value })}
+              placeholder="Reason required for approval or block"
+              rows={3}
+              value={draft.decisionReason}
+            />
+          </label>
+          <button className="button secondary" disabled={!canRecordDecision || isDeciding} type="submit">
+            {isDeciding ? "Recording review decision" : "Record review decision"}
+          </button>
+        </form>
+
+        {review ? (
+          <>
+            <div className="wizard-summary-strip success">
+              <div>
+                <strong>Campaign review recorded.</strong>{" "}
+                {review.campaignRef} is now {formatDisplay(review.reviewStatus)}. Approval does not activate the campaign.
+              </div>
+              <StatusBadge label={formatDisplay(review.commandStatus)} tone="success" />
+            </div>
+            <div className="grid-3">
+              <KpiCard
+                label="Review state"
+                value={formatDisplay(review.reviewStatus)}
+                footnote={`Previous: ${formatDisplay(review.previousReviewStatus)}`}
+                icon={ShieldCheck}
+              />
+              <KpiCard
+                label="Activation eligibility"
+                value={formatDisplay(review.activationEligibility)}
+                footnote={formatDisplay(review.activationStatus)}
+                icon={Target}
+              />
+              <KpiCard
+                label="Next actions"
+                value={String(review.nextActions.length)}
+                footnote={review.reviewerAction}
+                icon={ListChecks}
+              />
+            </div>
+            <div className="route-list">
+              {review.nextActions.map((action) => (
+                <div className="route-item" key={action}>
+                  <div>
+                    <div className="route-name">{action}</div>
+                    <div className="route-path">Continue inside this customer's Campaigns module.</div>
+                  </div>
+                  <StatusBadge label="Next" tone="info" />
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="wizard-status-card">
+            <div>
+              <strong>What this records</strong>
+              <p>
+                Campaign review evidence for this selected customer only. It does not activate campaigns, generate links, create validation tracks, deliver webhooks, change access, bill, or move money.
+              </p>
+            </div>
+            <StatusBadge label="Review only" tone="info" />
+          </div>
+        )}
+
+        <div className="customer-header-actions">
+          <Link className="button secondary" to={`${selectedCustomerPath}/campaigns`}>
+            Back to Campaigns
+          </Link>
+          <Link className="button secondary" to={`${selectedCustomerPath}/campaigns/settings`}>
+            Policy settings
+          </Link>
         </div>
       </div>
     </section>

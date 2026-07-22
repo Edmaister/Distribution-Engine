@@ -235,6 +235,7 @@ greenfield referral construction.
 127. TASK-261: Define customer-scoped campaign submit/review command contract.
 128. TASK-262: Add guarded customer-scoped campaign submit/review API wrappers.
 129. TASK-263: Add selected-customer campaign submit/review UX.
+130. TASK-264: Define selected-customer campaign activation/go-live command contract.
 
 ## 10/10 Exit Criteria
 
@@ -979,6 +980,14 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Adds guarded selected-customer campaign review submission and review decision API wrappers. The backend resolves account/campaign scope internally, requires policy evidence before review submission, records review/audit/idempotency evidence, rejects unsafe tenant-code/activation/link/webhook/access/money payloads, and keeps approval as eligibility for a future activation command rather than activation itself.
+- TASK-263: `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the selected-customer Campaign Review UX. Operators can submit campaign setup evidence and record approval/block review decisions from the selected customer's Campaigns module; review approval is shown as future activation eligibility only and does not activate campaigns, generate links, create validation tracks, deliver webhooks, change access, bill, or move money.
 
 ## Explicit Deferrals
 
