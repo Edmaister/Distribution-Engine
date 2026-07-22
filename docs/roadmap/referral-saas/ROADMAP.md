@@ -231,6 +231,7 @@ greenfield referral construction.
 123. TASK-257: Add selected-customer campaign setup create UX.
 124. TASK-258: Define customer-scoped campaign policy/settings command contract.
 125. TASK-259: Add guarded customer-scoped campaign policy/settings API wrapper.
+126. TASK-260: Add selected-customer campaign policy/settings UX.
 
 ## 10/10 Exit Criteria
 
@@ -948,6 +949,14 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Adds the guarded customer-scoped campaign policy/settings API wrapper. It resolves selected account and campaign scope internally, upserts policy/settings evidence into existing campaign policy storage, records account audit/idempotency evidence, rejects unsafe tenant-code/activation/link/webhook/money payloads, and does not activate campaigns, generate links, create validation tracks, deliver webhooks, bill, or move money.
+- TASK-260: `frontend/src/api/client.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Adds the standalone selected-customer campaign policy/settings page, wires it to the guarded TASK-259 API wrapper, links campaign setup success into policy settings, and keeps policy evidence separate from activation, link generation, webhook delivery, billing, and money movement.
 
 ## Explicit Deferrals
 

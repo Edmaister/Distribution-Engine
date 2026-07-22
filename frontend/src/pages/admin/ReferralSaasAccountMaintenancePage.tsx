@@ -8,10 +8,11 @@ import {
   PlugZap,
   Search,
   ShieldCheck,
+  SlidersHorizontal,
   Target,
   Users,
 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { useEffect, useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 
@@ -30,6 +31,8 @@ import {
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
+  updateReferralSaasAccountCampaignPolicySettings,
+  type ReferralSaasAccountCampaignPolicySettingsResponse,
   updateReferralSaasAccountProfile,
   type ReferralSaasAccountCampaignSetupCreateResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
@@ -82,6 +85,16 @@ type CampaignSetupDraft = {
   startsAt: string;
   endsAt: string;
   maxUses: string;
+};
+
+type CampaignPolicySettingsDraft = {
+  campaignCode: string;
+  version: string;
+  attributionWindowDays: string;
+  eligibilityRule: string;
+  productWindowDays: string;
+  requiresAcceptedTerms: string;
+  rewardVisibilityNotes: string;
 };
 
 const customerFunctions = [
@@ -251,6 +264,7 @@ export function ReferralSaasAccountMaintenancePage() {
     customerModule?: string;
     customerSubModule?: string;
   }>();
+  const location = useLocation();
   const { refreshKey } = useRefreshContext();
   const [draftExternalTenantRef, setDraftExternalTenantRef] = useState(defaultExternalTenantRef);
   const [draftOrganisationRef, setDraftOrganisationRef] = useState(defaultOrganisationRef);
@@ -275,6 +289,17 @@ export function ReferralSaasAccountMaintenancePage() {
   });
   const [campaignSetupResult, setCampaignSetupResult] =
     useState<ReferralSaasAccountCampaignSetupCreateResponse | null>(null);
+  const [campaignPolicyDraft, setCampaignPolicyDraft] = useState<CampaignPolicySettingsDraft>({
+    campaignCode: "",
+    version: "1",
+    attributionWindowDays: "30",
+    eligibilityRule: "NEW_CUSTOMER_ONLY",
+    productWindowDays: "30",
+    requiresAcceptedTerms: "true",
+    rewardVisibilityNotes: "Reward visibility configured for setup only.",
+  });
+  const [campaignPolicyResult, setCampaignPolicyResult] =
+    useState<ReferralSaasAccountCampaignPolicySettingsResponse | null>(null);
   const scopeChanged =
     draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
     draftOrganisationRef.trim() !== appliedOrganisationRef;
@@ -390,6 +415,12 @@ export function ReferralSaasAccountMaintenancePage() {
       setCampaignSetupResult(response);
     },
   });
+  const campaignPolicyMutation = useMutation({
+    mutationFn: updateReferralSaasAccountCampaignPolicySettings,
+    onSuccess: (response) => {
+      setCampaignPolicyResult(response);
+    },
+  });
   const pendingAccount = accountItems.find((account) => account.accountId === pendingAccountId);
   const operatingMarkets = getOperatingMarkets(accountItems);
   const accountsForMarket = accountItems.filter(
@@ -413,6 +444,7 @@ export function ReferralSaasAccountMaintenancePage() {
   const customerQuery = `?external_tenant_ref=${encodeURIComponent(
     selectedExternalTenantRef,
   )}&organisation_ref=${encodeURIComponent(selectedOrganisationRef)}`;
+  const requestedCampaignCode = new URLSearchParams(location.search).get("campaign") || "";
   const selectedProfileDraft =
     selectedAccount && profileDraft?.accountId === selectedAccount.accountId
       ? profileDraft
@@ -423,6 +455,21 @@ export function ReferralSaasAccountMaintenancePage() {
           customerType: "DIRECT_CUSTOMER",
           industry: "BANKING_FINANCIAL_SERVICES",
         };
+
+  useEffect(() => {
+    if (
+      selectedModule === "campaigns" &&
+      customerSubModule === "settings" &&
+      requestedCampaignCode &&
+      campaignPolicyDraft.campaignCode !== requestedCampaignCode
+    ) {
+      setCampaignPolicyDraft((current) => ({
+        ...current,
+        campaignCode: requestedCampaignCode,
+      }));
+      setCampaignPolicyResult(null);
+    }
+  }, [campaignPolicyDraft.campaignCode, customerSubModule, requestedCampaignCode, selectedModule]);
 
   function updateProfileDraft(values: Partial<Omit<ProfileDraft, "accountId">>) {
     if (!selectedAccount) {
@@ -568,6 +615,14 @@ export function ReferralSaasAccountMaintenancePage() {
     setCampaignSetupResult(null);
   }
 
+  function updateCampaignPolicyDraft(values: Partial<CampaignPolicySettingsDraft>) {
+    setCampaignPolicyDraft((current) => ({
+      ...current,
+      ...values,
+    }));
+    setCampaignPolicyResult(null);
+  }
+
   function submitCampaignSetup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cleanedName = campaignSetupDraft.name.trim();
@@ -595,6 +650,62 @@ export function ReferralSaasAccountMaintenancePage() {
       },
       correlationId: `customer-profile-campaign-create-${selectedAccount.accountId}`,
       idempotencyKey: `customer-profile-campaign-create-${selectedAccount.accountId}-${cleanedName}-${cleanedSegment}`
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-"),
+    });
+  }
+
+  function submitCampaignPolicySettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const cleanedCampaignCode = campaignPolicyDraft.campaignCode.trim();
+    if (!selectedAccount || !selectedExternalTenantRef || !cleanedCampaignCode) {
+      return;
+    }
+    const version = Number(campaignPolicyDraft.version.trim() || "1");
+    const attributionWindowDays = Number(campaignPolicyDraft.attributionWindowDays.trim() || "30");
+    const productWindowDays = Number(campaignPolicyDraft.productWindowDays.trim() || String(attributionWindowDays));
+    const eligibilityRule = campaignPolicyDraft.eligibilityRule.trim() || "NEW_CUSTOMER_ONLY";
+    campaignPolicyMutation.mutate({
+      accountRef: selectedAccount.accountId,
+      campaignCode: cleanedCampaignCode,
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: selectedExternalTenantRef,
+        context: "setup",
+      },
+      policySettings: {
+        version,
+        attributionWindowDays,
+        eligibilityRules: [
+          {
+            rule: eligibilityRule,
+            enabled: true,
+          },
+        ],
+        productWindows: {
+          default: {
+            days: productWindowDays,
+          },
+        },
+        productRules: {
+          default: {
+            requiresAcceptedTerms: campaignPolicyDraft.requiresAcceptedTerms === "true",
+          },
+        },
+        rewardVisibility: {
+          mode: "configured_without_payment",
+          notes:
+            campaignPolicyDraft.rewardVisibilityNotes.trim() ||
+            "Reward visibility configured for setup only.",
+        },
+      },
+      setupIntent: {
+        requestedStatus: "POLICY_SETTINGS_RECORDED",
+        reason: "CUSTOMER_PROFILE_CAMPAIGN_POLICY_SETTINGS",
+      },
+      reasonCode: "CUSTOMER_PROFILE_CAMPAIGN_POLICY_SETTINGS",
+      correlationId: `customer-profile-campaign-policy-${selectedAccount.accountId}`,
+      idempotencyKey: `customer-profile-campaign-policy-${selectedAccount.accountId}-${cleanedCampaignCode}-${version}-${attributionWindowDays}`
         .toLowerCase()
         .replace(/[^a-z0-9-]+/g, "-"),
     });
@@ -1382,6 +1493,19 @@ export function ReferralSaasAccountMaintenancePage() {
                     selectedAccount={selectedAccount}
                     selectedCustomerPath={selectedCustomerPath}
                   />
+                ) : customerSubModule === "settings" ? (
+                  <CustomerCampaignPolicySettingsPage
+                    customerName={customerName}
+                    draft={campaignPolicyDraft}
+                    error={campaignPolicyMutation.error}
+                    externalTenantRef={selectedExternalTenantRef}
+                    isSaving={campaignPolicyMutation.isPending}
+                    onChange={updateCampaignPolicyDraft}
+                    onSubmit={submitCampaignPolicySettings}
+                    result={campaignPolicyResult}
+                    selectedAccount={selectedAccount}
+                    selectedCustomerPath={selectedCustomerPath}
+                  />
                 ) : (
                   <CustomerCampaignsPage
                     customerName={customerName}
@@ -1547,6 +1671,9 @@ function CustomerCampaignsPage({
           </div>
         </div>
         <div className="customer-header-actions">
+          <Link className="button secondary" to={`${selectedCustomerPath}/campaigns/settings`}>
+            Policy settings
+          </Link>
           <Link className="button" to={`${selectedCustomerPath}/campaigns/new`}>
             Create campaign setup
           </Link>
@@ -1610,6 +1737,23 @@ function CustomerCampaignsPage({
               key: "usesCount",
               header: "Uses",
               render: (row) => <span>{formatDisplay(getValue(row, ["usesCount"], "0"))}</span>,
+            },
+            {
+              key: "action",
+              header: "Action",
+              render: (row) => {
+                const campaign = row as (typeof campaigns)[number];
+                return (
+                  <Link
+                    className="button button-secondary"
+                    to={`${selectedCustomerPath}/campaigns/settings?campaign=${encodeURIComponent(
+                      campaign.campaignCode,
+                    )}`}
+                  >
+                    Policy settings
+                  </Link>
+                );
+              },
             },
           ]}
         />
@@ -1884,6 +2028,220 @@ function CustomerCampaignSetupCreatePage({
             Back to Campaigns
           </Link>
           {savedCampaign ? (
+            <Link
+              className="button"
+              to={`${selectedCustomerPath}/campaigns/settings?campaign=${encodeURIComponent(
+                savedCampaign.campaignCode,
+              )}`}
+            >
+              Complete policy settings
+            </Link>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CustomerCampaignPolicySettingsPage({
+  customerName,
+  draft,
+  error,
+  externalTenantRef,
+  isSaving,
+  onChange,
+  onSubmit,
+  result,
+  selectedAccount,
+  selectedCustomerPath,
+}: {
+  customerName: string;
+  draft: CampaignPolicySettingsDraft;
+  error: unknown;
+  externalTenantRef: string;
+  isSaving: boolean;
+  onChange: (values: Partial<CampaignPolicySettingsDraft>) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  result: ReferralSaasAccountCampaignPolicySettingsResponse | null;
+  selectedAccount?: AccountRegistryItem;
+  selectedCustomerPath: string;
+}) {
+  const { refreshKey } = useRefreshContext();
+  const {
+    data: campaignListResponse,
+    error: campaignListError,
+    isLoading: isCampaignListLoading,
+  } = useReferralSaasAccountCampaignList(
+    selectedAccount?.accountId || "",
+    externalTenantRef,
+    Boolean(selectedAccount && externalTenantRef),
+    refreshKey,
+  );
+  const campaigns = campaignListResponse?.campaigns || [];
+  const canSave = Boolean(selectedAccount && draft.campaignCode.trim() && draft.version.trim());
+  const savedSettings = result?.policySettings.policySettings;
+
+  return (
+    <section className="panel customer-module-page">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Campaigns &gt; Policy settings</div>
+          <h2 className="panel-title">Campaign policy settings</h2>
+          <div className="panel-subtitle">
+            Configure attribution, eligibility, product windows, and reward visibility for one selected campaign.
+          </div>
+        </div>
+        <StatusBadge label="Setup only" tone="warning" />
+      </div>
+      <div className="panel-body route-list">
+        <div className="wizard-status-card">
+          <div>
+            <strong>Selected customer</strong>
+            <p>
+              {selectedAccount?.accountCode || "No account code"} - {externalTenantRef || "No customer reference"}
+            </p>
+          </div>
+          <StatusBadge label="No tenant code entry" tone="success" />
+        </div>
+
+        {isCampaignListLoading ? <LoadingState label="Loading customer campaigns" /> : null}
+        {campaignListError ? <ErrorPanel error={campaignListError} /> : null}
+        <form className="form-grid" onSubmit={onSubmit}>
+          <label>
+            Campaign
+            <select
+              onChange={(event) => onChange({ campaignCode: event.target.value })}
+              value={draft.campaignCode}
+            >
+              <option value="">Select a campaign</option>
+              {campaigns.map((campaign) => (
+                <option key={campaign.campaignCode} value={campaign.campaignCode}>
+                  {campaign.name || campaign.campaignCode} ({campaign.campaignCode})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Policy version
+            <input
+              min="1"
+              onChange={(event) => onChange({ version: event.target.value })}
+              type="number"
+              value={draft.version}
+            />
+          </label>
+          <label>
+            Attribution window
+            <input
+              min="1"
+              onChange={(event) => onChange({ attributionWindowDays: event.target.value })}
+              type="number"
+              value={draft.attributionWindowDays}
+            />
+          </label>
+          <label>
+            Eligibility rule
+            <select
+              onChange={(event) => onChange({ eligibilityRule: event.target.value })}
+              value={draft.eligibilityRule}
+            >
+              <option value="NEW_CUSTOMER_ONLY">New customer only</option>
+              <option value="EXISTING_CUSTOMER_ALLOWED">Existing customer allowed</option>
+              <option value="PRODUCT_HOLDING_REQUIRED">Product holding required</option>
+            </select>
+          </label>
+          <label>
+            Product window
+            <input
+              min="1"
+              onChange={(event) => onChange({ productWindowDays: event.target.value })}
+              type="number"
+              value={draft.productWindowDays}
+            />
+          </label>
+          <label>
+            Accepted terms required
+            <select
+              onChange={(event) => onChange({ requiresAcceptedTerms: event.target.value })}
+              value={draft.requiresAcceptedTerms}
+            >
+              <option value="true">Required before reward eligibility</option>
+              <option value="false">Not required for this setup policy</option>
+            </select>
+          </label>
+          <label>
+            Reward visibility notes
+            <input
+              onChange={(event) => onChange({ rewardVisibilityNotes: event.target.value })}
+              placeholder="Example: Show estimated referral reward after successful attribution"
+              value={draft.rewardVisibilityNotes}
+            />
+          </label>
+          <button className="button" disabled={!canSave || isSaving} type="submit">
+            {isSaving ? "Saving policy settings" : "Save policy settings"}
+          </button>
+        </form>
+
+        {error ? <ErrorPanel error={error} /> : null}
+        {result && savedSettings ? (
+          <>
+            <div className="wizard-summary-strip success">
+              <div>
+                <strong>Policy settings saved.</strong> {result.policySettings.campaignRef} is configured for setup.
+                No links were generated, no campaign was activated, no webhook was delivered, and no money moved.
+              </div>
+              <StatusBadge label={formatDisplay(savedSettings.setupStatus)} tone="success" />
+            </div>
+            <div className="grid-3">
+              <KpiCard
+                label="Attribution window"
+                value={`${savedSettings.attributionWindowDays ?? "Not set"} days`}
+                footnote={`Policy version ${savedSettings.version}`}
+                icon={SlidersHorizontal}
+              />
+              <KpiCard
+                label="Eligibility rules"
+                value={String(savedSettings.eligibilityRuleCount)}
+                footnote="Saved against the selected customer campaign"
+                icon={ListChecks}
+              />
+              <KpiCard
+                label="Reward visibility"
+                value={formatDisplay(savedSettings.rewardVisibilityStatus)}
+                footnote="Display policy only, not a payout"
+                icon={ShieldCheck}
+              />
+            </div>
+            <div className="route-list">
+              {result.policySettings.nextActions.map((action) => (
+                <div className="route-item" key={action}>
+                  <div>
+                    <div className="route-name">{action}</div>
+                    <div className="route-path">Continue from this customer's Campaigns page.</div>
+                  </div>
+                  <StatusBadge label="Next" tone="info" />
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="wizard-status-card">
+            <div>
+              <strong>What this saves</strong>
+              <p>
+                Campaign policy evidence for the selected customer. It does not create a tenant code, activate the campaign,
+                generate links, create validation tracks, deliver webhooks, or move money.
+              </p>
+            </div>
+            <StatusBadge label="Guarded settings" tone="info" />
+          </div>
+        )}
+
+        <div className="customer-header-actions">
+          <Link className="button secondary" to={`${selectedCustomerPath}/campaigns`}>
+            Back to Campaigns
+          </Link>
+          {result ? (
             <Link className="button" to={`${selectedCustomerPath}/campaigns`}>
               Review campaign readiness
             </Link>

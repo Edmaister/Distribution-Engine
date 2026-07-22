@@ -359,6 +359,73 @@ export type ReferralSaasAccountCampaignSetupCreateResponse = {
   no_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasAccountCampaignPolicySettingsRequest = {
+  accountRef: string;
+  campaignCode: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  policySettings: {
+    version: number;
+    attributionWindowDays?: number | null;
+    eligibilityRules: Array<{
+      rule: string;
+      enabled: boolean;
+    }>;
+    productWindows: Record<string, { days: number }>;
+    productRules: Record<string, { requiresAcceptedTerms: boolean }>;
+    rewardVisibility: {
+      mode: string;
+      notes?: string;
+    };
+  };
+  setupIntent?: {
+    requestedStatus?: string;
+    reason?: string;
+  };
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
+export type ReferralSaasAccountCampaignPolicySettingsResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  policySettings: {
+    commandStatus: string;
+    accountRef: string;
+    campaignRef: string;
+    policySettings: {
+      version: number;
+      setupStatus: string;
+      attributionWindowDays?: number | null;
+      eligibilityRuleCount: number;
+      productWindowCount: number;
+      productRuleCount: number;
+      rewardVisibilityStatus: string;
+    };
+    idempotency: {
+      status: string;
+    };
+    audit: {
+      accountAuditEventId?: string | null;
+    };
+    nextActions: string[];
+    guardrails: string[];
+    redactions: string[];
+  };
+  guardrails: string[];
+  redactions: string[];
+  no_campaign_activation_confirmed: boolean;
+  no_link_generation_confirmed: boolean;
+  no_validation_track_created_confirmed: boolean;
+  no_webhook_delivery_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasAccountCreateFromDraftRequest = {
   draftRef: string;
   internalTenantCode: string;
@@ -756,6 +823,54 @@ export function createReferralSaasAccountCampaignSetup({
         setupIntent: {
           reason: setupIntent?.reason?.trim() || "CUSTOMER_PROFILE_CAMPAIGN_SETUP",
         },
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function updateReferralSaasAccountCampaignPolicySettings({
+  accountRef,
+  campaignCode,
+  accountScope,
+  policySettings,
+  setupIntent,
+  reasonCode,
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasAccountCampaignPolicySettingsRequest): Promise<ReferralSaasAccountCampaignPolicySettingsResponse> {
+  return apiRequest<ReferralSaasAccountCampaignPolicySettingsResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaigns/${encodeURIComponent(
+      campaignCode.trim(),
+    )}/policy-settings`,
+    {
+      method: "PUT",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        policySettings: {
+          version: policySettings.version,
+          attributionWindowDays: policySettings.attributionWindowDays ?? null,
+          eligibilityRules: policySettings.eligibilityRules.map((rule) => ({
+            rule: rule.rule.trim(),
+            enabled: rule.enabled,
+          })),
+          productWindows: policySettings.productWindows,
+          productRules: policySettings.productRules,
+          rewardVisibility: {
+            mode: policySettings.rewardVisibility.mode.trim(),
+            notes: policySettings.rewardVisibility.notes?.trim() || undefined,
+          },
+        },
+        setupIntent: {
+          requestedStatus: setupIntent?.requestedStatus?.trim() || "POLICY_SETTINGS_RECORDED",
+          reason: setupIntent?.reason?.trim() || "CUSTOMER_PROFILE_CAMPAIGN_POLICY_SETTINGS",
+        },
+        reasonCode: reasonCode?.trim() || "CUSTOMER_PROFILE_CAMPAIGN_POLICY_SETTINGS",
         correlationId,
         idempotencyKey,
       },
