@@ -194,3 +194,188 @@ async def test_campaign_setup_create_rejects_duplicate_campaign(monkeypatch):
             command_payload_hash="payload-hash",
         )
 
+
+async def test_campaign_policy_settings_records_active_policy_and_audit(monkeypatch):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {"campaign_code": "CAMP001", "is_active": False},
+            {
+                "campaign_code": "CAMP001",
+                "version": 1,
+                "rolling_window_days": 30,
+            },
+            {"account_audit_event_id": "audit-policy-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.upsert_referral_saas_account_campaign_policy_settings(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+        campaign_code="CAMP001",
+        version=1,
+        attribution_window_days=30,
+        eligibility_rules=[{"rule": "NEW_CUSTOMER_ONLY", "enabled": True}],
+        product_windows={"default": {"days": 30}},
+        product_rules={"default": {"requiresAcceptedTerms": True}},
+        reward_visibility={"mode": "configured_without_payment"},
+        reason_code="CUSTOMER_PROFILE_CAMPAIGN_POLICY_SETTINGS",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "POLICY_SETTINGS_RECORDED"
+    assert safe_payload["policySettings"]["setupStatus"] == "POLICY_SETTINGS_RECORDED"
+    assert safe_payload["policySettings"]["attributionWindowDays"] == 30
+    assert safe_payload["policySettings"]["eligibilityRuleCount"] == 1
+    assert safe_payload["policySettings"]["productWindowCount"] == 1
+    assert safe_payload["policySettings"]["productRuleCount"] == 1
+    assert (
+        safe_payload["policySettings"]["rewardVisibilityStatus"]
+        == "CONFIGURED_WITHOUT_PAYMENT"
+    )
+    assert "NO_CAMPAIGN_ACTIVATION" in safe_payload["guardrails"]
+    joined_queries = "\n".join(query for query, _ in conn.fetchrow_calls)
+    assert "INSERT INTO marketing_campaign_policies" in joined_queries
+    assert "is_active = TRUE" in joined_queries
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+    assert "tenant_code" in joined_queries
+
+
+async def test_campaign_policy_settings_replays_matching_idempotency(monkeypatch):
+    conn = FakeCommandConnection(
+        [
+            {
+                "account_audit_event_id": "audit-policy-1",
+                "event_status": "RECORDED",
+                "evidence_summary": {
+                    "campaign_code": "CAMP001",
+                    "version": 1,
+                    "setup_status": "POLICY_SETTINGS_RECORDED",
+                    "attribution_window_days": 30,
+                    "eligibility_rule_count": 1,
+                    "product_window_count": 1,
+                    "product_rule_count": 1,
+                    "reward_visibility_status": "CONFIGURED_WITHOUT_PAYMENT",
+                    "command_payload_hash": "payload-hash",
+                },
+            }
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.upsert_referral_saas_account_campaign_policy_settings(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+        campaign_code="CAMP001",
+        version=1,
+        attribution_window_days=30,
+        eligibility_rules=[{"rule": "NEW_CUSTOMER_ONLY", "enabled": True}],
+        reward_visibility={"mode": "configured_without_payment"},
+        reason_code="CUSTOMER_PROFILE_CAMPAIGN_POLICY_SETTINGS",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+    )
+
+    assert result.command_status == "POLICY_SETTINGS_REPLAYED"
+    assert result.idempotency_status == "REPLAYED"
+    assert len(conn.fetchrow_calls) == 1
+
+
+async def test_campaign_policy_settings_conflicts_on_idempotency_payload_mismatch(
+    monkeypatch,
+):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                {
+                    "account_audit_event_id": "audit-policy-1",
+                    "evidence_summary": {
+                        "campaign_code": "CAMP001",
+                        "command_payload_hash": "original-hash",
+                    },
+                }
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.CampaignPolicySettingsIdempotencyConflict):
+        await svc.upsert_referral_saas_account_campaign_policy_settings(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            external_reference_status="ACTIVE",
+            campaign_code="CAMP001",
+            version=1,
+            attribution_window_days=30,
+            reward_visibility={"mode": "configured_without_payment"},
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_POLICY_SETTINGS",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="new-hash",
+        )
+
+
+async def test_campaign_policy_settings_rejects_missing_campaign(monkeypatch):
+    patch_db(monkeypatch, FakeCommandConnection([None, None]))
+
+    with pytest.raises(svc.CampaignPolicySettingsCampaignNotFound):
+        await svc.upsert_referral_saas_account_campaign_policy_settings(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            external_reference_status="ACTIVE",
+            campaign_code="CAMP404",
+            version=1,
+            attribution_window_days=30,
+            reward_visibility={"mode": "configured_without_payment"},
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_POLICY_SETTINGS",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="payload-hash",
+        )
+
+
+async def test_campaign_policy_settings_rejects_payment_reward_visibility():
+    with pytest.raises(svc.CampaignPolicySettingsValidationError):
+        await svc.upsert_referral_saas_account_campaign_policy_settings(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            external_reference_status="ACTIVE",
+            campaign_code="CAMP001",
+            version=1,
+            attribution_window_days=30,
+            reward_visibility={"mode": "pay_now"},
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_POLICY_SETTINGS",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="payload-hash",
+        )
+

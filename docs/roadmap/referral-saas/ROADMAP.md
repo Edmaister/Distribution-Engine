@@ -230,6 +230,7 @@ greenfield referral construction.
 122. TASK-256: Add guarded customer-scoped campaign setup create API wrapper.
 123. TASK-257: Add selected-customer campaign setup create UX.
 124. TASK-258: Define customer-scoped campaign policy/settings command contract.
+125. TASK-259: Add guarded customer-scoped campaign policy/settings API wrapper.
 
 ## 10/10 Exit Criteria
 
@@ -935,6 +936,18 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Defines the selected-customer campaign policy/settings command boundary. It maps existing policy storage fields to product setup settings, keeps tenant-code resolution server-side, rejects activation/link/webhook/money-adjacent payloads, and sets up the next implementation slice for a guarded account-scoped policy/settings wrapper.
+- TASK-259: `services/referral_saas_campaign_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/test_referral_saas_campaign_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Adds the guarded customer-scoped campaign policy/settings API wrapper. It resolves selected account and campaign scope internally, upserts policy/settings evidence into existing campaign policy storage, records account audit/idempotency evidence, rejects unsafe tenant-code/activation/link/webhook/money payloads, and does not activate campaigns, generate links, create validation tracks, deliver webhooks, bill, or move money.
 
 ## Explicit Deferrals
 

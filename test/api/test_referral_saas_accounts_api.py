@@ -28,6 +28,9 @@ from services.referral_saas_account_setup_service import (
 )
 from services.referral_saas_campaign_service import ReferralSaasCampaignSummary
 from services.referral_saas_campaign_service import ReferralSaasCampaignSetupResult
+from services.referral_saas_campaign_service import (
+    ReferralSaasCampaignPolicySettingsResult,
+)
 from services.referral_saas_account_membership_service import (
     MembershipActivationRequestResult,
     MembershipInvitationDuplicate,
@@ -196,6 +199,27 @@ def _campaign_setup_result(**overrides) -> ReferralSaasCampaignSetupResult:
     }
     values.update(overrides)
     return ReferralSaasCampaignSetupResult(**values)
+
+
+def _campaign_policy_settings_result(
+    **overrides,
+) -> ReferralSaasCampaignPolicySettingsResult:
+    values = {
+        "command_status": "POLICY_SETTINGS_RECORDED",
+        "account_id": "acct-1",
+        "campaign_code": "CAMP001",
+        "version": 1,
+        "setup_status": "POLICY_SETTINGS_RECORDED",
+        "attribution_window_days": 30,
+        "eligibility_rule_count": 1,
+        "product_window_count": 1,
+        "product_rule_count": 1,
+        "reward_visibility_status": "CONFIGURED_WITHOUT_PAYMENT",
+        "idempotency_status": "RECORDED",
+        "audit_event_id": "audit-policy-1",
+    }
+    values.update(overrides)
+    return ReferralSaasCampaignPolicySettingsResult(**values)
 
 
 async def test_referral_saas_account_admin_can_create_account_from_draft(monkeypatch):
@@ -1306,6 +1330,127 @@ async def test_referral_saas_account_campaign_create_rejects_missing_required_fi
             json={
                 "accountScope": {"refType": "external_tenant_ref"},
                 "campaign": {"name": "Summer Referral", "segment": "Retail"},
+            },
+        )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "validation_error"
+    assert "NO_CAMPAIGN_ACTIVATION" in detail["guardrails"]
+
+
+async def test_referral_saas_account_admin_can_save_campaign_policy_settings(
+    monkeypatch,
+):
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    async def fake_upsert_policy_settings(**kwargs):
+        command_calls.append(kwargs)
+        return _campaign_policy_settings_result()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "upsert_referral_saas_account_campaign_policy_settings",
+        fake_upsert_policy_settings,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/policy-settings",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "policySettings": {
+                    "version": 1,
+                    "attributionWindowDays": 30,
+                    "eligibilityRules": [
+                        {"rule": "NEW_CUSTOMER_ONLY", "enabled": True}
+                    ],
+                    "productWindows": {"default": {"days": 30}},
+                    "productRules": {"default": {"requiresAcceptedTerms": True}},
+                    "rewardVisibility": {"mode": "configured_without_payment"},
+                },
+                "setupIntent": {
+                    "requestedStatus": "POLICY_SETTINGS_RECORDED",
+                    "reason": "Complete policy settings",
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "campaign-policy-settings-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["policySettings"]["commandStatus"] == "POLICY_SETTINGS_RECORDED"
+    assert body["policySettings"]["policySettings"]["attributionWindowDays"] == 30
+    assert body["no_campaign_activation_confirmed"] is True
+    assert body["no_link_generation_confirmed"] is True
+    assert body["no_validation_track_created_confirmed"] is True
+    assert body["no_webhook_delivery_confirmed"] is True
+    assert body["no_money_movement_confirmed"] is True
+    assert "tenantCode" not in str(body)
+    assert command_calls[0]["tenant_code"] == "FNB"
+    assert command_calls[0]["campaign_code"] == "CAMP001"
+    assert command_calls[0]["version"] == 1
+    assert command_calls[0]["attribution_window_days"] == 30
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["command_payload_hash"]
+
+
+async def test_referral_saas_account_campaign_policy_settings_rejects_unsafe_payload():
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/policy-settings",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "tenantCode": "FNB",
+                },
+                "policySettings": {
+                    "version": 1,
+                    "attributionWindowDays": 30,
+                    "isActive": True,
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "campaign-policy-settings-1",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert "NO_TENANT_CODE_EXPOSURE" in detail["guardrails"]
+    assert detail["no_campaign_activation_confirmed"] is True
+    assert detail["no_money_movement_confirmed"] is True
+
+
+async def test_referral_saas_account_campaign_policy_settings_requires_scope_fields():
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/policy-settings",
+            json={
+                "accountScope": {"refType": "external_tenant_ref"},
+                "policySettings": {"version": 1, "attributionWindowDays": 30},
             },
         )
 
