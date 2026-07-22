@@ -5589,6 +5589,31 @@ Rollback notes: Remove the campaign setup create service, account route, route s
 Explicit non-goals: Do not update campaign policy, create campaign validation tracks, generate links, activate campaigns, trigger go-live, create credentials, send webhooks, send invites, activate memberships, assign seats, change auth/session claims, create reports/exports, bill, reward, fund, fulfil, settle, commission, invoice, payout, sponsor bill, move money, implement broad DLaaS marketplace behavior, or fork source code.
 Definition of done: Referral SaaS has a guarded customer-scoped campaign setup create API wrapper that records inactive setup drafts with audit/idempotency evidence and keeps campaign activation concerns out of the create step. Priority: P0.
 
+## TASK-257: Add selected-customer campaign setup create UX
+
+Status: Complete (2026-07-22). Output: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `frontend/src/app/App.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing selected-account route shell, account-scoped campaign API wrapper, idempotency/audit posture, and customer profile navigation. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile Campaigns; selected-customer campaign setup create UX; customer-scoped campaign setup; activation guardrails.
+Objective: Add a standalone selected-customer campaign setup create page that saves an inactive campaign draft through the guarded TASK-256 API wrapper.
+Why now: TASK-256 shipped the safe backend create boundary, but operators still had no customer-scoped frontend action to create the first campaign from Customer Profile. Campaign creation should happen inside the selected customer context, not in the generic campaign workspace or Account Setup wizard.
+Files involved: Referral SaaS account endpoint client, selected Customer Profile page/router, focused frontend tests, roadmap, and gap matrix.
+Database/schema impact: None.
+Backend impact: None; reuses `POST /v1/referral-saas/accounts/{account_ref}/campaigns`.
+Frontend impact: Adds a Campaigns page CTA to `Create campaign setup`, adds `/admin/referral-saas/account-maintenance/{accountId}/campaigns/new`, captures campaign name, audience/segment, optional dates, and optional max referrals, calls the guarded create API, and shows a plain-language inactive-draft success state with next actions.
+API impact: Adds frontend client coverage for the existing customer-scoped campaign setup create API. No route/schema behavior changes.
+Tests to add/update: Endpoint client test for guarded create payload and selected-customer page tests for CTA routing, create form submission, success state, and unsafe-field exclusion.
+Validation method: `npm.cmd test -- --run src/api/endpoints/referralSaasAccounts.test.ts src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Customer Profile > Campaigns opens a standalone create page for the selected account, creates only an inactive campaign setup draft, does not require or submit tenant code, shows safe next actions after save, and confirms no policy write, link generation, activation, go-live, webhook delivery, money movement, DLaaS marketplace behavior, or source-code fork occurred.
+Dependencies: TASK-253; TASK-254; TASK-255; TASK-256.
+Blocked by: Customer-scoped campaign policy/settings maintenance, campaign submit/review boundaries, activation/go-live command boundaries, and campaign workflow E2E tests.
+Risk level: Medium.
+Rollback notes: Remove the frontend endpoint wrapper, route depth, create page, tests, and roadmap/gap updates.
+Explicit non-goals: Do not add backend routes, schema, policy writes, campaign validation tracks, link generation, campaign activation, go-live actions, credentials, webhook delivery, invite delivery, membership activation, seat assignment, auth/session claim changes, reports/exports, billing, rewards, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS users can create an inactive campaign setup draft from the selected customer Campaigns area while preserving tenant-safe scope, guardrails, and clear next actions. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

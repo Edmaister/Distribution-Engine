@@ -228,6 +228,7 @@ greenfield referral construction.
 120. TASK-254: Add customer-scoped campaign list and read wrappers.
 121. TASK-255: Define customer-scoped campaign draft/create command contract.
 122. TASK-256: Add guarded customer-scoped campaign setup create API wrapper.
+123. TASK-257: Add selected-customer campaign setup create UX.
 
 ## 10/10 Exit Criteria
 
@@ -918,6 +919,14 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Adds the guarded customer-scoped campaign setup create API wrapper. It resolves the selected account, creates only an inactive setup draft in existing campaign storage, records account audit/idempotency evidence, rejects unsafe activation/policy/link/webhook/money fields, and keeps tenant-code exposure out of the product payload.
+- TASK-257: `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `frontend/src/app/App.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Adds the selected-customer campaign setup create UX. The Customer Profile Campaigns page opens a standalone customer-scoped create page that calls the guarded campaign setup API, saves only an inactive draft, shows safe next actions, and confirms no tenant-code entry, link generation, policy write, activation, webhook delivery, go-live, or money movement.
 
 ## Explicit Deferrals
 
