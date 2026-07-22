@@ -69,6 +69,19 @@ coverage, and live DB/state verification.
 | Audit and idempotency posture | Domain-specific audit and idempotency exist; progress dedupe is concrete. | Every SaaS command/event has a stated idempotency, retry, audit, and failure posture. | Coverage is uneven by command type. | P1 | TASK-146: Inventory Referral SaaS audit and idempotency posture | Static inventory; duplicate request tests; audit evidence tests; retry/failure tests. |
 | E2E and live DB confidence | Broad domain tests exist; static migrations exist; live DB verification remains unavailable. | Full tenant-to-campaign-to-code-to-validation-to-progress-to-attribution-to-report E2E suite and live DB/state verification for launch-critical tables/routes. | No focused Referral SaaS golden-path suite and no live DB/state result for this wedge. | P0 | TASK-147: Define Referral SaaS E2E and live verification plan | E2E plan; migration replay; live schema/status/index checklist; route smoke checklist. |
 
+## Current Campaign/Frontend Alignment
+
+As of TASK-260, the selected-customer Campaigns area has standalone pages for
+campaign list/readiness, inactive campaign setup creation, and campaign
+policy/settings. TASK-260 wires the frontend to the guarded TASK-259 API wrapper
+so operators can save attribution window, eligibility, product-window, accepted
+terms, and reward-visibility evidence without entering tenant code or implying
+activation, link generation, webhook delivery, billing, or money movement.
+
+Remaining campaign/frontend gaps are campaign submit/review, activation/go-live
+boundaries, customer-scoped link/code continuation, customer-scoped reporting
+continuation, and physical/local campaign workflow E2E proof.
+
 ## Recommended Ordered Task Sequence
 
 1. TASK-134: Define Referral SaaS account setup contract.

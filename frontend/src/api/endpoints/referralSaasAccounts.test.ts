@@ -15,6 +15,7 @@ import {
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   resolveReferralSaasAccount,
+  updateReferralSaasAccountCampaignPolicySettings,
   updateReferralSaasAccountProfile,
 } from "./referralSaasAccounts";
 
@@ -648,6 +649,115 @@ describe("referralSaasAccounts endpoint client", () => {
     });
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|isactive|activatecampaign|policywrite|linkgeneration|money/,
+    );
+  });
+
+  it("updates customer-scoped campaign policy settings through the guarded wrapper", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      policySettings: {
+        commandStatus: "POLICY_SETTINGS_RECORDED",
+        accountRef: "acct-1",
+        campaignRef: "CAMP001",
+        policySettings: {
+          version: 1,
+          setupStatus: "POLICY_SETTINGS_READY",
+          attributionWindowDays: 30,
+          eligibilityRuleCount: 1,
+          productWindowCount: 1,
+          productRuleCount: 1,
+          rewardVisibilityStatus: "CONFIGURED_WITHOUT_PAYMENT",
+        },
+        idempotency: { status: "RECORDED" },
+        audit: { accountAuditEventId: "audit-policy-1" },
+        nextActions: ["Run campaign readiness", "Review before activation"],
+        guardrails: ["NO_CAMPAIGN_ACTIVATION", "NO_LINK_GENERATION"],
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrails: ["NO_CAMPAIGN_ACTIVATION", "NO_LINK_GENERATION"],
+      redactions: ["internal_tenant_identifier"],
+      no_campaign_activation_confirmed: true,
+      no_link_generation_confirmed: true,
+      no_validation_track_created_confirmed: true,
+      no_webhook_delivery_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      updateReferralSaasAccountCampaignPolicySettings({
+        accountRef: " acct-1 ",
+        campaignCode: " CAMP001 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " fnb-referrals ",
+          context: "setup",
+        },
+        policySettings: {
+          version: 1,
+          attributionWindowDays: 30,
+          eligibilityRules: [{ rule: " NEW_CUSTOMER_ONLY ", enabled: true }],
+          productWindows: { default: { days: 30 } },
+          productRules: { default: { requiresAcceptedTerms: true } },
+          rewardVisibility: {
+            mode: " configured_without_payment ",
+            notes: " Visible after attribution ",
+          },
+        },
+        setupIntent: {
+          requestedStatus: " POLICY_SETTINGS_RECORDED ",
+          reason: " Customer profile policy settings ",
+        },
+        reasonCode: " Customer profile policy settings ",
+        correlationId: "corr-policy-1",
+        idempotencyKey: "campaign-policy-1",
+      }),
+    ).resolves.toMatchObject({
+      policySettings: {
+        campaignRef: "CAMP001",
+        policySettings: {
+          attributionWindowDays: 30,
+        },
+      },
+      no_campaign_activation_confirmed: true,
+      no_link_generation_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts/acct-1/campaigns/CAMP001/policy-settings", {
+      method: "PUT",
+      body: {
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: "fnb-referrals",
+          context: "setup",
+        },
+        policySettings: {
+          version: 1,
+          attributionWindowDays: 30,
+          eligibilityRules: [{ rule: "NEW_CUSTOMER_ONLY", enabled: true }],
+          productWindows: { default: { days: 30 } },
+          productRules: { default: { requiresAcceptedTerms: true } },
+          rewardVisibility: {
+            mode: "configured_without_payment",
+            notes: "Visible after attribution",
+          },
+        },
+        setupIntent: {
+          requestedStatus: "POLICY_SETTINGS_RECORDED",
+          reason: "Customer profile policy settings",
+        },
+        reasonCode: "Customer profile policy settings",
+        correlationId: "corr-policy-1",
+        idempotencyKey: "campaign-policy-1",
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|isactive|activatecampaign|linkgeneration|webhook|wallet|settlement|money/,
     );
   });
 
