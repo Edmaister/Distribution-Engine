@@ -227,6 +227,7 @@ greenfield referral construction.
 119. TASK-253: Add customer-scoped campaign readiness page.
 120. TASK-254: Add customer-scoped campaign list and read wrappers.
 121. TASK-255: Define customer-scoped campaign draft/create command contract.
+122. TASK-256: Add guarded customer-scoped campaign setup create API wrapper.
 
 ## 10/10 Exit Criteria
 
@@ -905,6 +906,18 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Selected Customer Profile Campaigns now loads and selects campaigns from the selected account before readiness checks. The backend adds read-only customer-scoped campaign list/read wrappers over existing campaign tables, redacts internal tenant identifiers, and confirms no campaign mutation, policy write, link generation, activation, go-live, billing, money movement, or DLaaS marketplace action occurred.
+- TASK-256: `services/referral_saas_campaign_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/test_referral_saas_campaign_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Adds the guarded customer-scoped campaign setup create API wrapper. It resolves the selected account, creates only an inactive setup draft in existing campaign storage, records account audit/idempotency evidence, rejects unsafe activation/policy/link/webhook/money fields, and keeps tenant-code exposure out of the product payload.
 
 ## Explicit Deferrals
 
