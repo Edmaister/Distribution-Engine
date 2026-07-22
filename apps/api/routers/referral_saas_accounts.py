@@ -56,6 +56,8 @@ from services.referral_saas_campaign_service import (
     CAMPAIGN_SETUP_REDACTIONS,
     CAMPAIGN_POLICY_SETTINGS_GUARDRAILS,
     CAMPAIGN_POLICY_SETTINGS_REDACTIONS,
+    CAMPAIGN_REVIEW_GUARDRAILS,
+    CAMPAIGN_REVIEW_REDACTIONS,
     CampaignSetupAccountNotReady,
     CampaignSetupDuplicate,
     CampaignSetupIdempotencyConflict,
@@ -64,8 +66,15 @@ from services.referral_saas_campaign_service import (
     CampaignPolicySettingsCampaignNotFound,
     CampaignPolicySettingsIdempotencyConflict,
     CampaignPolicySettingsValidationError,
+    CampaignReviewCampaignNotFound,
+    CampaignReviewIdempotencyConflict,
+    CampaignReviewInvalidState,
+    CampaignReviewNotReady,
+    CampaignReviewValidationError,
     ReferralSaasCampaignCommandError,
     create_referral_saas_account_campaign_setup,
+    record_referral_saas_account_campaign_review_decision,
+    submit_referral_saas_account_campaign_review,
     upsert_referral_saas_account_campaign_policy_settings,
     list_referral_saas_account_campaigns,
     get_referral_saas_account_campaign,
@@ -335,6 +344,40 @@ def _campaign_policy_settings_error(
             "no_link_generation_confirmed": True,
             "no_validation_track_created_confirmed": True,
             "no_webhook_delivery_confirmed": True,
+            "no_money_movement_confirmed": True,
+        },
+    )
+
+
+def _campaign_review_error(exc: ReferralSaasCampaignCommandError) -> HTTPException:
+    if isinstance(exc, CampaignReviewValidationError):
+        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    elif isinstance(exc, CampaignReviewCampaignNotFound):
+        status_code = status.HTTP_404_NOT_FOUND
+    elif isinstance(
+        exc,
+        (
+            CampaignReviewNotReady,
+            CampaignReviewInvalidState,
+            CampaignReviewIdempotencyConflict,
+        ),
+    ):
+        status_code = status.HTTP_409_CONFLICT
+    else:
+        status_code = status.HTTP_400_BAD_REQUEST
+
+    return HTTPException(
+        status_code=status_code,
+        detail={
+            "code": exc.safe_code,
+            "message": str(exc),
+            "guardrails": list(CAMPAIGN_REVIEW_GUARDRAILS),
+            "redactions": list(CAMPAIGN_REVIEW_REDACTIONS),
+            "no_campaign_activation_confirmed": True,
+            "no_link_generation_confirmed": True,
+            "no_validation_track_created_confirmed": True,
+            "no_webhook_delivery_confirmed": True,
+            "no_invite_or_seat_change_confirmed": True,
             "no_money_movement_confirmed": True,
         },
     )
@@ -1634,6 +1677,242 @@ async def upsert_referral_saas_account_campaign_policy_settings_route(
     }
 
 
+@router.post("/accounts/{account_ref}/campaigns/{campaign_code}/review-submissions")
+async def submit_referral_saas_account_campaign_review_route(
+    account_ref: str,
+    campaign_code: str,
+    payload: dict[str, Any] = Body(default_factory=dict),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    _reject_unsafe_campaign_review_payload(payload)
+
+    account_scope = payload.get("accountScope") or {}
+    review_submission = payload.get("reviewSubmission") or {}
+    if not isinstance(account_scope, dict) or not isinstance(review_submission, dict):
+        raise _campaign_review_error(
+            CampaignReviewValidationError(
+                "accountScope and reviewSubmission must be objects."
+            )
+        )
+
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    idempotency_key = _optional_text(payload.get("idempotencyKey"))
+    correlation_id = _optional_text(payload.get("correlationId"))
+    reason_code = (
+        _optional_text(payload.get("reasonCode"))
+        or "CUSTOMER_PROFILE_CAMPAIGN_REVIEW_SUBMIT"
+    )
+
+    if not ref_type or not external_ref or not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": list(CAMPAIGN_REVIEW_GUARDRAILS),
+                "redactions": list(CAMPAIGN_REVIEW_REDACTIONS),
+                "no_campaign_activation_confirmed": True,
+                "no_link_generation_confirmed": True,
+                "no_validation_track_created_confirmed": True,
+                "no_webhook_delivery_confirmed": True,
+                "no_invite_or_seat_change_confirmed": True,
+                "no_money_movement_confirmed": True,
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    command_payload = {
+        "accountScope": {
+            "accountRef": _optional_text(account_ref),
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": normalised_context,
+        },
+        "campaignRef": _optional_text(campaign_code),
+        "reviewSubmission": {
+            "setupSummary": _optional_text(review_submission.get("setupSummary")),
+            "requestedReviewStatus": (
+                _optional_text(review_submission.get("requestedReviewStatus"))
+                or "READY_FOR_REVIEW"
+            ),
+            "operatorNotesPresent": bool(
+                _optional_text(review_submission.get("operatorNotes"))
+            ),
+        },
+    }
+
+    try:
+        result = await submit_referral_saas_account_campaign_review(
+            account_id=account.account_id,
+            tenant_code=account.tenant_code,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            campaign_code=campaign_code,
+            setup_summary=_optional_text(review_submission.get("setupSummary")),
+            operator_notes=_optional_text(review_submission.get("operatorNotes")) or None,
+            requested_review_status=(
+                _optional_text(review_submission.get("requestedReviewStatus"))
+                or "READY_FOR_REVIEW"
+            ),
+            reason_code=reason_code,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_CAMPAIGN_REVIEW_SUBMIT",
+                    "account_ref": _optional_text(account_ref),
+                    "campaign_ref": _optional_text(campaign_code),
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            command_payload_hash=hash_payload(command_payload),
+            command_actor_ref=_actor_ref(admin_identity),
+            command_actor_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except ReferralSaasCampaignCommandError as exc:
+        raise _campaign_review_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "campaignReview": result.to_safe_dict(),
+        "guardrails": list(CAMPAIGN_REVIEW_GUARDRAILS),
+        "redactions": list(CAMPAIGN_REVIEW_REDACTIONS),
+        "no_campaign_activation_confirmed": True,
+        "no_link_generation_confirmed": True,
+        "no_validation_track_created_confirmed": True,
+        "no_webhook_delivery_confirmed": True,
+        "no_invite_or_seat_change_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/campaigns/{campaign_code}/review-decisions")
+async def record_referral_saas_account_campaign_review_decision_route(
+    account_ref: str,
+    campaign_code: str,
+    payload: dict[str, Any] = Body(default_factory=dict),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    _reject_unsafe_campaign_review_payload(payload)
+
+    account_scope = payload.get("accountScope") or {}
+    review_decision = payload.get("reviewDecision") or {}
+    if not isinstance(account_scope, dict) or not isinstance(review_decision, dict):
+        raise _campaign_review_error(
+            CampaignReviewValidationError(
+                "accountScope and reviewDecision must be objects."
+            )
+        )
+
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    idempotency_key = _optional_text(payload.get("idempotencyKey"))
+    correlation_id = _optional_text(payload.get("correlationId"))
+    reason_code = (
+        _optional_text(payload.get("reasonCode"))
+        or "CUSTOMER_PROFILE_CAMPAIGN_REVIEW_DECISION"
+    )
+
+    if not ref_type or not external_ref or not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": list(CAMPAIGN_REVIEW_GUARDRAILS),
+                "redactions": list(CAMPAIGN_REVIEW_REDACTIONS),
+                "no_campaign_activation_confirmed": True,
+                "no_link_generation_confirmed": True,
+                "no_validation_track_created_confirmed": True,
+                "no_webhook_delivery_confirmed": True,
+                "no_invite_or_seat_change_confirmed": True,
+                "no_money_movement_confirmed": True,
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    command_payload = {
+        "accountScope": {
+            "accountRef": _optional_text(account_ref),
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": normalised_context,
+        },
+        "campaignRef": _optional_text(campaign_code),
+        "reviewDecision": {
+            "decision": _optional_text(review_decision.get("decision")).upper(),
+            "reasonPresent": bool(_optional_text(review_decision.get("reason"))),
+            "reviewerRef": _optional_text(review_decision.get("reviewerRef")),
+        },
+    }
+
+    try:
+        result = await record_referral_saas_account_campaign_review_decision(
+            account_id=account.account_id,
+            tenant_code=account.tenant_code,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            campaign_code=campaign_code,
+            decision=_optional_text(review_decision.get("decision")),
+            reason=_optional_text(review_decision.get("reason")),
+            reviewer_ref=_optional_text(review_decision.get("reviewerRef")),
+            reason_code=reason_code,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_CAMPAIGN_REVIEW_DECISION",
+                    "account_ref": _optional_text(account_ref),
+                    "campaign_ref": _optional_text(campaign_code),
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            command_payload_hash=hash_payload(command_payload),
+            command_actor_ref=_actor_ref(admin_identity),
+            command_actor_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except ReferralSaasCampaignCommandError as exc:
+        raise _campaign_review_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "campaignReview": result.to_safe_dict(),
+        "guardrails": list(CAMPAIGN_REVIEW_GUARDRAILS),
+        "redactions": list(CAMPAIGN_REVIEW_REDACTIONS),
+        "no_campaign_activation_confirmed": True,
+        "no_link_generation_confirmed": True,
+        "no_validation_track_created_confirmed": True,
+        "no_webhook_delivery_confirmed": True,
+        "no_invite_or_seat_change_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
 @router.get("/accounts/{account_ref}/campaigns/{campaign_code}/readiness")
 async def read_referral_saas_account_campaign_readiness(
     account_ref: str,
@@ -1985,6 +2264,49 @@ UNSAFE_CAMPAIGN_POLICY_SETTINGS_KEYS = {
     "sponsorBilling",
 }
 
+UNSAFE_CAMPAIGN_REVIEW_KEYS = {
+    "tenant_code",
+    "tenantCode",
+    "internal_tenant_code",
+    "internalTenantCode",
+    "campaign_code",
+    "campaignCode",
+    "isActive",
+    "is_active",
+    "activate",
+    "activation",
+    "goLive",
+    "campaignActivation",
+    "generateLinks",
+    "linkGeneration",
+    "link",
+    "track",
+    "validate",
+    "campaignTrackId",
+    "campaign_track_id",
+    "webhook",
+    "credential",
+    "credentials",
+    "providerSecret",
+    "secret",
+    "invite",
+    "seat",
+    "seatId",
+    "authClaim",
+    "authClaims",
+    "billing",
+    "rewardAmount",
+    "rewardAmounts",
+    "funding",
+    "fulfilment",
+    "settlement",
+    "commission",
+    "wallet",
+    "invoice",
+    "payout",
+    "sponsorBilling",
+}
+
 
 def _reject_unsafe_invitation_payload(value: Any) -> None:
     if isinstance(value, dict):
@@ -2095,6 +2417,36 @@ def _reject_unsafe_campaign_policy_settings_payload(value: Any) -> None:
     elif isinstance(value, list):
         for item in value:
             _reject_unsafe_campaign_policy_settings_payload(item)
+
+
+def _reject_unsafe_campaign_review_payload(value: Any) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if str(key) in UNSAFE_CAMPAIGN_REVIEW_KEYS:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "code": "REJECTED_UNSAFE_PAYLOAD",
+                        "message": (
+                            "Campaign review payload includes fields that "
+                            "belong to tenant scope, activation, link "
+                            "generation, validation, webhook, access, billing, "
+                            "or money workflows."
+                        ),
+                        "guardrails": list(CAMPAIGN_REVIEW_GUARDRAILS),
+                        "redactions": list(CAMPAIGN_REVIEW_REDACTIONS),
+                        "no_campaign_activation_confirmed": True,
+                        "no_link_generation_confirmed": True,
+                        "no_validation_track_created_confirmed": True,
+                        "no_webhook_delivery_confirmed": True,
+                        "no_invite_or_seat_change_confirmed": True,
+                        "no_money_movement_confirmed": True,
+                    },
+                )
+            _reject_unsafe_campaign_review_payload(child)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_unsafe_campaign_review_payload(item)
 
 
 def _actor_ref(identity: dict[str, Any]) -> str:

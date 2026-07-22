@@ -379,3 +379,234 @@ async def test_campaign_policy_settings_rejects_payment_reward_visibility():
             command_payload_hash="payload-hash",
         )
 
+
+async def test_campaign_review_submit_records_review_state_and_audit(monkeypatch):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {"campaign_code": "CAMP001", "is_active": False, "attributes": {}},
+            {"active_policy_count": 1},
+            {
+                "campaign_code": "CAMP001",
+                "is_active": False,
+                "attributes": {
+                    "referral_saas_review": {
+                        "review_status": "READY_FOR_REVIEW"
+                    }
+                },
+            },
+            {"account_audit_event_id": "audit-review-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.submit_referral_saas_account_campaign_review(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        campaign_code="CAMP001",
+        setup_summary="Policy settings ready for review.",
+        requested_review_status="READY_FOR_REVIEW",
+        reason_code="CUSTOMER_PROFILE_CAMPAIGN_REVIEW_SUBMIT",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "CAMPAIGN_REVIEW_SUBMITTED"
+    assert safe_payload["campaignReview"]["reviewStatus"] == "READY_FOR_REVIEW"
+    assert safe_payload["campaignReview"]["activationStatus"] == "NOT_ACTIVATED"
+    assert "NO_CAMPAIGN_ACTIVATION" in safe_payload["guardrails"]
+    joined_queries = "\n".join(query for query, _ in conn.fetchrow_calls)
+    assert "marketing_campaign_policies" in joined_queries
+    assert "UPDATE marketing_campaigns" in joined_queries
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+
+
+async def test_campaign_review_submit_requires_policy_evidence(monkeypatch):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                None,
+                {"campaign_code": "CAMP001", "is_active": False, "attributes": {}},
+                {"active_policy_count": 0},
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.CampaignReviewNotReady):
+        await svc.submit_referral_saas_account_campaign_review(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            setup_summary="Policy settings ready for review.",
+            requested_review_status="READY_FOR_REVIEW",
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_REVIEW_SUBMIT",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="payload-hash",
+        )
+
+
+async def test_campaign_review_submit_replays_matching_idempotency(monkeypatch):
+    conn = FakeCommandConnection(
+        [
+            {
+                "account_audit_event_id": "audit-review-1",
+                "event_status": "RECORDED",
+                "evidence_summary": {
+                    "campaign_code": "CAMP001",
+                    "review_status": "READY_FOR_REVIEW",
+                    "setup_status": "POLICY_SETTINGS_RECORDED",
+                    "readiness_status": "NEEDS_REVIEW",
+                    "command_payload_hash": "payload-hash",
+                },
+            }
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.submit_referral_saas_account_campaign_review(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        campaign_code="CAMP001",
+        setup_summary="Policy settings ready for review.",
+        requested_review_status="READY_FOR_REVIEW",
+        reason_code="CUSTOMER_PROFILE_CAMPAIGN_REVIEW_SUBMIT",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+    )
+
+    assert result.command_status == "CAMPAIGN_REVIEW_SUBMISSION_REPLAYED"
+    assert result.idempotency_status == "REPLAYED"
+    assert len(conn.fetchrow_calls) == 1
+
+
+async def test_campaign_review_submit_conflicts_on_idempotency_payload_mismatch(
+    monkeypatch,
+):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                {
+                    "account_audit_event_id": "audit-review-1",
+                    "evidence_summary": {
+                        "campaign_code": "CAMP001",
+                        "command_payload_hash": "original-hash",
+                    },
+                }
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.CampaignReviewIdempotencyConflict):
+        await svc.submit_referral_saas_account_campaign_review(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            setup_summary="Policy settings ready for review.",
+            requested_review_status="READY_FOR_REVIEW",
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_REVIEW_SUBMIT",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="new-hash",
+        )
+
+
+async def test_campaign_review_decision_records_approval_without_activation(monkeypatch):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "campaign_code": "CAMP001",
+                "is_active": False,
+                "attributes": {
+                    "referral_saas_review": {
+                        "review_status": "READY_FOR_REVIEW"
+                    }
+                },
+            },
+            {
+                "campaign_code": "CAMP001",
+                "is_active": False,
+                "attributes": {
+                    "referral_saas_review": {
+                        "review_status": "REVIEW_APPROVED"
+                    }
+                },
+            },
+            {"account_audit_event_id": "audit-review-decision-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.record_referral_saas_account_campaign_review_decision(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        campaign_code="CAMP001",
+        decision="APPROVED",
+        reason="Reviewed campaign setup evidence.",
+        reviewer_ref="reviewer-1",
+        reason_code="CUSTOMER_PROFILE_CAMPAIGN_REVIEW_DECISION",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "CAMPAIGN_REVIEW_APPROVED"
+    assert safe_payload["campaignReview"]["reviewStatus"] == "REVIEW_APPROVED"
+    assert (
+        safe_payload["campaignReview"]["activationEligibility"]
+        == "ELIGIBLE_FOR_FUTURE_ACTIVATION"
+    )
+    assert safe_payload["campaignReview"]["activationStatus"] == "NOT_ACTIVATED"
+    joined_queries = "\n".join(query for query, _ in conn.fetchrow_calls)
+    assert "UPDATE marketing_campaigns" in joined_queries
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+
+
+async def test_campaign_review_decision_requires_review_submission(monkeypatch):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                None,
+                {"campaign_code": "CAMP001", "is_active": False, "attributes": {}},
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.CampaignReviewInvalidState):
+        await svc.record_referral_saas_account_campaign_review_decision(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            decision="APPROVED",
+            reason="Reviewed campaign setup evidence.",
+            reviewer_ref="reviewer-1",
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_REVIEW_DECISION",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="payload-hash",
+        )
+

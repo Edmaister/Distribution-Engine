@@ -57,6 +57,14 @@ def test_referral_saas_current_smoke_routes_are_mounted():
             "PUT",
             "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/policy-settings",
         ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-submissions",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-decisions",
+        ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/membership-invitations"),
         (
             "POST",
@@ -100,6 +108,14 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         (
             "PUT",
             "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/policy-settings",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-submissions",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-decisions",
         ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/membership-invitations"),
         (

@@ -233,6 +233,8 @@ greenfield referral construction.
 125. TASK-259: Add guarded customer-scoped campaign policy/settings API wrapper.
 126. TASK-260: Add selected-customer campaign policy/settings UX.
 127. TASK-261: Define customer-scoped campaign submit/review command contract.
+128. TASK-262: Add guarded customer-scoped campaign submit/review API wrappers.
+129. TASK-263: Add selected-customer campaign submit/review UX.
 
 ## 10/10 Exit Criteria
 
@@ -965,6 +967,18 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Defines the selected-customer campaign submit/review command boundary. It maps existing campaign, policy, readiness, account-audit, idempotency, and onboarding-review patterns into campaign-level review without activating campaigns, generating links, creating validation tracks, delivering webhooks, changing seats/auth claims, billing, moving money, or exposing tenant code.
+- TASK-262: `services/referral_saas_campaign_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/test_referral_saas_campaign_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Adds guarded selected-customer campaign review submission and review decision API wrappers. The backend resolves account/campaign scope internally, requires policy evidence before review submission, records review/audit/idempotency evidence, rejects unsafe tenant-code/activation/link/webhook/access/money payloads, and keeps approval as eligibility for a future activation command rather than activation itself.
 
 ## Explicit Deferrals
 

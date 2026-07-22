@@ -31,6 +31,7 @@ from services.referral_saas_campaign_service import ReferralSaasCampaignSetupRes
 from services.referral_saas_campaign_service import (
     ReferralSaasCampaignPolicySettingsResult,
 )
+from services.referral_saas_campaign_service import ReferralSaasCampaignReviewResult
 from services.referral_saas_account_membership_service import (
     MembershipActivationRequestResult,
     MembershipInvitationDuplicate,
@@ -220,6 +221,24 @@ def _campaign_policy_settings_result(
     }
     values.update(overrides)
     return ReferralSaasCampaignPolicySettingsResult(**values)
+
+
+def _campaign_review_result(**overrides) -> ReferralSaasCampaignReviewResult:
+    values = {
+        "command_status": "CAMPAIGN_REVIEW_SUBMITTED",
+        "account_id": "acct-1",
+        "campaign_code": "CAMP001",
+        "review_status": "READY_FOR_REVIEW",
+        "setup_status": "POLICY_SETTINGS_RECORDED",
+        "readiness_status": "NEEDS_REVIEW",
+        "activation_eligibility": "NOT_ELIGIBLE_UNTIL_REVIEW_APPROVED",
+        "activation_status": "NOT_ACTIVATED",
+        "reviewer_action": "Record approval or block decision",
+        "idempotency_status": "RECORDED",
+        "audit_event_id": "audit-review-1",
+    }
+    values.update(overrides)
+    return ReferralSaasCampaignReviewResult(**values)
 
 
 async def test_referral_saas_account_admin_can_create_account_from_draft(monkeypatch):
@@ -1451,6 +1470,194 @@ async def test_referral_saas_account_campaign_policy_settings_requires_scope_fie
             json={
                 "accountScope": {"refType": "external_tenant_ref"},
                 "policySettings": {"version": 1, "attributionWindowDays": 30},
+            },
+        )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "validation_error"
+    assert "NO_CAMPAIGN_ACTIVATION" in detail["guardrails"]
+
+
+async def test_referral_saas_account_admin_can_submit_campaign_review(monkeypatch):
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    async def fake_submit_review(**kwargs):
+        command_calls.append(kwargs)
+        return _campaign_review_result()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "submit_referral_saas_account_campaign_review",
+        fake_submit_review,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/review-submissions",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "reviewSubmission": {
+                    "setupSummary": "Campaign setup and policy settings are ready.",
+                    "requestedReviewStatus": "READY_FOR_REVIEW",
+                    "operatorNotes": "Reviewed policy window and terms.",
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "campaign-review-submit-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["campaignReview"]["commandStatus"] == "CAMPAIGN_REVIEW_SUBMITTED"
+    assert body["campaignReview"]["campaignReview"]["reviewStatus"] == "READY_FOR_REVIEW"
+    assert body["campaignReview"]["campaignReview"]["activationStatus"] == "NOT_ACTIVATED"
+    assert body["no_campaign_activation_confirmed"] is True
+    assert body["no_link_generation_confirmed"] is True
+    assert body["no_validation_track_created_confirmed"] is True
+    assert body["no_webhook_delivery_confirmed"] is True
+    assert body["no_invite_or_seat_change_confirmed"] is True
+    assert body["no_money_movement_confirmed"] is True
+    assert "tenantCode" not in str(body)
+    assert command_calls[0]["tenant_code"] == "FNB"
+    assert command_calls[0]["campaign_code"] == "CAMP001"
+    assert command_calls[0]["setup_summary"] == "Campaign setup and policy settings are ready."
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["command_payload_hash"]
+
+
+async def test_referral_saas_account_admin_can_record_campaign_review_decision(
+    monkeypatch,
+):
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    async def fake_record_decision(**kwargs):
+        command_calls.append(kwargs)
+        return _campaign_review_result(
+            command_status="CAMPAIGN_REVIEW_APPROVED",
+            review_status="REVIEW_APPROVED",
+            readiness_status="REVIEWED",
+            activation_eligibility="ELIGIBLE_FOR_FUTURE_ACTIVATION",
+            reviewer_action="Open activation checklist",
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "record_referral_saas_account_campaign_review_decision",
+        fake_record_decision,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/review-decisions",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "reviewDecision": {
+                    "decision": "APPROVED",
+                    "reason": "Campaign evidence reviewed.",
+                    "reviewerRef": "operator-1",
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "campaign-review-decision-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["campaignReview"]["commandStatus"] == "CAMPAIGN_REVIEW_APPROVED"
+    assert body["campaignReview"]["campaignReview"]["reviewStatus"] == "REVIEW_APPROVED"
+    assert (
+        body["campaignReview"]["campaignReview"]["activationEligibility"]
+        == "ELIGIBLE_FOR_FUTURE_ACTIVATION"
+    )
+    assert body["campaignReview"]["campaignReview"]["activationStatus"] == "NOT_ACTIVATED"
+    assert body["no_campaign_activation_confirmed"] is True
+    assert body["no_money_movement_confirmed"] is True
+    assert "tenantCode" not in str(body)
+    assert command_calls[0]["tenant_code"] == "FNB"
+    assert command_calls[0]["campaign_code"] == "CAMP001"
+    assert command_calls[0]["decision"] == "APPROVED"
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["command_payload_hash"]
+
+
+async def test_referral_saas_account_campaign_review_rejects_unsafe_payload():
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/review-submissions",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "reviewSubmission": {
+                    "setupSummary": "Ready",
+                    "requestedReviewStatus": "READY_FOR_REVIEW",
+                    "activate": True,
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "campaign-review-submit-1",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert "NO_CAMPAIGN_ACTIVATION" in detail["guardrails"]
+    assert detail["no_link_generation_confirmed"] is True
+    assert detail["no_money_movement_confirmed"] is True
+
+
+async def test_referral_saas_account_campaign_review_requires_scope_fields():
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/review-submissions",
+            json={
+                "accountScope": {"refType": "external_tenant_ref"},
+                "reviewSubmission": {
+                    "setupSummary": "Ready",
+                    "requestedReviewStatus": "READY_FOR_REVIEW",
+                },
             },
         )
 
