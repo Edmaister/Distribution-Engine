@@ -5614,6 +5614,31 @@ Rollback notes: Remove the frontend endpoint wrapper, route depth, create page, 
 Explicit non-goals: Do not add backend routes, schema, policy writes, campaign validation tracks, link generation, campaign activation, go-live actions, credentials, webhook delivery, invite delivery, membership activation, seat assignment, auth/session claim changes, reports/exports, billing, rewards, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS users can create an inactive campaign setup draft from the selected customer Campaigns area while preserving tenant-safe scope, guardrails, and clear next actions. Priority: P0.
 
+## TASK-258: Define customer-scoped campaign policy/settings command contract
+
+Status: Complete (2026-07-22). Output: `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_POLICY_SETTINGS_CONTRACT.md`; `test/test_referral_saas_customer_campaign_policy_settings_contract.py`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses existing campaign policy storage, campaign readiness semantics, account-scoped campaign wrappers, and selected-customer account resolution. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile Campaigns; customer-scoped campaign policy/settings boundary; campaign readiness; activation guardrails.
+Objective: Define the selected-customer campaign policy/settings command contract before runtime policy writes and UX ship.
+Why now: TASK-257 lets users create inactive campaign setup drafts from the selected customer Campaigns page. The next setup step is policy/settings, but the current generic policy route accepts tenant code and writes active policy rows by default. A product boundary is needed before implementation so the SaaS flow cannot leak tenant identifiers or imply activation.
+Files involved: Referral SaaS policy/settings contract doc, contract tests, SA index, public API contract map, roadmap, gap matrix, and ordered task list.
+Database/schema impact: None.
+Backend impact: None; contract only.
+Frontend impact: None; contract only.
+API impact: Documents the target `PUT /v1/referral-saas/accounts/{accountRef}/campaigns/{campaignRef}/policy-settings` route as a future account-scoped command wrapper over existing policy storage/readiness behavior.
+Tests to add/update: Contract tests proving the boundary is Referral SaaS scoped, source-backed, customer-scoped, guardrailed, and excludes activation, links, webhooks, billing, money, and broad DLaaS behavior.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_customer_campaign_policy_settings_contract.py`; `git diff --check`.
+Acceptance criteria: Contract maps current policy schema/service facts to a customer-scoped SaaS policy/settings command, rejects caller-supplied tenant code and unsafe adjacent actions, defines safe statuses/response/UX implications, and identifies TASK-259 as the backend implementation slice.
+Dependencies: TASK-135; TASK-253; TASK-254; TASK-255; TASK-256; TASK-257.
+Blocked by: Guarded backend policy/settings wrapper, selected-customer policy/settings UX, campaign submit/review boundary, campaign activation/go-live command boundary, and full campaign workflow E2E tests.
+Risk level: Low.
+Rollback notes: Remove the contract doc, contract test, SA index entry, public API map entry, roadmap/gap updates, and this task entry.
+Explicit non-goals: Do not add backend routes, schema, migrations, runtime policy writes, frontend screens, campaign validation tracks, link generation, campaign activation, go-live actions, credentials, webhook delivery, invite delivery, membership activation, seat assignment, auth/session claim changes, reports/exports, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has a source-backed customer-scoped campaign policy/settings command contract ready for guarded backend implementation without tenant-code leakage or activation side effects. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

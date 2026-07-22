@@ -229,6 +229,7 @@ greenfield referral construction.
 121. TASK-255: Define customer-scoped campaign draft/create command contract.
 122. TASK-256: Add guarded customer-scoped campaign setup create API wrapper.
 123. TASK-257: Add selected-customer campaign setup create UX.
+124. TASK-258: Define customer-scoped campaign policy/settings command contract.
 
 ## 10/10 Exit Criteria
 
@@ -927,6 +928,13 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Adds the selected-customer campaign setup create UX. The Customer Profile Campaigns page opens a standalone customer-scoped create page that calls the guarded campaign setup API, saves only an inactive draft, shows safe next actions, and confirms no tenant-code entry, link generation, policy write, activation, webhook delivery, go-live, or money movement.
+- TASK-258: `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_POLICY_SETTINGS_CONTRACT.md`;
+  `test/test_referral_saas_customer_campaign_policy_settings_contract.py`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Defines the selected-customer campaign policy/settings command boundary. It maps existing policy storage fields to product setup settings, keeps tenant-code resolution server-side, rejects activation/link/webhook/money-adjacent payloads, and sets up the next implementation slice for a guarded account-scoped policy/settings wrapper.
 
 ## Explicit Deferrals
 
