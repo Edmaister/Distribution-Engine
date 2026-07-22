@@ -28,6 +28,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   customer-scoped campaign policy/settings command boundary.
 - `REFERRAL_SAAS_CUSTOMER_CAMPAIGN_SUBMIT_REVIEW_CONTRACT.md` - TASK-261
   customer-scoped campaign submit/review command boundary.
+- `REFERRAL_SAAS_CUSTOMER_CAMPAIGN_ACTIVATION_CONTRACT.md` - TASK-264
+  customer-scoped campaign activation/go-live command boundary.
 - `REFERRAL_SAAS_REFERRAL_CODE_ISSUE_CONTRACT.md` - TASK-136 referral code
   issue/get-or-create contract.
 - `REFERRAL_SAAS_VALIDATION_RECOVERY_CONTRACT.md` - TASK-137 validation and

@@ -236,6 +236,7 @@ greenfield referral construction.
 128. TASK-262: Add guarded customer-scoped campaign submit/review API wrappers.
 129. TASK-263: Add selected-customer campaign submit/review UX.
 130. TASK-264: Define selected-customer campaign activation/go-live command contract.
+131. TASK-265: Add guarded selected-customer campaign activation/go-live API wrapper.
 
 ## 10/10 Exit Criteria
 
@@ -988,6 +989,14 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the selected-customer Campaign Review UX. Operators can submit campaign setup evidence and record approval/block review decisions from the selected customer's Campaigns module; review approval is shown as future activation eligibility only and does not activate campaigns, generate links, create validation tracks, deliver webhooks, change access, bill, or move money.
+- TASK-264: `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_ACTIVATION_CONTRACT.md`;
+  `test/test_referral_saas_customer_campaign_activation_contract.py`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the selected-customer campaign activation/go-live command boundary. Activation now has a reviewed contract requiring approved review, readiness, idempotency, and audit evidence while keeping tenant-code exposure, link generation, validation-track creation, webhook delivery, credentials, access changes, billing, money movement, DLaaS marketplace behavior, and source forks out of scope.
 
 ## Explicit Deferrals
 
