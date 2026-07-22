@@ -569,18 +569,22 @@
             focused operator attribution trace UI through TASK-181, and the
             read-only operator progress/status diagnostics API wrapper through
             TASK-182, the focused operator progress/status UI through
-            TASK-183, and the focused operator support workflow hub through
-            TASK-184, and a ringfenced product workspace shell through
-            TASK-185.
+            TASK-183, the focused operator support workflow hub through
+            TASK-184, the ringfenced product workspace shell through TASK-185,
+            customer/account setup, selected customer profile pages,
+            people/access readiness and activation boundaries, customer-scoped
+            campaign readiness, campaign list/read, campaign create,
+            policy/settings, and guarded campaign submit/review API wrappers
+            through TASK-262.
           </p>
           <div class="score-row" aria-label="Current position">
             <div class="score">
-              <strong>9.90/10</strong>
-              <span>Referral management foundation after TASK-185 workspace ringfencing</span>
+              <strong>9.93/10</strong>
+              <span>Referral management foundation after account setup, selected customer profile, people/access, and customer-scoped modules</span>
             </div>
             <div class="score">
-              <strong>9.55/10</strong>
-              <span>Campaign attribution foundation with account, campaign readiness, product link/code, report, preview UI, validation recovery UI, explicit retry posture, operator inspection UI, attribution trace API/UI, progress/status API/UI, support hub, and focused workspace shell</span>
+              <strong>9.72/10</strong>
+              <span>Campaign attribution foundation with selected-customer campaign readiness, list/read, create, policy/settings, and guarded submit/review API wrappers</span>
             </div>
             <div class="score">
               <strong>10/10</strong>
@@ -594,7 +598,7 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-185 for Referral SaaS, with
+            Updated after TASK-134 through TASK-262 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
@@ -604,8 +608,8 @@
             <span>Account, campaign, code, validation, progress, attribution, support, reporting, API, IA, audit, and E2E plan are documented.</span>
           </div>
           <div class="status-pill">
-            <b>37 implementation proofs added</b>
-            <span>TASK-149 through TASK-185 add golden-path, negative-path, route, schema/status, smoke-plan, reporting, safe-status, report-catalog, report-API, account-scope, referral-funnel, progress-health, attribution-quality, safe-status distribution, link/code performance, reward visibility, export validation, account-reference, export-preview, frontend report-client, report-catalog UI, account-setup readiness UI, inline export-preview UI, campaign-readiness UI, link/code workflow UI, product link/code API wrapper proof, validation recovery mapper proof, validation idempotency posture proof, validation recovery UI proof, operator link/code inspection API proof, operator link/code inspection UI proof, operator attribution trace API proof, operator attribution trace UI proof, operator progress/status diagnostics API proof, operator progress/status UI proof, operator support workflow hub proof, and focused workspace shell proof.</span>
+            <b>Customer-scoped campaign spine is now backend-ready</b>
+            <span>TASK-253 through TASK-262 add selected-customer campaign readiness, list/read, create, policy/settings, submit-for-review, and review-decision proof while preserving no activation, no link generation, no webhooks, no access changes, no billing, and no money movement.</span>
           </div>
           <div class="status-pill">
             <b>Live confidence still capped</b>
@@ -617,7 +621,7 @@
           </div>
           <div class="status-pill">
             <b>Hardening still missing</b>
-            <span>The score stays below 10/10 until account/membership persistence, schema-backed duplicate validation reuse or conflict behavior, persisted export storage/audit/downloads, support-case persistence/repair guardrails, account-safe status surfaces, and live smoke evidence ship.</span>
+            <span>The score stays below 10/10 until campaign submit/review UX, activation/go-live boundaries, customer-scoped link/code continuation, customer-scoped reporting, persisted export storage/audit/downloads, support-case persistence/repair guardrails, and live smoke/E2E evidence ship.</span>
           </div>
         </div>
       </section>
@@ -1223,7 +1227,7 @@
           <article class="capability" data-tone="amber">
             <h3>Still Not Shipped</h3>
             <p>
-              Account/membership persistence, campaign create/policy/activation wrappers, account-safe/customer-facing status, persisted export storage/audit/downloads,
+              Campaign submit/review UX, campaign activation/go-live wrappers, customer-scoped link/code and reporting continuation, persisted export storage/audit/downloads,
               live/staging execution evidence, and
               full E2E proof remain open before a 10/10 claim.
             </p>
@@ -1251,8 +1255,8 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">SaaS workflow implementation</div>
-            <div class="matrix-cell">Contracts and early proof exist, reporting has a focused UI with inline export preview, account setup readiness has a focused UI, campaign readiness has a focused UI, link/code issue-validation-capture now has product wrappers plus focused UI, tested validation recovery mapping, explicit non-idempotent retry posture, recovery UI, operator link/code inspection API proof, focused operator inspect UI, attribution trace API proof, attribution trace UI proof, progress/status diagnostics API proof, progress/status UI proof, support workflow hub proof, and ringfenced workspace proof, but account membership, account-safe status surfaces, support-case persistence, and lifecycle hardening still need cohesive product workflows.</div>
-            <div class="matrix-cell">Thin SaaS routes and UI around existing primitives with tests, account-scope resolution, idempotency/recovery posture, and no source duplication.</div>
+            <div class="matrix-cell">Selected-customer account/profile, people/access, technical setup, customer-scoped campaign readiness, campaign list/read, create, policy/settings, and guarded submit/review API proof now exist, but submit/review UX, campaign activation/go-live, customer-scoped links/codes, customer-scoped reports, support-case persistence, and lifecycle hardening still need cohesive product workflows.</div>
+            <div class="matrix-cell">Add the review UX next, then keep activation, link/code, reporting, and support persistence as separate customer-scoped modules with tests and no source duplication.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Live DB/state verification</div>
@@ -1271,8 +1275,8 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Public API and frontend packaging</div>
-            <div class="matrix-cell">The API map and IA exist, focused admin surfaces are now ringfenced in a Referral SaaS workspace, and product wrappers now cover reports/exports, link/code issue-validation-capture, operator link/code inspection, attribution trace API/UI, and progress/status API/UI, but customers still need account-scoped support surfaces, live proof, and customer/referrer-safe status surfaces.</div>
-            <div class="matrix-cell">Ship TASK-143/TASK-144 implementation slices with auth, safe errors, and redaction tests.</div>
+            <div class="matrix-cell">The API map and IA exist, focused admin surfaces are ringfenced, and product wrappers now cover reports/exports, link/code issue-validation-capture, operator diagnostics, account/customer profile, people/access, technical readiness, and campaign create/policy/review APIs, but customers still need review UX, activation/go-live, customer-scoped support/reporting surfaces, live proof, and customer/referrer-safe status surfaces.</div>
+            <div class="matrix-cell">Ship TASK-263 review UX, then activation, customer-scoped links/codes, and customer-scoped reports with auth, safe errors, and redaction tests.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Lifecycle command hardening</div>

@@ -43,6 +43,24 @@ CAMPAIGN_POLICY_SETTINGS_REDACTIONS = [
     "idempotency_key_hash",
     "payload_hash",
 ]
+CAMPAIGN_REVIEW_SUBMIT_EVENT = "CAMPAIGN_REVIEW_SUBMITTED"
+CAMPAIGN_REVIEW_DECISION_EVENT = "CAMPAIGN_REVIEW_DECISION_RECORDED"
+CAMPAIGN_REVIEW_SUBMITTED = "RECORDED"
+CAMPAIGN_REVIEW_REPLAYED = "REPLAYED"
+CAMPAIGN_REVIEW_GUARDRAILS = [
+    "NO_TENANT_CODE_EXPOSURE",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_LINK_GENERATION",
+    "NO_VALIDATION_TRACK_CREATED",
+    "NO_WEBHOOK_DELIVERY",
+    "NO_INVITE_OR_SEAT_CHANGE",
+    "NO_MONEY_MOVEMENT",
+]
+CAMPAIGN_REVIEW_REDACTIONS = [
+    "internal_tenant_identifier",
+    "idempotency_key_hash",
+    "payload_hash",
+]
 
 
 class ReferralSaasCampaignCommandError(Exception):
@@ -78,6 +96,26 @@ class CampaignPolicySettingsCampaignNotFound(ReferralSaasCampaignCommandError):
 
 
 class CampaignPolicySettingsIdempotencyConflict(ReferralSaasCampaignCommandError):
+    safe_code = "IDEMPOTENCY_CONFLICT"
+
+
+class CampaignReviewValidationError(ReferralSaasCampaignCommandError):
+    safe_code = "VALIDATION_ERROR"
+
+
+class CampaignReviewCampaignNotFound(ReferralSaasCampaignCommandError):
+    safe_code = "CAMPAIGN_NOT_FOUND_FOR_SELECTED_CUSTOMER"
+
+
+class CampaignReviewNotReady(ReferralSaasCampaignCommandError):
+    safe_code = "CAMPAIGN_REVIEW_NOT_READY"
+
+
+class CampaignReviewInvalidState(ReferralSaasCampaignCommandError):
+    safe_code = "CAMPAIGN_REVIEW_INVALID_STATE"
+
+
+class CampaignReviewIdempotencyConflict(ReferralSaasCampaignCommandError):
     safe_code = "IDEMPOTENCY_CONFLICT"
 
 
@@ -196,6 +234,53 @@ class ReferralSaasCampaignPolicySettingsResult:
         }
 
 
+@dataclass(frozen=True)
+class ReferralSaasCampaignReviewResult:
+    command_status: str
+    account_id: str
+    campaign_code: str
+    review_status: str
+    setup_status: str
+    readiness_status: str
+    activation_eligibility: str
+    activation_status: str
+    reviewer_action: str
+    idempotency_status: str
+    audit_event_id: str | None
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "accountRef": self.account_id,
+            "campaignRef": self.campaign_code,
+            "campaignReview": {
+                "reviewStatus": self.review_status,
+                "setupStatus": self.setup_status,
+                "readinessStatus": self.readiness_status,
+                "activationEligibility": self.activation_eligibility,
+                "activationStatus": self.activation_status,
+                "reviewerAction": self.reviewer_action,
+            },
+            "idempotency": {"status": self.idempotency_status},
+            "audit": {"accountAuditEventId": self.audit_event_id},
+            "nextActions": (
+                [
+                    "Review campaign setup evidence",
+                    "Record campaign review decision",
+                    "Activate only through a later activation command",
+                ]
+                if self.review_status == "READY_FOR_REVIEW"
+                else [
+                    "Open activation checklist",
+                    "Confirm links and delivery setup after activation",
+                    "Keep campaign inactive until activation is approved",
+                ]
+            ),
+            "guardrails": list(CAMPAIGN_REVIEW_GUARDRAILS),
+            "redactions": list(CAMPAIGN_REVIEW_REDACTIONS),
+        }
+
+
 def _as_iso(value: Any) -> str | None:
     if isinstance(value, datetime):
         return value.isoformat()
@@ -237,6 +322,13 @@ def _required_text(value: Any, field_name: str) -> str:
     safe_value = str(value or "").strip()
     if not safe_value:
         raise CampaignSetupValidationError(f"{field_name} is required.")
+    return safe_value
+
+
+def _required_review_text(value: Any, field_name: str) -> str:
+    safe_value = str(value or "").strip()
+    if not safe_value:
+        raise CampaignReviewValidationError(f"{field_name} is required.")
     return safe_value
 
 
@@ -287,6 +379,15 @@ def _reward_visibility_status(value: dict[str, Any]) -> str:
             "policySettings.rewardVisibility.mode must be configured_without_payment."
         )
     return mode
+
+
+def _campaign_review_state(attributes: Any) -> dict[str, Any]:
+    if isinstance(attributes, str):
+        attributes = json.loads(attributes)
+    if not isinstance(attributes, dict):
+        return {}
+    review_state = attributes.get("referral_saas_review") or {}
+    return review_state if isinstance(review_state, dict) else {}
 
 
 def _generate_campaign_code(tenant_code: str, segment: str, name: str) -> str:
@@ -850,6 +951,517 @@ async def upsert_referral_saas_account_campaign_policy_settings(
         product_rule_count=len(safe_product_rules),
         reward_visibility_status=reward_visibility_status,
         idempotency_status=CAMPAIGN_POLICY_SETTINGS_RECORDED,
+        audit_event_id=(
+            str(audit_event["account_audit_event_id"]) if audit_event else None
+        ),
+    )
+
+
+async def submit_referral_saas_account_campaign_review(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    campaign_code: str,
+    setup_summary: str,
+    operator_notes: str | None = None,
+    requested_review_status: str = "READY_FOR_REVIEW",
+    reason_code: str = "CUSTOMER_PROFILE_CAMPAIGN_REVIEW_SUBMIT",
+    correlation_id: str = "",
+    idempotency_key_hash: str = "",
+    command_payload_hash: str = "",
+    command_actor_ref: str | None = None,
+    command_actor_role: str | None = None,
+) -> ReferralSaasCampaignReviewResult:
+    safe_account_id = _required_review_text(account_id, "account_id")
+    safe_tenant_code = _required_review_text(tenant_code, "tenant_code")
+    safe_campaign_code = _required_review_text(campaign_code, "campaign_code")
+    safe_summary = _required_review_text(
+        setup_summary,
+        "reviewSubmission.setupSummary",
+    )
+    safe_requested_status = (
+        _required_review_text(
+            requested_review_status,
+            "reviewSubmission.requestedReviewStatus",
+        )
+        .upper()
+        .strip()
+    )
+    safe_reason_code = _required_review_text(reason_code, "reason_code").upper()
+    safe_correlation_id = _required_review_text(correlation_id, "correlation_id")
+    safe_idempotency_hash = _required_review_text(
+        idempotency_key_hash,
+        "idempotency_key_hash",
+    )
+    safe_payload_hash = _required_review_text(
+        command_payload_hash,
+        "command_payload_hash",
+    )
+    if safe_requested_status != "READY_FOR_REVIEW":
+        raise CampaignReviewValidationError(
+            "reviewSubmission.requestedReviewStatus must be READY_FOR_REVIEW."
+        )
+
+    async with db_connection() as conn:
+        existing_audit = await conn.fetchrow(
+            """
+            SELECT
+                account_audit_event_id,
+                event_status,
+                evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            CAMPAIGN_REVIEW_SUBMIT_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_audit:
+            evidence = existing_audit.get("evidence_summary") or {}
+            if isinstance(evidence, str):
+                evidence = json.loads(evidence)
+            if _optional_text(evidence.get("command_payload_hash")) != safe_payload_hash:
+                raise CampaignReviewIdempotencyConflict(
+                    "Idempotency key was reused with different campaign review submission."
+                )
+            return ReferralSaasCampaignReviewResult(
+                command_status="CAMPAIGN_REVIEW_SUBMISSION_REPLAYED",
+                account_id=safe_account_id,
+                campaign_code=_optional_text(evidence.get("campaign_code"))
+                or safe_campaign_code,
+                review_status=_optional_text(evidence.get("review_status"))
+                or "READY_FOR_REVIEW",
+                setup_status=_optional_text(evidence.get("setup_status"))
+                or "POLICY_SETTINGS_RECORDED",
+                readiness_status=_optional_text(evidence.get("readiness_status"))
+                or "NEEDS_REVIEW",
+                activation_eligibility="NOT_ELIGIBLE_UNTIL_REVIEW_APPROVED",
+                activation_status="NOT_ACTIVATED",
+                reviewer_action="Record approval or block decision",
+                idempotency_status=CAMPAIGN_REVIEW_REPLAYED,
+                audit_event_id=_optional_text(
+                    existing_audit.get("account_audit_event_id")
+                )
+                or None,
+            )
+
+        campaign = await conn.fetchrow(
+            """
+            SELECT campaign_code, is_active, attributes
+            FROM marketing_campaigns
+            WHERE UPPER(tenant_code) = UPPER($1)
+              AND UPPER(campaign_code) = UPPER($2)
+            LIMIT 1
+            """,
+            safe_tenant_code,
+            safe_campaign_code,
+        )
+        if not campaign:
+            raise CampaignReviewCampaignNotFound(
+                "Campaign was not found for the selected customer."
+            )
+        if bool(campaign.get("is_active")):
+            raise CampaignReviewInvalidState(
+                "Active campaigns cannot be submitted through the setup review wrapper."
+            )
+
+        policy = await conn.fetchrow(
+            """
+            SELECT COUNT(*) AS active_policy_count
+            FROM marketing_campaign_policies
+            WHERE UPPER(tenant_code) = UPPER($1)
+              AND UPPER(campaign_code) = UPPER($2)
+              AND is_active = TRUE
+            """,
+            safe_tenant_code,
+            safe_campaign_code,
+        )
+        if int(policy.get("active_policy_count") or 0) < 1:
+            raise CampaignReviewNotReady(
+                "Campaign policy/settings evidence must exist before review submission."
+            )
+
+        attributes = campaign.get("attributes") or {}
+        if isinstance(attributes, str):
+            attributes = json.loads(attributes)
+        if not isinstance(attributes, dict):
+            attributes = {}
+        previous_review_state = _campaign_review_state(attributes)
+        previous_status = _optional_text(
+            previous_review_state.get("review_status")
+        ) or "NEEDS_REVIEW_SUBMISSION"
+        if previous_status in {"REVIEW_APPROVED", "READY_TO_ACTIVATE", "ACTIVE"}:
+            raise CampaignReviewInvalidState(
+                "Approved campaigns cannot be resubmitted through this setup review wrapper."
+            )
+
+        review_state = {
+            "review_status": "READY_FOR_REVIEW",
+            "setup_status": "POLICY_SETTINGS_RECORDED",
+            "readiness_status": "NEEDS_REVIEW",
+            "setup_summary": safe_summary,
+            "operator_notes_present": bool(_optional_text(operator_notes)),
+            "activation_status": "NOT_ACTIVATED",
+            "source": "TASK-262",
+            "command_payload_hash": safe_payload_hash,
+            "no_campaign_activation_confirmed": True,
+            "no_link_generation_confirmed": True,
+            "no_validation_track_created_confirmed": True,
+            "no_webhook_delivery_confirmed": True,
+            "no_money_movement_confirmed": True,
+        }
+        attributes["referral_saas_review"] = review_state
+
+        async with conn.transaction():
+            updated_campaign = await conn.fetchrow(
+                """
+                UPDATE marketing_campaigns
+                SET attributes = $3::jsonb,
+                    updated_at = NOW()
+                WHERE UPPER(tenant_code) = UPPER($1)
+                  AND UPPER(campaign_code) = UPPER($2)
+                RETURNING campaign_code, is_active, attributes
+                """,
+                safe_tenant_code,
+                safe_campaign_code,
+                _jsonb(attributes),
+            )
+            audit_evidence = {
+                "campaign_code": str(updated_campaign["campaign_code"]),
+                "previous_review_status": previous_status,
+                "review_status": "READY_FOR_REVIEW",
+                "setup_status": "POLICY_SETTINGS_RECORDED",
+                "readiness_status": "NEEDS_REVIEW",
+                "command_payload_hash": safe_payload_hash,
+                "campaign_is_active": bool(updated_campaign.get("is_active")),
+                "no_tenant_code_exposure_confirmed": True,
+                "no_campaign_activation_confirmed": True,
+                "no_link_generation_confirmed": True,
+                "no_validation_track_created_confirmed": True,
+                "no_webhook_delivery_confirmed": True,
+                "no_invite_or_seat_change_confirmed": True,
+                "no_money_movement_confirmed": True,
+            }
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8,
+                    $9, 'READY_FOR_REVIEW', $10, $11, $12, $13::jsonb, $14::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                _optional_text(account_tenant_id) or None,
+                _optional_text(external_ref_id) or None,
+                safe_tenant_code,
+                CAMPAIGN_REVIEW_SUBMIT_EVENT,
+                CAMPAIGN_REVIEW_SUBMITTED,
+                _optional_text(command_actor_ref)
+                or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                _optional_text(command_actor_role) or "UNKNOWN",
+                previous_status,
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(audit_evidence),
+                _jsonb(CAMPAIGN_REVIEW_REDACTIONS),
+            )
+
+    return ReferralSaasCampaignReviewResult(
+        command_status="CAMPAIGN_REVIEW_SUBMITTED",
+        account_id=safe_account_id,
+        campaign_code=str(updated_campaign["campaign_code"]),
+        review_status="READY_FOR_REVIEW",
+        setup_status="POLICY_SETTINGS_RECORDED",
+        readiness_status="NEEDS_REVIEW",
+        activation_eligibility="NOT_ELIGIBLE_UNTIL_REVIEW_APPROVED",
+        activation_status="NOT_ACTIVATED",
+        reviewer_action="Record approval or block decision",
+        idempotency_status=CAMPAIGN_REVIEW_SUBMITTED,
+        audit_event_id=(
+            str(audit_event["account_audit_event_id"]) if audit_event else None
+        ),
+    )
+
+
+async def record_referral_saas_account_campaign_review_decision(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    campaign_code: str,
+    decision: str,
+    reason: str,
+    reviewer_ref: str,
+    reason_code: str = "CUSTOMER_PROFILE_CAMPAIGN_REVIEW_DECISION",
+    correlation_id: str = "",
+    idempotency_key_hash: str = "",
+    command_payload_hash: str = "",
+    command_actor_ref: str | None = None,
+    command_actor_role: str | None = None,
+) -> ReferralSaasCampaignReviewResult:
+    safe_account_id = _required_review_text(account_id, "account_id")
+    safe_tenant_code = _required_review_text(tenant_code, "tenant_code")
+    safe_campaign_code = _required_review_text(campaign_code, "campaign_code")
+    safe_decision = _required_review_text(
+        decision,
+        "reviewDecision.decision",
+    ).upper()
+    safe_reason = _required_review_text(reason, "reviewDecision.reason")
+    safe_reviewer_ref = _required_review_text(
+        reviewer_ref,
+        "reviewDecision.reviewerRef",
+    )
+    safe_reason_code = _required_review_text(reason_code, "reason_code").upper()
+    safe_correlation_id = _required_review_text(correlation_id, "correlation_id")
+    safe_idempotency_hash = _required_review_text(
+        idempotency_key_hash,
+        "idempotency_key_hash",
+    )
+    safe_payload_hash = _required_review_text(
+        command_payload_hash,
+        "command_payload_hash",
+    )
+    if safe_decision not in {"APPROVED", "BLOCKED"}:
+        raise CampaignReviewValidationError(
+            "reviewDecision.decision must be APPROVED or BLOCKED."
+        )
+
+    async with db_connection() as conn:
+        existing_audit = await conn.fetchrow(
+            """
+            SELECT
+                account_audit_event_id,
+                event_status,
+                evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            CAMPAIGN_REVIEW_DECISION_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_audit:
+            evidence = existing_audit.get("evidence_summary") or {}
+            if isinstance(evidence, str):
+                evidence = json.loads(evidence)
+            if _optional_text(evidence.get("command_payload_hash")) != safe_payload_hash:
+                raise CampaignReviewIdempotencyConflict(
+                    "Idempotency key was reused with different campaign review decision."
+                )
+            review_status = _optional_text(evidence.get("review_status")) or (
+                "REVIEW_APPROVED" if safe_decision == "APPROVED" else "REVIEW_BLOCKED"
+            )
+            return ReferralSaasCampaignReviewResult(
+                command_status="CAMPAIGN_REVIEW_DECISION_REPLAYED",
+                account_id=safe_account_id,
+                campaign_code=_optional_text(evidence.get("campaign_code"))
+                or safe_campaign_code,
+                review_status=review_status,
+                setup_status=_optional_text(evidence.get("setup_status"))
+                or "POLICY_SETTINGS_RECORDED",
+                readiness_status=_optional_text(evidence.get("readiness_status"))
+                or "REVIEWED",
+                activation_eligibility=_optional_text(
+                    evidence.get("activation_eligibility")
+                )
+                or (
+                    "ELIGIBLE_FOR_FUTURE_ACTIVATION"
+                    if review_status == "REVIEW_APPROVED"
+                    else "NOT_ELIGIBLE_REVIEW_BLOCKED"
+                ),
+                activation_status="NOT_ACTIVATED",
+                reviewer_action=_optional_text(evidence.get("reviewer_action"))
+                or "Open activation checklist",
+                idempotency_status=CAMPAIGN_REVIEW_REPLAYED,
+                audit_event_id=_optional_text(
+                    existing_audit.get("account_audit_event_id")
+                )
+                or None,
+            )
+
+        campaign = await conn.fetchrow(
+            """
+            SELECT campaign_code, is_active, attributes
+            FROM marketing_campaigns
+            WHERE UPPER(tenant_code) = UPPER($1)
+              AND UPPER(campaign_code) = UPPER($2)
+            LIMIT 1
+            """,
+            safe_tenant_code,
+            safe_campaign_code,
+        )
+        if not campaign:
+            raise CampaignReviewCampaignNotFound(
+                "Campaign was not found for the selected customer."
+            )
+        if bool(campaign.get("is_active")):
+            raise CampaignReviewInvalidState(
+                "Active campaigns cannot be changed through the setup review wrapper."
+            )
+
+        attributes = campaign.get("attributes") or {}
+        if isinstance(attributes, str):
+            attributes = json.loads(attributes)
+        if not isinstance(attributes, dict):
+            attributes = {}
+        review_state = _campaign_review_state(attributes)
+        previous_status = _optional_text(review_state.get("review_status"))
+        if previous_status != "READY_FOR_REVIEW":
+            raise CampaignReviewInvalidState(
+                "Campaign review decision requires a READY_FOR_REVIEW submission."
+            )
+
+        next_status = "REVIEW_APPROVED" if safe_decision == "APPROVED" else "REVIEW_BLOCKED"
+        activation_eligibility = (
+            "ELIGIBLE_FOR_FUTURE_ACTIVATION"
+            if safe_decision == "APPROVED"
+            else "NOT_ELIGIBLE_REVIEW_BLOCKED"
+        )
+        reviewer_action = (
+            "Open activation checklist"
+            if safe_decision == "APPROVED"
+            else "Return to campaign setup or policy settings"
+        )
+        review_state.update(
+            {
+                "review_status": next_status,
+                "review_decision": safe_decision,
+                "review_reason_present": bool(safe_reason),
+                "reviewer_ref": safe_reviewer_ref,
+                "readiness_status": "REVIEWED",
+                "activation_eligibility": activation_eligibility,
+                "activation_status": "NOT_ACTIVATED",
+                "reviewer_action": reviewer_action,
+                "decision_payload_hash": safe_payload_hash,
+                "no_campaign_activation_confirmed": True,
+                "no_link_generation_confirmed": True,
+                "no_validation_track_created_confirmed": True,
+                "no_webhook_delivery_confirmed": True,
+                "no_money_movement_confirmed": True,
+            }
+        )
+        attributes["referral_saas_review"] = review_state
+
+        async with conn.transaction():
+            updated_campaign = await conn.fetchrow(
+                """
+                UPDATE marketing_campaigns
+                SET attributes = $3::jsonb,
+                    updated_at = NOW()
+                WHERE UPPER(tenant_code) = UPPER($1)
+                  AND UPPER(campaign_code) = UPPER($2)
+                RETURNING campaign_code, is_active, attributes
+                """,
+                safe_tenant_code,
+                safe_campaign_code,
+                _jsonb(attributes),
+            )
+            audit_evidence = {
+                "campaign_code": str(updated_campaign["campaign_code"]),
+                "previous_review_status": previous_status,
+                "review_status": next_status,
+                "setup_status": "POLICY_SETTINGS_RECORDED",
+                "readiness_status": "REVIEWED",
+                "activation_eligibility": activation_eligibility,
+                "activation_status": "NOT_ACTIVATED",
+                "reviewer_action": reviewer_action,
+                "command_payload_hash": safe_payload_hash,
+                "campaign_is_active": bool(updated_campaign.get("is_active")),
+                "no_tenant_code_exposure_confirmed": True,
+                "no_campaign_activation_confirmed": True,
+                "no_link_generation_confirmed": True,
+                "no_validation_track_created_confirmed": True,
+                "no_webhook_delivery_confirmed": True,
+                "no_invite_or_seat_change_confirmed": True,
+                "no_money_movement_confirmed": True,
+            }
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8,
+                    $9, $10, $11, $12, $13, $14::jsonb, $15::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                _optional_text(account_tenant_id) or None,
+                _optional_text(external_ref_id) or None,
+                safe_tenant_code,
+                CAMPAIGN_REVIEW_DECISION_EVENT,
+                CAMPAIGN_REVIEW_SUBMITTED,
+                _optional_text(command_actor_ref)
+                or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                _optional_text(command_actor_role) or "UNKNOWN",
+                previous_status,
+                next_status,
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(audit_evidence),
+                _jsonb(CAMPAIGN_REVIEW_REDACTIONS),
+            )
+
+    return ReferralSaasCampaignReviewResult(
+        command_status=(
+            "CAMPAIGN_REVIEW_APPROVED"
+            if safe_decision == "APPROVED"
+            else "CAMPAIGN_REVIEW_BLOCKED"
+        ),
+        account_id=safe_account_id,
+        campaign_code=str(updated_campaign["campaign_code"]),
+        review_status=next_status,
+        setup_status="POLICY_SETTINGS_RECORDED",
+        readiness_status="REVIEWED",
+        activation_eligibility=activation_eligibility,
+        activation_status="NOT_ACTIVATED",
+        reviewer_action=reviewer_action,
+        idempotency_status=CAMPAIGN_REVIEW_SUBMITTED,
         audit_event_id=(
             str(audit_event["account_audit_event_id"]) if audit_event else None
         ),

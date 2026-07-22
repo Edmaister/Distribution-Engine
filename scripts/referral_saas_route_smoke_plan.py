@@ -574,6 +574,83 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_account_campaign_review_submission",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-submissions",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin role",
+        environment_rule=(
+            "local/staging seeded account, campaign, and policy/settings only; "
+            "submits campaign setup evidence for review without activation"
+        ),
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "campaign_code",
+            "idempotency_key",
+        ],
+        expected_state_change=(
+            "records selected-customer campaign review submission and account "
+            "audit evidence; does not activate campaigns, generate links, create "
+            "validation tracks, send webhooks, change access, or move money"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"reviewSubmission":{"setupSummary":"Campaign setup and policy '
+            'settings are ready for review.",'
+            '"requestedReviewStatus":"READY_FOR_REVIEW"},'
+            '"correlationId":"smoke-campaign-review-submit",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/campaigns/{campaign_code}/review-submissions"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_account_campaign_review_decision",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-decisions",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin/reviewer role",
+        environment_rule=(
+            "local/staging seeded account, campaign, policy/settings, and review "
+            "submission only; records approval/block without activation"
+        ),
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "campaign_code",
+            "idempotency_key",
+        ],
+        expected_state_change=(
+            "records selected-customer campaign review decision and account audit "
+            "evidence; approval only makes later activation eligible and does not "
+            "activate campaigns, generate links, create validation tracks, send "
+            "webhooks, change access, or move money"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"reviewDecision":{"decision":"APPROVED",'
+            '"reason":"Campaign setup evidence reviewed.",'
+            '"reviewerRef":"smoke-reviewer"},'
+            '"correlationId":"smoke-campaign-review-decision",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/campaigns/{campaign_code}/review-decisions"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_membership_invitation_intent",
         method="POST",
         path="/v1/referral-saas/accounts/{account_ref}/membership-invitations",
