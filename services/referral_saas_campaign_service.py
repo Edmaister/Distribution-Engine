@@ -27,6 +27,22 @@ CAMPAIGN_SETUP_REDACTIONS = [
     "idempotency_key_hash",
     "payload_hash",
 ]
+CAMPAIGN_POLICY_SETTINGS_EVENT = "CAMPAIGN_POLICY_SETTINGS_RECORDED"
+CAMPAIGN_POLICY_SETTINGS_RECORDED = "RECORDED"
+CAMPAIGN_POLICY_SETTINGS_REPLAYED = "REPLAYED"
+CAMPAIGN_POLICY_SETTINGS_GUARDRAILS = [
+    "NO_TENANT_CODE_EXPOSURE",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_LINK_GENERATION",
+    "NO_VALIDATION_TRACK_CREATED",
+    "NO_WEBHOOK_DELIVERY",
+    "NO_MONEY_MOVEMENT",
+]
+CAMPAIGN_POLICY_SETTINGS_REDACTIONS = [
+    "internal_tenant_identifier",
+    "idempotency_key_hash",
+    "payload_hash",
+]
 
 
 class ReferralSaasCampaignCommandError(Exception):
@@ -46,6 +62,22 @@ class CampaignSetupDuplicate(ReferralSaasCampaignCommandError):
 
 
 class CampaignSetupIdempotencyConflict(ReferralSaasCampaignCommandError):
+    safe_code = "IDEMPOTENCY_CONFLICT"
+
+
+class CampaignPolicySettingsValidationError(ReferralSaasCampaignCommandError):
+    safe_code = "VALIDATION_ERROR"
+
+
+class CampaignPolicySettingsAccountNotReady(ReferralSaasCampaignCommandError):
+    safe_code = "ACCOUNT_NOT_READY_FOR_CAMPAIGN_POLICY_SETTINGS"
+
+
+class CampaignPolicySettingsCampaignNotFound(ReferralSaasCampaignCommandError):
+    safe_code = "CAMPAIGN_NOT_FOUND_FOR_SELECTED_CUSTOMER"
+
+
+class CampaignPolicySettingsIdempotencyConflict(ReferralSaasCampaignCommandError):
     safe_code = "IDEMPOTENCY_CONFLICT"
 
 
@@ -123,6 +155,47 @@ class ReferralSaasCampaignSetupResult:
         }
 
 
+@dataclass(frozen=True)
+class ReferralSaasCampaignPolicySettingsResult:
+    command_status: str
+    account_id: str
+    campaign_code: str
+    version: int
+    setup_status: str
+    attribution_window_days: int | None
+    eligibility_rule_count: int
+    product_window_count: int
+    product_rule_count: int
+    reward_visibility_status: str
+    idempotency_status: str
+    audit_event_id: str | None
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "accountRef": self.account_id,
+            "campaignRef": self.campaign_code,
+            "policySettings": {
+                "version": self.version,
+                "setupStatus": self.setup_status,
+                "attributionWindowDays": self.attribution_window_days,
+                "eligibilityRuleCount": self.eligibility_rule_count,
+                "productWindowCount": self.product_window_count,
+                "productRuleCount": self.product_rule_count,
+                "rewardVisibilityStatus": self.reward_visibility_status,
+            },
+            "idempotency": {"status": self.idempotency_status},
+            "audit": {"accountAuditEventId": self.audit_event_id},
+            "nextActions": [
+                "Run campaign readiness",
+                "Review before activation",
+                "Generate links only after activation is approved",
+            ],
+            "guardrails": list(CAMPAIGN_POLICY_SETTINGS_GUARDRAILS),
+            "redactions": list(CAMPAIGN_POLICY_SETTINGS_REDACTIONS),
+        }
+
+
 def _as_iso(value: Any) -> str | None:
     if isinstance(value, datetime):
         return value.isoformat()
@@ -173,6 +246,47 @@ def _optional_text(value: Any) -> str:
 
 def _jsonb(value: Any) -> str:
     return json.dumps(value, sort_keys=True)
+
+
+def _json_dict(value: Any, field_name: str) -> dict[str, Any]:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise CampaignPolicySettingsValidationError(f"{field_name} must be an object.")
+    return value
+
+
+def _json_list(value: Any, field_name: str) -> list[Any]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise CampaignPolicySettingsValidationError(f"{field_name} must be a list.")
+    return value
+
+
+def _positive_int(value: Any, field_name: str) -> int:
+    try:
+        safe_value = int(value)
+    except (TypeError, ValueError) as exc:
+        raise CampaignPolicySettingsValidationError(
+            f"{field_name} must be a number."
+        ) from exc
+    if safe_value < 1:
+        raise CampaignPolicySettingsValidationError(
+            f"{field_name} must be at least 1."
+        )
+    return safe_value
+
+
+def _reward_visibility_status(value: dict[str, Any]) -> str:
+    mode = _optional_text(value.get("mode")).upper()
+    if not mode:
+        return "NOT_CONFIGURED"
+    if mode != "CONFIGURED_WITHOUT_PAYMENT":
+        raise CampaignPolicySettingsValidationError(
+            "policySettings.rewardVisibility.mode must be configured_without_payment."
+        )
+    return mode
 
 
 def _generate_campaign_code(tenant_code: str, segment: str, name: str) -> str:
@@ -453,6 +567,289 @@ async def create_referral_saas_account_campaign_setup(
             else None
         ),
         idempotency_status=CAMPAIGN_SETUP_RECORDED,
+        audit_event_id=(
+            str(audit_event["account_audit_event_id"]) if audit_event else None
+        ),
+    )
+
+
+async def upsert_referral_saas_account_campaign_policy_settings(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    account_status: str,
+    tenant_link_status: str,
+    external_reference_status: str,
+    campaign_code: str,
+    version: int,
+    attribution_window_days: int | None,
+    eligibility_rules: list[Any] | None = None,
+    product_windows: dict[str, Any] | None = None,
+    product_rules: dict[str, Any] | None = None,
+    reward_visibility: dict[str, Any] | None = None,
+    reason_code: str = "CUSTOMER_PROFILE_CAMPAIGN_POLICY_SETTINGS",
+    correlation_id: str = "",
+    idempotency_key_hash: str = "",
+    command_payload_hash: str = "",
+    command_payload: dict[str, Any] | None = None,
+    command_actor_ref: str | None = None,
+    command_actor_role: str | None = None,
+) -> ReferralSaasCampaignPolicySettingsResult:
+    safe_account_id = _required_text(account_id, "account_id")
+    safe_tenant_code = _required_text(tenant_code, "tenant_code")
+    safe_campaign_code = _required_text(campaign_code, "campaign_code")
+    safe_version = _positive_int(version, "policySettings.version")
+    safe_attribution_window = (
+        _positive_int(attribution_window_days, "policySettings.attributionWindowDays")
+        if attribution_window_days is not None
+        else None
+    )
+    safe_eligibility_rules = _json_list(
+        eligibility_rules,
+        "policySettings.eligibilityRules",
+    )
+    safe_product_windows = _json_dict(
+        product_windows,
+        "policySettings.productWindows",
+    )
+    safe_product_rules = _json_dict(product_rules, "policySettings.productRules")
+    safe_reward_visibility = _json_dict(
+        reward_visibility,
+        "policySettings.rewardVisibility",
+    )
+    reward_visibility_status = _reward_visibility_status(safe_reward_visibility)
+    safe_reason_code = _required_text(reason_code, "reason_code").upper()
+    safe_correlation_id = _required_text(correlation_id, "correlation_id")
+    safe_idempotency_hash = _required_text(
+        idempotency_key_hash,
+        "idempotency_key_hash",
+    )
+    safe_payload_hash = _required_text(command_payload_hash, "command_payload_hash")
+    safe_account_status = _optional_text(account_status).upper()
+    safe_tenant_link_status = _optional_text(tenant_link_status).upper()
+    safe_external_reference_status = _optional_text(external_reference_status).upper()
+
+    if safe_account_status not in {"PENDING_ONBOARDING", "ACTIVE"}:
+        raise CampaignPolicySettingsAccountNotReady(
+            "Account must exist before campaign policy settings can be saved."
+        )
+    if safe_tenant_link_status not in {"PENDING_SETUP", "ACTIVE"}:
+        raise CampaignPolicySettingsAccountNotReady(
+            "Account tenant link must exist before campaign policy settings can be saved."
+        )
+    if safe_external_reference_status not in {"ACTIVE"}:
+        raise CampaignPolicySettingsAccountNotReady(
+            "Selected customer reference must be active before campaign policy settings can be saved."
+        )
+
+    async with db_connection() as conn:
+        existing_audit = await conn.fetchrow(
+            """
+            SELECT
+                account_audit_event_id,
+                event_status,
+                evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            CAMPAIGN_POLICY_SETTINGS_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_audit:
+            evidence = existing_audit.get("evidence_summary") or {}
+            if isinstance(evidence, str):
+                evidence = json.loads(evidence)
+            if _optional_text(evidence.get("command_payload_hash")) != safe_payload_hash:
+                raise CampaignPolicySettingsIdempotencyConflict(
+                    "Idempotency key was reused with different campaign policy settings."
+                )
+            return ReferralSaasCampaignPolicySettingsResult(
+                command_status="POLICY_SETTINGS_REPLAYED",
+                account_id=safe_account_id,
+                campaign_code=_optional_text(evidence.get("campaign_code"))
+                or safe_campaign_code,
+                version=int(evidence.get("version") or safe_version),
+                setup_status=_optional_text(evidence.get("setup_status"))
+                or "POLICY_SETTINGS_RECORDED",
+                attribution_window_days=(
+                    int(evidence["attribution_window_days"])
+                    if evidence.get("attribution_window_days") is not None
+                    else None
+                ),
+                eligibility_rule_count=int(
+                    evidence.get("eligibility_rule_count") or 0
+                ),
+                product_window_count=int(evidence.get("product_window_count") or 0),
+                product_rule_count=int(evidence.get("product_rule_count") or 0),
+                reward_visibility_status=_optional_text(
+                    evidence.get("reward_visibility_status")
+                )
+                or reward_visibility_status,
+                idempotency_status=CAMPAIGN_POLICY_SETTINGS_REPLAYED,
+                audit_event_id=_optional_text(
+                    existing_audit.get("account_audit_event_id")
+                )
+                or None,
+            )
+
+        campaign = await conn.fetchrow(
+            """
+            SELECT campaign_code, is_active
+            FROM marketing_campaigns
+            WHERE UPPER(tenant_code) = UPPER($1)
+              AND UPPER(campaign_code) = UPPER($2)
+            LIMIT 1
+            """,
+            safe_tenant_code,
+            safe_campaign_code,
+        )
+        if not campaign:
+            raise CampaignPolicySettingsCampaignNotFound(
+                "Campaign was not found for the selected customer."
+            )
+
+        rules_json = {
+            "eligibilityRules": safe_eligibility_rules,
+            "rewardVisibility": safe_reward_visibility,
+            "source": "TASK-259",
+            "no_campaign_activation_confirmed": True,
+            "no_link_generation_confirmed": True,
+            "no_validation_track_created_confirmed": True,
+            "no_webhook_delivery_confirmed": True,
+            "no_money_movement_confirmed": True,
+        }
+        reward_amounts_json = {
+            "visibility": safe_reward_visibility,
+            "paymentStatus": "NOT_CONFIGURED",
+            "no_money_movement_confirmed": True,
+        }
+
+        async with conn.transaction():
+            policy = await conn.fetchrow(
+                """
+                INSERT INTO marketing_campaign_policies (
+                    campaign_code,
+                    tenant_code,
+                    version,
+                    is_active,
+                    rolling_window_days,
+                    rules_json,
+                    product_windows_json,
+                    reward_amounts_json,
+                    product_rules_json
+                )
+                VALUES ($1, $2, $3, TRUE, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb)
+                ON CONFLICT (campaign_code, tenant_code, version)
+                DO UPDATE SET
+                    is_active = TRUE,
+                    rolling_window_days = EXCLUDED.rolling_window_days,
+                    rules_json = EXCLUDED.rules_json,
+                    product_windows_json = EXCLUDED.product_windows_json,
+                    reward_amounts_json = EXCLUDED.reward_amounts_json,
+                    product_rules_json = EXCLUDED.product_rules_json,
+                    updated_at = NOW()
+                RETURNING
+                    campaign_code,
+                    version,
+                    rolling_window_days
+                """,
+                safe_campaign_code,
+                safe_tenant_code,
+                safe_version,
+                safe_attribution_window,
+                _jsonb(rules_json),
+                _jsonb(safe_product_windows),
+                _jsonb(reward_amounts_json),
+                _jsonb(safe_product_rules),
+            )
+            audit_evidence = {
+                "campaign_code": str(policy["campaign_code"]),
+                "version": int(policy["version"]),
+                "setup_status": "POLICY_SETTINGS_RECORDED",
+                "attribution_window_days": (
+                    int(policy["rolling_window_days"])
+                    if policy.get("rolling_window_days") is not None
+                    else None
+                ),
+                "eligibility_rule_count": len(safe_eligibility_rules),
+                "product_window_count": len(safe_product_windows),
+                "product_rule_count": len(safe_product_rules),
+                "reward_visibility_status": reward_visibility_status,
+                "campaign_was_active_before_policy_settings": bool(
+                    campaign.get("is_active")
+                ),
+                "command_payload_hash": safe_payload_hash,
+                "no_tenant_code_exposure_confirmed": True,
+                "no_campaign_activation_confirmed": True,
+                "no_link_generation_confirmed": True,
+                "no_validation_track_created_confirmed": True,
+                "no_webhook_delivery_confirmed": True,
+                "no_money_movement_confirmed": True,
+            }
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8,
+                    NULL, 'POLICY_SETTINGS_RECORDED', $9, $10, $11, $12::jsonb, $13::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                _optional_text(account_tenant_id) or None,
+                _optional_text(external_ref_id) or None,
+                safe_tenant_code,
+                CAMPAIGN_POLICY_SETTINGS_EVENT,
+                CAMPAIGN_POLICY_SETTINGS_RECORDED,
+                _optional_text(command_actor_ref)
+                or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                _optional_text(command_actor_role) or "UNKNOWN",
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(audit_evidence),
+                _jsonb(CAMPAIGN_POLICY_SETTINGS_REDACTIONS),
+            )
+
+    return ReferralSaasCampaignPolicySettingsResult(
+        command_status="POLICY_SETTINGS_RECORDED",
+        account_id=safe_account_id,
+        campaign_code=str(policy["campaign_code"]),
+        version=int(policy["version"]),
+        setup_status="POLICY_SETTINGS_RECORDED",
+        attribution_window_days=(
+            int(policy["rolling_window_days"])
+            if policy.get("rolling_window_days") is not None
+            else None
+        ),
+        eligibility_rule_count=len(safe_eligibility_rules),
+        product_window_count=len(safe_product_windows),
+        product_rule_count=len(safe_product_rules),
+        reward_visibility_status=reward_visibility_status,
+        idempotency_status=CAMPAIGN_POLICY_SETTINGS_RECORDED,
         audit_event_id=(
             str(audit_event["account_audit_event_id"]) if audit_event else None
         ),

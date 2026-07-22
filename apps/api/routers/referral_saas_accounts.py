@@ -54,12 +54,19 @@ from services.referral_saas_account_membership_service import (
 from services.referral_saas_campaign_service import (
     CAMPAIGN_SETUP_GUARDRAILS,
     CAMPAIGN_SETUP_REDACTIONS,
+    CAMPAIGN_POLICY_SETTINGS_GUARDRAILS,
+    CAMPAIGN_POLICY_SETTINGS_REDACTIONS,
     CampaignSetupAccountNotReady,
     CampaignSetupDuplicate,
     CampaignSetupIdempotencyConflict,
     CampaignSetupValidationError,
+    CampaignPolicySettingsAccountNotReady,
+    CampaignPolicySettingsCampaignNotFound,
+    CampaignPolicySettingsIdempotencyConflict,
+    CampaignPolicySettingsValidationError,
     ReferralSaasCampaignCommandError,
     create_referral_saas_account_campaign_setup,
+    upsert_referral_saas_account_campaign_policy_settings,
     list_referral_saas_account_campaigns,
     get_referral_saas_account_campaign,
 )
@@ -293,6 +300,40 @@ def _campaign_setup_error(exc: ReferralSaasCampaignCommandError) -> HTTPExceptio
             "no_link_generation_confirmed": True,
             "no_validation_track_created_confirmed": True,
             "no_policy_write_confirmed": True,
+            "no_webhook_delivery_confirmed": True,
+            "no_money_movement_confirmed": True,
+        },
+    )
+
+
+def _campaign_policy_settings_error(
+    exc: ReferralSaasCampaignCommandError,
+) -> HTTPException:
+    if isinstance(exc, CampaignPolicySettingsValidationError):
+        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    elif isinstance(exc, CampaignPolicySettingsCampaignNotFound):
+        status_code = status.HTTP_404_NOT_FOUND
+    elif isinstance(
+        exc,
+        (
+            CampaignPolicySettingsAccountNotReady,
+            CampaignPolicySettingsIdempotencyConflict,
+        ),
+    ):
+        status_code = status.HTTP_409_CONFLICT
+    else:
+        status_code = status.HTTP_400_BAD_REQUEST
+
+    return HTTPException(
+        status_code=status_code,
+        detail={
+            "code": exc.safe_code,
+            "message": str(exc),
+            "guardrails": list(CAMPAIGN_POLICY_SETTINGS_GUARDRAILS),
+            "redactions": list(CAMPAIGN_POLICY_SETTINGS_REDACTIONS),
+            "no_campaign_activation_confirmed": True,
+            "no_link_generation_confirmed": True,
+            "no_validation_track_created_confirmed": True,
             "no_webhook_delivery_confirmed": True,
             "no_money_movement_confirmed": True,
         },
@@ -1460,6 +1501,139 @@ async def read_referral_saas_account_campaign(
     }
 
 
+@router.put("/accounts/{account_ref}/campaigns/{campaign_code}/policy-settings")
+async def upsert_referral_saas_account_campaign_policy_settings_route(
+    account_ref: str,
+    campaign_code: str,
+    payload: dict[str, Any] = Body(default_factory=dict),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    _reject_unsafe_campaign_policy_settings_payload(payload)
+
+    account_scope = payload.get("accountScope") or {}
+    policy_settings = payload.get("policySettings") or {}
+    setup_intent = payload.get("setupIntent") or {}
+    if not isinstance(account_scope, dict) or not isinstance(policy_settings, dict):
+        raise _campaign_policy_settings_error(
+            CampaignPolicySettingsValidationError(
+                "accountScope and policySettings must be objects."
+            )
+        )
+
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    idempotency_key = _optional_text(payload.get("idempotencyKey"))
+    correlation_id = _optional_text(payload.get("correlationId"))
+    reason_code = (
+        _optional_text(payload.get("reasonCode"))
+        or _optional_text(setup_intent.get("reason"))
+        or "CUSTOMER_PROFILE_CAMPAIGN_POLICY_SETTINGS"
+    )
+
+    if not ref_type or not external_ref or not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": list(CAMPAIGN_POLICY_SETTINGS_GUARDRAILS),
+                "redactions": list(CAMPAIGN_POLICY_SETTINGS_REDACTIONS),
+                "no_campaign_activation_confirmed": True,
+                "no_link_generation_confirmed": True,
+                "no_validation_track_created_confirmed": True,
+                "no_webhook_delivery_confirmed": True,
+                "no_money_movement_confirmed": True,
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    version = policy_settings.get("version") or 1
+    attribution_window_days = policy_settings.get("attributionWindowDays")
+    command_payload = {
+        "accountScope": {
+            "accountRef": _optional_text(account_ref),
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": normalised_context,
+        },
+        "campaignRef": _optional_text(campaign_code),
+        "policySettings": {
+            "version": version,
+            "attributionWindowDays": attribution_window_days,
+            "eligibilityRules": policy_settings.get("eligibilityRules") or [],
+            "productWindows": policy_settings.get("productWindows") or {},
+            "productRules": policy_settings.get("productRules") or {},
+            "rewardVisibility": policy_settings.get("rewardVisibility") or {},
+        },
+        "setupIntent": {
+            "requestedStatus": (
+                _optional_text(setup_intent.get("requestedStatus"))
+                or "POLICY_SETTINGS_RECORDED"
+            ),
+            "reason": reason_code,
+        },
+    }
+
+    try:
+        result = await upsert_referral_saas_account_campaign_policy_settings(
+            account_id=account.account_id,
+            tenant_code=account.tenant_code,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            account_status=account.account_status,
+            tenant_link_status=account.tenant_link_status,
+            external_reference_status=account.reference_status,
+            campaign_code=campaign_code,
+            version=version,
+            attribution_window_days=attribution_window_days,
+            eligibility_rules=policy_settings.get("eligibilityRules") or [],
+            product_windows=policy_settings.get("productWindows") or {},
+            product_rules=policy_settings.get("productRules") or {},
+            reward_visibility=policy_settings.get("rewardVisibility") or {},
+            reason_code=reason_code,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_CAMPAIGN_POLICY_SETTINGS",
+                    "account_ref": _optional_text(account_ref),
+                    "campaign_ref": _optional_text(campaign_code),
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            command_payload_hash=hash_payload(command_payload),
+            command_payload=payload,
+            command_actor_ref=_actor_ref(admin_identity),
+            command_actor_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except ReferralSaasCampaignCommandError as exc:
+        raise _campaign_policy_settings_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "policySettings": result.to_safe_dict(),
+        "guardrails": list(CAMPAIGN_POLICY_SETTINGS_GUARDRAILS),
+        "redactions": list(CAMPAIGN_POLICY_SETTINGS_REDACTIONS),
+        "no_campaign_activation_confirmed": True,
+        "no_link_generation_confirmed": True,
+        "no_validation_track_created_confirmed": True,
+        "no_webhook_delivery_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
 @router.get("/accounts/{account_ref}/campaigns/{campaign_code}/readiness")
 async def read_referral_saas_account_campaign_readiness(
     account_ref: str,
@@ -1775,6 +1949,42 @@ UNSAFE_CAMPAIGN_SETUP_KEYS = {
     "sponsorBilling",
 }
 
+UNSAFE_CAMPAIGN_POLICY_SETTINGS_KEYS = {
+    "tenant_code",
+    "tenantCode",
+    "internal_tenant_code",
+    "internalTenantCode",
+    "campaign_code",
+    "campaignCode",
+    "isActive",
+    "is_active",
+    "activate",
+    "activation",
+    "goLive",
+    "campaignActivation",
+    "generateLinks",
+    "linkGeneration",
+    "validate",
+    "campaignTrackId",
+    "campaign_track_id",
+    "webhook",
+    "credential",
+    "credentials",
+    "providerSecret",
+    "secret",
+    "rewardAmount",
+    "rewardAmounts",
+    "reward_amounts_json",
+    "funding",
+    "fulfilment",
+    "settlement",
+    "commission",
+    "wallet",
+    "invoice",
+    "payout",
+    "sponsorBilling",
+}
+
 
 def _reject_unsafe_invitation_payload(value: Any) -> None:
     if isinstance(value, dict):
@@ -1856,6 +2066,35 @@ def _reject_unsafe_campaign_setup_payload(value: Any) -> None:
     elif isinstance(value, list):
         for item in value:
             _reject_unsafe_campaign_setup_payload(item)
+
+
+def _reject_unsafe_campaign_policy_settings_payload(value: Any) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if str(key) in UNSAFE_CAMPAIGN_POLICY_SETTINGS_KEYS:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "code": "REJECTED_UNSAFE_PAYLOAD",
+                        "message": (
+                            "Campaign policy/settings payload includes fields "
+                            "that belong to tenant scope, activation, link "
+                            "generation, validation, webhook, credential, or "
+                            "money workflows."
+                        ),
+                        "guardrails": list(CAMPAIGN_POLICY_SETTINGS_GUARDRAILS),
+                        "redactions": list(CAMPAIGN_POLICY_SETTINGS_REDACTIONS),
+                        "no_campaign_activation_confirmed": True,
+                        "no_link_generation_confirmed": True,
+                        "no_validation_track_created_confirmed": True,
+                        "no_webhook_delivery_confirmed": True,
+                        "no_money_movement_confirmed": True,
+                    },
+                )
+            _reject_unsafe_campaign_policy_settings_payload(child)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_unsafe_campaign_policy_settings_payload(item)
 
 
 def _actor_ref(identity: dict[str, Any]) -> str:

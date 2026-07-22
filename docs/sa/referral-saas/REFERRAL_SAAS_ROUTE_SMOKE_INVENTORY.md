@@ -21,6 +21,10 @@ TASK-256 adds the seeded-only customer-scoped campaign setup create boundary
 that records an inactive campaign setup draft and account audit evidence
 without campaign activation, link generation, validation track creation, policy
 write, webhook delivery, or money movement.
+TASK-259 adds the seeded-only customer-scoped campaign policy/settings boundary
+that upserts campaign policy evidence and account audit evidence without
+campaign activation, link generation, validation track creation, webhook
+delivery, or money movement.
 No schema, live database mutation, or persisted export is introduced by this
 inventory document; seeded write routes remain local/staging-only smoke
 candidates and are classified explicitly below.
@@ -95,6 +99,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Seeded local/staging write | POST | `/referrals/referees/ucn` | Referee UCN capture |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/from-draft` | Referral SaaS account foundation create wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/campaigns` | Referral SaaS customer-scoped inactive campaign setup create wrapper |
+| Seeded local/staging write | PUT | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/policy-settings` | Referral SaaS customer-scoped campaign policy/settings wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations` | Referral SaaS membership invitation intent wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery` | Referral SaaS invitation delivery request boundary; records blocked provider evidence only |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/activation` | Referral SaaS membership activation request boundary; activates membership lifecycle only after identity/account gates |
@@ -118,6 +123,7 @@ read-only or side-effect-free `/v1/referral-saas/*` product wrappers:
 - `GET /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}`
 - `GET /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/readiness`
 - `POST /v1/referral-saas/accounts/{account_ref}/campaigns`
+- `PUT /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/policy-settings`
 - `GET /v1/referral-saas/reports/{report_type}`
 - `POST /v1/referral-saas/reports/{report_type}/exports/preview`
 - `POST /v1/referral-saas/reports/{report_type}/exports/validate`
