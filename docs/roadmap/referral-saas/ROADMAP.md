@@ -232,6 +232,7 @@ greenfield referral construction.
 124. TASK-258: Define customer-scoped campaign policy/settings command contract.
 125. TASK-259: Add guarded customer-scoped campaign policy/settings API wrapper.
 126. TASK-260: Add selected-customer campaign policy/settings UX.
+127. TASK-261: Define customer-scoped campaign submit/review command contract.
 
 ## 10/10 Exit Criteria
 
@@ -957,6 +958,13 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md` - Adds the standalone selected-customer campaign policy/settings page, wires it to the guarded TASK-259 API wrapper, links campaign setup success into policy settings, and keeps policy evidence separate from activation, link generation, webhook delivery, billing, and money movement.
+- TASK-261: `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_SUBMIT_REVIEW_CONTRACT.md`;
+  `test/test_referral_saas_customer_campaign_submit_review_contract.py`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md` - Defines the selected-customer campaign submit/review command boundary. It maps existing campaign, policy, readiness, account-audit, idempotency, and onboarding-review patterns into campaign-level review without activating campaigns, generating links, creating validation tracks, delivering webhooks, changing seats/auth claims, billing, moving money, or exposing tenant code.
 
 ## Explicit Deferrals
 
