@@ -5689,6 +5689,31 @@ Rollback notes: Remove the endpoint wrapper, policy settings page branch, campai
 Explicit non-goals: Do not add backend routes, schema, migrations, campaign validation tracks, link generation, campaign activation, go-live actions, credentials, webhook delivery, invite delivery, membership activation, seat assignment, auth/session claim changes, reports/exports, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has a standalone selected-customer campaign policy/settings UX wired to the guarded backend wrapper while preserving tenant-safe scope and activation/money guardrails. Priority: P0.
 
+## TASK-261: Define customer-scoped campaign submit/review command contract
+
+Status: Complete (2026-07-22). Output: `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_SUBMIT_REVIEW_CONTRACT.md`; `test/test_referral_saas_customer_campaign_submit_review_contract.py`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_POLICY_SETTINGS_CONTRACT.md`.
+Shared primitive impact: Reuses selected-customer account scope, existing campaign/policy/readiness sources, account audit/idempotency patterns, and proven onboarding review patterns as design references only. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile Campaigns; campaign submit/review boundary; campaign governance; campaign readiness; activation guardrails; idempotency; audit evidence.
+Objective: Define the selected-customer campaign submit/review command contract before backend review writes and UX ship.
+Why now: TASK-260 gives operators a selected-customer policy/settings page. The next campaign step is a human/internal review checkpoint, but review must not accidentally activate campaigns, generate links, create validation tracks, deliver webhooks, change access, bill, or move money.
+Files involved: Referral SaaS submit/review contract doc, contract tests, SA index, public API contract map, roadmap, gap matrix, and ordered task list.
+Database/schema impact: None.
+Backend impact: None; contract only.
+Frontend impact: None; contract only.
+API impact: Documents target `POST /v1/referral-saas/accounts/{accountRef}/campaigns/{campaignRef}/review-submissions` and `POST /v1/referral-saas/accounts/{accountRef}/campaigns/{campaignRef}/review-decisions` routes as future account-scoped command wrappers over existing campaign, policy, readiness, account-audit, and idempotency patterns.
+Tests to add/update: Contract tests proving the boundary is Referral SaaS scoped, source-backed, customer-scoped, idempotent/auditable, review-specific, and excludes activation, links, validation tracks, webhooks, access provisioning, billing, money, and broad DLaaS behavior.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_customer_campaign_submit_review_contract.py`; `git diff --check`.
+Acceptance criteria: Contract maps current campaign/policy/readiness/account-audit facts to selected-customer campaign submit/review commands, rejects caller-supplied tenant code and unsafe adjacent actions, defines review statuses/responses/UX implications, and identifies TASK-262 as the backend implementation slice.
+Dependencies: TASK-253; TASK-254; TASK-255; TASK-256; TASK-257; TASK-258; TASK-259; TASK-260.
+Blocked by: Guarded backend submit/review wrappers, selected-customer submit/review UX, campaign activation/go-live command boundary, customer-scoped link/code continuation, customer-scoped reporting continuation, and full campaign workflow E2E tests.
+Risk level: Low.
+Rollback notes: Remove the contract doc, contract test, SA index entry, public API map entries, roadmap/gap updates, and this task entry.
+Explicit non-goals: Do not add backend routes, schema, migrations, runtime campaign review writes, frontend screens, campaign validation tracks, link generation, campaign activation, go-live actions, credentials, webhook delivery, invite delivery, membership activation, seat assignment, auth/session claim changes, reports/exports, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has a source-backed customer-scoped campaign submit/review command contract ready for guarded backend implementation without tenant-code leakage, activation side effects, or money movement. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
