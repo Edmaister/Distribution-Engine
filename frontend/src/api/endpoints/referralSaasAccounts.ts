@@ -426,6 +426,77 @@ export type ReferralSaasAccountCampaignPolicySettingsResponse = {
   no_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasAccountCampaignReviewSubmissionRequest = {
+  accountRef: string;
+  campaignCode: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  reviewSubmission: {
+    setupSummary: string;
+    requestedReviewStatus?: string;
+    operatorNotes?: string;
+  };
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
+export type ReferralSaasAccountCampaignReviewDecisionRequest = {
+  accountRef: string;
+  campaignCode: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  reviewDecision: {
+    decision: "APPROVED" | "BLOCKED";
+    reason: string;
+    reviewerRef: string;
+  };
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
+export type ReferralSaasAccountCampaignReviewResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  campaignReview: {
+    commandStatus: string;
+    accountRef: string;
+    campaignRef: string;
+    previousReviewStatus: string;
+    reviewStatus: string;
+    setupStatus: string;
+    readinessStatus: string;
+    activationEligibility: string;
+    activationStatus: string;
+    reviewerAction: string;
+    idempotency: {
+      status: string;
+    };
+    audit: {
+      accountAuditEventId?: string | null;
+    };
+    nextActions: string[];
+    guardrails: string[];
+    redactions: string[];
+  };
+  guardrails: string[];
+  redactions: string[];
+  no_campaign_activation_confirmed: boolean;
+  no_link_generation_confirmed: boolean;
+  no_validation_track_created_confirmed: boolean;
+  no_webhook_delivery_confirmed: boolean;
+  no_invite_or_seat_change_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasAccountCreateFromDraftRequest = {
   draftRef: string;
   internalTenantCode: string;
@@ -871,6 +942,74 @@ export function updateReferralSaasAccountCampaignPolicySettings({
           reason: setupIntent?.reason?.trim() || "CUSTOMER_PROFILE_CAMPAIGN_POLICY_SETTINGS",
         },
         reasonCode: reasonCode?.trim() || "CUSTOMER_PROFILE_CAMPAIGN_POLICY_SETTINGS",
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function submitReferralSaasAccountCampaignReview({
+  accountRef,
+  campaignCode,
+  accountScope,
+  reviewSubmission,
+  reasonCode,
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasAccountCampaignReviewSubmissionRequest): Promise<ReferralSaasAccountCampaignReviewResponse> {
+  return apiRequest<ReferralSaasAccountCampaignReviewResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaigns/${encodeURIComponent(
+      campaignCode.trim(),
+    )}/review-submissions`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        reviewSubmission: {
+          setupSummary: reviewSubmission.setupSummary.trim(),
+          requestedReviewStatus: reviewSubmission.requestedReviewStatus?.trim() || "READY_FOR_REVIEW",
+          operatorNotes: reviewSubmission.operatorNotes?.trim() || undefined,
+        },
+        reasonCode: reasonCode?.trim() || "CUSTOMER_PROFILE_CAMPAIGN_REVIEW_SUBMISSION",
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function recordReferralSaasAccountCampaignReviewDecision({
+  accountRef,
+  campaignCode,
+  accountScope,
+  reviewDecision,
+  reasonCode,
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasAccountCampaignReviewDecisionRequest): Promise<ReferralSaasAccountCampaignReviewResponse> {
+  return apiRequest<ReferralSaasAccountCampaignReviewResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaigns/${encodeURIComponent(
+      campaignCode.trim(),
+    )}/review-decisions`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        reviewDecision: {
+          decision: reviewDecision.decision,
+          reason: reviewDecision.reason.trim(),
+          reviewerRef: reviewDecision.reviewerRef.trim(),
+        },
+        reasonCode: reasonCode?.trim() || "CUSTOMER_PROFILE_CAMPAIGN_REVIEW_DECISION",
         correlationId,
         idempotencyKey,
       },

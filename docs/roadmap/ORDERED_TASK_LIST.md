@@ -5741,7 +5741,7 @@ Definition of done: Referral SaaS has guarded selected-customer campaign review 
 
 ## TASK-263: Add selected-customer campaign submit/review UX
 
-Status: Planned.
+Status: Complete (2026-07-23).
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_SUBMIT_REVIEW_CONTRACT.md`.
 Shared primitive impact: Reuse selected-customer Campaigns pages, existing Referral SaaS account API client/query patterns, TASK-262 review wrappers, and current customer-scoped route shell. Source duplication: No.
@@ -5749,7 +5749,7 @@ Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedg
 Linked platform/product capability: Customer Profile Campaigns; campaign review UX; campaign governance; selected-customer workflow; activation guardrails.
 Objective: Add the selected-customer campaign submit/review UX so an operator can submit a campaign for review and record approval/block decisions from the campaign context without leaving the customer profile.
 Why now: TASK-262 provides guarded backend review wrappers. The next step is making the review action usable in the selected-customer Campaigns module while keeping activation/go-live as a separate future workflow.
-Files likely involved: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/referralSaasAccountQueries.ts`; `frontend/src/api/queryKeys.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; related frontend tests; roadmap/gap docs; infographic.
+Files involved: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; roadmap/gap docs; infographic.
 Database/schema impact: None.
 Backend impact: None expected unless API response gaps are found during frontend wiring.
 Frontend impact: Add selected-customer campaign review action/state to the standalone Campaigns page or a dedicated campaign review page. The UI must explain that approval only unlocks future activation eligibility and does not activate the campaign.
@@ -5763,6 +5763,35 @@ Risk level: Medium.
 Rollback notes: Remove the frontend review actions/client wiring/tests and roadmap/gap/infographic updates.
 Explicit non-goals: Do not add backend routes, schema, migrations, campaign activation, go-live actions, link/code generation, validation-track creation, credentials, webhook delivery, invite delivery, membership activation, seat assignment, auth/session claim changes, reports/exports, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has a selected-customer campaign review UX wired to guarded backend wrappers with clear review-only states and no activation or money side effects. Priority: P0.
+
+Finding: Added the selected-customer Campaign Review page under Customer Profile Campaigns, linked review actions from the campaign list and policy/settings success path, and wired review submission plus approval/block decisions to the TASK-262 guarded API wrappers. The UI keeps operators inside the selected customer context, explains that approval only unlocks future activation eligibility, and confirms no campaign activation, link generation, validation-track creation, webhook delivery, access change, billing, or money movement. No backend routes, schema, migrations, source forks, activation/go-live commands, links/codes, reports/exports, credentials, billing, DLaaS marketplace behavior, or money movement changed.
+
+Validation: Frontend endpoint and selected-customer Campaign Review page tests cover review submission, review decisions, route handoff from policy/settings, no tenant-code entry, and no unsafe adjacent action copy. `npm run test -- referralSaasAccounts.test.ts ReferralSaasAccountMaintenancePage.test.tsx`; `npm run build`; `git diff --check`.
+
+## TASK-264: Define selected-customer campaign activation/go-live command contract
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_SUBMIT_REVIEW_CONTRACT.md`.
+Shared primitive impact: Reuse selected-customer account scope, campaign readiness, campaign policy evidence, campaign review evidence, audit, idempotency, and existing campaign lifecycle fields. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile Campaigns; campaign activation eligibility; go-live guardrails; lifecycle governance; audit evidence; idempotency.
+Objective: Define the activation/go-live command boundary that follows approved campaign review without accidentally creating links, validation tracks, webhooks, access changes, billing, or money movement.
+Why now: TASK-263 makes campaign review usable. The next production-grade step is a contract for the separate activation command before any backend or frontend activation behavior is built.
+Files likely involved: `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_ACTIVATION_CONTRACT.md`; contract tests; public API map; roadmap/gap docs; infographic.
+Database/schema impact: None expected for contract. Any discovered schema gap must be documented, not implemented inside this task.
+Backend impact: None expected unless adding contract-only tests/helpers.
+Frontend impact: None expected. Activation UI must wait until the command boundary and backend wrapper are reviewed.
+API impact: Define the future selected-customer activation/go-live endpoint, request/response shape, allowed lifecycle transition, idempotency key, audit evidence, safe errors, and forbidden adjacent actions.
+Tests to add/update: Contract tests proving required account/campaign/review/readiness evidence, idempotency/audit requirements, unsafe field rejection, no tenant-code exposure, no link generation, no webhook delivery, no access/billing/money movement, and no activation without approved review.
+Validation method: Focused contract tests plus readback; `git diff --check`.
+Acceptance criteria: Contract cleanly separates review approval from activation; activation preconditions are source-backed; unsafe adjacent actions are forbidden; tenant-code resolution stays server-side; next backend implementation slice can be built without inventing statuses.
+Dependencies: TASK-253; TASK-254; TASK-258; TASK-259; TASK-260; TASK-261; TASK-262; TASK-263.
+Blocked by: Backend activation/go-live wrapper implementation, selected-customer activation UI, link/code customer scoping, customer-scoped reporting, and full campaign workflow E2E tests.
+Risk level: Medium.
+Rollback notes: Remove the contract doc/tests and roadmap/gap/infographic updates.
+Explicit non-goals: Do not add backend routes, schema, migrations, frontend screens, campaign activation runtime behavior, go-live actions, link/code generation, validation-track creation, credentials, webhook delivery, invite delivery, membership activation, seat assignment, auth/session claim changes, reports/exports, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has a reviewed selected-customer campaign activation/go-live command contract that preserves review/activation separation and blocks adjacent side effects. Priority: P0.
 
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 

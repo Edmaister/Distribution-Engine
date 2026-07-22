@@ -18,11 +18,14 @@ import {
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccountCampaigns,
   listReferralSaasAccounts,
+  recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
+  submitReferralSaasAccountCampaignReview,
   updateReferralSaasAccountCampaignPolicySettings,
   updateReferralSaasAccountProfile,
+  type ReferralSaasAccountCampaignReviewResponse,
   type ReferralSaasAccountCampaignPolicySettingsResponse,
   type ReferralSaasAccountMembershipPostureResponse,
   type ReferralSaasAccountCampaignListResponse,
@@ -45,9 +48,11 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   getReferralSaasTechnicalSetupReadiness: vi.fn(),
   listReferralSaasAccountCampaigns: vi.fn(),
   listReferralSaasAccounts: vi.fn(),
+  recordReferralSaasAccountCampaignReviewDecision: vi.fn(),
   recordReferralSaasMembershipInvitationIntent: vi.fn(),
   requestReferralSaasMembershipInvitationDelivery: vi.fn(),
   requestReferralSaasMembershipActivation: vi.fn(),
+  submitReferralSaasAccountCampaignReview: vi.fn(),
   updateReferralSaasAccountCampaignPolicySettings: vi.fn(),
   updateReferralSaasAccountProfile: vi.fn(),
 }));
@@ -61,9 +66,11 @@ const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferral
 const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTechnicalSetupReadiness);
 const mockedListReferralSaasAccountCampaigns = vi.mocked(listReferralSaasAccountCampaigns);
 const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
+const mockedRecordReferralSaasAccountCampaignReviewDecision = vi.mocked(recordReferralSaasAccountCampaignReviewDecision);
 const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordReferralSaasMembershipInvitationIntent);
 const mockedRequestReferralSaasMembershipInvitationDelivery = vi.mocked(requestReferralSaasMembershipInvitationDelivery);
 const mockedRequestReferralSaasMembershipActivation = vi.mocked(requestReferralSaasMembershipActivation);
+const mockedSubmitReferralSaasAccountCampaignReview = vi.mocked(submitReferralSaasAccountCampaignReview);
 const mockedUpdateReferralSaasAccountCampaignPolicySettings = vi.mocked(updateReferralSaasAccountCampaignPolicySettings);
 const mockedUpdateReferralSaasAccountProfile = vi.mocked(updateReferralSaasAccountProfile);
 
@@ -625,6 +632,46 @@ function mockCampaignPolicySettings(): ReferralSaasAccountCampaignPolicySettings
   };
 }
 
+function mockCampaignReview(status = "READY_FOR_REVIEW"): ReferralSaasAccountCampaignReviewResponse {
+  return {
+    status: "ok",
+    context: "setup",
+    account: {
+      accountId: "acct-gabs",
+      accountCode: "ACC-2201",
+      accountName: "Gaborone Partners",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "APPROVED",
+    },
+    campaignReview: {
+      commandStatus: status === "REVIEW_APPROVED" ? "CAMPAIGN_REVIEW_DECISION_RECORDED" : "CAMPAIGN_REVIEW_SUBMITTED",
+      accountRef: "acct-gabs",
+      campaignRef: "CAMP002",
+      previousReviewStatus: status === "REVIEW_APPROVED" ? "READY_FOR_REVIEW" : "POLICY_SETTINGS_READY",
+      reviewStatus: status,
+      setupStatus: "POLICY_SETTINGS_READY",
+      readinessStatus: "READY_WITH_WARNINGS",
+      activationEligibility:
+        status === "REVIEW_APPROVED" ? "ELIGIBLE_FOR_FUTURE_ACTIVATION" : "NOT_ELIGIBLE_UNTIL_REVIEW_APPROVED",
+      activationStatus: "INACTIVE",
+      reviewerAction: status === "REVIEW_APPROVED" ? "Prepare activation request" : "Record review decision",
+      idempotency: { status: "RECORDED" },
+      audit: { accountAuditEventId: "audit-campaign-review-1" },
+      nextActions: status === "REVIEW_APPROVED" ? ["Prepare activation request"] : ["Record review decision"],
+      guardrails: ["NO_CAMPAIGN_ACTIVATION", "NO_LINK_GENERATION"],
+      redactions: ["internal_tenant_identifier"],
+    },
+    guardrails: ["NO_CAMPAIGN_ACTIVATION", "NO_LINK_GENERATION"],
+    redactions: ["internal_tenant_identifier"],
+    no_campaign_activation_confirmed: true,
+    no_link_generation_confirmed: true,
+    no_validation_track_created_confirmed: true,
+    no_webhook_delivery_confirmed: true,
+    no_invite_or_seat_change_confirmed: true,
+    no_money_movement_confirmed: true,
+  };
+}
+
 describe("ReferralSaasAccountMaintenancePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -636,6 +683,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedListReferralSaasAccountCampaigns.mockResolvedValue(mockCampaignList());
     mockedGetReferralSaasAccountCampaignReadiness.mockResolvedValue(mockCampaignReadiness());
     mockedUpdateReferralSaasAccountCampaignPolicySettings.mockResolvedValue(mockCampaignPolicySettings());
+    mockedSubmitReferralSaasAccountCampaignReview.mockResolvedValue(mockCampaignReview());
+    mockedRecordReferralSaasAccountCampaignReviewDecision.mockResolvedValue(mockCampaignReview("REVIEW_APPROVED"));
     mockedListReferralSaasAccounts.mockResolvedValue(mockAccountRegistry());
     mockedRecordReferralSaasMembershipInvitationIntent.mockResolvedValue({
       status: "ok",
@@ -1238,12 +1287,104 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     });
     expect(await screen.findByText("Policy settings saved.")).toBeInTheDocument();
     expect(screen.getByText(/No links were generated, no campaign was activated/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Review campaign readiness" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Submit for review" })).toHaveAttribute(
       "href",
-      "/admin/referral-saas/account-maintenance/acct-gabs/campaigns",
+      "/admin/referral-saas/account-maintenance/acct-gabs/campaigns/review?campaign=CAMP002",
     );
     expect(JSON.stringify(mockedUpdateReferralSaasAccountCampaignPolicySettings.mock.calls)).not.toMatch(
       /tenantCode|tenant_code|isActive|activate|linkGeneration|webhook|wallet|settlement|money/i,
+    );
+  });
+
+  it("submits selected-customer campaign review from its own page", async () => {
+    renderWorkspace(
+      <ReferralSaasAccountMaintenancePage />,
+      "/admin/referral-saas/account-maintenance/acct-gabs/campaigns/review?campaign=CAMP002",
+    );
+
+    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Campaign review" })).toBeInTheDocument();
+    expect(screen.getByText(/Approval only makes future activation eligible/i)).toBeInTheDocument();
+    expect(screen.getByText("No tenant code entry")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Campaign")).toHaveValue("CAMP002"));
+
+    fireEvent.change(screen.getByLabelText("Review summary"), {
+      target: { value: "Campaign setup and policy settings are ready." },
+    });
+    fireEvent.change(screen.getByLabelText("Operator notes"), {
+      target: { value: "Policy reviewed." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Submit campaign for review" }));
+
+    await waitFor(() => expect(mockedSubmitReferralSaasAccountCampaignReview).toHaveBeenCalledTimes(1));
+    expect(mockedSubmitReferralSaasAccountCampaignReview.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      campaignCode: "CAMP002",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      reviewSubmission: {
+        setupSummary: "Campaign setup and policy settings are ready.",
+        requestedReviewStatus: "READY_FOR_REVIEW",
+        operatorNotes: "Policy reviewed.",
+      },
+      reasonCode: "CUSTOMER_PROFILE_CAMPAIGN_REVIEW_SUBMISSION",
+      correlationId: "customer-profile-campaign-review-submit-acct-gabs",
+      idempotencyKey: "customer-profile-campaign-review-submit-acct-gabs-camp002",
+    });
+    expect(await screen.findByText("Campaign review recorded.")).toBeInTheDocument();
+    expect(screen.getAllByText("Record review decision").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Approval does not activate the campaign/i)).toBeInTheDocument();
+    expect(JSON.stringify(mockedSubmitReferralSaasAccountCampaignReview.mock.calls)).not.toMatch(
+      /tenantCode|tenant_code|isActive|activate|linkGeneration|webhook|seat|authClaim|wallet|settlement|money/i,
+    );
+  });
+
+  it("records selected-customer campaign review decision without activation", async () => {
+    renderWorkspace(
+      <ReferralSaasAccountMaintenancePage />,
+      "/admin/referral-saas/account-maintenance/acct-gabs/campaigns/review?campaign=CAMP002",
+    );
+
+    expect(await screen.findByRole("heading", { name: "Campaign review" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Campaign")).toHaveValue("CAMP002"));
+
+    fireEvent.change(screen.getByLabelText("Review decision"), {
+      target: { value: "APPROVED" },
+    });
+    fireEvent.change(screen.getByLabelText("Reviewer reference"), {
+      target: { value: "operator-1" },
+    });
+    fireEvent.change(screen.getByLabelText("Decision reason"), {
+      target: { value: "Reviewed and approved." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Record review decision" }));
+
+    await waitFor(() => expect(mockedRecordReferralSaasAccountCampaignReviewDecision).toHaveBeenCalledTimes(1));
+    expect(mockedRecordReferralSaasAccountCampaignReviewDecision.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      campaignCode: "CAMP002",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      reviewDecision: {
+        decision: "APPROVED",
+        reason: "Reviewed and approved.",
+        reviewerRef: "operator-1",
+      },
+      reasonCode: "CUSTOMER_PROFILE_CAMPAIGN_REVIEW_DECISION",
+      correlationId: "customer-profile-campaign-review-decision-acct-gabs",
+      idempotencyKey: "customer-profile-campaign-review-decision-acct-gabs-camp002-approved",
+    });
+    expect(await screen.findByText("Campaign review recorded.")).toBeInTheDocument();
+    expect(screen.getAllByText("Prepare activation request").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Approval does not activate the campaign/i)).toBeInTheDocument();
+    expect(JSON.stringify(mockedRecordReferralSaasAccountCampaignReviewDecision.mock.calls)).not.toMatch(
+      /tenantCode|tenant_code|isActive|activate|linkGeneration|webhook|seat|authClaim|wallet|settlement|money/i,
     );
   });
 

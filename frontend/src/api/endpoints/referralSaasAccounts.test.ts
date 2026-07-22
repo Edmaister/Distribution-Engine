@@ -11,10 +11,12 @@ import {
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccountCampaigns,
   listReferralSaasAccounts,
+  recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   resolveReferralSaasAccount,
+  submitReferralSaasAccountCampaignReview,
   updateReferralSaasAccountCampaignPolicySettings,
   updateReferralSaasAccountProfile,
 } from "./referralSaasAccounts";
@@ -758,6 +760,183 @@ describe("referralSaasAccounts endpoint client", () => {
     });
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|isactive|activatecampaign|linkgeneration|webhook|wallet|settlement|money/,
+    );
+  });
+
+  it("submits a customer-scoped campaign for review through the guarded wrapper", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      campaignReview: {
+        commandStatus: "CAMPAIGN_REVIEW_SUBMITTED",
+        accountRef: "acct-1",
+        campaignRef: "CAMP001",
+        previousReviewStatus: "POLICY_SETTINGS_READY",
+        reviewStatus: "READY_FOR_REVIEW",
+        setupStatus: "POLICY_SETTINGS_READY",
+        readinessStatus: "READY_WITH_WARNINGS",
+        activationEligibility: "NOT_ELIGIBLE_UNTIL_REVIEW_APPROVED",
+        activationStatus: "INACTIVE",
+        reviewerAction: "Review campaign setup evidence",
+        idempotency: { status: "RECORDED" },
+        audit: { accountAuditEventId: "audit-review-1" },
+        nextActions: ["Record review decision"],
+        guardrails: ["NO_CAMPAIGN_ACTIVATION", "NO_LINK_GENERATION"],
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrails: ["NO_CAMPAIGN_ACTIVATION", "NO_LINK_GENERATION"],
+      redactions: ["internal_tenant_identifier"],
+      no_campaign_activation_confirmed: true,
+      no_link_generation_confirmed: true,
+      no_validation_track_created_confirmed: true,
+      no_webhook_delivery_confirmed: true,
+      no_invite_or_seat_change_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      submitReferralSaasAccountCampaignReview({
+        accountRef: " acct-1 ",
+        campaignCode: " CAMP001 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " fnb-referrals ",
+          context: "setup",
+        },
+        reviewSubmission: {
+          setupSummary: " Campaign setup and policy settings are ready. ",
+          requestedReviewStatus: " READY_FOR_REVIEW ",
+          operatorNotes: " Safe review notes. ",
+        },
+        reasonCode: " Customer campaign review ",
+        correlationId: "corr-review-1",
+        idempotencyKey: "campaign-review-1",
+      }),
+    ).resolves.toMatchObject({
+      campaignReview: {
+        campaignRef: "CAMP001",
+        reviewStatus: "READY_FOR_REVIEW",
+      },
+      no_campaign_activation_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acct-1/campaigns/CAMP001/review-submissions",
+      {
+        method: "POST",
+        body: {
+          accountScope: {
+            refType: "external_tenant_ref",
+            externalRef: "fnb-referrals",
+            context: "setup",
+          },
+          reviewSubmission: {
+            setupSummary: "Campaign setup and policy settings are ready.",
+            requestedReviewStatus: "READY_FOR_REVIEW",
+            operatorNotes: "Safe review notes.",
+          },
+          reasonCode: "Customer campaign review",
+          correlationId: "corr-review-1",
+          idempotencyKey: "campaign-review-1",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|isactive|activatecampaign|linkgeneration|webhook|seat|authclaim|wallet|settlement|money/,
+    );
+  });
+
+  it("records a customer-scoped campaign review decision through the guarded wrapper", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      campaignReview: {
+        commandStatus: "CAMPAIGN_REVIEW_DECISION_RECORDED",
+        accountRef: "acct-1",
+        campaignRef: "CAMP001",
+        previousReviewStatus: "READY_FOR_REVIEW",
+        reviewStatus: "REVIEW_APPROVED",
+        setupStatus: "POLICY_SETTINGS_READY",
+        readinessStatus: "READY_WITH_WARNINGS",
+        activationEligibility: "ELIGIBLE_FOR_FUTURE_ACTIVATION",
+        activationStatus: "INACTIVE",
+        reviewerAction: "Activation remains a separate command",
+        idempotency: { status: "RECORDED" },
+        audit: { accountAuditEventId: "audit-review-decision-1" },
+        nextActions: ["Prepare activation request"],
+        guardrails: ["NO_CAMPAIGN_ACTIVATION", "NO_LINK_GENERATION"],
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrails: ["NO_CAMPAIGN_ACTIVATION", "NO_LINK_GENERATION"],
+      redactions: ["internal_tenant_identifier"],
+      no_campaign_activation_confirmed: true,
+      no_link_generation_confirmed: true,
+      no_validation_track_created_confirmed: true,
+      no_webhook_delivery_confirmed: true,
+      no_invite_or_seat_change_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      recordReferralSaasAccountCampaignReviewDecision({
+        accountRef: " acct-1 ",
+        campaignCode: " CAMP001 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " fnb-referrals ",
+          context: "setup",
+        },
+        reviewDecision: {
+          decision: "APPROVED",
+          reason: " Reviewed and approved. ",
+          reviewerRef: " amplifi-admin ",
+        },
+        reasonCode: " Customer campaign review decision ",
+        correlationId: "corr-review-decision-1",
+        idempotencyKey: "campaign-review-decision-1",
+      }),
+    ).resolves.toMatchObject({
+      campaignReview: {
+        campaignRef: "CAMP001",
+        reviewStatus: "REVIEW_APPROVED",
+        activationEligibility: "ELIGIBLE_FOR_FUTURE_ACTIVATION",
+      },
+      no_campaign_activation_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acct-1/campaigns/CAMP001/review-decisions",
+      {
+        method: "POST",
+        body: {
+          accountScope: {
+            refType: "external_tenant_ref",
+            externalRef: "fnb-referrals",
+            context: "setup",
+          },
+          reviewDecision: {
+            decision: "APPROVED",
+            reason: "Reviewed and approved.",
+            reviewerRef: "amplifi-admin",
+          },
+          reasonCode: "Customer campaign review decision",
+          correlationId: "corr-review-decision-1",
+          idempotencyKey: "campaign-review-decision-1",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|isactive|activatecampaign|linkgeneration|webhook|seat|authclaim|wallet|settlement|money/,
     );
   });
 
