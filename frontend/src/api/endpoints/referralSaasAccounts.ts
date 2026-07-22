@@ -300,6 +300,65 @@ export type ReferralSaasAccountCampaignReadinessResponse = {
   no_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasAccountCampaignSetupCreateRequest = {
+  accountRef: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  campaign: {
+    name: string;
+    segment: string;
+    startsAt?: string | null;
+    endsAt?: string | null;
+    maxUses?: number | null;
+  };
+  setupIntent?: {
+    reason?: string;
+  };
+  correlationId: string;
+  idempotencyKey: string;
+};
+
+export type ReferralSaasAccountCampaignSetupCreateResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  campaignSetup: {
+    commandStatus: string;
+    accountRef: string;
+    campaign: {
+      campaignRef: string;
+      campaignCode: string;
+      name: string;
+      segment: string;
+      setupStatus: string;
+      isActive: boolean;
+      startsAt?: string | null;
+      endsAt?: string | null;
+      maxUses?: number | null;
+    };
+    idempotency: {
+      status: string;
+    };
+    audit: {
+      accountAuditEventId?: string | null;
+    };
+    nextActions: string[];
+    guardrails: string[];
+    redactions: string[];
+  };
+  guardrails: string[];
+  redactions: string[];
+  no_campaign_activation_confirmed: boolean;
+  no_link_generation_confirmed: boolean;
+  no_validation_track_created_confirmed: boolean;
+  no_policy_write_confirmed: boolean;
+  no_webhook_delivery_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasAccountCreateFromDraftRequest = {
   draftRef: string;
   internalTenantCode: string;
@@ -664,6 +723,41 @@ export function getReferralSaasAccountCampaignReadiness({
         context,
         opportunity_id: opportunityId?.trim() || undefined,
         include_evidence: includeEvidence,
+      },
+    },
+  );
+}
+
+export function createReferralSaasAccountCampaignSetup({
+  accountRef,
+  accountScope,
+  campaign,
+  setupIntent,
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasAccountCampaignSetupCreateRequest): Promise<ReferralSaasAccountCampaignSetupCreateResponse> {
+  return apiRequest<ReferralSaasAccountCampaignSetupCreateResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaigns`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        campaign: {
+          name: campaign.name.trim(),
+          segment: campaign.segment.trim(),
+          startsAt: campaign.startsAt || null,
+          endsAt: campaign.endsAt || null,
+          maxUses: campaign.maxUses ?? null,
+        },
+        setupIntent: {
+          reason: setupIntent?.reason?.trim() || "CUSTOMER_PROFILE_CAMPAIGN_SETUP",
+        },
+        correlationId,
+        idempotencyKey,
       },
     },
   );

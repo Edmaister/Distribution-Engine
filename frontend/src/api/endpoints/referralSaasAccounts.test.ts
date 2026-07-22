@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { apiRequest } from "../client";
 import {
+  createReferralSaasAccountCampaignSetup,
   createReferralSaasAccountFromDraft,
   getReferralSaasAccountCampaign,
   getReferralSaasAccountCampaignReadiness,
@@ -550,6 +551,103 @@ describe("referralSaasAccounts endpoint client", () => {
     });
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|wallet|settlement|money_movement|activate_campaign/,
+    );
+  });
+
+  it("creates a customer-scoped inactive campaign setup without tenant code entry", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "created",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      campaignSetup: {
+        commandStatus: "CAMPAIGN_SETUP_DRAFT_RECORDED",
+        accountRef: "acct-1",
+        campaign: {
+          campaignRef: "FNB-RETAIL-SPRING-1234",
+          campaignCode: "FNB-RETAIL-SPRING-1234",
+          name: "Spring Referral Pilot",
+          segment: "Retail banking customers",
+          setupStatus: "DRAFT",
+          isActive: false,
+          startsAt: null,
+          endsAt: null,
+          maxUses: 100,
+        },
+        idempotency: { status: "RECORDED" },
+        audit: { accountAuditEventId: "audit-1" },
+        nextActions: ["Complete policy and attribution settings", "Run campaign readiness"],
+        guardrails: ["NO_CAMPAIGN_ACTIVATION", "NO_POLICY_WRITE"],
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrails: ["NO_CAMPAIGN_ACTIVATION", "NO_POLICY_WRITE"],
+      redactions: ["internal_tenant_identifier"],
+      no_campaign_activation_confirmed: true,
+      no_link_generation_confirmed: true,
+      no_validation_track_created_confirmed: true,
+      no_policy_write_confirmed: true,
+      no_webhook_delivery_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      createReferralSaasAccountCampaignSetup({
+        accountRef: " acct-1 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " fnb-referrals ",
+          context: "setup",
+        },
+        campaign: {
+          name: " Spring Referral Pilot ",
+          segment: " Retail banking customers ",
+          startsAt: null,
+          endsAt: null,
+          maxUses: 100,
+        },
+        setupIntent: {
+          reason: " Customer profile campaign setup ",
+        },
+        correlationId: "corr-1",
+        idempotencyKey: "campaign-create-1",
+      }),
+    ).resolves.toMatchObject({
+      campaignSetup: {
+        campaign: {
+          setupStatus: "DRAFT",
+          isActive: false,
+        },
+      },
+      no_campaign_activation_confirmed: true,
+      no_policy_write_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts/acct-1/campaigns", {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: "fnb-referrals",
+          context: "setup",
+        },
+        campaign: {
+          name: "Spring Referral Pilot",
+          segment: "Retail banking customers",
+          startsAt: null,
+          endsAt: null,
+          maxUses: 100,
+        },
+        setupIntent: {
+          reason: "Customer profile campaign setup",
+        },
+        correlationId: "corr-1",
+        idempotencyKey: "campaign-create-1",
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|isactive|activatecampaign|policywrite|linkgeneration|money/,
     );
   });
 

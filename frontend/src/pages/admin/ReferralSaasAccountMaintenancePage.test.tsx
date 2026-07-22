@@ -11,6 +11,7 @@ import {
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
 import {
+  createReferralSaasAccountCampaignSetup,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasAccountMembershipPosture,
   getReferralSaasMembershipActivationReadiness,
@@ -35,6 +36,7 @@ vi.mock("../../api/endpoints/adminOnboarding", () => ({
   getAdminOnboardingState: vi.fn(),
 }));
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
+  createReferralSaasAccountCampaignSetup: vi.fn(),
   getReferralSaasAccountCampaignReadiness: vi.fn(),
   getReferralSaasAccountMembershipPosture: vi.fn(),
   getReferralSaasMembershipActivationReadiness: vi.fn(),
@@ -49,6 +51,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
 
 const mockedGetAdminOnboardingDrafts = vi.mocked(getAdminOnboardingDrafts);
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
+const mockedCreateReferralSaasAccountCampaignSetup = vi.mocked(createReferralSaasAccountCampaignSetup);
 const mockedGetReferralSaasAccountCampaignReadiness = vi.mocked(getReferralSaasAccountCampaignReadiness);
 const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
 const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferralSaasMembershipActivationReadiness);
@@ -78,6 +81,7 @@ function renderWorkspace(ui: ReactElement, initialEntry = "/admin/referral-saas/
           { path: "admin/referral-saas/account-maintenance", element: ui },
           { path: "admin/referral-saas/account-maintenance/:accountId", element: ui },
           { path: "admin/referral-saas/account-maintenance/:accountId/:customerModule", element: ui },
+          { path: "admin/referral-saas/account-maintenance/:accountId/:customerModule/:customerSubModule", element: ui },
           { path: "admin/referral-saas/campaigns", element: <div>Campaign Target</div> },
           { path: "admin/referral-saas/link-codes", element: <div>Links Target</div> },
           { path: "admin/referral-saas/attribution-trace", element: <div>Trace Target</div> },
@@ -741,6 +745,49 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       no_invite_delivery_confirmed: true,
       no_money_movement_confirmed: true,
     });
+    mockedCreateReferralSaasAccountCampaignSetup.mockResolvedValue({
+      status: "created",
+      context: "setup",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACC-2201",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+        onboardingStatus: "APPROVED",
+      },
+      campaignSetup: {
+        commandStatus: "CAMPAIGN_SETUP_DRAFT_RECORDED",
+        accountRef: "acct-gabs",
+        campaign: {
+          campaignRef: "BW-REFERRAL-SPRING-1234",
+          campaignCode: "BW-REFERRAL-SPRING-1234",
+          name: "Spring referral pilot",
+          segment: "Retail banking customers",
+          setupStatus: "DRAFT",
+          isActive: false,
+          startsAt: null,
+          endsAt: null,
+          maxUses: 100,
+        },
+        idempotency: { status: "RECORDED" },
+        audit: { accountAuditEventId: "audit-campaign-1" },
+        nextActions: [
+          "Complete policy and attribution settings",
+          "Run campaign readiness",
+          "Review before activation",
+        ],
+        guardrails: ["NO_CAMPAIGN_ACTIVATION", "NO_POLICY_WRITE"],
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrails: ["NO_CAMPAIGN_ACTIVATION", "NO_POLICY_WRITE"],
+      redactions: ["internal_tenant_identifier"],
+      no_campaign_activation_confirmed: true,
+      no_link_generation_confirmed: true,
+      no_validation_track_created_confirmed: true,
+      no_policy_write_confirmed: true,
+      no_webhook_delivery_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
   });
 
   afterEach(() => {
@@ -983,6 +1030,10 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText(/Check campaign readiness inside this customer profile/i)).toBeInTheDocument();
     expect(screen.getByText("No tenant code entry")).toBeInTheDocument();
     expect(await screen.findByText("Campaigns for this customer")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Create campaign setup" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs/campaigns/new",
+    );
     expect(await screen.findByRole("button", { name: "Summer Referrals" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Partner Pilot" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Selected campaign code")).toHaveValue("CAMP001"));
@@ -1011,6 +1062,58 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     });
     expect(JSON.stringify(mockedGetReferralSaasAccountCampaignReadiness.mock.calls)).not.toMatch(
       /tenantCode|tenant_code|activateCampaign|money/i,
+    );
+  });
+
+  it("saves a selected-customer campaign setup draft from its own page", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/campaigns/new");
+
+    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Create campaign setup" })).toBeInTheDocument();
+    expect(screen.getByText(/Save an inactive campaign setup draft for this customer/i)).toBeInTheDocument();
+    expect(screen.getByText("No tenant code entry")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Campaign name"), {
+      target: { value: "Spring referral pilot" },
+    });
+    fireEvent.change(screen.getByLabelText("Audience or segment"), {
+      target: { value: "Retail banking customers" },
+    });
+    fireEvent.change(screen.getByLabelText("Maximum referrals"), {
+      target: { value: "100" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save campaign setup" }));
+
+    await waitFor(() => expect(mockedCreateReferralSaasAccountCampaignSetup).toHaveBeenCalledTimes(1));
+    expect(mockedCreateReferralSaasAccountCampaignSetup.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      campaign: {
+        name: "Spring referral pilot",
+        segment: "Retail banking customers",
+        startsAt: null,
+        endsAt: null,
+        maxUses: 100,
+      },
+      setupIntent: {
+        reason: "CUSTOMER_PROFILE_CAMPAIGN_SETUP",
+      },
+      correlationId: "customer-profile-campaign-create-acct-gabs",
+      idempotencyKey: "customer-profile-campaign-create-acct-gabs-spring-referral-pilot-retail-banking-customers",
+    });
+    expect(await screen.findByText("Campaign setup saved.")).toBeInTheDocument();
+    expect(screen.getByText(/inactive draft/i)).toBeInTheDocument();
+    expect(screen.getByText("Complete policy and attribution settings")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Review campaign readiness" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs/campaigns",
+    );
+    expect(JSON.stringify(mockedCreateReferralSaasAccountCampaignSetup.mock.calls)).not.toMatch(
+      /tenantCode|tenant_code|isActive|activateCampaign|policyWrite|linkGeneration|money/i,
     );
   });
 

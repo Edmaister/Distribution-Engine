@@ -26,10 +26,12 @@ import {
   useReferralSaasTechnicalSetupReadiness,
 } from "../../api/referralSaasAccountQueries";
 import {
+  createReferralSaasAccountCampaignSetup,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   updateReferralSaasAccountProfile,
+  type ReferralSaasAccountCampaignSetupCreateResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import type { CampaignReadinessOperation } from "../../api/endpoints/adminCampaignReadiness";
@@ -72,6 +74,14 @@ type ProfileDraft = {
   operatingJurisdictionCode: string;
   customerType: string;
   industry: string;
+};
+
+type CampaignSetupDraft = {
+  name: string;
+  segment: string;
+  startsAt: string;
+  endsAt: string;
+  maxUses: string;
 };
 
 const customerFunctions = [
@@ -236,7 +246,11 @@ const jurisdictionOptions = [
 ];
 
 export function ReferralSaasAccountMaintenancePage() {
-  const { accountId, customerModule } = useParams<{ accountId?: string; customerModule?: string }>();
+  const { accountId, customerModule, customerSubModule } = useParams<{
+    accountId?: string;
+    customerModule?: string;
+    customerSubModule?: string;
+  }>();
   const { refreshKey } = useRefreshContext();
   const [draftExternalTenantRef, setDraftExternalTenantRef] = useState(defaultExternalTenantRef);
   const [draftOrganisationRef, setDraftOrganisationRef] = useState(defaultOrganisationRef);
@@ -252,6 +266,15 @@ export function ReferralSaasAccountMaintenancePage() {
   const [activationResult, setActivationResult] = useState<string | null>(null);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
   const [profileResult, setProfileResult] = useState<string | null>(null);
+  const [campaignSetupDraft, setCampaignSetupDraft] = useState<CampaignSetupDraft>({
+    name: "",
+    segment: "Referral acquisition",
+    startsAt: "",
+    endsAt: "",
+    maxUses: "",
+  });
+  const [campaignSetupResult, setCampaignSetupResult] =
+    useState<ReferralSaasAccountCampaignSetupCreateResponse | null>(null);
   const scopeChanged =
     draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
     draftOrganisationRef.trim() !== appliedOrganisationRef;
@@ -359,6 +382,12 @@ export function ReferralSaasAccountMaintenancePage() {
         `${response.profile.accountName} was updated. Customer identifiers stayed unchanged, and no account activation, membership, campaign, credential, go-live, or money action was performed.`,
       );
       void refetchAccountRegistry();
+    },
+  });
+  const campaignSetupMutation = useMutation({
+    mutationFn: createReferralSaasAccountCampaignSetup,
+    onSuccess: (response) => {
+      setCampaignSetupResult(response);
     },
   });
   const pendingAccount = accountItems.find((account) => account.accountId === pendingAccountId);
@@ -526,6 +555,46 @@ export function ReferralSaasAccountMaintenancePage() {
       },
       correlationId: `customer-profile-settings-${selectedAccount.accountId}`,
       idempotencyKey: `customer-profile-settings-${selectedAccount.accountId}-${selectedProfileDraft.accountName}-${selectedProfileDraft.operatingJurisdictionCode}-${selectedProfileDraft.customerType}-${selectedProfileDraft.industry}`
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-"),
+    });
+  }
+
+  function updateCampaignSetupDraft(values: Partial<CampaignSetupDraft>) {
+    setCampaignSetupDraft((current) => ({
+      ...current,
+      ...values,
+    }));
+    setCampaignSetupResult(null);
+  }
+
+  function submitCampaignSetup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const cleanedName = campaignSetupDraft.name.trim();
+    const cleanedSegment = campaignSetupDraft.segment.trim();
+    if (!selectedAccount || !selectedExternalTenantRef || !cleanedName || !cleanedSegment) {
+      return;
+    }
+    const cleanedMaxUses = campaignSetupDraft.maxUses.trim();
+    campaignSetupMutation.mutate({
+      accountRef: selectedAccount.accountId,
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: selectedExternalTenantRef,
+        context: "setup",
+      },
+      campaign: {
+        name: cleanedName,
+        segment: cleanedSegment,
+        startsAt: campaignSetupDraft.startsAt || null,
+        endsAt: campaignSetupDraft.endsAt || null,
+        maxUses: cleanedMaxUses ? Number(cleanedMaxUses) : null,
+      },
+      setupIntent: {
+        reason: "CUSTOMER_PROFILE_CAMPAIGN_SETUP",
+      },
+      correlationId: `customer-profile-campaign-create-${selectedAccount.accountId}`,
+      idempotencyKey: `customer-profile-campaign-create-${selectedAccount.accountId}-${cleanedName}-${cleanedSegment}`
         .toLowerCase()
         .replace(/[^a-z0-9-]+/g, "-"),
     });
@@ -1301,12 +1370,27 @@ export function ReferralSaasAccountMaintenancePage() {
               ) : null}
 
               {selectedModule === "campaigns" ? (
-                <CustomerCampaignsPage
-                  customerName={customerName}
-                  customerQuery={customerQuery}
-                  externalTenantRef={selectedExternalTenantRef}
-                  selectedAccount={selectedAccount}
-                />
+                customerSubModule === "new" ? (
+                  <CustomerCampaignSetupCreatePage
+                    customerName={customerName}
+                    draft={campaignSetupDraft}
+                    error={campaignSetupMutation.error}
+                    isSaving={campaignSetupMutation.isPending}
+                    onChange={updateCampaignSetupDraft}
+                    onSubmit={submitCampaignSetup}
+                    result={campaignSetupResult}
+                    selectedAccount={selectedAccount}
+                    selectedCustomerPath={selectedCustomerPath}
+                  />
+                ) : (
+                  <CustomerCampaignsPage
+                    customerName={customerName}
+                    customerQuery={customerQuery}
+                    externalTenantRef={selectedExternalTenantRef}
+                    selectedAccount={selectedAccount}
+                    selectedCustomerPath={selectedCustomerPath}
+                  />
+                )
               ) : null}
 
               {["links", "reports", "support", "attribution", "progress"].includes(selectedModule) ? (
@@ -1395,11 +1479,13 @@ function CustomerCampaignsPage({
   customerQuery,
   externalTenantRef,
   selectedAccount,
+  selectedCustomerPath,
 }: {
   customerName: string;
   customerQuery: string;
   externalTenantRef: string;
   selectedAccount?: AccountRegistryItem;
+  selectedCustomerPath: string;
 }) {
   const { refreshKey } = useRefreshContext();
   const [campaignCode, setCampaignCode] = useState("");
@@ -1460,7 +1546,12 @@ function CustomerCampaignsPage({
             Check campaign readiness inside this customer profile before creating links, launching tests, or moving to campaign setup.
           </div>
         </div>
-        <StatusBadge label="Customer scoped" tone="success" />
+        <div className="customer-header-actions">
+          <Link className="button" to={`${selectedCustomerPath}/campaigns/new`}>
+            Create campaign setup
+          </Link>
+          <StatusBadge label="Customer scoped" tone="success" />
+        </div>
       </div>
       <div className="panel-body route-list">
         <div className="wizard-status-card">
@@ -1481,7 +1572,7 @@ function CustomerCampaignsPage({
         {campaignListError ? <ErrorPanel error={campaignListError} /> : null}
         <DataTable
           rows={campaigns}
-          emptyText="No campaigns are attached to this customer yet. Campaign creation remains a later guarded workflow."
+          emptyText="No campaigns are attached to this customer yet. Use Create campaign setup to save the first inactive campaign draft."
           columns={[
             {
               key: "campaign",
@@ -1634,6 +1725,170 @@ function CustomerCampaignsPage({
         <Link className="button button-secondary" to={`/admin/referral-saas/campaigns${customerQuery}`}>
           Open legacy campaign readiness workspace
         </Link>
+      </div>
+    </section>
+  );
+}
+
+function CustomerCampaignSetupCreatePage({
+  customerName,
+  draft,
+  error,
+  isSaving,
+  onChange,
+  onSubmit,
+  result,
+  selectedAccount,
+  selectedCustomerPath,
+}: {
+  customerName: string;
+  draft: CampaignSetupDraft;
+  error: unknown;
+  isSaving: boolean;
+  onChange: (values: Partial<CampaignSetupDraft>) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  result: ReferralSaasAccountCampaignSetupCreateResponse | null;
+  selectedAccount?: AccountRegistryItem;
+  selectedCustomerPath: string;
+}) {
+  const savedCampaign = result?.campaignSetup.campaign;
+  const canSave = Boolean(selectedAccount && draft.name.trim() && draft.segment.trim());
+
+  return (
+    <section className="panel customer-module-page">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Campaigns &gt; Create</div>
+          <h2 className="panel-title">Create campaign setup</h2>
+          <div className="panel-subtitle">
+            Save an inactive campaign setup draft for this customer. Policy, links, readiness review, and launch stay separate.
+          </div>
+        </div>
+        <StatusBadge label="Draft only" tone="warning" />
+      </div>
+      <div className="panel-body route-list">
+        <div className="wizard-status-card">
+          <div>
+            <strong>Selected customer</strong>
+            <p>
+              {selectedAccount?.accountName || customerName} - {selectedAccount?.accountCode || "No account code"}
+            </p>
+          </div>
+          <StatusBadge label="No tenant code entry" tone="success" />
+        </div>
+
+        <form className="form-grid" onSubmit={onSubmit}>
+          <label>
+            Campaign name
+            <input
+              onChange={(event) => onChange({ name: event.target.value })}
+              placeholder="Example: Spring referral pilot"
+              value={draft.name}
+            />
+          </label>
+          <label>
+            Audience or segment
+            <input
+              onChange={(event) => onChange({ segment: event.target.value })}
+              placeholder="Example: Retail banking customers"
+              value={draft.segment}
+            />
+          </label>
+          <label>
+            Starts on
+            <input
+              onChange={(event) => onChange({ startsAt: event.target.value })}
+              type="date"
+              value={draft.startsAt}
+            />
+          </label>
+          <label>
+            Ends on
+            <input
+              onChange={(event) => onChange({ endsAt: event.target.value })}
+              type="date"
+              value={draft.endsAt}
+            />
+          </label>
+          <label>
+            Maximum referrals
+            <input
+              min="1"
+              onChange={(event) => onChange({ maxUses: event.target.value })}
+              placeholder="Optional"
+              type="number"
+              value={draft.maxUses}
+            />
+          </label>
+          <button className="button" disabled={!canSave || isSaving} type="submit">
+            {isSaving ? "Saving campaign setup" : "Save campaign setup"}
+          </button>
+        </form>
+
+        {error ? <ErrorPanel error={error} /> : null}
+        {result && savedCampaign ? (
+          <>
+            <div className="wizard-summary-strip success">
+              <div>
+                <strong>Campaign setup saved.</strong>{" "}
+                {savedCampaign.name} is an inactive draft. No links were generated, no policy was changed, no campaign was activated, and no money moved.
+              </div>
+              <StatusBadge label={formatDisplay(savedCampaign.setupStatus)} tone="success" />
+            </div>
+            <div className="grid-3">
+              <KpiCard
+                label="Campaign"
+                value={savedCampaign.name}
+                footnote={savedCampaign.campaignCode}
+                icon={Target}
+              />
+              <KpiCard
+                label="Setup state"
+                value={formatDisplay(savedCampaign.setupStatus)}
+                footnote={savedCampaign.isActive ? "Active" : "Inactive until a later activation step"}
+                icon={ShieldCheck}
+              />
+              <KpiCard
+                label="Next work"
+                value={String(result.campaignSetup.nextActions.length)}
+                footnote="Policy, readiness, and review remain separate"
+                icon={ListChecks}
+              />
+            </div>
+            <div className="route-list">
+              {result.campaignSetup.nextActions.map((action) => (
+                <div className="route-item" key={action}>
+                  <div>
+                    <div className="route-name">{action}</div>
+                    <div className="route-path">Continue from the customer Campaigns page when you are ready.</div>
+                  </div>
+                  <StatusBadge label="Next" tone="info" />
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="wizard-status-card">
+            <div>
+              <strong>What this saves</strong>
+              <p>
+                A customer-scoped inactive campaign draft. It gives the customer a campaign record to continue with later, without activating or launching anything.
+              </p>
+            </div>
+            <StatusBadge label="Safe create" tone="info" />
+          </div>
+        )}
+
+        <div className="customer-header-actions">
+          <Link className="button secondary" to={`${selectedCustomerPath}/campaigns`}>
+            Back to Campaigns
+          </Link>
+          {savedCampaign ? (
+            <Link className="button" to={`${selectedCustomerPath}/campaigns`}>
+              Review campaign readiness
+            </Link>
+          ) : null}
+        </div>
       </div>
     </section>
   );
