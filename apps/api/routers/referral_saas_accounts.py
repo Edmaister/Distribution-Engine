@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
+from pydantic import BaseModel, Field
 
 from services.campaign_readiness_service import get_campaign_readiness
 from services.referral_saas_account_foundation_service import (
@@ -97,6 +98,11 @@ from services.referral_saas_validation_service import (
 from services.referral_saas_technical_setup_service import (
     build_referral_saas_technical_setup_readiness,
 )
+from services.referral_saas_reporting_service import (
+    build_referral_saas_report_export_preview,
+    get_referral_saas_report,
+    validate_referral_saas_report_export_request,
+)
 from services.onboarding.onboarding_draft_idempotency_service import hash_payload
 from utils.security import require_session_key
 
@@ -133,6 +139,36 @@ LINK_CODE_REDACTIONS = {
     "settlement",
     "wallet",
 }
+REPORT_GUARDRAILS = {
+    "CUSTOMER_SCOPED_REPORT_WRAPPER",
+    "ACCOUNT_SCOPE_RESOLVED_INTERNALLY",
+    "NO_TENANT_CODE_EXPOSURE",
+    "NO_REPORT_MUTATION",
+    "NO_EXPORT_CREATION",
+    "NO_STORAGE_OR_DELIVERY",
+    "NO_BILLING_OR_MONEY_MOVEMENT",
+}
+REPORT_REDACTIONS = {
+    "internal_tenant_identifier",
+    "internal_report_scope",
+    "raw_ucn",
+    "payload_hash",
+    "provider_payload",
+    "reward",
+    "funding",
+    "settlement",
+    "wallet",
+}
+
+
+class ReferralSaasAccountReportExportRequest(BaseModel):
+    format: str | None = Field(default=None, description="json or csv.")
+    redaction_profile: str | None = Field(default=None)
+    dimensions: list[str] | None = Field(default=None)
+    filters: dict[str, Any] | None = Field(default=None)
+    row_limit: int | None = Field(default=None)
+    data_window_start: datetime | None = Field(default=None)
+    data_window_end: datetime | None = Field(default=None)
 
 
 def _require_referral_saas_account_reader(identity: dict[str, Any]) -> dict[str, Any]:
@@ -345,6 +381,79 @@ def _assert_account_path_scope(account_ref: str, account: Any) -> str:
             )
         )
     return safe_account_ref
+
+
+def _report_filters(
+    *,
+    beneficiary_type: str | None,
+    campaign_ref: str | None,
+    campaign_code: str | None,
+    link_code_status: str | None,
+    product: str | None,
+    reward_source: str | None,
+    reward_status: str | None,
+    reward_type: str | None,
+    sponsor_code: str | None,
+    source_type: str | None,
+    sub_product: str | None,
+) -> dict[str, str]:
+    return {
+        key: value.strip()
+        for key, value in {
+            "beneficiary_type": beneficiary_type,
+            "campaign_ref": campaign_ref,
+            "campaign_code": campaign_code,
+            "link_code_status": link_code_status,
+            "product": product,
+            "reward_source": reward_source,
+            "reward_status": reward_status,
+            "reward_type": reward_type,
+            "sponsor_code": sponsor_code,
+            "source_type": source_type,
+            "sub_product": sub_product,
+        }.items()
+        if value is not None and value.strip()
+    }
+
+
+def _redact_customer_report_payload(value: Any) -> Any:
+    hidden_keys = {
+        "tenant_code",
+        "tenantCode",
+        "tenant_scope",
+        "tenantScope",
+        "internal_tenant_code",
+        "internalTenantCode",
+    }
+    if isinstance(value, dict):
+        return {
+            key: _redact_customer_report_payload(nested)
+            for key, nested in value.items()
+            if str(key) not in hidden_keys
+        }
+    if isinstance(value, list):
+        return [_redact_customer_report_payload(item) for item in value]
+    return value
+
+
+def _customer_report_account_scope(account: Any) -> dict[str, Any]:
+    return {
+        "source": "selected_customer_account",
+        "account_ref": account.account_id,
+        "account_code": account.account_code,
+        "external_tenant_ref": account.external_ref,
+    }
+
+
+def _customer_report_guardrail() -> str:
+    return (
+        "Customer-scoped Referral SaaS report wrapper. The selected account "
+        "resolves reporting scope internally; callers do not enter or receive "
+        "tenant code. This endpoint does not mutate report data, create export "
+        "files, write storage records, deliver email, create credentials, or "
+        "move billing, funding, reward, settlement, wallet, invoice, or DLaaS "
+        "marketplace records."
+    )
 
 
 def _resolution_error(exc: AccountFoundationResolutionError) -> HTTPException:
@@ -1487,6 +1596,229 @@ async def read_referral_saas_technical_setup_readiness(
         "no_auth_claim_change_confirmed": True,
         "no_seat_assignment_confirmed": True,
         "no_campaign_activation_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/reports/{report_type}")
+async def read_referral_saas_account_report(
+    account_ref: str,
+    report_type: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    dimensions: Annotated[list[str] | None, Query()] = None,
+    beneficiary_type: str | None = None,
+    campaign_ref: str | None = None,
+    campaign_code: str | None = None,
+    link_code_status: str | None = None,
+    product: str | None = None,
+    reward_source: str | None = None,
+    reward_status: str | None = None,
+    reward_type: str | None = None,
+    sponsor_code: str | None = None,
+    source_type: str | None = None,
+    sub_product: str | None = None,
+    data_window_start: datetime | None = None,
+    data_window_end: datetime | None = None,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    try:
+        report = get_referral_saas_report(
+            tenant_code=account.tenant_code,
+            report_type=report_type,
+            dimensions=dimensions,
+            filters=_report_filters(
+                beneficiary_type=beneficiary_type,
+                campaign_ref=campaign_ref,
+                campaign_code=campaign_code,
+                link_code_status=link_code_status,
+                product=product,
+                reward_source=reward_source,
+                reward_status=reward_status,
+                reward_type=reward_type,
+                sponsor_code=sponsor_code,
+                source_type=source_type,
+                sub_product=sub_product,
+            ),
+            data_window_start=data_window_start,
+            data_window_end=data_window_end,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "validation_error", "message": str(exc)},
+        ) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "report": _redact_customer_report_payload(report),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": _customer_report_guardrail(),
+        "guardrails": sorted(REPORT_GUARDRAILS),
+        "redactions": sorted(REPORT_REDACTIONS),
+        "no_report_mutation_confirmed": True,
+        "no_export_creation_confirmed": True,
+        "no_storage_or_delivery_confirmed": True,
+        "no_tenant_code_exposure_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/reports/{report_type}/exports/validate")
+async def validate_referral_saas_account_report_export(
+    account_ref: str,
+    report_type: str,
+    request: ReferralSaasAccountReportExportRequest,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[str, Query()] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    try:
+        export_request = validate_referral_saas_report_export_request(
+            tenant_code=account.tenant_code,
+            report_type=report_type,
+            export_format=request.format,
+            redaction_profile=request.redaction_profile,
+            dimensions=request.dimensions,
+            filters=request.filters,
+            row_limit=request.row_limit,
+            data_window_start=request.data_window_start,
+            data_window_end=request.data_window_end,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "validation_error", "message": str(exc)},
+        ) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "export_request": _redact_customer_report_payload(export_request),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": _customer_report_guardrail(),
+        "guardrails": sorted(REPORT_GUARDRAILS),
+        "redactions": sorted(REPORT_REDACTIONS),
+        "no_export_creation_confirmed": True,
+        "no_storage_or_delivery_confirmed": True,
+        "no_tenant_code_exposure_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/reports/{report_type}/exports/preview")
+async def preview_referral_saas_account_report_export(
+    account_ref: str,
+    report_type: str,
+    request: ReferralSaasAccountReportExportRequest,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[str, Query()] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    try:
+        export_preview = build_referral_saas_report_export_preview(
+            tenant_code=account.tenant_code,
+            report_type=report_type,
+            export_format=request.format,
+            redaction_profile=request.redaction_profile,
+            dimensions=request.dimensions,
+            filters=request.filters,
+            row_limit=request.row_limit,
+            data_window_start=request.data_window_start,
+            data_window_end=request.data_window_end,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "validation_error", "message": str(exc)},
+        ) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "export_preview": _redact_customer_report_payload(export_preview),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": _customer_report_guardrail(),
+        "guardrails": sorted(REPORT_GUARDRAILS),
+        "redactions": sorted(REPORT_REDACTIONS),
+        "no_export_creation_confirmed": True,
+        "no_storage_or_delivery_confirmed": True,
+        "no_tenant_code_exposure_confirmed": True,
         "no_money_movement_confirmed": True,
     }
 

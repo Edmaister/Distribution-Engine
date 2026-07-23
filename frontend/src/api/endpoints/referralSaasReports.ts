@@ -26,6 +26,22 @@ export type ReferralSaasExportRequest = ReferralSaasReportRequest & {
   rowLimit?: number;
 };
 
+export type ReferralSaasCustomerAccountScopeRequest = {
+  refType: "external_tenant_ref" | "organisation_ref";
+  externalRef: string;
+  context?: "setup" | "runtime";
+};
+
+export type ReferralSaasAccountReportRequest = Omit<ReferralSaasReportRequest, "tenantCode"> & {
+  accountRef: string;
+  accountScope: ReferralSaasCustomerAccountScopeRequest;
+};
+
+export type ReferralSaasAccountExportRequest = Omit<ReferralSaasExportRequest, "tenantCode"> & {
+  accountRef: string;
+  accountScope: ReferralSaasCustomerAccountScopeRequest;
+};
+
 export type ReferralSaasAccountScope = {
   source?: string;
   account_ref?: string | null;
@@ -57,9 +73,35 @@ function reportPath(reportType: ReferralSaasReportType, suffix = ""): string {
   return `v1/referral-saas/reports/${encodeURIComponent(reportType)}${suffix}`;
 }
 
+function accountReportPath(
+  accountRef: string,
+  reportType: ReferralSaasReportType,
+  suffix = "",
+): string {
+  return `v1/referral-saas/accounts/${encodeURIComponent(accountRef)}/reports/${encodeURIComponent(reportType)}${suffix}`;
+}
+
 function reportQuery(request: ReferralSaasReportRequest) {
   return {
     tenant_code: request.tenantCode,
+    dimensions: request.dimensions,
+    data_window_start: request.dataWindowStart,
+    data_window_end: request.dataWindowEnd,
+    ...request.filters,
+  };
+}
+
+function accountScopeQuery(request: ReferralSaasAccountReportRequest | ReferralSaasAccountExportRequest) {
+  return {
+    ref_type: request.accountScope.refType,
+    external_ref: request.accountScope.externalRef,
+    context: request.accountScope.context || "setup",
+  };
+}
+
+function accountReportQuery(request: ReferralSaasAccountReportRequest) {
+  return {
+    ...accountScopeQuery(request),
     dimensions: request.dimensions,
     data_window_start: request.dataWindowStart,
     data_window_end: request.dataWindowEnd,
@@ -103,4 +145,38 @@ export function previewReferralSaasReportExport(
     query: { tenant_code: request.tenantCode },
     body: exportBody(request),
   });
+}
+
+export function getReferralSaasAccountReport(
+  request: ReferralSaasAccountReportRequest,
+): Promise<ReferralSaasReportResponse> {
+  return apiRequest<ReferralSaasReportResponse>(accountReportPath(request.accountRef, request.reportType), {
+    query: accountReportQuery(request),
+  });
+}
+
+export function validateReferralSaasAccountReportExport(
+  request: ReferralSaasAccountExportRequest,
+): Promise<ReferralSaasExportValidationResponse> {
+  return apiRequest<ReferralSaasExportValidationResponse>(
+    accountReportPath(request.accountRef, request.reportType, "/exports/validate"),
+    {
+      method: "POST",
+      query: accountScopeQuery(request),
+      body: exportBody(request),
+    },
+  );
+}
+
+export function previewReferralSaasAccountReportExport(
+  request: ReferralSaasAccountExportRequest,
+): Promise<ReferralSaasExportPreviewResponse> {
+  return apiRequest<ReferralSaasExportPreviewResponse>(
+    accountReportPath(request.accountRef, request.reportType, "/exports/preview"),
+    {
+      method: "POST",
+      query: accountScopeQuery(request),
+      body: exportBody(request),
+    },
+  );
 }

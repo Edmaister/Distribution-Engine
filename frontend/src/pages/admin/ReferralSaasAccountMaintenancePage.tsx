@@ -3,6 +3,8 @@ import {
   BarChart3,
   Building2,
   CheckCircle2,
+  Download,
+  FileJson,
   Link as LinkIcon,
   ListChecks,
   PlugZap,
@@ -14,7 +16,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useEffect, useState, type FormEvent } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import {
   useReferralSaasAccountCampaignList,
@@ -31,6 +33,12 @@ import {
   validateReferralSaasAccountCampaignCode,
   type ReferralSaasLinkRecord,
 } from "../../api/endpoints/referralSaasLinks";
+import {
+  getReferralSaasAccountReport,
+  previewReferralSaasAccountReportExport,
+  type ReferralSaasExportFormat,
+  type ReferralSaasReportType,
+} from "../../api/endpoints/referralSaasReports";
 import {
   createReferralSaasAccountCampaignSetup,
   recordReferralSaasAccountCampaignReviewDecision,
@@ -215,6 +223,34 @@ const readinessCategoryMap = [
   { code: "MEMBERSHIP", label: "Membership and roles" },
   { code: "CAMPAIGN_READINESS", label: "Campaign readiness" },
   { code: "REPORTING_BASELINE", label: "Reporting baseline" },
+];
+
+const customerReportOptions: { value: ReferralSaasReportType; label: string; copy: string }[] = [
+  {
+    value: "campaign_performance",
+    label: "Campaign performance",
+    copy: "Campaign-level referral activity and conversion signals.",
+  },
+  {
+    value: "referral_funnel",
+    label: "Referral funnel",
+    copy: "Where referrals are entering, progressing, and completing.",
+  },
+  {
+    value: "link_code_performance",
+    label: "Links and codes",
+    copy: "Issued referral entry points, status, and usage signals.",
+  },
+  {
+    value: "attribution_quality",
+    label: "Attribution quality",
+    copy: "Evidence quality for who gets credit.",
+  },
+  {
+    value: "progress_event_health",
+    label: "Progress event health",
+    copy: "Journey-event ingestion health and missing evidence.",
+  },
 ];
 
 const accessRoleOptions = [
@@ -1659,7 +1695,16 @@ export function ReferralSaasAccountMaintenancePage() {
                 />
               ) : null}
 
-              {["reports", "support", "attribution", "progress"].includes(selectedModule) ? (
+              {selectedModule === "reports" ? (
+                <CustomerReportsPage
+                  customerName={customerName}
+                  externalTenantRef={selectedExternalTenantRef}
+                  selectedAccount={selectedAccount}
+                  selectedCustomerPath={selectedCustomerPath}
+                />
+              ) : null}
+
+              {["support", "attribution", "progress"].includes(selectedModule) ? (
                 <CustomerModulePage
                   customerName={customerName}
                   customerQuery={customerQuery}
@@ -3168,6 +3213,263 @@ function CustomerTechnicalSetupPage({
             </div>
           </>
         ) : null}
+      </div>
+    </section>
+  );
+}
+
+function CustomerReportsPage({
+  customerName,
+  externalTenantRef,
+  selectedAccount,
+  selectedCustomerPath,
+}: {
+  customerName: string;
+  externalTenantRef: string;
+  selectedAccount?: AccountRegistryItem;
+  selectedCustomerPath: string;
+}) {
+  const { refreshKey } = useRefreshContext();
+  const [reportType, setReportType] = useState<ReferralSaasReportType>("campaign_performance");
+  const [campaignCode, setCampaignCode] = useState("");
+  const accountScope = {
+    refType: "external_tenant_ref" as const,
+    externalRef: externalTenantRef,
+    context: "setup" as const,
+  };
+  const {
+    data: campaignListResponse,
+    error: campaignListError,
+    isLoading: isCampaignListLoading,
+  } = useReferralSaasAccountCampaignList(
+    selectedAccount?.accountId || "",
+    externalTenantRef,
+    Boolean(selectedAccount && externalTenantRef),
+    refreshKey,
+  );
+  const campaigns = campaignListResponse?.campaigns || [];
+  const selectedCampaign = campaigns.find((campaign) => campaign.campaignCode === campaignCode);
+  const filters = campaignCode ? { campaign_code: campaignCode } : undefined;
+  const reportQuery = useQuery({
+    queryKey: [
+      "referral-saas",
+      "customer-report",
+      selectedAccount?.accountId || "",
+      externalTenantRef,
+      reportType,
+      campaignCode,
+      refreshKey,
+    ],
+    queryFn: () =>
+      getReferralSaasAccountReport({
+        accountRef: selectedAccount?.accountId || "",
+        accountScope,
+        reportType,
+        filters,
+      }),
+    enabled: Boolean(selectedAccount?.accountId && externalTenantRef),
+    retry: false,
+  });
+  const previewMutation = useMutation({
+    mutationFn: (format: ReferralSaasExportFormat) =>
+      previewReferralSaasAccountReportExport({
+        accountRef: selectedAccount?.accountId || "",
+        accountScope,
+        reportType,
+        format,
+        redactionProfile: "tenant_safe",
+        filters,
+        rowLimit: 100,
+      }),
+  });
+  const report = asRecord(reportQuery.data?.report);
+  const metrics = asArray(getNestedValue(report, ["metrics"], []));
+  const rows = asArray(getNestedValue(report, ["rows"], metrics));
+  const warnings = asArray(getNestedValue(report, ["warnings"], []));
+  const preview = asRecord(previewMutation.data?.export_preview);
+  const previewRows = asArray(getNestedValue(preview, ["sample_rows"], getNestedValue(preview, ["rows"], [])));
+  const activeReport = customerReportOptions.find((option) => option.value === reportType) || customerReportOptions[0];
+
+  return (
+    <section className="panel customer-module-page">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Reports</div>
+          <h2 className="panel-title">Reports</h2>
+          <div className="panel-subtitle">
+            View tenant-safe campaign and referral performance for this customer without entering tenant code.
+          </div>
+        </div>
+        <StatusBadge label="Customer scoped" tone="success" />
+      </div>
+      <div className="panel-body route-list">
+        <div className="wizard-status-card">
+          <div>
+            <strong>Selected customer</strong>
+            <p>
+              {selectedAccount?.accountCode || "No account code"} - {externalTenantRef || "No customer reference"}
+            </p>
+          </div>
+          <StatusBadge label="No tenant code entry" tone="success" />
+        </div>
+
+        {campaignListError ? <ErrorPanel error={campaignListError} /> : null}
+        {reportQuery.error ? <ErrorPanel error={reportQuery.error} /> : null}
+        {previewMutation.error ? <ErrorPanel error={previewMutation.error} /> : null}
+
+        <div className="grid-2">
+          <div className="panel-lite">
+            <h3 className="section-heading">1. Choose report</h3>
+            <div className="route-list">
+              {customerReportOptions.map((option) => (
+                <button
+                  className={`route-card ${option.value === reportType ? "selected" : ""}`}
+                  key={option.value}
+                  onClick={() => setReportType(option.value)}
+                  type="button"
+                >
+                  <span>
+                    <strong>{option.label}</strong>
+                    <span>{option.copy}</span>
+                  </span>
+                  {option.value === reportType ? <StatusBadge label="Selected" tone="success" /> : null}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="panel-lite">
+            <h3 className="section-heading">2. Scope the view</h3>
+            <p className="muted">
+              Reports are already locked to {customerName}. Optionally narrow the view to one customer campaign.
+            </p>
+            {isCampaignListLoading ? <LoadingState label="Loading campaigns" /> : null}
+            <label>
+              Campaign filter
+              <select onChange={(event) => setCampaignCode(event.target.value)} value={campaignCode}>
+                <option value="">All campaigns for this customer</option>
+                {campaigns.map((campaign) => (
+                  <option key={campaign.campaignCode} value={campaign.campaignCode}>
+                    {campaign.name || campaign.campaignCode}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="wizard-status-card">
+              <div>
+                <strong>{activeReport.label}</strong>
+                <p>{selectedCampaign ? selectedCampaign.name || selectedCampaign.campaignCode : "All customer campaigns"}</p>
+              </div>
+              <StatusBadge label="Read-only" tone="success" />
+            </div>
+          </div>
+        </div>
+
+        <div className="kpi-grid">
+          <KpiCard
+            footnote="Returned by the selected report"
+            icon={BarChart3}
+            label="Report rows"
+            value={String(rows.length)}
+          />
+          <KpiCard
+            footnote="Source or coverage caveats"
+            icon={AlertCircle}
+            label="Warnings"
+            value={String(warnings.length)}
+          />
+          <KpiCard
+            footnote="No file, storage, or delivery is created"
+            icon={Download}
+            label="Export mode"
+            value="Preview"
+          />
+        </div>
+
+        <section className="panel-lite">
+          <div className="panel-header compact">
+            <div>
+              <h3 className="section-heading">3. Review results</h3>
+              <div className="panel-subtitle">Tenant-safe rows from the selected customer report.</div>
+            </div>
+            <div className="button-row">
+              <button
+                className="button secondary"
+                disabled={previewMutation.isPending || !selectedAccount}
+                onClick={() => previewMutation.mutate("json")}
+                type="button"
+              >
+                <FileJson size={16} /> Preview JSON
+              </button>
+              <button
+                className="button secondary"
+                disabled={previewMutation.isPending || !selectedAccount}
+                onClick={() => previewMutation.mutate("csv")}
+                type="button"
+              >
+                <Download size={16} /> Preview CSV
+              </button>
+            </div>
+          </div>
+          {reportQuery.isLoading ? <LoadingState label="Loading customer report" /> : null}
+          <DataTable
+            rows={rows}
+            emptyText="No report rows returned for this customer yet."
+            columns={[
+              {
+                key: "metric",
+                header: "Metric",
+                render: (row) =>
+                  formatDisplay(getValue(row, ["metric_name", "metricName", "name", "label"], "Metric")),
+              },
+              {
+                key: "campaign",
+                header: "Campaign",
+                render: (row) =>
+                  formatDisplay(getValue(row, ["campaign_code", "campaignCode", "campaign_ref", "campaignRef"], "All")),
+              },
+              {
+                key: "value",
+                header: "Value",
+                render: (row) => formatDisplay(getValue(row, ["value", "count", "metric_value", "metricValue"], "-")),
+              },
+              {
+                key: "status",
+                header: "Status",
+                render: (row) => {
+                  const label = formatDisplay(getValue(row, ["status", "safe_status", "safeStatus"], "Available"));
+                  return <StatusBadge label={label} tone={statusTone(label)} />;
+                },
+              },
+            ]}
+          />
+        </section>
+
+        {previewMutation.data ? (
+          <section className="panel-lite">
+            <h3 className="section-heading">Export preview</h3>
+            <p className="muted">Preview only. No export file, storage row, delivery job, or email was created.</p>
+            <DataTable
+              rows={previewRows}
+              emptyText="The preview returned no sample rows."
+              columns={[
+                {
+                  key: "preview",
+                  header: "Sample row",
+                  render: (row) => <code>{JSON.stringify(row)}</code>,
+                },
+              ]}
+            />
+          </section>
+        ) : null}
+
+        <div className="button-row">
+          <Link className="button secondary" to={selectedCustomerPath}>
+            Back to customer home
+          </Link>
+          <Link className="button secondary" to={`${selectedCustomerPath}/campaigns`}>
+            Open campaigns
+          </Link>
+        </div>
       </div>
     </section>
   );

@@ -317,6 +317,82 @@ READ_ONLY_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_account_campaign_performance_report",
+        method="GET",
+        path="/v1/referral-saas/accounts/{account_ref}/reports/{report_type}",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS account reader role",
+        environment_rule="local/staging/production read-only where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "campaign_code",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -H "Authorization: Bearer {admin_token}" '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/reports/campaign_performance?ref_type={ref_type}'
+            '&external_ref={external_ref}&context=setup'
+            '&campaign_code={campaign_code}"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_account_report_export_validate",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/validate",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS account reader role",
+        environment_rule="local/staging/production side-effect-free where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "campaign_code",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"format":"json","redaction_profile":"tenant_safe",'
+            '"filters":{"campaign_code":"{campaign_code}"},"row_limit":10}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/reports/campaign_performance/exports/validate?ref_type={ref_type}'
+            '&external_ref={external_ref}&context=setup"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_account_report_export_preview",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/preview",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS account reader role",
+        environment_rule="local/staging/production side-effect-free where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "campaign_code",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"format":"csv","redaction_profile":"tenant_safe",'
+            '"filters":{"campaign_code":"{campaign_code}"},"row_limit":10}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/reports/campaign_performance/exports/preview?ref_type={ref_type}'
+            '&external_ref={external_ref}&context=setup"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_campaign_performance_report",
         method="GET",
         path="/v1/referral-saas/reports/{report_type}",

@@ -1036,6 +1036,21 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds customer-scoped Links and Codes continuation from activated selected-customer campaigns. Operators can choose an active campaign, issue/reuse a referral code, validate it, and stay in customer context while the backend resolves tenant scope internally and blocks activation, webhook, credential, billing, and money side effects.
+- TASK-268: `apps/api/routers/referral_saas_accounts.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `frontend/src/api/endpoints/referralSaasReports.ts`;
+  `frontend/src/api/endpoints/referralSaasReports.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds selected-customer Reports continuation. Operators can open reports from the selected customer home, filter by report type and campaign, and preview JSON/CSV exports while the backend resolves tenant scope internally and blocks export persistence, storage, delivery, credentials, billing, and money side effects.
 
 ## Explicit Deferrals
 

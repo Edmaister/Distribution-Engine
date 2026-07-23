@@ -15,6 +15,10 @@ import {
   validateReferralSaasAccountCampaignCode,
 } from "../../api/endpoints/referralSaasLinks";
 import {
+  getReferralSaasAccountReport,
+  previewReferralSaasAccountReportExport,
+} from "../../api/endpoints/referralSaasReports";
+import {
   createReferralSaasAccountCampaignSetup,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasAccountMembershipPosture,
@@ -50,6 +54,10 @@ vi.mock("../../api/endpoints/referralSaasLinks", () => ({
   issueReferralSaasAccountCampaignCode: vi.fn(),
   validateReferralSaasAccountCampaignCode: vi.fn(),
 }));
+vi.mock("../../api/endpoints/referralSaasReports", () => ({
+  getReferralSaasAccountReport: vi.fn(),
+  previewReferralSaasAccountReportExport: vi.fn(),
+}));
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   createReferralSaasAccountCampaignSetup: vi.fn(),
   getReferralSaasAccountCampaignReadiness: vi.fn(),
@@ -72,6 +80,8 @@ const mockedGetAdminOnboardingDrafts = vi.mocked(getAdminOnboardingDrafts);
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
 const mockedIssueReferralSaasAccountCampaignCode = vi.mocked(issueReferralSaasAccountCampaignCode);
 const mockedValidateReferralSaasAccountCampaignCode = vi.mocked(validateReferralSaasAccountCampaignCode);
+const mockedGetReferralSaasAccountReport = vi.mocked(getReferralSaasAccountReport);
+const mockedPreviewReferralSaasAccountReportExport = vi.mocked(previewReferralSaasAccountReportExport);
 const mockedCreateReferralSaasAccountCampaignSetup = vi.mocked(createReferralSaasAccountCampaignSetup);
 const mockedGetReferralSaasAccountCampaignReadiness = vi.mocked(getReferralSaasAccountCampaignReadiness);
 const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
@@ -739,6 +749,46 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockMembershipActivationReadiness());
     mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadiness());
     mockedListReferralSaasAccountCampaigns.mockResolvedValue(mockCampaignList());
+    mockedGetReferralSaasAccountReport.mockResolvedValue({
+      status: "ok",
+      report: {
+        report_type: "campaign_performance",
+        metrics: [
+          {
+            campaign_code: "CAMP001",
+            metric_name: "referrals.completed_count",
+            value: 4,
+            status: "AVAILABLE",
+          },
+        ],
+        warnings: [],
+      },
+      account_scope: {
+        source: "selected_customer_account",
+        account_ref: "acct-gabs",
+        external_tenant_ref: "gabs-platform",
+      },
+      guardrail: "Customer-scoped report wrapper.",
+    });
+    mockedPreviewReferralSaasAccountReportExport.mockResolvedValue({
+      status: "ok",
+      export_preview: {
+        status: "PREVIEW_READY",
+        sample_rows: [
+          {
+            campaign_code: "CAMP001",
+            metric_name: "referrals.completed_count",
+            value: 4,
+          },
+        ],
+      },
+      account_scope: {
+        source: "selected_customer_account",
+        account_ref: "acct-gabs",
+        external_tenant_ref: "gabs-platform",
+      },
+      guardrail: "Preview only.",
+    });
     mockedGetReferralSaasAccountCampaignReadiness.mockResolvedValue(mockCampaignReadiness());
     mockedUpdateReferralSaasAccountCampaignPolicySettings.mockResolvedValue(mockCampaignPolicySettings());
     mockedSubmitReferralSaasAccountCampaignReview.mockResolvedValue(mockCampaignReview());
@@ -1609,6 +1659,61 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(JSON.stringify(mockedIssueReferralSaasAccountCampaignCode.mock.calls)).not.toMatch(
       /tenantCode|tenant_code|campaignActivation|webhook|billing|wallet|settlement|money/i,
     );
+  });
+
+  it("opens customer-scoped reports without leaving the selected customer", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/reports");
+
+    expect(await screen.findByRole("heading", { name: "Reports" })).toBeInTheDocument();
+    expect(screen.getByText(/without entering tenant code/i)).toBeInTheDocument();
+    expect((await screen.findAllByText("Campaign performance")).length).toBeGreaterThan(0);
+    expect(screen.getByText("No tenant code entry")).toBeInTheDocument();
+
+    await waitFor(() => expect(mockedGetReferralSaasAccountReport).toHaveBeenCalledTimes(1));
+    expect(mockedGetReferralSaasAccountReport.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      reportType: "campaign_performance",
+      filters: undefined,
+    });
+
+    fireEvent.change(screen.getByLabelText("Campaign filter"), {
+      target: { value: "CAMP001" },
+    });
+    await waitFor(() =>
+      expect(mockedGetReferralSaasAccountReport).toHaveBeenLastCalledWith({
+        accountRef: "acct-gabs",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: "gabs-platform",
+          context: "setup",
+        },
+        reportType: "campaign_performance",
+        filters: { campaign_code: "CAMP001" },
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Preview CSV/i }));
+    await waitFor(() => expect(mockedPreviewReferralSaasAccountReportExport).toHaveBeenCalledTimes(1));
+    expect(mockedPreviewReferralSaasAccountReportExport.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      reportType: "campaign_performance",
+      format: "csv",
+      redactionProfile: "tenant_safe",
+      filters: { campaign_code: "CAMP001" },
+      rowLimit: 100,
+    });
+    expect(screen.queryByText("Reports Target")).not.toBeInTheDocument();
+    expect(JSON.stringify(mockedGetReferralSaasAccountReport.mock.calls)).not.toMatch(/tenantCode|tenant_code/i);
   });
 
   it("saves selected customer profile settings through the maintenance command", async () => {
