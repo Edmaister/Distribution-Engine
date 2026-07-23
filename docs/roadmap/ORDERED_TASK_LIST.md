@@ -5886,7 +5886,7 @@ Validation: Frontend link/client and selected-customer page tests cover account-
 
 ## TASK-268: Continue customer-scoped Reports from selected customer context
 
-Status: Planned.
+Status: Complete (2026-07-23).
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Reuse selected-customer account context, existing Referral SaaS report/export wrappers, report catalog helpers, tenant-safe redaction rules, and customer-scoped navigation. Source duplication: No.
@@ -5894,16 +5894,16 @@ Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedg
 Linked platform/product capability: Customer Profile Reports; campaign/referral/link/report continuation; tenant-safe report views; export preview guardrails.
 Objective: Move Reports into the selected-customer workflow so operators can view campaign/referral/link performance for the selected customer without entering tenant code or leaving customer context.
 Why now: TASK-267 completes the activated campaign to link/code flow. The next production-grade operator step is customer-scoped reporting over the same selected customer and campaign evidence.
-Files likely involved: frontend report API client/query tests, selected-customer Reports page, route/navigation tests, roadmap/gap docs, and infographic.
+Files involved: `apps/api/routers/referral_saas_accounts.py`; `scripts/referral_saas_route_smoke_plan.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; `test/test_referral_saas_route_smoke_plan.py`; `frontend/src/api/endpoints/referralSaasReports.ts`; `frontend/src/api/endpoints/referralSaasReports.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
 Database/schema impact: None expected.
-Backend impact: None expected unless existing report wrappers require a small account-scope adapter.
-Frontend impact: Add or wire a selected-customer Reports page that calls report/export-preview wrappers from selected customer context, shows supported report catalog states, and keeps tenant-code/internal-ID fields hidden.
-API impact: Reuse existing Referral SaaS report/export wrappers where possible; do not add new report routes unless an account-scoped adapter gap is proven.
-Tests to add/update: Frontend API/query tests, customer-scoped Reports UI tests, no tenant-code/internal-ID leakage tests, safe-error/redaction tests, export preview tests, and route tests.
-Validation method: Frontend focused tests plus `npm run build`; `git diff --check`.
+Backend impact: Added selected-customer account-scoped report, export validation, and export preview wrappers that resolve account scope server-side and delegate to the existing Referral SaaS report/export primitives without exposing tenant-code fields or creating persisted exports.
+Frontend impact: Added a standalone selected-customer Reports page inside Account Maintenance, wired report type/campaign filters and side-effect-free JSON/CSV export preview from selected customer context, and kept tenant-code/internal-ID entry out of the UI.
+API impact: Added account-scoped adapters for existing report/export primitives: `GET /v1/referral-saas/accounts/{account_ref}/reports/{report_type}`, `POST /v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/validate`, and `POST /v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/preview`.
+Tests added/updated: Frontend API/query tests, customer-scoped Reports UI tests, no tenant-code/internal-ID leakage tests, backend route wrapper tests, route smoke inventory tests, and route smoke plan entries.
+Validation method: `C:\Users\Carla\anaconda3\python.exe -m py_compile apps/api/routers/referral_saas_accounts.py test/api/test_referral_saas_accounts_api.py scripts/referral_saas_route_smoke_plan.py test/test_referral_saas_route_smoke_inventory.py test/test_referral_saas_route_smoke_plan.py`; `npm.cmd run test -- referralSaasReports.test.ts ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `npm.cmd run lint`; `C:\Users\Carla\anaconda3\python.exe -m pytest -q test/test_referral_saas_route_smoke_plan.py`. Focused API/route-inventory pytest could not run locally because Anaconda lacks `asyncpg` and the local `.venv` points at a missing Python executable after restart.
 Acceptance criteria: Operators can open reports from selected customer context; report filters are scoped to the selected customer/campaign where available; tenant code and raw internal IDs are not entered or displayed; export preview remains side-effect free; navigation stays customer scoped.
 Dependencies: TASK-157; TASK-165; TASK-167; TASK-168; TASK-169; TASK-231; TASK-241; TASK-253; TASK-254; TASK-267.
-Blocked by: Persisted export storage/audit/downloads, support-case persistence, and full campaign workflow E2E tests.
+Blocked by: Persisted export storage/audit/downloads, support-case persistence, live DB/route smoke evidence, and full campaign workflow E2E tests.
 Risk level: Medium.
 Rollback notes: Remove customer-scoped Reports UI/client wiring/tests and roadmap/gap/infographic updates.
 Explicit non-goals: Do not add schema, migrations, persisted export files, storage records, delivery jobs, audit-retention records, email delivery, credentials, webhook delivery, invite delivery, membership activation, seat assignment, auth/session claim changes, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.

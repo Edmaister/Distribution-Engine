@@ -1261,6 +1261,190 @@ async def test_referral_saas_account_admin_can_list_customer_scoped_campaigns(
     assert campaign_calls == [{"tenant_code": "FNB", "limit": 25}]
 
 
+async def test_referral_saas_account_admin_can_read_customer_scoped_report(
+    monkeypatch,
+):
+    report_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    def fake_get_referral_saas_report(**kwargs):
+        report_calls.append(kwargs)
+        return {
+            "report_type": kwargs["report_type"],
+            "tenant_scope": {"tenant_code": kwargs["tenant_code"]},
+            "rows": [
+                {
+                    "campaign_code": "CAMP001",
+                    "metric_name": "referrals.completed_count",
+                    "value": 4,
+                }
+            ],
+        }
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_report",
+        fake_get_referral_saas_report,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/reports/campaign_performance",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+                "campaign_code": "CAMP001",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["account"]["accountId"] == "acct-1"
+    assert body["account_scope"]["source"] == "selected_customer_account"
+    assert body["report"]["rows"][0]["campaign_code"] == "CAMP001"
+    assert body["no_tenant_code_exposure_confirmed"] is True
+    assert body["no_report_mutation_confirmed"] is True
+    assert body["no_export_creation_confirmed"] is True
+    public_report_payload = {
+        "account": body["account"],
+        "account_scope": body["account_scope"],
+        "report": body["report"],
+        "redactions": body["redactions"],
+    }
+    assert "tenant_code" not in str(public_report_payload)
+    assert "tenantCode" not in str(public_report_payload)
+    assert report_calls == [
+        {
+            "tenant_code": "FNB",
+            "report_type": "campaign_performance",
+            "dimensions": None,
+            "filters": {"campaign_code": "CAMP001"},
+            "data_window_start": None,
+            "data_window_end": None,
+        }
+    ]
+
+
+async def test_referral_saas_account_admin_can_preview_customer_scoped_report_export(
+    monkeypatch,
+):
+    preview_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    def fake_build_referral_saas_report_export_preview(**kwargs):
+        preview_calls.append(kwargs)
+        return {
+            "status": "PREVIEW_READY",
+            "tenant_scope": {"tenant_code": kwargs["tenant_code"]},
+            "sample_rows": [{"campaign_code": "CAMP001", "value": 4}],
+        }
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "build_referral_saas_report_export_preview",
+        fake_build_referral_saas_report_export_preview,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/reports/link_code_performance/exports/preview",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+            json={
+                "format": "csv",
+                "redaction_profile": "tenant_safe",
+                "filters": {"campaign_code": "CAMP001"},
+                "row_limit": 50,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["export_preview"]["status"] == "PREVIEW_READY"
+    assert body["export_preview"]["sample_rows"][0]["campaign_code"] == "CAMP001"
+    assert body["no_export_creation_confirmed"] is True
+    assert body["no_storage_or_delivery_confirmed"] is True
+    public_export_payload = {
+        "account": body["account"],
+        "account_scope": body["account_scope"],
+        "export_preview": body["export_preview"],
+        "redactions": body["redactions"],
+    }
+    assert "tenant_code" not in str(public_export_payload)
+    assert preview_calls == [
+        {
+            "tenant_code": "FNB",
+            "report_type": "link_code_performance",
+            "export_format": "csv",
+            "redaction_profile": "tenant_safe",
+            "dimensions": None,
+            "filters": {"campaign_code": "CAMP001"},
+            "row_limit": 50,
+            "data_window_start": None,
+            "data_window_end": None,
+        }
+    ]
+
+
+async def test_referral_saas_account_report_rejects_path_scope_mismatch(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-other/reports/campaign_performance",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 400
+
+
 async def test_referral_saas_account_admin_can_create_customer_scoped_campaign_setup(
     monkeypatch,
 ):

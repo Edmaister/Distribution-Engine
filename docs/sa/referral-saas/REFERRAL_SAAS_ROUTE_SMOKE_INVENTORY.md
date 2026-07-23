@@ -39,6 +39,10 @@ wrappers for activated campaigns. They resolve selected customer account scope
 server-side, require an active campaign, reuse existing referral code and
 validation primitives, and do not expose tenant code, activate campaigns,
 deliver webhooks, create credentials, bill, or move money.
+TASK-268 adds customer-scoped report read, export validation, and export
+preview wrappers. They resolve selected customer account scope server-side,
+reuse existing report/export primitives, and do not expose tenant code, persist
+exports, deliver files, create credentials, bill, or move money.
 No schema, live database mutation, or persisted export is introduced by this
 inventory document; seeded write routes remain local/staging-only smoke
 candidates and are classified explicitly below.
@@ -97,6 +101,9 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/campaigns` | Referral SaaS customer-scoped campaign list wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}` | Referral SaaS customer-scoped campaign read wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/readiness` | Referral SaaS customer-scoped campaign readiness wrapper |
+| Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/reports/{report_type}` | Referral SaaS customer-scoped report wrapper |
+| Read-only product account | POST | `/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/validate` | Referral SaaS customer-scoped report export validation wrapper; validation only |
+| Read-only product account | POST | `/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/preview` | Referral SaaS customer-scoped report export preview wrapper; inline preview only |
 | Read-only product report | GET | `/v1/referral-saas/reports/{report_type}` | Referral SaaS report wrapper |
 | Inline product export preview | POST | `/v1/referral-saas/reports/{report_type}/exports/preview` | Referral SaaS export payload preview |
 | Validation-only product export | POST | `/v1/referral-saas/reports/{report_type}/exports/validate` | Referral SaaS export request validation gate |
@@ -143,6 +150,9 @@ local/staging smoke classification:
 - `GET /v1/referral-saas/accounts/{account_ref}/campaigns`
 - `GET /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}`
 - `GET /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/readiness`
+- `GET /v1/referral-saas/accounts/{account_ref}/reports/{report_type}`
+- `POST /v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/validate`
+- `POST /v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/preview`
 - `POST /v1/referral-saas/accounts/{account_ref}/campaigns`
 - `PUT /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/policy-settings`
 - `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-submissions`
