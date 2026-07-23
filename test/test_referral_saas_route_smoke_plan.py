@@ -11,6 +11,8 @@ def test_referral_saas_route_smoke_plan_defaults_to_read_only():
     assert plan["omittedSeededWriteRoutes"] == [
         "referral_code_issue",
         "referral_saas_referral_code_issue",
+        "referral_saas_account_campaign_referral_code_issue",
+        "referral_saas_account_campaign_referral_validate",
         "referral_saas_account_create_from_draft",
         "referral_saas_account_profile_update",
         "referral_saas_account_campaign_setup_create",
@@ -60,6 +62,8 @@ def test_referral_saas_route_smoke_plan_seeded_writes_are_explicit():
     assert {route["name"] for route in seeded_routes} == {
         "referral_code_issue",
         "referral_saas_referral_code_issue",
+        "referral_saas_account_campaign_referral_code_issue",
+        "referral_saas_account_campaign_referral_validate",
         "referral_saas_account_create_from_draft",
         "referral_saas_account_profile_update",
         "referral_saas_account_campaign_setup_create",
@@ -104,6 +108,8 @@ def test_referral_saas_route_smoke_plan_product_wrapper_surface_is_bounded():
         "/v1/referral-saas/reports/{report_type}/exports/validate",
         "/v1/referral-saas/reports/{report_type}/exports/preview",
         "/v1/referral-saas/referral-codes",
+        "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referral-codes",
+        "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referrals/validate",
         "/v1/referral-saas/accounts/from-draft",
         "/v1/referral-saas/accounts/{account_ref}/profile",
         "/v1/referral-saas/accounts/{account_ref}/campaigns",

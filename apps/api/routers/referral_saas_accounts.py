@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
 
 from services.campaign_readiness_service import get_campaign_readiness
 from services.referral_saas_account_foundation_service import (
@@ -87,6 +87,13 @@ from services.referral_saas_campaign_service import (
     list_referral_saas_account_campaigns,
     get_referral_saas_account_campaign,
 )
+from services.referral_code import (
+    get_or_create_referrer_code,
+    validate_referral_code,
+)
+from services.referral_saas_validation_service import (
+    build_referral_saas_validation_result,
+)
 from services.referral_saas_technical_setup_service import (
     build_referral_saas_technical_setup_readiness,
 )
@@ -108,6 +115,24 @@ REFERRAL_SAAS_ACCOUNT_READER_ROLES = {
 REFERRAL_SAAS_ACCOUNT_CONTEXTS = {"runtime", "setup"}
 MAX_ACCOUNT_LIST_LIMIT = 100
 CAMPAIGN_READINESS_NOT_FOUND_BLOCKERS = {"CAMPAIGN_NOT_FOUND", "TENANT_MISMATCH"}
+LINK_CODE_GUARDRAILS = {
+    "CUSTOMER_SCOPED_LINK_CODE_WRAPPER",
+    "ACCOUNT_SCOPE_RESOLVED_INTERNALLY",
+    "ACTIVE_CAMPAIGN_REQUIRED",
+    "NO_TENANT_CODE_EXPOSURE",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_WEBHOOK_DELIVERY",
+    "NO_BILLING_OR_MONEY_MOVEMENT",
+}
+LINK_CODE_REDACTIONS = {
+    "internal_tenant_identifier",
+    "raw_ucn",
+    "payload_hash",
+    "reward",
+    "funding",
+    "settlement",
+    "wallet",
+}
 
 
 def _require_referral_saas_account_reader(identity: dict[str, Any]) -> dict[str, Any]:
@@ -129,6 +154,153 @@ def _has_readiness_blocker(readiness: dict[str, Any], codes: set[str]) -> bool:
         for blocker in readiness.get("blockers", [])
         if isinstance(blocker, dict)
     )
+
+
+def _link_issue_status(body: dict[str, Any], status_code: int) -> str:
+    error_code = str(body.get("error_code") or "")
+    if error_code == "MISSING_FIELDS":
+        return "REJECTED_MISSING_FIELDS"
+    if error_code == "ACCEPTED_TERMS_REQUIRED":
+        return "REJECTED_TERMS_REQUIRED"
+    if status_code >= 400:
+        return "FAILED"
+    return "CREATED" if body.get("created") else "EXISTING"
+
+
+def _reject_unsafe_link_code_payload(value: Any) -> None:
+    unsafe_keys = {
+        "tenant_code",
+        "tenantCode",
+        "internal_tenant_code",
+        "internalTenantCode",
+        "activate",
+        "goLive",
+        "campaignActivation",
+        "webhook",
+        "credential",
+        "credentials",
+        "providerSecret",
+        "secret",
+        "invite",
+        "seat",
+        "seatId",
+        "authClaim",
+        "authClaims",
+        "billing",
+        "rewardAmount",
+        "rewardAmounts",
+        "funding",
+        "fulfilment",
+        "settlement",
+        "commission",
+        "wallet",
+        "invoice",
+        "payout",
+        "sponsorBilling",
+    }
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, nested in node.items():
+                if str(key) in unsafe_keys:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail={
+                            "code": "REJECTED_UNSAFE_PAYLOAD",
+                            "message": (
+                                "Customer-scoped Links and Codes does not accept "
+                                "tenant codes, credentials, activation, webhook, "
+                                "billing, money, invite, seat, or auth payloads."
+                            ),
+                            "guardrails": sorted(LINK_CODE_GUARDRAILS),
+                            "redactions": sorted(LINK_CODE_REDACTIONS),
+                            "no_campaign_activation_confirmed": True,
+                            "no_webhook_delivery_confirmed": True,
+                            "no_billing_or_money_movement_confirmed": True,
+                        },
+                    )
+                walk(nested)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(value)
+
+
+def _require_active_campaign(campaign_code: str, campaign: Any | None) -> None:
+    if campaign is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "campaign_not_found",
+                "message": "Campaign was not found for the selected customer.",
+                "guardrails": sorted(LINK_CODE_GUARDRAILS),
+                "redactions": sorted(LINK_CODE_REDACTIONS),
+            },
+        )
+
+    campaign_status = str(getattr(campaign, "status", "") or "").upper()
+    campaign_lifecycle = str(getattr(campaign, "lifecycle", "") or "").upper()
+    if campaign_status != "ACTIVE" or campaign_lifecycle != "ACTIVE":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "campaign_not_active",
+                "message": (
+                    f"{campaign_code} must be activated before referral links "
+                    "or codes are issued or validated for this customer."
+                ),
+                "guardrails": sorted(LINK_CODE_GUARDRAILS),
+                "redactions": sorted(LINK_CODE_REDACTIONS),
+                "no_campaign_activation_confirmed": True,
+                "no_webhook_delivery_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        )
+
+
+async def _resolve_active_campaign_link_code_context(
+    *,
+    account_ref: str,
+    campaign_code: str,
+    account_scope: dict[str, Any],
+) -> tuple[str, Any, Any]:
+    if not isinstance(account_scope, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope is required.",
+                "guardrails": sorted(LINK_CODE_GUARDRAILS),
+                "redactions": sorted(LINK_CODE_REDACTIONS),
+            },
+        )
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    if not ref_type or not external_ref:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope.refType and accountScope.externalRef are required.",
+                "guardrails": sorted(LINK_CODE_GUARDRAILS),
+                "redactions": sorted(LINK_CODE_REDACTIONS),
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    campaign = await get_referral_saas_account_campaign(
+        tenant_code=account.tenant_code,
+        campaign_code=campaign_code,
+    )
+    _require_active_campaign(campaign_code, campaign)
+    return normalised_context, account, campaign
 
 
 async def _resolve_referral_saas_account_context(
@@ -1379,6 +1551,119 @@ async def list_referral_saas_account_campaign_registry(
         "no_link_generation_confirmed": True,
         "no_campaign_activation_confirmed": True,
         "no_money_movement_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/campaigns/{campaign_code}/referral-codes")
+async def issue_referral_saas_account_campaign_code(
+    account_ref: str,
+    campaign_code: str,
+    response: Response,
+    payload: dict[str, Any] = Body(default_factory=dict),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    _reject_unsafe_link_code_payload(payload)
+    normalised_context, account, campaign = await _resolve_active_campaign_link_code_context(
+        account_ref=account_ref,
+        campaign_code=_optional_text(campaign_code),
+        account_scope=payload.get("accountScope") or {},
+    )
+    issue_request = payload.get("issueRequest") or {}
+    if not isinstance(issue_request, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "issueRequest must be an object.",
+                "guardrails": sorted(LINK_CODE_GUARDRAILS),
+                "redactions": sorted(LINK_CODE_REDACTIONS),
+            },
+        )
+
+    body, code = await get_or_create_referrer_code(
+        referrer_ucn=_optional_text(issue_request.get("referrerUcn")),
+        tenant=account.tenant_code,
+        sticker=_optional_text(issue_request.get("sticker")),
+        segment=_optional_text(issue_request.get("segment")),
+        preferred_handle=_optional_text(issue_request.get("preferredHandle")) or None,
+        accepted_terms=bool(issue_request.get("acceptedTerms")),
+    )
+
+    response.status_code = code
+    return {
+        "status": "ok" if code < 400 else "rejected",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "campaign": campaign.to_safe_dict(),
+        "linkCode": {
+            "issueStatus": _link_issue_status(body, code),
+            "referralCode": body.get("referral_code"),
+            "publicHandle": body.get("gaming_handle"),
+            "created": bool(body.get("created")),
+            "sourceType": "REFERRAL_CODE",
+            "errorCode": body.get("error_code"),
+            "message": body.get("message"),
+        },
+        "guardrails": sorted(LINK_CODE_GUARDRAILS),
+        "redactions": sorted(LINK_CODE_REDACTIONS),
+        "no_tenant_code_exposure_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_webhook_delivery_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/campaigns/{campaign_code}/referrals/validate")
+async def validate_referral_saas_account_campaign_code(
+    account_ref: str,
+    campaign_code: str,
+    response: Response,
+    payload: dict[str, Any] = Body(default_factory=dict),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    _reject_unsafe_link_code_payload(payload)
+    normalised_context, account, campaign = await _resolve_active_campaign_link_code_context(
+        account_ref=account_ref,
+        campaign_code=_optional_text(campaign_code),
+        account_scope=payload.get("accountScope") or {},
+    )
+    validation_request = payload.get("validationRequest") or {}
+    if not isinstance(validation_request, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "validationRequest must be an object.",
+                "guardrails": sorted(LINK_CODE_GUARDRAILS),
+                "redactions": sorted(LINK_CODE_REDACTIONS),
+            },
+        )
+
+    body, code = await validate_referral_code(
+        referral_code=_optional_text(validation_request.get("referralCode")),
+        tenant_code=account.tenant_code,
+        accepted_terms=bool(validation_request.get("acceptedTerms")),
+        alias=_optional_text(validation_request.get("alias")) or None,
+        device_fingerprint=_optional_text(validation_request.get("deviceFingerprint")) or None,
+        ip_address=_optional_text(validation_request.get("ipAddress")) or None,
+        qr_code=_optional_text(validation_request.get("qrCode")) or None,
+    )
+
+    response.status_code = code
+    return {
+        "status": "ok" if code < 400 else "rejected",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "campaign": campaign.to_safe_dict(),
+        "validation": build_referral_saas_validation_result(body, code),
+        "guardrails": sorted(LINK_CODE_GUARDRAILS),
+        "redactions": sorted(LINK_CODE_REDACTIONS),
+        "no_tenant_code_exposure_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_webhook_delivery_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
     }
 
 

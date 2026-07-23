@@ -18,6 +18,16 @@ export type ReferralSaasAttributionTraceSection =
 
 export type ReferralSaasProgressStatusViewerRole = "referrer" | "customer" | "operator";
 
+export type ReferralSaasAccountLinkCodeScope = {
+  accountRef: string;
+  campaignCode: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: "runtime" | "setup";
+  };
+};
+
 export function issueReferralSaasCode({
   referrerUcn,
   sticker,
@@ -43,6 +53,46 @@ export function issueReferralSaasCode({
   });
 }
 
+export function issueReferralSaasAccountCampaignCode({
+  accountRef,
+  campaignCode,
+  accountScope,
+  referrerUcn,
+  sticker,
+  segment,
+  preferredHandle,
+  acceptedTerms,
+}: ReferralSaasAccountLinkCodeScope & {
+  referrerUcn: string;
+  sticker: string;
+  segment: string;
+  preferredHandle?: string;
+  acceptedTerms: boolean;
+}): Promise<ReferralSaasLinkRecord> {
+  return apiRequest<ReferralSaasLinkRecord>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaigns/${encodeURIComponent(
+      campaignCode.trim(),
+    )}/referral-codes`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        issueRequest: {
+          referrerUcn,
+          sticker,
+          segment,
+          preferredHandle: preferredHandle || undefined,
+          acceptedTerms,
+        },
+      },
+    },
+  );
+}
+
 export function validateReferralSaasCode({
   tenantCode,
   referralCode,
@@ -63,6 +113,40 @@ export function validateReferralSaasCode({
       alias: alias || undefined,
     },
   });
+}
+
+export function validateReferralSaasAccountCampaignCode({
+  accountRef,
+  campaignCode,
+  accountScope,
+  referralCode,
+  acceptedTerms,
+  alias,
+}: ReferralSaasAccountLinkCodeScope & {
+  referralCode: string;
+  acceptedTerms: boolean;
+  alias?: string;
+}): Promise<ReferralSaasLinkRecord> {
+  return apiRequest<ReferralSaasLinkRecord>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaigns/${encodeURIComponent(
+      campaignCode.trim(),
+    )}/referrals/validate`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        validationRequest: {
+          referralCode,
+          acceptedTerms,
+          alias: alias || undefined,
+        },
+      },
+    },
+  );
 }
 
 export function captureReferralSaasRefereeUcn(

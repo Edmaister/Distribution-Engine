@@ -11,6 +11,10 @@ import {
   type AdminOnboardingStateResponse,
 } from "../../api/endpoints/adminOnboarding";
 import {
+  issueReferralSaasAccountCampaignCode,
+  validateReferralSaasAccountCampaignCode,
+} from "../../api/endpoints/referralSaasLinks";
+import {
   createReferralSaasAccountCampaignSetup,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasAccountMembershipPosture,
@@ -42,6 +46,10 @@ vi.mock("../../api/endpoints/adminOnboarding", () => ({
   getAdminOnboardingDrafts: vi.fn(),
   getAdminOnboardingState: vi.fn(),
 }));
+vi.mock("../../api/endpoints/referralSaasLinks", () => ({
+  issueReferralSaasAccountCampaignCode: vi.fn(),
+  validateReferralSaasAccountCampaignCode: vi.fn(),
+}));
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   createReferralSaasAccountCampaignSetup: vi.fn(),
   getReferralSaasAccountCampaignReadiness: vi.fn(),
@@ -62,6 +70,8 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
 
 const mockedGetAdminOnboardingDrafts = vi.mocked(getAdminOnboardingDrafts);
 const mockedGetAdminOnboardingState = vi.mocked(getAdminOnboardingState);
+const mockedIssueReferralSaasAccountCampaignCode = vi.mocked(issueReferralSaasAccountCampaignCode);
+const mockedValidateReferralSaasAccountCampaignCode = vi.mocked(validateReferralSaasAccountCampaignCode);
 const mockedCreateReferralSaasAccountCampaignSetup = vi.mocked(createReferralSaasAccountCampaignSetup);
 const mockedGetReferralSaasAccountCampaignReadiness = vi.mocked(getReferralSaasAccountCampaignReadiness);
 const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
@@ -734,6 +744,31 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedSubmitReferralSaasAccountCampaignReview.mockResolvedValue(mockCampaignReview());
     mockedRecordReferralSaasAccountCampaignReviewDecision.mockResolvedValue(mockCampaignReview("REVIEW_APPROVED"));
     mockedRequestReferralSaasAccountCampaignActivation.mockResolvedValue(mockCampaignActivation());
+    mockedIssueReferralSaasAccountCampaignCode.mockResolvedValue({
+      status: "ok",
+      linkCode: {
+        issueStatus: "CREATED",
+        referralCode: "REF123",
+        publicHandle: "gabs-owner",
+        sourceType: "REFERRAL_CODE",
+      },
+      no_tenant_code_exposure_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_webhook_delivery_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+    mockedValidateReferralSaasAccountCampaignCode.mockResolvedValue({
+      status: "ok",
+      validation: {
+        validationStatus: "VALIDATED",
+        referralTrackId: "track-1",
+        message: "Referral code validated",
+      },
+      no_tenant_code_exposure_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_webhook_delivery_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
     mockedListReferralSaasAccounts.mockResolvedValue(mockAccountRegistry());
     mockedRecordReferralSaasMembershipInvitationIntent.mockResolvedValue({
       status: "ok",
@@ -1512,6 +1547,67 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText(/continue with customer-scoped links, readiness monitoring, attribution, progress, and reports/i)).toBeInTheDocument();
     expect(JSON.stringify(mockedRequestReferralSaasAccountCampaignActivation.mock.calls)).not.toMatch(
       /tenantCode|tenant_code|linkGeneration|webhookDelivery|credential|billing|wallet|settlement|moneyMovement/i,
+    );
+  });
+
+  it("issues and validates links inside the selected customer campaign context", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/links");
+
+    expect(await screen.findByRole("heading", { name: "Links and codes" })).toBeInTheDocument();
+    expect(screen.getByText(/without entering tenant code/i)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Summer Referrals" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Partner Pilot" })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Referrer customer reference"), {
+      target: { value: "5555555555" },
+    });
+    fireEvent.change(screen.getByLabelText("Channel or placement"), {
+      target: { value: "qr001" },
+    });
+    fireEvent.change(screen.getByLabelText("Preferred public handle"), {
+      target: { value: "gabs-owner" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Issue or reuse code" }));
+
+    await waitFor(() => expect(mockedIssueReferralSaasAccountCampaignCode).toHaveBeenCalledTimes(1));
+    expect(mockedIssueReferralSaasAccountCampaignCode.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      campaignCode: "CAMP001",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      referrerUcn: "5555555555",
+      sticker: "QR001",
+      segment: "REFERRAL",
+      preferredHandle: "gabs-owner",
+      acceptedTerms: true,
+    });
+
+    expect(await screen.findByDisplayValue("REF123")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Customer alias"), {
+      target: { value: "gabs-customer" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Validate code" }));
+
+    await waitFor(() => expect(mockedValidateReferralSaasAccountCampaignCode).toHaveBeenCalledTimes(1));
+    expect(mockedValidateReferralSaasAccountCampaignCode.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      campaignCode: "CAMP001",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      referralCode: "REF123",
+      acceptedTerms: true,
+      alias: "gabs-customer",
+    });
+    expect(await screen.findByText("Validation checked.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Open current links and codes workspace/i })).not.toBeInTheDocument();
+    expect(JSON.stringify(mockedIssueReferralSaasAccountCampaignCode.mock.calls)).not.toMatch(
+      /tenantCode|tenant_code|campaignActivation|webhook|billing|wallet|settlement|money/i,
     );
   });
 

@@ -574,17 +574,18 @@
             customer/account setup, selected customer profile pages,
             people/access readiness and activation boundaries, customer-scoped
             campaign readiness, campaign list/read, campaign create,
-            policy/settings, guarded campaign submit/review API wrappers, and
-            selected-customer campaign review UX through TASK-263.
+            policy/settings, guarded campaign submit/review API wrappers,
+            selected-customer campaign review UX, activation, and
+            customer-scoped Links and Codes through TASK-267.
           </p>
           <div class="score-row" aria-label="Current position">
             <div class="score">
-              <strong>9.93/10</strong>
+              <strong>9.94/10</strong>
               <span>Referral management foundation after account setup, selected customer profile, people/access, and customer-scoped modules</span>
             </div>
             <div class="score">
-              <strong>9.72/10</strong>
-              <span>Campaign attribution foundation with selected-customer campaign readiness, list/read, create, policy/settings, and guarded submit/review API wrappers</span>
+              <strong>9.78/10</strong>
+              <span>Campaign attribution foundation with selected-customer campaign readiness, list/read, create, policy/settings, review, activation, and active-campaign link/code continuation</span>
             </div>
             <div class="score">
               <strong>10/10</strong>
@@ -598,7 +599,7 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-266 for Referral SaaS, with
+            Updated after TASK-134 through TASK-267 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
@@ -609,7 +610,7 @@
           </div>
           <div class="status-pill">
             <b>Customer-scoped campaign spine is now activation-usable</b>
-            <span>TASK-253 through TASK-266 add selected-customer campaign readiness, list/read, create, policy/settings, submit-for-review, review-decision API proof, review UX, activation/go-live contract, guarded activation API, and activation UI while preserving no links, no webhooks, no access changes, no billing, and no money movement.</span>
+            <span>TASK-253 through TASK-267 add selected-customer campaign readiness, list/read, create, policy/settings, submit-for-review, review-decision API proof, review UX, activation/go-live contract, guarded activation API, activation UI, and active-campaign Links and Codes while preserving no tenant-code exposure, no webhooks, no access changes, no billing, and no money movement.</span>
           </div>
           <div class="status-pill">
             <b>Live confidence still capped</b>
@@ -621,7 +622,7 @@
           </div>
           <div class="status-pill">
             <b>Hardening still missing</b>
-            <span>The score stays below 10/10 until customer-scoped link/code continuation, customer-scoped reporting, persisted export storage/audit/downloads, support-case persistence/repair guardrails, and live smoke/E2E evidence ship.</span>
+            <span>The score stays below 10/10 until customer-scoped reporting, persisted export storage/audit/downloads, support-case persistence/repair guardrails, and live smoke/E2E evidence ship.</span>
           </div>
         </div>
       </section>
@@ -1227,7 +1228,7 @@
           <article class="capability" data-tone="amber">
             <h3>Still Not Shipped</h3>
             <p>
-              Customer-scoped link/code and reporting continuation, persisted export storage/audit/downloads,
+              Customer-scoped reporting continuation, persisted export storage/audit/downloads,
               live/staging execution evidence, and
               full E2E proof remain open before a 10/10 claim.
             </p>
@@ -1255,8 +1256,8 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">SaaS workflow implementation</div>
-            <div class="matrix-cell">Selected-customer account/profile, people/access, technical setup, customer-scoped campaign readiness, campaign list/read, create, policy/settings, guarded submit/review API proof, review UX, activation/go-live contract/API, and activation UI now exist, but customer-scoped links/codes, customer-scoped reports, support-case persistence, and lifecycle hardening still need cohesive product workflows.</div>
-            <div class="matrix-cell">Continue activated campaigns into customer-scoped Links and Codes next, then keep reporting and support persistence as separate customer-scoped modules with tests and no source duplication.</div>
+            <div class="matrix-cell">Selected-customer account/profile, people/access, technical setup, customer-scoped campaign readiness, campaign list/read, create, policy/settings, guarded submit/review API proof, review UX, activation/go-live contract/API, activation UI, and active-campaign Links and Codes now exist, but customer-scoped reports, support-case persistence, and lifecycle hardening still need cohesive product workflows.</div>
+            <div class="matrix-cell">Continue customer-scoped Reports next, then keep support persistence as a separate customer-scoped module with tests and no source duplication.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Live DB/state verification</div>
@@ -1275,8 +1276,8 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Public API and frontend packaging</div>
-            <div class="matrix-cell">The API map and IA exist, focused admin surfaces are ringfenced, and product wrappers now cover reports/exports, link/code issue-validation-capture, operator diagnostics, account/customer profile, people/access, technical readiness, campaign create/policy/review/activation APIs, selected-customer campaign review UX, activation/go-live contract, and activation UI, but customers still need customer-scoped link/code and reporting surfaces, live proof, and customer/referrer-safe status surfaces.</div>
-            <div class="matrix-cell">Ship TASK-267 customer-scoped Links and Codes next, then customer-scoped reports with auth, safe errors, and redaction tests.</div>
+            <div class="matrix-cell">The API map and IA exist, focused admin surfaces are ringfenced, and product wrappers now cover reports/exports, link/code issue-validation-capture, operator diagnostics, account/customer profile, people/access, technical readiness, campaign create/policy/review/activation APIs, selected-customer campaign review UX, activation/go-live contract, activation UI, and customer-scoped active-campaign Links and Codes, but customers still need customer-scoped reporting surfaces, live proof, and customer/referrer-safe status surfaces.</div>
+            <div class="matrix-cell">Ship TASK-268 customer-scoped Reports next with auth, safe errors, redaction tests, and side-effect-free export preview proof.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Lifecycle command hardening</div>

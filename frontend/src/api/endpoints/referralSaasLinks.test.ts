@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiRequest } from "../client";
 import {
   captureReferralSaasRefereeUcn,
+  issueReferralSaasAccountCampaignCode,
   issueReferralSaasCode,
   inspectReferralSaasOperatorLink,
   inspectReferralSaasOperatorAttributionTrace,
   inspectReferralSaasOperatorProgressStatus,
+  validateReferralSaasAccountCampaignCode,
   validateReferralSaasCode,
 } from "./referralSaasLinks";
 
@@ -43,6 +45,45 @@ describe("referralSaasLinks endpoint client", () => {
     });
   });
 
+  it("issues selected-customer campaign codes without tenant code input", async () => {
+    await issueReferralSaasAccountCampaignCode({
+      accountRef: "acct-1",
+      campaignCode: " CAMP001 ",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: " fnb-referrals ",
+        context: "setup",
+      },
+      referrerUcn: "5555555555",
+      sticker: "QR001",
+      segment: "PERSONAL",
+      preferredHandle: "edwin",
+      acceptedTerms: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acct-1/campaigns/CAMP001/referral-codes",
+      {
+        method: "POST",
+        body: {
+          accountScope: {
+            refType: "external_tenant_ref",
+            externalRef: "fnb-referrals",
+            context: "setup",
+          },
+          issueRequest: {
+            referrerUcn: "5555555555",
+            sticker: "QR001",
+            segment: "PERSONAL",
+            preferredHandle: "edwin",
+            acceptedTerms: true,
+          },
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls)).not.toMatch(/tenantCode|tenant_code/);
+  });
+
   it("validates Referral SaaS codes through the product wrapper", async () => {
     await validateReferralSaasCode({
       tenantCode: "FNB",
@@ -63,6 +104,40 @@ describe("referralSaasLinks endpoint client", () => {
         },
       },
     );
+  });
+
+  it("validates selected-customer campaign codes without tenant code input", async () => {
+    await validateReferralSaasAccountCampaignCode({
+      accountRef: "acct-1",
+      campaignCode: " CAMP001 ",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: " fnb-referrals ",
+      },
+      referralCode: "REF123",
+      acceptedTerms: true,
+      alias: "customer-alias",
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acct-1/campaigns/CAMP001/referrals/validate",
+      {
+        method: "POST",
+        body: {
+          accountScope: {
+            refType: "external_tenant_ref",
+            externalRef: "fnb-referrals",
+            context: "setup",
+          },
+          validationRequest: {
+            referralCode: "REF123",
+            acceptedTerms: true,
+            alias: "customer-alias",
+          },
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls)).not.toMatch(/tenantCode|tenant_code/);
   });
 
   it("captures referee UCNs through the product wrapper", async () => {

@@ -435,6 +435,73 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_account_campaign_referral_code_issue",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referral-codes",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin/operator role",
+        environment_rule="local/staging seeded active campaign only; no tenant code entry",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "campaign_code",
+            "ref_type",
+            "external_ref",
+            "referrer_ucn",
+            "sticker",
+            "segment",
+        ],
+        expected_state_change=(
+            "may create or reuse a referrer_codes row for the selected customer's "
+            "active campaign; does not activate campaigns, send webhooks, create "
+            "credentials, bill, or move money"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"issueRequest":{"referrerUcn":"{referrer_ucn}",'
+            '"sticker":"{sticker}","segment":"{segment}",'
+            '"acceptedTerms":true}}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/campaigns/{campaign_code}/referral-codes"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_account_campaign_referral_validate",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referrals/validate",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin/operator role",
+        environment_rule="local/staging seeded active campaign and referral code only; no tenant code entry",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "campaign_code",
+            "ref_type",
+            "external_ref",
+            "referral_code",
+        ],
+        expected_state_change=(
+            "may validate a referral code through the selected customer campaign "
+            "scope and create existing validation evidence; does not activate "
+            "campaigns, send webhooks, create credentials, bill, or move money"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"validationRequest":{"referralCode":"{referral_code}",'
+            '"acceptedTerms":true}}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/campaigns/{campaign_code}/referrals/validate"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_account_create_from_draft",
         method="POST",
         path="/v1/referral-saas/accounts/from-draft",
