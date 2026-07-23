@@ -30,10 +30,12 @@ import {
   createReferralSaasAccountCampaignSetup,
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasMembershipInvitationIntent,
+  requestReferralSaasAccountCampaignActivation,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   submitReferralSaasAccountCampaignReview,
   updateReferralSaasAccountCampaignPolicySettings,
+  type ReferralSaasAccountCampaignActivationResponse,
   type ReferralSaasAccountCampaignReviewResponse,
   type ReferralSaasAccountCampaignPolicySettingsResponse,
   updateReferralSaasAccountProfile,
@@ -2424,10 +2426,13 @@ function CustomerCampaignReviewPage({
   selectedCustomerPath: string;
 }) {
   const { refreshKey } = useRefreshContext();
+  const [activationResult, setActivationResult] =
+    useState<ReferralSaasAccountCampaignActivationResponse | null>(null);
   const {
     data: campaignListResponse,
     error: campaignListError,
     isLoading: isCampaignListLoading,
+    refetch: refetchCampaignList,
   } = useReferralSaasAccountCampaignList(
     selectedAccount?.accountId || "",
     externalTenantRef,
@@ -2443,6 +2448,49 @@ function CustomerCampaignReviewPage({
       draft.reviewerRef.trim(),
   );
   const review = result?.campaignReview;
+  const activation = activationResult?.campaignActivation;
+  const canRequestActivation = Boolean(
+    selectedAccount &&
+      externalTenantRef &&
+      draft.campaignCode.trim() &&
+      review?.reviewStatus === "REVIEW_APPROVED" &&
+      review.activationEligibility === "ELIGIBLE_FOR_FUTURE_ACTIVATION" &&
+      review.activationStatus !== "ACTIVE",
+  );
+  const campaignActivationMutation = useMutation({
+    mutationFn: requestReferralSaasAccountCampaignActivation,
+    onSuccess: (response) => {
+      setActivationResult(response);
+      void refetchCampaignList();
+    },
+  });
+
+  function submitCampaignActivation() {
+    const cleanedCampaignCode = draft.campaignCode.trim();
+    if (!selectedAccount || !externalTenantRef || !cleanedCampaignCode || !canRequestActivation) {
+      return;
+    }
+    campaignActivationMutation.mutate({
+      accountRef: selectedAccount.accountId,
+      campaignCode: cleanedCampaignCode,
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: externalTenantRef,
+        context: "setup",
+      },
+      activationRequest: {
+        requestedLifecycleStatus: "ACTIVE",
+        reviewStatus: "REVIEW_APPROVED",
+        goLiveReason: "Campaign review approved inside selected customer campaign module.",
+        operatorNotes: "Activation request is customer scoped and leaves adjacent workflows separate.",
+      },
+      reasonCode: "CUSTOMER_PROFILE_CAMPAIGN_ACTIVATION_REQUEST",
+      correlationId: `customer-profile-campaign-activation-${selectedAccount.accountId}`,
+      idempotencyKey: `customer-profile-campaign-activation-${selectedAccount.accountId}-${cleanedCampaignCode}`
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-"),
+    });
+  }
 
   return (
     <section className="panel customer-module-page">
@@ -2470,6 +2518,7 @@ function CustomerCampaignReviewPage({
         {isCampaignListLoading ? <LoadingState label="Loading customer campaigns" /> : null}
         {campaignListError ? <ErrorPanel error={campaignListError} /> : null}
         {error ? <ErrorPanel error={error} /> : null}
+        {campaignActivationMutation.error ? <ErrorPanel error={campaignActivationMutation.error} /> : null}
 
         <form className="form-grid" onSubmit={onReviewSubmit}>
           <label>
@@ -2582,6 +2631,42 @@ function CustomerCampaignReviewPage({
                 </div>
               ))}
             </div>
+            <div className="wizard-status-card">
+              <div>
+                <strong>Activate reviewed campaign</strong>
+                <p>
+                  This switches only the selected customer campaign posture after approval. It does not create links,
+                  validation tracks, webhooks, credentials, access, billing, or money movement.
+                </p>
+              </div>
+              <button
+                className="button"
+                disabled={!canRequestActivation || campaignActivationMutation.isPending}
+                onClick={submitCampaignActivation}
+                type="button"
+              >
+                {campaignActivationMutation.isPending ? "Requesting activation" : "Activate campaign"}
+              </button>
+            </div>
+            {!canRequestActivation ? (
+              <div className="wizard-summary-strip warning">
+                <div>
+                  <strong>Activation is locked.</strong> Approve the campaign review before requesting activation for
+                  this customer.
+                </div>
+                <StatusBadge label="Review required" tone="warning" />
+              </div>
+            ) : null}
+            {activation ? (
+              <div className="wizard-summary-strip success">
+                <div>
+                  <strong>Campaign activated.</strong> {activation.campaignRef} is now{" "}
+                  {formatDisplay(activation.campaignActivation.lifecycle)}. Next, continue with customer-scoped links,
+                  readiness monitoring, attribution, progress, and reports.
+                </div>
+                <StatusBadge label={formatDisplay(activation.campaignActivation.activationStatus)} tone="success" />
+              </div>
+            ) : null}
           </>
         ) : (
           <div className="wizard-status-card">

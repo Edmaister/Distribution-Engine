@@ -497,6 +497,65 @@ export type ReferralSaasAccountCampaignReviewResponse = {
   no_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasAccountCampaignActivationRequest = {
+  accountRef: string;
+  campaignCode: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  activationRequest: {
+    requestedLifecycleStatus: "ACTIVE";
+    reviewStatus: "REVIEW_APPROVED";
+    goLiveReason: string;
+    operatorNotes?: string;
+    activationWindow?: {
+      startsAt?: string | null;
+      endsAt?: string | null;
+    };
+  };
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
+export type ReferralSaasAccountCampaignActivationResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  campaignActivation: {
+    commandStatus: string;
+    accountRef: string;
+    campaignRef: string;
+    campaignActivation: {
+      previousLifecycle: string;
+      lifecycle: string;
+      reviewStatus: string;
+      activationEligibility: string;
+      activationStatus: string;
+      readinessStatus: string;
+    };
+    idempotency: {
+      status: string;
+    };
+    audit: {
+      accountAuditEventId?: string | null;
+    };
+    nextActions: string[];
+    guardrails: string[];
+    redactions: string[];
+  };
+  guardrails: string[];
+  redactions: string[];
+  no_link_generation_confirmed: boolean;
+  no_validation_track_created_confirmed: boolean;
+  no_webhook_delivery_confirmed: boolean;
+  no_invite_or_seat_change_confirmed: boolean;
+  no_credential_creation_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasAccountCreateFromDraftRequest = {
   draftRef: string;
   internalTenantCode: string;
@@ -1010,6 +1069,47 @@ export function recordReferralSaasAccountCampaignReviewDecision({
           reviewerRef: reviewDecision.reviewerRef.trim(),
         },
         reasonCode: reasonCode?.trim() || "CUSTOMER_PROFILE_CAMPAIGN_REVIEW_DECISION",
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function requestReferralSaasAccountCampaignActivation({
+  accountRef,
+  campaignCode,
+  accountScope,
+  activationRequest,
+  reasonCode,
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasAccountCampaignActivationRequest): Promise<ReferralSaasAccountCampaignActivationResponse> {
+  return apiRequest<ReferralSaasAccountCampaignActivationResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaigns/${encodeURIComponent(
+      campaignCode.trim(),
+    )}/activation-requests`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        activationRequest: {
+          requestedLifecycleStatus: activationRequest.requestedLifecycleStatus,
+          reviewStatus: activationRequest.reviewStatus,
+          goLiveReason: activationRequest.goLiveReason.trim(),
+          operatorNotes: activationRequest.operatorNotes?.trim() || undefined,
+          activationWindow: activationRequest.activationWindow
+            ? {
+                startsAt: activationRequest.activationWindow.startsAt || null,
+                endsAt: activationRequest.activationWindow.endsAt || null,
+              }
+            : undefined,
+        },
+        reasonCode: reasonCode?.trim() || "CUSTOMER_PROFILE_CAMPAIGN_ACTIVATION_REQUEST",
         correlationId,
         idempotencyKey,
       },

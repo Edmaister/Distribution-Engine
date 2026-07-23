@@ -12,6 +12,7 @@ import {
   listReferralSaasAccountCampaigns,
   listReferralSaasAccounts,
   recordReferralSaasAccountCampaignReviewDecision,
+  requestReferralSaasAccountCampaignActivation,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
@@ -937,6 +938,101 @@ describe("referralSaasAccounts endpoint client", () => {
     );
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|isactive|activatecampaign|linkgeneration|webhook|seat|authclaim|wallet|settlement|money/,
+    );
+  });
+
+  it("requests customer-scoped campaign activation through the guarded wrapper", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      campaignActivation: {
+        commandStatus: "CAMPAIGN_ACTIVATION_ACCEPTED",
+        accountRef: "acct-1",
+        campaignRef: "CAMP001",
+        campaignActivation: {
+          previousLifecycle: "READY_TO_ACTIVATE",
+          lifecycle: "ACTIVE",
+          reviewStatus: "REVIEW_APPROVED",
+          activationEligibility: "ELIGIBLE_FOR_FUTURE_ACTIVATION",
+          activationStatus: "ACTIVATION_REQUEST_ACCEPTED",
+          readinessStatus: "READY_TO_ACTIVATE",
+        },
+        idempotency: { status: "RECORDED" },
+        audit: { accountAuditEventId: "audit-campaign-activation-1" },
+        nextActions: ["Open customer campaign operations"],
+        guardrails: ["NO_LINK_GENERATION", "NO_BILLING_OR_MONEY_MOVEMENT"],
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrails: ["NO_LINK_GENERATION", "NO_BILLING_OR_MONEY_MOVEMENT"],
+      redactions: ["internal_tenant_identifier"],
+      no_link_generation_confirmed: true,
+      no_validation_track_created_confirmed: true,
+      no_webhook_delivery_confirmed: true,
+      no_invite_or_seat_change_confirmed: true,
+      no_credential_creation_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    await expect(
+      requestReferralSaasAccountCampaignActivation({
+        accountRef: " acct-1 ",
+        campaignCode: " CAMP001 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " fnb-referrals ",
+          context: "setup",
+        },
+        activationRequest: {
+          requestedLifecycleStatus: "ACTIVE",
+          reviewStatus: "REVIEW_APPROVED",
+          goLiveReason: " Approved campaign review. ",
+          operatorNotes: " Activate only this campaign posture. ",
+        },
+        reasonCode: " Customer campaign activation ",
+        correlationId: "corr-activation-1",
+        idempotencyKey: "campaign-activation-1",
+      }),
+    ).resolves.toMatchObject({
+      campaignActivation: {
+        campaignRef: "CAMP001",
+        campaignActivation: {
+          lifecycle: "ACTIVE",
+          activationStatus: "ACTIVATION_REQUEST_ACCEPTED",
+        },
+      },
+      no_link_generation_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acct-1/campaigns/CAMP001/activation-requests",
+      {
+        method: "POST",
+        body: {
+          accountScope: {
+            refType: "external_tenant_ref",
+            externalRef: "fnb-referrals",
+            context: "setup",
+          },
+          activationRequest: {
+            requestedLifecycleStatus: "ACTIVE",
+            reviewStatus: "REVIEW_APPROVED",
+            goLiveReason: "Approved campaign review.",
+            operatorNotes: "Activate only this campaign posture.",
+            activationWindow: undefined,
+          },
+          reasonCode: "Customer campaign activation",
+          correlationId: "corr-activation-1",
+          idempotencyKey: "campaign-activation-1",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|linkgeneration|webhookdelivery|credential|billing|wallet|settlement|moneymovement/,
     );
   });
 
