@@ -139,6 +139,7 @@ Future Referral SaaS APIs should follow these rules:
 | `/v1/referral-saas/accounts/{accountRef}/campaigns/{campaignRef}/policy-settings` | `PUT` | TASK-259 wrapper over existing campaign policy table and account audit evidence | SaaS account admin bridge | Implemented as guarded seeded write. Resolves selected customer account and campaign scope internally, persists policy/settings evidence without caller-supplied tenant code, records idempotency/audit evidence, and does not activate campaigns, generate links, create validation tracks, deliver webhooks, bill, or move money. |
 | `/v1/referral-saas/accounts/{accountRef}/campaigns/{campaignRef}/review-submissions` | `POST` | TASK-262 wrapper over existing campaign, policy, account audit, and idempotency evidence | SaaS account admin bridge | Implemented as guarded seeded write. Submits selected-customer campaign setup evidence for review only after policy evidence exists, records campaign review/audit/idempotency evidence, and does not activate campaigns, generate links, create validation tracks, deliver webhooks, change seats/auth claims, bill, or move money. |
 | `/v1/referral-saas/accounts/{accountRef}/campaigns/{campaignRef}/review-decisions` | `POST` | TASK-262 wrapper over existing campaign, policy, account audit, and idempotency evidence | Operator/admin reviewer bridge | Implemented as guarded seeded write. Records campaign review approval or block decision; approval only marks the campaign eligible for a future activation command and does not activate the campaign. |
+| `/v1/referral-saas/accounts/{accountRef}/campaigns/{campaignRef}/activation-requests` | `POST` | TASK-264 contract over existing campaign lifecycle, readiness, review, account audit, and idempotency evidence | SaaS account admin/operator bridge | Future guarded command. Must require approved review and activation-ready evidence, resolve tenant scope internally, mutate only campaign activation posture, and must not generate links, create validation tracks, deliver webhooks, create credentials, change access, bill, or move money. |
 | `/v1/referral-saas/campaigns` | `POST` | `POST /campaigns` plus TASK-135 contract | SaaS account admin or integration credential | Legacy target shape only; account-scoped create wrapper is the implemented product route. |
 | `/v1/referral-saas/campaigns/{campaignRef}` | `GET` | campaign service/readiness service | SaaS account admin/member | Product read shape only; no raw readiness internals. |
 | `/v1/referral-saas/campaigns/{campaignRef}/readiness` | `GET` | `GET /admin/campaigns/{campaign_code}/readiness` | SaaS account admin/member or operator | Must map blockers to product-safe categories. |
@@ -312,6 +313,12 @@ Rules:
   The guarded wrappers keep review separate from activation, link/code
   generation, validation-track creation, webhook delivery, invite/seat/auth
   changes, billing, and money movement.
+- TASK-264 defines the future selected-customer activation route:
+  `POST /v1/referral-saas/accounts/{accountRef}/campaigns/{campaignRef}/activation-requests`.
+  The contract requires approved review and activation-ready campaign evidence
+  before any lifecycle change, keeps tenant-code resolution server-side, and
+  preserves links/codes, validation tracks, webhooks, credentials, access,
+  billing, and money as separate workflows.
 - Some legacy current schemas expose raw `tenant_code`, `referrer_ucn`, or
   `referee_ucn`; TASK-174 product link/code wrappers use credential-derived
   scope for protected calls and product-shaped safe responses, while future

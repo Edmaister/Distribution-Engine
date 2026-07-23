@@ -598,18 +598,18 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-263 for Referral SaaS, with
+            Updated after TASK-134 through TASK-264 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
         <div class="status-strip" aria-label="Roadmap status snapshot">
           <div class="status-pill">
-            <b>14/14 Referral SaaS contracts</b>
+            <b>15/15 Referral SaaS contracts</b>
             <span>Account, campaign, code, validation, progress, attribution, support, reporting, API, IA, audit, and E2E plan are documented.</span>
           </div>
           <div class="status-pill">
             <b>Customer-scoped campaign spine is now backend-ready</b>
-            <span>TASK-253 through TASK-263 add selected-customer campaign readiness, list/read, create, policy/settings, submit-for-review, review-decision API proof, and review UX while preserving no activation, no link generation, no webhooks, no access changes, no billing, and no money movement.</span>
+            <span>TASK-253 through TASK-264 add selected-customer campaign readiness, list/read, create, policy/settings, submit-for-review, review-decision API proof, review UX, and the activation/go-live contract while preserving no links, no webhooks, no access changes, no billing, and no money movement.</span>
           </div>
           <div class="status-pill">
             <b>Live confidence still capped</b>
@@ -621,7 +621,7 @@
           </div>
           <div class="status-pill">
             <b>Hardening still missing</b>
-            <span>The score stays below 10/10 until activation/go-live boundaries, customer-scoped link/code continuation, customer-scoped reporting, persisted export storage/audit/downloads, support-case persistence/repair guardrails, and live smoke/E2E evidence ship.</span>
+            <span>The score stays below 10/10 until guarded activation/go-live runtime wrappers, customer-scoped link/code continuation, customer-scoped reporting, persisted export storage/audit/downloads, support-case persistence/repair guardrails, and live smoke/E2E evidence ship.</span>
           </div>
         </div>
       </section>
@@ -1227,7 +1227,7 @@
           <article class="capability" data-tone="amber">
             <h3>Still Not Shipped</h3>
             <p>
-              Campaign activation/go-live wrappers, customer-scoped link/code and reporting continuation, persisted export storage/audit/downloads,
+              Campaign activation/go-live runtime wrappers, customer-scoped link/code and reporting continuation, persisted export storage/audit/downloads,
               live/staging execution evidence, and
               full E2E proof remain open before a 10/10 claim.
             </p>
@@ -1255,8 +1255,8 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">SaaS workflow implementation</div>
-            <div class="matrix-cell">Selected-customer account/profile, people/access, technical setup, customer-scoped campaign readiness, campaign list/read, create, policy/settings, guarded submit/review API proof, and review UX now exist, but campaign activation/go-live, customer-scoped links/codes, customer-scoped reports, support-case persistence, and lifecycle hardening still need cohesive product workflows.</div>
-            <div class="matrix-cell">Define activation/go-live next, then keep link/code, reporting, and support persistence as separate customer-scoped modules with tests and no source duplication.</div>
+            <div class="matrix-cell">Selected-customer account/profile, people/access, technical setup, customer-scoped campaign readiness, campaign list/read, create, policy/settings, guarded submit/review API proof, review UX, and activation/go-live contract now exist, but campaign activation runtime, customer-scoped links/codes, customer-scoped reports, support-case persistence, and lifecycle hardening still need cohesive product workflows.</div>
+            <div class="matrix-cell">Implement the guarded activation/go-live API wrapper next, then keep link/code, reporting, and support persistence as separate customer-scoped modules with tests and no source duplication.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Live DB/state verification</div>
@@ -1275,8 +1275,8 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Public API and frontend packaging</div>
-            <div class="matrix-cell">The API map and IA exist, focused admin surfaces are ringfenced, and product wrappers now cover reports/exports, link/code issue-validation-capture, operator diagnostics, account/customer profile, people/access, technical readiness, campaign create/policy/review APIs, and selected-customer campaign review UX, but customers still need activation/go-live, customer-scoped support/reporting surfaces, live proof, and customer/referrer-safe status surfaces.</div>
-            <div class="matrix-cell">Ship TASK-264 activation/go-live contract next, then activation wrappers, customer-scoped links/codes, and customer-scoped reports with auth, safe errors, and redaction tests.</div>
+            <div class="matrix-cell">The API map and IA exist, focused admin surfaces are ringfenced, and product wrappers now cover reports/exports, link/code issue-validation-capture, operator diagnostics, account/customer profile, people/access, technical readiness, campaign create/policy/review APIs, selected-customer campaign review UX, and activation/go-live contract, but customers still need activation runtime, customer-scoped support/reporting surfaces, live proof, and customer/referrer-safe status surfaces.</div>
+            <div class="matrix-cell">Ship TASK-265 guarded activation API next, then activation UX, customer-scoped links/codes, and customer-scoped reports with auth, safe errors, and redaction tests.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Lifecycle command hardening</div>

@@ -5770,7 +5770,7 @@ Validation: Frontend endpoint and selected-customer Campaign Review page tests c
 
 ## TASK-264: Define selected-customer campaign activation/go-live command contract
 
-Status: Planned.
+Status: Complete.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_SUBMIT_REVIEW_CONTRACT.md`.
 Shared primitive impact: Reuse selected-customer account scope, campaign readiness, campaign policy evidence, campaign review evidence, audit, idempotency, and existing campaign lifecycle fields. Source duplication: No.
@@ -5792,6 +5792,35 @@ Risk level: Medium.
 Rollback notes: Remove the contract doc/tests and roadmap/gap/infographic updates.
 Explicit non-goals: Do not add backend routes, schema, migrations, frontend screens, campaign activation runtime behavior, go-live actions, link/code generation, validation-track creation, credentials, webhook delivery, invite delivery, membership activation, seat assignment, auth/session claim changes, reports/exports, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has a reviewed selected-customer campaign activation/go-live command contract that preserves review/activation separation and blocks adjacent side effects. Priority: P0.
+
+Finding: Defined the selected-customer campaign activation/go-live command contract. The contract requires selected account/campaign scope, internally resolved tenant scope, policy evidence, approved campaign-review evidence, activation-ready readiness evidence, idempotency, and account/campaign audit evidence before activation can be accepted. It also preserves review/activation separation and explicitly blocks tenant-code exposure, link generation, validation-track creation, webhook delivery, credentials, access changes, billing, money movement, broad DLaaS behavior, and source-code forks.
+
+Validation: Contract test covers source-backed facts, activation route shape, required review/readiness gates, status vocabulary, guardrails, redactions, and non-goals. `python -m pytest -q test/test_referral_saas_customer_campaign_activation_contract.py`; `git diff --check`.
+
+## TASK-265: Add guarded selected-customer campaign activation/go-live API wrapper
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_ACTIVATION_CONTRACT.md`.
+Shared primitive impact: Reuse selected-customer account scope, campaign ownership checks, policy/readiness/review evidence, account audit events, idempotency posture, and existing campaign lifecycle fields. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile Campaigns; campaign activation/go-live command; lifecycle governance; audit evidence; idempotency.
+Objective: Implement the guarded activation/go-live backend wrapper that follows TASK-264 without generating links, validation tracks, webhooks, credentials, access changes, billing, or money movement.
+Why now: TASK-264 defines the command boundary. The next production-grade step is runtime API proof before any activation UI is exposed.
+Files likely involved: `services/referral_saas_campaign_service.py`; `apps/api/routers/referral_saas_accounts.py`; `scripts/referral_saas_route_smoke_plan.py`; `test/test_referral_saas_campaign_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; `test/test_referral_saas_route_smoke_plan.py`; route smoke docs; public API map; roadmap/gap docs; infographic.
+Database/schema impact: No migration expected. Use existing `marketing_campaigns.is_active`, `marketing_campaigns.attributes`, `marketing_campaign_policies`, and `platform_account_audit_events`. Any discovered schema gap must be documented before adding migrations.
+Backend impact: Add `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/activation-requests`, resolving selected account/campaign scope internally, requiring approved review and readiness evidence, recording audit/idempotency evidence, rejecting unsafe adjacent payload fields, replaying same-payload idempotency keys, rejecting conflicting idempotency keys, and mutating only campaign activation posture.
+Frontend impact: None expected. Activation UI must wait until the API wrapper is tested.
+API impact: New guarded Referral SaaS selected-customer activation/go-live command route. It must not expose tenant code, generate links, create validation tracks, deliver webhooks, create credentials, change access, bill, or move money.
+Tests to add/update: Service tests, API tests, route smoke inventory/plan tests, idempotency replay/conflict tests, missing policy/review/readiness blocker tests, already-active tests, unsafe payload rejection tests, audit evidence tests, and no-adjacent-action response tests.
+Validation method: Focused backend/API/route tests plus `git diff --check`.
+Acceptance criteria: Selected-customer campaign activation can only occur after approved review and sufficient readiness; tenant-code resolution stays server-side; idempotency/audit evidence is preserved; unsafe adjacent actions are rejected; response confirms no link, validation-track, webhook, credential, access, billing, money, DLaaS marketplace behavior, or source-code fork occurred.
+Dependencies: TASK-253; TASK-254; TASK-258; TASK-259; TASK-260; TASK-261; TASK-262; TASK-263; TASK-264.
+Blocked by: Selected-customer activation UI, customer-scoped link/code continuation, customer-scoped reporting continuation, and full campaign workflow E2E tests.
+Risk level: Medium.
+Rollback notes: Remove the activation service/API wrapper, route smoke updates, tests, and roadmap/gap/infographic updates.
+Explicit non-goals: Do not add schema, migrations, frontend screens, link/code generation, validation-track creation, credentials, webhook delivery, invite delivery, membership activation, seat assignment, auth/session claim changes, reports/exports, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has a guarded selected-customer campaign activation/go-live backend wrapper that mutates only activation posture after approved review/readiness and preserves all no-adjacent-action guardrails. Priority: P0.
 
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
