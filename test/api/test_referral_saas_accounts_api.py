@@ -1948,7 +1948,13 @@ async def test_referral_saas_account_campaign_code_issue_resolves_account_scope(
     assert body["no_tenant_code_exposure_confirmed"] is True
     assert body["no_campaign_activation_confirmed"] is True
     assert "tenantCode" not in str(body)
-    assert "tenant_code" not in str(body)
+    assert "tenant_code" not in str(
+        {
+            "account": body["account"],
+            "campaign": body["campaign"],
+            "linkCode": body["linkCode"],
+        }
+    )
     assert issue_calls == [
         {
             "referrer_ucn": "5555555555",
@@ -2023,7 +2029,13 @@ async def test_referral_saas_account_campaign_code_validation_resolves_account_s
     assert body["validation"]["validationStatus"] == "VALIDATED"
     assert body["no_tenant_code_exposure_confirmed"] is True
     assert "tenantCode" not in str(body)
-    assert "tenant_code" not in str(body)
+    assert "tenant_code" not in str(
+        {
+            "account": body["account"],
+            "campaign": body["campaign"],
+            "validation": body["validation"],
+        }
+    )
     assert validation_calls == [
         {
             "referral_code": "REF123",
