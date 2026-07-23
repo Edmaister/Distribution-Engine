@@ -238,6 +238,7 @@ greenfield referral construction.
 130. TASK-264: Define selected-customer campaign activation/go-live command contract.
 131. TASK-265: Add guarded selected-customer campaign activation/go-live API wrapper.
 132. TASK-266: Wire selected-customer campaign activation action.
+133. TASK-267: Continue customer-scoped Links and Codes from activated campaigns.
 
 ## 10/10 Exit Criteria
 
@@ -1011,6 +1012,14 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the guarded selected-customer campaign activation API wrapper. The backend resolves account/campaign scope internally, requires policy evidence and approved review posture, activates only campaign lifecycle posture, records audit/idempotency evidence, rejects unsafe adjacent payload fields, and confirms no link generation, validation-track creation, webhook delivery, credential creation, access change, billing, DLaaS marketplace behavior, or money movement.
+- TASK-266: `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Wires the selected-customer campaign activation action to the guarded TASK-265 API wrapper from the Campaign Review page. Activation is available only after review approval, stays inside the selected customer context, refreshes campaign list state, and confirms no link generation, validation-track creation, webhook delivery, credential creation, access change, billing, DLaaS marketplace behavior, or money movement.
 
 ## Explicit Deferrals
 

@@ -5828,7 +5828,7 @@ Validation: Focused service, API, and route smoke tests cover activation accepta
 
 ## TASK-266: Wire selected-customer campaign activation action
 
-Status: Planned.
+Status: Complete (2026-07-23).
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_ACTIVATION_CONTRACT.md`.
 Shared primitive impact: Reuse selected-customer account context, campaign review state, guarded activation API, existing API client, and customer-scoped Campaigns navigation. Source duplication: No.
@@ -5850,6 +5850,35 @@ Risk level: Medium.
 Rollback notes: Remove activation UI/client wiring/tests and roadmap/gap/infographic updates.
 Explicit non-goals: Do not add backend routes, schema, migrations, link/code generation, validation-track creation, credentials, webhook delivery, invite delivery, membership activation, seat assignment, auth/session claim changes, reports/exports, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has a selected-customer campaign activation UX wired to the guarded backend wrapper with clear customer-scoped states and no adjacent side effects. Priority: P0.
+
+Finding: Wired the TASK-265 guarded activation wrapper into the selected-customer Campaign Review page. The UI enables activation only after an approved campaign review, posts the selected account/campaign scope to `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/activation-requests`, refreshes campaign list state, and shows plain-language success plus next actions. The action confirms it does not create links, validation tracks, webhooks, credentials, access, billing, money movement, DLaaS marketplace behavior, or source forks.
+
+Validation: Frontend API client and selected-customer Campaign Review tests cover activation request payload, disabled state before review approval, no tenant-code entry, no unsafe adjacent-action copy, and post-activation success state. `npm.cmd run test -- referralSaasAccounts.test.ts ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `git diff --check`.
+
+## TASK-267: Continue customer-scoped Links and Codes from activated campaigns
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuse selected-customer account context, existing link/code issue and validation product wrappers, activated campaign posture, idempotency, audit, redaction, and customer-scoped navigation. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile Links and Codes; campaign-to-link continuation; referral code issue/reuse; validation guardrails.
+Objective: Move Links and Codes into the selected-customer workflow so operators can issue/reuse and validate referral links/codes for the selected customer and campaign without leaving customer context or entering tenant code.
+Why now: Campaign setup, policy, review, and activation are now wired end to end. The next operator step is turning an activated campaign into usable referral entry points while preserving existing link/code guardrails.
+Files likely involved: frontend API client/query tests, selected-customer Links and Codes page, route/navigation tests, roadmap/gap docs, and infographic.
+Database/schema impact: None expected.
+Backend impact: None expected unless existing wrappers require a small account-scope adapter.
+Frontend impact: Add or wire a selected-customer Links and Codes page that selects an activated campaign, calls existing issue/reuse and validation wrappers, shows code/link status, and routes back to customer campaign/reporting context.
+API impact: Reuse existing Referral SaaS link/code product wrappers; do not add new public routes unless an account-scoped adapter gap is proven.
+Tests to add/update: Frontend API/client tests where needed, customer-scoped Links and Codes UI tests, active-campaign selector tests, no tenant-code/internal-ID leakage tests, validation safe-error tests, and route tests.
+Validation method: Frontend focused tests plus `npm run build`; `git diff --check`.
+Acceptance criteria: Operators can issue/reuse and validate referral links/codes inside a selected customer and campaign context; inactive or unapproved campaign states are blocked with plain-language guidance; no tenant code, raw internal ID, credential, webhook, billing, or money fields are exposed; navigation stays customer scoped.
+Dependencies: TASK-174; TASK-175; TASK-176; TASK-177; TASK-253; TASK-254; TASK-257; TASK-260; TASK-263; TASK-264; TASK-265; TASK-266.
+Blocked by: Customer-scoped reporting continuation and full campaign workflow E2E tests.
+Risk level: Medium.
+Rollback notes: Remove customer-scoped Links and Codes UI/client wiring/tests and roadmap/gap/infographic updates.
+Explicit non-goals: Do not add schema, migrations, new link algorithm behavior, validation-track creation beyond existing wrappers, credentials, webhook delivery, invite delivery, membership activation, seat assignment, auth/session claim changes, reports/exports, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS can continue from an activated selected-customer campaign into customer-scoped Links and Codes using existing guarded primitives with clear UX and no tenant-code leakage. Priority: P0.
 
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
