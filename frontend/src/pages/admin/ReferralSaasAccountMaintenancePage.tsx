@@ -27,6 +27,11 @@ import {
   useReferralSaasTechnicalSetupReadiness,
 } from "../../api/referralSaasAccountQueries";
 import {
+  issueReferralSaasAccountCampaignCode,
+  validateReferralSaasAccountCampaignCode,
+  type ReferralSaasLinkRecord,
+} from "../../api/endpoints/referralSaasLinks";
+import {
   createReferralSaasAccountCampaignSetup,
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasMembershipInvitationIntent,
@@ -1645,7 +1650,16 @@ export function ReferralSaasAccountMaintenancePage() {
                 )
               ) : null}
 
-              {["links", "reports", "support", "attribution", "progress"].includes(selectedModule) ? (
+              {selectedModule === "links" ? (
+                <CustomerLinksAndCodesPage
+                  customerName={customerName}
+                  externalTenantRef={selectedExternalTenantRef}
+                  selectedAccount={selectedAccount}
+                  selectedCustomerPath={selectedCustomerPath}
+                />
+              ) : null}
+
+              {["reports", "support", "attribution", "progress"].includes(selectedModule) ? (
                 <CustomerModulePage
                   customerName={customerName}
                   customerQuery={customerQuery}
@@ -2686,6 +2700,363 @@ function CustomerCampaignReviewPage({
           </Link>
           <Link className="button secondary" to={`${selectedCustomerPath}/campaigns/settings`}>
             Policy settings
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function customerLinkResultValue(result: ReferralSaasLinkRecord | undefined, path: string[], fallback = "-") {
+  if (!result) {
+    return fallback;
+  }
+  const nested = getNestedValue(result, path, undefined);
+  if (nested !== undefined && nested !== null && String(nested).trim() !== "") {
+    return String(nested);
+  }
+  return getValue(result, path, fallback);
+}
+
+function CustomerLinksAndCodesPage({
+  customerName,
+  externalTenantRef,
+  selectedAccount,
+  selectedCustomerPath,
+}: {
+  customerName: string;
+  externalTenantRef: string;
+  selectedAccount?: AccountRegistryItem;
+  selectedCustomerPath: string;
+}) {
+  const { refreshKey } = useRefreshContext();
+  const [campaignCode, setCampaignCode] = useState("");
+  const [referrerUcn, setReferrerUcn] = useState("");
+  const [sticker, setSticker] = useState("");
+  const [segment, setSegment] = useState("REFERRAL");
+  const [preferredHandle, setPreferredHandle] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(true);
+  const [referralCode, setReferralCode] = useState("");
+  const [alias, setAlias] = useState("");
+  const {
+    data: campaignListResponse,
+    error: campaignListError,
+    isLoading: isCampaignListLoading,
+  } = useReferralSaasAccountCampaignList(
+    selectedAccount?.accountId || "",
+    externalTenantRef,
+    Boolean(selectedAccount && externalTenantRef),
+    refreshKey,
+  );
+  const campaigns = campaignListResponse?.campaigns || [];
+  const activatedCampaigns = campaigns.filter(
+    (campaign) => campaign.status === "ACTIVE" && campaign.lifecycle === "ACTIVE",
+  );
+  const selectedCampaign =
+    campaigns.find((campaign) => campaign.campaignCode === campaignCode) || activatedCampaigns[0] || campaigns[0];
+  const selectedCampaignCode = selectedCampaign?.campaignCode || campaignCode;
+  const selectedCampaignIsActive =
+    selectedCampaign?.status === "ACTIVE" && selectedCampaign?.lifecycle === "ACTIVE";
+  const accountScope = {
+    refType: "external_tenant_ref" as const,
+    externalRef: externalTenantRef,
+    context: "setup" as const,
+  };
+
+  useEffect(() => {
+    if (!campaignCode && activatedCampaigns[0]?.campaignCode) {
+      setCampaignCode(activatedCampaigns[0].campaignCode);
+    }
+  }, [activatedCampaigns, campaignCode]);
+
+  const issueMutation = useMutation({
+    mutationFn: () =>
+      issueReferralSaasAccountCampaignCode({
+        accountRef: selectedAccount?.accountId || "",
+        campaignCode: selectedCampaignCode,
+        accountScope,
+        referrerUcn,
+        sticker,
+        segment,
+        preferredHandle,
+        acceptedTerms,
+      }),
+    onSuccess: (result) => {
+      const issuedCode =
+        customerLinkResultValue(result, ["linkCode", "referralCode"], "") ||
+        customerLinkResultValue(result, ["issue", "referralCode"], "");
+      if (issuedCode) {
+        setReferralCode(issuedCode);
+      }
+    },
+  });
+
+  const validateMutation = useMutation({
+    mutationFn: () =>
+      validateReferralSaasAccountCampaignCode({
+        accountRef: selectedAccount?.accountId || "",
+        campaignCode: selectedCampaignCode,
+        accountScope,
+        referralCode,
+        acceptedTerms,
+        alias,
+      }),
+  });
+
+  const issueResult = issueMutation.data;
+  const validationResult = validateMutation.data;
+  const linkCode = asRecord(getNestedValue(issueResult, ["linkCode"], {}));
+  const validation = asRecord(getNestedValue(validationResult, ["validation"], {}));
+  const validationStatus = String(validationResult?.status || "Checked");
+  const canIssue = Boolean(
+    selectedAccount &&
+      externalTenantRef &&
+      selectedCampaignCode &&
+      selectedCampaignIsActive &&
+      referrerUcn.trim() &&
+      sticker.trim() &&
+      segment.trim() &&
+      acceptedTerms,
+  );
+  const canValidate = Boolean(
+    selectedAccount &&
+      externalTenantRef &&
+      selectedCampaignCode &&
+      selectedCampaignIsActive &&
+      referralCode.trim() &&
+      acceptedTerms,
+  );
+
+  return (
+    <section className="panel customer-module-page">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Links and codes</div>
+          <h2 className="panel-title">Links and codes</h2>
+          <div className="panel-subtitle">
+            Select an activated campaign, issue or reuse a referral code, then validate it without entering tenant code.
+          </div>
+        </div>
+        <StatusBadge label="Customer scoped" tone="success" />
+      </div>
+      <div className="panel-body route-list">
+        <div className="wizard-status-card">
+          <div>
+            <strong>Selected customer</strong>
+            <p>
+              {selectedAccount?.accountCode || "No account code"} - {externalTenantRef || "No customer reference"}
+            </p>
+          </div>
+          <StatusBadge label="No tenant code entry" tone="success" />
+        </div>
+
+        {isCampaignListLoading ? <LoadingState label="Loading activated campaigns" /> : null}
+        {campaignListError ? <ErrorPanel error={campaignListError} /> : null}
+        {issueMutation.error ? <ErrorPanel error={issueMutation.error} /> : null}
+        {validateMutation.error ? <ErrorPanel error={validateMutation.error} /> : null}
+
+        <div>
+          <h3 className="section-heading">1. Choose an activated campaign</h3>
+          <p className="muted">Only active campaigns can issue or validate referral entry points from this customer page.</p>
+        </div>
+        <DataTable
+          rows={campaigns}
+          emptyText="No campaigns are attached to this customer yet. Create and activate a campaign before issuing links or codes."
+          columns={[
+            {
+              key: "campaign",
+              header: "Campaign",
+              render: (row) => {
+                const campaign = row as (typeof campaigns)[number];
+                const selected = campaign.campaignCode === selectedCampaignCode;
+                const active = campaign.status === "ACTIVE" && campaign.lifecycle === "ACTIVE";
+                return (
+                  <button
+                    className={`button ${selected ? "button-primary" : "button-secondary"}`}
+                    disabled={!active}
+                    onClick={() => setCampaignCode(campaign.campaignCode)}
+                    type="button"
+                  >
+                    {campaign.name || campaign.campaignCode}
+                  </button>
+                );
+              },
+            },
+            {
+              key: "campaignCode",
+              header: "Code",
+              render: (row) => <strong>{formatDisplay(getValue(row, ["campaignCode"], "Unknown"))}</strong>,
+            },
+            {
+              key: "status",
+              header: "Status",
+              render: (row) => <StatusBadge label={formatDisplay(getValue(row, ["status"], "Unknown"))} tone={statusTone(String(getValue(row, ["status"], "")))} />,
+            },
+            {
+              key: "action",
+              header: "Next action",
+              render: (row) => {
+                const active = getValue(row, ["status"], "") === "ACTIVE" && getValue(row, ["lifecycle"], "") === "ACTIVE";
+                return (
+                  <span className="table-subtext">
+                    {active ? "Can issue and validate codes here" : "Activate this campaign before issuing links"}
+                  </span>
+                );
+              },
+            },
+          ]}
+        />
+
+        {!activatedCampaigns.length && !isCampaignListLoading ? (
+          <div className="wizard-summary-strip warning">
+            <div>
+              <strong>In plain English:</strong> {customerName} needs an activated campaign before links or codes can be created.
+            </div>
+            <Link className="button secondary" to={`${selectedCustomerPath}/campaigns/review`}>
+              Review or activate campaign
+            </Link>
+          </div>
+        ) : null}
+
+        <div className="grid-2">
+          <form className="form-grid" onSubmit={(event) => event.preventDefault()}>
+            <div>
+              <h3 className="section-heading">2. Issue or reuse a referral code</h3>
+              <p className="muted">This calls the existing Referral SaaS code primitive through selected customer and campaign scope.</p>
+            </div>
+            <label>
+              Referrer customer reference
+              <input
+                onChange={(event) => setReferrerUcn(event.target.value)}
+                placeholder="Example: customer-referrer-001"
+                value={referrerUcn}
+              />
+            </label>
+            <label>
+              Channel or placement
+              <input
+                onChange={(event) => setSticker(event.target.value.toUpperCase())}
+                placeholder="Example: QR001"
+                value={sticker}
+              />
+            </label>
+            <label>
+              Segment
+              <input
+                onChange={(event) => setSegment(event.target.value.toUpperCase())}
+                placeholder="Example: REFERRAL"
+                value={segment}
+              />
+            </label>
+            <label>
+              Preferred public handle
+              <input
+                onChange={(event) => setPreferredHandle(event.target.value)}
+                placeholder="Optional"
+                value={preferredHandle}
+              />
+            </label>
+            <label className="checkbox-row">
+              <input
+                checked={acceptedTerms}
+                onChange={(event) => setAcceptedTerms(event.target.checked)}
+                type="checkbox"
+              />
+              <span>Terms accepted for issue and validation tests</span>
+            </label>
+            <button className="button" disabled={!canIssue || issueMutation.isPending} onClick={() => issueMutation.mutate()} type="button">
+              {issueMutation.isPending ? "Issuing code" : "Issue or reuse code"}
+            </button>
+          </form>
+
+          <form className="form-grid" onSubmit={(event) => event.preventDefault()}>
+            <div>
+              <h3 className="section-heading">3. Validate the referral code</h3>
+              <p className="muted">Validation uses the selected customer account scope internally; no tenant code is entered here.</p>
+            </div>
+            <label>
+              Referral code
+              <input
+                onChange={(event) => setReferralCode(event.target.value.toUpperCase())}
+                placeholder="Filled after issue or paste a known code"
+                value={referralCode}
+              />
+            </label>
+            <label>
+              Customer alias
+              <input
+                onChange={(event) => setAlias(event.target.value)}
+                placeholder="Optional safe customer alias"
+                value={alias}
+              />
+            </label>
+            <button className="button" disabled={!canValidate || validateMutation.isPending} onClick={() => validateMutation.mutate()} type="button">
+              {validateMutation.isPending ? "Validating code" : "Validate code"}
+            </button>
+          </form>
+        </div>
+
+        <div className="grid-3">
+          <KpiCard
+            label="Campaign"
+            value={selectedCampaignCode || "None"}
+            footnote={selectedCampaignIsActive ? "Activated campaign selected" : "Activation required first"}
+            icon={Target}
+          />
+          <KpiCard
+            label="Issued code"
+            value={customerLinkResultValue(issueResult, ["linkCode", "referralCode"])}
+            footnote={formatDisplay(customerLinkResultValue(issueResult, ["linkCode", "issueStatus"], "Waiting"))}
+            icon={LinkIcon}
+          />
+          <KpiCard
+            label="Validation"
+            value={formatDisplay(customerLinkResultValue(validationResult, ["validation", "validationStatus"], "Waiting"))}
+            footnote={customerLinkResultValue(validationResult, ["validation", "message"], "No validation run yet")}
+            icon={ShieldCheck}
+          />
+        </div>
+
+        {issueResult ? (
+          <div className="wizard-summary-strip success">
+            <div>
+              <strong>Code ready.</strong>{" "}
+              {formatDisplay(customerLinkResultValue(linkCode, ["issueStatus"], "Issued"))} for {selectedCampaignCode}.
+              This did not activate campaigns, send webhooks, bill, fund, settle, or move money.
+            </div>
+            <StatusBadge label={formatDisplay(customerLinkResultValue(linkCode, ["sourceType"], "Referral code"))} tone="success" />
+          </div>
+        ) : null}
+
+        {validationResult ? (
+          <div className={`wizard-summary-strip ${validationStatus === "ok" ? "success" : "warning"}`}>
+            <div>
+              <strong>Validation checked.</strong>{" "}
+              {formatDisplay(customerLinkResultValue(validation, ["message"], customerLinkResultValue(validation, ["validationStatus"], "Checked")))}
+            </div>
+            <StatusBadge
+              label={formatDisplay(customerLinkResultValue(validation, ["validationStatus"], validationStatus))}
+              tone={statusTone(customerLinkResultValue(validation, ["validationStatus"], validationStatus))}
+            />
+          </div>
+        ) : null}
+
+        <div className="wizard-status-card">
+          <div>
+            <strong>What this page will not do</strong>
+            <p>
+              No tenant code is shown or entered, no campaign is activated, no webhook or invite is sent, no credentials are created, and no billing, rewards, funding, fulfilment, settlement, wallet, invoice, payout, or treasury action happens here.
+            </p>
+          </div>
+          <StatusBadge label="Bounded link/code workflow" tone="success" />
+        </div>
+
+        <div className="customer-header-actions">
+          <Link className="button secondary" to={`${selectedCustomerPath}/campaigns`}>
+            Back to Campaigns
+          </Link>
+          <Link className="button secondary" to={`${selectedCustomerPath}`}>
+            Customer home
           </Link>
         </div>
       </div>

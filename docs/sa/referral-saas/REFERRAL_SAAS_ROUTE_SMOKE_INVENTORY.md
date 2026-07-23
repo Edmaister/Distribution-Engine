@@ -34,6 +34,11 @@ boundary. It requires approved review and policy evidence, activates only
 campaign posture, records account audit/idempotency evidence, and does not
 generate links, create validation tracks, deliver webhooks, create credentials,
 change access, bill, or move money.
+TASK-267 adds seeded-only customer-scoped link/code issue and validation
+wrappers for activated campaigns. They resolve selected customer account scope
+server-side, require an active campaign, reuse existing referral code and
+validation primitives, and do not expose tenant code, activate campaigns,
+deliver webhooks, create credentials, bill, or move money.
 No schema, live database mutation, or persisted export is introduced by this
 inventory document; seeded write routes remain local/staging-only smoke
 candidates and are classified explicitly below.
@@ -112,6 +117,8 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-submissions` | Referral SaaS customer-scoped campaign review submission wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-decisions` | Referral SaaS customer-scoped campaign review decision wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/activation-requests` | Referral SaaS customer-scoped campaign activation request wrapper |
+| Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referral-codes` | Referral SaaS customer-scoped active-campaign referral code issue/reuse wrapper |
+| Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referrals/validate` | Referral SaaS customer-scoped active-campaign referral validation wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations` | Referral SaaS membership invitation intent wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery` | Referral SaaS invitation delivery request boundary; records blocked provider evidence only |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/activation` | Referral SaaS membership activation request boundary; activates membership lifecycle only after identity/account gates |
@@ -141,6 +148,8 @@ local/staging smoke classification:
 - `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-submissions`
 - `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-decisions`
 - `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/activation-requests`
+- `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referral-codes`
+- `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referrals/validate`
 - `GET /v1/referral-saas/reports/{report_type}`
 - `POST /v1/referral-saas/reports/{report_type}/exports/preview`
 - `POST /v1/referral-saas/reports/{report_type}/exports/validate`
@@ -192,6 +201,10 @@ It activates only selected-customer campaign posture after approved review and
 policy evidence, with audit/idempotency proof and no link generation,
 validation-track creation, webhook delivery, credential creation, access
 changes, billing, or money movement.
+TASK-267 adds seeded local/staging-only active-campaign link/code wrappers. They
+issue/reuse and validate referral codes from selected-customer campaign context
+without caller-entered tenant code and without activation, webhook, credential,
+billing, or money side effects.
 
 ## Smoke Safety Classification
 
@@ -228,6 +241,8 @@ approved seeded production-safe process:
 - Referral SaaS customer-scoped campaign policy/settings upsert
 - Referral SaaS customer-scoped campaign review submission and decision
 - Referral SaaS customer-scoped campaign activation request
+- Referral SaaS customer-scoped active-campaign referral code issue/reuse
+- Referral SaaS customer-scoped active-campaign referral validation
 
 ## Launch Implication
 

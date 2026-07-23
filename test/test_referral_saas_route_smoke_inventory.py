@@ -69,6 +69,14 @@ def test_referral_saas_current_smoke_routes_are_mounted():
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/activation-requests",
         ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referral-codes",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referrals/validate",
+        ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/membership-invitations"),
         (
             "POST",
@@ -124,6 +132,14 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/activation-requests",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referral-codes",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referrals/validate",
         ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/membership-invitations"),
         (

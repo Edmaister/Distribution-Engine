@@ -1881,6 +1881,208 @@ async def test_referral_saas_account_campaign_list_rejects_path_scope_mismatch(
     assert detail["no_auth_claim_change_confirmed"] is True
 
 
+async def test_referral_saas_account_campaign_code_issue_resolves_account_scope(
+    monkeypatch,
+):
+    issue_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(tenant_code="FNB")
+
+    async def fake_get_referral_saas_account_campaign(**kwargs):
+        return _campaign_summary(campaign_code="CAMP001", status="ACTIVE", lifecycle="ACTIVE")
+
+    async def fake_get_or_create_referrer_code(**kwargs):
+        issue_calls.append(kwargs)
+        return (
+            {
+                "referral_code": "REF123",
+                "gaming_handle": "edwin",
+                "created": True,
+                "message": "Code created",
+            },
+            201,
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_account_campaign",
+        fake_get_referral_saas_account_campaign,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_or_create_referrer_code",
+        fake_get_or_create_referrer_code,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/referral-codes",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "issueRequest": {
+                    "referrerUcn": "5555555555",
+                    "sticker": "QR001",
+                    "segment": "PERSONAL",
+                    "preferredHandle": "edwin",
+                    "acceptedTerms": True,
+                },
+            },
+        )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["linkCode"]["issueStatus"] == "CREATED"
+    assert body["linkCode"]["referralCode"] == "REF123"
+    assert body["campaign"]["campaignCode"] == "CAMP001"
+    assert body["no_tenant_code_exposure_confirmed"] is True
+    assert body["no_campaign_activation_confirmed"] is True
+    assert "tenantCode" not in str(body)
+    assert "tenant_code" not in str(body)
+    assert issue_calls == [
+        {
+            "referrer_ucn": "5555555555",
+            "tenant": "FNB",
+            "sticker": "QR001",
+            "segment": "PERSONAL",
+            "preferred_handle": "edwin",
+            "accepted_terms": True,
+        }
+    ]
+
+
+async def test_referral_saas_account_campaign_code_validation_resolves_account_scope(
+    monkeypatch,
+):
+    validation_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(tenant_code="FNB")
+
+    async def fake_get_referral_saas_account_campaign(**kwargs):
+        return _campaign_summary(campaign_code="CAMP001", status="ACTIVE", lifecycle="ACTIVE")
+
+    async def fake_validate_referral_code(**kwargs):
+        validation_calls.append(kwargs)
+        return (
+            {
+                "valid": True,
+                "referral_track_id": "11111111-1111-4111-8111-111111111111",
+                "message": "Referral code validated",
+            },
+            200,
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_account_campaign",
+        fake_get_referral_saas_account_campaign,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "validate_referral_code",
+        fake_validate_referral_code,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/referrals/validate",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "validationRequest": {
+                    "referralCode": "REF123",
+                    "acceptedTerms": True,
+                    "alias": "customer-alias",
+                },
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["campaign"]["campaignCode"] == "CAMP001"
+    assert body["validation"]["validationStatus"] == "VALIDATED"
+    assert body["no_tenant_code_exposure_confirmed"] is True
+    assert "tenantCode" not in str(body)
+    assert "tenant_code" not in str(body)
+    assert validation_calls == [
+        {
+            "referral_code": "REF123",
+            "tenant_code": "FNB",
+            "accepted_terms": True,
+            "alias": "customer-alias",
+            "device_fingerprint": None,
+            "ip_address": None,
+            "qr_code": None,
+        }
+    ]
+
+
+async def test_referral_saas_account_campaign_links_require_active_campaign(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(tenant_code="FNB")
+
+    async def fake_get_referral_saas_account_campaign(**kwargs):
+        return _campaign_summary(campaign_code="CAMP002", status="DRAFT", lifecycle="DRAFT")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_account_campaign",
+        fake_get_referral_saas_account_campaign,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP002/referral-codes",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "issueRequest": {
+                    "referrerUcn": "5555555555",
+                    "sticker": "QR001",
+                    "segment": "PERSONAL",
+                    "acceptedTerms": True,
+                },
+            },
+        )
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["code"] == "campaign_not_active"
+    assert "ACTIVE_CAMPAIGN_REQUIRED" in detail["guardrails"]
+    assert detail["no_campaign_activation_confirmed"] is True
+    assert "tenant_code" not in str(detail)
+
+
 async def test_referral_saas_account_campaign_read_maps_missing_campaign(
     monkeypatch,
 ):
