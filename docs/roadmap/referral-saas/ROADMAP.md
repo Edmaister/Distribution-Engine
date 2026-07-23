@@ -237,6 +237,7 @@ greenfield referral construction.
 129. TASK-263: Add selected-customer campaign submit/review UX.
 130. TASK-264: Define selected-customer campaign activation/go-live command contract.
 131. TASK-265: Add guarded selected-customer campaign activation/go-live API wrapper.
+132. TASK-266: Wire selected-customer campaign activation action.
 
 ## 10/10 Exit Criteria
 
@@ -997,6 +998,19 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the selected-customer campaign activation/go-live command boundary. Activation now has a reviewed contract requiring approved review, readiness, idempotency, and audit evidence while keeping tenant-code exposure, link generation, validation-track creation, webhook delivery, credentials, access changes, billing, money movement, DLaaS marketplace behavior, and source forks out of scope.
+- TASK-265: `services/referral_saas_campaign_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/test_referral_saas_campaign_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the guarded selected-customer campaign activation API wrapper. The backend resolves account/campaign scope internally, requires policy evidence and approved review posture, activates only campaign lifecycle posture, records audit/idempotency evidence, rejects unsafe adjacent payload fields, and confirms no link generation, validation-track creation, webhook delivery, credential creation, access change, billing, DLaaS marketplace behavior, or money movement.
 
 ## Explicit Deferrals
 

@@ -610,3 +610,229 @@ async def test_campaign_review_decision_requires_review_submission(monkeypatch):
             command_payload_hash="payload-hash",
         )
 
+
+async def test_campaign_activation_request_activates_only_campaign_posture(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "campaign_code": "CAMP001",
+                "is_active": False,
+                "starts_at": None,
+                "ends_at": None,
+                "attributes": {
+                    "referral_saas_review": {
+                        "review_status": "REVIEW_APPROVED",
+                        "activation_eligibility": (
+                            "ELIGIBLE_FOR_FUTURE_ACTIVATION"
+                        ),
+                    }
+                },
+            },
+            {"active_policy_count": 1},
+            {
+                "campaign_code": "CAMP001",
+                "is_active": True,
+                "starts_at": None,
+                "ends_at": None,
+                "attributes": {
+                    "referral_saas_review": {
+                        "review_status": "REVIEW_APPROVED",
+                        "activation_eligibility": (
+                            "ELIGIBLE_FOR_FUTURE_ACTIVATION"
+                        ),
+                        "activation_status": "ACTIVATION_REQUEST_ACCEPTED",
+                    }
+                },
+            },
+            {"account_audit_event_id": "audit-activation-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.request_referral_saas_account_campaign_activation(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        campaign_code="CAMP001",
+        requested_lifecycle_status="ACTIVE",
+        review_status="REVIEW_APPROVED",
+        go_live_reason="Approved for referral campaign testing.",
+        reason_code="CUSTOMER_PROFILE_CAMPAIGN_ACTIVATION",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "CAMPAIGN_ACTIVATION_ACCEPTED"
+    assert safe_payload["campaignActivation"]["lifecycle"] == "ACTIVE"
+    assert (
+        safe_payload["campaignActivation"]["activationStatus"]
+        == "ACTIVATION_REQUEST_ACCEPTED"
+    )
+    assert "NO_LINK_GENERATION" in safe_payload["guardrails"]
+    assert "NO_WEBHOOK_DELIVERY" in safe_payload["guardrails"]
+    assert "NO_BILLING_OR_MONEY_MOVEMENT" in safe_payload["guardrails"]
+    joined_queries = "\n".join(query for query, _ in conn.fetchrow_calls)
+    assert "UPDATE marketing_campaigns" in joined_queries
+    assert "SET is_active = TRUE" in joined_queries
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+
+
+async def test_campaign_activation_requires_review_approval(monkeypatch):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                None,
+                {
+                    "campaign_code": "CAMP001",
+                    "is_active": False,
+                    "starts_at": None,
+                    "ends_at": None,
+                    "attributes": {
+                        "referral_saas_review": {
+                            "review_status": "READY_FOR_REVIEW",
+                            "activation_eligibility": (
+                                "NOT_ELIGIBLE_UNTIL_REVIEW_APPROVED"
+                            ),
+                        }
+                    },
+                },
+                {"active_policy_count": 1},
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.CampaignActivationNotReady):
+        await svc.request_referral_saas_account_campaign_activation(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            requested_lifecycle_status="ACTIVE",
+            review_status="REVIEW_APPROVED",
+            go_live_reason="Approved for referral campaign testing.",
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_ACTIVATION",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="payload-hash",
+        )
+
+
+async def test_campaign_activation_replays_matching_idempotency(monkeypatch):
+    conn = FakeCommandConnection(
+        [
+            {
+                "account_audit_event_id": "audit-activation-1",
+                "event_status": "RECORDED",
+                "evidence_summary": {
+                    "campaign_code": "CAMP001",
+                    "previous_lifecycle": "READY_TO_ACTIVATE",
+                    "lifecycle": "ACTIVE",
+                    "review_status": "REVIEW_APPROVED",
+                    "activation_eligibility": "ELIGIBLE_FOR_FUTURE_ACTIVATION",
+                    "activation_status": "ACTIVATION_REQUEST_ACCEPTED",
+                    "readiness_status": "READY_TO_ACTIVATE",
+                    "command_payload_hash": "payload-hash",
+                },
+            }
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.request_referral_saas_account_campaign_activation(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        campaign_code="CAMP001",
+        requested_lifecycle_status="ACTIVE",
+        review_status="REVIEW_APPROVED",
+        go_live_reason="Approved for referral campaign testing.",
+        reason_code="CUSTOMER_PROFILE_CAMPAIGN_ACTIVATION",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+    )
+
+    assert result.command_status == "CAMPAIGN_ACTIVATION_REPLAYED"
+    assert result.idempotency_status == "REPLAYED"
+    assert len(conn.fetchrow_calls) == 1
+
+
+async def test_campaign_activation_conflicts_on_idempotency_payload_mismatch(
+    monkeypatch,
+):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                {
+                    "account_audit_event_id": "audit-activation-1",
+                    "evidence_summary": {
+                        "campaign_code": "CAMP001",
+                        "command_payload_hash": "original-hash",
+                    },
+                }
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.CampaignActivationIdempotencyConflict):
+        await svc.request_referral_saas_account_campaign_activation(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            requested_lifecycle_status="ACTIVE",
+            review_status="REVIEW_APPROVED",
+            go_live_reason="Approved for referral campaign testing.",
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_ACTIVATION",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="new-hash",
+        )
+
+
+async def test_campaign_activation_rejects_already_active(monkeypatch):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                None,
+                {
+                    "campaign_code": "CAMP001",
+                    "is_active": True,
+                    "starts_at": None,
+                    "ends_at": None,
+                    "attributes": {},
+                },
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.CampaignActivationAlreadyActive):
+        await svc.request_referral_saas_account_campaign_activation(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            requested_lifecycle_status="ACTIVE",
+            review_status="REVIEW_APPROVED",
+            go_live_reason="Approved for referral campaign testing.",
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_ACTIVATION",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="payload-hash",
+        )
+
