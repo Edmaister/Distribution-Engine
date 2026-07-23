@@ -651,6 +651,46 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_account_campaign_activation_request",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/activation-requests",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin/reviewer role",
+        environment_rule=(
+            "local/staging seeded account, campaign, policy/settings, review "
+            "submission, and approved review only; activates campaign posture "
+            "without links, validation tracks, webhooks, credentials, access "
+            "changes, billing, or money movement"
+        ),
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "campaign_code",
+            "idempotency_key",
+        ],
+        expected_state_change=(
+            "sets selected-customer campaign posture active and records account "
+            "audit evidence; does not generate links, create validation tracks, "
+            "send webhooks, change access, create credentials, bill, or move money"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"campaign_activation"},'
+            '"activationRequest":{"requestedLifecycleStatus":"ACTIVE",'
+            '"reviewStatus":"REVIEW_APPROVED",'
+            '"goLiveReason":"Campaign setup and review are approved."},'
+            '"correlationId":"smoke-campaign-activation",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/campaigns/{campaign_code}/activation-requests"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_membership_invitation_intent",
         method="POST",
         path="/v1/referral-saas/accounts/{account_ref}/membership-invitations",

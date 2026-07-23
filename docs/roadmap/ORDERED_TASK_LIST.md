@@ -5799,7 +5799,7 @@ Validation: Contract test covers source-backed facts, activation route shape, re
 
 ## TASK-265: Add guarded selected-customer campaign activation/go-live API wrapper
 
-Status: Planned.
+Status: Complete.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_ACTIVATION_CONTRACT.md`.
 Shared primitive impact: Reuse selected-customer account scope, campaign ownership checks, policy/readiness/review evidence, account audit events, idempotency posture, and existing campaign lifecycle fields. Source duplication: No.
@@ -5821,6 +5821,35 @@ Risk level: Medium.
 Rollback notes: Remove the activation service/API wrapper, route smoke updates, tests, and roadmap/gap/infographic updates.
 Explicit non-goals: Do not add schema, migrations, frontend screens, link/code generation, validation-track creation, credentials, webhook delivery, invite delivery, membership activation, seat assignment, auth/session claim changes, reports/exports, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has a guarded selected-customer campaign activation/go-live backend wrapper that mutates only activation posture after approved review/readiness and preserves all no-adjacent-action guardrails. Priority: P0.
+
+Finding: Added the guarded selected-customer campaign activation API wrapper. The backend now exposes `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/activation-requests`, resolves selected account scope server-side, requires policy evidence plus approved review state, flips only campaign activation posture, records account audit/idempotency evidence, replays same-payload idempotency keys, rejects conflicting idempotency keys, and rejects unsafe link, validation-track, webhook, credential, access, billing, and money payload fields. No schema, migrations, frontend screens, link/code generation, validation tracks, webhooks, credentials, invite delivery, seat/auth changes, reports/exports, billing, DLaaS marketplace behavior, or money movement changed.
+
+Validation: Focused service, API, and route smoke tests cover activation acceptance, approved-review requirement, idempotency replay/conflict, already-active rejection, unsafe payload rejection, route mounting, and seeded-write smoke classification. `python -m pytest -q test/test_referral_saas_campaign_service.py test/api/test_referral_saas_accounts_api.py test/test_referral_saas_route_smoke_inventory.py test/test_referral_saas_route_smoke_plan.py`; `git diff --check`.
+
+## TASK-266: Wire selected-customer campaign activation action
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_ACTIVATION_CONTRACT.md`.
+Shared primitive impact: Reuse selected-customer account context, campaign review state, guarded activation API, existing API client, and customer-scoped Campaigns navigation. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Profile Campaigns; campaign activation UX; selected-customer workflow; lifecycle governance.
+Objective: Expose the TASK-265 activation wrapper from the selected-customer Campaigns experience with clear go-live copy, guarded disabled states, and post-activation next actions.
+Why now: The backend activation wrapper now exists. The next production-grade step is making activation usable from the selected customer context without implying links, webhooks, access changes, billing, or money movement.
+Files likely involved: frontend API client tests, selected-customer Campaigns/Campaign Review pages, route tests, roadmap/gap docs, and infographic.
+Database/schema impact: None expected.
+Backend impact: None expected.
+Frontend impact: Add a customer-scoped activation action after review approval, call the guarded API, refresh selected campaign/customer state, show plain-language success/failure states, and route operators to the correct next customer-scoped module.
+API impact: Use TASK-265 `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/activation-requests`.
+Tests to add/update: Frontend API client test, selected-customer campaign activation UI test, disabled-state test before review approval, no-unsafe-action copy/state test, and route/navigation tests.
+Validation method: Frontend focused tests plus `npm run build`; `git diff --check`.
+Acceptance criteria: Operators can activate only an approved selected-customer campaign; UI stays inside customer context; success states explain that activation does not create links, validation tracks, webhooks, credentials, access, billing, or money; errors are plain-language; no tenant code is entered or displayed.
+Dependencies: TASK-253; TASK-254; TASK-257; TASK-260; TASK-263; TASK-264; TASK-265.
+Blocked by: Customer-scoped link/code continuation, customer-scoped reporting continuation, and full campaign workflow E2E tests.
+Risk level: Medium.
+Rollback notes: Remove activation UI/client wiring/tests and roadmap/gap/infographic updates.
+Explicit non-goals: Do not add backend routes, schema, migrations, link/code generation, validation-track creation, credentials, webhook delivery, invite delivery, membership activation, seat assignment, auth/session claim changes, reports/exports, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has a selected-customer campaign activation UX wired to the guarded backend wrapper with clear customer-scoped states and no adjacent side effects. Priority: P0.
 
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 

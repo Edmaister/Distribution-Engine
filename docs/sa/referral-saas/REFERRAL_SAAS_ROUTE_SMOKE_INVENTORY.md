@@ -29,6 +29,11 @@ TASK-262 adds the seeded-only customer-scoped campaign review submission and
 review decision boundaries that record review/audit/idempotency evidence
 without campaign activation, link generation, validation track creation,
 webhook delivery, access changes, billing, or money movement.
+TASK-265 adds the seeded-only customer-scoped campaign activation request
+boundary. It requires approved review and policy evidence, activates only
+campaign posture, records account audit/idempotency evidence, and does not
+generate links, create validation tracks, deliver webhooks, create credentials,
+change access, bill, or move money.
 No schema, live database mutation, or persisted export is introduced by this
 inventory document; seeded write routes remain local/staging-only smoke
 candidates and are classified explicitly below.
@@ -106,6 +111,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Seeded local/staging write | PUT | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/policy-settings` | Referral SaaS customer-scoped campaign policy/settings wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-submissions` | Referral SaaS customer-scoped campaign review submission wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-decisions` | Referral SaaS customer-scoped campaign review decision wrapper |
+| Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/activation-requests` | Referral SaaS customer-scoped campaign activation request wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations` | Referral SaaS membership invitation intent wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery` | Referral SaaS invitation delivery request boundary; records blocked provider evidence only |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/activation` | Referral SaaS membership activation request boundary; activates membership lifecycle only after identity/account gates |
@@ -114,8 +120,10 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 
 ## Product Wrapper Fact
 
-TASK-157, TASK-165, TASK-167, TASK-178, TASK-180, TASK-182, and TASK-200 introduce mounted
-read-only or side-effect-free `/v1/referral-saas/*` product wrappers:
+TASK-157, TASK-165, TASK-167, TASK-178, TASK-180, TASK-182, and TASK-200
+introduce mounted read-only or side-effect-free `/v1/referral-saas/*` product
+wrappers. Later customer-scoped seeded-write wrappers are listed here only for
+local/staging smoke classification:
 
 - `GET /v1/referral-saas/operator/links/inspect`
 - `GET /v1/referral-saas/operator/outcomes/{referral_track_id}/trace`
@@ -132,6 +140,7 @@ read-only or side-effect-free `/v1/referral-saas/*` product wrappers:
 - `PUT /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/policy-settings`
 - `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-submissions`
 - `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-decisions`
+- `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/activation-requests`
 - `GET /v1/referral-saas/reports/{report_type}`
 - `POST /v1/referral-saas/reports/{report_type}/exports/preview`
 - `POST /v1/referral-saas/reports/{report_type}/exports/validate`
@@ -178,6 +187,11 @@ wrappers. They record campaign review posture and account audit/idempotency
 evidence only; approval means eligible for a later activation command, not
 active, go-live, link/code generation, validation-track creation, webhook
 delivery, access provisioning, billing, or money movement.
+TASK-265 adds a seeded local/staging-only campaign activation request wrapper.
+It activates only selected-customer campaign posture after approved review and
+policy evidence, with audit/idempotency proof and no link generation,
+validation-track creation, webhook delivery, credential creation, access
+changes, billing, or money movement.
 
 ## Smoke Safety Classification
 
@@ -213,6 +227,7 @@ approved seeded production-safe process:
 - Referral SaaS customer-scoped inactive campaign setup create
 - Referral SaaS customer-scoped campaign policy/settings upsert
 - Referral SaaS customer-scoped campaign review submission and decision
+- Referral SaaS customer-scoped campaign activation request
 
 ## Launch Implication
 
