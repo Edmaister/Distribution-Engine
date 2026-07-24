@@ -296,7 +296,7 @@ a {
 }
 
 .customer-context-chips {
-  align-items: center;
+  align-items: stretch;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -309,13 +309,22 @@ a {
   border-radius: var(--radius-control);
   color: var(--color-ink-soft);
   display: inline-grid;
-  gap: 2px;
-  min-height: 42px;
+  gap: 3px;
+  grid-template-rows: 12px 16px;
+  min-height: 44px;
+  min-width: 112px;
   padding: 6px 9px;
 }
 
 .customer-context-chip.status {
-  align-items: start;
+  align-items: stretch;
+}
+
+.customer-context-chip.status .badge {
+  align-self: start;
+  justify-self: start;
+  min-height: 18px;
+  padding: 2px 7px;
 }
 
 .customer-context-label {
@@ -331,6 +340,7 @@ a {
   color: var(--color-ink-soft);
   font-family: var(--font-mono);
   font-size: 11px;
+  line-height: 16px;
   overflow-wrap: anywhere;
 }
 
