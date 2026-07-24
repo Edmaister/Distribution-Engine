@@ -1435,6 +1435,45 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
   });
 
+  it("lets Amplifi Admin record manual access acceptance from the edit drawer", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/people");
+
+    expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    expect(screen.getByRole("heading", { name: "Edit person access" })).toBeInTheDocument();
+    expect(screen.getByText("Manual access acceptance")).toBeInTheDocument();
+    expect(screen.getByText(/does not send email, assign a seat, or change login permissions/i)).toBeInTheDocument();
+    const manualAcceptanceButton = screen.getByRole("button", { name: "Record manual acceptance" });
+    expect(manualAcceptanceButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Acceptance evidence"), {
+      target: { value: "Approved by customer admin on onboarding call" },
+    });
+    expect(manualAcceptanceButton).toBeEnabled();
+    fireEvent.click(manualAcceptanceButton);
+
+    await waitFor(() => expect(mockedRequestReferralSaasMembershipActivation).toHaveBeenCalledTimes(1));
+    expect(mockedRequestReferralSaasMembershipActivation.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      membershipRef: "membership-1",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      activation: {
+        acceptedSubject: "owner@gabs.example",
+        acceptanceEvidenceRef:
+          "manual-access-acceptance-acct-gabs-membership-1-owner-gabs-example-approved-by-customer-admin-on-onboarding-call",
+      },
+      reasonCode: "AMPLIFI_ADMIN_MANUAL_ACCESS_ACCEPTANCE",
+      correlationId: "customer-profile-access-activation-acct-gabs",
+      idempotencyKey:
+        "customer-profile-access-activation-acct-gabs-membership-1-owner-gabs-example-approved-by-customer-admin-on-onboarding-call-distribution-admin",
+    });
+    expect(await screen.findByText("Accepted access recorded.")).toBeInTheDocument();
+  });
+
   it("opens Technical Setup as its own read-only customer page", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/technical");
 

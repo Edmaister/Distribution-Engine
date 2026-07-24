@@ -29,6 +29,10 @@ import {
   useReferralSaasTechnicalSetupReadiness,
 } from "../../api/referralSaasAccountQueries";
 import {
+  activeSessionRole,
+  useBackendSession,
+} from "../../auth/useBackendSession";
+import {
   issueReferralSaasAccountCampaignCode,
   validateReferralSaasAccountCampaignCode,
   type ReferralSaasLinkRecord,
@@ -323,6 +327,8 @@ export function ReferralSaasAccountMaintenancePage() {
   }>();
   const location = useLocation();
   const { refreshKey } = useRefreshContext();
+  const backendSession = useBackendSession(refreshKey, "referral-saas-admin");
+  const isAmplifiAdmin = activeSessionRole(backendSession.session, backendSession.status) === "admin";
   const [draftExternalTenantRef, setDraftExternalTenantRef] = useState(defaultExternalTenantRef);
   const [draftOrganisationRef, setDraftOrganisationRef] = useState(defaultOrganisationRef);
   const [appliedExternalTenantRef, setAppliedExternalTenantRef] = useState(defaultExternalTenantRef);
@@ -334,6 +340,7 @@ export function ReferralSaasAccountMaintenancePage() {
   const [accessRoleLabel, setAccessRoleLabel] = useState(accessRoleOptions[0].label);
   const [isAccessFormOpen, setIsAccessFormOpen] = useState(false);
   const [editingMembershipRef, setEditingMembershipRef] = useState<string | null>(null);
+  const [manualAcceptanceEvidence, setManualAcceptanceEvidence] = useState("");
   const [showAccessDiagnostics, setShowAccessDiagnostics] = useState(false);
   const [accessResult, setAccessResult] = useState<string | null>(null);
   const [accessLifecycleResult, setAccessLifecycleResult] = useState<string | null>(null);
@@ -498,6 +505,7 @@ export function ReferralSaasAccountMaintenancePage() {
           response.activationRequest.activation.status,
         )}. ${response.activationRequest.activation.nextAction} No invite email was sent, no seat was assigned, no auth claim changed, and no money moved.`,
       );
+      resetAccessForm();
       void refetchMembershipPosture();
       void refetchActivationReadiness();
     },
@@ -669,6 +677,7 @@ export function ReferralSaasAccountMaintenancePage() {
     setAccessEmail("");
     setAccessRoleLabel(accessRoleOptions[0].label);
     setEditingMembershipRef(null);
+    setManualAcceptanceEvidence("");
     setIsAccessFormOpen(false);
   }
 
@@ -690,6 +699,7 @@ export function ReferralSaasAccountMaintenancePage() {
     setAccessEmail("");
     setAccessRoleLabel(roleFamily ? roleOptionForFamily(roleFamily).label : accessRoleOptions[0].label);
     setEditingMembershipRef(null);
+    setManualAcceptanceEvidence("");
     setIsAccessFormOpen(true);
   }
 
@@ -705,6 +715,7 @@ export function ReferralSaasAccountMaintenancePage() {
     setAccessEmail(getValue(row, ["subject"], ""));
     setAccessRoleLabel(roleOptionForFamily(roleFamily).label);
     setEditingMembershipRef(membershipRef);
+    setManualAcceptanceEvidence("");
     setIsAccessFormOpen(true);
   }
 
@@ -844,6 +855,51 @@ export function ReferralSaasAccountMaintenancePage() {
       idempotencyKey: `customer-profile-access-activation-${selectedAccount.accountId}-${membershipRef}-${roleFamily}`
         .toLowerCase()
         .replace(/[^a-z0-9-]+/g, "-"),
+    });
+  }
+
+  function requestManualAccessAcceptance() {
+    const selectedRole = roleOptionForLabel(accessRoleLabel);
+    const cleanedEmail = accessEmail.trim().toLowerCase();
+    const evidence = manualAcceptanceEvidence.trim();
+    if (
+      !isAmplifiAdmin ||
+      !selectedAccount ||
+      !selectedExternalTenantRef ||
+      !editingMembershipRef ||
+      !isValidEmail(cleanedEmail) ||
+      !evidence
+    ) {
+      return;
+    }
+    activationMutation.mutate({
+      accountRef: selectedAccount.accountId,
+      membershipRef: editingMembershipRef,
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: selectedExternalTenantRef,
+        context: "setup",
+      },
+      activation: {
+        acceptedSubject: cleanedEmail,
+        acceptanceEvidenceRef: safeIdempotencyKey(
+          "manual-access-acceptance",
+          selectedAccount.accountId,
+          editingMembershipRef,
+          cleanedEmail,
+          evidence,
+        ),
+      },
+      reasonCode: "AMPLIFI_ADMIN_MANUAL_ACCESS_ACCEPTANCE",
+      correlationId: `customer-profile-access-activation-${selectedAccount.accountId}`,
+      idempotencyKey: safeIdempotencyKey(
+        "customer-profile-access-activation",
+        selectedAccount.accountId,
+        editingMembershipRef,
+        cleanedEmail,
+        evidence,
+        selectedRole.roleFamily,
+      ),
     });
   }
 
@@ -1578,6 +1634,51 @@ export function ReferralSaasAccountMaintenancePage() {
                             </div>
                             <StatusBadge label="Customer scoped" tone="success" />
                           </div>
+                          {editingMembershipRef ? (
+                            <div className="wizard-status-card">
+                              <div>
+                                <strong>Manual access acceptance</strong>
+                                <p>
+                                  Amplifi Admin can record that this person accepted access outside the invite flow. This
+                                  does not send email, assign a seat, or change login permissions.
+                                </p>
+                                <label className="field">
+                                  <span>Acceptance evidence</span>
+                                  <textarea
+                                    aria-label="Acceptance evidence"
+                                    className="input"
+                                    onChange={(event) => setManualAcceptanceEvidence(event.target.value)}
+                                    placeholder="Example: Approved by customer admin on onboarding call"
+                                    rows={3}
+                                    value={manualAcceptanceEvidence}
+                                  />
+                                  <span className="field-hint">
+                                    Required for audit. Save person changes first if you changed the name, email, or
+                                    responsibility above.
+                                  </span>
+                                </label>
+                              </div>
+                              <div className="action-cell">
+                                <StatusBadge
+                                  label={isAmplifiAdmin ? "Amplifi Admin only" : "Admin required"}
+                                  tone={isAmplifiAdmin ? "info" : "warning"}
+                                />
+                                <button
+                                  className="button secondary compact"
+                                  disabled={
+                                    !isAmplifiAdmin ||
+                                    !manualAcceptanceEvidence.trim() ||
+                                    !isValidEmail(accessEmail.trim()) ||
+                                    activationMutation.isPending
+                                  }
+                                  onClick={requestManualAccessAcceptance}
+                                  type="button"
+                                >
+                                  {activationMutation.isPending ? "Recording" : "Record manual acceptance"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
                           <div className="drawer-actions">
                             <button className="button secondary" onClick={resetAccessForm} type="button">
                               Cancel
