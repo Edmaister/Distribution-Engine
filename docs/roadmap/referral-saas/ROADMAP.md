@@ -243,6 +243,7 @@ greenfield referral construction.
 135. TASK-269: Add selected-customer E2E physical proof runner.
 136. TASK-270: Fix selected-customer E2E proof redaction and report wrapper blockers.
 137. TASK-271: Add selected-customer mutation-path E2E physical proof runner.
+138. TASK-272: Record selected-customer mutation-path E2E physical proof execution.
 
 ## 10/10 Exit Criteria
 
@@ -1076,6 +1077,12 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds a repeatable selected-customer mutation-path physical proof runner. The runner selects an existing customer, creates a uniquely suffixed campaign setup draft, saves policy/settings, submits and approves review, activates campaign posture, issues and validates a referral code, and then verifies report/export preview while failing on tenant-scope leakage and confirming no webhook delivery, credential creation, invite delivery, membership activation, persisted export creation, billing, or money movement. Scores move to 9.97/10 for Referral Management and 9.86/10 for Campaign Attribution until the runner is executed against local/staging data and persisted export/support persistence gaps are closed.
+- TASK-272: `docs/sa/referral-saas/REFERRAL_SAAS_SELECTED_CUSTOMER_MUTATION_PHYSICAL_VERIFICATION.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Records local execution of the TASK-271 mutation proof against `test-fnb-sa-002`. The proof passed campaign create, policy/settings, review submission, review decision, activation posture, referral code issue, referral validation, campaign performance report, and export preview while confirming no tenant-scope leakage, webhook delivery, credential creation, invitation delivery, membership activation, persisted export creation, storage/delivery, billing, or money movement. Scores move to 9.98/10 for Referral Management and 9.88/10 for Campaign Attribution.
 
 ## Explicit Deferrals
 

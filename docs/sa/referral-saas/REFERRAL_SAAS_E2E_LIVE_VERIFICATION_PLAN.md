@@ -354,8 +354,19 @@ webhook delivery, credential creation, invite delivery, membership activation,
 persisted export creation, storage/delivery, billing, or money movement
 occurred.
 
-This raises verification readiness further, but the next evidence step is to
-execute the mutation runner against local or staging data and record the output.
+TASK-272 executed this mutation proof locally against `test-fnb-sa-002` and
+recorded the result in
+`docs/sa/referral-saas/REFERRAL_SAAS_SELECTED_CUSTOMER_MUTATION_PHYSICAL_VERIFICATION.md`.
+The run passed campaign create, policy/settings, review submission, review
+decision, activation posture, referral code issue, referral validation,
+campaign performance report, and export preview while confirming no internal
+tenant-scope leakage, webhook delivery, credential creation, invitation
+delivery, membership activation, persisted export creation, storage/delivery,
+billing, or money movement.
+
+The next evidence steps are persisted export storage/audit/download proof,
+support-case persistence proof, and progress/attribution mutation proof beyond
+campaign report/export preview.
 
 ## Explicit Non-Goals
 
