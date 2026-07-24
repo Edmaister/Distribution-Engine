@@ -1032,8 +1032,14 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByRole("button", { name: /Botswana/ })).toHaveTextContent("1 account");
     expect(screen.getByRole("button", { name: /Zambia/ })).toHaveTextContent("0 accounts");
     expect(await screen.findByRole("heading", { name: "2. Which customer?" })).toBeInTheDocument();
-    expect(screen.getByText("Only accounts in South Africa.")).toBeInTheDocument();
+    expect(screen.getByText(/Only accounts in South Africa/)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: /FNB Referral SaaS/ })).toBeInTheDocument();
+    expect(screen.getAllByText("Customer reference")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("Organisation reference")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("Account code")[0]).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /FNB Referral SaaS/ })).toHaveTextContent("fnb-referrals");
+    expect(screen.getByRole("button", { name: /FNB Referral SaaS/ })).toHaveTextContent("fnb-org");
+    expect(screen.getByRole("button", { name: /FNB Referral SaaS/ })).toHaveTextContent("ACCT_FNB");
     expect(screen.getByRole("link", { name: "Open customer profile" })).toHaveAttribute("aria-disabled", "true");
     expect(screen.queryByRole("heading", { name: "Client workspace" })).not.toBeInTheDocument();
     expect(mockedListReferralSaasAccounts).toHaveBeenCalledWith(50);
@@ -1046,7 +1052,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
 
     fireEvent.click(await screen.findByRole("button", { name: /Botswana/ }));
-    expect(screen.getByText("Only accounts in Botswana.")).toBeInTheDocument();
+    expect(screen.getByText(/Only accounts in Botswana/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Gaborone Partners/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /FNB Referral SaaS/ })).not.toBeInTheDocument();
 
@@ -1059,10 +1065,29 @@ describe("ReferralSaasAccountMaintenancePage", () => {
 
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
     expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Botswana");
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Operating jurisdiction");
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Account status");
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Account code");
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Customer reference");
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Organisation reference");
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("gabs-platform");
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("gabs-org");
     expect(screen.getByText("This is the customer home. Campaigns, links, reports, attribution, and support stay inside this customer context.")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Health at a glance" })).toBeInTheDocument();
+    expect(screen.getByText("Green")).toBeInTheDocument();
+    expect(screen.getByText("Red")).toBeInTheDocument();
+    expect(screen.getByText("Amber")).toBeInTheDocument();
+    expect(screen.getByText("No action needed")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Fix first: Add who can manage this account/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs/people",
+    );
+    expect(screen.getByRole("link", { name: /Review later: Open Campaigns/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs/campaigns",
+    );
     expect(screen.getByRole("heading", { name: "Do this next" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Add who can manage this account/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Add who can manage this account/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/account-maintenance/acct-gabs/people",
     );
@@ -1071,7 +1096,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       "/admin/referral-saas/account-maintenance/acct-gabs/technical",
     );
     expect(screen.queryByRole("heading", { name: "People and access" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open Campaigns/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Open Campaigns/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/account-maintenance/acct-gabs/campaigns",
     );
@@ -1084,7 +1109,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
 
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("link", { name: /Add who can manage this account/ }));
+    fireEvent.click(screen.getByRole("link", { name: /^Add who can manage this account/ }));
 
     expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Customer home" })).toHaveAttribute(

@@ -513,7 +513,6 @@ export function ReferralSaasAccountMaintenancePage() {
   const waitingCount = Math.max(0, missingEvidenceCount - blockedCount);
   const overallStatus = formatDisplay(readiness?.overall_status || "go_live_disabled");
   const customerName = selectedAccount?.accountName || formatDisplay(appliedOrganisationRef);
-  const doNext = getCustomerNextActions(blockedCount, missingEvidenceCount);
   const selectedCustomerPath = selectedAccount
     ? `/admin/referral-saas/account-maintenance/${encodeURIComponent(selectedAccount.accountId)}`
     : "/admin/referral-saas/account-maintenance";
@@ -521,6 +520,9 @@ export function ReferralSaasAccountMaintenancePage() {
   const customerQuery = `?external_tenant_ref=${encodeURIComponent(
     selectedExternalTenantRef,
   )}&organisation_ref=${encodeURIComponent(selectedOrganisationRef)}`;
+  const doNext = getCustomerNextActions(blockedCount, missingEvidenceCount);
+  const stoppingAction = doNext[0];
+  const waitingAction = doNext.find((action) => action.priority === "Later") || doNext[doNext.length - 1];
   const requestedCampaignCode = new URLSearchParams(location.search).get("campaign") || "";
   const selectedProfileDraft =
     selectedAccount && profileDraft?.accountId === selectedAccount.accountId
@@ -880,11 +882,25 @@ export function ReferralSaasAccountMaintenancePage() {
           </p>
           {accountId && selectedAccount ? (
             <div className="customer-context-chips" aria-label="Selected customer context">
-              <span>{operatingMarketFromAccount(selectedAccount).name}</span>
-              <StatusBadge label={formatDisplay(selectedAccount.accountStatus)} tone="success" />
-              <span>{selectedAccount.accountCode}</span>
-              <span>
-                {selectedExternalTenantRef} / {selectedOrganisationRef}
+              <span className="customer-context-chip">
+                <span className="customer-context-label">Operating jurisdiction</span>
+                <span className="customer-context-value">{operatingMarketFromAccount(selectedAccount).name}</span>
+              </span>
+              <span className="customer-context-chip status">
+                <span className="customer-context-label">Account status</span>
+                <StatusBadge label={formatDisplay(selectedAccount.accountStatus)} tone="success" />
+              </span>
+              <span className="customer-context-chip">
+                <span className="customer-context-label">Account code</span>
+                <span className="customer-context-value">{selectedAccount.accountCode}</span>
+              </span>
+              <span className="customer-context-chip">
+                <span className="customer-context-label">Customer reference</span>
+                <span className="customer-context-value">{selectedExternalTenantRef}</span>
+              </span>
+              <span className="customer-context-chip">
+                <span className="customer-context-label">Organisation reference</span>
+                <span className="customer-context-value">{selectedOrganisationRef}</span>
               </span>
             </div>
           ) : null}
@@ -948,7 +964,10 @@ export function ReferralSaasAccountMaintenancePage() {
 
                   <div className="customer-picker-step">
                     <h2 className="panel-title">2. Which customer?</h2>
-                    <div className="panel-subtitle">Only accounts in {selectedOperatingMarket}.</div>
+                    <div className="panel-subtitle">
+                      Only accounts in {selectedOperatingMarket}. Each card labels the customer reference,
+                      organisation reference, and support account code.
+                    </div>
                   </div>
                   {accountsForMarket.length === 0 ? (
                     <div className="empty-state">No customers exist in {selectedOperatingMarket} yet.</div>
@@ -962,6 +981,7 @@ export function ReferralSaasAccountMaintenancePage() {
                         const pending = account.accountId === pendingAccountId;
                         const opened = account.accountId === accountId;
                         const canSelectAccount = Boolean(externalTenantRef && organisationRef);
+                        const customerName = account.accountName || externalTenantRef || organisationRef || account.accountCode;
                         return (
                           <button
                             className={`customer-selector-card ${pending || opened ? "selected" : ""}`}
@@ -970,11 +990,31 @@ export function ReferralSaasAccountMaintenancePage() {
                             onClick={() => stageAccount(account)}
                             type="button"
                           >
-                            <span className="customer-selector-title">{account.accountName}</span>
-                            <span className="customer-selector-meta">
-                              {externalTenantRef || "Missing customer ref"} / {organisationRef || "Missing organisation ref"}
+                            <span className="customer-selector-heading-row">
+                              <span>
+                                <span className="customer-selector-label">Customer</span>
+                                <span className="customer-selector-title">{customerName}</span>
+                              </span>
+                              {pending || opened ? <StatusBadge label="Selected" tone="success" /> : null}
                             </span>
-                            <span className="customer-selector-count">{account.accountCode}</span>
+                            <span className="customer-selector-fields" aria-label={`${customerName} identifiers`}>
+                              <span className="customer-selector-field">
+                                <span className="customer-selector-field-label">Customer reference</span>
+                                <span className="customer-selector-meta">
+                                  {externalTenantRef || "Missing customer reference"}
+                                </span>
+                              </span>
+                              <span className="customer-selector-field">
+                                <span className="customer-selector-field-label">Organisation reference</span>
+                                <span className="customer-selector-meta">
+                                  {organisationRef || "Missing organisation reference"}
+                                </span>
+                              </span>
+                              <span className="customer-selector-field">
+                                <span className="customer-selector-field-label">Account code</span>
+                                <span className="customer-selector-count">{account.accountCode}</span>
+                              </span>
+                            </span>
                           </button>
                         );
                       })}
@@ -1034,17 +1074,42 @@ export function ReferralSaasAccountMaintenancePage() {
                     </div>
                     <div className="panel-body">
                       <div className="customer-health-strip">
-                        <div className="customer-health-card good">
+                        <div className="customer-health-card good" aria-label={`${readyCount} green checks looking fine`}>
+                          <div className="customer-health-card-top">
+                            <span className="customer-rag-dot green" aria-hidden="true" />
+                            <span className="customer-health-rag">Green</span>
+                          </div>
                           <strong>{readyCount}</strong>
-                          <span>Looking fine</span>
+                          <span className="customer-health-label">Looking fine</span>
+                          <span className="customer-health-action">No action needed</span>
                         </div>
-                        <div className="customer-health-card bad">
+                        <div className="customer-health-card bad" aria-label={`${blockedCount} red blockers stopping referral testing`}>
+                          <div className="customer-health-card-top">
+                            <span className="customer-rag-dot red" aria-hidden="true" />
+                            <span className="customer-health-rag">Red</span>
+                          </div>
                           <strong>{blockedCount}</strong>
-                          <span>Stopping you</span>
+                          <span className="customer-health-label">Stopping you</span>
+                          <Link
+                            className="customer-health-action-link"
+                            to={buildCustomerModuleRoute(selectedCustomerPath, stoppingAction.route, customerQuery)}
+                          >
+                            Fix first: {stoppingAction.title}
+                          </Link>
                         </div>
-                        <div className="customer-health-card wait">
+                        <div className="customer-health-card wait" aria-label={`${waitingCount} amber items can wait`}>
+                          <div className="customer-health-card-top">
+                            <span className="customer-rag-dot amber" aria-hidden="true" />
+                            <span className="customer-health-rag">Amber</span>
+                          </div>
                           <strong>{waitingCount}</strong>
-                          <span>Can wait</span>
+                          <span className="customer-health-label">Can wait</span>
+                          <Link
+                            className="customer-health-action-link"
+                            to={buildCustomerModuleRoute(selectedCustomerPath, waitingAction.route, customerQuery)}
+                          >
+                            Review later: {waitingAction.title}
+                          </Link>
                         </div>
                       </div>
                       <div className={`wizard-summary-strip ${blockedCount || missingEvidenceCount ? "warning" : "success"}`}>

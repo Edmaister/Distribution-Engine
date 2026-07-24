@@ -245,6 +245,7 @@ greenfield referral construction.
 137. TASK-271: Add selected-customer mutation-path E2E physical proof runner.
 138. TASK-272: Record selected-customer mutation-path E2E physical proof execution.
 139. TASK-273: Persist customer-scoped report export requests.
+140. TASK-274: Clarify selected-customer selector, profile header, and health action labels.
 
 ## 10/10 Exit Criteria
 
@@ -1100,6 +1101,13 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds persisted selected-customer report export request and audit evidence. The backend validates export requests through existing tenant-safe report preview rules, records request/idempotency/audit metadata, replays matching idempotency keys, rejects conflicting idempotency and unsafe storage/delivery/billing/money payloads, and still does not create export files, download URLs, scheduled deliveries, invoices, billing events, or money movement. Scores move to 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution.
+- TASK-274: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `frontend/src/styles/base.css`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Clarifies the selected-customer picker and selected-customer profile header by labeling customer, operating jurisdiction, account status, customer reference, organisation reference, account code, and selected state. This is a frontend-only UX improvement over the existing account registry response; it adds no backend fields, schema, account mutations, tenant-code exposure, or DLaaS scope.
 
 ## Explicit Deferrals
 
