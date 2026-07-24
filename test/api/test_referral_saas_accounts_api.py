@@ -24,6 +24,7 @@ from services.referral_saas_account_membership_service import (
     MembershipInvitationDeliveryRequestResult,
     MembershipInvitationDuplicate,
     MembershipInvitationIntentResult,
+    MembershipInvitationLifecycleResult,
 )
 from services.referral_saas_account_setup_service import (
     AccountSetupDraftNotFound,
@@ -103,6 +104,23 @@ def _invitation_result(**overrides) -> MembershipInvitationIntentResult:
     }
     values.update(overrides)
     return MembershipInvitationIntentResult(**values)
+
+
+def _invitation_lifecycle_result(**overrides) -> MembershipInvitationLifecycleResult:
+    values = {
+        "command_status": "INVITATION_INTENT_UPDATED",
+        "account_id": "acct-1",
+        "membership_id": "membership-1",
+        "previous_membership_status": "INVITED",
+        "membership_status": "INVITED",
+        "role_family": "CAMPAIGN_MANAGER",
+        "permission_set": "REFERRAL_SAAS_CAMPAIGN_MANAGER",
+        "idempotency_status": "RECORDED",
+        "audit_event_id": "audit-1",
+        "lifecycle_next_action": "Review the updated access intent before invite delivery or activation.",
+    }
+    values.update(overrides)
+    return MembershipInvitationLifecycleResult(**values)
 
 
 def _delivery_request_result(**overrides) -> MembershipInvitationDeliveryRequestResult:
@@ -793,6 +811,129 @@ async def test_referral_saas_membership_invitation_maps_duplicate_safely(
     detail = response.json()["detail"]
     assert detail["code"] == "MEMBERSHIP_ALREADY_EXISTS"
     assert detail["no_seat_assignment_confirmed"] is True
+
+
+async def test_referral_saas_account_admin_can_update_invited_access_intent(
+    monkeypatch,
+):
+    resolve_calls: list[dict] = []
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context()
+
+    async def fake_update_referral_saas_membership_invitation_intent(**kwargs):
+        command_calls.append(kwargs)
+        return _invitation_lifecycle_result()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "update_referral_saas_membership_invitation_intent",
+        fake_update_referral_saas_membership_invitation_intent,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.patch(
+            "/v1/referral-saas/accounts/acct-1/membership-invitations/membership-1",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "actor": {
+                    "emailHash": "safe-email-hash",
+                    "displayName": "Campaign Owner",
+                },
+                "membership": {
+                    "roleFamily": "CAMPAIGN_MANAGER",
+                    "permissionSet": "REFERRAL_SAAS_CAMPAIGN_MANAGER",
+                },
+                "reasonCode": "CUSTOMER_PROFILE_ACCESS_INTENT_UPDATE",
+                "correlationId": "corr-1",
+                "idempotencyKey": "update-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["invitation"]["commandStatus"] == "INVITATION_INTENT_UPDATED"
+    assert body["invitation"]["membership"]["roleFamily"] == "CAMPAIGN_MANAGER"
+    assert body["invitation"]["noInviteDeliveryConfirmed"] is True
+    assert body["no_auth_claim_change_confirmed"] is True
+    assert body["no_seat_assignment_confirmed"] is True
+    assert body["no_money_movement_confirmed"] is True
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert command_calls[0]["membership_id"] == "membership-1"
+    assert command_calls[0]["email_hash"] == "safe-email-hash"
+    assert command_calls[0]["role_family"] == "CAMPAIGN_MANAGER"
+    assert command_calls[0]["permission_set"] == "REFERRAL_SAAS_CAMPAIGN_MANAGER"
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["command_payload_hash"]
+
+
+async def test_referral_saas_account_admin_can_cancel_invited_access_intent(
+    monkeypatch,
+):
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context()
+
+    async def fake_cancel_referral_saas_membership_invitation_intent(**kwargs):
+        command_calls.append(kwargs)
+        return _invitation_lifecycle_result(
+            command_status="INVITATION_INTENT_CANCELLED",
+            membership_status="DISABLED",
+            lifecycle_next_action="Record a new access intent if this person should manage the customer again.",
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "cancel_referral_saas_membership_invitation_intent",
+        fake_cancel_referral_saas_membership_invitation_intent,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.request(
+            "DELETE",
+            "/v1/referral-saas/accounts/acct-1/membership-invitations/membership-1",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "reasonCode": "CUSTOMER_PROFILE_ACCESS_INTENT_CANCEL",
+                "correlationId": "corr-1",
+                "idempotencyKey": "cancel-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["invitation"]["commandStatus"] == "INVITATION_INTENT_CANCELLED"
+    assert body["invitation"]["membership"]["status"] == "DISABLED"
+    assert body["invitation"]["noMembershipActivationConfirmed"] is True
+    assert body["no_invite_delivery_confirmed"] is True
+    assert body["no_auth_claim_change_confirmed"] is True
+    assert command_calls[0]["membership_id"] == "membership-1"
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["command_payload_hash"]
 
 
 async def test_referral_saas_account_admin_can_request_invitation_delivery_boundary(

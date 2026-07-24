@@ -613,6 +613,40 @@ export type ReferralSaasMembershipInvitationDeliveryRequest = {
   idempotencyKey: string;
 };
 
+export type ReferralSaasMembershipInvitationUpdateRequest = {
+  accountRef: string;
+  membershipRef: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  actor: {
+    emailHash?: string;
+    displayName?: string;
+  };
+  membership: {
+    roleFamily: string;
+    permissionSet: string;
+  };
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
+export type ReferralSaasMembershipInvitationCancelRequest = {
+  accountRef: string;
+  membershipRef: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
 export type ReferralSaasMembershipActivationRequest = {
   accountRef: string;
   membershipRef: string;
@@ -723,6 +757,47 @@ export type ReferralSaasMembershipInvitationDeliveryResponse = {
       providerRef: string;
       channel: string;
       templateRef: string;
+    };
+    idempotency: {
+      status: string;
+    };
+    auditEventId?: string | null;
+    guardrails: string[];
+    redactions: string[];
+    noInviteDeliveryConfirmed: boolean;
+    noMembershipActivationConfirmed: boolean;
+    noAuthClaimChangeConfirmed: boolean;
+    noSeatAssignmentConfirmed: boolean;
+    noMoneyMovementConfirmed: boolean;
+  };
+  guardrails: string[];
+  redactions: string[];
+  no_invite_delivery_confirmed: boolean;
+  no_membership_activation_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_seat_assignment_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
+export type ReferralSaasMembershipInvitationLifecycleResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  invitation: {
+    commandStatus: string;
+    membership: {
+      membershipRef: string;
+      previousStatus: string;
+      status: string;
+      previousRoleFamily?: string;
+      roleFamily: string;
+      previousPermissionSet?: string;
+      permissionSet: string;
+      canOperateSetup?: boolean;
+    };
+    lifecycle: {
+      status: string;
+      nextAction: string;
     };
     idempotency: {
       status: string;
@@ -1210,6 +1285,72 @@ export function requestReferralSaasMembershipInvitationDelivery({
           providerRef: delivery.providerRef.trim(),
           channel: delivery.channel,
           templateRef: delivery.templateRef.trim(),
+        },
+        reasonCode,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function updateReferralSaasMembershipInvitationIntent({
+  accountRef,
+  membershipRef,
+  accountScope,
+  actor,
+  membership,
+  reasonCode = "CUSTOMER_PROFILE_ACCESS_INTENT_UPDATE",
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasMembershipInvitationUpdateRequest): Promise<ReferralSaasMembershipInvitationLifecycleResponse> {
+  return apiRequest<ReferralSaasMembershipInvitationLifecycleResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/membership-invitations/${encodeURIComponent(
+      membershipRef.trim(),
+    )}`,
+    {
+      method: "PATCH",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        actor: {
+          emailHash: actor.emailHash?.trim() || undefined,
+          displayName: actor.displayName?.trim() || undefined,
+        },
+        membership: {
+          roleFamily: membership.roleFamily.trim(),
+          permissionSet: membership.permissionSet.trim(),
+        },
+        reasonCode,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function cancelReferralSaasMembershipInvitationIntent({
+  accountRef,
+  membershipRef,
+  accountScope,
+  reasonCode = "CUSTOMER_PROFILE_ACCESS_INTENT_CANCEL",
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasMembershipInvitationCancelRequest): Promise<ReferralSaasMembershipInvitationLifecycleResponse> {
+  return apiRequest<ReferralSaasMembershipInvitationLifecycleResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/membership-invitations/${encodeURIComponent(
+      membershipRef.trim(),
+    )}`,
+    {
+      method: "DELETE",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
         },
         reasonCode,
         correlationId,

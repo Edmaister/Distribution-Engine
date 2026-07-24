@@ -513,6 +513,168 @@ async def test_membership_invitation_intent_accepts_campaign_manager_role(
     assert safe_payload["membership"]["status"] == "INVITED"
 
 
+async def test_membership_invitation_update_edits_invited_intent_only(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "membership_id": "membership-1",
+                "status": "INVITED",
+                "role_family": "DISTRIBUTION_ADMIN",
+                "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                "user_id": "00000000-0000-0000-0000-000000000001",
+                "client_id": None,
+                "subject": "owner@example.test",
+                "display_name": "Owner",
+            },
+            None,
+            {"user_id": "00000000-0000-0000-0000-000000000001"},
+            {
+                "membership_id": "membership-1",
+                "status": "INVITED",
+                "role_family": "CAMPAIGN_MANAGER",
+                "permission_set": "REFERRAL_SAAS_CAMPAIGN_MANAGER",
+            },
+            {"account_audit_event_id": "audit-update-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.update_referral_saas_membership_invitation_intent(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        membership_id="membership-1",
+        email_hash="safe-email-hash",
+        display_name="Campaign Manager",
+        role_family="CAMPAIGN_MANAGER",
+        permission_set="REFERRAL_SAAS_CAMPAIGN_MANAGER",
+        reason_code="CUSTOMER_PROFILE_ACCESS_INTENT_UPDATE",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-update",
+        command_payload_hash="payload-update",
+        command_payload={"membership": {"roleFamily": "CAMPAIGN_MANAGER"}},
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "INVITATION_INTENT_UPDATED"
+    assert safe_payload["membership"]["previousStatus"] == "INVITED"
+    assert safe_payload["membership"]["status"] == "INVITED"
+    assert safe_payload["membership"]["roleFamily"] == "CAMPAIGN_MANAGER"
+    assert safe_payload["noInviteDeliveryConfirmed"] is True
+    assert safe_payload["noMembershipActivationConfirmed"] is True
+    assert safe_payload["noAuthClaimChangeConfirmed"] is True
+    assert safe_payload["noSeatAssignmentConfirmed"] is True
+
+    joined_queries = "\n".join(call[0] for call in conn.fetchrow_calls)
+    assert "UPDATE platform_users" in joined_queries
+    assert "UPDATE platform_memberships" in joined_queries
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+    assert "DELETE FROM" not in joined_queries
+    assert "platform_seats" not in joined_queries
+
+
+async def test_membership_invitation_update_rejects_active_membership(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "membership_id": "membership-1",
+                "status": "ACTIVE",
+                "role_family": "DISTRIBUTION_ADMIN",
+                "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                "user_id": "00000000-0000-0000-0000-000000000001",
+                "client_id": None,
+                "subject": "owner@example.test",
+                "display_name": "Owner",
+            },
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    with pytest.raises(svc.MembershipInvitationNotEditable):
+        await svc.update_referral_saas_membership_invitation_intent(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            membership_id="membership-1",
+            role_family="CAMPAIGN_MANAGER",
+            permission_set="REFERRAL_SAAS_CAMPAIGN_MANAGER",
+            reason_code="CUSTOMER_PROFILE_ACCESS_INTENT_UPDATE",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-update",
+            command_payload_hash="payload-update",
+            command_payload={"membership": {"roleFamily": "CAMPAIGN_MANAGER"}},
+        )
+
+    joined_queries = "\n".join(call[0] for call in conn.fetchrow_calls)
+    assert "UPDATE platform_memberships" not in joined_queries
+    assert "INSERT INTO platform_account_audit_events" not in joined_queries
+
+
+async def test_membership_invitation_cancel_disables_invited_intent_without_delete(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "membership_id": "membership-1",
+                "status": "INVITED",
+                "role_family": "DISTRIBUTION_ADMIN",
+                "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+            },
+            {
+                "membership_id": "membership-1",
+                "status": "DISABLED",
+                "role_family": "DISTRIBUTION_ADMIN",
+                "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+            },
+            {"account_audit_event_id": "audit-cancel-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.cancel_referral_saas_membership_invitation_intent(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        membership_id="membership-1",
+        reason_code="CUSTOMER_PROFILE_ACCESS_INTENT_CANCEL",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-cancel",
+        command_payload_hash="payload-cancel",
+        command_payload={"membershipRef": "membership-1"},
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "INVITATION_INTENT_CANCELLED"
+    assert safe_payload["membership"]["previousStatus"] == "INVITED"
+    assert safe_payload["membership"]["status"] == "DISABLED"
+    assert safe_payload["noInviteDeliveryConfirmed"] is True
+    assert safe_payload["noMembershipActivationConfirmed"] is True
+    assert safe_payload["noAuthClaimChangeConfirmed"] is True
+    assert safe_payload["noSeatAssignmentConfirmed"] is True
+    assert safe_payload["noMoneyMovementConfirmed"] is True
+
+    joined_queries = "\n".join(call[0] for call in conn.fetchrow_calls)
+    assert "UPDATE platform_memberships" in joined_queries
+    assert "status = 'DISABLED'" in joined_queries
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+    assert "DELETE FROM" not in joined_queries
+
+
 async def test_membership_invitation_delivery_request_records_blocked_audit(
     monkeypatch,
 ):

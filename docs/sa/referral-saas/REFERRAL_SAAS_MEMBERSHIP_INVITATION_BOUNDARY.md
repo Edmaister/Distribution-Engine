@@ -72,11 +72,22 @@ Candidate product route family:
 | Route | Method | Purpose |
 | --- | --- | --- |
 | `/v1/referral-saas/accounts/{accountRef}/membership-invitations` | `POST` | Record a bounded account membership invitation intent. |
+| `/v1/referral-saas/accounts/{accountRef}/membership-invitations/{membershipRef}` | `PATCH` | Update invited access intent details before delivery or activation. |
+| `/v1/referral-saas/accounts/{accountRef}/membership-invitations/{membershipRef}` | `DELETE` | Cancel invited access intent by moving it to a disabled lifecycle state without hard deletion. |
 | `/v1/referral-saas/accounts/{accountRef}/membership-invitations/{membershipRef}` | `GET` | Read safe invitation/membership command result. |
 
 Initial implementation may derive `accountRef` from a resolved account query
 instead of accepting path-only authorization. Caller-supplied `accountRef` must
 never be enough to authorize the command.
+
+TASK-276 adds the `PATCH` and `DELETE` lifecycle commands for People and
+Access maintenance. Both commands are restricted to `INVITED` membership
+intent. `PATCH` can update safe person/contact evidence and responsibility
+mapping. `DELETE` is intentionally a cancel/remove-intent operation that marks
+the membership `DISABLED`; it does not hard-delete access history. Neither
+command sends invitation email, activates membership, assigns seats, changes
+auth/session claims, activates campaigns, triggers go-live, bills, or moves
+money.
 
 ## Request Shape
 

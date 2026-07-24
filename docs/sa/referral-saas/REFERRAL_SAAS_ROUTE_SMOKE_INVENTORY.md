@@ -131,6 +131,8 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referral-codes` | Referral SaaS customer-scoped active-campaign referral code issue/reuse wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referrals/validate` | Referral SaaS customer-scoped active-campaign referral validation wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations` | Referral SaaS membership invitation intent wrapper |
+| Seeded local/staging write | PATCH | `/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}` | Referral SaaS invited access intent update wrapper; edits invited intent only |
+| Seeded local/staging write | DELETE | `/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}` | Referral SaaS invited access intent cancel wrapper; disables intent without hard delete |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery` | Referral SaaS invitation delivery request boundary; records blocked provider evidence only |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/activation` | Referral SaaS membership activation request boundary; activates membership lifecycle only after identity/account gates |
 | Seeded local/staging write | PATCH | `/v1/referral-saas/accounts/{account_ref}/profile` | Referral SaaS customer profile settings maintenance wrapper |

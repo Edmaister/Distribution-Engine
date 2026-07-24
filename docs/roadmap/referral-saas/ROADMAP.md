@@ -247,6 +247,7 @@ greenfield referral construction.
 139. TASK-273: Persist customer-scoped report export requests.
 140. TASK-274: Clarify selected-customer selector, profile header, and health action labels.
 141. TASK-275: Fix accepted-access membership activation SQL parameter typing.
+142. TASK-276: Add People and Access intent maintenance.
 
 ## 10/10 Exit Criteria
 
@@ -1115,6 +1116,23 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Fixes the accepted-access membership activation command path found during local UI testing. The duplicate-active membership guard now casts nullable `user_id` and `client_id` parameters to their schema-backed types before comparison, preventing Postgres from raising an ambiguous-parameter 500 while preserving the existing no-invite, no-seat, no-auth-claim, no-campaign, no-billing, and no-money guardrails.
+- TASK-276: `services/referral_saas_account_membership_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/styles/base.css`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_INVITATION_BOUNDARY.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds guarded edit/cancel lifecycle commands for invited People and Access intent, fixes the accepted-access ambiguous-parameter backend failure path, and moves the selected-customer People and Access UI toward the mock recommendation with a primary people list, opaque add/edit drawer, remove intent action, disabled/cancelled intent hidden from the primary working list, missing-role Add prompts, hashed work-email evidence, and diagnostics kept secondary. No live invitation delivery, membership activation side effects, seat assignment, auth-claim propagation, billing, or money movement are introduced.
 
 ## Explicit Deferrals
 
