@@ -1065,6 +1065,13 @@ describe("ReferralSaasAccountMaintenancePage", () => {
 
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
     expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Botswana");
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Operating jurisdiction");
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Account status");
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Account code");
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Customer reference");
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Organisation reference");
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("gabs-platform");
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("gabs-org");
     expect(screen.getByText("This is the customer home. Campaigns, links, reports, attribution, and support stay inside this customer context.")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Health at a glance" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Do this next" })).toBeInTheDocument();

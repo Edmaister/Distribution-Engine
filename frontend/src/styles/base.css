@@ -303,14 +303,35 @@ a {
   margin-top: 12px;
 }
 
-.customer-context-chips span:not(.badge) {
+.customer-context-chip {
   background: var(--color-white);
   border: 1px solid var(--color-rule);
   border-radius: var(--radius-control);
   color: var(--color-ink-soft);
+  display: inline-grid;
+  gap: 2px;
+  min-height: 42px;
+  padding: 6px 9px;
+}
+
+.customer-context-chip.status {
+  align-items: start;
+}
+
+.customer-context-label {
+  color: var(--color-ink-muted);
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.customer-context-value {
+  color: var(--color-ink-soft);
   font-family: var(--font-mono);
   font-size: 11px;
-  padding: 5px 8px;
+  overflow-wrap: anywhere;
 }
 
 .customer-header-actions {

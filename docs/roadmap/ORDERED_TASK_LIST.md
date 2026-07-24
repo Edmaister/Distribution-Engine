@@ -6034,7 +6034,7 @@ Rollback notes: Remove migration 085, service command, account export-request ro
 Explicit non-goals: Do not create export files, object storage records, download URLs, scheduled delivery, webhook delivery, credentials, billing events, invoices, rewards payment, funding, fulfilment, settlement, commissions, wallet entries, payouts, sponsor billing, treasury behavior, account/user/seat/auth changes, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS can persist tenant-safe selected-customer report export request and audit evidence without adjacent storage, delivery, billing, or money side effects. Current rating moves to 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
-## TASK-274: Clarify selected-customer selector card labels
+## TASK-274: Clarify selected-customer selector and profile header labels
 
 Status: Complete (2026-07-24).
 Product boundary: Referral SaaS.
@@ -6042,22 +6042,22 @@ Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT
 Shared primitive impact: Reuses the existing selected-customer account registry and customer profile routing; presentation only. Source duplication: No.
 Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
 Linked platform/product capability: Customer profile selection; customer-scoped operator navigation; no tenant-code leakage.
-Objective: Make the customer selector cards readable by labeling customer name, customer reference, organisation reference, account code, and selected state instead of showing unlabeled raw identifiers.
-Why now: Local UX testing showed the customer cards looked duplicated and unclear, making operators unsure which value represented the client/customer, visible reference, organisation reference, or support account code.
+Objective: Make the customer selector cards and selected-customer profile header readable by labeling customer name, operating jurisdiction, account status, customer reference, organisation reference, account code, and selected state instead of showing unlabeled raw identifiers.
+Why now: Local UX testing showed the customer picker and profile header looked duplicated and unclear, making operators unsure which value represented the client/customer, operating market, visible reference, organisation reference, account status, or support account code.
 Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
 Database/schema impact: None.
 Backend impact: None.
-Frontend impact: Updates selected-customer cards to show labeled metadata categories and selected state while preserving the same account selection behavior and customer-profile navigation.
+Frontend impact: Updates selected-customer cards and the customer profile header to show labeled metadata categories and selected state while preserving the same account selection behavior and customer-profile navigation.
 API impact: None; uses the existing account registry response.
-Tests added/updated: Customer profile selector test now asserts the labeled customer reference, organisation reference, and account code are visible.
+Tests added/updated: Customer profile selector test now asserts the labeled customer reference, organisation reference, account code, operating jurisdiction, account status, and header values are visible.
 Validation method: `npm.cmd run test -- ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `npm.cmd run lint`.
-Acceptance criteria: Customer cards clearly explain every identifier; duplicate-looking references are distinguishable by label; selected state is visible; customer selection and Open customer profile behavior remain unchanged; no internal tenant code is added to the UI.
+Acceptance criteria: Customer cards and the selected-customer profile header clearly explain every identifier; duplicate-looking references are distinguishable by label; selected state is visible; customer selection and Open customer profile behavior remain unchanged; no internal tenant code is added to the UI.
 Dependencies: TASK-231; TASK-241; TASK-227; TASK-273.
 Blocked by: None.
 Risk level: Low.
 Rollback notes: Revert the customer selector markup, CSS, test, and documentation updates.
 Explicit non-goals: Do not add schema, migrations, new account registry fields, account mutations, campaign mutations, invitation delivery, membership activation, seat assignment, auth/session claim changes, report/export behavior, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
-Definition of done: Operators can select a customer from a jurisdiction-scoped list with clear labels for customer, customer reference, organisation reference, account code, and selected state. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P1.
+Definition of done: Operators can select a customer from a jurisdiction-scoped list and read the selected-customer header with clear labels for customer, operating jurisdiction, account status, customer reference, organisation reference, account code, and selected state. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P1.
 
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 

@@ -245,7 +245,7 @@ greenfield referral construction.
 137. TASK-271: Add selected-customer mutation-path E2E physical proof runner.
 138. TASK-272: Record selected-customer mutation-path E2E physical proof execution.
 139. TASK-273: Persist customer-scoped report export requests.
-140. TASK-274: Clarify selected-customer selector card labels.
+140. TASK-274: Clarify selected-customer selector and profile header labels.
 
 ## 10/10 Exit Criteria
 
@@ -1107,7 +1107,7 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
-  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Clarifies the selected-customer picker by labeling each customer card value as Customer, Customer reference, Organisation reference, Account code, and Selected status. This is a frontend-only customer-selection UX improvement over the existing account registry response; it adds no backend fields, schema, account mutations, tenant-code exposure, or DLaaS scope.
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Clarifies the selected-customer picker and selected-customer profile header by labeling customer, operating jurisdiction, account status, customer reference, organisation reference, account code, and selected state. This is a frontend-only UX improvement over the existing account registry response; it adds no backend fields, schema, account mutations, tenant-code exposure, or DLaaS scope.
 
 ## Explicit Deferrals
 

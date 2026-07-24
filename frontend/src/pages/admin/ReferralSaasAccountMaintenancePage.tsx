@@ -880,11 +880,25 @@ export function ReferralSaasAccountMaintenancePage() {
           </p>
           {accountId && selectedAccount ? (
             <div className="customer-context-chips" aria-label="Selected customer context">
-              <span>{operatingMarketFromAccount(selectedAccount).name}</span>
-              <StatusBadge label={formatDisplay(selectedAccount.accountStatus)} tone="success" />
-              <span>{selectedAccount.accountCode}</span>
-              <span>
-                {selectedExternalTenantRef} / {selectedOrganisationRef}
+              <span className="customer-context-chip">
+                <span className="customer-context-label">Operating jurisdiction</span>
+                <span className="customer-context-value">{operatingMarketFromAccount(selectedAccount).name}</span>
+              </span>
+              <span className="customer-context-chip status">
+                <span className="customer-context-label">Account status</span>
+                <StatusBadge label={formatDisplay(selectedAccount.accountStatus)} tone="success" />
+              </span>
+              <span className="customer-context-chip">
+                <span className="customer-context-label">Account code</span>
+                <span className="customer-context-value">{selectedAccount.accountCode}</span>
+              </span>
+              <span className="customer-context-chip">
+                <span className="customer-context-label">Customer reference</span>
+                <span className="customer-context-value">{selectedExternalTenantRef}</span>
+              </span>
+              <span className="customer-context-chip">
+                <span className="customer-context-label">Organisation reference</span>
+                <span className="customer-context-value">{selectedOrganisationRef}</span>
               </span>
             </div>
           ) : null}
