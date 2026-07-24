@@ -329,9 +329,33 @@ internal tenant-scope keys are returned and confirms no invitation delivery,
 membership activation, campaign mutation, link generation, export creation,
 storage/delivery, billing, or money movement occurred.
 
-This raises verification readiness, but it does not by itself close the live
-proof gap. The next evidence step is to execute the runner against local or
-staging data and record the output.
+TASK-270 executed this read-spine proof locally and fixed the readiness/report
+wrapper blockers it exposed.
+
+## TASK-271 Selected-Customer Mutation Runner
+
+TASK-271 adds
+`scripts/referral_saas_selected_customer_mutation_e2e_physical_check.py` as a
+repeatable local/staging proof over the guarded selected-customer mutation
+path.
+
+Run it after the API is started and a selected customer account is ready for
+campaign setup:
+
+```powershell
+C:\Users\Carla\anaconda3\python.exe scripts\referral_saas_selected_customer_mutation_e2e_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref <customer-reference>
+```
+
+The runner creates a uniquely suffixed campaign setup draft, records
+policy/settings, submits and approves campaign review, activates campaign
+posture, issues and validates a referral code, and verifies report/export
+preview. It fails if internal tenant-scope keys are returned and confirms no
+webhook delivery, credential creation, invite delivery, membership activation,
+persisted export creation, storage/delivery, billing, or money movement
+occurred.
+
+This raises verification readiness further, but the next evidence step is to
+execute the mutation runner against local or staging data and record the output.
 
 ## Explicit Non-Goals
 
