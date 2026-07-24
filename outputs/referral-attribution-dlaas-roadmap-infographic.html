@@ -581,7 +581,7 @@
             selected-customer mutation-path proof runner, local mutation
             execution evidence, persisted export request/audit evidence, and
             clearer selected-customer selector and profile header labels
-            through TASK-274.
+            through TASK-276.
           </p>
           <div class="score-row" aria-label="Current position">
             <div class="score">
@@ -604,7 +604,7 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-274 for Referral SaaS, with
+            Updated after TASK-134 through TASK-276 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
@@ -615,11 +615,11 @@
           </div>
           <div class="status-pill">
             <b>Customer-scoped campaign spine is now proof-ready</b>
-            <span>TASK-253 through TASK-274 add selected-customer campaign readiness, list/read, create, policy/settings, submit-for-review, review-decision API proof, review UX, activation/go-live contract, guarded activation API, activation UI, active-campaign Links and Codes, customer-scoped Reports, a read-only E2E proof runner, the redaction/report-wrapper fixes found by local execution, a guarded mutation-path proof runner, passing local mutation execution evidence, persisted export request/audit evidence, and clearer selected-customer picker/profile-header/health-action labels while preserving no tenant-code exposure, no webhooks, no access changes, no billing, and no money movement.</span>
+            <span>TASK-253 through TASK-276 add selected-customer campaign readiness, list/read, create, policy/settings, submit-for-review, review-decision API proof, review UX, activation/go-live contract, guarded activation API, activation UI, active-campaign Links and Codes, customer-scoped Reports, a read-only E2E proof runner, the redaction/report-wrapper fixes found by local execution, a guarded mutation-path proof runner, passing local mutation execution evidence, persisted export request/audit evidence, clearer selected-customer picker/profile-header/health-action labels, and People and Access add/edit/remove intent maintenance while preserving no tenant-code exposure, no live invite delivery, no seat/auth changes, no billing, and no money movement.</span>
           </div>
           <div class="status-pill">
             <b>Selected-customer mutation proof passed</b>
-            <span>TASK-270 records local read-spine proof execution across registry, resolve, people/access posture, technical readiness, campaign list, campaign readiness, campaign report, and export preview. TASK-272 records passing local mutation proof for campaign create, policy, review, activation, code issue/validation, report, and export preview. TASK-273 persists export request/audit evidence. TASK-274 improves selected-customer card, profile-header, and Green/Red/Amber health-to-action clarity. The score still stays below 10/10 until export file storage/download, support persistence, and progress/attribution mutation proof are complete.</span>
+            <span>TASK-270 records local read-spine proof execution across registry, resolve, people/access posture, technical readiness, campaign list, campaign readiness, campaign report, and export preview. TASK-272 records passing local mutation proof for campaign create, policy, review, activation, code issue/validation, report, and export preview. TASK-273 persists export request/audit evidence. TASK-274 improves selected-customer card, profile-header, and Green/Red/Amber health-to-action clarity. TASK-276 adds safer People and Access edit/cancel intent and fixes the accepted-access backend 500 path. The score still stays below 10/10 until export file storage/download, support persistence, and progress/attribution mutation proof are complete.</span>
           </div>
           <div class="status-pill">
             <b>Safe status moved forward</b>
@@ -1265,7 +1265,7 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">SaaS workflow implementation</div>
-            <div class="matrix-cell">Selected-customer account/profile, people/access, technical setup, customer-scoped campaign readiness, campaign list/read, create, policy/settings, guarded submit/review API proof, review UX, activation/go-live contract/API, activation UI, active-campaign Links and Codes, customer-scoped Reports, passing read-spine physical proof, mutation-path proof tooling, passing mutation execution evidence, and persisted export request/audit evidence now exist, but support-case persistence, export file storage/downloads, and lifecycle hardening still need cohesive product workflows.</div>
+            <div class="matrix-cell">Selected-customer account/profile, people/access add/edit/remove intent, technical setup, customer-scoped campaign readiness, campaign list/read, create, policy/settings, guarded submit/review API proof, review UX, activation/go-live contract/API, activation UI, active-campaign Links and Codes, customer-scoped Reports, passing read-spine physical proof, mutation-path proof tooling, passing mutation execution evidence, and persisted export request/audit evidence now exist, but support-case persistence, export file storage/downloads, and lifecycle hardening still need cohesive product workflows.</div>
             <div class="matrix-cell">Keep support persistence and export storage/download as separate customer-scoped modules with tests and no source duplication, then extend proof into progress/attribution mutation paths.</div>
           </div>
           <div class="matrix-row" role="row">
@@ -1285,7 +1285,7 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Public API and frontend packaging</div>
-            <div class="matrix-cell">The API map and IA exist, focused admin surfaces are ringfenced, and product wrappers now cover reports/exports, link/code issue-validation-capture, operator diagnostics, account/customer profile, people/access, technical readiness, campaign create/policy/review/activation APIs, selected-customer campaign review UX, activation/go-live contract, activation UI, customer-scoped active-campaign Links and Codes, customer-scoped Reports, passing selected-customer read-spine proof, passing mutation proof, and persisted export request/audit evidence, but customers still need export file delivery and customer/referrer-safe status surfaces.</div>
+            <div class="matrix-cell">The API map and IA exist, focused admin surfaces are ringfenced, and product wrappers now cover reports/exports, link/code issue-validation-capture, operator diagnostics, account/customer profile, people/access add-edit-cancel intent, technical readiness, campaign create/policy/review/activation APIs, selected-customer campaign review UX, activation/go-live contract, activation UI, customer-scoped active-campaign Links and Codes, customer-scoped Reports, passing selected-customer read-spine proof, passing mutation proof, and persisted export request/audit evidence, but customers still need export file delivery and customer/referrer-safe status surfaces.</div>
             <div class="matrix-cell">Add export file storage/download/retention, support persistence, progress/attribution proof, and deployment evidence without breaking selected-customer redaction checks.</div>
           </div>
           <div class="matrix-row" role="row">

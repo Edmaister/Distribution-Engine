@@ -32,6 +32,8 @@ import {
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   submitReferralSaasAccountCampaignReview,
+  cancelReferralSaasMembershipInvitationIntent,
+  updateReferralSaasMembershipInvitationIntent,
   updateReferralSaasAccountCampaignPolicySettings,
   updateReferralSaasAccountProfile,
   type ReferralSaasAccountCampaignReviewResponse,
@@ -72,6 +74,8 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   requestReferralSaasMembershipInvitationDelivery: vi.fn(),
   requestReferralSaasMembershipActivation: vi.fn(),
   submitReferralSaasAccountCampaignReview: vi.fn(),
+  cancelReferralSaasMembershipInvitationIntent: vi.fn(),
+  updateReferralSaasMembershipInvitationIntent: vi.fn(),
   updateReferralSaasAccountCampaignPolicySettings: vi.fn(),
   updateReferralSaasAccountProfile: vi.fn(),
 }));
@@ -95,6 +99,8 @@ const mockedRequestReferralSaasAccountCampaignActivation = vi.mocked(requestRefe
 const mockedRequestReferralSaasMembershipInvitationDelivery = vi.mocked(requestReferralSaasMembershipInvitationDelivery);
 const mockedRequestReferralSaasMembershipActivation = vi.mocked(requestReferralSaasMembershipActivation);
 const mockedSubmitReferralSaasAccountCampaignReview = vi.mocked(submitReferralSaasAccountCampaignReview);
+const mockedCancelReferralSaasMembershipInvitationIntent = vi.mocked(cancelReferralSaasMembershipInvitationIntent);
+const mockedUpdateReferralSaasMembershipInvitationIntent = vi.mocked(updateReferralSaasMembershipInvitationIntent);
 const mockedUpdateReferralSaasAccountCampaignPolicySettings = vi.mocked(updateReferralSaasAccountCampaignPolicySettings);
 const mockedUpdateReferralSaasAccountProfile = vi.mocked(updateReferralSaasAccountProfile);
 
@@ -949,6 +955,98 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       no_seat_assignment_confirmed: true,
       no_money_movement_confirmed: true,
     });
+    mockedUpdateReferralSaasMembershipInvitationIntent.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACC-2201",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+        onboardingStatus: "APPROVED",
+      },
+      invitation: {
+        commandStatus: "INVITATION_INTENT_UPDATED",
+        membership: {
+          membershipRef: "membership-1",
+          previousStatus: "INVITED",
+          status: "INVITED",
+          previousRoleFamily: "DISTRIBUTION_ADMIN",
+          roleFamily: "CAMPAIGN_MANAGER",
+          previousPermissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+          permissionSet: "REFERRAL_SAAS_CAMPAIGN_MANAGER",
+          canOperateSetup: false,
+        },
+        lifecycle: {
+          status: "INVITATION_INTENT_UPDATED",
+          nextAction: "Review the updated access intent before invite delivery.",
+        },
+        idempotency: {
+          status: "RECORDED",
+        },
+        auditEventId: "audit-update-1",
+        guardrails: ["NO_INVITE_DELIVERY"],
+        redactions: ["INTERNAL_TENANT_IDENTIFIER", "email_hash"],
+        noInviteDeliveryConfirmed: true,
+        noMembershipActivationConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noMoneyMovementConfirmed: true,
+      },
+      guardrails: ["NO_INVITE_DELIVERY"],
+      redactions: ["INTERNAL_TENANT_IDENTIFIER", "email_hash"],
+      no_invite_delivery_confirmed: true,
+      no_membership_activation_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+    mockedCancelReferralSaasMembershipInvitationIntent.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACC-2201",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+        onboardingStatus: "APPROVED",
+      },
+      invitation: {
+        commandStatus: "INVITATION_INTENT_CANCELLED",
+        membership: {
+          membershipRef: "membership-1",
+          previousStatus: "INVITED",
+          status: "DISABLED",
+          previousRoleFamily: "DISTRIBUTION_ADMIN",
+          roleFamily: "DISTRIBUTION_ADMIN",
+          previousPermissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+          permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+          canOperateSetup: false,
+        },
+        lifecycle: {
+          status: "INVITATION_INTENT_CANCELLED",
+          nextAction: "Record a new access intent if this customer still needs that responsibility.",
+        },
+        idempotency: {
+          status: "RECORDED",
+        },
+        auditEventId: "audit-cancel-1",
+        guardrails: ["NO_INVITE_DELIVERY"],
+        redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+        noInviteDeliveryConfirmed: true,
+        noMembershipActivationConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noMoneyMovementConfirmed: true,
+      },
+      guardrails: ["NO_INVITE_DELIVERY"],
+      redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+      no_invite_delivery_confirmed: true,
+      no_membership_activation_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
     mockedUpdateReferralSaasAccountProfile.mockResolvedValue({
       status: "ok",
       profile: {
@@ -1124,9 +1222,12 @@ describe("ReferralSaasAccountMaintenancePage", () => {
 
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "People and access" })).toBeInTheDocument();
-    expect(screen.getByText(/It does not send an email, activate login, assign a seat, or change auth permissions/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add person" }));
+    expect(screen.getByText(/This saves intent only/i)).toBeInTheDocument();
     expect(screen.getByText(/Used as the access identity for this customer/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Example: John Doe")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show access diagnostics" }));
     expect(await screen.findByText("Access activation readiness")).toBeInTheDocument();
     expect(screen.getByText(/responsibility still needs to be named for this customer/i)).toBeInTheDocument();
     expect(screen.getByText("Ready to invite")).toBeInTheDocument();
@@ -1146,16 +1247,17 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       context: "setup",
     });
 
+    fireEvent.click(screen.getByRole("button", { name: "Add person" }));
     fireEvent.change(screen.getByLabelText("Person name"), {
       target: { value: "Gaborone campaign owner" },
     });
     fireEvent.change(screen.getByLabelText(/Work email/), {
       target: { value: "Gabs.Campaign.Owner@Example.COM" },
     });
-    fireEvent.change(screen.getByLabelText("Access responsibility"), {
+    fireEvent.change(screen.getByLabelText("Responsibility"), {
       target: { value: "Campaign manager" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Record access intent" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save person intent" }));
 
     await waitFor(() => expect(mockedRecordReferralSaasMembershipInvitationIntent).toHaveBeenCalledTimes(1));
     expect(mockedRecordReferralSaasMembershipInvitationIntent.mock.calls[0][0]).toEqual({
@@ -1168,6 +1270,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       actor: {
         actorType: "USER",
         subject: "gabs.campaign.owner@example.com",
+        emailHash: expect.any(String),
         displayName: "Gaborone campaign owner",
       },
       membership: {
@@ -1189,6 +1292,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/people");
 
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show access diagnostics" }));
     const deliveryButton = await screen.findByRole("button", { name: "Check invite delivery" });
     expect(deliveryButton).toBeEnabled();
 
@@ -1223,6 +1327,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/people");
 
     expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show access diagnostics" }));
     const activationButton = await screen.findByRole("button", { name: "Record accepted access" });
     expect(activationButton).toBeEnabled();
     expect(screen.getByText("Will validate gates")).toBeInTheDocument();

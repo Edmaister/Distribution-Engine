@@ -12,12 +12,14 @@ import {
   listReferralSaasAccountCampaigns,
   listReferralSaasAccounts,
   recordReferralSaasAccountCampaignReviewDecision,
+  cancelReferralSaasMembershipInvitationIntent,
   requestReferralSaasAccountCampaignActivation,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   resolveReferralSaasAccount,
   submitReferralSaasAccountCampaignReview,
+  updateReferralSaasMembershipInvitationIntent,
   updateReferralSaasAccountCampaignPolicySettings,
   updateReferralSaasAccountProfile,
 } from "./referralSaasAccounts";
@@ -1230,6 +1232,170 @@ describe("referralSaasAccounts endpoint client", () => {
     );
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /recipienthash|tenant_code|client_secret|wallet|settlement|money_movement|send_invite|activate/,
+    );
+  });
+
+  it("updates an invited Referral SaaS access intent without live invite side effects", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acc_fnb",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      invitation: {
+        commandStatus: "INVITATION_INTENT_UPDATED",
+        membership: {
+          membershipRef: "mbr_1",
+          previousStatus: "INVITED",
+          status: "INVITED",
+          roleFamily: "CAMPAIGN_MANAGER",
+          permissionSet: "REFERRAL_SAAS_CAMPAIGN_MANAGER",
+        },
+        lifecycle: {
+          status: "INVITATION_INTENT_UPDATED",
+          nextAction: "Review the updated access intent before invite delivery or activation.",
+        },
+        idempotency: {
+          status: "RECORDED",
+        },
+        guardrails: ["NO_RAW_EMAIL_STORAGE"],
+        redactions: ["email_hash"],
+        noInviteDeliveryConfirmed: true,
+        noMembershipActivationConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noMoneyMovementConfirmed: true,
+      },
+    });
+
+    await expect(
+      updateReferralSaasMembershipInvitationIntent({
+        accountRef: " acc_fnb ",
+        membershipRef: " mbr_1 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " demo-platform-operator ",
+          context: "setup",
+        },
+        actor: {
+          emailHash: " safe-email-hash ",
+          displayName: " Campaign Owner ",
+        },
+        membership: {
+          roleFamily: " CAMPAIGN_MANAGER ",
+          permissionSet: " REFERRAL_SAAS_CAMPAIGN_MANAGER ",
+        },
+        correlationId: "corr-1",
+        idempotencyKey: "update-1",
+      }),
+    ).resolves.toMatchObject({
+      invitation: {
+        commandStatus: "INVITATION_INTENT_UPDATED",
+      },
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acc_fnb/membership-invitations/mbr_1",
+      {
+        method: "PATCH",
+        body: {
+          accountScope: {
+            refType: "external_tenant_ref",
+            externalRef: "demo-platform-operator",
+            context: "setup",
+          },
+          actor: {
+            emailHash: "safe-email-hash",
+            displayName: "Campaign Owner",
+          },
+          membership: {
+            roleFamily: "CAMPAIGN_MANAGER",
+            permissionSet: "REFERRAL_SAAS_CAMPAIGN_MANAGER",
+          },
+          reasonCode: "CUSTOMER_PROFILE_ACCESS_INTENT_UPDATE",
+          correlationId: "corr-1",
+          idempotencyKey: "update-1",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement|send_invite|activate/,
+    );
+  });
+
+  it("cancels an invited Referral SaaS access intent as a lifecycle state", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acc_fnb",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      invitation: {
+        commandStatus: "INVITATION_INTENT_CANCELLED",
+        membership: {
+          membershipRef: "mbr_1",
+          previousStatus: "INVITED",
+          status: "DISABLED",
+          roleFamily: "DISTRIBUTION_ADMIN",
+          permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        },
+        lifecycle: {
+          status: "INVITATION_INTENT_CANCELLED",
+          nextAction: "Record a new access intent if this person should manage the customer again.",
+        },
+        idempotency: {
+          status: "RECORDED",
+        },
+        guardrails: ["NO_RAW_EMAIL_STORAGE"],
+        redactions: ["email_hash"],
+        noInviteDeliveryConfirmed: true,
+        noMembershipActivationConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noMoneyMovementConfirmed: true,
+      },
+    });
+
+    await expect(
+      cancelReferralSaasMembershipInvitationIntent({
+        accountRef: " acc_fnb ",
+        membershipRef: " mbr_1 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " demo-platform-operator ",
+          context: "setup",
+        },
+        correlationId: "corr-1",
+        idempotencyKey: "cancel-1",
+      }),
+    ).resolves.toMatchObject({
+      invitation: {
+        membership: {
+          status: "DISABLED",
+        },
+      },
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acc_fnb/membership-invitations/mbr_1",
+      {
+        method: "DELETE",
+        body: {
+          accountScope: {
+            refType: "external_tenant_ref",
+            externalRef: "demo-platform-operator",
+            context: "setup",
+          },
+          reasonCode: "CUSTOMER_PROFILE_ACCESS_INTENT_CANCEL",
+          correlationId: "corr-1",
+          idempotencyKey: "cancel-1",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement|send_invite|activate/,
     );
   });
 

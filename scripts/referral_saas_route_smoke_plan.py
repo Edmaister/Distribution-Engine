@@ -871,6 +871,77 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_membership_invitation_intent_update",
+        method="PATCH",
+        path="/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin role",
+        environment_rule="local/staging seeded account only; invited membership intent only",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "membership_ref",
+            "ref_type",
+            "external_ref",
+            "email_hash",
+            "idempotency_key",
+        ],
+        expected_state_change=(
+            "updates invited membership intent and account audit evidence; "
+            "does not send invitations, activate membership, assign seats, "
+            "mutate auth claims, or move money"
+        ),
+        curl_template=(
+            'curl -sS -X PATCH -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"actor":{"displayName":"Updated access owner",'
+            '"emailHash":"{email_hash}"},'
+            '"membership":{"roleFamily":"CAMPAIGN_MANAGER",'
+            '"permissionSet":"REFERRAL_SAAS_CAMPAIGN_MANAGER"},'
+            '"reasonCode":"CUSTOMER_PROFILE_ACCESS_INTENT_UPDATE",'
+            '"correlationId":"smoke-membership-intent-update",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/membership-invitations/{membership_ref}"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_membership_invitation_intent_cancel",
+        method="DELETE",
+        path="/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin role",
+        environment_rule="local/staging seeded account only; invited membership intent only",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "membership_ref",
+            "ref_type",
+            "external_ref",
+            "idempotency_key",
+        ],
+        expected_state_change=(
+            "marks invited membership intent disabled and records account audit "
+            "evidence; does not hard-delete access history, send invitations, "
+            "activate membership, assign seats, mutate auth claims, or move money"
+        ),
+        curl_template=(
+            'curl -sS -X DELETE -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"reasonCode":"CUSTOMER_PROFILE_ACCESS_INTENT_CANCEL",'
+            '"correlationId":"smoke-membership-intent-cancel",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/membership-invitations/{membership_ref}"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_membership_invitation_delivery_request",
         method="POST",
         path="/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery",

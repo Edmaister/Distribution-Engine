@@ -8,6 +8,12 @@ from utils.db import db_connection
 
 MEMBERSHIP_STATUSES = ("INVITED", "ACTIVE", "SUSPENDED", "DISABLED", "ARCHIVED")
 MEMBERSHIP_INVITATION_EVENT: Final = "REFERRAL_SAAS_MEMBERSHIP_INVITATION_INTENT"
+MEMBERSHIP_INVITATION_UPDATE_EVENT: Final = (
+    "REFERRAL_SAAS_MEMBERSHIP_INVITATION_INTENT_UPDATE"
+)
+MEMBERSHIP_INVITATION_CANCEL_EVENT: Final = (
+    "REFERRAL_SAAS_MEMBERSHIP_INVITATION_INTENT_CANCEL"
+)
 MEMBERSHIP_INVITATION_DELIVERY_EVENT: Final = (
     "REFERRAL_SAAS_MEMBERSHIP_INVITATION_DELIVERY_REQUEST"
 )
@@ -86,6 +92,14 @@ class MembershipInvitationIdempotencyConflict(MembershipInvitationCommandError):
     safe_code = "IDEMPOTENCY_CONFLICT"
 
 
+class MembershipInvitationNotFound(MembershipInvitationCommandError):
+    safe_code = "MEMBERSHIP_INVITATION_NOT_FOUND"
+
+
+class MembershipInvitationNotEditable(MembershipInvitationCommandError):
+    safe_code = "MEMBERSHIP_INVITATION_NOT_EDITABLE"
+
+
 class MembershipInvitationDeliveryNotInvited(MembershipInvitationCommandError):
     safe_code = "DELIVERY_REJECTED_MEMBERSHIP_NOT_INVITED"
 
@@ -118,6 +132,49 @@ class MembershipActivationExternalReferenceNotActive(MembershipInvitationCommand
 
 class MembershipActivationDuplicateActiveMembership(MembershipInvitationCommandError):
     safe_code = "ACTIVATION_REJECTED_DUPLICATE_ACTIVE_MEMBERSHIP"
+
+
+@dataclass(frozen=True)
+class MembershipInvitationLifecycleResult:
+    command_status: str
+    account_id: str
+    membership_id: str
+    previous_membership_status: str
+    membership_status: str
+    role_family: str
+    permission_set: str
+    idempotency_status: str
+    audit_event_id: str | None
+    lifecycle_next_action: str
+    guardrails: tuple[str, ...] = INVITATION_GUARDRAILS
+    redactions: tuple[str, ...] = INVITATION_REDACTIONS
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "membership": {
+                "membershipRef": self.membership_id,
+                "previousStatus": self.previous_membership_status,
+                "status": self.membership_status,
+                "roleFamily": self.role_family,
+                "permissionSet": self.permission_set,
+            },
+            "lifecycle": {
+                "status": self.command_status,
+                "nextAction": self.lifecycle_next_action,
+            },
+            "idempotency": {
+                "status": self.idempotency_status,
+            },
+            "auditEventId": self.audit_event_id,
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noInviteDeliveryConfirmed": True,
+            "noMembershipActivationConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noMoneyMovementConfirmed": True,
+        }
 
 
 @dataclass(frozen=True)
@@ -1146,6 +1203,482 @@ async def request_referral_saas_membership_invitation_delivery(
     )
 
 
+async def update_referral_saas_membership_invitation_intent(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    membership_id: str,
+    email_hash: str | None = None,
+    display_name: str | None = None,
+    role_family: str,
+    permission_set: str,
+    reason_code: str,
+    correlation_id: str,
+    idempotency_key_hash: str,
+    command_payload_hash: str,
+    command_payload: dict[str, Any] | None = None,
+    command_actor_ref: str | None = None,
+    command_actor_role: str | None = None,
+) -> MembershipInvitationLifecycleResult:
+    safe_account_id = _required_account_id(account_id)
+    safe_tenant_code = _required_text(tenant_code)
+    safe_account_tenant_id = _optional_text(account_tenant_id) or None
+    safe_external_ref_id = _optional_text(external_ref_id) or None
+    safe_membership_id = _required_text(membership_id)
+    safe_email_hash = _optional_text(email_hash) or None
+    safe_display_name = _optional_text(display_name) or None
+    safe_role_family = _required_choice(role_family, ROLE_FAMILIES)
+    safe_permission_set = _required_text(permission_set).upper()
+    safe_reason_code = _required_text(reason_code).upper()
+    safe_correlation_id = _required_text(correlation_id)
+    safe_idempotency_hash = _required_text(idempotency_key_hash)
+    safe_payload_hash = _required_text(command_payload_hash)
+    safe_command_payload = command_payload or {}
+
+    _reject_unsafe_payload(safe_command_payload)
+
+    async with db_connection() as conn:
+        existing_audit = await conn.fetchrow(
+            """
+            SELECT account_audit_event_id, evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            MEMBERSHIP_INVITATION_UPDATE_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_audit:
+            evidence = _as_mapping(existing_audit.get("evidence_summary"))
+            if _optional_text(evidence.get("command_payload_hash")) != safe_payload_hash:
+                raise MembershipInvitationIdempotencyConflict(
+                    "Idempotency key was reused with different membership update content."
+                )
+            return MembershipInvitationLifecycleResult(
+                command_status="INVITATION_INTENT_UPDATE_REPLAYED",
+                account_id=safe_account_id,
+                membership_id=_optional_text(evidence.get("membership_id"))
+                or safe_membership_id,
+                previous_membership_status=_optional_text(
+                    evidence.get("previous_membership_status")
+                )
+                or "INVITED",
+                membership_status=_optional_text(evidence.get("membership_status"))
+                or "INVITED",
+                role_family=_optional_text(evidence.get("role_family"))
+                or safe_role_family,
+                permission_set=_optional_text(evidence.get("permission_set"))
+                or safe_permission_set,
+                idempotency_status="REPLAYED",
+                audit_event_id=_optional_text(
+                    existing_audit.get("account_audit_event_id")
+                )
+                or None,
+                lifecycle_next_action="Review the updated access intent before invite delivery or activation.",
+            )
+
+        membership = await conn.fetchrow(
+            """
+            SELECT
+                platform_memberships.membership_id,
+                platform_memberships.status,
+                platform_memberships.role_family,
+                platform_memberships.permission_set,
+                platform_memberships.user_id,
+                platform_memberships.client_id,
+                actor_user.subject,
+                actor_user.display_name
+            FROM platform_memberships
+            LEFT JOIN platform_users actor_user
+                ON actor_user.user_id = platform_memberships.user_id
+            WHERE platform_memberships.membership_id = $1
+              AND platform_memberships.account_id = $2
+              AND (platform_memberships.tenant_code = $3 OR platform_memberships.tenant_code IS NULL)
+              AND platform_memberships.status <> 'ARCHIVED'
+            LIMIT 1
+            """,
+            safe_membership_id,
+            safe_account_id,
+            safe_tenant_code,
+        )
+        if not membership:
+            raise MembershipInvitationNotFound(
+                "Membership invitation intent was not found for this customer."
+            )
+
+        previous_status = _normalise_status(membership.get("status"))
+        if previous_status != "INVITED":
+            raise MembershipInvitationNotEditable(
+                "Only invited access intent can be edited. Active, disabled, suspended, or archived access requires a separate maintenance workflow."
+            )
+
+        duplicate_membership = await conn.fetchrow(
+            """
+            SELECT duplicate.membership_id
+            FROM platform_memberships duplicate
+            WHERE duplicate.account_id = $1
+              AND (duplicate.tenant_code = $2 OR duplicate.tenant_code IS NULL)
+              AND duplicate.role_family = $3
+              AND duplicate.status IN ('INVITED', 'ACTIVE', 'SUSPENDED')
+              AND duplicate.membership_id <> $4
+              AND (
+                    ($5::uuid IS NOT NULL AND duplicate.user_id = $5)
+                    OR ($6::text <> '' AND duplicate.client_id = $6)
+              )
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_tenant_code,
+            safe_role_family,
+            safe_membership_id,
+            membership.get("user_id"),
+            _optional_text(membership.get("client_id")) or "",
+        )
+        if duplicate_membership:
+            raise MembershipInvitationDuplicate(
+                "A usable membership already exists for this actor, account, tenant scope, and role."
+            )
+
+        async with conn.transaction():
+            if membership.get("user_id"):
+                await conn.fetchrow(
+                    """
+                    UPDATE platform_users
+                    SET
+                        email_hash = COALESCE($2, email_hash),
+                        display_name = COALESCE($3, display_name),
+                        updated_at = NOW()
+                    WHERE user_id = $1
+                    RETURNING user_id
+                    """,
+                    membership.get("user_id"),
+                    safe_email_hash,
+                    safe_display_name,
+                )
+
+            updated_membership = await conn.fetchrow(
+                """
+                UPDATE platform_memberships
+                SET
+                    role_family = $4,
+                    permission_set = $5,
+                    metadata = COALESCE(metadata, '{}'::jsonb) || $6::jsonb,
+                    updated_at = NOW()
+                WHERE membership_id = $1
+                  AND account_id = $2
+                  AND (tenant_code = $3 OR tenant_code IS NULL)
+                  AND status = 'INVITED'
+                RETURNING membership_id, status, role_family, permission_set
+                """,
+                safe_membership_id,
+                safe_account_id,
+                safe_tenant_code,
+                safe_role_family,
+                safe_permission_set,
+                _jsonb(
+                    {
+                        "updated_reason_code": safe_reason_code,
+                        "no_email_delivery_confirmed": True,
+                        "no_auth_claim_change_confirmed": True,
+                        "no_seat_assignment_confirmed": True,
+                    }
+                ),
+            )
+            if not updated_membership:
+                raise MembershipInvitationNotEditable(
+                    "Membership invitation intent changed before the edit could be recorded."
+                )
+
+            audit_evidence = {
+                "membership_id": safe_membership_id,
+                "previous_membership_status": previous_status,
+                "membership_status": "INVITED",
+                "previous_role_family": _optional_text(membership.get("role_family")),
+                "role_family": safe_role_family,
+                "previous_permission_set": _optional_text(
+                    membership.get("permission_set")
+                ),
+                "permission_set": safe_permission_set,
+                "command_payload_hash": safe_payload_hash,
+                "no_raw_email_storage_confirmed": True,
+                "no_email_delivery_confirmed": True,
+                "no_membership_activation_confirmed": True,
+                "no_auth_claim_change_confirmed": True,
+                "no_seat_assignment_confirmed": True,
+                "no_money_movement_confirmed": True,
+            }
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    membership_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9,
+                    $10, 'INVITED', $11, $12, $13, $14::jsonb, $15::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                safe_account_tenant_id,
+                safe_external_ref_id,
+                safe_membership_id,
+                safe_tenant_code,
+                MEMBERSHIP_INVITATION_UPDATE_EVENT,
+                EVENT_RECORDED,
+                _optional_text(command_actor_ref)
+                or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                _optional_text(command_actor_role) or "UNKNOWN",
+                previous_status,
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(audit_evidence),
+                _jsonb(list(INVITATION_REDACTIONS)),
+            )
+
+    return MembershipInvitationLifecycleResult(
+        command_status="INVITATION_INTENT_UPDATED",
+        account_id=safe_account_id,
+        membership_id=safe_membership_id,
+        previous_membership_status=previous_status,
+        membership_status=str(updated_membership["status"]),
+        role_family=str(updated_membership["role_family"]),
+        permission_set=str(updated_membership["permission_set"]),
+        idempotency_status=EVENT_RECORDED,
+        audit_event_id=(
+            str(audit_event["account_audit_event_id"]) if audit_event else None
+        ),
+        lifecycle_next_action="Review the updated access intent before invite delivery or activation.",
+    )
+
+
+async def cancel_referral_saas_membership_invitation_intent(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    membership_id: str,
+    reason_code: str,
+    correlation_id: str,
+    idempotency_key_hash: str,
+    command_payload_hash: str,
+    command_payload: dict[str, Any] | None = None,
+    command_actor_ref: str | None = None,
+    command_actor_role: str | None = None,
+) -> MembershipInvitationLifecycleResult:
+    safe_account_id = _required_account_id(account_id)
+    safe_tenant_code = _required_text(tenant_code)
+    safe_account_tenant_id = _optional_text(account_tenant_id) or None
+    safe_external_ref_id = _optional_text(external_ref_id) or None
+    safe_membership_id = _required_text(membership_id)
+    safe_reason_code = _required_text(reason_code).upper()
+    safe_correlation_id = _required_text(correlation_id)
+    safe_idempotency_hash = _required_text(idempotency_key_hash)
+    safe_payload_hash = _required_text(command_payload_hash)
+    safe_command_payload = command_payload or {}
+
+    _reject_unsafe_payload(safe_command_payload)
+
+    async with db_connection() as conn:
+        existing_audit = await conn.fetchrow(
+            """
+            SELECT account_audit_event_id, evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            MEMBERSHIP_INVITATION_CANCEL_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_audit:
+            evidence = _as_mapping(existing_audit.get("evidence_summary"))
+            if _optional_text(evidence.get("command_payload_hash")) != safe_payload_hash:
+                raise MembershipInvitationIdempotencyConflict(
+                    "Idempotency key was reused with different membership cancellation content."
+                )
+            return MembershipInvitationLifecycleResult(
+                command_status="INVITATION_INTENT_CANCEL_REPLAYED",
+                account_id=safe_account_id,
+                membership_id=_optional_text(evidence.get("membership_id"))
+                or safe_membership_id,
+                previous_membership_status=_optional_text(
+                    evidence.get("previous_membership_status")
+                )
+                or "INVITED",
+                membership_status=_optional_text(evidence.get("membership_status"))
+                or "DISABLED",
+                role_family=_optional_text(evidence.get("role_family")) or "UNKNOWN",
+                permission_set=_optional_text(evidence.get("permission_set"))
+                or "UNKNOWN",
+                idempotency_status="REPLAYED",
+                audit_event_id=_optional_text(
+                    existing_audit.get("account_audit_event_id")
+                )
+                or None,
+                lifecycle_next_action="Record a new access intent if this person should manage the customer again.",
+            )
+
+        membership = await conn.fetchrow(
+            """
+            SELECT membership_id, status, role_family, permission_set
+            FROM platform_memberships
+            WHERE membership_id = $1
+              AND account_id = $2
+              AND (tenant_code = $3 OR tenant_code IS NULL)
+              AND status <> 'ARCHIVED'
+            LIMIT 1
+            """,
+            safe_membership_id,
+            safe_account_id,
+            safe_tenant_code,
+        )
+        if not membership:
+            raise MembershipInvitationNotFound(
+                "Membership invitation intent was not found for this customer."
+            )
+
+        previous_status = _normalise_status(membership.get("status"))
+        if previous_status != "INVITED":
+            raise MembershipInvitationNotEditable(
+                "Only invited access intent can be removed. Active, disabled, suspended, or archived access requires a separate maintenance workflow."
+            )
+
+        async with conn.transaction():
+            cancelled_membership = await conn.fetchrow(
+                """
+                UPDATE platform_memberships
+                SET
+                    status = 'DISABLED',
+                    disabled_by_ref = $4,
+                    disabled_at = NOW(),
+                    metadata = COALESCE(metadata, '{}'::jsonb) || $5::jsonb,
+                    updated_at = NOW()
+                WHERE membership_id = $1
+                  AND account_id = $2
+                  AND (tenant_code = $3 OR tenant_code IS NULL)
+                  AND status = 'INVITED'
+                RETURNING membership_id, status, role_family, permission_set
+                """,
+                safe_membership_id,
+                safe_account_id,
+                safe_tenant_code,
+                _optional_text(command_actor_ref)
+                or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                _jsonb(
+                    {
+                        "cancelled_reason_code": safe_reason_code,
+                        "no_email_delivery_confirmed": True,
+                        "no_membership_activation_confirmed": True,
+                        "no_auth_claim_change_confirmed": True,
+                        "no_seat_assignment_confirmed": True,
+                    }
+                ),
+            )
+            if not cancelled_membership:
+                raise MembershipInvitationNotEditable(
+                    "Membership invitation intent changed before it could be removed."
+                )
+
+            audit_evidence = {
+                "membership_id": safe_membership_id,
+                "previous_membership_status": previous_status,
+                "membership_status": "DISABLED",
+                "role_family": _optional_text(membership.get("role_family")),
+                "permission_set": _optional_text(membership.get("permission_set")),
+                "command_payload_hash": safe_payload_hash,
+                "no_delete_confirmed": True,
+                "no_email_delivery_confirmed": True,
+                "no_membership_activation_confirmed": True,
+                "no_auth_claim_change_confirmed": True,
+                "no_seat_assignment_confirmed": True,
+                "no_money_movement_confirmed": True,
+            }
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    membership_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9,
+                    $10, 'DISABLED', $11, $12, $13, $14::jsonb, $15::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                safe_account_tenant_id,
+                safe_external_ref_id,
+                safe_membership_id,
+                safe_tenant_code,
+                MEMBERSHIP_INVITATION_CANCEL_EVENT,
+                EVENT_RECORDED,
+                _optional_text(command_actor_ref)
+                or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                _optional_text(command_actor_role) or "UNKNOWN",
+                previous_status,
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(audit_evidence),
+                _jsonb(list(INVITATION_REDACTIONS)),
+            )
+
+    return MembershipInvitationLifecycleResult(
+        command_status="INVITATION_INTENT_CANCELLED",
+        account_id=safe_account_id,
+        membership_id=safe_membership_id,
+        previous_membership_status=previous_status,
+        membership_status=str(cancelled_membership["status"]),
+        role_family=str(cancelled_membership["role_family"]),
+        permission_set=str(cancelled_membership["permission_set"]),
+        idempotency_status=EVENT_RECORDED,
+        audit_event_id=(
+            str(audit_event["account_audit_event_id"]) if audit_event else None
+        ),
+        lifecycle_next_action="Record a new access intent if this person should manage the customer again.",
+    )
+
+
 async def request_referral_saas_membership_activation(
     *,
     account_id: str,
@@ -1301,8 +1834,8 @@ async def request_referral_saas_membership_activation(
                   AND status = 'ACTIVE'
                   AND membership_id <> $4
                   AND (
-                      ($5 IS NOT NULL AND user_id = $5)
-                      OR ($6 IS NOT NULL AND client_id = $6)
+                      ($5::uuid IS NOT NULL AND user_id = $5)
+                      OR ($6::text <> '' AND client_id = $6)
                   )
                 LIMIT 1
                 """,
@@ -1310,8 +1843,8 @@ async def request_referral_saas_membership_activation(
                 safe_tenant_code,
                 role_family,
                 safe_membership_id,
-                _optional_text(membership.get("user_id")) or None,
-                _optional_text(membership.get("client_id")) or None,
+                membership.get("user_id"),
+                _optional_text(membership.get("client_id")) or "",
             )
 
         if membership_status != "INVITED":

@@ -40,6 +40,7 @@ import {
   type ReferralSaasReportType,
 } from "../../api/endpoints/referralSaasReports";
 import {
+  cancelReferralSaasMembershipInvitationIntent,
   createReferralSaasAccountCampaignSetup,
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasMembershipInvitationIntent,
@@ -47,6 +48,7 @@ import {
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   submitReferralSaasAccountCampaignReview,
+  updateReferralSaasMembershipInvitationIntent,
   updateReferralSaasAccountCampaignPolicySettings,
   type ReferralSaasAccountCampaignActivationResponse,
   type ReferralSaasAccountCampaignReviewResponse,
@@ -330,7 +332,11 @@ export function ReferralSaasAccountMaintenancePage() {
   const [accessDisplayName, setAccessDisplayName] = useState("");
   const [accessEmail, setAccessEmail] = useState("");
   const [accessRoleLabel, setAccessRoleLabel] = useState(accessRoleOptions[0].label);
+  const [isAccessFormOpen, setIsAccessFormOpen] = useState(false);
+  const [editingMembershipRef, setEditingMembershipRef] = useState<string | null>(null);
+  const [showAccessDiagnostics, setShowAccessDiagnostics] = useState(false);
   const [accessResult, setAccessResult] = useState<string | null>(null);
+  const [accessLifecycleResult, setAccessLifecycleResult] = useState<string | null>(null);
   const [deliveryResult, setDeliveryResult] = useState<string | null>(null);
   const [activationResult, setActivationResult] = useState<string | null>(null);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
@@ -437,6 +443,37 @@ export function ReferralSaasAccountMaintenancePage() {
           response.invitation.membership.status,
         )}. No invitation email, login activation, seat assignment, or auth claim change was performed.`,
       );
+      resetAccessForm();
+      void refetchMembershipPosture();
+      void refetchActivationReadiness();
+    },
+  });
+  const accessUpdateMutation = useMutation({
+    mutationFn: updateReferralSaasMembershipInvitationIntent,
+    onSuccess: (response) => {
+      const savedRole =
+        accessRoleOptions.find(
+          (option) => option.roleFamily === response.invitation.membership.roleFamily,
+        )?.label || formatDisplay(response.invitation.membership.roleFamily);
+      setAccessLifecycleResult(
+        `${savedRole} access changes saved. ${response.invitation.lifecycle.nextAction} No invitation email, login activation, seat assignment, or auth claim change was performed.`,
+      );
+      resetAccessForm();
+      void refetchMembershipPosture();
+      void refetchActivationReadiness();
+    },
+  });
+  const accessCancelMutation = useMutation({
+    mutationFn: cancelReferralSaasMembershipInvitationIntent,
+    onSuccess: (response) => {
+      const savedRole =
+        accessRoleOptions.find(
+          (option) => option.roleFamily === response.invitation.membership.roleFamily,
+        )?.label || formatDisplay(response.invitation.membership.roleFamily);
+      setAccessLifecycleResult(
+        `${savedRole} access intent removed from the active setup path. ${response.invitation.lifecycle.nextAction}`,
+      );
+      resetAccessForm();
       void refetchMembershipPosture();
       void refetchActivationReadiness();
     },
@@ -595,14 +632,59 @@ export function ReferralSaasAccountMaintenancePage() {
     setPendingAccountId(account.accountId);
   }
 
-  function submitAccessIntent(event: FormEvent<HTMLFormElement>) {
+  function resetAccessForm() {
+    setAccessDisplayName("");
+    setAccessEmail("");
+    setAccessRoleLabel(accessRoleOptions[0].label);
+    setEditingMembershipRef(null);
+    setIsAccessFormOpen(false);
+  }
+
+  function roleOptionForLabel(label: string) {
+    return accessRoleOptions.find((option) => option.label === label) || accessRoleOptions[0];
+  }
+
+  function roleOptionForFamily(roleFamily: string) {
+    return (
+      accessRoleOptions.find((option) => option.roleFamily === roleFamily) ||
+      accessRoleOptions[0]
+    );
+  }
+
+  function startAddAccessIntent() {
+    setAccessResult(null);
+    setAccessLifecycleResult(null);
+    setAccessDisplayName("");
+    setAccessEmail("");
+    setAccessRoleLabel(accessRoleOptions[0].label);
+    setEditingMembershipRef(null);
+    setIsAccessFormOpen(true);
+  }
+
+  function startEditAccessIntent(row: Record<string, unknown>) {
+    const membershipRef = getValue(row, ["membershipRef"], "");
+    const roleFamily = getValue(row, ["roleFamily"], "");
+    if (!membershipRef) {
+      return;
+    }
+    setAccessResult(null);
+    setAccessLifecycleResult(null);
+    setAccessDisplayName(formatDisplay(getValue(row, ["displayName"], "")));
+    setAccessEmail(getValue(row, ["subject"], ""));
+    setAccessRoleLabel(roleOptionForFamily(roleFamily).label);
+    setEditingMembershipRef(membershipRef);
+    setIsAccessFormOpen(true);
+  }
+
+  async function submitAccessIntent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cleanedEmail = accessEmail.trim().toLowerCase();
     if (!selectedAccount || !selectedExternalTenantRef || !isValidEmail(cleanedEmail)) {
       return;
     }
-    const selectedRole = accessRoleOptions.find((option) => option.label === accessRoleLabel) || accessRoleOptions[0];
-    accessMutation.mutate({
+    const selectedRole = roleOptionForLabel(accessRoleLabel);
+    const emailHash = await sha256Hex(cleanedEmail);
+    const requestBase = {
       accountRef: selectedAccount.accountId,
       accountScope: {
         refType: "external_tenant_ref",
@@ -612,6 +694,7 @@ export function ReferralSaasAccountMaintenancePage() {
       actor: {
         actorType: "USER",
         subject: cleanedEmail,
+        emailHash,
         displayName: accessDisplayName.trim() || cleanedEmail,
       },
       membership: {
@@ -619,9 +702,56 @@ export function ReferralSaasAccountMaintenancePage() {
         permissionSet: selectedRole.permissionSet,
         tenantScope: "PRIMARY_ACCOUNT_TENANT",
       },
-      reasonCode: "CUSTOMER_PROFILE_ACCESS_MAINTENANCE",
       correlationId: `customer-profile-access-${selectedAccount.accountId}`,
+    } as const;
+
+    if (editingMembershipRef) {
+      accessUpdateMutation.mutate({
+        accountRef: requestBase.accountRef,
+        membershipRef: editingMembershipRef,
+        accountScope: requestBase.accountScope,
+        actor: {
+          emailHash,
+          displayName: requestBase.actor.displayName,
+        },
+        membership: {
+          roleFamily: selectedRole.roleFamily,
+          permissionSet: selectedRole.permissionSet,
+        },
+        reasonCode: "CUSTOMER_PROFILE_ACCESS_INTENT_UPDATE",
+        correlationId: requestBase.correlationId,
+        idempotencyKey:
+          `customer-profile-access-update-${selectedAccount.accountId}-${editingMembershipRef}-${cleanedEmail}-${selectedRole.roleFamily}`
+            .toLowerCase()
+            .replace(/[^a-z0-9-]+/g, "-"),
+      });
+      return;
+    }
+
+    accessMutation.mutate({
+      ...requestBase,
+      reasonCode: "CUSTOMER_PROFILE_ACCESS_MAINTENANCE",
       idempotencyKey: `customer-profile-access-${selectedAccount.accountId}-${cleanedEmail}-${selectedRole.roleFamily}`
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-"),
+    });
+  }
+
+  function removeAccessIntent(membershipRef: string, roleFamily: string) {
+    if (!selectedAccount || !selectedExternalTenantRef || !membershipRef) {
+      return;
+    }
+    accessCancelMutation.mutate({
+      accountRef: selectedAccount.accountId,
+      membershipRef,
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: selectedExternalTenantRef,
+        context: "setup",
+      },
+      reasonCode: "CUSTOMER_PROFILE_ACCESS_INTENT_CANCEL",
+      correlationId: `customer-profile-access-cancel-${selectedAccount.accountId}`,
+      idempotencyKey: `customer-profile-access-cancel-${selectedAccount.accountId}-${membershipRef}-${roleFamily}`
         .toLowerCase()
         .replace(/[^a-z0-9-]+/g, "-"),
     });
@@ -1334,67 +1464,115 @@ export function ReferralSaasAccountMaintenancePage() {
                     <KpiCard label="Named or invited" value={String(membershipPosture?.membershipPosture.invitedCount ?? 0)} footnote="Invitation intent is stored without email delivery" icon={CheckCircle2} />
                     <KpiCard label="Roles still missing" value={blockedCount ? "1" : "0"} footnote="Add owner and campaign manager intent here" icon={AlertCircle} />
                   </div>
-                  <form className="account-setup-scope-form" onSubmit={submitAccessIntent}>
-                    <div className="wizard-status-card">
-                      <div>
-                        <strong>Add access intent</strong>
-                        <p>
-                          This records who should manage {customerName}. It does not send an email, activate login, assign a seat, or change auth permissions.
-                        </p>
-                      </div>
-                      <StatusBadge label="No live invite" tone="warning" />
+                  <div className="wizard-status-card">
+                    <div>
+                      <strong>{activationReadiness?.activationReadiness.missingRoleFamilies.length ? "Access setup needs attention" : "People list is ready"}</strong>
+                      <p>
+                        Add or maintain the named people who should manage {customerName}. Advanced invite and activation checks stay available, but the main job here is keeping responsibilities clear.
+                      </p>
                     </div>
-                    <label className="field">
-                      <span>Person name</span>
-                      <input
-                        className="input"
-                        onChange={(event) => setAccessDisplayName(event.target.value)}
-                        placeholder="Example: John Doe"
-                        value={accessDisplayName}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Work email</span>
-                      <input
-                        className="input"
-                        onChange={(event) => setAccessEmail(event.target.value)}
-                        placeholder="Example: owner@customer.com"
-                        type="email"
-                        value={accessEmail}
-                      />
-                      <span className="field-hint">
-                        Used as the access identity for this customer. No invitation email is sent from this step.
-                      </span>
-                    </label>
-                    <label className="field">
-                      <span>Access responsibility</span>
-                      <select
-                        className="input"
-                        onChange={(event) => setAccessRoleLabel(event.target.value)}
-                        value={accessRoleLabel}
-                      >
-                        {accessRoleOptions.map((option) => (
-                          <option key={option.label} value={option.label}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="wizard-status-card">
-                      <div>
-                        <strong>{accessRoleLabel}</strong>
-                        <p>{(accessRoleOptions.find((option) => option.label === accessRoleLabel) || accessRoleOptions[0]).copy}</p>
-                      </div>
-                      <StatusBadge label="Customer scoped" tone="success" />
-                    </div>
-                    <button className="button" disabled={!isValidEmail(accessEmail.trim()) || accessMutation.isPending} type="submit">
-                      {accessMutation.isPending ? "Recording access intent" : "Record access intent"}
+                    <button className="button compact" onClick={startAddAccessIntent} type="button">
+                      Add person
                     </button>
-                  </form>
+                  </div>
+                  {isAccessFormOpen ? (
+                    <div
+                      aria-label={editingMembershipRef ? "Edit access intent" : "Add access intent"}
+                      aria-modal="true"
+                      className="side-drawer-backdrop"
+                      role="dialog"
+                    >
+                      <aside className="side-drawer">
+                        <form className="account-setup-scope-form drawer-form" onSubmit={submitAccessIntent}>
+                          <div className="drawer-header">
+                            <div>
+                              <h3>{editingMembershipRef ? "Edit person" : "Add person"}</h3>
+                              <p>
+                                {editingMembershipRef
+                                  ? `Update the person or responsibility for ${customerName}.`
+                                  : `Name who should manage ${customerName}.`} This saves intent only.
+                              </p>
+                            </div>
+                            <StatusBadge label="No live invite" tone="warning" />
+                          </div>
+                          <label className="field">
+                            <span>Person name</span>
+                            <input
+                              className="input"
+                              onChange={(event) => setAccessDisplayName(event.target.value)}
+                              placeholder="Example: John Doe"
+                              value={accessDisplayName}
+                            />
+                          </label>
+                          <label className="field">
+                            <span>Work email</span>
+                            <input
+                              className="input"
+                              onChange={(event) => setAccessEmail(event.target.value)}
+                              placeholder="Example: owner@customer.com"
+                              type="email"
+                              value={accessEmail}
+                            />
+                            <span className="field-hint">
+                              Used as the access identity for this customer. No invitation email is sent from this step.
+                            </span>
+                          </label>
+                          <label className="field">
+                            <span>Responsibility</span>
+                            <select
+                              className="input"
+                              onChange={(event) => setAccessRoleLabel(event.target.value)}
+                              value={accessRoleLabel}
+                            >
+                              {accessRoleOptions.map((option) => (
+                                <option key={option.label} value={option.label}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <div className="wizard-status-card">
+                            <div>
+                              <strong>{accessRoleLabel}</strong>
+                              <p>{(accessRoleOptions.find((option) => option.label === accessRoleLabel) || accessRoleOptions[0]).copy}</p>
+                            </div>
+                            <StatusBadge label="Customer scoped" tone="success" />
+                          </div>
+                          <div className="drawer-actions">
+                            <button className="button secondary" onClick={resetAccessForm} type="button">
+                              Cancel
+                            </button>
+                            <button
+                              className="button"
+                              disabled={
+                                !isValidEmail(accessEmail.trim()) ||
+                                accessMutation.isPending ||
+                                accessUpdateMutation.isPending
+                              }
+                              type="submit"
+                            >
+                              {accessMutation.isPending || accessUpdateMutation.isPending
+                                ? "Saving"
+                                : editingMembershipRef
+                                  ? "Save changes"
+                                  : "Save person intent"}
+                            </button>
+                          </div>
+                        </form>
+                      </aside>
+                    </div>
+                  ) : null}
                   {accessMutation.error ? <ErrorPanel error={accessMutation.error} /> : null}
+                  {accessUpdateMutation.error ? <ErrorPanel error={accessUpdateMutation.error} /> : null}
+                  {accessCancelMutation.error ? <ErrorPanel error={accessCancelMutation.error} /> : null}
                   {accessResult ? (
                     <div className="wizard-summary-strip success">
                       <strong>Access intent saved.</strong> {accessResult}
+                    </div>
+                  ) : null}
+                  {accessLifecycleResult ? (
+                    <div className="wizard-summary-strip success">
+                      <strong>Access intent updated.</strong> {accessLifecycleResult}
                     </div>
                   ) : null}
                   {deliveryMutation.error ? <ErrorPanel error={deliveryMutation.error} /> : null}
@@ -1409,6 +1587,86 @@ export function ReferralSaasAccountMaintenancePage() {
                       <strong>Accepted access recorded.</strong> {activationResult}
                     </div>
                   ) : null}
+                  {(membershipPosture?.membershipPosture.memberships || []).length ? (
+                    <DataTable
+                      rows={membershipPosture?.membershipPosture.memberships || []}
+                      emptyText="No people or access intent has been recorded for this customer yet."
+                      columns={[
+                        {
+                          key: "person",
+                          header: "Person",
+                          render: (row) => (
+                            <div>
+                              <strong>{formatDisplay(getValue(row, ["displayName"], "Named person"))}</strong>
+                              <div className="table-subtext">{getValue(row, ["subject"], "No email identity returned")}</div>
+                              <div className="table-subtext">{formatDisplay(getValue(row, ["recipientContactStatus"], "Contact reference missing"))}</div>
+                            </div>
+                          ),
+                        },
+                        {
+                          key: "roleFamily",
+                          header: "Access responsibility",
+                          render: (row) => {
+                            const role = roleOptionForFamily(getValue(row, ["roleFamily"], ""));
+                            return (
+                              <div>
+                                <strong>{role.label}</strong>
+                                <div className="table-subtext">{role.copy}</div>
+                              </div>
+                            );
+                          },
+                        },
+                        {
+                          key: "status",
+                          header: "Status",
+                          render: (row) => (
+                            <StatusBadge
+                              label={formatDisplay(getValue(row, ["status"], "Status"))}
+                              tone={statusTone(getValue(row, ["status"], "Status"))}
+                            />
+                          ),
+                        },
+                        {
+                          key: "actions",
+                          header: "Actions",
+                          render: (row) => {
+                            const membershipRef = getValue(row, ["membershipRef"], "");
+                            const roleFamily = getValue(row, ["roleFamily"], "UNKNOWN");
+                            const statusValue = getValue(row, ["status"], "");
+                            const canMaintainIntent = statusValue === "INVITED";
+                            return (
+                              <div className="action-cell horizontal">
+                                <button
+                                  className="button secondary compact"
+                                  disabled={!canMaintainIntent}
+                                  onClick={() => startEditAccessIntent(row as Record<string, unknown>)}
+                                  type="button"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  className="button secondary compact"
+                                  disabled={!canMaintainIntent || accessCancelMutation.isPending}
+                                  onClick={() => removeAccessIntent(membershipRef, roleFamily)}
+                                  type="button"
+                                >
+                                  {accessCancelMutation.isPending ? "Removing" : "Remove intent"}
+                                </button>
+                              </div>
+                            );
+                          },
+                        },
+                      ]}
+                    />
+                  ) : (
+                    <div className="wizard-status-card">
+                      <div>
+                        <strong>No people recorded yet</strong>
+                        <p>Add the account owner first, then add a campaign manager if that is a different person.</p>
+                      </div>
+                      <StatusBadge label="Action needed" tone="warning" />
+                    </div>
+                  )}
                   {activationReadiness ? (
                     <div className="wizard-status-card">
                       <div>
@@ -1475,6 +1733,15 @@ export function ReferralSaasAccountMaintenancePage() {
                     </div>
                   ) : null}
                   {activationReadiness?.activationReadiness.items.length ? (
+                    <button
+                      className="button secondary compact"
+                      onClick={() => setShowAccessDiagnostics((current) => !current)}
+                      type="button"
+                    >
+                      {showAccessDiagnostics ? "Hide access diagnostics" : "Show access diagnostics"}
+                    </button>
+                  ) : null}
+                  {showAccessDiagnostics && activationReadiness?.activationReadiness.items.length ? (
                     <DataTable
                       rows={activationReadiness.activationReadiness.items}
                       emptyText="No activation readiness items returned."
@@ -1605,45 +1872,6 @@ export function ReferralSaasAccountMaintenancePage() {
                               </div>
                             );
                           },
-                        },
-                      ]}
-                    />
-                  ) : null}
-                  {(membershipPosture?.membershipPosture.memberships || []).length ? (
-                    <DataTable
-                      rows={membershipPosture?.membershipPosture.memberships || []}
-                      emptyText="No people or access intent has been recorded for this customer yet."
-                      columns={[
-                        {
-                          key: "person",
-                          header: "Person",
-                          render: (row) => (
-                            <div>
-                              <strong>{formatDisplay(getValue(row, ["displayName"], "Named person"))}</strong>
-                              <div className="table-subtext">{formatDisplay(getValue(row, ["subject"], "No email identity returned"))}</div>
-                              <div className="table-subtext">{formatDisplay(getValue(row, ["recipientContactStatus"], "Contact reference missing"))}</div>
-                            </div>
-                          ),
-                        },
-                        {
-                          key: "roleFamily",
-                          header: "Access responsibility",
-                          render: (row) => formatDisplay(getValue(row, ["roleFamily"], "Role")),
-                        },
-                        {
-                          key: "status",
-                          header: "Status",
-                          render: (row) => (
-                            <StatusBadge
-                              label={formatDisplay(getValue(row, ["status"], "Status"))}
-                              tone={statusTone(getValue(row, ["status"], "Status"))}
-                            />
-                          ),
-                        },
-                        {
-                          key: "deliveryStatus",
-                          header: "Invite delivery",
-                          render: (row) => formatDisplay(getValue(row, ["deliveryStatus"], "Delivery not configured")),
                         },
                       ]}
                     />
@@ -3774,6 +4002,21 @@ function isCustomerModule(value: string | undefined): value is CustomerModule {
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+async function sha256Hex(value: string) {
+  if (!window.crypto?.subtle) {
+    let hash = 5381;
+    for (const character of value.toLowerCase()) {
+      hash = (hash * 33) ^ character.charCodeAt(0);
+    }
+    return `local-${(hash >>> 0).toString(16)}`;
+  }
+  const data = new TextEncoder().encode(value);
+  const hashBuffer = await window.crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function formatList(values: string[]) {
