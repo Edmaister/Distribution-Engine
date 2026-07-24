@@ -246,6 +246,7 @@ greenfield referral construction.
 138. TASK-272: Record selected-customer mutation-path E2E physical proof execution.
 139. TASK-273: Persist customer-scoped report export requests.
 140. TASK-274: Clarify selected-customer selector, profile header, and health action labels.
+141. TASK-275: Fix accepted-access membership activation SQL parameter typing.
 
 ## 10/10 Exit Criteria
 
@@ -1108,6 +1109,12 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Clarifies the selected-customer picker and selected-customer profile header by labeling customer, operating jurisdiction, account status, customer reference, organisation reference, account code, and selected state. This is a frontend-only UX improvement over the existing account registry response; it adds no backend fields, schema, account mutations, tenant-code exposure, or DLaaS scope.
+- TASK-275: `services/referral_saas_account_membership_service.py`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Fixes the accepted-access membership activation command path found during local UI testing. The duplicate-active membership guard now casts nullable `user_id` and `client_id` parameters to their schema-backed types before comparison, preventing Postgres from raising an ambiguous-parameter 500 while preserving the existing no-invite, no-seat, no-auth-claim, no-campaign, no-billing, and no-money guardrails.
 
 ## Explicit Deferrals
 

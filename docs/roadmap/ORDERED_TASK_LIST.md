@@ -6059,6 +6059,31 @@ Rollback notes: Revert the customer selector markup, CSS, test, and documentatio
 Explicit non-goals: Do not add schema, migrations, new account registry fields, account mutations, campaign mutations, invitation delivery, membership activation, seat assignment, auth/session claim changes, report/export behavior, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Operators can select a customer from a jurisdiction-scoped list, read the selected-customer header with clear labels for customer, operating jurisdiction, account status, customer reference, organisation reference, account code, and selected state, and understand which customer-home health count maps to the next action. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P1.
 
+## TASK-275: Fix accepted-access membership activation SQL parameter typing
+
+Status: Complete (2026-07-24).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Fixes the shared Referral SaaS account-membership activation service query; no schema, API shape, or UI contract changes. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer-scoped People and Access; accepted-access activation boundary; audit/idempotency-safe account membership lifecycle.
+Objective: Prevent the selected-customer People and Access "Record accepted access" action from returning a backend 500 when Postgres cannot infer nullable duplicate-active lookup parameter types.
+Why now: Local UI testing produced `asyncpg.exceptions.AmbiguousParameterError: could not determine data type of parameter $5` on `POST /v1/referral-saas/accounts/{account_id}/memberships/{membership_id}/activation`.
+Files involved: `services/referral_saas_account_membership_service.py`; `test/test_referral_saas_account_membership_service.py`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None; uses existing `platform_memberships.user_id UUID` and `platform_memberships.client_id TEXT` schema types.
+Backend impact: Adds explicit `uuid` and `text` casts to the duplicate-active membership guard so nullable parameters are typed during Postgres statement preparation.
+Frontend impact: None; the existing accepted-access button can now receive the intended guarded command response instead of a 500.
+API impact: No route, payload, response, auth, or status contract changes.
+Tests added/updated: Membership activation service test now asserts the duplicate-active lookup casts `user_id` and `client_id` parameters to their schema-backed types.
+Validation method: `pytest test/test_referral_saas_account_membership_service.py`; `pytest test/api/test_referral_saas_accounts_api.py -q`; `git diff --check`.
+Acceptance criteria: Accepted-access activation no longer fails with ambiguous Postgres parameter typing; duplicate-active prevention remains in place; the command still performs no invite delivery, seat assignment, auth claim change, campaign activation, go-live, billing, or money movement.
+Dependencies: TASK-249; TASK-250; TASK-252.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the service cast change, test assertion, and documentation updates.
+Explicit non-goals: Do not add migrations, change membership schema, change UI behavior, deliver invites, assign seats, modify auth/session claims, activate campaigns, trigger go-live, create credentials, create billing events, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Local accepted-access activation can pass through the membership activation command boundary without SQL parameter inference failure while preserving existing safety guardrails. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
