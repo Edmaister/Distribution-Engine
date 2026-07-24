@@ -948,7 +948,10 @@ export function ReferralSaasAccountMaintenancePage() {
 
                   <div className="customer-picker-step">
                     <h2 className="panel-title">2. Which customer?</h2>
-                    <div className="panel-subtitle">Only accounts in {selectedOperatingMarket}.</div>
+                    <div className="panel-subtitle">
+                      Only accounts in {selectedOperatingMarket}. Each card labels the customer reference,
+                      organisation reference, and support account code.
+                    </div>
                   </div>
                   {accountsForMarket.length === 0 ? (
                     <div className="empty-state">No customers exist in {selectedOperatingMarket} yet.</div>
@@ -962,6 +965,7 @@ export function ReferralSaasAccountMaintenancePage() {
                         const pending = account.accountId === pendingAccountId;
                         const opened = account.accountId === accountId;
                         const canSelectAccount = Boolean(externalTenantRef && organisationRef);
+                        const customerName = account.accountName || externalTenantRef || organisationRef || account.accountCode;
                         return (
                           <button
                             className={`customer-selector-card ${pending || opened ? "selected" : ""}`}
@@ -970,11 +974,31 @@ export function ReferralSaasAccountMaintenancePage() {
                             onClick={() => stageAccount(account)}
                             type="button"
                           >
-                            <span className="customer-selector-title">{account.accountName}</span>
-                            <span className="customer-selector-meta">
-                              {externalTenantRef || "Missing customer ref"} / {organisationRef || "Missing organisation ref"}
+                            <span className="customer-selector-heading-row">
+                              <span>
+                                <span className="customer-selector-label">Customer</span>
+                                <span className="customer-selector-title">{customerName}</span>
+                              </span>
+                              {pending || opened ? <StatusBadge label="Selected" tone="success" /> : null}
                             </span>
-                            <span className="customer-selector-count">{account.accountCode}</span>
+                            <span className="customer-selector-fields" aria-label={`${customerName} identifiers`}>
+                              <span className="customer-selector-field">
+                                <span className="customer-selector-field-label">Customer reference</span>
+                                <span className="customer-selector-meta">
+                                  {externalTenantRef || "Missing customer reference"}
+                                </span>
+                              </span>
+                              <span className="customer-selector-field">
+                                <span className="customer-selector-field-label">Organisation reference</span>
+                                <span className="customer-selector-meta">
+                                  {organisationRef || "Missing organisation reference"}
+                                </span>
+                              </span>
+                              <span className="customer-selector-field">
+                                <span className="customer-selector-field-label">Account code</span>
+                                <span className="customer-selector-count">{account.accountCode}</span>
+                              </span>
+                            </span>
                           </button>
                         );
                       })}

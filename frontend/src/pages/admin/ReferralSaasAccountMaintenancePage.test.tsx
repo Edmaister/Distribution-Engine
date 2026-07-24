@@ -1032,8 +1032,14 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByRole("button", { name: /Botswana/ })).toHaveTextContent("1 account");
     expect(screen.getByRole("button", { name: /Zambia/ })).toHaveTextContent("0 accounts");
     expect(await screen.findByRole("heading", { name: "2. Which customer?" })).toBeInTheDocument();
-    expect(screen.getByText("Only accounts in South Africa.")).toBeInTheDocument();
+    expect(screen.getByText(/Only accounts in South Africa/)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: /FNB Referral SaaS/ })).toBeInTheDocument();
+    expect(screen.getAllByText("Customer reference")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("Organisation reference")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("Account code")[0]).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /FNB Referral SaaS/ })).toHaveTextContent("fnb-referrals");
+    expect(screen.getByRole("button", { name: /FNB Referral SaaS/ })).toHaveTextContent("fnb-org");
+    expect(screen.getByRole("button", { name: /FNB Referral SaaS/ })).toHaveTextContent("ACCT_FNB");
     expect(screen.getByRole("link", { name: "Open customer profile" })).toHaveAttribute("aria-disabled", "true");
     expect(screen.queryByRole("heading", { name: "Client workspace" })).not.toBeInTheDocument();
     expect(mockedListReferralSaasAccounts).toHaveBeenCalledWith(50);
@@ -1046,7 +1052,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
 
     fireEvent.click(await screen.findByRole("button", { name: /Botswana/ }));
-    expect(screen.getByText("Only accounts in Botswana.")).toBeInTheDocument();
+    expect(screen.getByText(/Only accounts in Botswana/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Gaborone Partners/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /FNB Referral SaaS/ })).not.toBeInTheDocument();
 
