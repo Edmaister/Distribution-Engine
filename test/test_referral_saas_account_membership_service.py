@@ -1005,6 +1005,8 @@ async def test_membership_activation_request_activates_only_membership_lifecycle
     joined_queries = "\n".join(call[0] for call in conn.fetchrow_calls)
     assert "UPDATE platform_memberships" in joined_queries
     assert "accepted_by_ref" in joined_queries
+    assert "$5::uuid IS NOT NULL AND user_id = $5::uuid" in joined_queries
+    assert "$6::text IS NOT NULL AND client_id = $6::text" in joined_queries
     assert "platform_seats" not in joined_queries
     assert "auth" not in joined_queries.lower().replace("no_auth", "")
 

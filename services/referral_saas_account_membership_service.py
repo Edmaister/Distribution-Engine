@@ -1834,8 +1834,8 @@ async def request_referral_saas_membership_activation(
                   AND status = 'ACTIVE'
                   AND membership_id <> $4
                   AND (
-                      ($5::uuid IS NOT NULL AND user_id = $5)
-                      OR ($6::text <> '' AND client_id = $6)
+                      ($5::uuid IS NOT NULL AND user_id = $5::uuid)
+                      OR ($6::text IS NOT NULL AND client_id = $6::text)
                   )
                 LIMIT 1
                 """,
