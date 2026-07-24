@@ -3,7 +3,8 @@ from __future__ import annotations
 import csv
 import io
 import json
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from services import tenant_safe_analytics_service as analytics
@@ -21,11 +22,40 @@ STATUS_AVAILABLE = "AVAILABLE"
 STATUS_NOT_IMPLEMENTED = "NOT_IMPLEMENTED"
 STATUS_PREVIEW_READY = "PREVIEW_READY"
 STATUS_VALIDATED_NOT_CREATED = "VALIDATED_NOT_CREATED"
+STATUS_EXPORT_REQUESTED = "REQUESTED"
+STATUS_EXPORT_REPLAYED = "REPLAYED"
+STATUS_READY_FOR_FILE_STORAGE = "READY_FOR_FILE_STORAGE"
+STORAGE_STATUS_NOT_STORED = "NOT_STORED"
+DELIVERY_STATUS_NOT_REQUESTED = "NOT_REQUESTED"
+DOWNLOAD_STATUS_NOT_AVAILABLE = "NOT_AVAILABLE"
 EXPORT_FORMAT_CSV = "csv"
 EXPORT_FORMAT_JSON = "json"
 EXPORT_REDACTION_PROFILE_TENANT_SAFE = "tenant_safe"
 DEFAULT_EXPORT_ROW_LIMIT = 10000
 MAX_EXPORT_ROW_LIMIT = 50000
+EXPORT_REQUEST_EVENT = "REPORT_EXPORT_REQUEST_RECORDED"
+EXPORT_REQUEST_RECORDED = "RECORDED"
+EXPORT_REQUEST_REPLAYED = "REPLAYED"
+EXPORT_REQUEST_GUARDRAILS = [
+    "NO_TENANT_CODE_EXPOSURE",
+    "NO_EXPORT_FILE_CREATED",
+    "NO_DOWNLOAD_URL_CREATED",
+    "NO_SCHEDULED_DELIVERY_CREATED",
+    "NO_WEBHOOK_DELIVERY",
+    "NO_BILLING_OR_MONEY_MOVEMENT",
+]
+EXPORT_REQUEST_REDACTIONS = [
+    "internal_tenant_identifier",
+    "internal_report_scope",
+    "idempotency_key_hash",
+    "payload_hash",
+    "raw_ucn",
+    "provider_payload",
+    "reward",
+    "funding",
+    "settlement",
+    "wallet",
+]
 SOURCE_PROGRESS_EVENT_HEALTH = "referral_progress_event_health"
 SOURCE_ATTRIBUTION_QUALITY = "referral_attribution_quality"
 SOURCE_SAFE_STATUS_DISTRIBUTION = "referral_safe_status_distribution"
@@ -68,6 +98,67 @@ SENSITIVE_FILTER_PARTS = (
     "funding",
     "wallet",
 )
+
+
+class ReferralSaasReportExportCommandError(Exception):
+    safe_code = "REPORT_EXPORT_COMMAND_ERROR"
+
+
+class ReportExportRequestValidationError(ReferralSaasReportExportCommandError):
+    safe_code = "VALIDATION_ERROR"
+
+
+class ReportExportRequestIdempotencyConflict(ReferralSaasReportExportCommandError):
+    safe_code = "IDEMPOTENCY_CONFLICT"
+
+
+@dataclass(frozen=True)
+class ReferralSaasReportExportRequestResult:
+    command_status: str
+    account_id: str
+    report_type: str
+    export_request_id: str | None
+    export_format: str
+    redaction_profile: str
+    row_limit: int
+    row_count: int
+    request_status: str
+    storage_status: str
+    delivery_status: str
+    download_status: str
+    download_url: str | None
+    expires_at: str | None
+    idempotency_status: str
+    audit_event_id: str | None
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "accountRef": self.account_id,
+            "reportType": self.report_type,
+            "exportRequest": {
+                "exportRequestId": self.export_request_id,
+                "format": self.export_format,
+                "redactionProfile": self.redaction_profile,
+                "rowLimit": self.row_limit,
+                "rowCount": self.row_count,
+                "requestStatus": self.request_status,
+                "storageStatus": self.storage_status,
+                "deliveryStatus": self.delivery_status,
+                "downloadStatus": self.download_status,
+                "downloadUrl": self.download_url,
+                "expiresAt": self.expires_at,
+            },
+            "idempotency": {"status": self.idempotency_status},
+            "audit": {"accountAuditEventId": self.audit_event_id},
+            "nextActions": [
+                "Keep using inline preview until file storage is implemented",
+                "Add export file storage and download retrieval as the next bounded export task",
+                "Do not promise scheduled delivery or billing-grade exports yet",
+            ],
+            "guardrails": list(EXPORT_REQUEST_GUARDRAILS),
+            "redactions": list(EXPORT_REQUEST_REDACTIONS),
+        }
 
 REFERRAL_SAAS_REPORT_CATALOG: dict[str, dict[str, Any]] = {
     REPORT_CAMPAIGN_PERFORMANCE: {
@@ -492,6 +583,27 @@ def _csv_payload(rows: list[dict[str, Any]]) -> str:
     return buffer.getvalue()
 
 
+def _required_export_text(value: Any, field_name: str) -> str:
+    safe_value = str(value or "").strip()
+    if not safe_value:
+        raise ReportExportRequestValidationError(f"{field_name} is required.")
+    return safe_value
+
+
+def _optional_export_text(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _jsonb(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, default=str)
+
+
+def _as_iso(value: Any) -> str | None:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return None
+
+
 async def build_referral_saas_report_export_preview(
     *,
     tenant_code: str,
@@ -578,6 +690,306 @@ async def build_referral_saas_report_export_preview(
             "fulfilment/settlement mutation was created."
         ),
     }
+
+
+async def create_referral_saas_report_export_request(
+    *,
+    account_id: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    tenant_code: str,
+    report_type: str,
+    export_format: str | None = None,
+    redaction_profile: str | None = None,
+    dimensions: list[str] | None = None,
+    filters: dict[str, Any] | None = None,
+    row_limit: int | None = None,
+    data_window_start: datetime | None = None,
+    data_window_end: datetime | None = None,
+    reason_code: str | None = None,
+    correlation_id: str | None = None,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    requested_by_ref: str,
+    requested_by_role: str | None = None,
+) -> ReferralSaasReportExportRequestResult:
+    safe_account_id = _required_export_text(account_id, "account_id")
+    safe_tenant_code = _normalise_tenant_code(tenant_code)
+    safe_idempotency_hash = _required_export_text(
+        idempotency_key_hash,
+        "idempotency_key_hash",
+    )
+    safe_payload_hash = _required_export_text(
+        request_payload_hash,
+        "request_payload_hash",
+    )
+    safe_actor_ref = _required_export_text(requested_by_ref, "requested_by_ref")
+    safe_actor_role = _optional_export_text(requested_by_role) or None
+    safe_reason_code = (
+        _optional_export_text(reason_code) or "CUSTOMER_PROFILE_REPORT_EXPORT_REQUEST"
+    )
+    safe_correlation_id = _optional_export_text(correlation_id) or None
+
+    export_preview = await build_referral_saas_report_export_preview(
+        tenant_code=safe_tenant_code,
+        report_type=report_type,
+        export_format=export_format,
+        redaction_profile=redaction_profile,
+        dimensions=dimensions,
+        filters=filters,
+        row_limit=row_limit,
+        data_window_start=data_window_start,
+        data_window_end=data_window_end,
+    )
+    export_request = export_preview["export_request"]
+    preview_metadata = export_preview["preview"]["metadata"]
+    row_count = int(preview_metadata.get("row_count") or 0)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+
+    async with db_connection() as conn:
+        existing_request = await conn.fetchrow(
+            """
+            SELECT
+                export_request_id,
+                request_status,
+                storage_status,
+                delivery_status,
+                download_status,
+                download_url,
+                row_limit,
+                row_count,
+                export_format,
+                redaction_profile,
+                expires_at,
+                request_payload_hash
+            FROM referral_saas_report_export_requests
+            WHERE account_id = $1
+              AND report_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY requested_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            export_request["report_type"],
+            safe_idempotency_hash,
+        )
+        if existing_request:
+            if (
+                _optional_export_text(existing_request.get("request_payload_hash"))
+                != safe_payload_hash
+            ):
+                raise ReportExportRequestIdempotencyConflict(
+                    "Idempotency key was reused with different export request payload."
+                )
+            return ReferralSaasReportExportRequestResult(
+                command_status="REPORT_EXPORT_REQUEST_REPLAYED",
+                account_id=safe_account_id,
+                report_type=export_request["report_type"],
+                export_request_id=_optional_export_text(
+                    existing_request.get("export_request_id")
+                )
+                or None,
+                export_format=_optional_export_text(
+                    existing_request.get("export_format")
+                )
+                or export_request["export_format"],
+                redaction_profile=_optional_export_text(
+                    existing_request.get("redaction_profile")
+                )
+                or export_request["redaction_profile"],
+                row_limit=int(existing_request.get("row_limit") or export_request["row_limit"]),
+                row_count=int(existing_request.get("row_count") or 0),
+                request_status=STATUS_EXPORT_REPLAYED,
+                storage_status=_optional_export_text(
+                    existing_request.get("storage_status")
+                )
+                or STORAGE_STATUS_NOT_STORED,
+                delivery_status=_optional_export_text(
+                    existing_request.get("delivery_status")
+                )
+                or DELIVERY_STATUS_NOT_REQUESTED,
+                download_status=_optional_export_text(
+                    existing_request.get("download_status")
+                )
+                or DOWNLOAD_STATUS_NOT_AVAILABLE,
+                download_url=_optional_export_text(existing_request.get("download_url"))
+                or None,
+                expires_at=_as_iso(existing_request.get("expires_at")),
+                idempotency_status=EXPORT_REQUEST_REPLAYED,
+                audit_event_id=None,
+            )
+
+        async with conn.transaction():
+            export_row = await conn.fetchrow(
+                """
+                INSERT INTO referral_saas_report_export_requests (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    report_type,
+                    export_format,
+                    redaction_profile,
+                    row_limit,
+                    row_count,
+                    request_status,
+                    storage_status,
+                    delivery_status,
+                    download_status,
+                    download_url,
+                    dimensions,
+                    filters,
+                    metadata,
+                    redactions,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    request_payload_hash,
+                    requested_by_ref,
+                    requested_by_role,
+                    expires_at
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9,
+                    $10, $11, $12, $13, NULL,
+                    $14::jsonb, $15::jsonb, $16::jsonb, $17::jsonb,
+                    $18, $19, $20, $21, $22, $23, $24
+                )
+                RETURNING
+                    export_request_id,
+                    request_status,
+                    storage_status,
+                    delivery_status,
+                    download_status,
+                    download_url,
+                    row_limit,
+                    row_count,
+                    export_format,
+                    redaction_profile,
+                    expires_at
+                """,
+                safe_account_id,
+                _optional_export_text(account_tenant_id) or None,
+                _optional_export_text(external_ref_id) or None,
+                safe_tenant_code,
+                export_request["report_type"],
+                export_request["export_format"],
+                export_request["redaction_profile"],
+                export_request["row_limit"],
+                row_count,
+                STATUS_READY_FOR_FILE_STORAGE,
+                STORAGE_STATUS_NOT_STORED,
+                DELIVERY_STATUS_NOT_REQUESTED,
+                DOWNLOAD_STATUS_NOT_AVAILABLE,
+                _jsonb(export_request["dimensions"]),
+                _jsonb(export_request["filters"]),
+                _jsonb(
+                    {
+                        **preview_metadata,
+                        "export_request_status": STATUS_READY_FOR_FILE_STORAGE,
+                        "no_export_file_created_confirmed": True,
+                        "no_download_url_created_confirmed": True,
+                        "no_scheduled_delivery_created_confirmed": True,
+                        "no_billing_or_money_movement_confirmed": True,
+                    }
+                ),
+                _jsonb(
+                    sorted(
+                        set(
+                            [
+                                *export_request.get("redactions", []),
+                                *preview_metadata.get("redactions", []),
+                                *EXPORT_REQUEST_REDACTIONS,
+                            ]
+                        )
+                    )
+                ),
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                safe_payload_hash,
+                safe_actor_ref,
+                safe_actor_role,
+                expires_at,
+            )
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8,
+                    NULL, $9, $10, $11, $12, $13::jsonb, $14::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                _optional_export_text(account_tenant_id) or None,
+                _optional_export_text(external_ref_id) or None,
+                safe_tenant_code,
+                EXPORT_REQUEST_EVENT,
+                EXPORT_REQUEST_RECORDED,
+                safe_actor_ref,
+                safe_actor_role,
+                STATUS_READY_FOR_FILE_STORAGE,
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(
+                    {
+                        "export_request_id": str(export_row["export_request_id"]),
+                        "report_type": export_request["report_type"],
+                        "export_format": export_request["export_format"],
+                        "redaction_profile": export_request["redaction_profile"],
+                        "row_limit": export_request["row_limit"],
+                        "row_count": row_count,
+                        "request_payload_hash": safe_payload_hash,
+                        "request_status": STATUS_READY_FOR_FILE_STORAGE,
+                        "storage_status": STORAGE_STATUS_NOT_STORED,
+                        "delivery_status": DELIVERY_STATUS_NOT_REQUESTED,
+                        "download_status": DOWNLOAD_STATUS_NOT_AVAILABLE,
+                        "no_export_file_created_confirmed": True,
+                        "no_download_url_created_confirmed": True,
+                        "no_scheduled_delivery_created_confirmed": True,
+                        "no_billing_or_money_movement_confirmed": True,
+                    }
+                ),
+                _jsonb(EXPORT_REQUEST_REDACTIONS),
+            )
+
+    return ReferralSaasReportExportRequestResult(
+        command_status="REPORT_EXPORT_REQUEST_RECORDED",
+        account_id=safe_account_id,
+        report_type=export_request["report_type"],
+        export_request_id=str(export_row["export_request_id"]),
+        export_format=str(export_row["export_format"]),
+        redaction_profile=str(export_row["redaction_profile"]),
+        row_limit=int(export_row["row_limit"]),
+        row_count=int(export_row["row_count"]),
+        request_status=str(export_row["request_status"]),
+        storage_status=str(export_row["storage_status"]),
+        delivery_status=str(export_row["delivery_status"]),
+        download_status=str(export_row["download_status"]),
+        download_url=_optional_export_text(export_row.get("download_url")) or None,
+        expires_at=_as_iso(export_row.get("expires_at")),
+        idempotency_status=EXPORT_REQUEST_RECORDED,
+        audit_event_id=_optional_export_text(audit_event.get("account_audit_event_id"))
+        or None,
+    )
 
 
 def _analytics_filters(filters: dict[str, str]) -> dict[str, str]:

@@ -368,6 +368,29 @@ The next evidence steps are persisted export storage/audit/download proof,
 support-case persistence proof, and progress/attribution mutation proof beyond
 campaign report/export preview.
 
+## TASK-273 Export Request Persistence
+
+TASK-273 adds the first persisted export slice for selected-customer reports.
+It records a tenant-safe report export request and account audit event after
+validating the request through the existing report/export preview rules.
+
+Manual/local verification should create an export request from a selected
+customer report and then confirm:
+
+- `referral_saas_report_export_requests` contains the request metadata,
+  idempotency hash, request payload hash, status, redactions, and account scope.
+- `platform_account_audit_events` contains the export request audit evidence.
+- Repeating the same request with the same idempotency key replays safely.
+- Reusing the same idempotency key with a different payload returns conflict.
+- The response exposes no tenant code and no download URL.
+- No export file, object storage record, scheduled delivery, invoice, billing
+  event, reward, funding, fulfilment, settlement, wallet, payout, or money
+  movement is created.
+
+The next evidence steps are export file storage/download/retention proof,
+support-case persistence proof, and progress/attribution mutation proof beyond
+campaign report/export preview.
+
 ## Explicit Non-Goals
 
 - no schema, migration, service, API, frontend, or test implementation in this

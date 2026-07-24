@@ -239,6 +239,29 @@ class FakeDbConnection:
         return False
 
 
+class FakeTransaction:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+
+class FakeExportCommandConnection:
+    def __init__(self, fetchrow_results):
+        self.fetchrow_results = list(fetchrow_results)
+        self.fetchrow_calls = []
+
+    async def fetchrow(self, query, *params):
+        self.fetchrow_calls.append((query, params))
+        if not self.fetchrow_results:
+            raise AssertionError(f"unexpected fetchrow: {query}")
+        return self.fetchrow_results.pop(0)
+
+    def transaction(self):
+        return FakeTransaction()
+
+
 def _overview() -> dict:
     return {
         "tenant_code": "FNB",
@@ -1159,3 +1182,191 @@ async def test_referral_saas_report_export_preview_builds_csv_payload(monkeypatc
         "metric_name,value,unit,metric_class,source,dimensions",
         'campaigns.ready_count,2,count,OPERATIONAL,referral_saas_report_catalog,"{""campaign_code"": ""CAMP001""}"',
     ]
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_report_export_request_records_request_and_audit(
+    monkeypatch,
+):
+    async def fake_build_referral_saas_report_export_preview(**kwargs):
+        return {
+            "export_request": {
+                "report_type": kwargs["report_type"],
+                "export_format": kwargs["export_format"] or "json",
+                "redaction_profile": kwargs["redaction_profile"] or "tenant_safe",
+                "dimensions": kwargs["dimensions"] or ["campaign_code"],
+                "filters": kwargs["filters"] or {"campaign_code": "CAMP001"},
+                "row_limit": kwargs["row_limit"] or 10000,
+                "redactions": ["raw_ucn"],
+            },
+            "preview": {
+                "metadata": {
+                    "row_count": 1,
+                    "redactions": ["raw_ucn"],
+                    "freshness": {"status": "FRESH"},
+                }
+            },
+        }
+
+    conn = FakeExportCommandConnection(
+        [
+            None,
+            {
+                "export_request_id": "export-1",
+                "request_status": "READY_FOR_FILE_STORAGE",
+                "storage_status": "NOT_STORED",
+                "delivery_status": "NOT_REQUESTED",
+                "download_status": "NOT_AVAILABLE",
+                "download_url": None,
+                "row_limit": 50,
+                "row_count": 1,
+                "export_format": "csv",
+                "redaction_profile": "tenant_safe",
+                "expires_at": datetime(2026, 7, 31, tzinfo=timezone.utc),
+            },
+            {"account_audit_event_id": "audit-1"},
+        ]
+    )
+    monkeypatch.setattr(
+        svc,
+        "build_referral_saas_report_export_preview",
+        fake_build_referral_saas_report_export_preview,
+    )
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+
+    result = await svc.create_referral_saas_report_export_request(
+        account_id="acct-1",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        tenant_code="FNB",
+        report_type="campaign_performance",
+        export_format="csv",
+        filters={"campaign_code": "CAMP001"},
+        row_limit=50,
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        request_payload_hash="payload-hash",
+        requested_by_ref="operator-1",
+        requested_by_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "REPORT_EXPORT_REQUEST_RECORDED"
+    assert safe_payload["exportRequest"]["requestStatus"] == "READY_FOR_FILE_STORAGE"
+    assert safe_payload["exportRequest"]["storageStatus"] == "NOT_STORED"
+    assert safe_payload["exportRequest"]["downloadStatus"] == "NOT_AVAILABLE"
+    assert safe_payload["exportRequest"]["downloadUrl"] is None
+    assert safe_payload["idempotency"]["status"] == "RECORDED"
+    assert "NO_DOWNLOAD_URL_CREATED" in safe_payload["guardrails"]
+    joined_queries = "\n".join(query for query, _ in conn.fetchrow_calls)
+    assert "INSERT INTO referral_saas_report_export_requests" in joined_queries
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_report_export_request_replays_same_idempotency(
+    monkeypatch,
+):
+    async def fake_build_referral_saas_report_export_preview(**kwargs):
+        return {
+            "export_request": {
+                "report_type": kwargs["report_type"],
+                "export_format": "json",
+                "redaction_profile": "tenant_safe",
+                "dimensions": [],
+                "filters": {},
+                "row_limit": 10000,
+                "redactions": [],
+            },
+            "preview": {"metadata": {"row_count": 0, "redactions": []}},
+        }
+
+    conn = FakeExportCommandConnection(
+        [
+            {
+                "export_request_id": "export-1",
+                "request_status": "READY_FOR_FILE_STORAGE",
+                "storage_status": "NOT_STORED",
+                "delivery_status": "NOT_REQUESTED",
+                "download_status": "NOT_AVAILABLE",
+                "download_url": None,
+                "row_limit": 10000,
+                "row_count": 0,
+                "export_format": "json",
+                "redaction_profile": "tenant_safe",
+                "expires_at": datetime(2026, 7, 31, tzinfo=timezone.utc),
+                "request_payload_hash": "payload-hash",
+            }
+        ]
+    )
+    monkeypatch.setattr(
+        svc,
+        "build_referral_saas_report_export_preview",
+        fake_build_referral_saas_report_export_preview,
+    )
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+
+    result = await svc.create_referral_saas_report_export_request(
+        account_id="acct-1",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        tenant_code="FNB",
+        report_type="campaign_performance",
+        idempotency_key_hash="idem-hash",
+        request_payload_hash="payload-hash",
+        requested_by_ref="operator-1",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "REPORT_EXPORT_REQUEST_REPLAYED"
+    assert safe_payload["idempotency"]["status"] == "REPLAYED"
+    assert len(conn.fetchrow_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_report_export_request_conflicts_on_idempotency_mismatch(
+    monkeypatch,
+):
+    async def fake_build_referral_saas_report_export_preview(**kwargs):
+        return {
+            "export_request": {
+                "report_type": kwargs["report_type"],
+                "export_format": "json",
+                "redaction_profile": "tenant_safe",
+                "dimensions": [],
+                "filters": {},
+                "row_limit": 10000,
+                "redactions": [],
+            },
+            "preview": {"metadata": {"row_count": 0, "redactions": []}},
+        }
+
+    conn = FakeExportCommandConnection(
+        [
+            {
+                "export_request_id": "export-1",
+                "request_payload_hash": "different-payload-hash",
+            }
+        ]
+    )
+    monkeypatch.setattr(
+        svc,
+        "build_referral_saas_report_export_preview",
+        fake_build_referral_saas_report_export_preview,
+    )
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+
+    with pytest.raises(
+        svc.ReportExportRequestIdempotencyConflict,
+        match="Idempotency key was reused",
+    ):
+        await svc.create_referral_saas_report_export_request(
+            account_id="acct-1",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            tenant_code="FNB",
+            report_type="campaign_performance",
+            idempotency_key_hash="idem-hash",
+            request_payload_hash="payload-hash",
+            requested_by_ref="operator-1",
+        )
