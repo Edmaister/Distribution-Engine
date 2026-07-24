@@ -23,6 +23,7 @@ def test_referral_saas_route_smoke_plan_defaults_to_read_only():
         "referral_saas_membership_invitation_intent",
         "referral_saas_membership_invitation_delivery_request",
         "referral_saas_membership_activation_request",
+        "referral_saas_account_report_export_request",
         "public_referral_validate",
         "referral_saas_public_referral_validate",
         "referral_saas_referee_ucn_capture",
@@ -77,6 +78,7 @@ def test_referral_saas_route_smoke_plan_seeded_writes_are_explicit():
         "referral_saas_membership_invitation_intent",
         "referral_saas_membership_invitation_delivery_request",
         "referral_saas_membership_activation_request",
+        "referral_saas_account_report_export_request",
         "public_referral_validate",
         "referral_saas_public_referral_validate",
         "referral_saas_referee_ucn_capture",
@@ -126,6 +128,7 @@ def test_referral_saas_route_smoke_plan_product_wrapper_surface_is_bounded():
         "/v1/referral-saas/accounts/{account_ref}/membership-invitations",
         "/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery",
         "/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/activation",
+        "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports",
         "/v1/referral-saas/public/referrals/validate",
         "/v1/referral-saas/referrals/{referral_track_id}/referee-ucn",
     ]

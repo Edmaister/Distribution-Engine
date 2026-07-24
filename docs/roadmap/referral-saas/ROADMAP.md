@@ -244,6 +244,7 @@ greenfield referral construction.
 136. TASK-270: Fix selected-customer E2E proof redaction and report wrapper blockers.
 137. TASK-271: Add selected-customer mutation-path E2E physical proof runner.
 138. TASK-272: Record selected-customer mutation-path E2E physical proof execution.
+139. TASK-273: Persist customer-scoped report export requests.
 
 ## 10/10 Exit Criteria
 
@@ -1083,6 +1084,22 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Records local execution of the TASK-271 mutation proof against `test-fnb-sa-002`. The proof passed campaign create, policy/settings, review submission, review decision, activation posture, referral code issue, referral validation, campaign performance report, and export preview while confirming no tenant-scope leakage, webhook delivery, credential creation, invitation delivery, membership activation, persisted export creation, storage/delivery, billing, or money movement. Scores move to 9.98/10 for Referral Management and 9.88/10 for Campaign Attribution.
+- TASK-273: `dp/migrations/085_referral_saas_report_export_requests.sql`;
+  `services/referral_saas_reporting_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/test_referral_saas_report_export_request_migration.py`;
+  `test/test_referral_saas_reporting_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds persisted selected-customer report export request and audit evidence. The backend validates export requests through existing tenant-safe report preview rules, records request/idempotency/audit metadata, replays matching idempotency keys, rejects conflicting idempotency and unsafe storage/delivery/billing/money payloads, and still does not create export files, download URLs, scheduled deliveries, invoices, billing events, or money movement. Scores move to 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution.
 
 ## Explicit Deferrals
 

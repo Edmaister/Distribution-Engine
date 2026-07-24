@@ -8,6 +8,11 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, st
 from pydantic import BaseModel, Field
 
 from services.campaign_readiness_service import get_campaign_readiness
+from services.onboarding.onboarding_draft_idempotency_service import hash_payload
+from services.referral_code import (
+    get_or_create_referrer_code,
+    validate_referral_code,
+)
 from services.referral_saas_account_foundation_service import (
     AccountFoundationResolutionError,
     AccountNotResolvable,
@@ -27,6 +32,22 @@ from services.referral_saas_account_foundation_service import (
     resolve_setup_account_by_external_reference,
     update_referral_saas_account_profile,
 )
+from services.referral_saas_account_membership_service import (
+    MembershipInvitationAccountNotReady,
+    MembershipInvitationCommandError,
+    MembershipInvitationDeliveryNotInvited,
+    MembershipInvitationDeliveryProviderNotConfigured,
+    MembershipInvitationDuplicate,
+    MembershipInvitationIdempotencyConflict,
+    MembershipInvitationUnsafePayload,
+    MembershipInvitationUnsafeScope,
+    MembershipInvitationValidationError,
+    get_referral_saas_account_membership_posture,
+    get_referral_saas_membership_activation_readiness,
+    record_referral_saas_membership_invitation_intent,
+    request_referral_saas_membership_activation,
+    request_referral_saas_membership_invitation_delivery,
+)
 from services.referral_saas_account_setup_service import (
     AccountSetupCommandError,
     AccountSetupDraftNotFound,
@@ -37,35 +58,20 @@ from services.referral_saas_account_setup_service import (
     AccountSetupPermissionDenied,
     create_durable_account_from_onboarding_draft,
 )
-from services.referral_saas_account_membership_service import (
-    MembershipInvitationAccountNotReady,
-    MembershipInvitationCommandError,
-    MembershipInvitationDuplicate,
-    MembershipInvitationDeliveryNotInvited,
-    MembershipInvitationDeliveryProviderNotConfigured,
-    MembershipInvitationIdempotencyConflict,
-    MembershipInvitationUnsafePayload,
-    MembershipInvitationUnsafeScope,
-    MembershipInvitationValidationError,
-    get_referral_saas_membership_activation_readiness,
-    get_referral_saas_account_membership_posture,
-    record_referral_saas_membership_invitation_intent,
-    request_referral_saas_membership_activation,
-    request_referral_saas_membership_invitation_delivery,
-)
 from services.referral_saas_campaign_service import (
     CAMPAIGN_ACTIVATION_GUARDRAILS,
     CAMPAIGN_ACTIVATION_REDACTIONS,
-    CAMPAIGN_SETUP_GUARDRAILS,
-    CAMPAIGN_SETUP_REDACTIONS,
     CAMPAIGN_POLICY_SETTINGS_GUARDRAILS,
     CAMPAIGN_POLICY_SETTINGS_REDACTIONS,
     CAMPAIGN_REVIEW_GUARDRAILS,
     CAMPAIGN_REVIEW_REDACTIONS,
-    CampaignSetupAccountNotReady,
-    CampaignSetupDuplicate,
-    CampaignSetupIdempotencyConflict,
-    CampaignSetupValidationError,
+    CAMPAIGN_SETUP_GUARDRAILS,
+    CAMPAIGN_SETUP_REDACTIONS,
+    CampaignActivationAlreadyActive,
+    CampaignActivationCampaignNotFound,
+    CampaignActivationIdempotencyConflict,
+    CampaignActivationNotReady,
+    CampaignActivationValidationError,
     CampaignPolicySettingsAccountNotReady,
     CampaignPolicySettingsCampaignNotFound,
     CampaignPolicySettingsIdempotencyConflict,
@@ -75,36 +81,35 @@ from services.referral_saas_campaign_service import (
     CampaignReviewInvalidState,
     CampaignReviewNotReady,
     CampaignReviewValidationError,
-    CampaignActivationAlreadyActive,
-    CampaignActivationCampaignNotFound,
-    CampaignActivationIdempotencyConflict,
-    CampaignActivationNotReady,
-    CampaignActivationValidationError,
+    CampaignSetupAccountNotReady,
+    CampaignSetupDuplicate,
+    CampaignSetupIdempotencyConflict,
+    CampaignSetupValidationError,
     ReferralSaasCampaignCommandError,
     create_referral_saas_account_campaign_setup,
-    record_referral_saas_account_campaign_review_decision,
-    submit_referral_saas_account_campaign_review,
-    request_referral_saas_account_campaign_activation,
-    upsert_referral_saas_account_campaign_policy_settings,
-    list_referral_saas_account_campaigns,
     get_referral_saas_account_campaign,
+    list_referral_saas_account_campaigns,
+    record_referral_saas_account_campaign_review_decision,
+    request_referral_saas_account_campaign_activation,
+    submit_referral_saas_account_campaign_review,
+    upsert_referral_saas_account_campaign_policy_settings,
 )
-from services.referral_code import (
-    get_or_create_referrer_code,
-    validate_referral_code,
-)
-from services.referral_saas_validation_service import (
-    build_referral_saas_validation_result,
+from services.referral_saas_reporting_service import (
+    EXPORT_REQUEST_GUARDRAILS,
+    EXPORT_REQUEST_REDACTIONS,
+    ReferralSaasReportExportCommandError,
+    ReportExportRequestIdempotencyConflict,
+    build_referral_saas_report_export_preview,
+    create_referral_saas_report_export_request,
+    get_referral_saas_report,
+    validate_referral_saas_report_export_request,
 )
 from services.referral_saas_technical_setup_service import (
     build_referral_saas_technical_setup_readiness,
 )
-from services.referral_saas_reporting_service import (
-    build_referral_saas_report_export_preview,
-    get_referral_saas_report,
-    validate_referral_saas_report_export_request,
+from services.referral_saas_validation_service import (
+    build_referral_saas_validation_result,
 )
-from services.onboarding.onboarding_draft_idempotency_service import hash_payload
 from utils.security import require_session_key
 
 router = APIRouter(
@@ -149,6 +154,11 @@ REPORT_GUARDRAILS = {
     "NO_STORAGE_OR_DELIVERY",
     "NO_BILLING_OR_MONEY_MOVEMENT",
 }
+REPORT_EXPORT_REQUEST_GUARDRAILS = {
+    "CUSTOMER_SCOPED_REPORT_EXPORT_REQUEST",
+    "ACCOUNT_SCOPE_RESOLVED_INTERNALLY",
+    *EXPORT_REQUEST_GUARDRAILS,
+}
 REPORT_REDACTIONS = {
     "internal_tenant_identifier",
     "internal_report_scope",
@@ -159,6 +169,10 @@ REPORT_REDACTIONS = {
     "funding",
     "settlement",
     "wallet",
+}
+REPORT_EXPORT_REQUEST_REDACTIONS = {
+    *REPORT_REDACTIONS,
+    *EXPORT_REQUEST_REDACTIONS,
 }
 
 
@@ -273,6 +287,71 @@ def _reject_unsafe_link_code_payload(value: Any) -> None:
                             "redactions": sorted(LINK_CODE_REDACTIONS),
                             "no_campaign_activation_confirmed": True,
                             "no_webhook_delivery_confirmed": True,
+                            "no_billing_or_money_movement_confirmed": True,
+                        },
+                    )
+                walk(nested)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(value)
+
+
+def _reject_unsafe_report_export_request_payload(value: Any) -> None:
+    unsafe_keys = {
+        "tenant_code",
+        "tenantCode",
+        "internal_tenant_code",
+        "internalTenantCode",
+        "downloadUrl",
+        "download_url",
+        "filePath",
+        "file_path",
+        "storageBucket",
+        "storage_bucket",
+        "storageKey",
+        "storage_key",
+        "delivery",
+        "deliver",
+        "scheduledDelivery",
+        "webhook",
+        "credential",
+        "credentials",
+        "providerSecret",
+        "secret",
+        "billing",
+        "invoice",
+        "rewardAmount",
+        "rewardAmounts",
+        "funding",
+        "fulfilment",
+        "settlement",
+        "commission",
+        "wallet",
+        "payout",
+        "sponsorBilling",
+    }
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, nested in node.items():
+                if str(key) in unsafe_keys:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail={
+                            "code": "REJECTED_UNSAFE_PAYLOAD",
+                            "message": (
+                                "Customer-scoped report export requests do not "
+                                "accept tenant codes, file paths, download URLs, "
+                                "storage, delivery, webhook, credential, billing, "
+                                "or money payloads."
+                            ),
+                            "guardrails": sorted(REPORT_EXPORT_REQUEST_GUARDRAILS),
+                            "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
+                            "no_export_file_created_confirmed": True,
+                            "no_download_url_created_confirmed": True,
+                            "no_storage_or_delivery_confirmed": True,
                             "no_billing_or_money_movement_confirmed": True,
                         },
                     )
@@ -1851,6 +1930,188 @@ async def preview_referral_saas_account_report_export(
         "no_storage_or_delivery_confirmed": True,
         "no_tenant_code_exposure_confirmed": True,
         "no_money_movement_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/reports/{report_type}/exports")
+async def create_referral_saas_account_report_export_request(
+    account_ref: str,
+    report_type: str,
+    payload: dict[str, Any] = Body(default_factory=dict),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    request_payload = dict(payload or {})
+    _reject_unsafe_report_export_request_payload(request_payload)
+
+    account_scope = request_payload.get("accountScope") or {}
+    if not isinstance(account_scope, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope must be an object.",
+                "guardrails": sorted(REPORT_EXPORT_REQUEST_GUARDRAILS),
+                "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
+                "no_export_file_created_confirmed": True,
+                "no_download_url_created_confirmed": True,
+                "no_storage_or_delivery_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        )
+
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    idempotency_key = _optional_text(request_payload.get("idempotencyKey"))
+    correlation_id = _optional_text(request_payload.get("correlationId"))
+    reason_code = (
+        _optional_text(request_payload.get("reasonCode"))
+        or "CUSTOMER_PROFILE_REPORT_EXPORT_REQUEST"
+    )
+    if not ref_type or not external_ref or not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": sorted(REPORT_EXPORT_REQUEST_GUARDRAILS),
+                "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
+                "no_export_file_created_confirmed": True,
+                "no_download_url_created_confirmed": True,
+                "no_storage_or_delivery_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    row_limit = request_payload.get("rowLimit", request_payload.get("row_limit"))
+    export_format = _optional_text(request_payload.get("format")) or None
+    redaction_profile = (
+        _optional_text(
+            request_payload.get("redactionProfile")
+            or request_payload.get("redaction_profile")
+        )
+        or None
+    )
+    dimensions = request_payload.get("dimensions")
+    filters = request_payload.get("filters")
+    data_window_start = _optional_datetime(
+        request_payload.get("dataWindowStart")
+        or request_payload.get("data_window_start")
+    )
+    data_window_end = _optional_datetime(
+        request_payload.get("dataWindowEnd")
+        or request_payload.get("data_window_end")
+    )
+
+    command_payload = {
+        "accountScope": {
+            "accountRef": _optional_text(account_ref),
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": normalised_context,
+        },
+        "reportType": _optional_text(report_type),
+        "export": {
+            "format": export_format,
+            "redactionProfile": redaction_profile,
+            "dimensions": dimensions,
+            "filters": filters,
+            "rowLimit": row_limit,
+            "dataWindowStart": data_window_start.isoformat()
+            if data_window_start
+            else None,
+            "dataWindowEnd": data_window_end.isoformat() if data_window_end else None,
+        },
+        "reasonCode": reason_code,
+    }
+
+    try:
+        result = await create_referral_saas_report_export_request(
+            account_id=account.account_id,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            tenant_code=account.tenant_code,
+            report_type=report_type,
+            export_format=export_format,
+            redaction_profile=redaction_profile,
+            dimensions=dimensions,
+            filters=filters,
+            row_limit=row_limit,
+            data_window_start=data_window_start,
+            data_window_end=data_window_end,
+            reason_code=reason_code,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_REPORT_EXPORT_REQUEST",
+                    "account_ref": _optional_text(account_ref),
+                    "report_type": _optional_text(report_type),
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            request_payload_hash=hash_payload(command_payload),
+            requested_by_ref=_actor_ref(admin_identity),
+            requested_by_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except ReportExportRequestIdempotencyConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": exc.safe_code,
+                "message": str(exc),
+                "guardrails": sorted(REPORT_EXPORT_REQUEST_GUARDRAILS),
+                "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
+                "no_export_file_created_confirmed": True,
+                "no_download_url_created_confirmed": True,
+                "no_storage_or_delivery_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        ) from exc
+    except (ReferralSaasReportExportCommandError, ValueError) as exc:
+        safe_code = getattr(exc, "safe_code", "validation_error")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": safe_code,
+                "message": str(exc),
+                "guardrails": sorted(REPORT_EXPORT_REQUEST_GUARDRAILS),
+                "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
+                "no_export_file_created_confirmed": True,
+                "no_download_url_created_confirmed": True,
+                "no_storage_or_delivery_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        ) from exc
+
+    return {
+        "status": "accepted",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "reportExport": _redact_customer_report_payload(result.to_safe_dict()),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "Report export request recorded for the selected customer. This "
+            "creates request and audit evidence only; it does not create an "
+            "export file, download URL, scheduled delivery, invoice, billing "
+            "event, or money movement."
+        ),
+        "guardrails": sorted(REPORT_EXPORT_REQUEST_GUARDRAILS),
+        "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
+        "no_export_file_created_confirmed": True,
+        "no_download_url_created_confirmed": True,
+        "no_storage_or_delivery_confirmed": True,
+        "no_tenant_code_exposure_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
     }
 
 

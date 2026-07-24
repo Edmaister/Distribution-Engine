@@ -43,9 +43,12 @@ TASK-268 adds customer-scoped report read, export validation, and export
 preview wrappers. They resolve selected customer account scope server-side,
 reuse existing report/export primitives, and do not expose tenant code, persist
 exports, deliver files, create credentials, bill, or move money.
-No schema, live database mutation, or persisted export is introduced by this
-inventory document; seeded write routes remain local/staging-only smoke
-candidates and are classified explicitly below.
+TASK-273 adds the seeded/customer-scoped report export request route. It
+persists export request and account-audit evidence only; it still does not
+create export files, download URLs, object storage records, scheduled delivery,
+credentials, invoices, billing events, or money movement.
+Seeded write routes remain local/staging-only smoke candidates and are
+classified explicitly below.
 
 ## Boundary
 
@@ -107,6 +110,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Read-only product report | GET | `/v1/referral-saas/reports/{report_type}` | Referral SaaS report wrapper |
 | Inline product export preview | POST | `/v1/referral-saas/reports/{report_type}/exports/preview` | Referral SaaS export payload preview |
 | Validation-only product export | POST | `/v1/referral-saas/reports/{report_type}/exports/validate` | Referral SaaS export request validation gate |
+| Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports` | Referral SaaS customer-scoped export request persistence; request/audit only |
 | Read-only status | GET | `/v1/experience/consumer` | Consumer/referrer experience foundation |
 | Read-only status | GET | `/v1/rewards/summary/{referral_track_id}` | Reward summary foundation |
 | Read-only status | GET | `/v1/rewards/summary/referrers/{referrer_ucn}` | Referrer reward summary foundation |

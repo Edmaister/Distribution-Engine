@@ -948,6 +948,40 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_account_report_export_request",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account reader/operator role",
+        environment_rule="local/staging seeded customer only",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "campaign_code",
+            "idempotency_key",
+            "correlation_id",
+        ],
+        expected_state_change=(
+            "creates referral_saas_report_export_requests and account audit evidence; "
+            "no file, download URL, delivery, billing, or money movement"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"format":"csv","redaction_profile":"tenant_safe",'
+            '"filters":{"campaign_code":"{campaign_code}"},"row_limit":10,'
+            '"idempotencyKey":"{idempotency_key}",'
+            '"correlationId":"{correlation_id}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/reports/campaign_performance/exports"'
+        ),
+    ),
+    SmokeRoute(
         name="public_referral_validate",
         method="POST",
         path="/public/referrals/validate",

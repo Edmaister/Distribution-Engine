@@ -6009,6 +6009,31 @@ Rollback notes: Remove the evidence document and roadmap/gap/evidence-plan/infog
 Explicit non-goals: Do not add schema, migrations, runtime routes, frontend screens, account creation, invite delivery, membership activation, seat assignment, auth/session claim changes, persisted export records, storage/delivery jobs, credentials, webhook delivery, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: The selected-customer mutation path is physically proven against the local API/DB and evidence is recorded. Current rating moves to 9.98/10 for Referral Management and 9.88/10 for Campaign Attribution. Priority: P0.
 
+## TASK-273: Persist customer-scoped report export requests
+
+Status: Complete (2026-07-24).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses selected-customer account resolution, tenant-safe report/export preview validation, platform account audit, hashing, and route-smoke guardrails without adding a product fork. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer-scoped reporting; export request audit; tenant-safe export boundary.
+Objective: Add durable request and audit persistence for selected-customer report export requests while keeping file storage, download URLs, scheduled delivery, billing, and money movement out of scope.
+Why now: TASK-272 proved the campaign mutation path through inline export preview. The next 10/10 gap is moving exports beyond preview into durable request/audit evidence without prematurely introducing storage/download delivery.
+Files involved: `dp/migrations/085_referral_saas_report_export_requests.sql`; `services/referral_saas_reporting_service.py`; `apps/api/routers/referral_saas_accounts.py`; `scripts/referral_saas_route_smoke_plan.py`; `test/test_referral_saas_report_export_request_migration.py`; `test/test_referral_saas_reporting_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; `test/test_referral_saas_route_smoke_plan.py`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: Adds `referral_saas_report_export_requests` with selected-customer account references, tenant-safe request metadata, idempotency/request hashes, request/storage/delivery/download statuses, redactions, expiry, and supporting indexes.
+Backend impact: Adds a service command that validates the export through existing report preview logic, records an export request and account audit event, replays matching idempotency keys, and rejects conflicting idempotency payloads.
+Frontend impact: None runtime.
+API impact: Adds seeded/customer-scoped `POST /v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports`. The route resolves account scope internally, rejects unsafe tenant/download/storage/delivery/billing/money payloads, returns redacted request evidence, and confirms no file/download/storage/delivery/billing/money action occurred.
+Tests added/updated: Migration shape/index/boundary tests; reporting service command/idempotency tests; account API success and unsafe-payload tests; route smoke inventory/plan tests.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_report_export_request_migration.py test\test_referral_saas_reporting_service.py --tb=short -x`; `.venv_codex\Scripts\python.exe -m pytest -q test\api\test_referral_saas_accounts_api.py --tb=short -x`; `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_route_smoke_inventory.py test\test_referral_saas_route_smoke_plan.py --tb=short -x`; `ruff check ...`.
+Acceptance criteria: Customer-scoped report export requests persist request/audit evidence; repeated matching idempotency keys replay safely; conflicting idempotency payloads fail; unsafe tenant/download/storage/delivery/billing/money fields are rejected; responses do not expose tenant code or create files, URLs, deliveries, invoices, billing events, or money movement.
+Dependencies: TASK-268; TASK-270; TASK-272.
+Blocked by: Actual export file storage/download/retention; support-case persistence; progress/attribution mutation-path proof.
+Risk level: Medium.
+Rollback notes: Remove migration 085, service command, account export-request route, smoke route entry, tests, and roadmap/gap/API-map/inventory/evidence-plan/infographic updates.
+Explicit non-goals: Do not create export files, object storage records, download URLs, scheduled delivery, webhook delivery, credentials, billing events, invoices, rewards payment, funding, fulfilment, settlement, commissions, wallet entries, payouts, sponsor billing, treasury behavior, account/user/seat/auth changes, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS can persist tenant-safe selected-customer report export request and audit evidence without adjacent storage, delivery, billing, or money side effects. Current rating moves to 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
