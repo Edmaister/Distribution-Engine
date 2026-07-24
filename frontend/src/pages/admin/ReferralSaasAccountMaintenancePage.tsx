@@ -513,7 +513,6 @@ export function ReferralSaasAccountMaintenancePage() {
   const waitingCount = Math.max(0, missingEvidenceCount - blockedCount);
   const overallStatus = formatDisplay(readiness?.overall_status || "go_live_disabled");
   const customerName = selectedAccount?.accountName || formatDisplay(appliedOrganisationRef);
-  const doNext = getCustomerNextActions(blockedCount, missingEvidenceCount);
   const selectedCustomerPath = selectedAccount
     ? `/admin/referral-saas/account-maintenance/${encodeURIComponent(selectedAccount.accountId)}`
     : "/admin/referral-saas/account-maintenance";
@@ -521,6 +520,9 @@ export function ReferralSaasAccountMaintenancePage() {
   const customerQuery = `?external_tenant_ref=${encodeURIComponent(
     selectedExternalTenantRef,
   )}&organisation_ref=${encodeURIComponent(selectedOrganisationRef)}`;
+  const doNext = getCustomerNextActions(blockedCount, missingEvidenceCount);
+  const stoppingAction = doNext[0];
+  const waitingAction = doNext.find((action) => action.priority === "Later") || doNext[doNext.length - 1];
   const requestedCampaignCode = new URLSearchParams(location.search).get("campaign") || "";
   const selectedProfileDraft =
     selectedAccount && profileDraft?.accountId === selectedAccount.accountId
@@ -1072,17 +1074,42 @@ export function ReferralSaasAccountMaintenancePage() {
                     </div>
                     <div className="panel-body">
                       <div className="customer-health-strip">
-                        <div className="customer-health-card good">
+                        <div className="customer-health-card good" aria-label={`${readyCount} green checks looking fine`}>
+                          <div className="customer-health-card-top">
+                            <span className="customer-rag-dot green" aria-hidden="true" />
+                            <span className="customer-health-rag">Green</span>
+                          </div>
                           <strong>{readyCount}</strong>
-                          <span>Looking fine</span>
+                          <span className="customer-health-label">Looking fine</span>
+                          <span className="customer-health-action">No action needed</span>
                         </div>
-                        <div className="customer-health-card bad">
+                        <div className="customer-health-card bad" aria-label={`${blockedCount} red blockers stopping referral testing`}>
+                          <div className="customer-health-card-top">
+                            <span className="customer-rag-dot red" aria-hidden="true" />
+                            <span className="customer-health-rag">Red</span>
+                          </div>
                           <strong>{blockedCount}</strong>
-                          <span>Stopping you</span>
+                          <span className="customer-health-label">Stopping you</span>
+                          <Link
+                            className="customer-health-action-link"
+                            to={buildCustomerModuleRoute(selectedCustomerPath, stoppingAction.route, customerQuery)}
+                          >
+                            Fix first: {stoppingAction.title}
+                          </Link>
                         </div>
-                        <div className="customer-health-card wait">
+                        <div className="customer-health-card wait" aria-label={`${waitingCount} amber items can wait`}>
+                          <div className="customer-health-card-top">
+                            <span className="customer-rag-dot amber" aria-hidden="true" />
+                            <span className="customer-health-rag">Amber</span>
+                          </div>
                           <strong>{waitingCount}</strong>
-                          <span>Can wait</span>
+                          <span className="customer-health-label">Can wait</span>
+                          <Link
+                            className="customer-health-action-link"
+                            to={buildCustomerModuleRoute(selectedCustomerPath, waitingAction.route, customerQuery)}
+                          >
+                            Review later: {waitingAction.title}
+                          </Link>
                         </div>
                       </div>
                       <div className={`wizard-summary-strip ${blockedCount || missingEvidenceCount ? "warning" : "success"}`}>

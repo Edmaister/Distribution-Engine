@@ -1074,8 +1074,20 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("gabs-org");
     expect(screen.getByText("This is the customer home. Campaigns, links, reports, attribution, and support stay inside this customer context.")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Health at a glance" })).toBeInTheDocument();
+    expect(screen.getByText("Green")).toBeInTheDocument();
+    expect(screen.getByText("Red")).toBeInTheDocument();
+    expect(screen.getByText("Amber")).toBeInTheDocument();
+    expect(screen.getByText("No action needed")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Fix first: Add who can manage this account/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs/people",
+    );
+    expect(screen.getByRole("link", { name: /Review later: Open Campaigns/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs/campaigns",
+    );
     expect(screen.getByRole("heading", { name: "Do this next" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Add who can manage this account/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Add who can manage this account/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/account-maintenance/acct-gabs/people",
     );
@@ -1084,7 +1096,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       "/admin/referral-saas/account-maintenance/acct-gabs/technical",
     );
     expect(screen.queryByRole("heading", { name: "People and access" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open Campaigns/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Open Campaigns/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/account-maintenance/acct-gabs/campaigns",
     );
@@ -1097,7 +1109,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
 
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("link", { name: /Add who can manage this account/ }));
+    fireEvent.click(screen.getByRole("link", { name: /^Add who can manage this account/ }));
 
     expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Customer home" })).toHaveAttribute(

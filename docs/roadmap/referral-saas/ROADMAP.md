@@ -245,7 +245,7 @@ greenfield referral construction.
 137. TASK-271: Add selected-customer mutation-path E2E physical proof runner.
 138. TASK-272: Record selected-customer mutation-path E2E physical proof execution.
 139. TASK-273: Persist customer-scoped report export requests.
-140. TASK-274: Clarify selected-customer selector and profile header labels.
+140. TASK-274: Clarify selected-customer selector, profile header, and health action labels.
 
 ## 10/10 Exit Criteria
 

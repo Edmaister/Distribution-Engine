@@ -6042,22 +6042,22 @@ Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT
 Shared primitive impact: Reuses the existing selected-customer account registry and customer profile routing; presentation only. Source duplication: No.
 Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
 Linked platform/product capability: Customer profile selection; customer-scoped operator navigation; no tenant-code leakage.
-Objective: Make the customer selector cards and selected-customer profile header readable by labeling customer name, operating jurisdiction, account status, customer reference, organisation reference, account code, and selected state instead of showing unlabeled raw identifiers.
+Objective: Make the customer selector cards, selected-customer profile header, and customer-home health summary readable by labeling customer name, operating jurisdiction, account status, customer reference, organisation reference, account code, selected state, RAG health meaning, and next action mapping instead of showing unlabeled raw identifiers or disconnected counts.
 Why now: Local UX testing showed the customer picker and profile header looked duplicated and unclear, making operators unsure which value represented the client/customer, operating market, visible reference, organisation reference, account status, or support account code.
 Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
 Database/schema impact: None.
 Backend impact: None.
-Frontend impact: Updates selected-customer cards and the customer profile header to show labeled metadata categories and selected state while preserving the same account selection behavior and customer-profile navigation.
+Frontend impact: Updates selected-customer cards and the customer profile header to show labeled metadata categories and selected state; clarifies the customer-home health strip with Green/Red/Amber labels and direct links to the matching customer-scoped action; aligns service-card helper copy so "This lets you" reads as part of the card rather than a nested technical block.
 API impact: None; uses the existing account registry response.
-Tests added/updated: Customer profile selector test now asserts the labeled customer reference, organisation reference, account code, operating jurisdiction, account status, and header values are visible.
+Tests added/updated: Customer profile selector test now asserts the labeled customer reference, organisation reference, account code, operating jurisdiction, account status, header values, RAG labels, and health-to-action links are visible.
 Validation method: `npm.cmd run test -- ReferralSaasAccountMaintenancePage.test.tsx`; `npm.cmd run build`; `npm.cmd run lint`.
-Acceptance criteria: Customer cards and the selected-customer profile header clearly explain every identifier; duplicate-looking references are distinguishable by label; selected state is visible; customer selection and Open customer profile behavior remain unchanged; no internal tenant code is added to the UI.
+Acceptance criteria: Customer cards and the selected-customer profile header clearly explain every identifier; duplicate-looking references are distinguishable by label; selected state is visible; customer-home health counts have visible Green/Red/Amber meaning and point operators to the corresponding customer-scoped action; service cards keep helper copy aligned; customer selection and Open customer profile behavior remain unchanged; no internal tenant code is added to the UI.
 Dependencies: TASK-231; TASK-241; TASK-227; TASK-273.
 Blocked by: None.
 Risk level: Low.
 Rollback notes: Revert the customer selector markup, CSS, test, and documentation updates.
 Explicit non-goals: Do not add schema, migrations, new account registry fields, account mutations, campaign mutations, invitation delivery, membership activation, seat assignment, auth/session claim changes, report/export behavior, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
-Definition of done: Operators can select a customer from a jurisdiction-scoped list and read the selected-customer header with clear labels for customer, operating jurisdiction, account status, customer reference, organisation reference, account code, and selected state. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P1.
+Definition of done: Operators can select a customer from a jurisdiction-scoped list, read the selected-customer header with clear labels for customer, operating jurisdiction, account status, customer reference, organisation reference, account code, and selected state, and understand which customer-home health count maps to the next action. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P1.
 
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 

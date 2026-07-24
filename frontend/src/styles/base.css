@@ -500,9 +500,42 @@ a {
   border: 1px solid var(--color-rule);
   border-radius: var(--radius-panel);
   display: grid;
-  gap: 4px;
-  min-height: 74px;
+  gap: 6px;
+  min-height: 116px;
   padding: 12px;
+}
+
+.customer-health-card-top {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.customer-rag-dot {
+  border-radius: 999px;
+  display: inline-block;
+  height: 9px;
+  width: 9px;
+}
+
+.customer-rag-dot.green {
+  background: #0d9e72;
+}
+
+.customer-rag-dot.red {
+  background: #dc2626;
+}
+
+.customer-rag-dot.amber {
+  background: #d97706;
+}
+
+.customer-health-rag {
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .customer-health-card strong {
@@ -510,9 +543,29 @@ a {
   line-height: 1;
 }
 
-.customer-health-card span {
+.customer-health-label {
+  color: var(--color-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.customer-health-action {
   color: var(--color-ink-soft);
   font-size: 12px;
+}
+
+.customer-health-action-link {
+  align-self: end;
+  border-top: 1px solid rgb(15 23 42 / 0.08);
+  color: var(--color-signal);
+  font-size: 12px;
+  font-weight: 700;
+  padding-top: 8px;
+  text-decoration: none;
+}
+
+.customer-health-action-link:hover {
+  text-decoration: underline;
 }
 
 .customer-health-card.good {
@@ -545,17 +598,17 @@ a {
 }
 
 .customer-function-help {
-  background: var(--color-background);
-  border-radius: var(--radius-control);
+  border-top: 1px solid var(--color-rule);
   color: var(--color-ink-soft);
   font-size: 12px;
   line-height: 1.4;
   margin-top: auto;
-  padding: 10px;
+  padding-top: 10px;
 }
 
 .customer-function-help strong {
   color: var(--color-ink);
+  margin-right: 4px;
 }
 
 .customer-context-note {
