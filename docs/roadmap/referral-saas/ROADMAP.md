@@ -240,6 +240,7 @@ greenfield referral construction.
 132. TASK-266: Wire selected-customer campaign activation action.
 133. TASK-267: Continue customer-scoped Links and Codes from activated campaigns.
 134. TASK-268: Continue customer-scoped Reports from selected customer context.
+135. TASK-269: Add selected-customer E2E physical proof runner.
 
 ## 10/10 Exit Criteria
 
@@ -1051,6 +1052,14 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds selected-customer Reports continuation. Operators can open reports from the selected customer home, filter by report type and campaign, and preview JSON/CSV exports while the backend resolves tenant scope internally and blocks export persistence, storage, delivery, credentials, billing, and money side effects.
+- TASK-269: `scripts/referral_saas_selected_customer_e2e_physical_check.py`;
+  `test/test_referral_saas_selected_customer_e2e_physical_check.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `scripts/README.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds a repeatable selected-customer E2E physical proof runner. The runner selects an existing customer, verifies account resolution, people/access posture, technical readiness, campaign list, campaign readiness, campaign report, and export preview without tenant-code exposure or live side effects. Scores remain 9.95/10 for Referral Management and 9.82/10 for Campaign Attribution until the runner is executed against a local/staging API and evidence is recorded.
 
 ## Explicit Deferrals
 

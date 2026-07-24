@@ -5909,6 +5909,31 @@ Rollback notes: Remove customer-scoped Reports UI/client wiring/tests and roadma
 Explicit non-goals: Do not add schema, migrations, persisted export files, storage records, delivery jobs, audit-retention records, email delivery, credentials, webhook delivery, invite delivery, membership activation, seat assignment, auth/session claim changes, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS can continue from selected customer context into customer-scoped Reports using existing safe report/export primitives with clear UX and no tenant-code leakage. Priority: P0.
 
+## TASK-269: Add selected-customer E2E physical proof runner
+
+Status: Complete (2026-07-24).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses selected-customer account registry/resolution, membership posture, technical setup readiness, campaign list/readiness, report, and export-preview wrappers. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer E2E verification; live DB/state confidence; route smoke evidence; tenant-safe customer workflow.
+Objective: Add a repeatable physical proof runner that verifies an existing selected customer can move through the account, people/access, technical readiness, campaign, reporting, and export-preview read spine without exposing internal tenant identifiers or creating live side effects.
+Why now: TASK-268 completed selected-customer Reports continuation. The next 10/10 blocker is not another screen; it is proving the customer-scoped product spine works end to end against a running API and seeded data.
+Files involved: `scripts/referral_saas_selected_customer_e2e_physical_check.py`; `test/test_referral_saas_selected_customer_e2e_physical_check.py`; `scripts/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None runtime; adds a read-only physical verification script over existing APIs.
+Frontend impact: None runtime; documents the next local test posture for the selected-customer UI.
+API impact: Exercises existing selected-customer wrappers only: account registry, account resolve, membership posture, technical setup readiness, campaign list, campaign readiness, campaign performance report, and export preview.
+Tests added/updated: `test/test_referral_saas_selected_customer_e2e_physical_check.py`.
+Validation method: `C:\Users\Carla\anaconda3\python.exe -m py_compile scripts/referral_saas_selected_customer_e2e_physical_check.py test/test_referral_saas_selected_customer_e2e_physical_check.py`; `C:\Users\Carla\anaconda3\python.exe -m pytest -q test/test_referral_saas_selected_customer_e2e_physical_check.py`; `git diff --check`.
+Acceptance criteria: Script selects a customer from the registry or supplied external references; verifies account resolve, membership posture, technical readiness, campaign list/readiness, campaign performance report, and export preview; fails if internal tenant-scope keys leak; confirms no invitation delivery, membership activation, campaign mutation, link generation, export creation, storage/delivery, billing, or money movement.
+Dependencies: TASK-229; TASK-241; TASK-242; TASK-244; TASK-253; TASK-254; TASK-268.
+Blocked by: Actual execution against a local/staging API with a selected customer and at least one campaign; persisted exports; support-case persistence; full mutation-path golden proof.
+Risk level: Low.
+Rollback notes: Remove the physical check script, unit tests, roadmap/gap/evidence-plan updates, scripts README entry, and infographic update.
+Explicit non-goals: Do not add schema, migrations, runtime routes, frontend screens, customer mutations, campaign mutations, link/code issue or validation writes, progress ingestion, invite delivery, membership activation, seat assignment, auth/session claim changes, persisted export records, storage/delivery jobs, credentials, webhook delivery, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has a reusable selected-customer E2E physical proof runner and tests. Current rating remains 9.95/10 for Referral Management and 9.82/10 for Campaign Attribution until the proof is executed against local/staging data and evidence is recorded. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
