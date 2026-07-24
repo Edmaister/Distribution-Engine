@@ -1137,6 +1137,8 @@ async def test_referral_saas_account_admin_can_read_customer_scoped_campaign_rea
     async def fake_get_campaign_readiness(**kwargs):
         readiness_calls.append(kwargs)
         return {
+            "tenant_code": "FNB",
+            "tenantCode": "FNB",
             "campaign_code": "CAMP001",
             "readiness": "READY_WITH_WARNINGS",
             "can_proceed": True,
@@ -1147,6 +1149,13 @@ async def test_referral_saas_account_admin_can_read_customer_scoped_campaign_rea
                     "message": "Reporting setup can follow after campaign checks.",
                 }
             ],
+            "evidence": {
+                "campaign": {
+                    "campaign_code": "CAMP001",
+                    "tenant_code": "FNB",
+                    "tenant_scope": {"tenantCode": "FNB"},
+                }
+            },
             "unknowns": [],
         }
 
@@ -1181,6 +1190,10 @@ async def test_referral_saas_account_admin_can_read_customer_scoped_campaign_rea
     assert "tenantCode" not in body["account"]
     assert body["readiness"]["readiness"] == "READY_WITH_WARNINGS"
     assert body["readiness"]["warnings"][0]["code"] == "REPORTING_BASELINE_PENDING"
+    assert "tenant_code" not in body["readiness"]
+    assert "tenantCode" not in body["readiness"]
+    assert "tenant_code" not in body["readiness"]["evidence"]["campaign"]
+    assert "tenant_scope" not in body["readiness"]["evidence"]["campaign"]
     assert body["no_campaign_mutation_confirmed"] is True
     assert body["no_policy_write_confirmed"] is True
     assert body["no_link_generation_confirmed"] is True
