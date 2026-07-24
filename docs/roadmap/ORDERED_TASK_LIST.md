@@ -6134,6 +6134,31 @@ Rollback notes: Revert the surface token and drawer stacking CSS changes plus do
 Explicit non-goals: Do not change People and Access save/edit/remove behavior, send invitation emails, activate login, assign seats, propagate auth claims, create credentials, create campaigns, expose tenant codes, bill, move money, or add broad DLaaS behavior.
 Definition of done: People and Access add/edit drawer appears as a professional opaque working surface over a dimmed selected-customer page. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P1.
 
+## TASK-278: Fix People and Access access-intent idempotency reuse
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing audited membership invitation idempotency boundary and tightens the frontend key composition for selected-customer access intent. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer People and Access maintenance; membership invitation idempotency guardrails.
+Objective: Prevent Add/Edit person from reusing the same idempotency key when the operator changes the access-intent person payload.
+Why now: Local UI testing showed `IDEMPOTENCY_CONFLICT` when adding a person because the frontend key could collide for a changed person/responsibility payload; the backend correctly rejected the conflicting request, but the UI produced no saved person.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None; preserves the existing backend idempotency conflict protection.
+Frontend impact: Builds People and Access add/update idempotency keys from account, email, display name, and responsibility so a distinct access-intent payload receives a distinct request key while exact replays remain safe.
+API impact: Request shape is unchanged; only the client-provided idempotency key becomes more payload-specific.
+Tests added/updated: Updated People and Access page coverage to assert the safer access-intent idempotency key.
+Validation method: `npm.cmd run test -- ReferralSaasAccountMaintenancePage.test.tsx --run`; `npm.cmd run build`; `npm.cmd run lint`.
+Acceptance criteria: Adding a person after changing person details does not hit a stale `IDEMPOTENCY_CONFLICT`; the person intent saves and refreshes from the existing membership posture APIs; exact duplicate submission remains protected by the backend; no invite email, login activation, seat assignment, auth/session claim change, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-276; TASK-277.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Restore the previous access idempotency key composition and test expectation.
+Explicit non-goals: Do not weaken backend idempotency checks, create live user access, send emails, assign seats, change auth claims, create campaigns, expose tenant codes, bill, move money, or add broad DLaaS behavior.
+Definition of done: People and Access access-intent creation/editing uses payload-specific idempotency keys so real operator changes do not collide with previous access-intent attempts. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

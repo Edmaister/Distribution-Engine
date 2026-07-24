@@ -249,6 +249,7 @@ greenfield referral construction.
 141. TASK-275: Fix accepted-access membership activation SQL parameter typing.
 142. TASK-276: Add People and Access intent maintenance.
 143. TASK-277: Fix People and Access drawer surface opacity.
+144. TASK-278: Fix People and Access access-intent idempotency reuse.
 
 ## 10/10 Exit Criteria
 
@@ -1140,6 +1141,12 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Fixes the People and Access add/edit drawer surface so the drawer is visually opaque over the dimmed page. This defines the missing shared surface tokens and hardens drawer stacking without changing backend behavior, schemas, routes, account state, membership lifecycle commands, invitation delivery, activation, seats, auth claims, billing, or money movement.
+- TASK-278: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Fixes People and Access add/edit access-intent idempotency reuse by composing keys from account, email, display name, and responsibility. The backend idempotency conflict guard remains intact while distinct operator-entered person payloads no longer collide with stale keys; no invite email, login activation, seat assignment, auth-claim propagation, billing, or money movement is introduced.
 
 ## Explicit Deferrals
 

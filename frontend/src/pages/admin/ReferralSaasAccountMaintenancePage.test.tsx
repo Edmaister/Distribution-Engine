@@ -1332,7 +1332,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       },
       reasonCode: "CUSTOMER_PROFILE_ACCESS_MAINTENANCE",
       correlationId: "customer-profile-access-acct-gabs",
-      idempotencyKey: "customer-profile-access-acct-gabs-gabs-campaign-owner-example-com-campaign-manager",
+      idempotencyKey:
+        "customer-profile-access-acct-gabs-gabs-campaign-owner-example-com-gaborone-campaign-owner-campaign-manager",
     });
     expect(await screen.findByText("Access intent saved.")).toBeInTheDocument();
     expect(screen.getByText(/No invitation email, login activation, seat assignment, or auth claim change was performed/i)).toBeInTheDocument();
