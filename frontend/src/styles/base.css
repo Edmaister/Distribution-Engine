@@ -842,9 +842,12 @@ a {
   border: 1px solid var(--color-rule);
   border-radius: var(--radius-panel);
   box-shadow: -18px 0 60px rgb(8 15 32 / 0.28);
+  isolation: isolate;
   max-width: 520px;
   overflow: auto;
+  position: relative;
   width: min(520px, 100%);
+  z-index: 1;
 }
 
 .drawer-form {

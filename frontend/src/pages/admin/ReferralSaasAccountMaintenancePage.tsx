@@ -752,10 +752,14 @@ export function ReferralSaasAccountMaintenancePage() {
         },
         reasonCode: "CUSTOMER_PROFILE_ACCESS_INTENT_UPDATE",
         correlationId: requestBase.correlationId,
-        idempotencyKey:
-          `customer-profile-access-update-${selectedAccount.accountId}-${editingMembershipRef}-${cleanedEmail}-${selectedRole.roleFamily}`
-            .toLowerCase()
-            .replace(/[^a-z0-9-]+/g, "-"),
+        idempotencyKey: safeIdempotencyKey(
+          "customer-profile-access-update",
+          selectedAccount.accountId,
+          editingMembershipRef,
+          cleanedEmail,
+          requestBase.actor.displayName,
+          selectedRole.roleFamily,
+        ),
       });
       return;
     }
@@ -763,9 +767,13 @@ export function ReferralSaasAccountMaintenancePage() {
     accessMutation.mutate({
       ...requestBase,
       reasonCode: "CUSTOMER_PROFILE_ACCESS_MAINTENANCE",
-      idempotencyKey: `customer-profile-access-${selectedAccount.accountId}-${cleanedEmail}-${selectedRole.roleFamily}`
-        .toLowerCase()
-        .replace(/[^a-z0-9-]+/g, "-"),
+      idempotencyKey: safeIdempotencyKey(
+        "customer-profile-access",
+        selectedAccount.accountId,
+        cleanedEmail,
+        requestBase.actor.displayName,
+        selectedRole.roleFamily,
+      ),
     });
   }
 
@@ -4046,6 +4054,13 @@ function isCustomerModule(value: string | undefined): value is CustomerModule {
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function safeIdempotencyKey(...parts: string[]) {
+  return parts
+    .map((part) => part.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, ""))
+    .filter(Boolean)
+    .join("-");
 }
 
 async function sha256Hex(value: string) {
