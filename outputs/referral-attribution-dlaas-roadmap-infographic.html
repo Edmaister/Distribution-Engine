@@ -577,17 +577,17 @@
             policy/settings, guarded campaign submit/review API wrappers,
             selected-customer campaign review UX, activation, and
             customer-scoped Links and Codes, customer-scoped Reports, the
-            selected-customer E2E proof runner, and physical proof fixes
-            through TASK-270.
+            selected-customer E2E proof runner, physical proof fixes, and the
+            selected-customer mutation-path proof runner through TASK-271.
           </p>
           <div class="score-row" aria-label="Current position">
             <div class="score">
-              <strong>9.96/10</strong>
-              <span>Referral management foundation after account setup, selected customer profile, people/access, customer-scoped modules, and passing selected-customer read-spine proof</span>
+              <strong>9.97/10</strong>
+              <span>Referral management foundation after account setup, selected customer profile, people/access, customer-scoped modules, read-spine proof, and mutation-path proof tooling</span>
             </div>
             <div class="score">
-              <strong>9.84/10</strong>
-              <span>Campaign attribution foundation with selected-customer campaign readiness, list/read, create, policy/settings, review, activation, active-campaign link/code continuation, customer-scoped reporting, and passing report/readiness proof</span>
+              <strong>9.86/10</strong>
+              <span>Campaign attribution foundation with selected-customer campaign readiness, list/read, create, policy/settings, review, activation, active-campaign link/code continuation, customer-scoped reporting, and mutation-path proof tooling</span>
             </div>
             <div class="score">
               <strong>10/10</strong>
@@ -601,7 +601,7 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-270 for Referral SaaS, with
+            Updated after TASK-134 through TASK-271 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
@@ -612,11 +612,11 @@
           </div>
           <div class="status-pill">
             <b>Customer-scoped campaign spine is now proof-ready</b>
-            <span>TASK-253 through TASK-270 add selected-customer campaign readiness, list/read, create, policy/settings, submit-for-review, review-decision API proof, review UX, activation/go-live contract, guarded activation API, activation UI, active-campaign Links and Codes, customer-scoped Reports, a read-only E2E proof runner, and the redaction/report-wrapper fixes found by local execution while preserving no tenant-code exposure, no webhooks, no access changes, no billing, and no money movement.</span>
+            <span>TASK-253 through TASK-271 add selected-customer campaign readiness, list/read, create, policy/settings, submit-for-review, review-decision API proof, review UX, activation/go-live contract, guarded activation API, activation UI, active-campaign Links and Codes, customer-scoped Reports, a read-only E2E proof runner, the redaction/report-wrapper fixes found by local execution, and a guarded mutation-path proof runner while preserving no tenant-code exposure, no webhooks, no access changes, no billing, and no money movement.</span>
           </div>
           <div class="status-pill">
-            <b>Selected-customer read spine proven</b>
-            <span>TASK-270 records local proof execution across registry, resolve, people/access posture, technical readiness, campaign list, campaign readiness, campaign report, and export preview. The score still stays below 10/10 until mutation-path E2E, persisted exports, and support persistence are complete.</span>
+            <b>Selected-customer proof tooling expanded</b>
+            <span>TASK-270 records local read-spine proof execution across registry, resolve, people/access posture, technical readiness, campaign list, campaign readiness, campaign report, and export preview. TASK-271 adds mutation-path proof for campaign create, policy, review, activation, code issue/validation, report, and export preview. The score still stays below 10/10 until mutation-path execution evidence, persisted exports, and support persistence are complete.</span>
           </div>
           <div class="status-pill">
             <b>Safe status moved forward</b>
@@ -624,7 +624,7 @@
           </div>
           <div class="status-pill">
             <b>Hardening still missing</b>
-            <span>The score stays below 10/10 until fuller mutation-path E2E, persisted export storage/audit/downloads, and support-case persistence/repair guardrails ship.</span>
+            <span>The score stays below 10/10 until TASK-271 is executed against local/staging data, persisted export storage/audit/downloads ship, and support-case persistence/repair guardrails ship.</span>
           </div>
         </div>
       </section>
@@ -1102,11 +1102,12 @@
               campaign, link/code, reward summary, and attribution-related
               journeys. TASK-147 defines the E2E/live plan; TASK-152 and
               TASK-153 add read-only schema/status and route smoke planning
-              tools; TASK-269 adds the selected-customer E2E proof runner and
-              TASK-270 records the local proof fixes and passing execution.
+              tools; TASK-269 adds the selected-customer E2E proof runner,
+              TASK-270 records the local read-spine proof fixes and passing
+              execution, and TASK-271 adds mutation-path proof tooling.
             </div>
             <div class="matrix-cell">
-              Extend proof into selected-customer mutation paths, complete
+              Execute the selected-customer mutation proof, complete
               product-route smoke checks, add persisted export evidence, and
               record deployment evidence.
             </div>
@@ -1259,8 +1260,8 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">SaaS workflow implementation</div>
-            <div class="matrix-cell">Selected-customer account/profile, people/access, technical setup, customer-scoped campaign readiness, campaign list/read, create, policy/settings, guarded submit/review API proof, review UX, activation/go-live contract/API, activation UI, active-campaign Links and Codes, customer-scoped Reports, and passing read-spine physical proof now exist, but support-case persistence, persisted exports, and lifecycle hardening still need cohesive product workflows.</div>
-            <div class="matrix-cell">Extend the physical proof into selected-customer mutation paths, then keep support persistence and persisted exports as separate customer-scoped modules with tests and no source duplication.</div>
+            <div class="matrix-cell">Selected-customer account/profile, people/access, technical setup, customer-scoped campaign readiness, campaign list/read, create, policy/settings, guarded submit/review API proof, review UX, activation/go-live contract/API, activation UI, active-campaign Links and Codes, customer-scoped Reports, passing read-spine physical proof, and mutation-path proof tooling now exist, but support-case persistence, persisted exports, and lifecycle hardening still need cohesive product workflows.</div>
+            <div class="matrix-cell">Execute the TASK-271 mutation-path proof locally/staging, then keep support persistence and persisted exports as separate customer-scoped modules with tests and no source duplication.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Live DB/state verification</div>
@@ -1274,13 +1275,13 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">End-to-end proof</div>
-            <div class="matrix-cell">TASK-149/TASK-150 cover local contract paths, but the SaaS still needs full tenant setup to report/export proof through product surfaces.</div>
-            <div class="matrix-cell">Execute the TASK-147 E2E plan after product wrappers exist and record CI plus smoke evidence.</div>
+            <div class="matrix-cell">TASK-149/TASK-150 cover local contract paths, TASK-269/TASK-270 prove the selected-customer read spine, and TASK-271 adds mutation-path proof tooling. The SaaS still needs recorded mutation execution, progress/attribution mutation proof, and persisted export/support evidence.</div>
+            <div class="matrix-cell">Run TASK-271 against the local API/DB, record the output, then extend proof into progress/attribution and persisted export/support workflows.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Public API and frontend packaging</div>
-            <div class="matrix-cell">The API map and IA exist, focused admin surfaces are ringfenced, and product wrappers now cover reports/exports, link/code issue-validation-capture, operator diagnostics, account/customer profile, people/access, technical readiness, campaign create/policy/review/activation APIs, selected-customer campaign review UX, activation/go-live contract, activation UI, customer-scoped active-campaign Links and Codes, customer-scoped Reports, and passing selected-customer read-spine proof, but customers still need persisted exports and customer/referrer-safe status surfaces.</div>
-            <div class="matrix-cell">Add mutation-path E2E proof, persisted export storage/audit/downloads, support persistence, and deployment evidence without breaking selected-customer redaction checks.</div>
+            <div class="matrix-cell">The API map and IA exist, focused admin surfaces are ringfenced, and product wrappers now cover reports/exports, link/code issue-validation-capture, operator diagnostics, account/customer profile, people/access, technical readiness, campaign create/policy/review/activation APIs, selected-customer campaign review UX, activation/go-live contract, activation UI, customer-scoped active-campaign Links and Codes, customer-scoped Reports, passing selected-customer read-spine proof, and mutation-path proof tooling, but customers still need persisted exports and customer/referrer-safe status surfaces.</div>
+            <div class="matrix-cell">Execute mutation-path E2E proof, add persisted export storage/audit/downloads, support persistence, and deployment evidence without breaking selected-customer redaction checks.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Lifecycle command hardening</div>
