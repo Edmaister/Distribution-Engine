@@ -6109,6 +6109,31 @@ Rollback notes: Revert the membership lifecycle service/router/client/page/style
 Explicit non-goals: Do not send invitation emails, create credentials, activate login, assign seats, propagate auth claims, create campaigns, change account setup state, expose tenant codes, create billing/reward/funding/fulfilment/settlement/sponsor billing/treasury actions, or fork source code.
 Definition of done: Operators can maintain who should manage a selected Referral SaaS customer through a customer-scoped People and Access module with safe edit/remove intent, missing-role add prompts, clear diagnostics separation, and audited backend lifecycle commands. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P1.
 
+## TASK-277: Fix People and Access drawer surface opacity
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Defines the missing shared frontend surface tokens and hardens the shared side-drawer presentation; no product logic or backend primitive changes. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer People and Access maintenance; customer-scoped operator UX.
+Objective: Make the People and Access Add/Edit person drawer visually opaque so the form reads as a solid working surface over the dimmed customer page.
+Why now: Local UX testing showed the drawer appeared translucent because the shared `--color-surface` token used by drawer styles was not defined, making the page behind visually bleed through the add-person menu.
+Files involved: `frontend/src/styles/tokens.css`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Adds explicit shared surface tokens and hardens side-drawer stacking/isolation so the drawer and form render as an opaque elevated surface.
+API impact: None.
+Tests added/updated: Existing People and Access drawer/page test coverage exercises the Add person drawer; no backend tests required for this CSS-only fix.
+Validation method: `npm.cmd run test -- ReferralSaasAccountMaintenancePage.test.tsx --run`; `npm.cmd run build`; `npm.cmd run lint`.
+Acceptance criteria: Opening Add person or Edit person shows a solid drawer surface while only the page behind is dimmed; fields remain readable; drawer actions remain unchanged; no backend route, schema, API payload, account mutation, membership lifecycle command, invitation delivery, activation, seat assignment, auth/session claim change, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-276.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the surface token and drawer stacking CSS changes plus documentation updates.
+Explicit non-goals: Do not change People and Access save/edit/remove behavior, send invitation emails, activate login, assign seats, propagate auth claims, create credentials, create campaigns, expose tenant codes, bill, move money, or add broad DLaaS behavior.
+Definition of done: People and Access add/edit drawer appears as a professional opaque working surface over a dimmed selected-customer page. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

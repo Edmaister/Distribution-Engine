@@ -248,6 +248,7 @@ greenfield referral construction.
 140. TASK-274: Clarify selected-customer selector, profile header, and health action labels.
 141. TASK-275: Fix accepted-access membership activation SQL parameter typing.
 142. TASK-276: Add People and Access intent maintenance.
+143. TASK-277: Fix People and Access drawer surface opacity.
 
 ## 10/10 Exit Criteria
 
@@ -1133,6 +1134,12 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds guarded edit/cancel lifecycle commands for invited People and Access intent, fixes the accepted-access ambiguous-parameter backend failure path, and moves the selected-customer People and Access UI toward the mock recommendation with a primary people list, opaque add/edit drawer, remove intent action, disabled/cancelled intent hidden from the primary working list, missing-role Add prompts, hashed work-email evidence, and diagnostics kept secondary. No live invitation delivery, membership activation side effects, seat assignment, auth-claim propagation, billing, or money movement are introduced.
+- TASK-277: `frontend/src/styles/tokens.css`;
+  `frontend/src/styles/base.css`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Fixes the People and Access add/edit drawer surface so the drawer is visually opaque over the dimmed page. This defines the missing shared surface tokens and hardens drawer stacking without changing backend behavior, schemas, routes, account state, membership lifecycle commands, invitation delivery, activation, seats, auth claims, billing, or money movement.
 
 ## Explicit Deferrals
 
