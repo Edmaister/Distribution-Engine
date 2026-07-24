@@ -32,6 +32,9 @@ initialization, seeding, backfilling, nightly refreshes, and health checks.
   schema, status, constraint, and index verification checks.
 - `referral_saas_route_smoke_plan.py` - Build dry-run Referral SaaS route smoke
   command templates with read-only defaults.
+- `referral_saas_selected_customer_e2e_physical_check.py` - Run a read-only
+  selected-customer Referral SaaS proof over account resolution, people/access
+  posture, technical readiness, campaigns, reporting, and export preview.
 
 ## Usage
 
@@ -53,6 +56,7 @@ python scripts/referral_saas_schema_status_check.py
 python scripts/referral_saas_schema_status_check.py --database
 python scripts/referral_saas_route_smoke_plan.py
 python scripts/referral_saas_route_smoke_plan.py --include-seeded-writes
+python scripts/referral_saas_selected_customer_e2e_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref <customer-reference>
 ```
 
 ## Migration Replay Contract

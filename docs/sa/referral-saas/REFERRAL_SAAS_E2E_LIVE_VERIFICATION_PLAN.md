@@ -309,6 +309,30 @@ are true:
 6. Add route smoke documentation generated from mounted routers.
 7. Add reporting and safe-status assertions after TASK-141 and TASK-142.
 
+## TASK-269 Selected-Customer Physical Runner
+
+TASK-269 adds `scripts/referral_saas_selected_customer_e2e_physical_check.py`
+as a repeatable, read-only local/staging proof over the current
+selected-customer product spine.
+
+Run it after the API is started and at least one selected customer has a
+campaign:
+
+```powershell
+C:\Users\Carla\anaconda3\python.exe scripts\referral_saas_selected_customer_e2e_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref <customer-reference>
+```
+
+The runner verifies account registry selection, account resolution,
+people/access posture, technical setup readiness, campaign list, campaign
+readiness, campaign performance report, and export preview. It fails if
+internal tenant-scope keys are returned and confirms no invitation delivery,
+membership activation, campaign mutation, link generation, export creation,
+storage/delivery, billing, or money movement occurred.
+
+This raises verification readiness, but it does not by itself close the live
+proof gap. The next evidence step is to execute the runner against local or
+staging data and record the output.
+
 ## Explicit Non-Goals
 
 - no schema, migration, service, API, frontend, or test implementation in this
