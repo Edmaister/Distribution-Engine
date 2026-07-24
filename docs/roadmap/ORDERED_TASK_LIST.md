@@ -5984,6 +5984,31 @@ Rollback notes: Remove the mutation-path physical check script, unit tests, road
 Explicit non-goals: Do not add schema, migrations, runtime routes, frontend screens, account creation, invite delivery, membership activation, seat assignment, auth/session claim changes, persisted export records, storage/delivery jobs, credentials, webhook delivery, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has a reusable selected-customer mutation-path physical proof runner and tests. Current rating moves to 9.97/10 for Referral Management and 9.86/10 for Campaign Attribution after proof tooling exists; final 10/10 still requires executing this runner against local/staging data plus persisted export/support persistence closure. Priority: P0.
 
+## TASK-272: Record selected-customer mutation-path E2E physical proof execution
+
+Status: Complete (2026-07-24).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Exercises selected-customer campaign, link/code, validation, report, and export-preview wrappers against the local API/DB without adding a new product fork. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer mutation-path E2E evidence; campaign-to-code-to-report proof; tenant-safe customer workflow.
+Objective: Execute the TASK-271 selected-customer mutation proof runner against a running local API and record the evidence output.
+Why now: TASK-271 added proof tooling. The gap matrix still required recorded mutation execution evidence before moving to persisted exports, support persistence, and progress/attribution mutation proof.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_SELECTED_CUSTOMER_MUTATION_PHYSICAL_VERIFICATION.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: Local verification writes only the bounded test campaign, policy/review/activation posture, referral code, and validation evidence created by the existing guarded APIs.
+Backend impact: None runtime.
+Frontend impact: None runtime; updates roadmap/infographic status for physical evidence.
+API impact: Verified `POST /v1/referral-saas/accounts/{account_ref}/campaigns`, `PUT /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/policy-settings`, `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-submissions`, `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-decisions`, `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/activation-requests`, `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referral-codes`, `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/referrals/validate`, `GET /v1/referral-saas/accounts/{account_ref}/reports/campaign_performance`, and `POST /v1/referral-saas/accounts/{account_ref}/reports/campaign_performance/exports/preview`.
+Tests added/updated: None; this is an evidence-recording task.
+Validation method: `Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/health`; `C:\Users\Carla\anaconda3\python.exe scripts\referral_saas_selected_customer_mutation_e2e_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref test-fnb-sa-002`; `git diff --check`.
+Acceptance criteria: Local API health passes; TASK-271 mutation runner returns `status: passed`; campaign create, policy/settings, review submission, review decision, activation, referral code issue, referral validation, campaign report, and export preview all return success; evidence confirms no tenant-scope leakage, webhook delivery, credential creation, invitation delivery, membership activation, export creation, storage/delivery, billing, or money movement.
+Dependencies: TASK-271.
+Blocked by: Persisted export storage/audit/downloads; support-case persistence; progress/attribution mutation-path proof.
+Risk level: Low.
+Rollback notes: Remove the evidence document and roadmap/gap/evidence-plan/infographic updates. Do not delete local verification data unless explicitly requested.
+Explicit non-goals: Do not add schema, migrations, runtime routes, frontend screens, account creation, invite delivery, membership activation, seat assignment, auth/session claim changes, persisted export records, storage/delivery jobs, credentials, webhook delivery, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: The selected-customer mutation path is physically proven against the local API/DB and evidence is recorded. Current rating moves to 9.98/10 for Referral Management and 9.88/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
