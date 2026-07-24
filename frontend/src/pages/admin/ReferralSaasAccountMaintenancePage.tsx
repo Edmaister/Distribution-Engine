@@ -571,6 +571,38 @@ export function ReferralSaasAccountMaintenancePage() {
           customerType: "DIRECT_CUSTOMER",
           industry: "BANKING_FINANCIAL_SERVICES",
         };
+  const activeAccessRows = (membershipPosture?.membershipPosture.memberships || []).filter(
+    (membership) => !["DISABLED", "ARCHIVED"].includes(getValue(membership, ["status"], "")),
+  );
+  const missingAccessRoleRows = (activationReadiness?.activationReadiness.missingRoleFamilies || [])
+    .filter(
+      (roleFamily) =>
+        !activeAccessRows.some(
+          (membership) => getValue(membership, ["roleFamily"], "") === roleFamily,
+        ),
+    )
+    .map((roleFamily) => {
+      const role = roleOptionForFamily(roleFamily);
+      return {
+        isMissingRole: true,
+        membershipRef: `missing-${roleFamily}`,
+        subject: "Add a work email for this responsibility",
+        displayName: role.label,
+        roleFamily,
+        permissionSet: role.permissionSet,
+        status: "MISSING",
+        deliveryStatus: "WAITING_FOR_PERSON",
+        recipientContactStatus: "CONTACT_REFERENCE_MISSING",
+      };
+    });
+  const peopleAccessRows = [...activeAccessRows, ...missingAccessRoleRows];
+  const namedOrInvitedAccessCount = activeAccessRows.filter((membership) =>
+    ["INVITED", "ACTIVE"].includes(getValue(membership, ["status"], "")),
+  ).length;
+  const activeAccessCount = activeAccessRows.filter(
+    (membership) => getValue(membership, ["status"], "") === "ACTIVE",
+  ).length;
+  const missingAccessRoleCount = missingAccessRoleRows.length;
 
   useEffect(() => {
     if (
@@ -651,12 +683,12 @@ export function ReferralSaasAccountMaintenancePage() {
     );
   }
 
-  function startAddAccessIntent() {
+  function startAddAccessIntent(roleFamily?: string) {
     setAccessResult(null);
     setAccessLifecycleResult(null);
     setAccessDisplayName("");
     setAccessEmail("");
-    setAccessRoleLabel(accessRoleOptions[0].label);
+    setAccessRoleLabel(roleFamily ? roleOptionForFamily(roleFamily).label : accessRoleOptions[0].label);
     setEditingMembershipRef(null);
     setIsAccessFormOpen(true);
   }
@@ -1460,18 +1492,18 @@ export function ReferralSaasAccountMaintenancePage() {
                 </div>
                 <div className="panel-body route-list">
                   <div className="grid-3">
-                    <KpiCard label="Active users" value={String(membershipPosture?.membershipPosture.activeCount ?? 0)} footnote="Activation remains a future bounded workflow" icon={Users} />
-                    <KpiCard label="Named or invited" value={String(membershipPosture?.membershipPosture.invitedCount ?? 0)} footnote="Invitation intent is stored without email delivery" icon={CheckCircle2} />
-                    <KpiCard label="Roles still missing" value={blockedCount ? "1" : "0"} footnote="Add owner and campaign manager intent here" icon={AlertCircle} />
+                    <KpiCard label="Active users" value={String(activeAccessCount)} footnote="Activation remains a future bounded workflow" icon={Users} />
+                    <KpiCard label="Named or invited" value={String(namedOrInvitedAccessCount)} footnote="Current named people in the setup path" icon={CheckCircle2} />
+                    <KpiCard label="Roles still missing" value={String(missingAccessRoleCount)} footnote="Add owner and campaign manager intent here" icon={AlertCircle} />
                   </div>
                   <div className="wizard-status-card">
                     <div>
-                      <strong>{activationReadiness?.activationReadiness.missingRoleFamilies.length ? "Access setup needs attention" : "People list is ready"}</strong>
+                      <strong>{missingAccessRoleCount ? "Access setup needs attention" : "People list is ready"}</strong>
                       <p>
                         Add or maintain the named people who should manage {customerName}. Advanced invite and activation checks stay available, but the main job here is keeping responsibilities clear.
                       </p>
                     </div>
-                    <button className="button compact" onClick={startAddAccessIntent} type="button">
+                    <button className="button compact" onClick={() => startAddAccessIntent()} type="button">
                       Add person
                     </button>
                   </div>
@@ -1486,10 +1518,10 @@ export function ReferralSaasAccountMaintenancePage() {
                         <form className="account-setup-scope-form drawer-form" onSubmit={submitAccessIntent}>
                           <div className="drawer-header">
                             <div>
-                              <h3>{editingMembershipRef ? "Edit person" : "Add person"}</h3>
+                              <h3>{editingMembershipRef ? "Edit person access" : "Add person"}</h3>
                               <p>
                                 {editingMembershipRef
-                                  ? `Update the person or responsibility for ${customerName}.`
+                                  ? `Update this person's responsibility for ${customerName}.`
                                   : `Name who should manage ${customerName}.`} This saves intent only.
                               </p>
                             </div>
@@ -1587,9 +1619,9 @@ export function ReferralSaasAccountMaintenancePage() {
                       <strong>Accepted access recorded.</strong> {activationResult}
                     </div>
                   ) : null}
-                  {(membershipPosture?.membershipPosture.memberships || []).length ? (
+                  {peopleAccessRows.length ? (
                     <DataTable
-                      rows={membershipPosture?.membershipPosture.memberships || []}
+                      rows={peopleAccessRows}
                       emptyText="No people or access intent has been recorded for this customer yet."
                       columns={[
                         {
@@ -1630,10 +1662,22 @@ export function ReferralSaasAccountMaintenancePage() {
                           key: "actions",
                           header: "Actions",
                           render: (row) => {
+                            const isMissingRole = Boolean((row as Record<string, unknown>).isMissingRole);
                             const membershipRef = getValue(row, ["membershipRef"], "");
                             const roleFamily = getValue(row, ["roleFamily"], "UNKNOWN");
                             const statusValue = getValue(row, ["status"], "");
                             const canMaintainIntent = statusValue === "INVITED";
+                            if (isMissingRole) {
+                              return (
+                                <button
+                                  className="button secondary compact"
+                                  onClick={() => startAddAccessIntent(roleFamily)}
+                                  type="button"
+                                >
+                                  Add
+                                </button>
+                              );
+                            }
                             return (
                               <div className="action-cell horizontal">
                                 <button

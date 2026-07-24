@@ -390,6 +390,36 @@ function mockMembershipPosture(): ReferralSaasAccountMembershipPostureResponse {
   };
 }
 
+function mockDisabledMembershipPosture(): ReferralSaasAccountMembershipPostureResponse {
+  const base = mockMembershipPosture();
+  return {
+    ...base,
+    membershipPosture: {
+      ...base.membershipPosture,
+      totalMemberships: 1,
+      invitedCount: 0,
+      activeCount: 0,
+      disabledCount: 1,
+      roleFamilies: [
+        {
+          roleFamily: "DISTRIBUTION_ADMIN",
+          invitedCount: 0,
+          activeCount: 0,
+          suspendedCount: 0,
+          disabledCount: 1,
+          archivedCount: 0,
+        },
+      ],
+      memberships: [
+        {
+          ...base.membershipPosture.memberships[0],
+          status: "DISABLED",
+        },
+      ],
+    },
+  };
+}
+
 function mockMembershipActivationReadiness(): ReferralSaasMembershipActivationReadinessResponse {
   return {
     status: "ok",
@@ -440,6 +470,28 @@ function mockMembershipActivationReadiness(): ReferralSaasMembershipActivationRe
     no_auth_claim_change_confirmed: true,
     no_seat_assignment_confirmed: true,
     no_money_movement_confirmed: true,
+  };
+}
+
+function mockMembershipActivationReadinessMissingAll(): ReferralSaasMembershipActivationReadinessResponse {
+  const base = mockMembershipActivationReadiness();
+  return {
+    ...base,
+    activationReadiness: {
+      ...base.activationReadiness,
+      invitedCount: 0,
+      missingRoleFamilies: ["DISTRIBUTION_ADMIN", "CAMPAIGN_MANAGER"],
+      items: [
+        {
+          ...base.activationReadiness.items[0],
+          membershipStatus: "DISABLED",
+          deliveryReadiness: "BLOCKED",
+          activationReadiness: "BLOCKED",
+          blockers: ["MEMBERSHIP_DISABLED"],
+          nextAction: "Record a new access intent if this responsibility is still required.",
+        },
+      ],
+    },
   };
 }
 
@@ -1285,6 +1337,30 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(await screen.findByText("Access intent saved.")).toBeInTheDocument();
     expect(screen.getByText(/No invitation email, login activation, seat assignment, or auth claim change was performed/i)).toBeInTheDocument();
     expect(mockedGetReferralSaasMembershipActivationReadiness).toHaveBeenCalledTimes(2);
+  });
+
+  it("hides removed access intents from the primary People and Access list", async () => {
+    mockedGetReferralSaasAccountMembershipPosture
+      .mockResolvedValueOnce(mockMembershipPosture())
+      .mockResolvedValue(mockDisabledMembershipPosture());
+    mockedGetReferralSaasMembershipActivationReadiness
+      .mockResolvedValueOnce(mockMembershipActivationReadiness())
+      .mockResolvedValue(mockMembershipActivationReadinessMissingAll());
+
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/people");
+
+    expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
+    expect(await screen.findByText("Gaborone owner")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove intent" }));
+
+    await waitFor(() => expect(mockedCancelReferralSaasMembershipInvitationIntent).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("Access intent updated.")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Gaborone owner")).not.toBeInTheDocument());
+    expect(screen.getByText("Roles still missing")).toBeInTheDocument();
+    expect(screen.getAllByText("Account owner").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Campaign manager").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Add" }).length).toBeGreaterThanOrEqual(2);
   });
 
   it("checks invite delivery from People and Access when provider and contact evidence are ready", async () => {

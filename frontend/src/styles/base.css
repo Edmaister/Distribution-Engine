@@ -828,29 +828,31 @@ a {
 
 .side-drawer-backdrop {
   align-items: stretch;
-  background: rgb(8 15 32 / 0.36);
+  background: rgb(8 15 32 / 0.46);
   display: flex;
   inset: 0;
   justify-content: flex-end;
   padding: 16px;
   position: fixed;
-  z-index: 60;
+  z-index: 120;
 }
 
 .side-drawer {
   background: var(--color-surface);
   border: 1px solid var(--color-rule);
   border-radius: var(--radius-panel);
-  box-shadow: 0 24px 70px rgb(8 15 32 / 0.24);
+  box-shadow: -18px 0 60px rgb(8 15 32 / 0.28);
   max-width: 520px;
   overflow: auto;
   width: min(520px, 100%);
 }
 
 .drawer-form {
+  background: var(--color-surface);
   border: 0;
   border-radius: 0;
   min-height: 100%;
+  padding: 18px;
 }
 
 .drawer-header,

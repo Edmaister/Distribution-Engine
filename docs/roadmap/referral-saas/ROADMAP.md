@@ -1125,7 +1125,7 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
-  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds guarded edit/cancel lifecycle commands for invited People and Access intent, fixes the accepted-access ambiguous-parameter backend failure path, and moves the selected-customer People and Access UI toward the mock recommendation with a primary people list, add/edit drawer, remove intent action, hashed work-email evidence, and diagnostics kept secondary. No live invitation delivery, membership activation side effects, seat assignment, auth-claim propagation, billing, or money movement are introduced.
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds guarded edit/cancel lifecycle commands for invited People and Access intent, fixes the accepted-access ambiguous-parameter backend failure path, and moves the selected-customer People and Access UI toward the mock recommendation with a primary people list, opaque add/edit drawer, remove intent action, disabled/cancelled intent hidden from the primary working list, missing-role Add prompts, hashed work-email evidence, and diagnostics kept secondary. No live invitation delivery, membership activation side effects, seat assignment, auth-claim propagation, billing, or money movement are introduced.
 
 ## Explicit Deferrals
 
