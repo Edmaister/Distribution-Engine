@@ -241,6 +241,7 @@ greenfield referral construction.
 133. TASK-267: Continue customer-scoped Links and Codes from activated campaigns.
 134. TASK-268: Continue customer-scoped Reports from selected customer context.
 135. TASK-269: Add selected-customer E2E physical proof runner.
+136. TASK-270: Fix selected-customer E2E proof redaction and report wrapper blockers.
 
 ## 10/10 Exit Criteria
 
@@ -1059,7 +1060,13 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `scripts/README.md`;
-  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds a repeatable selected-customer E2E physical proof runner. The runner selects an existing customer, verifies account resolution, people/access posture, technical readiness, campaign list, campaign readiness, campaign report, and export preview without tenant-code exposure or live side effects. Scores remain 9.95/10 for Referral Management and 9.82/10 for Campaign Attribution until the runner is executed against a local/staging API and evidence is recorded.
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds a repeatable selected-customer E2E physical proof runner. The runner selects an existing customer, verifies account resolution, people/access posture, technical readiness, campaign list, campaign readiness, campaign report, and export preview without tenant-code exposure or live side effects. At TASK-269 completion, scores remained 9.95/10 for Referral Management and 9.82/10 for Campaign Attribution until the runner could be executed against local/staging data; TASK-270 records that execution and the required fixes.
+- TASK-270: `apps/api/routers/referral_saas_accounts.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Fixes the blockers found while executing the TASK-269 selected-customer proof runner. The selected-customer campaign readiness wrapper now redacts internal tenant-scope keys returned by shared readiness primitives, the selected-customer report/export preview wrappers await their async builders, and the local physical proof passed account registry, account resolve, people/access posture, technical readiness, campaign list, campaign readiness, campaign report, and export preview checks with no live side effects. Scores move to 9.96/10 for Referral Management and 9.84/10 for Campaign Attribution.
 
 ## Explicit Deferrals
 

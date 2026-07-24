@@ -5934,6 +5934,31 @@ Rollback notes: Remove the physical check script, unit tests, roadmap/gap/eviden
 Explicit non-goals: Do not add schema, migrations, runtime routes, frontend screens, customer mutations, campaign mutations, link/code issue or validation writes, progress ingestion, invite delivery, membership activation, seat assignment, auth/session claim changes, persisted export records, storage/delivery jobs, credentials, webhook delivery, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has a reusable selected-customer E2E physical proof runner and tests. Current rating remains 9.95/10 for Referral Management and 9.82/10 for Campaign Attribution until the proof is executed against local/staging data and evidence is recorded. Priority: P0.
 
+## TASK-270: Fix selected-customer E2E proof redaction and report wrapper blockers
+
+Status: Complete (2026-07-24).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Keeps internal tenant-code use inside shared campaign readiness and reporting primitives while redacting selected-customer Referral SaaS responses at the product wrapper boundary. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer E2E verification; tenant-safe customer workflow; customer-scoped campaign readiness and reporting.
+Objective: Resolve the blockers found while executing the TASK-269 selected-customer proof runner against the local API.
+Why now: TASK-269 added the proof runner; physical execution exposed a customer-facing `readiness.tenant_code` leak and an async report-wrapper 500 before the selected-customer read spine could be trusted.
+Files involved: `apps/api/routers/referral_saas_accounts.py`; `test/api/test_referral_saas_accounts_api.py`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: Adds route-boundary redaction for internal tenant-scope keys in selected-customer campaign readiness responses and awaits the async selected-customer report/export preview builders.
+Frontend impact: None runtime.
+API impact: `GET /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/readiness`, `GET /v1/referral-saas/accounts/{account_ref}/reports/{report_type}`, and `POST /v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/preview` now keep the selected-customer contract intact during physical proof.
+Tests added/updated: API regression coverage injects leaked readiness tenant-scope fields and asserts the selected-customer response removes them.
+Validation method: `C:\Users\Carla\anaconda3\python.exe -m py_compile apps\api\routers\referral_saas_accounts.py test\api\test_referral_saas_accounts_api.py scripts\referral_saas_selected_customer_e2e_physical_check.py`; `C:\Users\Carla\anaconda3\python.exe scripts\referral_saas_selected_customer_e2e_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref task-206-local-206b`; `git diff --check`. Focused API pytest remains blocked locally because Anaconda lacks `asyncpg` and the project `.venv` points at a missing Python executable.
+Acceptance criteria: Selected-customer campaign readiness no longer exposes internal tenant-scope keys; selected-customer report and export preview wrappers return API responses instead of coroutine serialization failures; the physical proof runner passes account registry, account resolve, people/access posture, technical readiness, campaign list, campaign readiness, campaign report, and export preview checks with no live side effects.
+Dependencies: TASK-269.
+Blocked by: Persisted export storage/audit/downloads, support-case persistence, and fuller mutation-path golden E2E proof.
+Risk level: Low.
+Rollback notes: Remove route redaction, async wrapper awaits, API regression assertion, and roadmap/gap/infographic updates.
+Explicit non-goals: Do not add schema, migrations, frontend screens, customer mutations, campaign mutations, link/code writes, progress ingestion, invite delivery, membership activation, seat assignment, auth/session claim changes, persisted export records, storage/delivery jobs, credentials, webhook delivery, billing, rewards payment, funding, fulfilment, settlement, commissions, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: The selected-customer read-spine physical proof executes cleanly against the local API while preserving tenant-safe redaction and no-side-effect guardrails. Current rating moves to 9.96/10 for Referral Management and 9.84/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

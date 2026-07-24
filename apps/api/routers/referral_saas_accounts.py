@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from datetime import datetime
 from typing import Annotated, Any
 
@@ -190,6 +191,26 @@ def _has_readiness_blocker(readiness: dict[str, Any], codes: set[str]) -> bool:
         for blocker in readiness.get("blockers", [])
         if isinstance(blocker, dict)
     )
+
+
+def _redact_internal_scope_keys(value: Any) -> Any:
+    internal_scope_keys = {
+        "tenant_code",
+        "tenantCode",
+        "internal_tenant_code",
+        "internalTenantCode",
+        "tenant_scope",
+        "tenantScope",
+    }
+    if isinstance(value, dict):
+        return {
+            key: _redact_internal_scope_keys(item)
+            for key, item in value.items()
+            if key not in internal_scope_keys
+        }
+    if isinstance(value, list):
+        return [_redact_internal_scope_keys(item) for item in value]
+    return value
 
 
 def _link_issue_status(body: dict[str, Any], status_code: int) -> str:
@@ -414,6 +435,12 @@ def _report_filters(
         }.items()
         if value is not None and value.strip()
     }
+
+
+async def _resolve_maybe_awaitable(value: Any) -> Any:
+    if inspect.isawaitable(value):
+        return await value
+    return value
 
 
 def _redact_customer_report_payload(value: Any) -> Any:
@@ -1652,25 +1679,27 @@ async def read_referral_saas_account_report(
     _assert_account_path_scope(account_ref, account)
 
     try:
-        report = get_referral_saas_report(
-            tenant_code=account.tenant_code,
-            report_type=report_type,
-            dimensions=dimensions,
-            filters=_report_filters(
-                beneficiary_type=beneficiary_type,
-                campaign_ref=campaign_ref,
-                campaign_code=campaign_code,
-                link_code_status=link_code_status,
-                product=product,
-                reward_source=reward_source,
-                reward_status=reward_status,
-                reward_type=reward_type,
-                sponsor_code=sponsor_code,
-                source_type=source_type,
-                sub_product=sub_product,
-            ),
-            data_window_start=data_window_start,
-            data_window_end=data_window_end,
+        report = await _resolve_maybe_awaitable(
+            get_referral_saas_report(
+                tenant_code=account.tenant_code,
+                report_type=report_type,
+                dimensions=dimensions,
+                filters=_report_filters(
+                    beneficiary_type=beneficiary_type,
+                    campaign_ref=campaign_ref,
+                    campaign_code=campaign_code,
+                    link_code_status=link_code_status,
+                    product=product,
+                    reward_source=reward_source,
+                    reward_status=reward_status,
+                    reward_type=reward_type,
+                    sponsor_code=sponsor_code,
+                    source_type=source_type,
+                    sub_product=sub_product,
+                ),
+                data_window_start=data_window_start,
+                data_window_end=data_window_end,
+            )
         )
     except ValueError as exc:
         raise HTTPException(
@@ -1790,16 +1819,18 @@ async def preview_referral_saas_account_report_export(
     _assert_account_path_scope(account_ref, account)
 
     try:
-        export_preview = build_referral_saas_report_export_preview(
-            tenant_code=account.tenant_code,
-            report_type=report_type,
-            export_format=request.format,
-            redaction_profile=request.redaction_profile,
-            dimensions=request.dimensions,
-            filters=request.filters,
-            row_limit=request.row_limit,
-            data_window_start=request.data_window_start,
-            data_window_end=request.data_window_end,
+        export_preview = await _resolve_maybe_awaitable(
+            build_referral_saas_report_export_preview(
+                tenant_code=account.tenant_code,
+                report_type=report_type,
+                export_format=request.format,
+                redaction_profile=request.redaction_profile,
+                dimensions=request.dimensions,
+                filters=request.filters,
+                row_limit=request.row_limit,
+                data_window_start=request.data_window_start,
+                data_window_end=request.data_window_end,
+            )
         )
     except ValueError as exc:
         raise HTTPException(
@@ -2820,7 +2851,7 @@ async def read_referral_saas_account_campaign_readiness(
         "status": "ok",
         "context": normalised_context,
         "account": account.to_safe_dict(),
-        "readiness": readiness,
+        "readiness": _redact_internal_scope_keys(readiness),
         "guardrail": (
             "Read-only Referral SaaS customer-scoped campaign readiness. This "
             "endpoint resolves the selected account internally and does not "
