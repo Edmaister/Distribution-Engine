@@ -259,6 +259,7 @@ greenfield referral construction.
 151. TASK-285: Add guarded Referral SaaS access provisioning API wrapper.
 152. TASK-286: Wire People and Access provisioning action to the guarded access provisioning API.
 153. TASK-293: Simplify People and Access language and separate optional login setup.
+154. TASK-294: Record activated People and Access provisioning proof execution.
 
 ## 10/10 Exit Criteria
 
@@ -1321,6 +1322,19 @@ greenfield referral construction.
   remain available from that optional path only; no backend route, schema, invite
   delivery, credential creation, auth-claim propagation, campaign activation,
   billing, money movement, or DLaaS marketplace behavior is introduced.
+- TASK-294:
+  `docs/sa/referral-saas/REFERRAL_SAAS_PEOPLE_ACCESS_PROVISIONING_PHYSICAL_VERIFICATION.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Records
+  successful local execution of the activated People and Access provisioning
+  proof. The runner activated the selected customer account foundation through
+  the guarded API, provisioned an available `OPERATOR` seat through the guarded
+  People and Access provisioning route, replayed idempotently, and confirmed DB
+  and audit evidence. No invite delivery, credential creation, auth-claim
+  propagation, campaign activation, go-live action, billing, or money movement
+  occurred.
 
 ## Explicit Deferrals
 
