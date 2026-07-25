@@ -6534,6 +6534,31 @@ Rollback notes: Revert the People and Access copy/layout/test updates and TASK-2
 Explicit non-goals: Do not add schema, backend routes, user creation, live invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: People and Access reads as a simple customer-manager confirmation workflow, with platform login clearly shown as optional later setup. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
+## TASK-294: Record activated People and Access provisioning proof execution
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses selected-customer account registry, account-foundation activation, membership lifecycle, access provisioning, account audit, idempotency, redaction, and DB verification primitives. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer People and Access proof; guarded account/link activation; guarded seat assignment.
+Objective: Execute and record successful activated local People and Access provisioning proof with DB/audit evidence.
+Why now: TASK-291 added the activated proof path and TASK-293 clarified the UX, but the gap matrix still required successful local/staging seat-assignment proof against active account and seat data.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_PEOPLE_ACCESS_PROVISIONING_PHYSICAL_VERIFICATION.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: No schema change; proof execution used existing guarded APIs and local DB evidence.
+Backend impact: No runtime code change; records proof that the existing guarded activation and access provisioning APIs assign an available platform seat when account, tenant-link, external-reference, membership, admin, idempotency, audit, and redaction gates pass.
+Frontend impact: No runtime UI change; validates that People and Access optional login/seat state has a real backend path behind it.
+API impact: Exercises existing `POST /v1/referral-saas/accounts/{account_ref}/activation-requests` and `POST /v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/access-provisioning` boundaries.
+Tests added/updated: Documentation proof capture only.
+Validation method: `.\.venv_codex\Scripts\python.exe scripts\referral_saas_people_access_provisioning_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref test-fnb-sa-002 --activate-account-foundation --database --db-dsn postgresql://user:pass@localhost:5432/referrals --suffix task-294-local-proof`; `git diff --check`.
+Acceptance criteria: Proof passes with `ACCOUNT_FOUNDATION_ACTIVATED`, `PROVISIONING_REQUEST_RECORDED`, `PROVISIONING_REPLAYED`, `SEAT_ASSIGNED`, DB/audit `RECORDED`, `AUTH_CLAIMS_NOT_PROPAGATED`, no invite delivery, no credential creation, no campaign activation, no go-live change, and no billing or money movement.
+Dependencies: TASK-285; TASK-286; TASK-287; TASK-288; TASK-291; TASK-293.
+Blocked by: Governed auth/login lifecycle and non-local staging/production repetition remain future work.
+Risk level: Low.
+Rollback notes: Revert the TASK-294 documentation/proof updates only.
+Explicit non-goals: Do not add schema, backend routes, frontend routes, user creation, live invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Successful activated local People and Access provisioning proof is recorded with account activation, seat assignment, DB readback, audit evidence, idempotency replay, and no adjacent side effects. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because governed auth/login lifecycle, export storage/download, support persistence, and progress/attribution mutation proof are still separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

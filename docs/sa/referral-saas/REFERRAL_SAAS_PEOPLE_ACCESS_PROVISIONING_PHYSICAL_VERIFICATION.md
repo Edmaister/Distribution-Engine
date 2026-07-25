@@ -53,10 +53,10 @@ Provisioning result:
 
 ## Remaining Proof Gap
 
-The local customer used for this run is not active for seat provisioning, so
-TASK-287 proves the controlled blocked path. A successful seat-assignment proof
-still needs an active selected customer with active tenant-link,
-external-reference, accepted membership, and available platform seat evidence.
+TASK-287 proved the controlled blocked path for an inactive customer. TASK-294
+now records successful local execution of the activated path with active
+account/link posture, accepted membership, available seat evidence, DB readback,
+audit evidence, idempotency replay, and no adjacent side effects.
 
 ## TASK-291 Activated Proof Path
 
@@ -79,6 +79,65 @@ What this proves when run against suitable local/staging data:
 - Idempotency replay remains checked.
 - No direct DB tweak or hidden setup bypass is used.
 
-Remaining proof gap after implementation: execute the TASK-291 runner against a
-local or staging customer with active account/link posture and available seat
-capacity, then record a successful seat-assignment result and DB/audit evidence.
+TASK-294 records that proof locally. Remaining future proof should repeat this
+against staging or production-like data when those environments are available,
+and should stay separate from governed credential creation and auth-claim
+propagation work.
+
+## TASK-294 Activated Local Proof Execution
+
+Command:
+
+```powershell
+.\.venv_codex\Scripts\python.exe scripts\referral_saas_people_access_provisioning_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref test-fnb-sa-002 --activate-account-foundation --database --db-dsn postgresql://user:pass@localhost:5432/referrals --suffix task-294-local-proof
+```
+
+Result: Passed with actual seat assignment completed.
+
+Selected customer:
+
+- Account name: `test-referral-fnb-002`
+- Customer reference: `test-fnb-sa-002`
+- Organisation reference: `test-referral-fnb-002`
+- Account ref: `389eb0e5-7f27-4ed8-812f-d670f3a34cba`
+
+Account foundation activation:
+
+- Command status: `ACCOUNT_FOUNDATION_ACTIVATED`
+- Account status: `ACTIVE`
+- Tenant-link status: `ACTIVE`
+- Onboarding status: `APPROVED`
+- Available seat types confirmed: `ADMIN`, `OPERATOR`
+- Audit event: `0075fd88-b073-4aea-9f3a-d57b2fd78c28`
+
+People and Access provisioning:
+
+- Membership ref: `5979fafe-12ce-43b4-a2ea-2c4b19d77740`
+- Accepted subject: `edwin.tait1@gmail.com`
+- Provisioning status: `PROVISIONING_REQUEST_RECORDED`
+- Replay status: `PROVISIONING_REPLAYED`
+- Seat assignment: `SEAT_ASSIGNED`
+- Seat ref: `83075a48-e630-4225-8c30-077d2513a9b4`
+- Seat type: `OPERATOR`
+- Auth claims: `AUTH_CLAIMS_NOT_PROPAGATED`
+- Audit event: `6c4e7ba7-57bb-457b-aaae-68969c845816`
+
+DB/audit readback:
+
+- Membership status: `ACTIVE`
+- Access provisioning status: `SEAT_ASSIGNED`
+- Audit event type: `REFERRAL_SAAS_ACCESS_PROVISIONING_REQUEST`
+- Audit event status: `RECORDED`
+- Refreshed provisioning readiness: `SEAT_ASSIGNED`
+- Refreshed seat assignment status: `SEAT_ASSIGNED`
+
+Guardrails confirmed:
+
+- No invite delivery occurred.
+- No credential was created.
+- No auth/session claim was propagated.
+- No campaign activation occurred.
+- No go-live state changed.
+- No billing or money movement occurred.
+- The successful provisioning request was audited.
+- The idempotency replay returned the same provisioning result.
