@@ -6559,6 +6559,31 @@ Rollback notes: Revert the TASK-294 documentation/proof updates only.
 Explicit non-goals: Do not add schema, backend routes, frontend routes, user creation, live invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Successful activated local People and Access provisioning proof is recorded with account activation, seat assignment, DB readback, audit evidence, idempotency replay, and no adjacent side effects. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because governed auth/login lifecycle, export storage/download, support persistence, and progress/attribution mutation proof are still separate gaps. Priority: P0.
 
+## TASK-295: Define Referral SaaS support case persistence contract
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md`; `docs/sa/referral-saas/REFERRAL_SAAS_AUDIT_IDEMPOTENCY_POSTURE.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`.
+Shared primitive impact: Reuses selected-customer account scope, support diagnostics, audit, idempotency, redaction, report/export evidence, technical setup readiness, People and Access posture, link/code inspection, progress/status, and attribution trace primitives without forking product state. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer operator support case persistence boundary.
+Objective: Define the durable support-case write boundary so selected-customer support can move beyond read-only triage without becoming a repair/replay console.
+Why now: TASK-184 gave operators a read-only support hub and later tasks added selected-customer account, people/access, campaign, report, technical setup, and proof surfaces. The gap matrix still names support-case persistence as an open blocker, and the product needs a reviewed contract before adding schema, routes, or UI writes.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_SUPPORT_CASE_PERSISTENCE_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None in this task; it defines the future schema/API contract only.
+Backend impact: None to runtime behavior. The contract defines future selected-customer support-case create/list/read, note, status-change, idempotency, audit, and redaction expectations.
+Frontend impact: None to runtime UI. The contract defines the future selected-customer Support page expectations for case list, case creation, evidence links, status, and next action.
+API impact: Defines target selected-customer routes for `/v1/referral-saas/accounts/{account_ref}/support-cases`, notes, and status changes. No routes are implemented by this task.
+Tests added/updated: Documentation readback only.
+Validation method: `rg -n "TASK-295|support case persistence|support-cases" docs\sa\referral-saas docs\roadmap outputs\referral-attribution-dlaas-roadmap-infographic.html`; `git diff --check`.
+Acceptance criteria: Contract defines selected-customer support-case scope, categories, statuses, safe evidence links, target APIs, idempotency replay/conflict posture, audit requirements, frontend product expectations, implementation acceptance criteria, and explicit non-goals; docs/gap matrix/roadmap/API map/infographic point at TASK-295; no schema, backend route, frontend route, repair, replay, retry, campaign activation, export file creation, invite delivery, credential creation, auth/session claim propagation, billing, money movement, DLaaS marketplace behavior, or source-code fork is introduced.
+Dependencies: TASK-145; TASK-178; TASK-180; TASK-182; TASK-184; TASK-273; TASK-294.
+Blocked by: Runtime support-case schema/repository/API implementation; selected-customer Support page case UX; repair/replay guardrails remain separate future work.
+Risk level: Low.
+Rollback notes: Revert the TASK-295 documentation updates only.
+Explicit non-goals: Do not add schema, migrations, backend routes, frontend routes, permissions, repair/replay/retry commands, failure resolve/reprocess commands, attribution overrides, code reissue/revoke/rotate commands, campaign activation, export file creation, live invite delivery, credential creation, auth/session claim propagation, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has a reviewed selected-customer support-case persistence contract ready for the next schema/API implementation task. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because runtime support-case persistence, export file storage/download, governed auth/login lifecycle, progress/attribution mutation proof, and non-local proof repetition are still separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
