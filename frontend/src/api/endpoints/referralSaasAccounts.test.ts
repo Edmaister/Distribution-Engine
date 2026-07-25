@@ -14,6 +14,7 @@ import {
   recordReferralSaasAccountCampaignReviewDecision,
   cancelReferralSaasMembershipInvitationIntent,
   requestReferralSaasAccountCampaignActivation,
+  requestReferralSaasAccessProvisioning,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
@@ -1490,6 +1491,116 @@ describe("referralSaasAccounts endpoint client", () => {
     );
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|wallet|settlement|money_movement|sendinvite|seatid|authclaims|golive/,
+    );
+  });
+
+  it("requests Referral SaaS access provisioning through the guarded product wrapper", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acc_fnb",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      accessProvisioning: {
+        commandStatus: "PROVISIONING_REQUEST_RECORDED",
+        membership: {
+          membershipRef: "mbr_1",
+          roleFamily: "DISTRIBUTION_ADMIN",
+          permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        },
+        seat: {
+          seatType: "ADMIN",
+          seatAssignmentStatus: "SEAT_ASSIGNED",
+          seatRef: "seat-1",
+        },
+        authClaims: {
+          authClaimStatus: "AUTH_CLAIMS_NOT_PROPAGATED",
+        },
+        provisioning: {
+          status: "PROVISIONING_REQUEST_RECORDED",
+          nextAction: "Seat assigned. Auth claims remain separate.",
+        },
+        idempotency: {
+          status: "RECORDED",
+        },
+        auditEventId: "audit-provisioning-1",
+        guardrails: ["NO_INVITE_DELIVERY", "NO_AUTH_CLAIM_CHANGE"],
+        redactions: ["seat_assignment_evidence_ref"],
+        noInviteDeliveryConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noCredentialCreationConfirmed: true,
+        noCampaignActivationConfirmed: true,
+        noGoLiveChangeConfirmed: true,
+        noMoneyMovementConfirmed: true,
+      },
+      guardrails: ["NO_INVITE_DELIVERY", "NO_AUTH_CLAIM_CHANGE"],
+      redactions: ["seat_assignment_evidence_ref"],
+      no_invite_delivery_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_credential_creation_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_go_live_change_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      requestReferralSaasAccessProvisioning({
+        accountRef: " acc_fnb ",
+        membershipRef: " mbr_1 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " fnb-referrals ",
+          context: "setup",
+        },
+        provisioning: {
+          seatType: "ADMIN",
+          seatAssignmentEvidenceRef: " seat-evidence-1 ",
+          operatorNotes: " Provision account owner seat. ",
+        },
+        correlationId: "customer-profile-access-provisioning-acc_fnb",
+        idempotencyKey: "customer-profile-access-provisioning-acc_fnb-mbr_1-distribution_admin-admin",
+      }),
+    ).resolves.toMatchObject({
+      accessProvisioning: {
+        commandStatus: "PROVISIONING_REQUEST_RECORDED",
+        seat: {
+          seatAssignmentStatus: "SEAT_ASSIGNED",
+        },
+        authClaims: {
+          authClaimStatus: "AUTH_CLAIMS_NOT_PROPAGATED",
+        },
+      },
+      no_auth_claim_change_confirmed: true,
+      no_credential_creation_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acc_fnb/memberships/mbr_1/access-provisioning",
+      {
+        method: "POST",
+        body: {
+          accountScope: {
+            refType: "external_tenant_ref",
+            externalRef: "fnb-referrals",
+            context: "setup",
+          },
+          provisioning: {
+            seatType: "ADMIN",
+            seatAssignmentEvidenceRef: "seat-evidence-1",
+            authProviderRef: undefined,
+            authClaimEvidenceRef: undefined,
+            operatorNotes: "Provision account owner seat.",
+          },
+          reasonCode: "CUSTOMER_PROFILE_ACCESS_PROVISIONING_REQUEST",
+          correlationId: "customer-profile-access-provisioning-acc_fnb",
+          idempotencyKey: "customer-profile-access-provisioning-acc_fnb-mbr_1-distribution_admin-admin",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|password|raw_auth|authclaims|sendinvite|campaignactivation|golive|wallet|settlement|money/,
     );
   });
 

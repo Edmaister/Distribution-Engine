@@ -488,6 +488,8 @@ class MembershipPersonSummary:
     status: str
     delivery_status: str
     recipient_contact_status: str
+    seat_assignment_status: str
+    auth_claim_status: str
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
@@ -500,6 +502,8 @@ class MembershipPersonSummary:
             "status": self.status,
             "deliveryStatus": self.delivery_status,
             "recipientContactStatus": self.recipient_contact_status,
+            "seatAssignmentStatus": self.seat_assignment_status,
+            "authClaimStatus": self.auth_claim_status,
         }
 
 
@@ -647,6 +651,17 @@ async def get_referral_saas_account_membership_posture(
                     ELSE 'CONTACT_REFERENCE_MISSING'
                 END AS recipient_contact_status,
                 platform_memberships.client_id AS client_id,
+                CASE
+                    WHEN platform_memberships.metadata->>'access_provisioning_status' IS NOT NULL
+                    THEN platform_memberships.metadata->>'access_provisioning_status'
+                    WHEN platform_memberships.seat_id IS NOT NULL
+                    THEN 'SEAT_ASSIGNED'
+                    ELSE 'SEAT_NOT_ASSIGNED'
+                END AS seat_assignment_status,
+                COALESCE(
+                    platform_memberships.metadata->>'auth_claim_status',
+                    'AUTH_CLAIMS_NOT_PROPAGATED'
+                ) AS auth_claim_status,
                 CASE
                     WHEN $3::text <> '' AND platform_memberships.client_id = $3 THEN TRUE
                     WHEN $4::text <> '' AND platform_memberships.user_id::text = $4 THEN TRUE
@@ -2596,6 +2611,14 @@ def _membership_person_summaries(
                     _optional_text(row.get("recipient_contact_status"))
                     or "CONTACT_REFERENCE_MISSING"
                 ),
+                seat_assignment_status=(
+                    _optional_text(row.get("seat_assignment_status"))
+                    or "SEAT_NOT_ASSIGNED"
+                ),
+                auth_claim_status=(
+                    _optional_text(row.get("auth_claim_status"))
+                    or "AUTH_CLAIMS_NOT_PROPAGATED"
+                ),
             )
         )
     return summaries
@@ -2613,6 +2636,14 @@ def _activation_readiness_item(
     membership_status = _normalise_status(membership.status)
 
     if membership_status == "ACTIVE":
+        seat_assignment_status = (
+            _optional_text(membership.seat_assignment_status) or "SEAT_NOT_ASSIGNED"
+        )
+        auth_claim_status = (
+            _optional_text(membership.auth_claim_status)
+            or "AUTH_CLAIMS_NOT_PROPAGATED"
+        )
+        seat_assigned = seat_assignment_status == "SEAT_ASSIGNED"
         return MembershipActivationReadinessItem(
             membership_id=membership.membership_id,
             subject=membership.subject,
@@ -2623,13 +2654,18 @@ def _activation_readiness_item(
             recipient_contact_status=membership.recipient_contact_status,
             delivery_readiness="DELIVERY_NOT_REQUIRED",
             activation_readiness="ACTIVE",
-            provisioning_readiness="PROVISIONING_BLOCKED",
-            seat_assignment_status="SEAT_NOT_ASSIGNED",
-            auth_claim_status="AUTH_CLAIMS_NOT_PROPAGATED",
+            provisioning_readiness=(
+                "SEAT_ASSIGNED" if seat_assigned else "READY_TO_PROVISION_SEAT"
+            ),
+            seat_assignment_status=seat_assignment_status,
+            auth_claim_status=auth_claim_status,
             blockers=(),
             next_action=(
-                "Membership is active. Configure seats and auth claims through "
-                "their separate governed workflows before login access is live."
+                "Seat is assigned. Configure auth claims through the separate "
+                "governed workflow before login access is live."
+                if seat_assigned
+                else "Membership is active. Provision a seat before login access "
+                "is live; auth claims remain a separate governed workflow."
             ),
         )
 
@@ -2645,8 +2681,8 @@ def _activation_readiness_item(
             delivery_readiness="BLOCKED",
             activation_readiness="BLOCKED",
             provisioning_readiness="WAITING_FOR_MEMBERSHIP_ACTIVATION",
-            seat_assignment_status="SEAT_NOT_ASSIGNED",
-            auth_claim_status="AUTH_CLAIMS_NOT_PROPAGATED",
+            seat_assignment_status=membership.seat_assignment_status,
+            auth_claim_status=membership.auth_claim_status,
             blockers=(f"MEMBERSHIP_{membership_status}",),
             next_action="Resolve the membership status before delivery or activation.",
         )
@@ -2682,8 +2718,8 @@ def _activation_readiness_item(
             "READY_TO_ACTIVATE" if not activation_blockers else "BLOCKED"
         ),
         provisioning_readiness="WAITING_FOR_MEMBERSHIP_ACTIVATION",
-        seat_assignment_status="SEAT_NOT_ASSIGNED",
-        auth_claim_status="AUTH_CLAIMS_NOT_PROPAGATED",
+        seat_assignment_status=membership.seat_assignment_status,
+        auth_claim_status=membership.auth_claim_status,
         blockers=tuple(dict.fromkeys(activation_blockers)),
         next_action=_activation_next_action(activation_blockers),
     )
