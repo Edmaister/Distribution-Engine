@@ -257,6 +257,7 @@ greenfield referral construction.
 149. TASK-283: Expose People and Access login and seat provisioning next actions.
 150. TASK-284: Define Referral SaaS access provisioning command contract.
 151. TASK-285: Add guarded Referral SaaS access provisioning API wrapper.
+152. TASK-286: Wire People and Access provisioning action to the guarded access provisioning API.
 
 ## 10/10 Exit Criteria
 
@@ -1205,6 +1206,16 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Implements the governed access provisioning API wrapper for accepted customer access. The route can assign an available platform seat only after active account, tenant-link, external-reference, active membership, admin actor, idempotency, audit, and redaction gates pass. Blocked gates are audited without assignment. The task keeps invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, and money movement outside this route.
+- TASK-286: `services/referral_saas_account_membership_service.py`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Wires selected-customer People and Access to the guarded access provisioning API. The UI enables `Provision login & seat` only for active accepted memberships that are ready for seat assignment, sends the account-scoped guarded request, refreshes People and Access read models, and shows seat-assignment state while credential creation and auth/session claim propagation remain separate governed workflows.
 
 ## Explicit Deferrals
 

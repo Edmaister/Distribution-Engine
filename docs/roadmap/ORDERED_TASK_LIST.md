@@ -6334,6 +6334,31 @@ Rollback notes: Remove the access provisioning service function, API route, rout
 Explicit non-goals: Do not add schema, migrations, frontend action enablement, identity-provider integration, auth/session claim propagation, credential lifecycle, invite delivery, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has a governed backend wrapper that can provision the seat side of accepted customer access while preserving the separation between named/accepted access, seat assignment, and auth/login propagation. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
+## TASK-286: Wire People and Access provisioning action to guarded API
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCESS_PROVISIONING_COMMAND_CONTRACT.md`.
+Shared primitive impact: Wires the selected-customer People and Access UI to the existing guarded account, membership, seat, idempotency, audit, and redaction primitives without forking source or creating a page-local provisioning path. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer People and Access provisioning; accepted-access to seat-assignment operator action.
+Objective: Enable the People and Access `Provision login & seat` action only after customer access is accepted, call the guarded access provisioning API, and refresh the read models so seat assignment state is visible without implying auth/login propagation.
+Why now: TASK-285 added the backend provisioning wrapper, but physical UI testing still showed no actionable route from accepted access to the governed seat provisioning command.
+Files involved: `services/referral_saas_account_membership_service.py`; `test/test_referral_saas_account_membership_service.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: No migration. Reads existing membership seat/auth metadata and calls the existing guarded seat-assignment wrapper.
+Backend impact: Extends the membership posture and activation-readiness read models with seat-assignment and auth-claim status so the frontend can show the result of provisioning after refresh.
+Frontend impact: Adds the access provisioning endpoint client and enables the People and Access provisioning button only for active/accepted memberships that are ready for seat assignment. The UI calls the guarded API, refreshes People and Access read models, and shows success/error feedback while keeping auth claims and credential lifecycle separate.
+API impact: No new backend route. The frontend now calls the TASK-285 `POST /v1/referral-saas/accounts/{accountRef}/memberships/{membershipRef}/access-provisioning` wrapper.
+Tests added/updated: Backend membership read-model tests; frontend endpoint contract test; People and Access UI tests for guarded provisioning payload, success feedback, read-model refresh, and no adjacent invite/auth/campaign/go-live/billing/money side effects.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_account_membership_service.py test\api\test_referral_saas_accounts_api.py --tb=short -x`; `npm.cmd test -- --run src\api\endpoints\referralSaasAccounts.test.ts src\pages\admin\ReferralSaasAccountMaintenancePage.test.tsx`; frontend build/lint; `git diff --check`.
+Acceptance criteria: `Provision login & seat` is disabled until access is active and ready for seat provisioning; enabled action calls the guarded API with customer scope, membership reference, seat type, correlation ID, and idempotency key; successful provisioning refreshes read models and shows seat-assignment state; no invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is introduced.
+Dependencies: TASK-252; TASK-279; TASK-282; TASK-283; TASK-284; TASK-285.
+Blocked by: Local physical proof, identity-provider/auth-claim integration, credential lifecycle, and seat/login provisioning operations remain bounded future tasks.
+Risk level: Medium.
+Rollback notes: Remove the frontend access provisioning client/action/tests and the membership read-model seat/auth status additions; keep the TASK-285 backend route untouched if only UI enablement needs rollback.
+Explicit non-goals: Do not add schema, migrations, identity-provider integration, auth/session claim propagation, credential lifecycle, invite delivery, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code forks.
+Definition of done: People and Access can move from accepted customer access to guarded platform seat provisioning from the selected customer context, while keeping login/auth propagation separate and visible. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

@@ -87,6 +87,8 @@ export type ReferralSaasMembershipPersonSummary = {
   status: string;
   deliveryStatus: string;
   recipientContactStatus: string;
+  seatAssignmentStatus?: string;
+  authClaimStatus?: string;
 };
 
 export type ReferralSaasAccountMembershipPosture = {
@@ -664,6 +666,33 @@ export type ReferralSaasMembershipActivationRequest = {
   idempotencyKey: string;
 };
 
+export type ReferralSaasAccessProvisioningRequest = {
+  accountRef: string;
+  membershipRef: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  provisioning: {
+    seatType:
+      | "ADMIN"
+      | "OPERATOR"
+      | "PARTNER"
+      | "PRODUCER"
+      | "DISTRIBUTOR"
+      | "CONSUMER"
+      | "SUPPORT";
+    seatAssignmentEvidenceRef?: string;
+    authProviderRef?: string;
+    authClaimEvidenceRef?: string;
+    operatorNotes?: string;
+  };
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
 export type ReferralSaasAccountProfileUpdateRequest = {
   accountRef: string;
   profile: {
@@ -854,6 +883,52 @@ export type ReferralSaasMembershipActivationResponse = {
   no_invite_delivery_confirmed: boolean;
   no_auth_claim_change_confirmed: boolean;
   no_seat_assignment_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
+export type ReferralSaasAccessProvisioningResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  accessProvisioning: {
+    commandStatus: string;
+    membership: {
+      membershipRef: string;
+      roleFamily: string;
+      permissionSet: string;
+    };
+    seat: {
+      seatType: string;
+      seatAssignmentStatus: string;
+      seatRef?: string | null;
+    };
+    authClaims: {
+      authClaimStatus: string;
+    };
+    provisioning: {
+      status: string;
+      nextAction: string;
+    };
+    idempotency: {
+      status: string;
+    };
+    auditEventId?: string | null;
+    guardrails: string[];
+    redactions: string[];
+    noInviteDeliveryConfirmed: boolean;
+    noAuthClaimChangeConfirmed: boolean;
+    noCredentialCreationConfirmed: boolean;
+    noCampaignActivationConfirmed: boolean;
+    noGoLiveChangeConfirmed: boolean;
+    noMoneyMovementConfirmed: boolean;
+  };
+  guardrails: string[];
+  redactions: string[];
+  no_invite_delivery_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_credential_creation_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_go_live_change_confirmed: boolean;
   no_money_movement_confirmed: boolean;
 };
 
@@ -1384,6 +1459,42 @@ export function requestReferralSaasMembershipActivation({
         activation: {
           acceptedSubject: activation.acceptedSubject.trim(),
           acceptanceEvidenceRef: activation.acceptanceEvidenceRef.trim(),
+        },
+        reasonCode,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function requestReferralSaasAccessProvisioning({
+  accountRef,
+  membershipRef,
+  accountScope,
+  provisioning,
+  reasonCode = "CUSTOMER_PROFILE_ACCESS_PROVISIONING_REQUEST",
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasAccessProvisioningRequest): Promise<ReferralSaasAccessProvisioningResponse> {
+  return apiRequest<ReferralSaasAccessProvisioningResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/memberships/${encodeURIComponent(
+      membershipRef.trim(),
+    )}/access-provisioning`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        provisioning: {
+          seatType: provisioning.seatType,
+          seatAssignmentEvidenceRef: provisioning.seatAssignmentEvidenceRef?.trim() || undefined,
+          authProviderRef: provisioning.authProviderRef?.trim() || undefined,
+          authClaimEvidenceRef: provisioning.authClaimEvidenceRef?.trim() || undefined,
+          operatorNotes: provisioning.operatorNotes?.trim() || undefined,
         },
         reasonCode,
         correlationId,

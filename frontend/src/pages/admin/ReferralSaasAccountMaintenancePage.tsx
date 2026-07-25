@@ -49,6 +49,7 @@ import {
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasAccountCampaignActivation,
+  requestReferralSaasAccessProvisioning,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   submitReferralSaasAccountCampaignReview,
@@ -349,6 +350,7 @@ export function ReferralSaasAccountMaintenancePage() {
   const [accessLifecycleResult, setAccessLifecycleResult] = useState<string | null>(null);
   const [deliveryResult, setDeliveryResult] = useState<string | null>(null);
   const [activationResult, setActivationResult] = useState<string | null>(null);
+  const [provisioningResult, setProvisioningResult] = useState<string | null>(null);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
   const [profileResult, setProfileResult] = useState<string | null>(null);
   const [campaignSetupDraft, setCampaignSetupDraft] = useState<CampaignSetupDraft>({
@@ -509,6 +511,17 @@ export function ReferralSaasAccountMaintenancePage() {
         )}. ${response.activationRequest.activation.nextAction} No invite email was sent, no seat was assigned, no auth claim changed, and no money moved.`,
       );
       resetAccessForm();
+    },
+  });
+  const provisioningMutation = useMutation({
+    mutationFn: requestReferralSaasAccessProvisioning,
+    onSuccess: async (response) => {
+      await refreshPeopleAccessReadModels();
+      setProvisioningResult(
+        `${formatDisplay(response.accessProvisioning.membership.roleFamily)} seat provisioning returned ${formatDisplay(
+          response.accessProvisioning.seat.seatAssignmentStatus,
+        )}. ${response.accessProvisioning.provisioning.nextAction} No invitation email was sent, no credential was created, no auth claim changed, no campaign was activated, and no money moved.`,
+      );
     },
   });
   const profileMutation = useMutation({
@@ -906,6 +919,42 @@ export function ReferralSaasAccountMaintenancePage() {
         cleanedEmail,
         evidence,
         selectedRole.roleFamily,
+      ),
+    });
+  }
+
+  function requestAccessProvisioning(membershipRef: string, roleFamily: string) {
+    if (!selectedAccount || !selectedExternalTenantRef || !membershipRef) {
+      return;
+    }
+    const seatType = seatTypeForRoleFamily(roleFamily);
+    provisioningMutation.mutate({
+      accountRef: selectedAccount.accountId,
+      membershipRef,
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: selectedExternalTenantRef,
+        context: "setup",
+      },
+      provisioning: {
+        seatType,
+        seatAssignmentEvidenceRef: safeIdempotencyKey(
+          "customer-profile-seat-provisioning-evidence",
+          selectedAccount.accountId,
+          membershipRef,
+          roleFamily,
+        ),
+        operatorNotes:
+          "Amplifi Admin requested governed seat provisioning from the selected customer People and Access page.",
+      },
+      reasonCode: "CUSTOMER_PROFILE_ACCESS_PROVISIONING_REQUEST",
+      correlationId: `customer-profile-access-provisioning-${selectedAccount.accountId}`,
+      idempotencyKey: safeIdempotencyKey(
+        "customer-profile-access-provisioning",
+        selectedAccount.accountId,
+        membershipRef,
+        roleFamily,
+        seatType,
       ),
     });
   }
@@ -1897,13 +1946,14 @@ export function ReferralSaasAccountMaintenancePage() {
                         <div>
                           <strong>Login and seat provisioning</strong>
                           <p>
-                            This is where accepted people will move into login access and seat assignment once the guarded provisioning command is built.
+                            Assign a platform seat only after customer access has been accepted. Login permissions
+                            and auth claims stay in their separate governed workflow.
                           </p>
                           <span className="table-subtext">
-                            Today this section is a visible boundary only: it does not create login access, assign seats, change auth claims, send invites, or move money.
+                            This does not send invites, create credentials, change auth claims, activate campaigns, or move money.
                           </span>
                         </div>
-                        <StatusBadge label="Contract next" tone="warning" />
+                        <StatusBadge label="Guarded action" tone="info" />
                       </div>
                       <DataTable
                         rows={activationReadiness.activationReadiness.items}
@@ -1941,7 +1991,7 @@ export function ReferralSaasAccountMaintenancePage() {
                               <div>
                                 <StatusBadge
                                   label={formatDisplay(getValue(row, ["seatAssignmentStatus"], "Seat not assigned"))}
-                                  tone="warning"
+                                  tone={accessProvisioningTone(getValue(row, ["seatAssignmentStatus"], "SEAT_NOT_ASSIGNED"))}
                                 />
                                 <div className="table-subtext">Seat allocation stays out of membership acceptance.</div>
                               </div>
@@ -1963,17 +2013,47 @@ export function ReferralSaasAccountMaintenancePage() {
                           {
                             key: "next",
                             header: "Next action",
-                            render: () => (
-                              <div className="action-cell">
-                                <button className="button secondary compact" disabled type="button">
-                                  Provision login & seat
-                                </button>
-                                <span className="table-subtext">Requires provisioning API contract.</span>
-                              </div>
-                            ),
+                            render: (row) => {
+                              const membershipRef = getValue(row, ["membershipRef"], "");
+                              const roleFamily = getValue(row, ["roleFamily"], "");
+                              const membershipStatus = getValue(row, ["membershipStatus"], "");
+                              const provisioningReadiness = getValue(row, ["provisioningReadiness"], "");
+                              const seatStatus = getValue(row, ["seatAssignmentStatus"], "");
+                              const canProvision =
+                                Boolean(membershipRef && roleFamily) &&
+                                membershipStatus === "ACTIVE" &&
+                                provisioningReadiness === "READY_TO_PROVISION_SEAT";
+                              const helper =
+                                seatStatus === "SEAT_ASSIGNED"
+                                  ? "Seat is assigned; auth claims stay separate."
+                                  : membershipStatus !== "ACTIVE"
+                                    ? "Accept access before provisioning a seat."
+                                    : canProvision
+                                      ? "Calls guarded seat provisioning only."
+                                      : "Resolve provisioning blockers first.";
+                              return (
+                                <div className="action-cell">
+                                  <button
+                                    className="button secondary compact"
+                                    disabled={!canProvision || provisioningMutation.isPending}
+                                    onClick={() => requestAccessProvisioning(membershipRef, roleFamily)}
+                                    type="button"
+                                  >
+                                    {provisioningMutation.isPending ? "Provisioning" : "Provision login & seat"}
+                                  </button>
+                                  <span className="table-subtext">{helper}</span>
+                                </div>
+                              );
+                            },
                           },
                         ]}
                       />
+                    </div>
+                  ) : null}
+                  {provisioningMutation.error ? <ErrorPanel error={provisioningMutation.error} /> : null}
+                  {provisioningResult ? (
+                    <div className="success-panel">
+                      <strong>Seat provisioning recorded.</strong> {provisioningResult}
                     </div>
                   ) : null}
                   {activationReadiness?.activationReadiness.items.length ? (
@@ -4237,10 +4317,46 @@ function accessProvisioningLabel(status: string) {
   if (status === "PROVISIONING_BLOCKED" || status === "SEPARATE_WORKFLOW") {
     return "Provisioning separate";
   }
+  if (status === "READY_TO_PROVISION_SEAT") {
+    return "Ready to provision seat";
+  }
+  if (status === "SEAT_ASSIGNED") {
+    return "Seat assigned";
+  }
   if (status === "WAITING_FOR_MEMBERSHIP_ACTIVATION") {
     return "Waiting for acceptance";
   }
   return formatDisplay(status);
+}
+
+function accessProvisioningTone(status: string): StatusTone {
+  if (status === "SEAT_ASSIGNED") {
+    return "success";
+  }
+  if (status === "READY_TO_PROVISION_SEAT") {
+    return "warning";
+  }
+  return statusTone(status);
+}
+
+function seatTypeForRoleFamily(roleFamily: string):
+  | "ADMIN"
+  | "OPERATOR"
+  | "PARTNER"
+  | "PRODUCER"
+  | "DISTRIBUTOR"
+  | "CONSUMER"
+  | "SUPPORT" {
+  if (roleFamily === "DISTRIBUTION_ADMIN") {
+    return "ADMIN";
+  }
+  if (roleFamily === "CAMPAIGN_MANAGER") {
+    return "OPERATOR";
+  }
+  if (roleFamily === "SUPPORT") {
+    return "SUPPORT";
+  }
+  return "OPERATOR";
 }
 
 function inviteDeliveryProviderRef(readiness?: ReferralSaasTechnicalSetupReadinessResponse) {

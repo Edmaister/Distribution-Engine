@@ -160,6 +160,8 @@ async def test_membership_posture_confirms_active_current_actor(monkeypatch):
         "status": "ACTIVE",
         "deliveryStatus": "DELIVERY_NOT_CONFIGURED",
         "recipientContactStatus": "CONTACT_REFERENCE_PRESENT",
+        "seatAssignmentStatus": "SEAT_NOT_ASSIGNED",
+        "authClaimStatus": "AUTH_CLAIMS_NOT_PROPAGATED",
     }
 
 
@@ -229,6 +231,8 @@ def _membership(**overrides):
         "status": "INVITED",
         "delivery_status": "DELIVERY_NOT_CONFIGURED",
         "recipient_contact_status": "CONTACT_REFERENCE_PRESENT",
+        "seat_assignment_status": "SEAT_NOT_ASSIGNED",
+        "auth_claim_status": "AUTH_CLAIMS_NOT_PROPAGATED",
     }
     values.update(overrides)
     return svc.MembershipPersonSummary(**values)
@@ -341,15 +345,45 @@ async def test_membership_activation_readiness_keeps_active_membership_provision
 
     assert safe_payload["overallStatus"] == "ACCESS_READY"
     assert safe_payload["items"][0]["activationReadiness"] == "ACTIVE"
-    assert safe_payload["items"][0]["provisioningReadiness"] == "PROVISIONING_BLOCKED"
+    assert (
+        safe_payload["items"][0]["provisioningReadiness"]
+        == "READY_TO_PROVISION_SEAT"
+    )
     assert safe_payload["items"][0]["seatAssignmentStatus"] == "SEAT_NOT_ASSIGNED"
     assert safe_payload["items"][0]["authClaimStatus"] == "AUTH_CLAIMS_NOT_PROPAGATED"
     assert (
         safe_payload["items"][0]["nextAction"]
-        == "Membership is active. Configure seats and auth claims through their separate governed workflows before login access is live."
+        == "Membership is active. Provision a seat before login access is live; auth claims remain a separate governed workflow."
     )
     assert safe_payload["noSeatAssignmentConfirmed"] is True
     assert safe_payload["noAuthClaimChangeConfirmed"] is True
+
+
+async def test_membership_activation_readiness_shows_assigned_seat_separately_from_auth_claims():
+    readiness = svc.build_membership_activation_readiness(
+        posture=_posture_with_memberships(
+            _membership(
+                status="ACTIVE",
+                delivery_status="INVITATION_DELIVERY_REQUESTED",
+                seat_assignment_status="SEAT_ASSIGNED",
+                auth_claim_status="AUTH_CLAIMS_NOT_PROPAGATED",
+            ),
+        ),
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+    )
+
+    item = readiness.to_safe_dict()["items"][0]
+
+    assert item["activationReadiness"] == "ACTIVE"
+    assert item["provisioningReadiness"] == "SEAT_ASSIGNED"
+    assert item["seatAssignmentStatus"] == "SEAT_ASSIGNED"
+    assert item["authClaimStatus"] == "AUTH_CLAIMS_NOT_PROPAGATED"
+    assert item["nextAction"] == (
+        "Seat is assigned. Configure auth claims through the separate governed "
+        "workflow before login access is live."
+    )
 
 
 async def test_membership_activation_readiness_reports_missing_required_roles():

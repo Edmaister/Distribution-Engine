@@ -29,6 +29,7 @@ import {
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasAccountCampaignActivation,
+  requestReferralSaasAccessProvisioning,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   submitReferralSaasAccountCampaignReview,
@@ -71,6 +72,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   recordReferralSaasAccountCampaignReviewDecision: vi.fn(),
   recordReferralSaasMembershipInvitationIntent: vi.fn(),
   requestReferralSaasAccountCampaignActivation: vi.fn(),
+  requestReferralSaasAccessProvisioning: vi.fn(),
   requestReferralSaasMembershipInvitationDelivery: vi.fn(),
   requestReferralSaasMembershipActivation: vi.fn(),
   submitReferralSaasAccountCampaignReview: vi.fn(),
@@ -96,6 +98,7 @@ const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 const mockedRecordReferralSaasAccountCampaignReviewDecision = vi.mocked(recordReferralSaasAccountCampaignReviewDecision);
 const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordReferralSaasMembershipInvitationIntent);
 const mockedRequestReferralSaasAccountCampaignActivation = vi.mocked(requestReferralSaasAccountCampaignActivation);
+const mockedRequestReferralSaasAccessProvisioning = vi.mocked(requestReferralSaasAccessProvisioning);
 const mockedRequestReferralSaasMembershipInvitationDelivery = vi.mocked(requestReferralSaasMembershipInvitationDelivery);
 const mockedRequestReferralSaasMembershipActivation = vi.mocked(requestReferralSaasMembershipActivation);
 const mockedSubmitReferralSaasAccountCampaignReview = vi.mocked(submitReferralSaasAccountCampaignReview);
@@ -535,10 +538,29 @@ function mockActiveMembershipActivationReadiness(): ReferralSaasMembershipActiva
           membershipStatus: "ACTIVE",
           deliveryReadiness: "DELIVERY_NOT_REQUIRED",
           activationReadiness: "ACTIVE",
-          provisioningReadiness: "PROVISIONING_BLOCKED",
+          provisioningReadiness: "READY_TO_PROVISION_SEAT",
           blockers: [],
           nextAction:
-            "Membership is active. Configure seats and auth claims through their separate governed workflows before login access is live.",
+            "Membership is active. Provision a seat before login access is live; auth claims remain a separate governed workflow.",
+        },
+      ],
+    },
+  };
+}
+
+function mockSeatProvisionedMembershipActivationReadiness(): ReferralSaasMembershipActivationReadinessResponse {
+  const base = mockActiveMembershipActivationReadiness();
+  return {
+    ...base,
+    activationReadiness: {
+      ...base.activationReadiness,
+      items: [
+        {
+          ...base.activationReadiness.items[0],
+          provisioningReadiness: "SEAT_ASSIGNED",
+          seatAssignmentStatus: "SEAT_ASSIGNED",
+          nextAction:
+            "Seat is assigned. Configure auth claims through the separate governed workflow before login access is live.",
         },
       ],
     },
@@ -1125,6 +1147,57 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       no_seat_assignment_confirmed: true,
       no_money_movement_confirmed: true,
     });
+    mockedRequestReferralSaasAccessProvisioning.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACC-2201",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+        onboardingStatus: "APPROVED",
+      },
+      accessProvisioning: {
+        commandStatus: "PROVISIONING_REQUEST_RECORDED",
+        membership: {
+          membershipRef: "membership-1",
+          roleFamily: "DISTRIBUTION_ADMIN",
+          permissionSet: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        },
+        seat: {
+          seatType: "ADMIN",
+          seatAssignmentStatus: "SEAT_ASSIGNED",
+          seatRef: "seat-1",
+        },
+        authClaims: {
+          authClaimStatus: "AUTH_CLAIMS_NOT_PROPAGATED",
+        },
+        provisioning: {
+          status: "PROVISIONING_REQUEST_RECORDED",
+          nextAction: "Seat assigned. Auth claims remain separate.",
+        },
+        idempotency: {
+          status: "RECORDED",
+        },
+        auditEventId: "audit-provisioning-1",
+        guardrails: ["NO_INVITE_DELIVERY", "NO_AUTH_CLAIM_CHANGE"],
+        redactions: ["seat_assignment_evidence_ref"],
+        noInviteDeliveryConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noCredentialCreationConfirmed: true,
+        noCampaignActivationConfirmed: true,
+        noGoLiveChangeConfirmed: true,
+        noMoneyMovementConfirmed: true,
+      },
+      guardrails: ["NO_INVITE_DELIVERY", "NO_AUTH_CLAIM_CHANGE"],
+      redactions: ["seat_assignment_evidence_ref"],
+      no_invite_delivery_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_credential_creation_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_go_live_change_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
     mockedUpdateReferralSaasMembershipInvitationIntent.mockResolvedValue({
       status: "ok",
       context: "setup",
@@ -1451,7 +1524,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText("Ready to activate")).toBeInTheDocument();
     expect(screen.getByText("Login and seat provisioning")).toBeInTheDocument();
     expect(
-      screen.getByText(/accepted people will move into login access and seat assignment/i),
+      screen.getByText(/Assign a platform seat only after customer access has been accepted/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Provision login & seat" })).toBeDisabled();
     expect(screen.getAllByText(/Campaign Manager/i).length).toBeGreaterThan(0);
@@ -1621,11 +1694,54 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText("Membership accepted; login and seats stay separate")).toBeInTheDocument();
     expect(screen.getByText("Access state")).toBeInTheDocument();
     expect(container.textContent).toContain("Acceptance: Accepted");
-    expect(container.textContent).toContain("Login and seat: Provisioning separate");
+    expect(container.textContent).toContain("Login and seat: Ready to provision seat");
     expect(screen.getByText("Login and seat provisioning")).toBeInTheDocument();
-    expect(screen.getByText(/where accepted people will move into login access and seat assignment/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Provision login & seat" })).toBeDisabled();
-    expect(screen.getByText("Requires provisioning API contract.")).toBeInTheDocument();
+    expect(screen.getByText(/Assign a platform seat only after customer access has been accepted/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Provision login & seat" })).toBeEnabled();
+    expect(screen.getByText("Calls guarded seat provisioning only.")).toBeInTheDocument();
+  });
+
+  it("requests guarded seat provisioning after access has been accepted", async () => {
+    mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockActiveMembershipPosture());
+    mockedGetReferralSaasMembershipActivationReadiness
+      .mockResolvedValueOnce(mockActiveMembershipActivationReadiness())
+      .mockResolvedValue(mockSeatProvisionedMembershipActivationReadiness());
+    const { container } = renderWorkspace(
+      <ReferralSaasAccountMaintenancePage />,
+      "/admin/referral-saas/account-maintenance/acct-gabs/people",
+    );
+
+    expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show access diagnostics" }));
+    const provisioningButton = await screen.findByRole("button", { name: "Provision login & seat" });
+    expect(provisioningButton).toBeEnabled();
+
+    fireEvent.click(provisioningButton);
+
+    await waitFor(() => expect(mockedRequestReferralSaasAccessProvisioning).toHaveBeenCalledTimes(1));
+    expect(mockedRequestReferralSaasAccessProvisioning.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      membershipRef: "membership-1",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      provisioning: {
+        seatType: "ADMIN",
+        seatAssignmentEvidenceRef: "customer-profile-seat-provisioning-evidence-acct-gabs-membership-1-distribution-admin",
+        operatorNotes:
+          "Amplifi Admin requested governed seat provisioning from the selected customer People and Access page.",
+      },
+      reasonCode: "CUSTOMER_PROFILE_ACCESS_PROVISIONING_REQUEST",
+      correlationId: "customer-profile-access-provisioning-acct-gabs",
+      idempotencyKey: "customer-profile-access-provisioning-acct-gabs-membership-1-distribution-admin-admin",
+    });
+    expect(await screen.findByText("Seat provisioning recorded.")).toBeInTheDocument();
+    expect(container.textContent).toContain("Seat assigned");
+    expect(JSON.stringify(mockedRequestReferralSaasAccessProvisioning.mock.calls)).not.toMatch(
+      /tenantCode|sendInvite|credential|authClaims|goLive|wallet|settlement|money/i,
+    );
   });
 
   it("lets Amplifi Admin record manual access acceptance from the edit drawer", async () => {
