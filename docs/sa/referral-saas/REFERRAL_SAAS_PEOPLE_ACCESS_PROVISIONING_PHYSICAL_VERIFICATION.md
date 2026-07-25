@@ -57,3 +57,28 @@ The local customer used for this run is not active for seat provisioning, so
 TASK-287 proves the controlled blocked path. A successful seat-assignment proof
 still needs an active selected customer with active tenant-link,
 external-reference, accepted membership, and available platform seat evidence.
+
+## TASK-291 Activated Proof Path
+
+TASK-291 extends the same physical proof runner with an optional guarded
+account-foundation activation step before People and Access provisioning.
+
+Command:
+
+```powershell
+.\.venv_codex\Scripts\python.exe scripts\referral_saas_people_access_provisioning_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref test-fnb-sa-002 --activate-account-foundation --database --db-dsn postgresql://user:pass@localhost:5432/referrals
+```
+
+What this proves when run against suitable local/staging data:
+
+- The selected customer is activated through
+  `POST /v1/referral-saas/accounts/{account_ref}/activation-requests`.
+- Account/link activation happens before seat provisioning.
+- Seat provisioning still runs through the guarded People and Access
+  provisioning route.
+- Idempotency replay remains checked.
+- No direct DB tweak or hidden setup bypass is used.
+
+Remaining proof gap after implementation: execute the TASK-291 runner against a
+local or staging customer with active account/link posture and available seat
+capacity, then record a successful seat-assignment result and DB/audit evidence.

@@ -6459,6 +6459,31 @@ Rollback notes: Revert the frontend endpoint/page/test/CSS changes and TASK-290 
 Explicit non-goals: Do not add schema, backend routes, user creation, membership activation, direct seat assignment, invite delivery, credential creation, auth/session claim propagation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Selected-customer UI exposes the real guarded account-foundation activation action so operators can move a pending customer into active account/link posture before seat provisioning proof. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
+## TASK-291: Add activated People and Access provisioning proof path
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the governed account-foundation activation, selected-customer account registry, membership posture, membership activation readiness, access provisioning, seat-capacity, audit, idempotency, and redaction primitives without forking product state. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Repeatable local/staging proof path for activating a selected customer foundation before People and Access seat provisioning.
+Objective: Extend the repeatable People and Access provisioning proof runner so it can activate the selected customer account foundation through the guarded TASK-288 API before attempting the TASK-285 seat-provisioning command.
+Why now: TASK-287 proved the provisioning API and UI reach the correct guarded boundary, while TASK-290 made the activation prerequisite actionable in the UI. The remaining platform proof needs a repeatable harness that runs the real account-foundation activation command first instead of relying on direct DB updates or hidden bypasses.
+Files involved: `scripts/referral_saas_people_access_provisioning_physical_check.py`; `test/test_referral_saas_people_access_provisioning_physical_check.py`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PEOPLE_ACCESS_PROVISIONING_PHYSICAL_VERIFICATION.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None. The proof runner calls existing guarded backend routes only.
+Frontend impact: None.
+API impact: Adds proof-runner use of `POST /v1/referral-saas/accounts/{account_ref}/activation-requests` before membership invitation, accepted-access activation, and access provisioning.
+Tests added/updated: Adds script coverage proving the activation command is called first with external setup scope, bounded seat types, stable idempotency/correlation IDs, and no adjacent live-action payload before provisioning proceeds.
+Validation method: `pytest test\test_referral_saas_people_access_provisioning_physical_check.py -q --tb=short --disable-warnings --maxfail=1`; `git diff --check`.
+Acceptance criteria: The proof runner supports `--activate-account-foundation`; activation uses the real guarded account-foundation API; provisioning still uses the real guarded People and Access API; idempotency replay remains checked; the result reports TASK-291 and account-foundation activation evidence; no invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is introduced.
+Dependencies: TASK-287; TASK-288; TASK-290.
+Blocked by: Successful local/staging execution of the TASK-291 runner against active account/link and available seat evidence still needs to be recorded; later governed credential/auth-claim lifecycle remains future work.
+Risk level: Low.
+Rollback notes: Revert the proof runner, unit test, and TASK-291 documentation updates; runtime product behavior remains unchanged.
+Explicit non-goals: Do not add schema, backend routes, frontend routes, user creation, live invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: People and Access provisioning has a repeatable selected-customer proof path that can activate the account foundation through the guarded API before attempting seat provisioning. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

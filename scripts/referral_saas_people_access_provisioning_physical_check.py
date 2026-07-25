@@ -112,7 +112,9 @@ def _require_no_adjacent_actions(payload: dict[str, Any], step: str) -> None:
         "no_credential_creation_confirmed",
         "no_campaign_activation_confirmed",
         "no_go_live_change_confirmed",
+        "no_go_live_action_confirmed",
         "no_money_movement_confirmed",
+        "no_billing_or_money_movement_confirmed",
     ):
         if key in payload:
             _require_flag(payload, key, step)
@@ -253,6 +255,59 @@ def _extract_provisioning_status(payload: dict[str, Any]) -> str:
     if not status:
         raise RuntimeError("Access provisioning response did not include commandStatus.")
     return str(status)
+
+
+def _extract_account_foundation_activation(payload: dict[str, Any]) -> dict[str, Any]:
+    activation = (
+        payload.get("activation")
+        if isinstance(payload.get("activation"), dict)
+        else {}
+    )
+    if not activation:
+        raise RuntimeError(
+            "Account foundation activation response did not include activation."
+        )
+    return activation
+
+
+def _activate_account_foundation(
+    *,
+    args: argparse.Namespace,
+    suffix: str,
+    account_ref: str,
+    external_tenant_ref: str,
+) -> dict[str, Any]:
+    seat_types = list(dict.fromkeys(["ADMIN", args.seat_type]))
+    payload = {
+        "accountScope": _scope_payload(external_tenant_ref, context="setup"),
+        "activation": {
+            "seatTypes": seat_types,
+        },
+        "reasonCode": "TASK_291_ACCOUNT_FOUNDATION_ACTIVATION_PROOF",
+        "correlationId": f"task-291-account-foundation-activation-{suffix}",
+        "idempotencyKey": f"task-291-account-foundation-activation-{suffix}",
+    }
+    _assert_safe_command_payload(payload)
+    result = setup_check.post_json(
+        base_url=args.base_url,
+        path=f"/v1/referral-saas/accounts/{_quote_path(account_ref)}/activation-requests",
+        admin_key=args.admin_key,
+        payload=payload,
+    )
+    setup_check.require_success(
+        "activate selected-customer account foundation",
+        result,
+        allowed={200},
+    )
+    _require_no_adjacent_actions(result.payload, "account foundation activation")
+    activation = _extract_account_foundation_activation(result.payload)
+    status = str(activation.get("commandStatus") or "")
+    if status not in {"ACCOUNT_FOUNDATION_ACTIVATED", "ACCOUNT_FOUNDATION_REPLAYED"}:
+        raise RuntimeError(
+            "Account foundation activation returned unexpected status "
+            f"{status}: {json.dumps(result.payload, sort_keys=True)}"
+        )
+    return result.payload
 
 
 def _assert_provisioning_response(payload: dict[str, Any], *, step: str) -> None:
@@ -484,6 +539,14 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     selected_account, account_ref, external_tenant_ref, organisation_ref = (
         _load_selected_customer(args)
     )
+    account_foundation_activation_payload = None
+    if args.activate_account_foundation:
+        account_foundation_activation_payload = _activate_account_foundation(
+            args=args,
+            suffix=suffix,
+            account_ref=account_ref,
+            external_tenant_ref=external_tenant_ref,
+        )
     initial_posture = _load_membership_posture(
         base_url=args.base_url,
         admin_key=args.admin_key,
@@ -597,7 +660,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
     return {
         "status": "passed",
-        "task": "TASK-287",
+        "task": "TASK-291" if args.activate_account_foundation else "TASK-287",
         "base_url": args.base_url,
         "proof_suffix": suffix,
         "selected_customer": {
@@ -606,6 +669,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "externalTenantRef": external_tenant_ref,
             "organisationRef": organisation_ref,
         },
+        "account_foundation_activation": (
+            _extract_account_foundation_activation(account_foundation_activation_payload)
+            if account_foundation_activation_payload
+            else None
+        ),
         "membership": {
             "membershipRef": membership_ref,
             "acceptedSubject": accepted_subject,
@@ -667,6 +735,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--permission-set", default="REFERRAL_SAAS_CAMPAIGN_MANAGER")
     parser.add_argument("--seat-type", default="OPERATOR")
     parser.add_argument("--suffix", help="Stable suffix for repeatable proof result labelling.")
+    parser.add_argument(
+        "--activate-account-foundation",
+        action="store_true",
+        help=(
+            "Activate the selected customer account foundation through the guarded "
+            "TASK-288 API before attempting People and Access seat provisioning."
+        ),
+    )
     parser.add_argument(
         "--database",
         action="store_true",
