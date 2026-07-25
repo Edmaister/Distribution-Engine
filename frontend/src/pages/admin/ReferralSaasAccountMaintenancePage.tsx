@@ -621,6 +621,12 @@ export function ReferralSaasAccountMaintenancePage() {
   const activationReadinessByMembershipRef = new Map(
     (activationReadiness?.activationReadiness.items || []).map((item) => [item.membershipRef, item]),
   );
+  const editingAccessRow = editingMembershipRef
+    ? peopleAccessRows.find((row) => getValue(row, ["membershipRef"], "") === editingMembershipRef)
+    : undefined;
+  const editingAccessReadiness = editingMembershipRef
+    ? activationReadinessByMembershipRef.get(editingMembershipRef)
+    : undefined;
   const namedOrInvitedAccessCount = activeAccessRows.filter((membership) =>
     ["INVITED", "ACTIVE"].includes(getValue(membership, ["status"], "")),
   ).length;
@@ -628,6 +634,12 @@ export function ReferralSaasAccountMaintenancePage() {
     (membership) => getValue(membership, ["status"], "") === "ACTIVE",
   ).length;
   const missingAccessRoleCount = missingAccessRoleRows.length;
+  const peopleAccessStatus =
+    missingAccessRoleCount > 0
+      ? `Still need ${formatList(missingAccessRoleRows.map((row) => roleOptionForFamily(getValue(row, ["roleFamily"], "")).label))}.`
+      : activeAccessCount > 0
+        ? "Required people are accepted. Provision seats next where available."
+        : "People are named, but accepted access is still outstanding.";
 
   useEffect(() => {
     if (
@@ -1605,23 +1617,35 @@ export function ReferralSaasAccountMaintenancePage() {
                   <div>
                     <h2 className="panel-title">People and access</h2>
                     <div className="panel-subtitle">
-                      Add who should manage this customer from inside the selected customer profile.
+                      One list for who manages this customer, what stage each person is in, and the next safe action.
                     </div>
                   </div>
-                  <StatusBadge label="Intent only" tone="info" />
+                  <StatusBadge
+                    label={missingAccessRoleCount ? `${missingAccessRoleCount} still needed` : "Customer scoped"}
+                    tone={missingAccessRoleCount ? "warning" : "success"}
+                  />
                 </div>
-                <div className="panel-body route-list">
-                  <div className="grid-3">
-                    <KpiCard label="Accepted access" value={String(activeAccessCount)} footnote="Membership accepted; login and seats stay separate" icon={Users} />
-                    <KpiCard label="Named or invited" value={String(namedOrInvitedAccessCount)} footnote="Current named people in the setup path" icon={CheckCircle2} />
-                    <KpiCard label="Roles still missing" value={String(missingAccessRoleCount)} footnote="Add owner and campaign manager intent here" icon={AlertCircle} />
-                  </div>
-                  <div className="wizard-status-card">
+                <div className="panel-body people-access-workspace">
+                  <div className="people-access-hero">
                     <div>
-                      <strong>{missingAccessRoleCount ? "Access setup needs attention" : "People list is ready"}</strong>
-                      <p>
-                        Add or maintain the named people who should manage {customerName}. Advanced invite and activation checks stay available, but the main job here is keeping responsibilities clear.
-                      </p>
+                      <strong>{missingAccessRoleCount ? "People setup needs attention" : "People list is ready"}</strong>
+                      <p>{peopleAccessStatus}</p>
+                      <div className="people-access-journey" aria-label="People and access lifecycle">
+                        {["Missing", "Named", "Invite path", "Accepted", "Seat", "Login later"].map((stage) => (
+                          <span
+                            className={
+                              stage === "Accepted" && activeAccessCount
+                                ? "current"
+                                : stage === "Missing" && missingAccessRoleCount
+                                  ? "current warning"
+                                  : ""
+                            }
+                            key={stage}
+                          >
+                            {stage}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                     <button className="button compact" onClick={() => startAddAccessIntent()} type="button">
                       Add person
@@ -1690,6 +1714,25 @@ export function ReferralSaasAccountMaintenancePage() {
                             </div>
                             <StatusBadge label="Customer scoped" tone="success" />
                           </div>
+                          {editingAccessRow ? (
+                            <div className="people-access-drawer-stage">
+                              <div>
+                                <span className="eyebrow">Current stage</span>
+                                <strong>
+                                  {peopleAccessStage(asRecord(editingAccessRow), editingAccessReadiness).label}
+                                </strong>
+                                <p>{peopleAccessNextAction(asRecord(editingAccessRow), editingAccessReadiness)}</p>
+                              </div>
+                              <StatusBadge
+                                label={accessProvisioningLabel(
+                                  editingAccessReadiness?.provisioningReadiness || "SEPARATE_WORKFLOW",
+                                )}
+                                tone={accessProvisioningTone(
+                                  editingAccessReadiness?.provisioningReadiness || "SEPARATE_WORKFLOW",
+                                )}
+                              />
+                            </div>
+                          ) : null}
                           {editingMembershipRef ? (
                             <div className="wizard-status-card">
                               <div>
@@ -1785,68 +1828,51 @@ export function ReferralSaasAccountMaintenancePage() {
                     </div>
                   ) : null}
                   {peopleAccessRows.length ? (
-                    <DataTable
-                      rows={peopleAccessRows}
-                      emptyText="No people or access intent has been recorded for this customer yet."
-                      columns={[
-                        {
-                          key: "person",
-                          header: "Person",
-                          render: (row) => (
-                            <div>
-                              <strong>{formatDisplay(getValue(row, ["displayName"], "Named person"))}</strong>
-                              <div className="table-subtext">{getValue(row, ["subject"], "No email identity returned")}</div>
-                              <div className="table-subtext">{formatDisplay(getValue(row, ["recipientContactStatus"], "Contact reference missing"))}</div>
+                    <div className="people-access-list" aria-label="People and access responsibilities">
+                      {peopleAccessRows.map((row) => {
+                        const membershipRef = getValue(row, ["membershipRef"], "");
+                        const roleFamily = getValue(row, ["roleFamily"], "UNKNOWN");
+                        const role = roleOptionForFamily(roleFamily);
+                        const readiness = activationReadinessByMembershipRef.get(membershipRef);
+                        const stage = peopleAccessStage(row as Record<string, unknown>, readiness);
+                        const next = peopleAccessNextAction(row as Record<string, unknown>, readiness);
+                        const isMissingRole = Boolean((row as Record<string, unknown>).isMissingRole);
+                        const canMaintainIntent = getValue(row, ["status"], "") === "INVITED";
+                        const canProvision =
+                          !isMissingRole &&
+                          getValue(row, ["status"], "") === "ACTIVE" &&
+                          readiness?.provisioningReadiness === "READY_TO_PROVISION_SEAT";
+                        return (
+                          <div
+                            className={`people-access-row ${isMissingRole ? "ghost" : ""}`}
+                            key={membershipRef || roleFamily}
+                          >
+                            <div className={`people-access-avatar ${isMissingRole ? "missing" : ""}`}>
+                              {isMissingRole
+                                ? "?"
+                                : initials(formatDisplay(getValue(row, ["displayName"], "Named person")))}
                             </div>
-                          ),
-                        },
-                        {
-                          key: "roleFamily",
-                          header: "Access responsibility",
-                          render: (row) => {
-                            const role = roleOptionForFamily(getValue(row, ["roleFamily"], ""));
-                            return (
-                              <div>
-                                <strong>{role.label}</strong>
-                                <div className="table-subtext">{role.copy}</div>
-                              </div>
-                            );
-                          },
-                        },
-                        {
-                          key: "status",
-                          header: "Access state",
-                          render: (row) => {
-                            const membershipRef = getValue(row, ["membershipRef"], "");
-                            const readiness = activationReadinessByMembershipRef.get(membershipRef);
-                            const membershipStatus = getValue(row, ["status"], "Status");
-                            return (
-                              <div>
-                                <StatusBadge
-                                  label={accessLifecycleLabel(membershipStatus)}
-                                  tone={accessLifecycleTone(membershipStatus)}
-                                />
-                                <div className="table-subtext">
-                                  Acceptance: {accessAcceptanceLabel(readiness?.activationReadiness || membershipStatus)}
-                                </div>
-                                <div className="table-subtext">
-                                  Login and seat: {accessProvisioningLabel(readiness?.provisioningReadiness || "SEPARATE_WORKFLOW")}
-                                </div>
-                              </div>
-                            );
-                          },
-                        },
-                        {
-                          key: "actions",
-                          header: "Actions",
-                          render: (row) => {
-                            const isMissingRole = Boolean((row as Record<string, unknown>).isMissingRole);
-                            const membershipRef = getValue(row, ["membershipRef"], "");
-                            const roleFamily = getValue(row, ["roleFamily"], "UNKNOWN");
-                            const statusValue = getValue(row, ["status"], "");
-                            const canMaintainIntent = statusValue === "INVITED";
-                            if (isMissingRole) {
-                              return (
+                            <div className="people-access-person">
+                              <strong>
+                                {isMissingRole
+                                  ? role.label
+                                  : formatDisplay(getValue(row, ["displayName"], "Named person"))}
+                              </strong>
+                              <span>
+                                {isMissingRole
+                                  ? "Required responsibility"
+                                  : `${getValue(row, ["subject"], "No email identity returned")} - ${role.label}`}
+                              </span>
+                              <p>
+                                <strong>This lets you:</strong> {role.copy}
+                              </p>
+                              <p className="people-access-next">
+                                Next: <em>{next}</em>
+                              </p>
+                            </div>
+                            <div className="people-access-actions">
+                              <StatusBadge label={stage.label} tone={stage.tone} />
+                              {isMissingRole ? (
                                 <button
                                   className="button secondary compact"
                                   onClick={() => startAddAccessIntent(roleFamily)}
@@ -1854,32 +1880,49 @@ export function ReferralSaasAccountMaintenancePage() {
                                 >
                                   Add
                                 </button>
-                              );
-                            }
-                            return (
-                              <div className="action-cell horizontal">
+                              ) : canProvision ? (
                                 <button
                                   className="button secondary compact"
-                                  disabled={!canMaintainIntent}
+                                  disabled={provisioningMutation.isPending}
+                                  onClick={() => requestAccessProvisioning(membershipRef, roleFamily)}
+                                  type="button"
+                                >
+                                  {provisioningMutation.isPending ? "Provisioning" : "Provision seat"}
+                                </button>
+                              ) : (
+                                <button
+                                  className="button secondary compact"
                                   onClick={() => startEditAccessIntent(row as Record<string, unknown>)}
                                   type="button"
                                 >
-                                  Edit
+                                  Continue
                                 </button>
-                                <button
-                                  className="button secondary compact"
-                                  disabled={!canMaintainIntent || accessCancelMutation.isPending}
-                                  onClick={() => removeAccessIntent(membershipRef, roleFamily)}
-                                  type="button"
-                                >
-                                  {accessCancelMutation.isPending ? "Removing" : "Remove intent"}
-                                </button>
-                              </div>
-                            );
-                          },
-                        },
-                      ]}
-                    />
+                              )}
+                              {!isMissingRole ? (
+                                <div className="action-cell horizontal">
+                                  <button
+                                    className="button secondary compact"
+                                    disabled={!canMaintainIntent}
+                                    onClick={() => startEditAccessIntent(row as Record<string, unknown>)}
+                                    type="button"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    className="button secondary compact"
+                                    disabled={!canMaintainIntent || accessCancelMutation.isPending}
+                                    onClick={() => removeAccessIntent(membershipRef, roleFamily)}
+                                    type="button"
+                                  >
+                                    {accessCancelMutation.isPending ? "Removing" : "Remove"}
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   ) : (
                     <div className="wizard-status-card">
                       <div>
@@ -1889,164 +1932,25 @@ export function ReferralSaasAccountMaintenancePage() {
                       <StatusBadge label="Action needed" tone="warning" />
                     </div>
                   )}
+                  <p className="people-access-footnote">
+                    Naming and accepting people does not send email, assign a seat, or change login permissions.
+                    Seat provisioning is guarded separately. Auth claim propagation stays in a later governed workflow.
+                  </p>
                   {activationReadiness ? (
-                    <div className="wizard-status-card">
+                    <div className="people-access-boundary">
                       <div>
-                        <strong>Access activation readiness</strong>
+                        <strong>Provisioning boundary</strong>
                         <p>
                           {accessReadinessSummary(
                             activationReadiness.activationReadiness.overallStatus,
                             activationReadiness.activationReadiness.missingRoleFamilies.length,
-                          )}
+                          )} Seat provisioning is shown as the next guarded step where available. Login credentials and
+                          auth claims stay outside this page.
                         </p>
-                        <span className="table-subtext">
-                          This is a read-only check. It does not send invites, activate login, assign seats, or change permissions.
-                        </span>
                       </div>
                       <StatusBadge
                         label={formatDisplay(activationReadiness.activationReadiness.overallStatus)}
                         tone={statusTone(activationReadiness.activationReadiness.overallStatus)}
-                      />
-                    </div>
-                  ) : null}
-                  {activationReadiness ? (
-                    <div className="grid-3">
-                      <KpiCard
-                        label="Ready to invite"
-                        value={String(activationReadiness.activationReadiness.deliveryReadyCount)}
-                        footnote="People that can move to invite delivery later"
-                        icon={CheckCircle2}
-                      />
-                      <KpiCard
-                        label="Ready to activate"
-                        value={String(activationReadiness.activationReadiness.activationReadyCount)}
-                        footnote="People with no activation blocker"
-                        icon={ShieldCheck}
-                      />
-                      <KpiCard
-                        label="Responsibilities missing"
-                        value={String(activationReadiness.activationReadiness.missingRoleFamilies.length)}
-                        footnote="Owner and campaign manager are required"
-                        icon={AlertCircle}
-                      />
-                    </div>
-                  ) : null}
-                  {activationReadiness?.activationReadiness.missingRoleFamilies.length ? (
-                    <div className="wizard-summary-strip warning">
-                      <strong>Still needed:</strong>{" "}
-                      {activationReadiness.activationReadiness.missingRoleFamilies
-                        .map((roleFamily) => formatDisplay(roleFamily))
-                        .join(", ")}
-                      .
-                    </div>
-                  ) : null}
-                  {activationReadiness?.activationReadiness.items.length ? (
-                    <div className="route-list">
-                      <div className="wizard-status-card">
-                        <div>
-                          <strong>Login and seat provisioning</strong>
-                          <p>
-                            Assign a platform seat only after customer access has been accepted. Login permissions
-                            and auth claims stay in their separate governed workflow.
-                          </p>
-                          <span className="table-subtext">
-                            This does not send invites, create credentials, change auth claims, activate campaigns, or move money.
-                          </span>
-                        </div>
-                        <StatusBadge label="Guarded action" tone="info" />
-                      </div>
-                      <DataTable
-                        rows={activationReadiness.activationReadiness.items}
-                        emptyText="No accepted people are ready for provisioning review."
-                        columns={[
-                          {
-                            key: "person",
-                            header: "Person",
-                            render: (row) => (
-                              <div>
-                                <strong>{formatDisplay(getValue(row, ["displayName"], "Named person"))}</strong>
-                                <div className="table-subtext">{formatDisplay(getValue(row, ["subject"], "No email identity returned"))}</div>
-                              </div>
-                            ),
-                          },
-                          {
-                            key: "acceptedAccess",
-                            header: "Accepted access",
-                            render: (row) => (
-                              <div>
-                                <StatusBadge
-                                  label={accessAcceptanceLabel(getValue(row, ["activationReadiness"], "Blocked"))}
-                                  tone={accessLifecycleTone(getValue(row, ["membershipStatus"], "INVITED"))}
-                                />
-                                <div className="table-subtext">
-                                  Membership: {accessLifecycleLabel(getValue(row, ["membershipStatus"], "Invited"))}
-                                </div>
-                              </div>
-                            ),
-                          },
-                          {
-                            key: "seat",
-                            header: "Seat assignment",
-                            render: (row) => (
-                              <div>
-                                <StatusBadge
-                                  label={formatDisplay(getValue(row, ["seatAssignmentStatus"], "Seat not assigned"))}
-                                  tone={accessProvisioningTone(getValue(row, ["seatAssignmentStatus"], "SEAT_NOT_ASSIGNED"))}
-                                />
-                                <div className="table-subtext">Seat allocation stays out of membership acceptance.</div>
-                              </div>
-                            ),
-                          },
-                          {
-                            key: "login",
-                            header: "Login permissions",
-                            render: (row) => (
-                              <div>
-                                <StatusBadge
-                                  label={formatDisplay(getValue(row, ["authClaimStatus"], "Auth claims not propagated"))}
-                                  tone="warning"
-                                />
-                                <div className="table-subtext">Auth claims must be propagated by a separate governed command.</div>
-                              </div>
-                            ),
-                          },
-                          {
-                            key: "next",
-                            header: "Next action",
-                            render: (row) => {
-                              const membershipRef = getValue(row, ["membershipRef"], "");
-                              const roleFamily = getValue(row, ["roleFamily"], "");
-                              const membershipStatus = getValue(row, ["membershipStatus"], "");
-                              const provisioningReadiness = getValue(row, ["provisioningReadiness"], "");
-                              const seatStatus = getValue(row, ["seatAssignmentStatus"], "");
-                              const canProvision =
-                                Boolean(membershipRef && roleFamily) &&
-                                membershipStatus === "ACTIVE" &&
-                                provisioningReadiness === "READY_TO_PROVISION_SEAT";
-                              const helper =
-                                seatStatus === "SEAT_ASSIGNED"
-                                  ? "Seat is assigned; auth claims stay separate."
-                                  : membershipStatus !== "ACTIVE"
-                                    ? "Accept access before provisioning a seat."
-                                    : canProvision
-                                      ? "Calls guarded seat provisioning only."
-                                      : "Resolve provisioning blockers first.";
-                              return (
-                                <div className="action-cell">
-                                  <button
-                                    className="button secondary compact"
-                                    disabled={!canProvision || provisioningMutation.isPending}
-                                    onClick={() => requestAccessProvisioning(membershipRef, roleFamily)}
-                                    type="button"
-                                  >
-                                    {provisioningMutation.isPending ? "Provisioning" : "Provision login & seat"}
-                                  </button>
-                                  <span className="table-subtext">{helper}</span>
-                                </div>
-                              );
-                            },
-                          },
-                        ]}
                       />
                     </div>
                   ) : null}
@@ -4263,7 +4167,9 @@ function accessReadinessSummary(overallStatus: string, missingRoleCount: number)
     return "The required customer access responsibilities are active.";
   }
   if (missingRoleCount > 0) {
-    return `${formatAreaCount(missingRoleCount, "responsibility")} still needs to be named for this customer.`;
+    const label = missingRoleCount === 1 ? "responsibility" : "responsibilities";
+    const verb = missingRoleCount === 1 ? "needs" : "need";
+    return `${formatDisplay(missingRoleCount)} ${label} still ${verb} to be named for this customer.`;
   }
   return "People are named, but invite delivery or login activation is not ready yet.";
 }
@@ -4337,6 +4243,71 @@ function accessProvisioningTone(status: string): StatusTone {
     return "warning";
   }
   return statusTone(status);
+}
+
+function initials(name: string) {
+  const letters = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+  return letters || "?";
+}
+
+function peopleAccessStage(row: Record<string, unknown>, readiness?: Record<string, unknown>) {
+  if (Boolean(row.isMissingRole)) {
+    return { label: "Missing", tone: "warning" as StatusTone };
+  }
+  const membershipStatus = getValue(row, ["status"], getValue(row, ["membershipStatus"], ""));
+  const activationStatus = getValue(readiness || {}, ["activationReadiness"], membershipStatus);
+  const provisioningReadiness = getValue(readiness || {}, ["provisioningReadiness"], "");
+  const seatStatus = getValue(readiness || {}, ["seatAssignmentStatus"], "");
+  if (seatStatus === "SEAT_ASSIGNED" || provisioningReadiness === "SEAT_ASSIGNED") {
+    return { label: "Seat assigned", tone: "success" as StatusTone };
+  }
+  if (membershipStatus === "ACTIVE") {
+    return { label: "Accepted", tone: "success" as StatusTone };
+  }
+  if (activationStatus === "READY_TO_ACTIVATE") {
+    return { label: "Invite path OK", tone: "info" as StatusTone };
+  }
+  if (membershipStatus === "INVITED") {
+    return { label: "Named", tone: "info" as StatusTone };
+  }
+  return { label: accessLifecycleLabel(membershipStatus), tone: accessLifecycleTone(membershipStatus) };
+}
+
+function peopleAccessNextAction(row: Record<string, unknown>, readiness?: Record<string, unknown>) {
+  if (Boolean(row.isMissingRole)) {
+    return "Add the person who owns this responsibility.";
+  }
+  const membershipStatus = getValue(row, ["status"], getValue(row, ["membershipStatus"], ""));
+  const activationStatus = getValue(readiness || {}, ["activationReadiness"], "");
+  const provisioningReadiness = getValue(readiness || {}, ["provisioningReadiness"], "");
+  const seatStatus = getValue(readiness || {}, ["seatAssignmentStatus"], "");
+  const deliveryReadiness = getValue(readiness || {}, ["deliveryReadiness"], "");
+  const contactStatus = getValue(row, ["recipientContactStatus"], getValue(readiness || {}, ["recipientContactStatus"], ""));
+
+  if (seatStatus === "SEAT_ASSIGNED" || provisioningReadiness === "SEAT_ASSIGNED") {
+    return "Seat is assigned. Login permissions remain in the governed auth workflow.";
+  }
+  if (membershipStatus === "ACTIVE" && provisioningReadiness === "READY_TO_PROVISION_SEAT") {
+    return "Provision the platform seat when you are ready.";
+  }
+  if (membershipStatus === "ACTIVE") {
+    return "Accepted access is recorded. Resolve seat provisioning outside invite delivery.";
+  }
+  if (activationStatus === "READY_TO_ACTIVATE") {
+    return "Record accepted access after the customer confirms this person.";
+  }
+  if (deliveryReadiness === "READY_TO_DELIVER_INVITE") {
+    return "Invite delivery can be checked when you need provider evidence.";
+  }
+  if (contactStatus !== "CONTACT_REFERENCE_PRESENT") {
+    return "Add a safe work email before invite delivery or acceptance checks.";
+  }
+  return "Review this person before invite delivery or accepted access.";
 }
 
 function seatTypeForRoleFamily(roleFamily: string):

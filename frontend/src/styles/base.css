@@ -838,9 +838,9 @@ a {
 }
 
 .side-drawer {
-  background: var(--color-surface);
+  background: #fff;
   border: 1px solid var(--color-rule);
-  border-radius: var(--radius-panel);
+  border-radius: 8px;
   box-shadow: -18px 0 60px rgb(8 15 32 / 0.28);
   isolation: isolate;
   max-width: 520px;
@@ -851,7 +851,7 @@ a {
 }
 
 .drawer-form {
-  background: var(--color-surface);
+  background: #fff;
   border: 0;
   border-radius: 0;
   min-height: 100%;
@@ -877,6 +877,175 @@ a {
   font-size: 13px;
   line-height: 1.45;
   margin: 6px 0 0;
+}
+
+.people-access-workspace {
+  display: grid;
+  gap: 14px;
+}
+
+.people-access-hero,
+.people-access-boundary,
+.people-access-footnote {
+  background: #fff;
+  border: 1px solid var(--color-rule);
+  border-radius: 8px;
+}
+
+.people-access-hero {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 16px;
+}
+
+.people-access-hero p,
+.people-access-boundary p,
+.people-access-footnote {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 4px 0 0;
+}
+
+.people-access-journey {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.people-access-journey span {
+  background: var(--color-background);
+  border: 1px solid var(--color-rule);
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 9px;
+}
+
+.people-access-journey span.current {
+  background: rgb(13 158 114 / 0.12);
+  border-color: rgb(13 158 114 / 0.32);
+  color: var(--color-success);
+}
+
+.people-access-journey span.warning {
+  background: rgb(217 119 6 / 0.1);
+  border-color: rgb(217 119 6 / 0.28);
+  color: rgb(194 65 12);
+}
+
+.people-access-list {
+  background: #fff;
+  border: 1px solid var(--color-rule);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.people-access-row {
+  align-items: center;
+  border-bottom: 1px solid var(--color-rule);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 46px minmax(0, 1fr) minmax(160px, auto);
+  padding: 16px;
+}
+
+.people-access-row:last-child {
+  border-bottom: 0;
+}
+
+.people-access-row.ghost {
+  background: linear-gradient(90deg, rgb(248 250 252), #fff);
+}
+
+.people-access-avatar {
+  align-items: center;
+  background: var(--color-signal-light);
+  border: 1px solid rgb(37 99 235 / 0.18);
+  border-radius: 8px;
+  color: var(--color-signal);
+  display: inline-flex;
+  font-weight: 800;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.people-access-avatar.missing {
+  background: #fff;
+  border: 1px dashed rgb(148 163 184);
+  color: var(--color-text-muted);
+}
+
+.people-access-person {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.people-access-person > strong {
+  font-size: 15px;
+}
+
+.people-access-person > span,
+.people-access-person p {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.people-access-person p strong {
+  color: var(--color-text);
+}
+
+.people-access-next em {
+  color: var(--color-signal);
+  font-style: normal;
+  font-weight: 700;
+}
+
+.people-access-actions {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.people-access-boundary {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 14px;
+}
+
+.people-access-footnote {
+  margin: 0;
+  padding: 12px 14px;
+}
+
+.people-access-drawer-stage {
+  align-items: flex-start;
+  background: var(--color-background);
+  border: 1px solid var(--color-rule);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.people-access-drawer-stage p {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 4px 0 0;
 }
 
 .drawer-actions {
@@ -4728,6 +4897,21 @@ textarea.input {
   .drawer-header,
   .drawer-actions {
     flex-direction: column;
+  }
+
+  .people-access-hero,
+  .people-access-boundary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .people-access-row {
+    grid-template-columns: 42px 1fr;
+  }
+
+  .people-access-actions {
+    align-items: flex-start;
+    grid-column: 1 / -1;
   }
 
   .sidebar {
