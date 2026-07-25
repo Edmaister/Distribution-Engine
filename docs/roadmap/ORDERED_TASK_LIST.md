@@ -6209,6 +6209,31 @@ Rollback notes: Restore fire-and-forget refetch behavior and remove the post-sav
 Explicit non-goals: Do not change backend command semantics, send invitation emails, create real login access, assign seats, propagate auth claims, create campaigns, expose tenant codes, bill, move money, or add broad DLaaS behavior.
 Definition of done: People and Access shows saved access-intent changes immediately from the refreshed read model, without requiring manual page refresh. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
+## TASK-281: Fix People and Access re-add after remove idempotency
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Preserves backend account-audit/idempotency semantics while giving each UI add-person attempt its own bounded create key. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer People and Access maintenance; membership invitation idempotency guardrails.
+Objective: Prevent a removed People and Access intent from blocking a later re-add of the same person and responsibility through stale idempotency replay.
+Why now: Physical UI testing showed the membership invitation endpoint returned `200 OK`, but the person did not appear after refresh because the frontend reused the same deterministic create idempotency key and the backend replayed the old, now-disabled membership intent.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None; existing idempotency replay, duplicate-membership prevention, audit, and no-live-action boundaries remain unchanged.
+Frontend impact: Generates a fresh add-person attempt key when the People and Access drawer opens or resets, so a new add after removal creates a fresh invited membership while retries of the same open form remain bounded by one idempotency key.
+API impact: Existing membership invitation API contract remains unchanged; the frontend now supplies a per-attempt create key instead of a permanently payload-stable key.
+Tests added/updated: Updated People and Access page coverage to assert create idempotency keys retain account/email/person/responsibility context and include a per-attempt suffix.
+Validation method: `npm.cmd run test -- ReferralSaasAccountMaintenancePage.test.tsx --run`; `npm.cmd run build`; `npm.cmd run lint`.
+Acceptance criteria: After removing a person/responsibility, adding the same person/responsibility again records a fresh invited access intent and appears in the refreshed People and Access read model; exact request replay safety remains intact; no live invite email, login activation, seat assignment, auth/session claim change, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-276; TASK-278; TASK-280.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Remove the per-attempt add-person key and restore the previous payload-only create idempotency key.
+Explicit non-goals: Do not change backend command semantics, send invitation emails, create real login access, assign seats, propagate auth claims, create campaigns, expose tenant codes, bill, move money, or add broad DLaaS behavior.
+Definition of done: People and Access can safely re-add the same person and responsibility after removal without being swallowed by a stale idempotency replay. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

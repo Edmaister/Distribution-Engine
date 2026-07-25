@@ -340,6 +340,9 @@ export function ReferralSaasAccountMaintenancePage() {
   const [accessRoleLabel, setAccessRoleLabel] = useState(accessRoleOptions[0].label);
   const [isAccessFormOpen, setIsAccessFormOpen] = useState(false);
   const [editingMembershipRef, setEditingMembershipRef] = useState<string | null>(null);
+  const [accessCreateAttemptKey, setAccessCreateAttemptKey] = useState(() =>
+    newAccessCreateAttemptKey(),
+  );
   const [manualAcceptanceEvidence, setManualAcceptanceEvidence] = useState("");
   const [showAccessDiagnostics, setShowAccessDiagnostics] = useState(false);
   const [accessResult, setAccessResult] = useState<string | null>(null);
@@ -678,6 +681,7 @@ export function ReferralSaasAccountMaintenancePage() {
     setAccessEmail("");
     setAccessRoleLabel(accessRoleOptions[0].label);
     setEditingMembershipRef(null);
+    setAccessCreateAttemptKey(newAccessCreateAttemptKey());
     setManualAcceptanceEvidence("");
     setIsAccessFormOpen(false);
   }
@@ -700,6 +704,7 @@ export function ReferralSaasAccountMaintenancePage() {
     setAccessEmail("");
     setAccessRoleLabel(roleFamily ? roleOptionForFamily(roleFamily).label : accessRoleOptions[0].label);
     setEditingMembershipRef(null);
+    setAccessCreateAttemptKey(newAccessCreateAttemptKey());
     setManualAcceptanceEvidence("");
     setIsAccessFormOpen(true);
   }
@@ -785,6 +790,7 @@ export function ReferralSaasAccountMaintenancePage() {
         cleanedEmail,
         requestBase.actor.displayName,
         selectedRole.roleFamily,
+        accessCreateAttemptKey,
       ),
     });
   }
@@ -4231,6 +4237,13 @@ function safeIdempotencyKey(...parts: string[]) {
     .map((part) => part.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, ""))
     .filter(Boolean)
     .join("-");
+}
+
+function newAccessCreateAttemptKey() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 async function sha256Hex(value: string) {

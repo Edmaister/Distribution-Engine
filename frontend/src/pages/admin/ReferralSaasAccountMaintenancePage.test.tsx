@@ -1497,8 +1497,9 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       },
       reasonCode: "CUSTOMER_PROFILE_ACCESS_MAINTENANCE",
       correlationId: "customer-profile-access-acct-gabs",
-      idempotencyKey:
-        "customer-profile-access-acct-gabs-gabs-campaign-owner-example-com-gaborone-campaign-owner-campaign-manager",
+      idempotencyKey: expect.stringMatching(
+        /^customer-profile-access-acct-gabs-gabs-campaign-owner-example-com-gaborone-campaign-owner-campaign-manager-/,
+      ),
     });
     expect(await screen.findByText("Access intent saved.")).toBeInTheDocument();
     expect((await screen.findAllByText("Gaborone campaign owner")).length).toBeGreaterThan(0);
