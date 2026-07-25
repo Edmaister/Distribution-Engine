@@ -438,76 +438,74 @@ export function ReferralSaasAccountMaintenancePage() {
     Boolean(accountId && selectedAccount && selectedExternalTenantRef),
     refreshKey,
   );
+  const refreshPeopleAccessReadModels = async () => {
+    await Promise.all([refetchMembershipPosture(), refetchActivationReadiness()]);
+  };
   const accessMutation = useMutation({
     mutationFn: recordReferralSaasMembershipInvitationIntent,
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       const savedRole =
         accessRoleOptions.find(
           (option) => option.roleFamily === response.invitation.membership.roleFamily,
         )?.label || formatDisplay(response.invitation.membership.roleFamily);
+      await refreshPeopleAccessReadModels();
       setAccessResult(
         `${savedRole} access recorded as ${formatDisplay(
           response.invitation.membership.status,
         )}. No invitation email, login activation, seat assignment, or auth claim change was performed.`,
       );
       resetAccessForm();
-      void refetchMembershipPosture();
-      void refetchActivationReadiness();
     },
   });
   const accessUpdateMutation = useMutation({
     mutationFn: updateReferralSaasMembershipInvitationIntent,
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       const savedRole =
         accessRoleOptions.find(
           (option) => option.roleFamily === response.invitation.membership.roleFamily,
         )?.label || formatDisplay(response.invitation.membership.roleFamily);
+      await refreshPeopleAccessReadModels();
       setAccessLifecycleResult(
         `${savedRole} access changes saved. ${response.invitation.lifecycle.nextAction} No invitation email, login activation, seat assignment, or auth claim change was performed.`,
       );
       resetAccessForm();
-      void refetchMembershipPosture();
-      void refetchActivationReadiness();
     },
   });
   const accessCancelMutation = useMutation({
     mutationFn: cancelReferralSaasMembershipInvitationIntent,
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       const savedRole =
         accessRoleOptions.find(
           (option) => option.roleFamily === response.invitation.membership.roleFamily,
         )?.label || formatDisplay(response.invitation.membership.roleFamily);
+      await refreshPeopleAccessReadModels();
       setAccessLifecycleResult(
         `${savedRole} access intent removed from the active setup path. ${response.invitation.lifecycle.nextAction}`,
       );
       resetAccessForm();
-      void refetchMembershipPosture();
-      void refetchActivationReadiness();
     },
   });
   const deliveryMutation = useMutation({
     mutationFn: requestReferralSaasMembershipInvitationDelivery,
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
+      await refreshPeopleAccessReadModels();
       setDeliveryResult(
         `${formatDisplay(response.deliveryRequest.membership.roleFamily)} delivery check returned ${formatDisplay(
           response.deliveryRequest.delivery.status,
         )}. ${response.deliveryRequest.delivery.nextAction} No email was sent, no login was activated, no seat was assigned, and no permissions changed.`,
       );
-      void refetchMembershipPosture();
-      void refetchActivationReadiness();
     },
   });
   const activationMutation = useMutation({
     mutationFn: requestReferralSaasMembershipActivation,
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
+      await refreshPeopleAccessReadModels();
       setActivationResult(
         `${formatDisplay(response.activationRequest.membership.roleFamily)} access returned ${formatDisplay(
           response.activationRequest.activation.status,
         )}. ${response.activationRequest.activation.nextAction} No invite email was sent, no seat was assigned, no auth claim changed, and no money moved.`,
       );
       resetAccessForm();
-      void refetchMembershipPosture();
-      void refetchActivationReadiness();
     },
   });
   const profileMutation = useMutation({

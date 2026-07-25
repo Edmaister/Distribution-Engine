@@ -6184,6 +6184,31 @@ Rollback notes: Remove the manual acceptance drawer section, activation mutation
 Explicit non-goals: Do not create real login access, send emails, assign seats, propagate auth claims, create campaigns, expose tenant codes, bill, move money, or add broad DLaaS behavior.
 Definition of done: Amplifi Admin has a clear, evidence-required manual access acceptance action inside selected-customer People and Access, with visible accepted-access versus provisioning state, that reuses the audited activation command boundary. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
+## TASK-280: Refresh People and Access after intent changes
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing selected-customer membership posture and activation readiness read models; no backend primitive or schema change. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer People and Access maintenance; post-mutation read-model consistency.
+Objective: Ensure People and Access refreshes its membership posture and activation readiness after add/edit/remove, invite-delivery check, or manual accepted-access actions before showing completion feedback.
+Why now: Physical UI testing showed a saved access intent could display success while the primary people table still showed missing-role rows until the operator manually refreshed the browser.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None; existing membership invitation, activation, posture, and readiness APIs remain unchanged.
+Frontend impact: Adds a shared People and Access refresh helper and awaits refreshed membership posture plus activation readiness after relevant mutations, so the newly saved person replaces the missing-role row without a manual browser refresh.
+API impact: None.
+Tests added/updated: Updated People and Access page coverage to assert that saving a campaign manager intent refreshes the table and renders the newly named person.
+Validation method: `npm.cmd run test -- ReferralSaasAccountMaintenancePage.test.tsx --run`; `npm.cmd run build`; `npm.cmd run lint`.
+Acceptance criteria: After adding/editing/removing a person, checking delivery, or recording accepted access, the selected-customer People and Access table reflects the refreshed read model before completion feedback is shown; no live invite email, login activation, seat assignment, auth/session claim change, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-276; TASK-278; TASK-279.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Restore fire-and-forget refetch behavior and remove the post-save table refresh regression assertion.
+Explicit non-goals: Do not change backend command semantics, send invitation emails, create real login access, assign seats, propagate auth claims, create campaigns, expose tenant codes, bill, move money, or add broad DLaaS behavior.
+Definition of done: People and Access shows saved access-intent changes immediately from the refreshed read model, without requiring manual page refresh. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
