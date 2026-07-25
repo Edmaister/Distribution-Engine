@@ -49,6 +49,7 @@ import {
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasAccountCampaignActivation,
+  requestReferralSaasAccountFoundationActivation,
   requestReferralSaasAccessProvisioning,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
@@ -351,6 +352,7 @@ export function ReferralSaasAccountMaintenancePage() {
   const [deliveryResult, setDeliveryResult] = useState<string | null>(null);
   const [activationResult, setActivationResult] = useState<string | null>(null);
   const [provisioningResult, setProvisioningResult] = useState<string | null>(null);
+  const [accountActivationResult, setAccountActivationResult] = useState<string | null>(null);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
   const [profileResult, setProfileResult] = useState<string | null>(null);
   const [campaignSetupDraft, setCampaignSetupDraft] = useState<CampaignSetupDraft>({
@@ -517,10 +519,31 @@ export function ReferralSaasAccountMaintenancePage() {
     mutationFn: requestReferralSaasAccessProvisioning,
     onSuccess: async (response) => {
       await refreshPeopleAccessReadModels();
+      const seatStatus = response.accessProvisioning.seat.seatAssignmentStatus;
+      const seatOutcome =
+        seatStatus === "SEAT_ASSIGNED" ? "Seat assigned." : "Seat not assigned yet.";
       setProvisioningResult(
-        `${formatDisplay(response.accessProvisioning.membership.roleFamily)} seat provisioning returned ${formatDisplay(
-          response.accessProvisioning.seat.seatAssignmentStatus,
-        )}. ${response.accessProvisioning.provisioning.nextAction} No invitation email was sent, no credential was created, no auth claim changed, no campaign was activated, and no money moved.`,
+        `${formatDisplay(response.accessProvisioning.membership.roleFamily)}: ${seatOutcome} ${response.accessProvisioning.provisioning.nextAction} No invitation email was sent, no credential was created, no auth claim changed, no campaign was activated, and no money moved.`,
+      );
+    },
+  });
+  const accountFoundationActivationMutation = useMutation({
+    mutationFn: requestReferralSaasAccountFoundationActivation,
+    onSuccess: async (response) => {
+      await Promise.all([
+        refetchAccountRegistry(),
+        refetchMembershipPosture(),
+        refetchActivationReadiness(),
+      ]);
+      setAccountActivationResult(
+        `${response.activation.accountName} foundation is ${formatDisplay(
+          response.activation.accountStatus,
+        )}; tenant link is ${formatDisplay(
+          response.activation.tenantLinkStatus || "UNKNOWN",
+        )}; ${formatAreaCount(
+          response.activation.seatCapacity.createdSeatCount,
+          "seat",
+        )} are available for later provisioning. No membership was changed, no seat was assigned, no invite email was sent, no credential was created, no auth claim changed, no campaign was activated, and no money moved.`,
       );
     },
   });
@@ -579,6 +602,11 @@ export function ReferralSaasAccountMaintenancePage() {
   const customerQuery = `?external_tenant_ref=${encodeURIComponent(
     selectedExternalTenantRef,
   )}&organisation_ref=${encodeURIComponent(selectedOrganisationRef)}`;
+  const isAccountFoundationActive =
+    (selectedAccount?.accountStatus || "").toUpperCase() === "ACTIVE";
+  const canActivateAccountFoundation = Boolean(
+    isAmplifiAdmin && selectedAccount && selectedExternalTenantRef && !isAccountFoundationActive,
+  );
   const doNext = getCustomerNextActions(blockedCount, missingEvidenceCount);
   const stoppingAction = doNext[0];
   const waitingAction = doNext.find((action) => action.priority === "Later") || doNext[doNext.length - 1];
@@ -627,9 +655,6 @@ export function ReferralSaasAccountMaintenancePage() {
   const editingAccessReadiness = editingMembershipRef
     ? activationReadinessByMembershipRef.get(editingMembershipRef)
     : undefined;
-  const namedOrInvitedAccessCount = activeAccessRows.filter((membership) =>
-    ["INVITED", "ACTIVE"].includes(getValue(membership, ["status"], "")),
-  ).length;
   const activeAccessCount = activeAccessRows.filter(
     (membership) => getValue(membership, ["status"], "") === "ACTIVE",
   ).length;
@@ -971,6 +996,27 @@ export function ReferralSaasAccountMaintenancePage() {
     });
   }
 
+  function activateAccountFoundation() {
+    if (!selectedAccount || !selectedExternalTenantRef) {
+      return;
+    }
+    const activationKey = `customer-profile-account-foundation-activation-${selectedAccount.accountId}`;
+    accountFoundationActivationMutation.mutate({
+      accountRef: selectedAccount.accountId,
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: selectedExternalTenantRef,
+        context: "setup",
+      },
+      activation: {
+        seatTypes: ["ADMIN", "OPERATOR"],
+      },
+      reasonCode: "CUSTOMER_ACCOUNT_FOUNDATION_ACTIVATION",
+      correlationId: activationKey,
+      idempotencyKey: `${activationKey}-v1`,
+    });
+  }
+
   function submitProfileSettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedAccount || !selectedProfileDraft.accountName.trim()) {
@@ -1160,6 +1206,44 @@ export function ReferralSaasAccountMaintenancePage() {
         .replace(/[^a-z0-9-]+/g, "-"),
     });
   }
+
+  const accountFoundationActivationPanel =
+    selectedAccount && !isAccountFoundationActive ? (
+      <div className="account-foundation-action">
+        <div className="account-foundation-action-main">
+          <div>
+            <h3>Activate customer foundation</h3>
+            <p>
+              This moves the selected customer from pending setup to an active account and tenant-link posture,
+              then creates bounded platform seat capacity. It does not assign seats, send invites, create
+              credentials, change auth claims, activate campaigns, bill, or move money.
+            </p>
+          </div>
+          <StatusBadge label="Required before seats" tone="warning" />
+        </div>
+        <div className="account-foundation-action-footer">
+          <button
+            className="button"
+            disabled={!canActivateAccountFoundation || accountFoundationActivationMutation.isPending}
+            onClick={activateAccountFoundation}
+            type="button"
+          >
+            {accountFoundationActivationMutation.isPending ? "Activating foundation" : "Activate foundation"}
+          </button>
+          {!isAmplifiAdmin ? (
+            <span className="table-subtext">Only Amplifi Admin can activate the customer foundation.</span>
+          ) : null}
+        </div>
+        {accountFoundationActivationMutation.error ? (
+          <ErrorPanel error={accountFoundationActivationMutation.error} />
+        ) : null}
+      </div>
+    ) : null;
+  const accountFoundationActivationResultPanel = accountActivationResult ? (
+    <div className="wizard-summary-strip success">
+      <strong>Customer foundation activated.</strong> {accountActivationResult}
+    </div>
+  ) : null;
 
   return (
     <>
@@ -1356,6 +1440,24 @@ export function ReferralSaasAccountMaintenancePage() {
 
           {accountId && selectedAccount ? (
             <>
+              {selectedModule === "home" && (accountFoundationActivationPanel || accountFoundationActivationResultPanel) ? (
+                <section className="panel account-foundation-panel">
+                  <div className="panel-header">
+                    <div>
+                      <h2 className="panel-title">Account foundation</h2>
+                      <div className="panel-subtitle">
+                        Activate the customer foundation before provisioning platform seats.
+                      </div>
+                    </div>
+                    <StatusBadge label={formatDisplay(selectedAccount.accountStatus)} tone={statusTone(selectedAccount.accountStatus)} />
+                  </div>
+                  <div className="panel-body">
+                    {accountFoundationActivationPanel}
+                    {accountFoundationActivationResultPanel}
+                  </div>
+                </section>
+              ) : null}
+
               {selectedModule === "home" ? (
                 <section className="customer-overview-grid">
                   <div className="panel">
@@ -1626,6 +1728,8 @@ export function ReferralSaasAccountMaintenancePage() {
                   />
                 </div>
                 <div className="panel-body people-access-workspace">
+                  {accountFoundationActivationPanel}
+                  {accountFoundationActivationResultPanel}
                   <div className="people-access-hero">
                     <div>
                       <strong>{missingAccessRoleCount ? "People setup needs attention" : "People list is ready"}</strong>
@@ -1957,7 +2061,12 @@ export function ReferralSaasAccountMaintenancePage() {
                   {provisioningMutation.error ? <ErrorPanel error={provisioningMutation.error} /> : null}
                   {provisioningResult ? (
                     <div className="success-panel">
-                      <strong>Seat provisioning recorded.</strong> {provisioningResult}
+                      <strong>
+                        {provisioningResult.includes("Seat not assigned")
+                          ? "Seat provisioning blocked."
+                          : "Seat provisioning recorded."}
+                      </strong>{" "}
+                      {provisioningResult}
                     </div>
                   ) : null}
                   {activationReadiness?.activationReadiness.items.length ? (
@@ -2127,6 +2236,8 @@ export function ReferralSaasAccountMaintenancePage() {
                   <StatusBadge label={`${goLiveDisabledCount} go-live blockers`} tone={goLiveDisabledCount ? "warning" : "success"} />
                 </div>
                 <div className="panel-body">
+                  {accountFoundationActivationPanel}
+                  {accountFoundationActivationResultPanel}
                   <DataTable
                     rows={readinessCategoryMap.map((area) => resolveReadinessArea(area, categories))}
                     emptyText="No readiness categories returned."

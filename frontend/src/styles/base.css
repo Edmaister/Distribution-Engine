@@ -884,6 +884,43 @@ a {
   gap: 14px;
 }
 
+.account-foundation-action {
+  background: rgb(217 119 6 / 0.07);
+  border: 1px solid rgb(217 119 6 / 0.25);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.account-foundation-action-main {
+  align-items: flex-start;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.account-foundation-action h3 {
+  font-size: 16px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.account-foundation-action p {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 6px 0 0;
+  max-width: 980px;
+}
+
+.account-foundation-action-footer {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .people-access-hero,
 .people-access-boundary,
 .people-access-footnote {

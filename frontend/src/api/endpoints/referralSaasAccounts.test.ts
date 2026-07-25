@@ -13,6 +13,7 @@ import {
   listReferralSaasAccounts,
   recordReferralSaasAccountCampaignReviewDecision,
   cancelReferralSaasMembershipInvitationIntent,
+  requestReferralSaasAccountFoundationActivation,
   requestReferralSaasAccountCampaignActivation,
   requestReferralSaasAccessProvisioning,
   recordReferralSaasMembershipInvitationIntent,
@@ -1601,6 +1602,99 @@ describe("referralSaasAccounts endpoint client", () => {
     );
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|password|raw_auth|authclaims|sendinvite|campaignactivation|golive|wallet|settlement|money/,
+    );
+  });
+
+  it("requests Referral SaaS account foundation activation through the guarded product wrapper", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acc_fnb",
+        accountCode: "FNB_REFERRAL_SAAS",
+        accountStatus: "PENDING_ONBOARDING",
+      },
+      activation: {
+        accountId: "acc_fnb",
+        accountCode: "FNB_REFERRAL_SAAS",
+        accountName: "FNB Referral SaaS",
+        previousAccountStatus: "PENDING_ONBOARDING",
+        accountStatus: "ACTIVE",
+        previousOnboardingStatus: "READY_FOR_REVIEW",
+        onboardingStatus: "APPROVED",
+        previousTenantLinkStatus: "PENDING_SETUP",
+        tenantLinkStatus: "ACTIVE",
+        seatCapacity: { seatTypes: ["ADMIN", "OPERATOR"], createdSeatCount: 2 },
+        commandStatus: "ACCOUNT_FOUNDATION_ACTIVATED",
+        auditEventId: "audit-account-activation-1",
+        idempotency: { status: "NEW_REQUEST" },
+        guardrails: ["NO_MEMBERSHIP_WRITE", "NO_SEAT_ASSIGNMENT"],
+        redactions: ["internal_tenant_identifier"],
+        noMembershipWriteConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noInviteDeliveryConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noCredentialCreationConfirmed: true,
+        noCampaignActivationConfirmed: true,
+        noGoLiveActionConfirmed: true,
+        noBillingOrMoneyMovementConfirmed: true,
+      },
+      guardrails: ["NO_MEMBERSHIP_WRITE", "NO_SEAT_ASSIGNMENT"],
+      redactions: ["internal_tenant_identifier"],
+      no_membership_write_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_credential_creation_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_go_live_action_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    await expect(
+      requestReferralSaasAccountFoundationActivation({
+        accountRef: " acc_fnb ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " fnb-referrals ",
+          context: "setup",
+        },
+        activation: { seatTypes: ["ADMIN", "OPERATOR"] },
+        reasonCode: " Activate customer foundation ",
+        correlationId: "customer-profile-account-foundation-activation-acc_fnb",
+        idempotencyKey: "customer-profile-account-foundation-activation-acc_fnb-v1",
+      }),
+    ).resolves.toMatchObject({
+      activation: {
+        commandStatus: "ACCOUNT_FOUNDATION_ACTIVATED",
+        accountStatus: "ACTIVE",
+        tenantLinkStatus: "ACTIVE",
+        seatCapacity: { createdSeatCount: 2 },
+      },
+      no_membership_write_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts/acc_fnb/activation-requests", {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: "fnb-referrals",
+          context: "setup",
+        },
+        activation: {
+          seatTypes: ["ADMIN", "OPERATOR"],
+        },
+        reasonCode: "Activate customer foundation",
+        correlationId: "customer-profile-account-foundation-activation-acc_fnb",
+        idempotencyKey: "customer-profile-account-foundation-activation-acc_fnb-v1",
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|password|raw_auth|authclaims|sendinvite|membershipwrite|seatassignment|campaignactivation|golive|wallet|settlement|money/,
     );
   });
 

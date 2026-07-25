@@ -29,6 +29,7 @@ import {
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasAccountCampaignActivation,
+  requestReferralSaasAccountFoundationActivation,
   requestReferralSaasAccessProvisioning,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
@@ -72,6 +73,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   recordReferralSaasAccountCampaignReviewDecision: vi.fn(),
   recordReferralSaasMembershipInvitationIntent: vi.fn(),
   requestReferralSaasAccountCampaignActivation: vi.fn(),
+  requestReferralSaasAccountFoundationActivation: vi.fn(),
   requestReferralSaasAccessProvisioning: vi.fn(),
   requestReferralSaasMembershipInvitationDelivery: vi.fn(),
   requestReferralSaasMembershipActivation: vi.fn(),
@@ -98,6 +100,7 @@ const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 const mockedRecordReferralSaasAccountCampaignReviewDecision = vi.mocked(recordReferralSaasAccountCampaignReviewDecision);
 const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordReferralSaasMembershipInvitationIntent);
 const mockedRequestReferralSaasAccountCampaignActivation = vi.mocked(requestReferralSaasAccountCampaignActivation);
+const mockedRequestReferralSaasAccountFoundationActivation = vi.mocked(requestReferralSaasAccountFoundationActivation);
 const mockedRequestReferralSaasAccessProvisioning = vi.mocked(requestReferralSaasAccessProvisioning);
 const mockedRequestReferralSaasMembershipInvitationDelivery = vi.mocked(requestReferralSaasMembershipInvitationDelivery);
 const mockedRequestReferralSaasMembershipActivation = vi.mocked(requestReferralSaasMembershipActivation);
@@ -992,6 +995,52 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedSubmitReferralSaasAccountCampaignReview.mockResolvedValue(mockCampaignReview());
     mockedRecordReferralSaasAccountCampaignReviewDecision.mockResolvedValue(mockCampaignReview("REVIEW_APPROVED"));
     mockedRequestReferralSaasAccountCampaignActivation.mockResolvedValue(mockCampaignActivation());
+    mockedRequestReferralSaasAccountFoundationActivation.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-fnb",
+        accountCode: "ACCT_FNB",
+        accountName: "FNB Referral SaaS",
+        accountStatus: "ACTIVE",
+        onboardingStatus: "APPROVED",
+      },
+      activation: {
+        accountId: "acct-fnb",
+        accountCode: "ACCT_FNB",
+        accountName: "FNB Referral SaaS",
+        previousAccountStatus: "PENDING_ONBOARDING",
+        accountStatus: "ACTIVE",
+        previousOnboardingStatus: "READY_FOR_REVIEW",
+        onboardingStatus: "APPROVED",
+        previousTenantLinkStatus: "PENDING_SETUP",
+        tenantLinkStatus: "ACTIVE",
+        seatCapacity: { seatTypes: ["ADMIN", "OPERATOR"], createdSeatCount: 2 },
+        commandStatus: "ACCOUNT_FOUNDATION_ACTIVATED",
+        auditEventId: "audit-account-activation-1",
+        idempotency: { status: "NEW_REQUEST" },
+        guardrails: ["NO_MEMBERSHIP_WRITE", "NO_SEAT_ASSIGNMENT"],
+        redactions: ["internal_tenant_identifier"],
+        noMembershipWriteConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noInviteDeliveryConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noCredentialCreationConfirmed: true,
+        noCampaignActivationConfirmed: true,
+        noGoLiveActionConfirmed: true,
+        noBillingOrMoneyMovementConfirmed: true,
+      },
+      guardrails: ["NO_MEMBERSHIP_WRITE", "NO_SEAT_ASSIGNMENT"],
+      redactions: ["internal_tenant_identifier"],
+      no_membership_write_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_credential_creation_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_go_live_action_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
     mockedIssueReferralSaasAccountCampaignCode.mockResolvedValue({
       status: "ok",
       linkCode: {
@@ -1443,6 +1492,39 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
     expect(await screen.findByText("Everything opens against Gaborone Partners until you switch customer.")).toBeInTheDocument();
     expect(screen.getByText(/Not on this page: customer settings form, people invite form, or full health table/i)).toBeInTheDocument();
+  });
+
+  it("exposes guarded customer foundation activation before seat provisioning", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-fnb");
+
+    expect(await screen.findByRole("heading", { name: "FNB Referral SaaS" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Account foundation" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Activate customer foundation" })).toBeInTheDocument();
+    expect(screen.getByText(/creates bounded platform seat capacity/i)).toBeInTheDocument();
+    expect(screen.getByText(/does not assign seats, send invites, create credentials/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Activate foundation" }));
+
+    await waitFor(() => expect(mockedRequestReferralSaasAccountFoundationActivation).toHaveBeenCalledTimes(1));
+    expect(mockedRequestReferralSaasAccountFoundationActivation.mock.calls[0][0]).toEqual({
+      accountRef: "acct-fnb",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "fnb-referrals",
+        context: "setup",
+      },
+      activation: {
+        seatTypes: ["ADMIN", "OPERATOR"],
+      },
+      reasonCode: "CUSTOMER_ACCOUNT_FOUNDATION_ACTIVATION",
+      correlationId: "customer-profile-account-foundation-activation-acct-fnb",
+      idempotencyKey: "customer-profile-account-foundation-activation-acct-fnb-v1",
+    });
+    expect(await screen.findByText("Customer foundation activated.")).toBeInTheDocument();
+    expect(screen.getByText(/seat.*available for later provisioning/i)).toBeInTheDocument();
+    expect(JSON.stringify(mockedRequestReferralSaasAccountFoundationActivation.mock.calls)).not.toMatch(
+      /tenantCode|tenant_code|membershipWrite|seatAssignment|sendInvite|credential|authClaim|campaignActivation|goLive|billing|money/i,
+    );
   });
 
   it("opens People and Access as its own customer page from the next-best action", async () => {

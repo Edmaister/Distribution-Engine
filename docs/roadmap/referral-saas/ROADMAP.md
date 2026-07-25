@@ -1259,6 +1259,24 @@ greenfield referral construction.
   No backend route, schema, invite delivery, credential creation, auth-claim
   propagation, campaign activation, billing, money movement, or DLaaS marketplace
   behavior is introduced.
+- TASK-290: `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `frontend/src/styles/base.css`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Wires the
+  TASK-288 guarded account-foundation activation command into selected-customer
+  Customer Home, People and Access, and Account Health. Pending customers now
+  show an Amplifi Admin `Activate foundation` action before seat provisioning;
+  the UI calls the account-scoped activation API, refreshes account and access
+  read models, explains available seat capacity, and avoids presenting blocked
+  provisioning as successful assignment. No backend route, schema, membership
+  activation, direct seat assignment, invite delivery, credential creation,
+  auth-claim propagation, campaign activation, go-live, billing, money movement,
+  or DLaaS marketplace behavior is introduced.
 
 ## Explicit Deferrals
 
