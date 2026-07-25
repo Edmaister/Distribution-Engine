@@ -20,6 +20,9 @@ MEMBERSHIP_INVITATION_DELIVERY_EVENT: Final = (
 MEMBERSHIP_ACTIVATION_EVENT: Final = (
     "REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_REQUEST"
 )
+MEMBERSHIP_ACCESS_PROVISIONING_EVENT: Final = (
+    "REFERRAL_SAAS_ACCESS_PROVISIONING_REQUEST"
+)
 EVENT_RECORDED: Final = "RECORDED"
 EVENT_DUPLICATE: Final = "DUPLICATE"
 USER_ACTOR: Final = "USER"
@@ -32,6 +35,10 @@ MANUAL_ACCESS_ACCEPTANCE_ACCOUNT_STATUSES: Final = frozenset(
 )
 MANUAL_ACCESS_ACCEPTANCE_TENANT_LINK_STATUSES: Final = frozenset(
     {"ACTIVE", "PENDING_SETUP"}
+)
+ACCESS_PROVISIONING_ADMIN_ROLES: Final = frozenset({"ADMIN", "AMPLIFI_ADMIN"})
+ACCESS_PROVISIONING_SEAT_TYPES: Final = frozenset(
+    {"ADMIN", "OPERATOR", "PARTNER", "PRODUCER", "DISTRIBUTOR", "CONSUMER", "SUPPORT"}
 )
 
 ROLE_FAMILIES: Final = frozenset(
@@ -64,6 +71,29 @@ INVITATION_REDACTIONS: Final = (
     "client_identifier",
     "email_hash",
     "idempotency_key_hash",
+)
+
+ACCESS_PROVISIONING_GUARDRAILS: Final = (
+    "AVAILABLE_SEAT_REQUIRED",
+    "ACTIVE_ACCOUNT_REQUIRED",
+    "ACTIVE_TENANT_LINK_REQUIRED",
+    "ACTIVE_EXTERNAL_REFERENCE_REQUIRED",
+    "ACTIVE_MEMBERSHIP_REQUIRED",
+    "NO_INVITE_DELIVERY",
+    "NO_AUTH_CLAIM_CHANGE",
+    "NO_CREDENTIAL_CREATION",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_GO_LIVE_CHANGE",
+    "NO_TENANT_CODE_EXPOSURE",
+    "NO_MONEY_MOVEMENT",
+)
+
+ACCESS_PROVISIONING_REDACTIONS: Final = INVITATION_REDACTIONS + (
+    "seat_assignment_evidence_ref",
+    "auth_provider_ref",
+    "auth_claim_evidence_ref",
+    "provider_secret",
+    "raw_auth_claims",
 )
 
 
@@ -140,6 +170,30 @@ class MembershipActivationExternalReferenceNotActive(MembershipInvitationCommand
 
 class MembershipActivationDuplicateActiveMembership(MembershipInvitationCommandError):
     safe_code = "ACTIVATION_REJECTED_DUPLICATE_ACTIVE_MEMBERSHIP"
+
+
+class AccessProvisioningAccountNotActive(MembershipInvitationCommandError):
+    safe_code = "PROVISIONING_REJECTED_ACCOUNT_NOT_ACTIVE"
+
+
+class AccessProvisioningTenantLinkNotActive(MembershipInvitationCommandError):
+    safe_code = "PROVISIONING_REJECTED_TENANT_LINK_NOT_ACTIVE"
+
+
+class AccessProvisioningExternalReferenceNotActive(MembershipInvitationCommandError):
+    safe_code = "PROVISIONING_REJECTED_EXTERNAL_REFERENCE_NOT_ACTIVE"
+
+
+class AccessProvisioningMembershipNotActive(MembershipInvitationCommandError):
+    safe_code = "PROVISIONING_REJECTED_MEMBERSHIP_NOT_ACTIVE"
+
+
+class AccessProvisioningSeatUnavailable(MembershipInvitationCommandError):
+    safe_code = "PROVISIONING_REJECTED_SEAT_UNAVAILABLE"
+
+
+class AccessProvisioningAuthProviderNotReady(MembershipInvitationCommandError):
+    safe_code = "PROVISIONING_REJECTED_AUTH_PROVIDER_NOT_READY"
 
 
 @dataclass(frozen=True)
@@ -274,6 +328,58 @@ class MembershipActivationRequestResult:
             "noInviteDeliveryConfirmed": True,
             "noAuthClaimChangeConfirmed": True,
             "noSeatAssignmentConfirmed": True,
+            "noMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class AccessProvisioningRequestResult:
+    command_status: str
+    account_id: str
+    membership_id: str
+    role_family: str
+    permission_set: str
+    seat_type: str
+    seat_assignment_status: str
+    seat_ref: str | None
+    auth_claim_status: str
+    provisioning_next_action: str
+    idempotency_status: str
+    audit_event_id: str | None
+    guardrails: tuple[str, ...] = ACCESS_PROVISIONING_GUARDRAILS
+    redactions: tuple[str, ...] = ACCESS_PROVISIONING_REDACTIONS
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "membership": {
+                "membershipRef": self.membership_id,
+                "roleFamily": self.role_family,
+                "permissionSet": self.permission_set,
+            },
+            "seat": {
+                "seatType": self.seat_type,
+                "seatAssignmentStatus": self.seat_assignment_status,
+                "seatRef": self.seat_ref,
+            },
+            "authClaims": {
+                "authClaimStatus": self.auth_claim_status,
+            },
+            "provisioning": {
+                "status": self.command_status,
+                "nextAction": self.provisioning_next_action,
+            },
+            "idempotency": {
+                "status": self.idempotency_status,
+            },
+            "auditEventId": self.audit_event_id,
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noInviteDeliveryConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveChangeConfirmed": True,
             "noMoneyMovementConfirmed": True,
         }
 
@@ -2027,6 +2133,351 @@ async def request_referral_saas_membership_activation(
     )
 
 
+async def request_referral_saas_access_provisioning(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    account_status: str,
+    tenant_link_status: str,
+    external_reference_status: str,
+    membership_id: str,
+    seat_type: str,
+    seat_assignment_evidence_ref: str | None,
+    auth_provider_ref: str | None,
+    auth_claim_evidence_ref: str | None,
+    operator_notes: str | None,
+    reason_code: str,
+    correlation_id: str,
+    idempotency_key_hash: str,
+    command_payload_hash: str,
+    command_payload: dict[str, Any] | None = None,
+    command_actor_ref: str | None = None,
+    command_actor_role: str | None = None,
+) -> AccessProvisioningRequestResult:
+    safe_account_id = _required_account_id(account_id)
+    safe_tenant_code = _required_text(tenant_code)
+    safe_account_tenant_id = _optional_text(account_tenant_id) or None
+    safe_external_ref_id = _optional_text(external_ref_id) or None
+    safe_membership_id = _required_text(membership_id)
+    safe_account_status = _required_text(account_status).upper()
+    safe_tenant_link_status = _required_text(tenant_link_status).upper()
+    safe_external_reference_status = _required_text(external_reference_status).upper()
+    safe_seat_type = _required_choice(seat_type, ACCESS_PROVISIONING_SEAT_TYPES)
+    safe_seat_assignment_evidence_ref = _optional_text(seat_assignment_evidence_ref)
+    safe_auth_provider_ref = _optional_text(auth_provider_ref)
+    safe_auth_claim_evidence_ref = _optional_text(auth_claim_evidence_ref)
+    safe_operator_notes = _optional_text(operator_notes)
+    safe_reason_code = _required_text(reason_code).upper()
+    safe_correlation_id = _required_text(correlation_id)
+    safe_idempotency_hash = _required_text(idempotency_key_hash)
+    safe_payload_hash = _required_text(command_payload_hash)
+    safe_command_payload = command_payload or {}
+    safe_command_actor_role = _optional_text(command_actor_role).upper()
+
+    _reject_unsafe_access_provisioning_payload(safe_command_payload)
+    if safe_command_actor_role not in ACCESS_PROVISIONING_ADMIN_ROLES:
+        raise MembershipInvitationUnsafeScope(
+            "Access provisioning requires an Amplifi Admin actor."
+        )
+
+    async with db_connection() as conn:
+        existing_audit = await conn.fetchrow(
+            """
+            SELECT
+                account_audit_event_id,
+                membership_id,
+                previous_status,
+                next_status,
+                evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            MEMBERSHIP_ACCESS_PROVISIONING_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_audit:
+            evidence = _as_mapping(existing_audit.get("evidence_summary"))
+            if _optional_text(evidence.get("command_payload_hash")) != safe_payload_hash:
+                raise MembershipInvitationIdempotencyConflict(
+                    "Idempotency key was reused with different access provisioning content."
+                )
+            replayed_status = (
+                _optional_text(evidence.get("provisioning_status"))
+                or _optional_text(existing_audit.get("next_status"))
+                or "PROVISIONING_REPLAYED"
+            )
+            command_status = (
+                "PROVISIONING_REPLAYED"
+                if replayed_status == "PROVISIONING_REQUEST_RECORDED"
+                else replayed_status
+            )
+            return AccessProvisioningRequestResult(
+                command_status=command_status,
+                account_id=safe_account_id,
+                membership_id=_optional_text(evidence.get("membership_id"))
+                or safe_membership_id,
+                role_family=_optional_text(evidence.get("role_family")) or "UNKNOWN",
+                permission_set=_optional_text(evidence.get("permission_set"))
+                or "UNKNOWN",
+                seat_type=_optional_text(evidence.get("seat_type")) or safe_seat_type,
+                seat_assignment_status=_optional_text(
+                    evidence.get("seat_assignment_status")
+                )
+                or "SEAT_NOT_ASSIGNED",
+                seat_ref=_optional_text(evidence.get("seat_ref")) or None,
+                auth_claim_status=_optional_text(evidence.get("auth_claim_status"))
+                or "AUTH_CLAIMS_NOT_PROPAGATED",
+                provisioning_next_action=(
+                    _optional_text(evidence.get("provisioning_next_action"))
+                    or _access_provisioning_next_action(command_status)
+                ),
+                idempotency_status="REPLAYED",
+                audit_event_id=_optional_text(
+                    existing_audit.get("account_audit_event_id")
+                )
+                or None,
+            )
+
+        membership = await conn.fetchrow(
+            """
+            SELECT
+                membership_id,
+                status,
+                role_family,
+                permission_set,
+                seat_id
+            FROM platform_memberships
+            WHERE membership_id = $1
+              AND account_id = $2
+              AND (tenant_code = $3 OR tenant_code IS NULL)
+              AND status <> 'ARCHIVED'
+            LIMIT 1
+            """,
+            safe_membership_id,
+            safe_account_id,
+            safe_tenant_code,
+        )
+        if not membership:
+            raise MembershipInvitationUnsafeScope(
+                "Membership reference does not match the resolved account context."
+            )
+
+        membership_status = _normalise_status(membership.get("status"))
+        role_family = _optional_text(membership.get("role_family")) or "UNKNOWN"
+        permission_set = _optional_text(membership.get("permission_set")) or "UNKNOWN"
+        seat_ref = _optional_text(membership.get("seat_id")) or None
+
+        provisioning_status = "PROVISIONING_REQUEST_RECORDED"
+        seat_assignment_status = "SEAT_ASSIGNED"
+        next_status = "SEAT_ASSIGNED"
+        selected_seat = None
+
+        if safe_account_status != "ACTIVE":
+            provisioning_status = "PROVISIONING_REJECTED_ACCOUNT_NOT_ACTIVE"
+            seat_assignment_status = "SEAT_NOT_ASSIGNED"
+            next_status = provisioning_status
+        elif safe_tenant_link_status != "ACTIVE":
+            provisioning_status = "PROVISIONING_REJECTED_TENANT_LINK_NOT_ACTIVE"
+            seat_assignment_status = "SEAT_NOT_ASSIGNED"
+            next_status = provisioning_status
+        elif safe_external_reference_status != "ACTIVE":
+            provisioning_status = "PROVISIONING_REJECTED_EXTERNAL_REFERENCE_NOT_ACTIVE"
+            seat_assignment_status = "SEAT_NOT_ASSIGNED"
+            next_status = provisioning_status
+        elif membership_status != "ACTIVE":
+            provisioning_status = "PROVISIONING_REJECTED_MEMBERSHIP_NOT_ACTIVE"
+            seat_assignment_status = "SEAT_NOT_ASSIGNED"
+            next_status = provisioning_status
+        elif seat_ref:
+            provisioning_status = "PROVISIONING_REJECTED_SEAT_UNAVAILABLE"
+            seat_assignment_status = "SEAT_ALREADY_ASSIGNED"
+            next_status = provisioning_status
+        else:
+            selected_seat = await conn.fetchrow(
+                """
+                SELECT seat_id, seat_type, status
+                FROM platform_seats
+                WHERE account_id = $1
+                  AND seat_type = $2
+                  AND status = 'AVAILABLE'
+                ORDER BY created_at ASC
+                LIMIT 1
+                FOR UPDATE SKIP LOCKED
+                """,
+                safe_account_id,
+                safe_seat_type,
+            )
+            if not selected_seat:
+                provisioning_status = "PROVISIONING_REJECTED_SEAT_UNAVAILABLE"
+                seat_assignment_status = "SEAT_UNAVAILABLE"
+                next_status = provisioning_status
+
+        provisioning_next_action = _access_provisioning_next_action(
+            provisioning_status
+        )
+        auth_claim_status = "AUTH_CLAIMS_NOT_PROPAGATED"
+        audit_evidence = {
+            "membership_id": safe_membership_id,
+            "membership_status": membership_status,
+            "role_family": role_family,
+            "permission_set": permission_set,
+            "seat_type": safe_seat_type,
+            "seat_ref": seat_ref,
+            "seat_assignment_status": seat_assignment_status,
+            "auth_claim_status": auth_claim_status,
+            "auth_provider_ref_present": bool(safe_auth_provider_ref),
+            "auth_claim_evidence_ref_present": bool(safe_auth_claim_evidence_ref),
+            "seat_assignment_evidence_ref_present": bool(
+                safe_seat_assignment_evidence_ref
+            ),
+            "operator_notes_present": bool(safe_operator_notes),
+            "provisioning_status": provisioning_status,
+            "provisioning_next_action": provisioning_next_action,
+            "command_payload_hash": safe_payload_hash,
+            "account_status_at_provisioning": safe_account_status,
+            "tenant_link_status_at_provisioning": safe_tenant_link_status,
+            "external_reference_status_at_provisioning": safe_external_reference_status,
+            "no_invite_delivery_confirmed": True,
+            "no_auth_claim_change_confirmed": True,
+            "no_credential_creation_confirmed": True,
+            "no_campaign_activation_confirmed": True,
+            "no_go_live_change_confirmed": True,
+            "no_money_movement_confirmed": True,
+        }
+        redactions = list(ACCESS_PROVISIONING_REDACTIONS)
+
+        if provisioning_status == "PROVISIONING_REQUEST_RECORDED":
+            async with conn.transaction():
+                updated_seat = await conn.fetchrow(
+                    """
+                    UPDATE platform_seats
+                    SET
+                        status = 'ASSIGNED',
+                        assigned_membership_id = $1,
+                        updated_at = NOW(),
+                        metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
+                            'access_provisioning_status', 'SEAT_ASSIGNED',
+                            'seat_assignment_evidence_ref_present', $5::boolean,
+                            'no_auth_claim_change_confirmed', true,
+                            'no_credential_creation_confirmed', true
+                        )
+                    WHERE seat_id = $2
+                      AND account_id = $3
+                      AND seat_type = $4
+                      AND status = 'AVAILABLE'
+                    RETURNING seat_id, seat_type, status
+                    """,
+                    safe_membership_id,
+                    selected_seat["seat_id"],
+                    safe_account_id,
+                    safe_seat_type,
+                    bool(safe_seat_assignment_evidence_ref),
+                )
+                if not updated_seat:
+                    raise AccessProvisioningSeatUnavailable(
+                        "No available seat could be assigned to this membership."
+                    )
+                seat_ref = _optional_text(updated_seat.get("seat_id")) or None
+                updated_membership = await conn.fetchrow(
+                    """
+                    UPDATE platform_memberships
+                    SET
+                        seat_id = $1,
+                        updated_at = NOW(),
+                        metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
+                            'access_provisioning_status', 'SEAT_ASSIGNED',
+                            'auth_claim_status', 'AUTH_CLAIMS_NOT_PROPAGATED',
+                            'auth_provider_ref_present', $4::boolean,
+                            'auth_claim_evidence_ref_present', $5::boolean,
+                            'no_invite_delivery_confirmed', true,
+                            'no_auth_claim_change_confirmed', true,
+                            'no_credential_creation_confirmed', true,
+                            'no_campaign_activation_confirmed', true,
+                            'no_go_live_change_confirmed', true,
+                            'no_money_movement_confirmed', true
+                        )
+                    WHERE membership_id = $2
+                      AND account_id = $3
+                      AND status = 'ACTIVE'
+                      AND seat_id IS NULL
+                    RETURNING membership_id, seat_id
+                    """,
+                    seat_ref,
+                    safe_membership_id,
+                    safe_account_id,
+                    bool(safe_auth_provider_ref),
+                    bool(safe_auth_claim_evidence_ref),
+                )
+                if not updated_membership:
+                    raise AccessProvisioningMembershipNotActive(
+                        "Membership could not be provisioned from the active state."
+                    )
+                audit_evidence["seat_ref"] = seat_ref
+                audit_event = await _insert_access_provisioning_audit_event(
+                    conn,
+                    account_id=safe_account_id,
+                    account_tenant_id=safe_account_tenant_id,
+                    external_ref_id=safe_external_ref_id,
+                    membership_id=safe_membership_id,
+                    tenant_code=safe_tenant_code,
+                    event_status=EVENT_RECORDED,
+                    actor_ref=_optional_text(command_actor_ref)
+                    or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                    actor_role=safe_command_actor_role or "UNKNOWN",
+                    previous_status="SEAT_AVAILABLE",
+                    next_status=next_status,
+                    reason_code=safe_reason_code,
+                    correlation_id=safe_correlation_id,
+                    idempotency_key_hash=safe_idempotency_hash,
+                    audit_evidence=audit_evidence,
+                    redactions=redactions,
+                )
+        else:
+            audit_event = await _insert_access_provisioning_audit_event(
+                conn,
+                account_id=safe_account_id,
+                account_tenant_id=safe_account_tenant_id,
+                external_ref_id=safe_external_ref_id,
+                membership_id=safe_membership_id,
+                tenant_code=safe_tenant_code,
+                event_status="BLOCKED",
+                actor_ref=_optional_text(command_actor_ref)
+                or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                actor_role=safe_command_actor_role or "UNKNOWN",
+                previous_status=membership_status,
+                next_status=next_status,
+                reason_code=safe_reason_code,
+                correlation_id=safe_correlation_id,
+                idempotency_key_hash=safe_idempotency_hash,
+                audit_evidence=audit_evidence,
+                redactions=redactions,
+            )
+
+    return AccessProvisioningRequestResult(
+        command_status=provisioning_status,
+        account_id=safe_account_id,
+        membership_id=safe_membership_id,
+        role_family=role_family,
+        permission_set=permission_set,
+        seat_type=safe_seat_type,
+        seat_assignment_status=seat_assignment_status,
+        seat_ref=seat_ref,
+        auth_claim_status=auth_claim_status,
+        provisioning_next_action=provisioning_next_action,
+        idempotency_status=EVENT_RECORDED,
+        audit_event_id=(
+            str(audit_event["account_audit_event_id"]) if audit_event else None
+        ),
+    )
+
+
 def _current_actor_posture(rows: list[dict[str, Any]]) -> MembershipActorPosture:
     actor_rows = [row for row in rows if bool(row.get("is_current_actor"))]
     active = _first_with_status(actor_rows, "ACTIVE")
@@ -2283,6 +2734,30 @@ def _activation_command_next_action(activation_status: str) -> str:
     return "Resolve the membership status before activation can continue."
 
 
+def _access_provisioning_next_action(provisioning_status: str) -> str:
+    if provisioning_status in {
+        "PROVISIONING_REQUEST_RECORDED",
+        "PROVISIONING_REPLAYED",
+    }:
+        return (
+            "Seat assignment is recorded. Configure login permissions and auth "
+            "claims only through the separate identity-provider workflow."
+        )
+    if provisioning_status == "PROVISIONING_REJECTED_ACCOUNT_NOT_ACTIVE":
+        return "Activate the customer account foundation before seat provisioning."
+    if provisioning_status == "PROVISIONING_REJECTED_TENANT_LINK_NOT_ACTIVE":
+        return "Activate the customer workspace link before seat provisioning."
+    if provisioning_status == "PROVISIONING_REJECTED_EXTERNAL_REFERENCE_NOT_ACTIVE":
+        return "Activate the customer external reference before seat provisioning."
+    if provisioning_status == "PROVISIONING_REJECTED_MEMBERSHIP_NOT_ACTIVE":
+        return "Record accepted access before assigning a seat."
+    if provisioning_status == "PROVISIONING_REJECTED_SEAT_UNAVAILABLE":
+        return "Create or free an available seat for this account and responsibility."
+    if provisioning_status == "PROVISIONING_REJECTED_AUTH_PROVIDER_NOT_READY":
+        return "Approve the identity provider workflow before auth claims can be propagated."
+    return "Resolve the provisioning blockers before continuing."
+
+
 async def _insert_activation_audit_event(
     conn: Any,
     *,
@@ -2335,6 +2810,71 @@ async def _insert_activation_audit_event(
         membership_id,
         tenant_code,
         MEMBERSHIP_ACTIVATION_EVENT,
+        event_status,
+        actor_ref,
+        actor_role,
+        previous_status,
+        next_status,
+        reason_code,
+        correlation_id,
+        idempotency_key_hash,
+        _jsonb(audit_evidence),
+        _jsonb(redactions),
+    )
+
+
+async def _insert_access_provisioning_audit_event(
+    conn: Any,
+    *,
+    account_id: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    membership_id: str,
+    tenant_code: str,
+    event_status: str,
+    actor_ref: str,
+    actor_role: str,
+    previous_status: str,
+    next_status: str,
+    reason_code: str,
+    correlation_id: str,
+    idempotency_key_hash: str,
+    audit_evidence: dict[str, Any],
+    redactions: list[str],
+) -> Any:
+    return await conn.fetchrow(
+        """
+        INSERT INTO platform_account_audit_events (
+            account_id,
+            account_tenant_id,
+            external_ref_id,
+            membership_id,
+            tenant_code,
+            event_type,
+            event_status,
+            actor_ref,
+            actor_role,
+            previous_status,
+            next_status,
+            reason_code,
+            correlation_id,
+            idempotency_key_hash,
+            evidence_summary,
+            redactions
+        )
+        VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9,
+            $10, $11, $12, $13, $14,
+            $15::jsonb, $16::jsonb
+        )
+        RETURNING account_audit_event_id
+        """,
+        account_id,
+        account_tenant_id,
+        external_ref_id,
+        membership_id,
+        tenant_code,
+        MEMBERSHIP_ACCESS_PROVISIONING_EVENT,
         event_status,
         actor_ref,
         actor_role,
@@ -2553,3 +3093,56 @@ def _reject_unsafe_activation_payload(value: Any) -> None:
     elif isinstance(value, list):
         for item in value:
             _reject_unsafe_activation_payload(item)
+
+
+UNSAFE_ACCESS_PROVISIONING_PAYLOAD_KEYS: Final = frozenset(
+    {
+        "tenant_code",
+        "tenantCode",
+        "internal_tenant_code",
+        "internalTenantCode",
+        "email",
+        "raw_email",
+        "rawEmail",
+        "password",
+        "secret",
+        "token",
+        "credential",
+        "credentials",
+        "auth_claim",
+        "authClaims",
+        "seat_id",
+        "seatId",
+        "send_invite",
+        "sendInvite",
+        "delivery",
+        "go_live",
+        "goLive",
+        "campaign_activation",
+        "campaignActivation",
+        "webhook",
+        "reward",
+        "funding",
+        "fulfilment",
+        "settlement",
+        "commission",
+        "wallet",
+        "invoice",
+        "payout",
+        "sponsor_billing",
+        "sponsorBilling",
+    }
+)
+
+
+def _reject_unsafe_access_provisioning_payload(value: Any) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if str(key) in UNSAFE_ACCESS_PROVISIONING_PAYLOAD_KEYS:
+                raise MembershipInvitationUnsafePayload(
+                    "Access provisioning payload includes unsafe live-action fields."
+                )
+            _reject_unsafe_access_provisioning_payload(child)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_unsafe_access_provisioning_payload(item)

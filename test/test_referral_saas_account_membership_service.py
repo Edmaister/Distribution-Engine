@@ -1303,3 +1303,218 @@ async def test_membership_invitation_intent_rejects_unsafe_payload(monkeypatch):
             command_payload_hash="payload-hash",
             command_payload={"delivery": {"sendInvite": True}},
         )
+
+
+async def test_access_provisioning_assigns_available_seat_and_audits(monkeypatch):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "membership_id": "membership-1",
+                "status": "ACTIVE",
+                "role_family": "DISTRIBUTION_ADMIN",
+                "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                "seat_id": None,
+            },
+            {"seat_id": "seat-1", "seat_type": "ADMIN", "status": "AVAILABLE"},
+            {"seat_id": "seat-1", "seat_type": "ADMIN", "status": "ASSIGNED"},
+            {"membership_id": "membership-1", "seat_id": "seat-1"},
+            {"account_audit_event_id": "audit-provisioning-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.request_referral_saas_access_provisioning(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+        membership_id="membership-1",
+        seat_type="ADMIN",
+        seat_assignment_evidence_ref="seat-evidence-1",
+        auth_provider_ref="identity-provider-review-1",
+        auth_claim_evidence_ref="claims-review-1",
+        operator_notes="Provision account owner seat.",
+        reason_code="CUSTOMER_PROFILE_ACCESS_PROVISIONING_REQUEST",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+        command_payload={
+            "provisioning": {
+                "seatType": "ADMIN",
+                "authProviderRef": "identity-provider-review-1",
+            }
+        },
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "PROVISIONING_REQUEST_RECORDED"
+    assert safe_payload["seat"] == {
+        "seatType": "ADMIN",
+        "seatAssignmentStatus": "SEAT_ASSIGNED",
+        "seatRef": "seat-1",
+    }
+    assert safe_payload["authClaims"]["authClaimStatus"] == (
+        "AUTH_CLAIMS_NOT_PROPAGATED"
+    )
+    assert safe_payload["noInviteDeliveryConfirmed"] is True
+    assert safe_payload["noAuthClaimChangeConfirmed"] is True
+    assert safe_payload["noCredentialCreationConfirmed"] is True
+    assert safe_payload["noCampaignActivationConfirmed"] is True
+    assert safe_payload["noMoneyMovementConfirmed"] is True
+    joined_queries = "\n".join(query for query, _ in conn.fetchrow_calls)
+    assert "UPDATE platform_seats" in joined_queries
+    assert "assigned_membership_id" in joined_queries
+    assert "UPDATE platform_memberships" in joined_queries
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+    assert "UPDATE auth_claims" not in joined_queries
+    assert "INSERT INTO auth_claims" not in joined_queries
+    assert "auth_session" not in joined_queries.lower()
+    assert "marketing_campaigns" not in joined_queries.lower()
+    assert "invoice" not in joined_queries.lower()
+
+
+async def test_access_provisioning_blocks_pending_account_without_seat_write(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "membership_id": "membership-1",
+                "status": "ACTIVE",
+                "role_family": "DISTRIBUTION_ADMIN",
+                "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                "seat_id": None,
+            },
+            {"account_audit_event_id": "audit-blocked-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.request_referral_saas_access_provisioning(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        account_status="PENDING_ONBOARDING",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+        membership_id="membership-1",
+        seat_type="ADMIN",
+        seat_assignment_evidence_ref=None,
+        auth_provider_ref=None,
+        auth_claim_evidence_ref=None,
+        operator_notes=None,
+        reason_code="CUSTOMER_PROFILE_ACCESS_PROVISIONING_REQUEST",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    assert result.command_status == "PROVISIONING_REJECTED_ACCOUNT_NOT_ACTIVE"
+    assert result.seat_assignment_status == "SEAT_NOT_ASSIGNED"
+    joined_queries = "\n".join(query for query, _ in conn.fetchrow_calls)
+    assert "UPDATE platform_seats" not in joined_queries
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+
+
+async def test_access_provisioning_replays_matching_idempotency_key(monkeypatch):
+    conn = FakeCommandConnection(
+        [
+            {
+                "account_audit_event_id": "audit-provisioning-1",
+                "membership_id": "membership-1",
+                "next_status": "SEAT_ASSIGNED",
+                "evidence_summary": {
+                    "membership_id": "membership-1",
+                    "role_family": "DISTRIBUTION_ADMIN",
+                    "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                    "seat_type": "ADMIN",
+                    "seat_ref": "seat-1",
+                    "seat_assignment_status": "SEAT_ASSIGNED",
+                    "auth_claim_status": "AUTH_CLAIMS_NOT_PROPAGATED",
+                    "provisioning_status": "PROVISIONING_REQUEST_RECORDED",
+                    "command_payload_hash": "payload-hash",
+                },
+            }
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.request_referral_saas_access_provisioning(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+        membership_id="membership-1",
+        seat_type="ADMIN",
+        seat_assignment_evidence_ref=None,
+        auth_provider_ref=None,
+        auth_claim_evidence_ref=None,
+        operator_notes=None,
+        reason_code="CUSTOMER_PROFILE_ACCESS_PROVISIONING_REQUEST",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    assert result.command_status == "PROVISIONING_REPLAYED"
+    assert result.idempotency_status == "REPLAYED"
+    assert result.seat_ref == "seat-1"
+    assert len(conn.fetchrow_calls) == 1
+
+
+async def test_access_provisioning_conflicts_on_idempotency_payload_mismatch(
+    monkeypatch,
+):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                {
+                    "account_audit_event_id": "audit-provisioning-1",
+                    "membership_id": "membership-1",
+                    "evidence_summary": {
+                        "membership_id": "membership-1",
+                        "command_payload_hash": "original-hash",
+                    },
+                }
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.MembershipInvitationIdempotencyConflict):
+        await svc.request_referral_saas_access_provisioning(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            external_reference_status="ACTIVE",
+            membership_id="membership-1",
+            seat_type="ADMIN",
+            seat_assignment_evidence_ref=None,
+            auth_provider_ref=None,
+            auth_claim_evidence_ref=None,
+            operator_notes=None,
+            reason_code="CUSTOMER_PROFILE_ACCESS_PROVISIONING_REQUEST",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="new-hash",
+            command_actor_ref="operator-1",
+            command_actor_role="ADMIN",
+        )

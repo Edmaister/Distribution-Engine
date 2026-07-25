@@ -135,6 +135,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Seeded local/staging write | DELETE | `/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}` | Referral SaaS invited access intent cancel wrapper; disables intent without hard delete |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery` | Referral SaaS invitation delivery request boundary; records blocked provider evidence only |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/activation` | Referral SaaS membership activation request boundary; activates membership lifecycle only after identity/account gates |
+| Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/access-provisioning` | Referral SaaS access provisioning request boundary; assigns an available seat to an active membership only, while leaving invite delivery, credentials, auth claims, campaign activation, billing, and money separate |
 | Seeded local/staging write | PATCH | `/v1/referral-saas/accounts/{account_ref}/profile` | Referral SaaS customer profile settings maintenance wrapper |
 | Seeded local/staging write | POST | `/v1/progress` | Progress ingestion |
 
@@ -201,6 +202,11 @@ TASK-211 adds a seeded local/staging-only membership invitation intent wrapper.
 It records invited membership intent and account audit evidence only; it does
 not send invitations, activate membership, assign seats, mutate auth claims,
 trigger go-live, activate campaigns, or move money.
+TASK-285 adds a seeded local/staging-only access provisioning wrapper. It may
+assign an available platform seat to an already active account membership and
+writes account audit evidence, but it does not send invitations, create
+credentials, mutate auth claims, activate campaigns, trigger go-live, bill, or
+move money.
 TASK-238 adds a seeded local/staging-only customer profile settings wrapper.
 It updates bounded durable profile metadata and account audit evidence only;
 customer identifiers remain read-only, and it does not rotate references,

@@ -1019,6 +1019,42 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_access_provisioning_request",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/access-provisioning",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin role",
+        environment_rule="local/staging seeded active account only; assigns available seat while keeping auth/login separate",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "membership_ref",
+            "ref_type",
+            "external_ref",
+            "seat_type",
+            "idempotency_key",
+        ],
+        expected_state_change=(
+            "may assign an available platform seat to an active membership and "
+            "write account audit evidence; does not send invites, create "
+            "credentials, mutate auth claims, launch campaigns, bill, or move money"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"runtime"},'
+            '"provisioning":{"seatType":"{seat_type}",'
+            '"seatAssignmentEvidenceRef":"smoke-seat-evidence"},'
+            '"reasonCode":"CUSTOMER_PROFILE_ACCESS_PROVISIONING_REQUEST",'
+            '"correlationId":"smoke-access-provisioning",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/memberships/{membership_ref}/access-provisioning"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_account_report_export_request",
         method="POST",
         path="/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports",

@@ -256,6 +256,7 @@ greenfield referral construction.
 148. TASK-282: Allow manual accepted access during account setup.
 149. TASK-283: Expose People and Access login and seat provisioning next actions.
 150. TASK-284: Define Referral SaaS access provisioning command contract.
+151. TASK-285: Add guarded Referral SaaS access provisioning API wrapper.
 
 ## 10/10 Exit Criteria
 
@@ -1191,6 +1192,19 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the governed access provisioning command boundary for the visible People and Access `Provision login & seat` next action. The contract separates accepted-access evidence from actual seat assignment and auth/login claim propagation, identifies the candidate account-scoped membership route, records required account/link/reference/membership/seat/auth-provider/idempotency/audit gates, and keeps the UI action disabled until a runtime API task implements those guardrails. No backend route, schema migration, frontend action enablement, seat assignment, auth-claim change, invite delivery, campaign activation, billing, or money movement is introduced.
+- TASK-285: `services/referral_saas_account_membership_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Implements the governed access provisioning API wrapper for accepted customer access. The route can assign an available platform seat only after active account, tenant-link, external-reference, active membership, admin actor, idempotency, audit, and redaction gates pass. Blocked gates are audited without assignment. The task keeps invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, and money movement outside this route.
 
 ## Explicit Deferrals
 

@@ -6309,6 +6309,31 @@ Rollback notes: Remove the TASK-284 contract doc and revert roadmap/gap/API-map/
 Explicit non-goals: Do not add backend routes, schema, migrations, service writes, frontend action enablement, seat assignment, auth/session claim propagation, identity-provider integration, credential lifecycle, invite delivery, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code forks.
 Definition of done: Future implementation has a reviewed command contract for People and Access login and seat provisioning that preserves accepted-access, seat, and auth boundaries. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
+## TASK-285: Add guarded Referral SaaS access provisioning API wrapper
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ACCESS_PROVISIONING_COMMAND_CONTRACT.md`.
+Shared primitive impact: Uses the existing platform account, tenant-link, external-reference, membership, seat, account-audit, idempotency, and redaction primitives without forking Referral SaaS source. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer People and Access provisioning; accepted-access to seat-assignment lifecycle.
+Objective: Implement the governed runtime API wrapper behind the People and Access `Provision login & seat` path for seat assignment only, while keeping credentials and auth/login claims in their separate future workflow.
+Why now: Physical testing proved accepted access can be recorded and operators can see the provisioning boundary, but the product still needed the safe backend command that can assign a platform seat after active account, tenant-link, external-reference, membership, idempotency, and audit gates pass.
+Files involved: `services/referral_saas_account_membership_service.py`; `apps/api/routers/referral_saas_accounts.py`; `scripts/referral_saas_route_smoke_plan.py`; `test/test_referral_saas_account_membership_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; `test/test_referral_saas_route_smoke_plan.py`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ROUTE_SMOKE_INVENTORY.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: No migration. Uses existing `platform_memberships`, `platform_seats`, and `platform_account_audit_events` fields.
+Backend impact: Adds a guarded account-scoped access provisioning service and API route that can assign one available platform seat to an active membership and records idempotent audit evidence. Blocked gate outcomes are audited without adjacent side effects.
+Frontend impact: No runtime frontend action enablement in this task. The selected-customer People and Access UI can be wired to this route in the next task.
+API impact: Adds `POST /v1/referral-saas/accounts/{accountRef}/memberships/{membershipRef}/access-provisioning` as a seeded-write Referral SaaS wrapper.
+Tests added/updated: Service tests for successful seat assignment, inactive-account blocking, idempotency replay, and idempotency conflict; API tests for happy path and path/scope mismatch; route smoke inventory and plan tests.
+Validation method: Focused pytest over membership service, account API, and route-smoke plan/inventory tests.
+Acceptance criteria: The route requires active account, active tenant link, active external reference, active membership, available seat, admin actor, idempotency, audit, and redaction gates; successful requests assign only a platform seat; blocked requests do not assign seats; no invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is introduced.
+Dependencies: TASK-252; TASK-279; TASK-282; TASK-283; TASK-284.
+Blocked by: Frontend provisioning action wiring, identity-provider/auth-claim integration, credential lifecycle, and physical proof remain future bounded tasks.
+Risk level: Medium.
+Rollback notes: Remove the access provisioning service function, API route, route-smoke entry, tests, and TASK-285 documentation updates.
+Explicit non-goals: Do not add schema, migrations, frontend action enablement, identity-provider integration, auth/session claim propagation, credential lifecycle, invite delivery, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has a governed backend wrapper that can provision the seat side of accepted customer access while preserving the separation between named/accepted access, seat assignment, and auth/login propagation. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
