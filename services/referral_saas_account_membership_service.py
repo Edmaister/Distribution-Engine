@@ -1942,13 +1942,13 @@ async def request_referral_saas_membership_activation(
                         accepted_by_ref = $1,
                         accepted_at = NOW(),
                         updated_at = NOW(),
-                        metadata = metadata || jsonb_build_object(
+                        metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
                             'activation_status', 'MEMBERSHIP_ACTIVATED',
-                            'acceptance_evidence_ref_present', $2,
-                            'manual_access_acceptance_confirmed', $5,
-                            'account_status_at_acceptance', $6,
-                            'tenant_link_status_at_acceptance', $7,
-                            'external_reference_status_at_acceptance', $8,
+                            'acceptance_evidence_ref_present', $2::boolean,
+                            'manual_access_acceptance_confirmed', $5::boolean,
+                            'account_status_at_acceptance', $6::text,
+                            'tenant_link_status_at_acceptance', $7::text,
+                            'external_reference_status_at_acceptance', $8::text,
                             'no_auth_claim_change_confirmed', true,
                             'no_seat_assignment_confirmed', true
                         )

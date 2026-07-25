@@ -1073,6 +1073,9 @@ async def test_manual_access_acceptance_records_accepted_membership_during_setup
     joined_queries = "\n".join(call[0] for call in conn.fetchrow_calls)
     assert "UPDATE platform_memberships" in joined_queries
     assert "manual_access_acceptance_confirmed" in joined_queries
+    assert "'acceptance_evidence_ref_present', $2::boolean" in joined_queries
+    assert "'manual_access_acceptance_confirmed', $5::boolean" in joined_queries
+    assert "'account_status_at_acceptance', $6::text" in joined_queries
     audit_evidence = conn.fetchrow_calls[-1][1][14]
     assert '"manual_access_acceptance_confirmed": true' in audit_evidence
     assert '"account_status_at_acceptance": "PENDING_ONBOARDING"' in audit_evidence
