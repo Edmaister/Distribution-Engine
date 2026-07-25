@@ -252,6 +252,7 @@ greenfield referral construction.
 144. TASK-278: Fix People and Access access-intent idempotency reuse.
 145. TASK-279: Add Amplifi Admin manual access acceptance.
 146. TASK-280: Refresh People and Access after intent changes.
+147. TASK-281: Fix People and Access re-add after remove idempotency.
 
 ## 10/10 Exit Criteria
 
@@ -1161,6 +1162,12 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Fixes the People and Access post-save refresh path so add/edit/remove, invite-delivery checks, and accepted-access actions wait for the refreshed membership posture and activation readiness read models before presenting completion feedback. The refreshed people list now shows the newly saved person without requiring a manual browser refresh while preserving the existing no-invite, no-login, no-seat, no-auth-claim, no-billing, and no-money guardrails.
+- TASK-281: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Fixes the remove-then-readd People and Access path by giving each Add person drawer attempt a fresh create idempotency suffix. Backend idempotency replay remains intact for the same submitted action, while a later re-add of the same person and responsibility creates a fresh invited intent instead of replaying an old disabled membership; no invite email, login activation, seat assignment, auth-claim propagation, billing, or money movement is introduced.
 
 ## Explicit Deferrals
 
