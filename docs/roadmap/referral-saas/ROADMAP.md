@@ -1228,6 +1228,22 @@ greenfield referral construction.
   Local API/DB execution against `test-fnb-sa-002` passed with controlled status
   `PROVISIONING_REJECTED_ACCOUNT_NOT_ACTIVE`, DB audit status `BLOCKED`, active
   membership evidence, no seat assignment, and no auth-claim propagation.
+- TASK-288: `services/referral_saas_account_foundation_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `test/test_referral_saas_account_foundation_activation_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  guarded Referral SaaS account-foundation activation command. Amplifi Admin can
+  activate a selected customer foundation from setup scope, move the account to
+  `ACTIVE`, approve onboarding, activate the owner tenant link, create bounded
+  available `ADMIN`/`OPERATOR` seat capacity, and record audit/idempotency
+  evidence without assigning seats, activating memberships, delivering invites,
+  creating credentials, changing auth claims, activating campaigns, triggering
+  go-live, billing, moving money, or adding DLaaS marketplace behavior.
 
 ## Explicit Deferrals
 

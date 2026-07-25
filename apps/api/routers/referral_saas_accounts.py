@@ -14,6 +14,14 @@ from services.referral_code import (
     validate_referral_code,
 )
 from services.referral_saas_account_foundation_service import (
+    ACCOUNT_FOUNDATION_ACTIVATION_GUARDRAILS,
+    ACCOUNT_FOUNDATION_ACTIVATION_REDACTIONS,
+    AccountFoundationActivationError,
+    AccountFoundationActivationIdempotencyConflict,
+    AccountFoundationActivationNotFound,
+    AccountFoundationActivationNotReady,
+    AccountFoundationActivationPermissionDenied,
+    AccountFoundationActivationValidationError,
     AccountFoundationResolutionError,
     AccountNotResolvable,
     AccountProfileMaintenanceError,
@@ -27,6 +35,7 @@ from services.referral_saas_account_foundation_service import (
     ExternalReferenceNotFound,
     InvalidExternalReferenceType,
     TenantLinkNotResolvable,
+    activate_referral_saas_account_foundation,
     list_referral_saas_accounts,
     resolve_account_by_external_reference,
     resolve_setup_account_by_external_reference,
@@ -191,6 +200,14 @@ class ReferralSaasAccountReportExportRequest(BaseModel):
     row_limit: int | None = Field(default=None)
     data_window_start: datetime | None = Field(default=None)
     data_window_end: datetime | None = Field(default=None)
+
+
+class ReferralSaasAccountFoundationActivationRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    activation: dict[str, Any] | None = Field(default=None)
+    reasonCode: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str | None = Field(default=None)
 
 
 def _require_referral_saas_account_reader(identity: dict[str, Any]) -> dict[str, Any]:
@@ -875,6 +892,45 @@ def _profile_maintenance_error(exc: AccountProfileMaintenanceError) -> HTTPExcep
     )
 
 
+def _account_foundation_activation_error(
+    exc: AccountFoundationActivationError,
+) -> HTTPException:
+    if isinstance(exc, AccountFoundationActivationPermissionDenied):
+        status_code = status.HTTP_403_FORBIDDEN
+    elif isinstance(exc, AccountFoundationActivationNotFound):
+        status_code = status.HTTP_404_NOT_FOUND
+    elif isinstance(exc, AccountFoundationActivationValidationError):
+        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    elif isinstance(
+        exc,
+        (
+            AccountFoundationActivationNotReady,
+            AccountFoundationActivationIdempotencyConflict,
+        ),
+    ):
+        status_code = status.HTTP_409_CONFLICT
+    else:
+        status_code = status.HTTP_400_BAD_REQUEST
+
+    return HTTPException(
+        status_code=status_code,
+        detail={
+            "code": exc.safe_code,
+            "message": str(exc),
+            "guardrails": list(ACCOUNT_FOUNDATION_ACTIVATION_GUARDRAILS),
+            "redactions": list(ACCOUNT_FOUNDATION_ACTIVATION_REDACTIONS),
+            "no_membership_write_confirmed": True,
+            "no_seat_assignment_confirmed": True,
+            "no_invite_delivery_confirmed": True,
+            "no_auth_claim_change_confirmed": True,
+            "no_credential_creation_confirmed": True,
+            "no_campaign_activation_confirmed": True,
+            "no_go_live_action_confirmed": True,
+            "no_billing_or_money_movement_confirmed": True,
+        },
+    )
+
+
 @router.post("/accounts/from-draft")
 async def create_referral_saas_account_from_draft(
     payload: dict[str, Any] = Body(default_factory=dict),
@@ -922,6 +978,119 @@ async def create_referral_saas_account_from_draft(
         "guardrails": _account_creation_guardrails(),
         "redactions": ["internal_tenant_identifier"],
         "no_adjacent_live_action_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/activation-requests")
+async def request_referral_saas_account_foundation_activation(
+    account_ref: str,
+    request: ReferralSaasAccountFoundationActivationRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    account_scope = request.accountScope or {}
+    activation = request.activation or {}
+    idempotency_key = _optional_text(request.idempotencyKey)
+    correlation_id = _optional_text(request.correlationId)
+    reason_code = (
+        _optional_text(request.reasonCode)
+        or "CUSTOMER_ACCOUNT_FOUNDATION_ACTIVATION"
+    )
+
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    if not ref_type or not external_ref or not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": list(ACCOUNT_FOUNDATION_ACTIVATION_GUARDRAILS),
+                "redactions": list(ACCOUNT_FOUNDATION_ACTIVATION_REDACTIONS),
+                "no_membership_write_confirmed": True,
+                "no_seat_assignment_confirmed": True,
+                "no_invite_delivery_confirmed": True,
+                "no_auth_claim_change_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        )
+    if context != "setup":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.context must be setup for account foundation "
+                    "activation."
+                ),
+                "guardrails": list(ACCOUNT_FOUNDATION_ACTIVATION_GUARDRAILS),
+                "redactions": list(ACCOUNT_FOUNDATION_ACTIVATION_REDACTIONS),
+            },
+        )
+
+    seat_types = _normalise_activation_request_seat_types(activation.get("seatTypes"))
+    try:
+        account = await resolve_setup_account_by_external_reference(
+            ref_type=ref_type,
+            external_ref=external_ref,
+        )
+    except AccountFoundationResolutionError as exc:
+        raise _resolution_error(exc) from exc
+
+    safe_account_ref = _assert_account_path_scope(account_ref, account)
+    command_payload = {
+        "accountScope": {
+            "accountRef": safe_account_ref,
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": context,
+        },
+        "activation": {"seatTypes": seat_types},
+        "reasonCode": reason_code,
+    }
+
+    try:
+        result = await activate_referral_saas_account_foundation(
+            account_id=account.account_id,
+            tenant_code=account.tenant_code,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            seat_types=seat_types,
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            reason_code=reason_code,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_ACCOUNT_FOUNDATION_ACTIVATION",
+                    "account_ref": safe_account_ref,
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            command_payload_hash=hash_payload(command_payload),
+        )
+    except AccountFoundationActivationError as exc:
+        raise _account_foundation_activation_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": context,
+        "account": account.to_safe_dict(),
+        "activation": result.to_safe_dict(),
+        "guardrails": list(ACCOUNT_FOUNDATION_ACTIVATION_GUARDRAILS),
+        "redactions": list(ACCOUNT_FOUNDATION_ACTIVATION_REDACTIONS),
+        "no_membership_write_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_action_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
     }
 
 
@@ -4095,6 +4264,29 @@ def _actor_ref(identity: dict[str, Any]) -> str:
         or _optional_text(identity.get("client_id"))
         or _optional_text(identity.get("role"))
         or "REFERRAL_SAAS_ACCOUNT_OPERATOR"
+    )
+
+
+def _normalise_activation_request_seat_types(value: Any) -> list[str] | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [_optional_text(item) for item in value if _optional_text(item)]
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail={
+            "code": "validation_error",
+            "message": "activation.seatTypes must be a list of seat type values.",
+            "guardrails": list(ACCOUNT_FOUNDATION_ACTIVATION_GUARDRAILS),
+            "redactions": list(ACCOUNT_FOUNDATION_ACTIVATION_REDACTIONS),
+            "no_membership_write_confirmed": True,
+            "no_seat_assignment_confirmed": True,
+            "no_invite_delivery_confirmed": True,
+            "no_auth_claim_change_confirmed": True,
+            "no_billing_or_money_movement_confirmed": True,
+        },
     )
 
 
