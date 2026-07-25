@@ -1277,6 +1277,20 @@ greenfield referral construction.
   activation, direct seat assignment, invite delivery, credential creation,
   auth-claim propagation, campaign activation, go-live, billing, money movement,
   or DLaaS marketplace behavior is introduced.
+- TASK-291: `scripts/referral_saas_people_access_provisioning_physical_check.py`;
+  `test/test_referral_saas_people_access_provisioning_physical_check.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PEOPLE_ACCESS_PROVISIONING_PHYSICAL_VERIFICATION.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds an
+  activated-account proof path to the repeatable People and Access physical
+  check. The runner can now call the guarded account-foundation activation API
+  before membership intent, accepted-access activation, and seat provisioning,
+  using external setup scope, bounded seat capacity, stable idempotency, and
+  no-adjacent-action evidence. This does not add backend routes, frontend
+  routes, schema, invite delivery, credential creation, auth-claim propagation,
+  campaign activation, billing, money movement, or DLaaS marketplace behavior.
 
 ## Explicit Deferrals
 
