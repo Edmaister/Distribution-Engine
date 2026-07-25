@@ -251,6 +251,7 @@ greenfield referral construction.
 143. TASK-277: Fix People and Access drawer surface opacity.
 144. TASK-278: Fix People and Access access-intent idempotency reuse.
 145. TASK-279: Add Amplifi Admin manual access acceptance.
+146. TASK-280: Refresh People and Access after intent changes.
 
 ## 10/10 Exit Criteria
 
@@ -1154,6 +1155,12 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds an Amplifi Admin-only manual access acceptance action inside the selected-customer People and Access edit drawer. The UI requires acceptance evidence, shows accepted access separately from login/seat provisioning, and reuses the existing audited membership activation command boundary, while preserving no live invite delivery, no seat assignment, no auth-claim propagation, no billing, and no money movement.
+- TASK-280: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Fixes the People and Access post-save refresh path so add/edit/remove, invite-delivery checks, and accepted-access actions wait for the refreshed membership posture and activation readiness read models before presenting completion feedback. The refreshed people list now shows the newly saved person without requiring a manual browser refresh while preserving the existing no-invite, no-login, no-seat, no-auth-claim, no-billing, and no-money guardrails.
 
 ## Explicit Deferrals
 
