@@ -258,6 +258,7 @@ greenfield referral construction.
 150. TASK-284: Define Referral SaaS access provisioning command contract.
 151. TASK-285: Add guarded Referral SaaS access provisioning API wrapper.
 152. TASK-286: Wire People and Access provisioning action to the guarded access provisioning API.
+153. TASK-293: Simplify People and Access language and separate optional login setup.
 
 ## 10/10 Exit Criteria
 
@@ -1305,6 +1306,21 @@ greenfield referral construction.
   separate governed next action. This does not add backend routes, schema,
   invite delivery, credential creation, auth-claim propagation, campaign
   activation, billing, money movement, or DLaaS marketplace behavior.
+- TASK-293: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `frontend/src/styles/base.css`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Simplifies
+  selected-customer People and Access into a plain-language customer-manager
+  confirmation workflow. The page now treats the required owner and campaign
+  manager as `confirmed` for referral work, uses `Still needed`, `Added`,
+  `Confirmed`, and `Login setup later` lifecycle labels, and moves seat/login
+  setup into a secondary optional section. Existing guarded provisioning APIs
+  remain available from that optional path only; no backend route, schema, invite
+  delivery, credential creation, auth-claim propagation, campaign activation,
+  billing, money movement, or DLaaS marketplace behavior is introduced.
 
 ## Explicit Deferrals
 

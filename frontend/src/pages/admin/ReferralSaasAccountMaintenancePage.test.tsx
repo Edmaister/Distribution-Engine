@@ -1605,7 +1605,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
     expect(screen.getByText("People and access").closest(".customer-function-card")).toHaveTextContent("Ready");
     expect(screen.getByText("People and access").closest(".customer-function-card")).toHaveTextContent(
-      "Required customer managers are named and accepted.",
+      "Required customer managers are confirmed.",
     );
     expect(screen.getByText("Roles still missing").closest(".kpi-card")).toHaveTextContent("0");
   });
@@ -1672,8 +1672,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByText("People setup needs attention")).toBeInTheDocument();
     expect(screen.getByText("Still need Campaign manager.")).toBeInTheDocument();
-    expect(screen.getByText("Provisioning boundary")).toBeInTheDocument();
-    expect(screen.getByText(/Seat provisioning is guarded separately/i)).toBeInTheDocument();
+    expect(screen.getByText("Platform login setup")).toBeInTheDocument();
+    expect(screen.getByText(/Use this optional section only when a confirmed person needs to sign in/i)).toBeInTheDocument();
     expect(container.textContent).toContain("Next: Add the person who owns this responsibility.");
     fireEvent.click(screen.getByRole("button", { name: "Show access diagnostics" }));
     expect(await screen.findByText("Readiness")).toBeInTheDocument();
@@ -1731,7 +1731,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(await screen.findByText("Access intent saved.")).toBeInTheDocument();
     expect((await screen.findAllByText("Gaborone campaign owner")).length).toBeGreaterThan(0);
     expect(screen.getAllByText("gabs.campaign.owner@example.com").length).toBeGreaterThan(0);
-    expect(screen.getByText("People list is ready")).toBeInTheDocument();
+    expect(screen.getByText("People are confirmed")).toBeInTheDocument();
     expect(screen.getByText(/No invitation email, login activation, seat assignment, or auth claim change was performed/i)).toBeInTheDocument();
     expect(mockedGetReferralSaasMembershipActivationReadiness).toHaveBeenCalledTimes(2);
   });
@@ -1840,15 +1840,15 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
-    expect(screen.getAllByText("Accepted").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Confirmed").length).toBeGreaterThan(0);
     expect(screen.getByText("Still need Campaign manager.")).toBeInTheDocument();
-    expect(container.textContent).toContain("Next: Provision the platform seat when you are ready.");
-    expect(screen.getByText("Provisioning boundary")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Provision seat" })).toBeEnabled();
-    expect(screen.queryByText("Login and seat provisioning")).not.toBeInTheDocument();
+    expect(container.textContent).toContain("Next: Confirmed for customer work. Set up platform login later only if this person must sign in.");
+    expect(screen.getByText("Platform login setup")).toBeInTheDocument();
+    expect(screen.getByText("Optional login setup")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Set up login" })).toBeEnabled();
   });
 
-  it("requests guarded seat provisioning after access has been accepted", async () => {
+  it("requests optional platform login setup after access has been confirmed", async () => {
     mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockActiveMembershipPosture());
     mockedGetReferralSaasMembershipActivationReadiness
       .mockResolvedValueOnce(mockActiveMembershipActivationReadiness())
@@ -1859,7 +1859,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
-    const provisioningButton = await screen.findByRole("button", { name: "Provision seat" });
+    const provisioningButton = await screen.findByRole("button", { name: "Set up login" });
     expect(provisioningButton).toBeEnabled();
 
     fireEvent.click(provisioningButton);
@@ -1883,8 +1883,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       correlationId: "customer-profile-access-provisioning-acct-gabs",
       idempotencyKey: "customer-profile-access-provisioning-acct-gabs-membership-1-distribution-admin-admin",
     });
-    expect(await screen.findByText("Seat provisioning recorded.")).toBeInTheDocument();
-    expect(container.textContent).toContain("Seat assigned");
+    expect(await screen.findByText("Login setup recorded.")).toBeInTheDocument();
+    expect(container.textContent).toContain("Login seat assigned");
     expect(JSON.stringify(mockedRequestReferralSaasAccessProvisioning.mock.calls)).not.toMatch(
       /tenantCode|sendInvite|credential|authClaims|goLive|wallet|settlement|money/i,
     );

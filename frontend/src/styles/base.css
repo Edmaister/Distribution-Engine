@@ -1067,6 +1067,44 @@ a {
   padding: 12px 14px;
 }
 
+.people-access-login-setup {
+  background: rgb(248 250 252);
+  border: 1px solid var(--color-rule);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.people-access-login-setup p,
+.people-access-login-row span {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 4px 0 0;
+}
+
+.people-access-login-list {
+  display: grid;
+  gap: 8px;
+}
+
+.people-access-login-row {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--color-rule);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.people-access-login-row div {
+  display: grid;
+  gap: 2px;
+}
+
 .people-access-drawer-stage {
   align-items: flex-start;
   background: var(--color-background);
@@ -4949,6 +4987,11 @@ textarea.input {
   .people-access-actions {
     align-items: flex-start;
     grid-column: 1 / -1;
+  }
+
+  .people-access-login-row {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .sidebar {
