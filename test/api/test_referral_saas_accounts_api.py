@@ -20,6 +20,7 @@ from services.referral_saas_account_foundation_service import (
     TenantLinkNotResolvable,
 )
 from services.referral_saas_account_membership_service import (
+    AccessProvisioningRequestResult,
     MembershipActivationRequestResult,
     MembershipInvitationDeliveryRequestResult,
     MembershipInvitationDuplicate,
@@ -162,6 +163,28 @@ def _activation_request_result(**overrides) -> MembershipActivationRequestResult
     }
     values.update(overrides)
     return MembershipActivationRequestResult(**values)
+
+
+def _access_provisioning_result(**overrides) -> AccessProvisioningRequestResult:
+    values = {
+        "command_status": "PROVISIONING_REQUEST_RECORDED",
+        "account_id": "acct-1",
+        "membership_id": "membership-1",
+        "role_family": "DISTRIBUTION_ADMIN",
+        "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        "seat_type": "ADMIN",
+        "seat_assignment_status": "SEAT_ASSIGNED",
+        "seat_ref": "seat-1",
+        "auth_claim_status": "AUTH_CLAIMS_NOT_PROPAGATED",
+        "provisioning_next_action": (
+            "Seat assignment is recorded. Configure login permissions and auth "
+            "claims only through the separate identity-provider workflow."
+        ),
+        "idempotency_status": "RECORDED",
+        "audit_event_id": "audit-provisioning-1",
+    }
+    values.update(overrides)
+    return AccessProvisioningRequestResult(**values)
 
 
 def _profile_result(**overrides) -> AccountProfileMaintenanceResult:
@@ -1153,6 +1176,121 @@ async def test_referral_saas_membership_activation_rejects_path_scope_mismatch(
     assert detail["no_invite_delivery_confirmed"] is True
     assert detail["no_auth_claim_change_confirmed"] is True
     assert detail["no_seat_assignment_confirmed"] is True
+
+
+async def test_referral_saas_account_admin_can_request_access_provisioning_boundary(
+    monkeypatch,
+):
+    resolve_calls: list[dict] = []
+    command_calls: list[dict] = []
+
+    async def fake_resolve_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context()
+
+    async def fake_request_referral_saas_access_provisioning(**kwargs):
+        command_calls.append(kwargs)
+        return _access_provisioning_result()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_account_by_external_reference",
+        fake_resolve_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "request_referral_saas_access_provisioning",
+        fake_request_referral_saas_access_provisioning,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/memberships/membership-1/access-provisioning",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "runtime",
+                },
+                "provisioning": {
+                    "seatType": "ADMIN",
+                    "seatAssignmentEvidenceRef": "seat-evidence-1",
+                    "authProviderRef": "identity-provider-review-1",
+                    "authClaimEvidenceRef": "claims-review-1",
+                    "operatorNotes": "Provision account owner seat.",
+                },
+                "reasonCode": "CUSTOMER_PROFILE_ACCESS_PROVISIONING_REQUEST",
+                "correlationId": "corr-1",
+                "idempotencyKey": "provisioning-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["accessProvisioning"]["commandStatus"] == (
+        "PROVISIONING_REQUEST_RECORDED"
+    )
+    assert body["accessProvisioning"]["seat"] == {
+        "seatType": "ADMIN",
+        "seatAssignmentStatus": "SEAT_ASSIGNED",
+        "seatRef": "seat-1",
+    }
+    assert body["accessProvisioning"]["authClaims"]["authClaimStatus"] == (
+        "AUTH_CLAIMS_NOT_PROPAGATED"
+    )
+    assert body["no_invite_delivery_confirmed"] is True
+    assert body["no_auth_claim_change_confirmed"] is True
+    assert body["no_credential_creation_confirmed"] is True
+    assert body["no_campaign_activation_confirmed"] is True
+    assert body["no_go_live_change_confirmed"] is True
+    assert body["no_money_movement_confirmed"] is True
+    assert "AVAILABLE_SEAT_REQUIRED" in body["guardrails"]
+    assert "seat_assignment_evidence_ref" in body["redactions"]
+    assert "tenantCode" not in body["account"]
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert command_calls[0]["account_id"] == "acct-1"
+    assert command_calls[0]["membership_id"] == "membership-1"
+    assert command_calls[0]["seat_type"] == "ADMIN"
+    assert command_calls[0]["account_status"] == "ACTIVE"
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["command_payload_hash"]
+
+
+async def test_referral_saas_access_provisioning_rejects_path_scope_mismatch(
+    monkeypatch,
+):
+    async def fake_resolve_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_account_by_external_reference",
+        fake_resolve_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-other/memberships/membership-1/access-provisioning",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "provisioning": {"seatType": "ADMIN"},
+                "correlationId": "corr-1",
+                "idempotencyKey": "provisioning-1",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_SCOPE"
+    assert detail["no_invite_delivery_confirmed"] is True
+    assert detail["no_auth_claim_change_confirmed"] is True
+    assert detail["no_credential_creation_confirmed"] is True
 
 
 async def test_referral_saas_account_admin_can_read_technical_setup_readiness(
