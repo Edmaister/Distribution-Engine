@@ -1011,6 +1011,75 @@ async def test_membership_activation_request_activates_only_membership_lifecycle
     assert "auth" not in joined_queries.lower().replace("no_auth", "")
 
 
+async def test_manual_access_acceptance_records_accepted_membership_during_setup(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "membership_id": "membership-1",
+                "status": "INVITED",
+                "role_family": "DISTRIBUTION_ADMIN",
+                "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                "user_id": "user-1",
+                "client_id": None,
+                "delivery_status": "DELIVERY_NOT_CONFIGURED",
+                "user_subject": "owner@example.test",
+            },
+            None,
+            {"status": "ACTIVE"},
+            {"account_audit_event_id": "audit-activation-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.request_referral_saas_membership_activation(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        account_status="PENDING_ONBOARDING",
+        tenant_link_status="PENDING_SETUP",
+        external_reference_status="ACTIVE",
+        membership_id="membership-1",
+        accepted_subject="owner@example.test",
+        acceptance_evidence_ref="manual-acceptance-1",
+        reason_code="AMPLIFI_ADMIN_MANUAL_ACCESS_ACCEPTANCE",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+        command_payload={
+            "activation": {
+                "acceptedSubject": "owner@example.test",
+                "acceptanceEvidenceRef": "manual-acceptance-1",
+            }
+        },
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "MEMBERSHIP_ACTIVATED"
+    assert safe_payload["membership"]["status"] == "ACTIVE"
+    assert safe_payload["activation"]["acceptedSubjectStatus"] == (
+        "ACCEPTED_SUBJECT_MATCHED"
+    )
+    assert safe_payload["noInviteDeliveryConfirmed"] is True
+    assert safe_payload["noAuthClaimChangeConfirmed"] is True
+    assert safe_payload["noSeatAssignmentConfirmed"] is True
+    assert safe_payload["noMoneyMovementConfirmed"] is True
+
+    joined_queries = "\n".join(call[0] for call in conn.fetchrow_calls)
+    assert "UPDATE platform_memberships" in joined_queries
+    assert "manual_access_acceptance_confirmed" in joined_queries
+    audit_evidence = conn.fetchrow_calls[-1][1][14]
+    assert '"manual_access_acceptance_confirmed": true' in audit_evidence
+    assert '"account_status_at_acceptance": "PENDING_ONBOARDING"' in audit_evidence
+    assert "platform_seats" not in joined_queries
+    assert "auth" not in joined_queries.lower().replace("no_auth", "")
+
+
 async def test_membership_activation_request_replays_matching_idempotency(
     monkeypatch,
 ):

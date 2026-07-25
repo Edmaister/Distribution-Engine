@@ -253,6 +253,7 @@ greenfield referral construction.
 145. TASK-279: Add Amplifi Admin manual access acceptance.
 146. TASK-280: Refresh People and Access after intent changes.
 147. TASK-281: Fix People and Access re-add after remove idempotency.
+148. TASK-282: Allow manual accepted access during account setup.
 
 ## 10/10 Exit Criteria
 
@@ -1168,6 +1169,14 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Fixes the remove-then-readd People and Access path by giving each Add person drawer attempt a fresh create idempotency suffix. Backend idempotency replay remains intact for the same submitted action, while a later re-add of the same person and responsibility creates a fresh invited intent instead of replaying an old disabled membership; no invite email, login activation, seat assignment, auth-claim propagation, billing, or money movement is introduced.
+- TASK-282: `services/referral_saas_account_membership_service.py`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Fixes the Amplifi Admin manual accepted-access path found during physical UI testing. Manual acceptance can now record accepted membership evidence for a pending-onboarding setup account when the invited identity matches and the external reference is active, while login, seats, auth claims, invite delivery, billing, and money remain separate guarded workflows. The edit drawer now separates `Save person details` from `Record accepted access`.
 
 ## Explicit Deferrals
 

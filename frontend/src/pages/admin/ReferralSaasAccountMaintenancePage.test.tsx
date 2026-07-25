@@ -1629,7 +1629,9 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByRole("heading", { name: "Edit person access" })).toBeInTheDocument();
     expect(screen.getByText("Manual access acceptance")).toBeInTheDocument();
     expect(screen.getByText(/does not send email, assign a seat, or change login permissions/i)).toBeInTheDocument();
-    const manualAcceptanceButton = screen.getByRole("button", { name: "Record manual acceptance" });
+    expect(screen.getByText(/This is separate from Save person details/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save person details" })).toBeInTheDocument();
+    const manualAcceptanceButton = screen.getByRole("button", { name: "Record accepted access" });
     expect(manualAcceptanceButton).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText("Acceptance evidence"), {

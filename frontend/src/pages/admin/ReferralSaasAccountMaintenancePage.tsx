@@ -1660,8 +1660,8 @@ export function ReferralSaasAccountMaintenancePage() {
                                     value={manualAcceptanceEvidence}
                                   />
                                   <span className="field-hint">
-                                    Required for audit. Save person changes first if you changed the name, email, or
-                                    responsibility above.
+                                    Required for audit. This is separate from Save person details. Use this after the
+                                    name, email, and responsibility above are correct.
                                   </span>
                                 </label>
                               </div>
@@ -1681,7 +1681,7 @@ export function ReferralSaasAccountMaintenancePage() {
                                   onClick={requestManualAccessAcceptance}
                                   type="button"
                                 >
-                                  {activationMutation.isPending ? "Recording" : "Record manual acceptance"}
+                                  {activationMutation.isPending ? "Recording" : "Record accepted access"}
                                 </button>
                               </div>
                             </div>
@@ -1702,7 +1702,7 @@ export function ReferralSaasAccountMaintenancePage() {
                               {accessMutation.isPending || accessUpdateMutation.isPending
                                 ? "Saving"
                                 : editingMembershipRef
-                                  ? "Save changes"
+                                  ? "Save person details"
                                   : "Save person intent"}
                             </button>
                           </div>
