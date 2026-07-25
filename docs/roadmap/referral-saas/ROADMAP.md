@@ -254,6 +254,7 @@ greenfield referral construction.
 146. TASK-280: Refresh People and Access after intent changes.
 147. TASK-281: Fix People and Access re-add after remove idempotency.
 148. TASK-282: Allow manual accepted access during account setup.
+149. TASK-283: Expose People and Access login and seat provisioning next actions.
 
 ## 10/10 Exit Criteria
 
@@ -1177,6 +1178,12 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Fixes the Amplifi Admin manual accepted-access path found during physical UI testing. Manual acceptance can now record accepted membership evidence for a pending-onboarding setup account when the invited identity matches and the external reference is active, while login, seats, auth claims, invite delivery, billing, and money remain separate guarded workflows. The edit drawer now separates `Save person details` from `Record accepted access`.
+- TASK-283: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Makes the selected-customer People and Access provisioning boundary visible as a first-class Login and Seat Provisioning section. Accepted people now show per-person accepted-access, seat-assignment, login-permission, and disabled `Provision login & seat` next-action rows so operators can see where the future governed provisioning workflow belongs without silently creating login access, assigning seats, changing auth claims, sending invites, billing, or moving money.
 
 ## Explicit Deferrals
 

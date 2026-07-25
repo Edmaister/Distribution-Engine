@@ -6259,6 +6259,31 @@ Rollback notes: Restore the strict active-account activation gate for manual acc
 Explicit non-goals: Do not create real login access, assign seats, propagate auth claims, send invitation emails, create credentials, create campaigns, expose tenant codes, bill, move money, or add broad DLaaS behavior.
 Definition of done: Manual accepted access behaves as setup evidence inside selected-customer People and Access while provisioning remains a separate governed workflow. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
+## TASK-283: Expose People and Access login and seat provisioning next actions
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing membership activation readiness read model and makes the seat/auth provisioning boundary visible without adding a new command or duplicating source. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer People and Access maintenance; visible provisioning workflow boundary.
+Objective: Make it clear where login access and seat assignment will happen after customer access is accepted, while keeping the actual provisioning command as a separately governed future workflow.
+Why now: Physical UI testing showed People and Access correctly separated accepted access from login/seat provisioning, but the page did not expose any visible place or action for the next provisioning workflow.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None; the task intentionally does not assign seats, create login access, or mutate auth claims.
+Frontend impact: Adds a visible Login and Seat Provisioning section to selected-customer People and Access, with per-person accepted-access, seat-assignment, login-permission, and disabled `Provision login & seat` next-action rows.
+API impact: None.
+Tests added/updated: Updated People and Access UI coverage to assert the provisioning section, disabled action, and contract-next explanation are visible after accepted access exists.
+Validation method: `npm.cmd run test -- ReferralSaasAccountMaintenancePage.test.tsx --run`; `npm.cmd run build`; `npm.cmd run lint`.
+Acceptance criteria: Operators can see that accepted customer access is ready while login and seat provisioning remain separate; each accepted person has a visible provisioning row and disabled next action that names the missing provisioning API contract; no live invite email, login activation, seat assignment, auth/session claim change, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-252; TASK-279; TASK-280; TASK-282.
+Blocked by: None for visibility; real provisioning remains future work behind a separate contract and API task.
+Risk level: Low.
+Rollback notes: Remove the Login and Seat Provisioning section and its UI test assertion; the existing People and Access membership behavior remains unchanged.
+Explicit non-goals: Do not implement seat assignment, identity-provider integration, auth/session claim propagation, invitation delivery, billing, money movement, campaign activation, go-live, broad DLaaS behavior, or source-code forks.
+Definition of done: People and Access has a visible, customer-scoped provisioning next-action area that shows where login and seat provisioning belongs without performing that workflow. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

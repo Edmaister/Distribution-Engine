@@ -1892,17 +1892,88 @@ export function ReferralSaasAccountMaintenancePage() {
                     </div>
                   ) : null}
                   {activationReadiness?.activationReadiness.items.length ? (
-                    <div className="wizard-status-card">
-                      <div>
-                        <strong>Provisioning boundary</strong>
-                        <p>
-                          A named person can be invited or accepted here. Seat assignment and login permission claims remain separate controlled workflows.
-                        </p>
-                        <span className="table-subtext">
-                          This keeps People and Access honest: recording access intent or active membership does not silently create live login access.
-                        </span>
+                    <div className="route-list">
+                      <div className="wizard-status-card">
+                        <div>
+                          <strong>Login and seat provisioning</strong>
+                          <p>
+                            This is where accepted people will move into login access and seat assignment once the guarded provisioning command is built.
+                          </p>
+                          <span className="table-subtext">
+                            Today this section is a visible boundary only: it does not create login access, assign seats, change auth claims, send invites, or move money.
+                          </span>
+                        </div>
+                        <StatusBadge label="Contract next" tone="warning" />
                       </div>
-                      <StatusBadge label="Separate workflow" tone="warning" />
+                      <DataTable
+                        rows={activationReadiness.activationReadiness.items}
+                        emptyText="No accepted people are ready for provisioning review."
+                        columns={[
+                          {
+                            key: "person",
+                            header: "Person",
+                            render: (row) => (
+                              <div>
+                                <strong>{formatDisplay(getValue(row, ["displayName"], "Named person"))}</strong>
+                                <div className="table-subtext">{formatDisplay(getValue(row, ["subject"], "No email identity returned"))}</div>
+                              </div>
+                            ),
+                          },
+                          {
+                            key: "acceptedAccess",
+                            header: "Accepted access",
+                            render: (row) => (
+                              <div>
+                                <StatusBadge
+                                  label={accessAcceptanceLabel(getValue(row, ["activationReadiness"], "Blocked"))}
+                                  tone={accessLifecycleTone(getValue(row, ["membershipStatus"], "INVITED"))}
+                                />
+                                <div className="table-subtext">
+                                  Membership: {accessLifecycleLabel(getValue(row, ["membershipStatus"], "Invited"))}
+                                </div>
+                              </div>
+                            ),
+                          },
+                          {
+                            key: "seat",
+                            header: "Seat assignment",
+                            render: (row) => (
+                              <div>
+                                <StatusBadge
+                                  label={formatDisplay(getValue(row, ["seatAssignmentStatus"], "Seat not assigned"))}
+                                  tone="warning"
+                                />
+                                <div className="table-subtext">Seat allocation stays out of membership acceptance.</div>
+                              </div>
+                            ),
+                          },
+                          {
+                            key: "login",
+                            header: "Login permissions",
+                            render: (row) => (
+                              <div>
+                                <StatusBadge
+                                  label={formatDisplay(getValue(row, ["authClaimStatus"], "Auth claims not propagated"))}
+                                  tone="warning"
+                                />
+                                <div className="table-subtext">Auth claims must be propagated by a separate governed command.</div>
+                              </div>
+                            ),
+                          },
+                          {
+                            key: "next",
+                            header: "Next action",
+                            render: () => (
+                              <div className="action-cell">
+                                <button className="button secondary compact" disabled type="button">
+                                  Provision login & seat
+                                </button>
+                                <span className="table-subtext">Requires provisioning API contract.</span>
+                              </div>
+                            ),
+                          },
+                        ]}
+                      />
                     </div>
                   ) : null}
                   {activationReadiness?.activationReadiness.items.length ? (
