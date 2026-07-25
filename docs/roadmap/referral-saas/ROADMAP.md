@@ -261,6 +261,7 @@ greenfield referral construction.
 153. TASK-293: Simplify People and Access language and separate optional login setup.
 154. TASK-294: Record activated People and Access provisioning proof execution.
 155. TASK-295: Define Referral SaaS support case persistence contract.
+156. TASK-296: Scope Customer Health account-foundation activation results.
 
 ## 10/10 Exit Criteria
 
@@ -1352,6 +1353,17 @@ greenfield referral construction.
   delivery, credential creation, auth-claim propagation, billing, money
   movement, DLaaS marketplace behavior, and source-code forks out of this
   boundary until later reviewed tasks implement them.
+- TASK-296:
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Scopes the
+  selected-customer Account Health activation success message to the account id
+  returned by the guarded activation command. A stale or mismatched activation
+  response for another customer is suppressed, while the backend account path
+  scope guard remains the source of truth for write safety.
 
 ## Explicit Deferrals
 

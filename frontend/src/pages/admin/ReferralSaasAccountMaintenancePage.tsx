@@ -132,6 +132,11 @@ type CampaignReviewDraft = {
   decision: "APPROVED" | "BLOCKED";
 };
 
+type ScopedAccountActivationResult = {
+  accountId: string;
+  message: string;
+};
+
 const customerFunctions = [
   {
     title: "Account health",
@@ -352,7 +357,8 @@ export function ReferralSaasAccountMaintenancePage() {
   const [deliveryResult, setDeliveryResult] = useState<string | null>(null);
   const [activationResult, setActivationResult] = useState<string | null>(null);
   const [provisioningResult, setProvisioningResult] = useState<string | null>(null);
-  const [accountActivationResult, setAccountActivationResult] = useState<string | null>(null);
+  const [accountActivationResult, setAccountActivationResult] =
+    useState<ScopedAccountActivationResult | null>(null);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
   const [profileResult, setProfileResult] = useState<string | null>(null);
   const [campaignSetupDraft, setCampaignSetupDraft] = useState<CampaignSetupDraft>({
@@ -535,8 +541,9 @@ export function ReferralSaasAccountMaintenancePage() {
         refetchMembershipPosture(),
         refetchActivationReadiness(),
       ]);
-      setAccountActivationResult(
-        `${response.activation.accountName} foundation is ${formatDisplay(
+      setAccountActivationResult({
+        accountId: response.activation.accountId,
+        message: `${response.activation.accountName} foundation is ${formatDisplay(
           response.activation.accountStatus,
         )}; tenant link is ${formatDisplay(
           response.activation.tenantLinkStatus || "UNKNOWN",
@@ -544,7 +551,7 @@ export function ReferralSaasAccountMaintenancePage() {
           response.activation.seatCapacity.createdSeatCount,
           "seat",
         )} are available for later provisioning. No membership was changed, no seat was assigned, no invite email was sent, no credential was created, no auth claim changed, no campaign was activated, and no money moved.`,
-      );
+      });
     },
   });
   const profileMutation = useMutation({
@@ -1260,9 +1267,13 @@ export function ReferralSaasAccountMaintenancePage() {
         ) : null}
       </div>
     ) : null;
-  const accountFoundationActivationResultPanel = accountActivationResult ? (
+  const scopedAccountActivationResult =
+    selectedAccount && accountActivationResult?.accountId === selectedAccount.accountId
+      ? accountActivationResult
+      : null;
+  const accountFoundationActivationResultPanel = scopedAccountActivationResult ? (
     <div className="wizard-summary-strip success">
-      <strong>Customer foundation activated.</strong> {accountActivationResult}
+      <strong>Customer foundation activated.</strong> {scopedAccountActivationResult.message}
     </div>
   ) : null;
 

@@ -156,6 +156,11 @@ customer routes, idempotency, audit, redaction, frontend expectations, and
 explicit non-goals. Runtime support-case schema, API, UI writes, and any
 repair/replay guardrails remain separate tasks.
 
+TASK-296 scopes Account Health account-foundation activation feedback to the
+selected account id. This prevents stale or mismatched activation evidence from
+another customer being shown under the current customer profile while preserving
+the existing backend account path-scope guard as the write safety boundary.
+
 ## Recommended Ordered Task Sequence
 
 1. TASK-134: Define Referral SaaS account setup contract.
