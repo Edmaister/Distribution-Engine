@@ -131,6 +131,7 @@ Future Referral SaaS APIs should follow these rules:
 | `/v1/referral-saas/accounts/{accountRef}/membership-invitations` | `POST` | TASK-211 membership invitation intent wrapper | Account admin bridge | Implemented as guarded seeded write. Records invited membership intent and account audit evidence only; no email delivery, membership activation, seat assignment, auth-claim change, campaign activation, go-live, or money behavior. |
 | `/v1/referral-saas/accounts/{accountRef}/membership-invitations/{membershipRef}` | `PATCH` | TASK-276 invited access intent update wrapper | Account admin bridge | Implemented as guarded seeded write. Updates only invited membership intent details and account audit evidence; active, disabled, suspended, or archived memberships are rejected. No email delivery, membership activation, seat assignment, auth-claim change, campaign activation, go-live, or money behavior. |
 | `/v1/referral-saas/accounts/{accountRef}/membership-invitations/{membershipRef}` | `DELETE` | TASK-276 invited access intent cancel wrapper | Account admin bridge | Implemented as guarded seeded write. Marks invited membership intent `DISABLED` and records audit evidence; it does not hard-delete access history, send invitations, activate membership, assign seats, change auth claims, activate campaigns, trigger go-live, or move money. |
+| `/v1/referral-saas/accounts/{accountRef}/memberships/{membershipRef}/access-provisioning` | `POST` | TASK-284 access provisioning command contract | Account admin bridge or future provisioning permission | Contract only. Future guarded command must require active account, active tenant link, active external reference, active membership, seat availability, approved auth-provider readiness, audit, idempotency, and redaction before assigning seats or preparing login/auth-claim posture. No route is implemented by TASK-284. |
 | `/v1/referral-saas/accounts/{accountRef}/profile` | `PATCH` | TASK-238 customer profile settings maintenance wrapper | Account admin bridge | Implemented as guarded seeded write. Updates bounded durable profile metadata only: account name, account type, operating jurisdiction, customer type, and industry. Customer identifiers remain read-only; no external-reference rotation, account activation, membership write, invitation delivery, seat assignment, auth-claim change, credential lifecycle, campaign activation, go-live, billing, money, or DLaaS marketplace behavior. |
 
 ### Campaigns
@@ -308,7 +309,10 @@ Rules:
   and `external_tenant_ref` identity claims. TASK-200/TASK-209/TASK-211 now
   provide bounded account resolver, membership posture, and membership
   invitation intent wrappers for Account Setup, but broader membership-aware
-  route authorization and auth-claim integration remain future work.
+  route authorization and auth-claim integration remain future work. TASK-284
+  defines the next access provisioning command contract for accepted
+  memberships, seat assignment, and login/auth-claim propagation, but it does
+  not add a runtime route or mutate seats/auth claims.
 - TASK-256 adds `POST /v1/referral-saas/accounts/{accountRef}/campaigns` as a
   customer-scoped campaign setup create wrapper. It creates inactive campaign
   setup only and preserves idempotency/audit evidence while excluding

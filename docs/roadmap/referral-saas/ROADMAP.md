@@ -255,6 +255,7 @@ greenfield referral construction.
 147. TASK-281: Fix People and Access re-add after remove idempotency.
 148. TASK-282: Allow manual accepted access during account setup.
 149. TASK-283: Expose People and Access login and seat provisioning next actions.
+150. TASK-284: Define Referral SaaS access provisioning command contract.
 
 ## 10/10 Exit Criteria
 
@@ -1184,6 +1185,12 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Makes the selected-customer People and Access provisioning boundary visible as a first-class Login and Seat Provisioning section. Accepted people now show per-person accepted-access, seat-assignment, login-permission, and disabled `Provision login & seat` next-action rows so operators can see where the future governed provisioning workflow belongs without silently creating login access, assigning seats, changing auth claims, sending invites, billing, or moving money.
+- TASK-284: `docs/sa/referral-saas/REFERRAL_SAAS_ACCESS_PROVISIONING_COMMAND_CONTRACT.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the governed access provisioning command boundary for the visible People and Access `Provision login & seat` next action. The contract separates accepted-access evidence from actual seat assignment and auth/login claim propagation, identifies the candidate account-scoped membership route, records required account/link/reference/membership/seat/auth-provider/idempotency/audit gates, and keeps the UI action disabled until a runtime API task implements those guardrails. No backend route, schema migration, frontend action enablement, seat assignment, auth-claim change, invite delivery, campaign activation, billing, or money movement is introduced.
 
 ## Explicit Deferrals
 

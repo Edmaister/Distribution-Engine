@@ -6284,6 +6284,31 @@ Rollback notes: Remove the Login and Seat Provisioning section and its UI test a
 Explicit non-goals: Do not implement seat assignment, identity-provider integration, auth/session claim propagation, invitation delivery, billing, money movement, campaign activation, go-live, broad DLaaS behavior, or source-code forks.
 Definition of done: People and Access has a visible, customer-scoped provisioning next-action area that shows where login and seat provisioning belongs without performing that workflow. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
+## TASK-284: Define Referral SaaS access provisioning command contract
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_INVITATION_BOUNDARY.md`; `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_DELIVERY_BOUNDARY.md`.
+Shared primitive impact: Defines the next governed boundary over the existing platform users, memberships, seats, account audit, activation-readiness, and idempotency primitives without forking product source or enabling runtime provisioning. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer People and Access maintenance; login and seat provisioning command boundary.
+Objective: Define the real command contract behind the disabled People and Access `Provision login & seat` action so accepted access, seat assignment, and auth/login claim propagation remain separate lifecycle steps.
+Why now: Physical UI testing showed operators can now record accepted access and see the provisioning area, but the screen still needed a documented route, request/response shape, required gates, and explicit no-goals before the UI action can be safely enabled.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_ACCESS_PROVISIONING_COMMAND_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: No runtime backend change. Documents schema-backed source facts for `platform_users`, `platform_memberships`, `platform_seats`, and `platform_account_audit_events`; defines the candidate future account-scoped membership provisioning route and guardrails.
+Frontend impact: No runtime frontend change. Documents that the visible Login and Seat Provisioning action remains disabled until a runtime API task implements this contract.
+API impact: Contract only. Candidate future route: `POST /v1/referral-saas/accounts/{accountRef}/memberships/{membershipRef}/access-provisioning`; no route is added by this task.
+Tests added/updated: None; docs-only contract task.
+Validation method: `git diff --check`; readback of TASK-284 roadmap, gap matrix, API map, and infographic references.
+Acceptance criteria: The provisioning command contract clearly separates accepted-access evidence from seat assignment and auth/login claim propagation; it defines account, tenant-link, external-reference, membership, seat, auth-provider, idempotency, audit, and redaction gates; it blocks raw credentials, tokens, arbitrary auth claims, campaign/go-live behavior, billing, and money movement; no runtime behavior is introduced.
+Dependencies: TASK-252; TASK-279; TASK-282; TASK-283.
+Blocked by: Runtime access provisioning API, seat assignment implementation, identity-provider/auth-claim integration, and frontend action enablement remain future bounded tasks.
+Risk level: Low.
+Rollback notes: Remove the TASK-284 contract doc and revert roadmap/gap/API-map/infographic references.
+Explicit non-goals: Do not add backend routes, schema, migrations, service writes, frontend action enablement, seat assignment, auth/session claim propagation, identity-provider integration, credential lifecycle, invite delivery, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code forks.
+Definition of done: Future implementation has a reviewed command contract for People and Access login and seat provisioning that preserves accepted-access, seat, and auth boundaries. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
