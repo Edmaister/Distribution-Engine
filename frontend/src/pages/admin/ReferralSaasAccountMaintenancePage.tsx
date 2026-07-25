@@ -604,6 +604,9 @@ export function ReferralSaasAccountMaintenancePage() {
       };
     });
   const peopleAccessRows = [...activeAccessRows, ...missingAccessRoleRows];
+  const activationReadinessByMembershipRef = new Map(
+    (activationReadiness?.activationReadiness.items || []).map((item) => [item.membershipRef, item]),
+  );
   const namedOrInvitedAccessCount = activeAccessRows.filter((membership) =>
     ["INVITED", "ACTIVE"].includes(getValue(membership, ["status"], "")),
   ).length;
@@ -1556,7 +1559,7 @@ export function ReferralSaasAccountMaintenancePage() {
                 </div>
                 <div className="panel-body route-list">
                   <div className="grid-3">
-                    <KpiCard label="Active users" value={String(activeAccessCount)} footnote="Activation remains a future bounded workflow" icon={Users} />
+                    <KpiCard label="Accepted access" value={String(activeAccessCount)} footnote="Membership accepted; login and seats stay separate" icon={Users} />
                     <KpiCard label="Named or invited" value={String(namedOrInvitedAccessCount)} footnote="Current named people in the setup path" icon={CheckCircle2} />
                     <KpiCard label="Roles still missing" value={String(missingAccessRoleCount)} footnote="Add owner and campaign manager intent here" icon={AlertCircle} />
                   </div>
@@ -1759,13 +1762,26 @@ export function ReferralSaasAccountMaintenancePage() {
                         },
                         {
                           key: "status",
-                          header: "Status",
-                          render: (row) => (
-                            <StatusBadge
-                              label={formatDisplay(getValue(row, ["status"], "Status"))}
-                              tone={statusTone(getValue(row, ["status"], "Status"))}
-                            />
-                          ),
+                          header: "Access state",
+                          render: (row) => {
+                            const membershipRef = getValue(row, ["membershipRef"], "");
+                            const readiness = activationReadinessByMembershipRef.get(membershipRef);
+                            const membershipStatus = getValue(row, ["status"], "Status");
+                            return (
+                              <div>
+                                <StatusBadge
+                                  label={accessLifecycleLabel(membershipStatus)}
+                                  tone={accessLifecycleTone(membershipStatus)}
+                                />
+                                <div className="table-subtext">
+                                  Acceptance: {accessAcceptanceLabel(readiness?.activationReadiness || membershipStatus)}
+                                </div>
+                                <div className="table-subtext">
+                                  Login and seat: {accessProvisioningLabel(readiness?.provisioningReadiness || "SEPARATE_WORKFLOW")}
+                                </div>
+                              </div>
+                            );
+                          },
                         },
                         {
                           key: "actions",
@@ -4095,6 +4111,61 @@ function accessReadinessSummary(overallStatus: string, missingRoleCount: number)
     return `${formatAreaCount(missingRoleCount, "responsibility")} still needs to be named for this customer.`;
   }
   return "People are named, but invite delivery or login activation is not ready yet.";
+}
+
+function accessLifecycleLabel(status: string) {
+  if (status === "ACTIVE") {
+    return "Accepted access";
+  }
+  if (status === "INVITED") {
+    return "Named / invited";
+  }
+  if (status === "MISSING") {
+    return "Missing";
+  }
+  return formatDisplay(status);
+}
+
+function accessLifecycleTone(status: string): StatusTone {
+  if (status === "ACTIVE") {
+    return "success";
+  }
+  if (status === "INVITED") {
+    return "info";
+  }
+  if (status === "MISSING") {
+    return "warning";
+  }
+  return statusTone(status);
+}
+
+function accessAcceptanceLabel(status: string) {
+  if (status === "ACTIVE") {
+    return "Accepted";
+  }
+  if (status === "READY_TO_ACTIVATE") {
+    return "Ready to accept";
+  }
+  if (status === "BLOCKED") {
+    return "Blocked";
+  }
+  if (status === "INVITED") {
+    return "Named / invited";
+  }
+  if (status === "MISSING") {
+    return "Missing";
+  }
+  return formatDisplay(status);
+}
+
+function accessProvisioningLabel(status: string) {
+  if (status === "PROVISIONING_BLOCKED" || status === "SEPARATE_WORKFLOW") {
+    return "Provisioning separate";
+  }
+  if (status === "WAITING_FOR_MEMBERSHIP_ACTIVATION") {
+    return "Waiting for acceptance";
+  }
+  return formatDisplay(status);
 }
 
 function inviteDeliveryProviderRef(readiness?: ReferralSaasTechnicalSetupReadinessResponse) {

@@ -1153,7 +1153,7 @@ greenfield referral construction.
   `docs/roadmap/referral-saas/ROADMAP.md`;
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
-  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds an Amplifi Admin-only manual access acceptance action inside the selected-customer People and Access edit drawer. The UI requires acceptance evidence and reuses the existing audited membership activation command boundary, while preserving no live invite delivery, no seat assignment, no auth-claim propagation, no billing, and no money movement.
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds an Amplifi Admin-only manual access acceptance action inside the selected-customer People and Access edit drawer. The UI requires acceptance evidence, shows accepted access separately from login/seat provisioning, and reuses the existing audited membership activation command boundary, while preserving no live invite delivery, no seat assignment, no auth-claim propagation, no billing, and no money movement.
 
 ## Explicit Deferrals
 

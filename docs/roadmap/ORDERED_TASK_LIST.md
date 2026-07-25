@@ -6172,17 +6172,17 @@ Why now: Physical UI testing showed the existing `Record accepted access` path w
 Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
 Database/schema impact: None.
 Backend impact: None; uses the existing `POST /v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/activation` route and service guardrails.
-Frontend impact: Adds an Amplifi Admin-only manual acceptance section to the edit person drawer, requires acceptance evidence, calls the existing activation command, and keeps the drawer reset/refetch behavior coherent after success.
+Frontend impact: Adds an Amplifi Admin-only manual acceptance section to the edit person drawer, requires acceptance evidence, calls the existing activation command, keeps the drawer reset/refetch behavior coherent after success, and shows accepted access separately from login/seat provisioning in the primary People and Access table.
 API impact: Request shape is unchanged; the UI supplies `AMPLIFI_ADMIN_MANUAL_ACCESS_ACCEPTANCE`, accepted subject, evidence reference, correlation ID, and idempotency key.
 Tests added/updated: Updated People and Access page coverage for the Amplifi Admin manual acceptance path and required evidence.
 Validation method: `npm.cmd run test -- ReferralSaasAccountMaintenancePage.test.tsx --run`; `npm.cmd run build`; `npm.cmd run lint`.
-Acceptance criteria: Amplifi Admin can record manual access acceptance only from an existing membership intent; acceptance evidence is required; non-admin sessions cannot use the action; the existing backend activation guardrails still enforce invited membership, active account, active tenant link, active external reference, and duplicate-active protection; no live invite email, seat assignment, auth/session claim change, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Acceptance criteria: Amplifi Admin can record manual access acceptance only from an existing membership intent; acceptance evidence is required; non-admin sessions cannot use the action; accepted membership is visibly distinct from live login/seat provisioning; the existing backend activation guardrails still enforce invited membership, active account, active tenant link, active external reference, and duplicate-active protection; no live invite email, seat assignment, auth/session claim change, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
 Dependencies: TASK-275; TASK-276; TASK-278.
 Blocked by: None.
 Risk level: Medium.
 Rollback notes: Remove the manual acceptance drawer section, activation mutation caller, and test expectation; keep the existing backend activation endpoint unchanged.
 Explicit non-goals: Do not create real login access, send emails, assign seats, propagate auth claims, create campaigns, expose tenant codes, bill, move money, or add broad DLaaS behavior.
-Definition of done: Amplifi Admin has a clear, evidence-required manual access acceptance action inside selected-customer People and Access that reuses the audited activation command boundary. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+Definition of done: Amplifi Admin has a clear, evidence-required manual access acceptance action inside selected-customer People and Access, with visible accepted-access versus provisioning state, that reuses the audited activation command boundary. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
