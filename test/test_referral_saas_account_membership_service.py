@@ -1372,7 +1372,9 @@ async def test_access_provisioning_assigns_available_seat_and_audits(monkeypatch
     assert "assigned_membership_id" in joined_queries
     assert "UPDATE platform_memberships" in joined_queries
     assert "INSERT INTO platform_account_audit_events" in joined_queries
-    assert "auth_claims" not in joined_queries.lower()
+    assert "UPDATE auth_claims" not in joined_queries
+    assert "INSERT INTO auth_claims" not in joined_queries
+    assert "auth_session" not in joined_queries.lower()
     assert "marketing_campaigns" not in joined_queries.lower()
     assert "invoice" not in joined_queries.lower()
 
