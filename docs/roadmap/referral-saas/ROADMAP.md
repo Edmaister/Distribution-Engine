@@ -1291,6 +1291,20 @@ greenfield referral construction.
   no-adjacent-action evidence. This does not add backend routes, frontend
   routes, schema, invite delivery, credential creation, auth-claim propagation,
   campaign activation, billing, money movement, or DLaaS marketplace behavior.
+- TASK-292: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Aligns
+  Customer Home health and next-best-action mapping with the current People and
+  Access lifecycle. Once required owner/campaign-manager responsibilities are
+  present and accepted, Customer Home no longer shows `Add who can manage this
+  account` as the red blocker; People and Access is marked Ready, roles-missing
+  uses the actual missing-role count, and remaining seat/auth work stays a
+  separate governed next action. This does not add backend routes, schema,
+  invite delivery, credential creation, auth-claim propagation, campaign
+  activation, billing, money movement, or DLaaS marketplace behavior.
 
 ## Explicit Deferrals
 

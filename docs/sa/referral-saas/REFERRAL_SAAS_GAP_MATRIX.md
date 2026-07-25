@@ -125,6 +125,14 @@ Remaining campaign/frontend gaps are export file storage/download/retention,
 support-case persistence, and progress/attribution mutation proof beyond
 campaign report/export preview.
 
+TASK-292 closes the selected-customer Customer Home access-health mismatch found
+in physical UI testing. When People and Access reports the required owner and
+campaign-manager responsibilities as present/accepted, Customer Home now clears
+the `Add who can manage this account` red blocker, marks People and Access
+Ready, reports the actual missing-role count, and routes operators toward the
+next true setup action while keeping seat/auth provisioning as a separate
+governed workflow.
+
 ## Recommended Ordered Task Sequence
 
 1. TASK-134: Define Referral SaaS account setup contract.
