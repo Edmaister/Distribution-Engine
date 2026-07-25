@@ -260,6 +260,7 @@ greenfield referral construction.
 152. TASK-286: Wire People and Access provisioning action to the guarded access provisioning API.
 153. TASK-293: Simplify People and Access language and separate optional login setup.
 154. TASK-294: Record activated People and Access provisioning proof execution.
+155. TASK-295: Define Referral SaaS support case persistence contract.
 
 ## 10/10 Exit Criteria
 
@@ -1335,6 +1336,22 @@ greenfield referral construction.
   and audit evidence. No invite delivery, credential creation, auth-claim
   propagation, campaign activation, go-live action, billing, or money movement
   occurred.
+- TASK-295:
+  `docs/sa/referral-saas/REFERRAL_SAAS_SUPPORT_CASE_PERSISTENCE_CONTRACT.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the
+  selected-customer support-case persistence contract. The contract sets the
+  case categories, statuses, safe evidence-link types, selected-customer API
+  route shape, idempotency replay/conflict behavior, audit evidence, frontend
+  product expectations, and non-goal guardrails for support cases. It keeps
+  repair, replay, retry, campaign activation, export file creation, invite
+  delivery, credential creation, auth-claim propagation, billing, money
+  movement, DLaaS marketplace behavior, and source-code forks out of this
+  boundary until later reviewed tasks implement them.
 
 ## Explicit Deferrals
 
