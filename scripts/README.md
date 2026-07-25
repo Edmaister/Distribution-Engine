@@ -39,6 +39,12 @@ initialization, seeding, backfilling, nightly refreshes, and health checks.
   guarded selected-customer mutation proof over campaign setup, policy,
   review, activation, referral code issue/validation, report, and export
   preview without webhooks, credentials, invites, billing, or money movement.
+- `referral_saas_people_access_provisioning_physical_check.py` - Run a
+  guarded selected-customer People and Access provisioning proof over access
+  intent, manual accepted-access evidence, seat provisioning, idempotency
+  replay, refreshed read models, and optional live DB evidence without invite
+  delivery, credential creation, auth-claim propagation, campaign activation,
+  go-live, billing, or money movement.
 
 ## Usage
 
@@ -62,6 +68,7 @@ python scripts/referral_saas_route_smoke_plan.py
 python scripts/referral_saas_route_smoke_plan.py --include-seeded-writes
 python scripts/referral_saas_selected_customer_e2e_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref <customer-reference>
 python scripts/referral_saas_selected_customer_mutation_e2e_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref <customer-reference>
+python scripts/referral_saas_people_access_provisioning_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref <customer-reference> --database
 ```
 
 ## Migration Replay Contract
