@@ -1216,6 +1216,18 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Wires selected-customer People and Access to the guarded access provisioning API. The UI enables `Provision login & seat` only for active accepted memberships that are ready for seat assignment, sends the account-scoped guarded request, refreshes People and Access read models, and shows seat-assignment state while credential creation and auth/session claim propagation remain separate governed workflows.
+- TASK-287: `scripts/referral_saas_people_access_provisioning_physical_check.py`;
+  `test/test_referral_saas_people_access_provisioning_physical_check.py`;
+  `scripts/README.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PEOPLE_ACCESS_PROVISIONING_PHYSICAL_VERIFICATION.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds a repeatable selected-customer People and Access provisioning physical proof runner. The runner selects a customer, creates or reuses accepted access evidence, calls the guarded access provisioning API, verifies idempotency replay, verifies refreshed posture/readiness read models, optionally checks DB/audit evidence, and fails if invite delivery, credential creation, auth-claim propagation, campaign activation, go-live, billing, or money movement occur. It reports controlled provisioning blocks when local account/link/reference/seat gates are not ready.
+  Local API/DB execution against `test-fnb-sa-002` passed with controlled status
+  `PROVISIONING_REJECTED_ACCOUNT_NOT_ACTIVE`, DB audit status `BLOCKED`, active
+  membership evidence, no seat assignment, and no auth-claim propagation.
 
 ## Explicit Deferrals
 

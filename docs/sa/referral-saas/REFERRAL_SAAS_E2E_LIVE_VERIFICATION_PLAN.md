@@ -368,6 +368,36 @@ The next evidence steps are persisted export storage/audit/download proof,
 support-case persistence proof, and progress/attribution mutation proof beyond
 campaign report/export preview.
 
+## TASK-287 People and Access Provisioning Runner
+
+TASK-287 adds
+`scripts/referral_saas_people_access_provisioning_physical_check.py` as a
+repeatable local/staging proof over the selected-customer People and Access
+provisioning path.
+
+Run it after the API is started and a selected customer has active account,
+tenant-link, external-reference, accepted membership, and available seat
+evidence:
+
+```powershell
+.\.venv_codex\Scripts\python.exe scripts\referral_saas_people_access_provisioning_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref <customer-reference> --database
+```
+
+The runner selects the customer, creates or reuses accepted access evidence,
+calls the guarded access provisioning API, verifies idempotency replay,
+refreshes membership posture and activation-readiness read models, and can
+optionally verify `platform_memberships` plus `platform_account_audit_events`
+evidence. It fails if invite delivery, credential creation, auth-claim
+propagation, campaign activation, go-live, billing, or money movement occurs.
+If local account/link/reference/seat gates are not ready, it reports a
+controlled provisioning block instead of treating unsafe behavior as success.
+
+Local execution on 2026-07-25 against `test-fnb-sa-002` passed with controlled
+status `PROVISIONING_REJECTED_ACCOUNT_NOT_ACTIVE`, DB audit status `BLOCKED`,
+active membership evidence, no seat assignment, and no auth-claim propagation.
+The detailed evidence is recorded in
+`docs/sa/referral-saas/REFERRAL_SAAS_PEOPLE_ACCESS_PROVISIONING_PHYSICAL_VERIFICATION.md`.
+
 ## TASK-273 Export Request Persistence
 
 TASK-273 adds the first persisted export slice for selected-customer reports.

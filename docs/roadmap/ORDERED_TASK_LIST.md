@@ -6359,6 +6359,31 @@ Rollback notes: Remove the frontend access provisioning client/action/tests and 
 Explicit non-goals: Do not add schema, migrations, identity-provider integration, auth/session claim propagation, credential lifecycle, invite delivery, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code forks.
 Definition of done: People and Access can move from accepted customer access to guarded platform seat provisioning from the selected customer context, while keeping login/auth propagation separate and visible. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
+## TASK-287: Physically verify People and Access provisioning
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds repeatable proof over the existing selected-customer account registry, membership posture, activation readiness, membership intent, manual accepted-access, access provisioning, account-audit, idempotency, and optional DB primitives. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer People and Access provisioning; physical proof from customer context through API and DB evidence.
+Objective: Provide a repeatable local/staging proof that selected-customer People and Access can move from named person, to accepted access, to guarded seat provisioning or a controlled provisioning block, while proving refreshed read models and no adjacent side effects.
+Why now: TASK-285 and TASK-286 implemented the backend route and frontend action, but production confidence still needed a physical proof runner that exercises the same account-scoped APIs operators use and optionally verifies DB membership/seat/audit state.
+Files involved: `scripts/referral_saas_people_access_provisioning_physical_check.py`; `test/test_referral_saas_people_access_provisioning_physical_check.py`; `scripts/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PEOPLE_ACCESS_PROVISIONING_PHYSICAL_VERIFICATION.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: No migration. Optional live verification reads existing `platform_memberships` and `platform_account_audit_events` after the guarded provisioning API runs.
+Backend impact: None to runtime services; adds a physical proof script that calls existing APIs and fails on unsafe response shape, missing refreshed read-model evidence, unexpected provisioning states, idempotency replay failure, or adjacent side effects.
+Frontend impact: None to runtime UI; validates the same selected-customer People and Access path the UI now exposes.
+API impact: No new routes. The proof calls existing account registry, membership posture, activation readiness, membership invitation, manual accepted-access, and access provisioning routes.
+Tests added/updated: Added unit coverage for successful physical proof flow, provisioning replay, controlled provisioning block, and auth-claim side-effect failure.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_people_access_provisioning_physical_check.py --tb=short -x`; `git diff --check`; local API/DB execution with `.\.venv_codex\Scripts\python.exe scripts\referral_saas_people_access_provisioning_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref test-fnb-sa-002 --database --db-dsn postgresql://user:pass@localhost:5432/referrals`, which passed with controlled status `PROVISIONING_REJECTED_ACCOUNT_NOT_ACTIVE` and DB audit status `BLOCKED`.
+Acceptance criteria: The runner can select an existing customer, create or reuse accepted People and Access membership evidence, call the guarded access provisioning API, verify matching idempotency replay, verify refreshed membership/readiness state, optionally verify DB/audit evidence, and prove no invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is introduced. If account/link/reference/seat gates are not ready, the runner reports a controlled provisioning block instead of accepting an unsafe success.
+Dependencies: TASK-252; TASK-279; TASK-282; TASK-283; TASK-284; TASK-285; TASK-286.
+Blocked by: Successful seat-assignment execution requires a selected customer with active account, active tenant link, active external reference, accepted membership, and an available platform seat; actual auth-claim propagation and credential lifecycle remain separate future tasks.
+Risk level: Medium.
+Rollback notes: Remove the physical proof script, unit test, README entry, and TASK-287 documentation updates; runtime product behavior remains unchanged.
+Explicit non-goals: Do not add schema, migrations, new APIs, UI changes, live invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code forks.
+Definition of done: People and Access provisioning has a repeatable selected-customer physical proof harness that validates API behavior, refreshed read models, idempotency, optional DB evidence, and no-adjacent-action guardrails. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
