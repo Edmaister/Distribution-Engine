@@ -570,6 +570,51 @@ function mockSeatProvisionedMembershipActivationReadiness(): ReferralSaasMembers
   };
 }
 
+function mockAcceptedRequiredMembershipPosture(): ReferralSaasAccountMembershipPostureResponse {
+  const base = mockMembershipPostureAfterCampaignManagerSave();
+  return {
+    ...base,
+    membershipPosture: {
+      ...base.membershipPosture,
+      invitedCount: 0,
+      activeCount: 2,
+      roleFamilies: base.membershipPosture.roleFamilies.map((role) => ({
+        ...role,
+        invitedCount: 0,
+        activeCount: 1,
+      })),
+      memberships: base.membershipPosture.memberships.map((membership) => ({
+        ...membership,
+        status: "ACTIVE",
+      })),
+    },
+  };
+}
+
+function mockAcceptedRequiredMembershipActivationReadiness(): ReferralSaasMembershipActivationReadinessResponse {
+  const base = mockMembershipActivationReadinessAfterCampaignManagerSave();
+  return {
+    ...base,
+    activationReadiness: {
+      ...base.activationReadiness,
+      overallStatus: "ACCESS_READY",
+      activeCount: 2,
+      invitedCount: 0,
+      missingRoleFamilies: [],
+      items: base.activationReadiness.items.map((item) => ({
+        ...item,
+        membershipStatus: "ACTIVE",
+        deliveryReadiness: "DELIVERY_NOT_REQUIRED",
+        activationReadiness: "ACTIVE",
+        provisioningReadiness: "READY_TO_PROVISION_SEAT",
+        blockers: [],
+        nextAction:
+          "Membership is active. Provision a seat before login access is live; auth claims remain a separate governed workflow.",
+      })),
+    },
+  };
+}
+
 function mockMembershipPostureAfterCampaignManagerSave(): ReferralSaasAccountMembershipPostureResponse {
   const base = mockMembershipPosture();
   return {
@@ -1540,6 +1585,29 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       "/admin/referral-saas/account-maintenance/acct-gabs",
     );
     expect(screen.queryByRole("heading", { name: "Health at a glance" })).not.toBeInTheDocument();
+  });
+
+  it("does not keep people access as the customer-home blocker after required access is accepted", async () => {
+    mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockAcceptedRequiredMembershipPosture());
+    mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(
+      mockAcceptedRequiredMembershipActivationReadiness(),
+    );
+
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs");
+
+    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Fix first: Add who can manage this account/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Add who can manage this account/ })).not.toBeInTheDocument();
+    expect(screen.getByText("No blocker")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Check technical setup/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs/technical",
+    );
+    expect(screen.getByText("People and access").closest(".customer-function-card")).toHaveTextContent("Ready");
+    expect(screen.getByText("People and access").closest(".customer-function-card")).toHaveTextContent(
+      "Required customer managers are named and accepted.",
+    );
+    expect(screen.getByText("Roles still missing").closest(".kpi-card")).toHaveTextContent("0");
   });
 
   it("records customer-scoped people access intent without leaving Customer Profile", async () => {

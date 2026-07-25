@@ -607,9 +607,6 @@ export function ReferralSaasAccountMaintenancePage() {
   const canActivateAccountFoundation = Boolean(
     isAmplifiAdmin && selectedAccount && selectedExternalTenantRef && !isAccountFoundationActive,
   );
-  const doNext = getCustomerNextActions(blockedCount, missingEvidenceCount);
-  const stoppingAction = doNext[0];
-  const waitingAction = doNext.find((action) => action.priority === "Later") || doNext[doNext.length - 1];
   const requestedCampaignCode = new URLSearchParams(location.search).get("campaign") || "";
   const selectedProfileDraft =
     selectedAccount && profileDraft?.accountId === selectedAccount.accountId
@@ -659,6 +656,27 @@ export function ReferralSaasAccountMaintenancePage() {
     (membership) => getValue(membership, ["status"], "") === "ACTIVE",
   ).length;
   const missingAccessRoleCount = missingAccessRoleRows.length;
+  const hasAcceptedRequiredAccess =
+    activationReadiness?.activationReadiness.overallStatus === "ACCESS_READY" ||
+    (missingAccessRoleCount === 0 && activeAccessCount > 0);
+  const effectiveBlockedCount = Math.max(0, blockedCount - (hasAcceptedRequiredAccess && blockedCount > 0 ? 1 : 0));
+  const effectiveMissingEvidenceCount = Math.max(
+    0,
+    missingEvidenceCount - (hasAcceptedRequiredAccess && missingEvidenceCount > 0 ? 1 : 0),
+  );
+  const effectiveWaitingCount = Math.max(0, effectiveMissingEvidenceCount - effectiveBlockedCount);
+  const doNext = getCustomerNextActions({
+    blockedCount: effectiveBlockedCount,
+    missingEvidenceCount: effectiveMissingEvidenceCount,
+    hasAcceptedRequiredAccess,
+    hasSeatProvisioningWork: Boolean(
+      activationReadiness?.activationReadiness.items.some(
+        (item) => item.provisioningReadiness === "READY_TO_PROVISION_SEAT",
+      ),
+    ),
+  });
+  const stoppingAction = doNext[0];
+  const waitingAction = doNext.find((action) => action.priority === "Later") || doNext[doNext.length - 1];
   const peopleAccessStatus =
     missingAccessRoleCount > 0
       ? `Still need ${formatList(missingAccessRoleRows.map((row) => roleOptionForFamily(getValue(row, ["roleFamily"], "")).label))}.`
@@ -1479,26 +1497,30 @@ export function ReferralSaasAccountMaintenancePage() {
                           <span className="customer-health-label">Looking fine</span>
                           <span className="customer-health-action">No action needed</span>
                         </div>
-                        <div className="customer-health-card bad" aria-label={`${blockedCount} red blockers stopping referral testing`}>
+                        <div className="customer-health-card bad" aria-label={`${effectiveBlockedCount} red blockers stopping referral testing`}>
                           <div className="customer-health-card-top">
                             <span className="customer-rag-dot red" aria-hidden="true" />
                             <span className="customer-health-rag">Red</span>
                           </div>
-                          <strong>{blockedCount}</strong>
+                          <strong>{effectiveBlockedCount}</strong>
                           <span className="customer-health-label">Stopping you</span>
-                          <Link
-                            className="customer-health-action-link"
-                            to={buildCustomerModuleRoute(selectedCustomerPath, stoppingAction.route, customerQuery)}
-                          >
-                            Fix first: {stoppingAction.title}
-                          </Link>
+                          {effectiveBlockedCount > 0 ? (
+                            <Link
+                              className="customer-health-action-link"
+                              to={buildCustomerModuleRoute(selectedCustomerPath, stoppingAction.route, customerQuery)}
+                            >
+                              Fix first: {stoppingAction.title}
+                            </Link>
+                          ) : (
+                            <span className="customer-health-action">No blocker</span>
+                          )}
                         </div>
-                        <div className="customer-health-card wait" aria-label={`${waitingCount} amber items can wait`}>
+                        <div className="customer-health-card wait" aria-label={`${effectiveWaitingCount} amber items can wait`}>
                           <div className="customer-health-card-top">
                             <span className="customer-rag-dot amber" aria-hidden="true" />
                             <span className="customer-health-rag">Amber</span>
                           </div>
-                          <strong>{waitingCount}</strong>
+                          <strong>{effectiveWaitingCount}</strong>
                           <span className="customer-health-label">Can wait</span>
                           <Link
                             className="customer-health-action-link"
@@ -1508,11 +1530,11 @@ export function ReferralSaasAccountMaintenancePage() {
                           </Link>
                         </div>
                       </div>
-                      <div className={`wizard-summary-strip ${blockedCount || missingEvidenceCount ? "warning" : "success"}`}>
+                      <div className={`wizard-summary-strip ${effectiveBlockedCount || effectiveMissingEvidenceCount ? "warning" : "success"}`}>
                         <div>
                           <strong>In plain English:</strong>{" "}
-                          {blockedCount || missingEvidenceCount
-                            ? `Most of ${customerName} is ready. ${formatAreaCount(blockedCount || missingEvidenceCount, "thing")} needs attention before safe referral testing.`
+                          {effectiveBlockedCount || effectiveMissingEvidenceCount
+                            ? `Most of ${customerName} is ready. ${formatAreaCount(effectiveBlockedCount || effectiveMissingEvidenceCount, "thing")} needs attention before safe referral testing.`
                             : `${customerName} has no visible setup blocker count. Continue with campaign, link/code, attribution, or reporting tests.`}
                         </div>
                       </div>
@@ -1561,24 +1583,34 @@ export function ReferralSaasAccountMaintenancePage() {
                   </div>
                   <div className="panel-body customer-function-grid">
                     {customerFunctions.map((item) => {
+                      const displayItem =
+                        item.route === "people" && hasAcceptedRequiredAccess
+                          ? {
+                              ...item,
+                              status: "Ready",
+                              tone: "success" as StatusTone,
+                              copy: "Required customer managers are named and accepted.",
+                              letsYou: "Provision seats later without blocking referral setup.",
+                            }
+                          : item;
                       const Icon = item.icon;
-                      const href = buildCustomerModuleRoute(selectedCustomerPath, item.route, customerQuery);
+                      const href = buildCustomerModuleRoute(selectedCustomerPath, displayItem.route, customerQuery);
                       return (
                         <Link
                           className="customer-function-card"
-                          key={item.title}
+                          key={displayItem.title}
                           to={href}
                         >
                           <div className="customer-function-card-header">
                             <span className="customer-function-title">
                               <Icon size={16} />
-                              {item.title}
+                              {displayItem.title}
                             </span>
-                            <StatusBadge label={item.status} tone={item.tone} />
+                            <StatusBadge label={displayItem.status} tone={displayItem.tone} />
                           </div>
-                          <p>{item.copy}</p>
+                          <p>{displayItem.copy}</p>
                           <div className="customer-function-help">
-                            <strong>This lets you:</strong> {item.letsYou}
+                            <strong>This lets you:</strong> {displayItem.letsYou}
                           </div>
                           <div className="customer-function-open">Open page</div>
                         </Link>
@@ -1602,7 +1634,7 @@ export function ReferralSaasAccountMaintenancePage() {
                   <div className="panel-body grid-3">
                     <KpiCard label="Active users" value={String(membershipPosture?.membershipPosture.activeCount ?? 0)} footnote="Activated people on this customer" icon={Users} />
                     <KpiCard label="Named or invited" value={String(membershipPosture?.membershipPosture.invitedCount ?? 0)} footnote="Intent recorded without email delivery" icon={CheckCircle2} />
-                    <KpiCard label="Roles still missing" value={blockedCount ? "1" : "0"} footnote="Owner or campaign manager still needs attention" icon={AlertCircle} />
+                    <KpiCard label="Roles still missing" value={String(missingAccessRoleCount)} footnote="Owner or campaign manager still needs attention" icon={AlertCircle} />
                   </div>
                 </section>
               ) : null}
@@ -4222,8 +4254,18 @@ function getModulePageDetails(module: CustomerModule) {
   }
 }
 
-function getCustomerNextActions(blockedCount: number, missingEvidenceCount: number) {
-  if (blockedCount > 0 || missingEvidenceCount > 0) {
+function getCustomerNextActions({
+  blockedCount,
+  missingEvidenceCount,
+  hasAcceptedRequiredAccess,
+  hasSeatProvisioningWork,
+}: {
+  blockedCount: number;
+  missingEvidenceCount: number;
+  hasAcceptedRequiredAccess: boolean;
+  hasSeatProvisioningWork: boolean;
+}) {
+  if (!hasAcceptedRequiredAccess) {
     return [
       {
         title: "Add who can manage this account",
@@ -4237,6 +4279,31 @@ function getCustomerNextActions(blockedCount: number, missingEvidenceCount: numb
         copy: "See whether invite delivery and referral message providers are ready.",
         priority: "Next",
         route: "technical",
+        tone: "info" as StatusTone,
+      },
+      {
+        title: "Open Campaigns",
+        copy: "Account setup is far enough to set up or review a campaign.",
+        priority: "Later",
+        route: "campaigns",
+        tone: "neutral" as StatusTone,
+      },
+    ];
+  }
+  if (blockedCount > 0 || missingEvidenceCount > 0 || hasSeatProvisioningWork) {
+    return [
+      {
+        title: "Check technical setup",
+        copy: "See whether invite delivery and referral message providers are ready.",
+        priority: "First",
+        route: "technical",
+        tone: "warning" as StatusTone,
+      },
+      {
+        title: "Review account health",
+        copy: "Confirm remaining customer setup warnings without reopening People and Access.",
+        priority: "Next",
+        route: "health",
         tone: "info" as StatusTone,
       },
       {

@@ -6484,6 +6484,31 @@ Rollback notes: Revert the proof runner, unit test, and TASK-291 documentation u
 Explicit non-goals: Do not add schema, backend routes, frontend routes, user creation, live invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: People and Access provisioning has a repeatable selected-customer proof path that can activate the account foundation through the guarded API before attempting seat provisioning. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
+## TASK-292: Align customer-home access health with accepted People and Access state
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the selected-customer account registry, membership posture, membership activation readiness, and customer-home health/action mapping without forking access state. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer Home read-model alignment after required People and Access responsibilities are accepted.
+Objective: Stop Customer Home from showing `Add who can manage this account` as the red blocker once the required owner and campaign manager responsibilities are present/accepted in People and Access, while keeping seat/auth provisioning as a separate governed next action.
+Why now: Physical UI testing showed the guarded access provisioning and People and Access lifecycle moving forward, but Customer Home still read stale generic readiness counts and kept routing the operator back to a completed people task.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Customer Home now derives effective red/amber health and next-best actions from the accepted People and Access lifecycle. When required access is accepted, the red card shows no blocker, the People and Access service card becomes Ready, roles-missing KPI uses the actual missing role count, and the next action moves to technical setup/account health instead of reopening People and Access.
+API impact: None.
+Tests added/updated: Adds a regression test proving accepted owner/campaign-manager access removes the `Add who can manage this account` home blocker and keeps People and Access marked Ready while seat provisioning remains separate.
+Validation method: `npm.cmd test -- --run src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx --reporter=dot`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Customer Home no longer shows completed People and Access work as a red blocker after `ACCESS_READY`; remaining seat/auth work is not presented as missing people; no backend route, schema, invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is introduced.
+Dependencies: TASK-286; TASK-289; TASK-290; TASK-291.
+Blocked by: Successful local/staging TASK-291 provisioning execution should still be recorded separately; governed auth/login lifecycle remains future work.
+Risk level: Low.
+Rollback notes: Revert the selected-customer home mapping/test updates and TASK-292 documentation changes.
+Explicit non-goals: Do not add schema, backend routes, user creation, live invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Customer Home consumes the current People and Access lifecycle correctly, so accepted required customer managers clear the people blocker and move the operator to the next true setup action. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
