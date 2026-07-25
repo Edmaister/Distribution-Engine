@@ -6509,6 +6509,31 @@ Rollback notes: Revert the selected-customer home mapping/test updates and TASK-
 Explicit non-goals: Do not add schema, backend routes, user creation, live invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Customer Home consumes the current People and Access lifecycle correctly, so accepted required customer managers clear the people blocker and move the operator to the next true setup action. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
+## TASK-293: Simplify People and Access language and separate optional login setup
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses existing selected-customer membership posture, activation readiness, and guarded access provisioning APIs while changing only the product-facing People and Access presentation. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer People and Access CX; customer manager confirmation; optional platform login setup boundary.
+Objective: Make the People and Access page understandable in plain language by treating confirmed customer managers as the primary outcome and moving seat/login setup into a secondary optional section.
+Why now: Physical UI testing showed that operators read `seat provisioning` and technical readiness labels as unresolved setup blockers even after owner and campaign-manager responsibilities were confirmed.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: People and Access now says `People are confirmed`, uses `Still needed`, `Added`, `Confirmed`, and `Login setup later` lifecycle labels, keeps per-person next actions focused on customer work, and moves platform login setup into an optional section with `Set up login` actions for confirmed people.
+API impact: None; existing guarded provisioning request is still used only from the optional login setup area.
+Tests added/updated: Updated selected-customer People and Access tests to assert the plain-language confirmed-people flow, optional login setup placement, and guarded provisioning request behavior.
+Validation method: `npm.cmd test -- --run src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx --reporter=dot`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Operators can clearly see that adding and confirming the account owner and campaign manager completes People and Access for referral work; login/seat setup is no longer presented as the main blocker; optional login setup remains guarded and separate; no backend route, schema, invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is introduced.
+Dependencies: TASK-286; TASK-289; TASK-290; TASK-292.
+Blocked by: Governed auth/login lifecycle and successful local/staging seat-assignment proof remain future work.
+Risk level: Low.
+Rollback notes: Revert the People and Access copy/layout/test updates and TASK-293 documentation changes.
+Explicit non-goals: Do not add schema, backend routes, user creation, live invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: People and Access reads as a simple customer-manager confirmation workflow, with platform login clearly shown as optional later setup. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

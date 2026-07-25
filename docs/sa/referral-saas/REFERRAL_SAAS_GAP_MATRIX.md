@@ -133,6 +133,14 @@ Ready, reports the actual missing-role count, and routes operators toward the
 next true setup action while keeping seat/auth provisioning as a separate
 governed workflow.
 
+TASK-293 simplifies the selected-customer People and Access page language so the
+operator outcome is no longer buried under seat/auth terminology. The page now
+frames the required owner and campaign manager as confirmed customer managers
+for referral work, uses plain lifecycle labels, and moves platform login/seat
+setup into a secondary optional section. This improves frontend coherence
+without changing backend account, membership, provisioning, auth, billing, or
+money boundaries.
+
 ## Recommended Ordered Task Sequence
 
 1. TASK-134: Define Referral SaaS account setup contract.
