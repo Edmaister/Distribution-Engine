@@ -1449,8 +1449,11 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText(/responsibility still needs to be named for this customer/i)).toBeInTheDocument();
     expect(screen.getByText("Ready to invite")).toBeInTheDocument();
     expect(screen.getByText("Ready to activate")).toBeInTheDocument();
-    expect(screen.getByText("Provisioning boundary")).toBeInTheDocument();
-    expect(screen.getByText(/Seat assignment and login permission claims remain separate controlled workflows/i)).toBeInTheDocument();
+    expect(screen.getByText("Login and seat provisioning")).toBeInTheDocument();
+    expect(
+      screen.getByText(/accepted people will move into login access and seat assignment/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Provision login & seat" })).toBeDisabled();
     expect(screen.getAllByText(/Campaign Manager/i).length).toBeGreaterThan(0);
     expect(screen.getByText("Configure an approved invitation delivery provider before sending invites.")).toBeInTheDocument();
     expect(screen.getAllByText("Gaborone owner").length).toBeGreaterThan(0);
@@ -1521,13 +1524,13 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/people");
 
     expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
-    expect(await screen.findByText("Gaborone owner")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText("Gaborone owner").length).toBeGreaterThan(0));
 
     fireEvent.click(screen.getByRole("button", { name: "Remove intent" }));
 
     await waitFor(() => expect(mockedCancelReferralSaasMembershipInvitationIntent).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Access intent updated.")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByText("Gaborone owner")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Gaborone owner")).toHaveLength(1));
     expect(screen.getByText("Roles still missing")).toBeInTheDocument();
     expect(screen.getAllByText("Account owner").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Campaign manager").length).toBeGreaterThan(0);
@@ -1619,6 +1622,10 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText("Access state")).toBeInTheDocument();
     expect(container.textContent).toContain("Acceptance: Accepted");
     expect(container.textContent).toContain("Login and seat: Provisioning separate");
+    expect(screen.getByText("Login and seat provisioning")).toBeInTheDocument();
+    expect(screen.getByText(/where accepted people will move into login access and seat assignment/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Provision login & seat" })).toBeDisabled();
+    expect(screen.getByText("Requires provisioning API contract.")).toBeInTheDocument();
   });
 
   it("lets Amplifi Admin record manual access acceptance from the edit drawer", async () => {
