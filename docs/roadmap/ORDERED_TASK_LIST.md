@@ -6409,6 +6409,56 @@ Rollback notes: Remove the account foundation activation service function, API r
 Explicit non-goals: Do not add schema, migrations, user creation, membership activation, seat assignment, invite delivery, credential creation, auth/session claim propagation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has a governed account-foundation activation command that prepares a selected customer for runtime provisioning proof while keeping people access, seat assignment, and auth/login provisioning as separate controlled steps. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
+## TASK-289: Improve People and Access lifecycle CX
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/people-access-mocks/index.html`; `docs/people-access-mocks/deck.html`.
+Shared primitive impact: Reuses existing selected-customer membership posture, activation readiness, invitation intent, manual acceptance, provisioning readiness, idempotency, audit, and redaction primitives without changing backend contracts. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer People and Access lifecycle UX; customer-scoped account administration.
+Objective: Turn People and Access into a person-first lifecycle workspace that shows who is missing, who is named, what is accepted, what can be provisioned, and what next action belongs to each responsibility.
+Why now: Physical UX testing showed the previous screen still exposed too much technical posture at once. Operators needed one clear list, one next action per person/responsibility, a solid add/edit drawer, and diagnostics kept available but secondary.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Replaces the stacked People and Access technical sections with a lifecycle hero, person-first working list, missing-role ghost rows, clearer per-row next actions, an opaque add/edit drawer with current-stage guidance, secondary diagnostics, concise provisioning boundary copy, and a `Provision seat` action label that no longer implies login/auth propagation.
+API impact: None.
+Tests added/updated: Updated selected-customer People and Access page coverage for lifecycle status, row actions, missing-role prompts, diagnostics toggle behavior, drawer manual acceptance affordances, provisioning action labels, remove intent, and refreshed read-model expectations.
+Validation method: `npm.cmd test -- --run src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx --reporter=dot`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: People and Access presents a clear customer-scoped lifecycle list before diagnostics; each required role shows either a named person or an Add prompt; drawer content is visually opaque and explains current stage; accepted access, seat provisioning, and login/auth propagation remain separate; no backend API, schema, invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is introduced.
+Dependencies: TASK-276; TASK-277; TASK-279; TASK-280; TASK-282; TASK-283; TASK-286.
+Blocked by: Further workflow completion still needs selected-customer activation UI wiring, successful local/staging seat provisioning proof against activated account data, and the later governed auth/login lifecycle.
+Risk level: Low.
+Rollback notes: Revert the People and Access page/test/CSS changes and TASK-289 documentation updates; backend behavior remains unchanged.
+Explicit non-goals: Do not add schema, backend routes, live invite delivery, identity-provider integration, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, support-case persistence, export persistence, DLaaS marketplace behavior, or source-code forks.
+Definition of done: Selected-customer People and Access matches the mock direction as a person-first lifecycle workspace with clear next actions and honest provisioning boundaries. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P1.
+
+## TASK-290: Wire customer foundation activation into selected-customer UI
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the governed TASK-288 account-foundation activation API, selected-customer account registry, membership posture, activation readiness, seat-capacity, audit, idempotency, and redaction primitives without forking product state. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer account-foundation lifecycle action; prerequisite for successful People and Access seat provisioning proof.
+Objective: Expose the guarded Amplifi Admin customer-foundation activation command inside the selected-customer UI so operators can resolve `PENDING_ONBOARDING` account/link posture before attempting seat provisioning.
+Why now: Physical UI testing showed People and Access correctly blocked seat provisioning when the selected customer account foundation was not active, but the UI did not show where to perform the required account-foundation activation. The right platform fix is to surface the existing lifecycle command, not to bypass it or overload People and Access with hidden state changes.
+Files involved: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None. Uses the existing `POST /v1/referral-saas/accounts/{account_ref}/activation-requests` route from TASK-288.
+Frontend impact: Adds a selected-customer `Activate customer foundation` panel on Customer Home, People and Access, and Account Health when the account is not active; calls the guarded activation API; refreshes account registry, membership posture, and activation readiness read models; shows plain-language success and blocked-provisioning feedback.
+API impact: Adds frontend API client wrapper and tests for the existing TASK-288 route.
+Tests added/updated: Adds endpoint client coverage for account-foundation activation guardrails; adds selected-customer page coverage proving the pending account activation CTA calls the guarded wrapper with external customer scope and no adjacent live-action payload.
+Validation method: `npm.cmd test -- --run src/api/endpoints/referralSaasAccounts.test.ts src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx --reporter=dot`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Pending selected customers show a visible Amplifi Admin activation action before seat provisioning; activation uses external customer scope and idempotency; success refreshes customer read models and explains available seat capacity; blocked seat provisioning feedback is not presented as a successful seat assignment; UI confirms no membership write, seat assignment, invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is introduced.
+Dependencies: TASK-288; TASK-289.
+Blocked by: Successful local/staging People and Access seat provisioning proof must be rerun after activating a customer foundation; later governed credential/auth-claim lifecycle remains future work.
+Risk level: Medium.
+Rollback notes: Revert the frontend endpoint/page/test/CSS changes and TASK-290 documentation updates; backend activation command remains available.
+Explicit non-goals: Do not add schema, backend routes, user creation, membership activation, direct seat assignment, invite delivery, credential creation, auth/session claim propagation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Selected-customer UI exposes the real guarded account-foundation activation action so operators can move a pending customer into active account/link posture before seat provisioning proof. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

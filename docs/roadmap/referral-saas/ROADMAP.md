@@ -1244,6 +1244,39 @@ greenfield referral construction.
   evidence without assigning seats, activating memberships, delivering invites,
   creating credentials, changing auth claims, activating campaigns, triggering
   go-live, billing, moving money, or adding DLaaS marketplace behavior.
+- TASK-289: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `frontend/src/styles/base.css`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Reworks
+  selected-customer People and Access into a person-first lifecycle workspace
+  aligned to the CX mock recommendations. The page now prioritizes one working
+  list with missing-role prompts, named/accepted/seat lifecycle labels, one next
+  action per responsibility, an opaque add/edit drawer with current-stage
+  guidance, diagnostics behind a toggle, and clearer provisioning-boundary copy.
+  No backend route, schema, invite delivery, credential creation, auth-claim
+  propagation, campaign activation, billing, money movement, or DLaaS marketplace
+  behavior is introduced.
+- TASK-290: `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `frontend/src/styles/base.css`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Wires the
+  TASK-288 guarded account-foundation activation command into selected-customer
+  Customer Home, People and Access, and Account Health. Pending customers now
+  show an Amplifi Admin `Activate foundation` action before seat provisioning;
+  the UI calls the account-scoped activation API, refreshes account and access
+  read models, explains available seat capacity, and avoids presenting blocked
+  provisioning as successful assignment. No backend route, schema, membership
+  activation, direct seat assignment, invite delivery, credential creation,
+  auth-claim propagation, campaign activation, go-live, billing, money movement,
+  or DLaaS marketplace behavior is introduced.
 
 ## Explicit Deferrals
 

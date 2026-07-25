@@ -693,6 +693,21 @@ export type ReferralSaasAccessProvisioningRequest = {
   idempotencyKey: string;
 };
 
+export type ReferralSaasAccountFoundationActivationRequest = {
+  accountRef: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  activation: {
+    seatTypes: ("ADMIN" | "OPERATOR" | "SUPPORT")[];
+  };
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
 export type ReferralSaasAccountProfileUpdateRequest = {
   accountRef: string;
   profile: {
@@ -932,6 +947,52 @@ export type ReferralSaasAccessProvisioningResponse = {
   no_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasAccountFoundationActivationResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  activation: {
+    accountId: string;
+    accountCode: string;
+    accountName: string;
+    previousAccountStatus: string;
+    accountStatus: string;
+    previousOnboardingStatus: string;
+    onboardingStatus: string;
+    previousTenantLinkStatus?: string | null;
+    tenantLinkStatus?: string | null;
+    seatCapacity: {
+      seatTypes: string[];
+      createdSeatCount: number;
+    };
+    commandStatus: string;
+    auditEventId?: string | null;
+    idempotency: {
+      status: string;
+    };
+    guardrails: string[];
+    redactions: string[];
+    noMembershipWriteConfirmed: boolean;
+    noSeatAssignmentConfirmed: boolean;
+    noInviteDeliveryConfirmed: boolean;
+    noAuthClaimChangeConfirmed: boolean;
+    noCredentialCreationConfirmed: boolean;
+    noCampaignActivationConfirmed: boolean;
+    noGoLiveActionConfirmed: boolean;
+    noBillingOrMoneyMovementConfirmed: boolean;
+  };
+  guardrails: string[];
+  redactions: string[];
+  no_membership_write_confirmed: boolean;
+  no_seat_assignment_confirmed: boolean;
+  no_invite_delivery_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_credential_creation_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_go_live_action_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
 export function resolveReferralSaasAccount({
   refType,
   externalRef,
@@ -952,6 +1013,35 @@ export function listReferralSaasAccounts(limit = 50): Promise<ReferralSaasAccoun
       limit,
     },
   });
+}
+
+export function requestReferralSaasAccountFoundationActivation({
+  accountRef,
+  accountScope,
+  activation,
+  reasonCode,
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasAccountFoundationActivationRequest): Promise<ReferralSaasAccountFoundationActivationResponse> {
+  return apiRequest<ReferralSaasAccountFoundationActivationResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/activation-requests`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        activation: {
+          seatTypes: activation.seatTypes,
+        },
+        reasonCode: reasonCode?.trim() || "CUSTOMER_ACCOUNT_FOUNDATION_ACTIVATION",
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
 }
 
 export function getReferralSaasAccountMembershipPosture({
