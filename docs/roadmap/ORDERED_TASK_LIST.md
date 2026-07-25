@@ -6384,6 +6384,31 @@ Rollback notes: Remove the physical proof script, unit test, README entry, and T
 Explicit non-goals: Do not add schema, migrations, new APIs, UI changes, live invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code forks.
 Definition of done: People and Access provisioning has a repeatable selected-customer physical proof harness that validates API behavior, refreshed read models, idempotency, optional DB evidence, and no-adjacent-action guardrails. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
+## TASK-288: Add guarded Referral SaaS account foundation activation
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds a governed account-foundation lifecycle command over existing account, tenant-link, external-reference, seat-capacity, account-audit, and idempotency primitives. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer account foundation activation; prerequisite for runtime access provisioning proof.
+Objective: Provide an Amplifi Admin-only API command that moves a Referral SaaS customer account foundation from pending setup into active runtime posture, activates the owner tenant link, creates bounded available seat capacity, and records audit/idempotency evidence without assigning seats or changing login/auth permissions.
+Why now: TASK-287 proved the People and Access provisioning path reaches the correct guarded API, but local execution blocked because the selected customer account foundation was still `PENDING_ONBOARDING`. The product needs a real, audited account-foundation activation step instead of direct DB tweaks before a successful seat-assignment proof can be recorded.
+Files involved: `services/referral_saas_account_foundation_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/test_referral_saas_account_foundation_activation_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: No migration. Uses existing `platform_accounts`, `platform_account_tenants`, `platform_external_tenant_refs`, `platform_seats`, and `platform_account_audit_events` tables.
+Backend impact: Adds guarded service/API behavior for account foundation activation, including role gate, setup-scope resolution, path-scope check, account/link/reference readiness checks, idempotency replay/conflict handling, account/link status updates, available seat-capacity insertion, and audit evidence.
+Frontend impact: None in this task. The next UI task can expose the activation action from selected-customer Account Maintenance/Customer Profile.
+API impact: Adds `POST /v1/referral-saas/accounts/{account_ref}/activation-requests`.
+Tests added/updated: Added service tests for activation, idempotency replay, idempotency conflict, and invalid seat type; added API wrapper tests for account activation and runtime-context rejection; updated Referral SaaS route smoke inventory.
+Validation method: `.venv_codex\Scripts\python.exe -m pytest -q test\test_referral_saas_account_foundation_activation_service.py test\api\test_referral_saas_accounts_api.py test\test_referral_saas_route_smoke_inventory.py --tb=short -x`; `git diff --check`.
+Acceptance criteria: Amplifi Admin can activate a selected pending Referral SaaS customer foundation through customer-visible account scope; account status becomes `ACTIVE`, onboarding status becomes `APPROVED`, owner tenant link becomes `ACTIVE`, requested seat capacity is created as `AVAILABLE`, idempotency replay/conflict is enforced, audit evidence is recorded, and responses confirm no membership write, seat assignment, invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is introduced.
+Dependencies: TASK-198; TASK-200; TASK-203; TASK-230; TASK-231; TASK-249; TASK-285; TASK-287.
+Blocked by: Frontend action wiring and successful local/staging TASK-287 execution against active seat data remain next.
+Risk level: Medium.
+Rollback notes: Remove the account foundation activation service function, API route, route-smoke entry, tests, and TASK-288 documentation updates.
+Explicit non-goals: Do not add schema, migrations, user creation, membership activation, seat assignment, invite delivery, credential creation, auth/session claim propagation, external-reference rotation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has a governed account-foundation activation command that prepares a selected customer for runtime provisioning proof while keeping people access, seat assignment, and auth/login provisioning as separate controlled steps. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

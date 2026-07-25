@@ -34,6 +34,37 @@ PROFILE_MAINTENANCE_REDACTIONS = [
     "raw_secret",
     "idempotency_key_hash",
 ]
+ACCOUNT_FOUNDATION_ACTIVATION_ROLES = frozenset(
+    {"ADMIN", "SYSTEM_ADMIN", "DISTRIBUTION_ADMIN", "PLATFORM_ADMIN"}
+)
+ACCOUNT_FOUNDATION_ACTIVATION_GUARDRAILS = [
+    "AMPLIFI_ADMIN_ONLY",
+    "ACCOUNT_FOUNDATION_ONLY",
+    "ACTIVE_TENANT_LINK_REQUIRED",
+    "ACTIVE_EXTERNAL_REFERENCES_REQUIRED",
+    "AVAILABLE_SEAT_CAPACITY_ONLY",
+    "NO_MEMBERSHIP_WRITE",
+    "NO_SEAT_ASSIGNMENT",
+    "NO_INVITE_DELIVERY",
+    "NO_AUTH_CLAIM_CHANGE",
+    "NO_CREDENTIAL_LIFECYCLE",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_GO_LIVE_ACTION",
+    "NO_BILLING_OR_MONEY_MOVEMENT",
+]
+ACCOUNT_FOUNDATION_ACTIVATION_REDACTIONS = [
+    "internal_tenant_identifier",
+    "idempotency_key_hash",
+    "raw_secret",
+    "auth_claim",
+    "credential",
+]
+ACCOUNT_FOUNDATION_ACTIVATION_EVENT_TYPE = "ACCOUNT_FOUNDATION_ACTIVATION_REQUESTED"
+ACCOUNT_FOUNDATION_ACTIVATION_REASON = "CUSTOMER_ACCOUNT_FOUNDATION_ACTIVATION"
+DEFAULT_ACCOUNT_FOUNDATION_SEAT_TYPES = ("ADMIN", "OPERATOR")
+ALLOWED_ACCOUNT_FOUNDATION_SEAT_TYPES = frozenset(
+    {"ADMIN", "OPERATOR", "PARTNER", "PRODUCER", "DISTRIBUTOR", "CONSUMER", "SUPPORT"}
+)
 ALLOWED_PROFILE_ACCOUNT_TYPES = frozenset(
     {
         "ORGANISATION",
@@ -139,6 +170,37 @@ class AccountProfileUnsafePayload(AccountProfileMaintenanceError):
     safe_code = "REJECTED_UNSAFE_PAYLOAD"
 
 
+class AccountFoundationActivationError(Exception):
+    safe_code = "ACCOUNT_FOUNDATION_ACTIVATION_FAILED"
+
+    def __init__(self, message: str, *, safe_code: str | None = None):
+        super().__init__(message)
+        if safe_code:
+            self.safe_code = safe_code
+
+
+class AccountFoundationActivationPermissionDenied(AccountFoundationActivationError):
+    safe_code = "PERMISSION_DENIED"
+
+
+class AccountFoundationActivationValidationError(AccountFoundationActivationError):
+    safe_code = "VALIDATION_ERROR"
+
+
+class AccountFoundationActivationNotFound(AccountFoundationActivationError):
+    safe_code = "ACCOUNT_NOT_FOUND"
+
+
+class AccountFoundationActivationNotReady(AccountFoundationActivationError):
+    safe_code = "ACCOUNT_FOUNDATION_NOT_READY"
+
+
+class AccountFoundationActivationIdempotencyConflict(
+    AccountFoundationActivationError
+):
+    safe_code = "IDEMPOTENCY_CONFLICT"
+
+
 @dataclass(frozen=True)
 class AccountFoundationContext:
     account_id: str
@@ -240,6 +302,56 @@ class AccountProfileMaintenanceResult:
             "auditEventId": self.audit_event_id,
             "guardrails": list(self.guardrails),
             "redactions": list(self.redactions),
+        }
+
+
+@dataclass(frozen=True)
+class AccountFoundationActivationResult:
+    account_id: str
+    account_code: str
+    account_name: str
+    previous_account_status: str
+    account_status: str
+    previous_onboarding_status: str
+    onboarding_status: str
+    previous_tenant_link_status: str | None
+    tenant_link_status: str | None
+    activated_seat_types: tuple[str, ...]
+    created_seat_count: int
+    command_status: str
+    audit_event_id: str | None
+    idempotency_status: str
+    guardrails: list[str]
+    redactions: list[str]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "accountId": self.account_id,
+            "accountCode": self.account_code,
+            "accountName": self.account_name,
+            "previousAccountStatus": self.previous_account_status,
+            "accountStatus": self.account_status,
+            "previousOnboardingStatus": self.previous_onboarding_status,
+            "onboardingStatus": self.onboarding_status,
+            "previousTenantLinkStatus": self.previous_tenant_link_status,
+            "tenantLinkStatus": self.tenant_link_status,
+            "seatCapacity": {
+                "seatTypes": list(self.activated_seat_types),
+                "createdSeatCount": self.created_seat_count,
+            },
+            "commandStatus": self.command_status,
+            "auditEventId": self.audit_event_id,
+            "idempotency": {"status": self.idempotency_status},
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noMembershipWriteConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noInviteDeliveryConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveActionConfirmed": True,
+            "noBillingOrMoneyMovementConfirmed": True,
         }
 
 
@@ -651,6 +763,360 @@ async def update_referral_saas_account_profile(
     )
 
 
+async def activate_referral_saas_account_foundation(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_tenant_id: str | None,
+    external_ref_id: str,
+    seat_types: Iterable[str] | None = None,
+    actor_ref: str,
+    actor_role: str,
+    reason_code: str | None = None,
+    correlation_id: str | None = None,
+    idempotency_key_hash: str | None = None,
+    command_payload_hash: str | None = None,
+) -> AccountFoundationActivationResult:
+    role = _safe_text(actor_role).upper()
+    if role not in ACCOUNT_FOUNDATION_ACTIVATION_ROLES:
+        raise AccountFoundationActivationPermissionDenied(
+            "Actor is not authorised to activate Referral SaaS account foundations."
+        )
+
+    safe_account_id = _safe_text(account_id)
+    safe_tenant_code = _safe_text(tenant_code)
+    safe_account_tenant_id = _safe_text(account_tenant_id) or None
+    safe_external_ref_id = _safe_text(external_ref_id)
+    safe_actor_ref = _safe_text(actor_ref) or "REFERRAL_SAAS_ACCOUNT_OPERATOR"
+    safe_reason_code = (
+        _safe_text(reason_code) or ACCOUNT_FOUNDATION_ACTIVATION_REASON
+    )
+    safe_idempotency_hash = _safe_text(idempotency_key_hash) or None
+    safe_payload_hash = _safe_text(command_payload_hash) or None
+    requested_seat_types = _normalise_activation_seat_types(seat_types)
+
+    if not safe_account_id or not safe_tenant_code or not safe_external_ref_id:
+        raise AccountFoundationActivationValidationError(
+            "Account, tenant, and external reference scope are required."
+        )
+
+    async with db_connection() as conn:
+        if safe_idempotency_hash:
+            replay = await conn.fetchrow(
+                """
+                SELECT
+                    account_audit_event_id,
+                    evidence_summary
+                FROM platform_account_audit_events
+                WHERE event_type = $1
+                  AND idempotency_key_hash = $2
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                ACCOUNT_FOUNDATION_ACTIVATION_EVENT_TYPE,
+                safe_idempotency_hash,
+            )
+            if replay:
+                evidence = _json_object(replay["evidence_summary"])
+                if (
+                    safe_payload_hash
+                    and evidence.get("command_payload_hash")
+                    and evidence.get("command_payload_hash") != safe_payload_hash
+                ):
+                    raise AccountFoundationActivationIdempotencyConflict(
+                        "Idempotency key was reused with different account activation content."
+                    )
+                return _activation_result_from_evidence(
+                    evidence,
+                    audit_event_id=str(replay["account_audit_event_id"]),
+                    idempotency_status="REPLAYED",
+                )
+
+        current = await conn.fetchrow(
+            """
+            SELECT
+                account.account_id,
+                account.account_code,
+                account.account_name,
+                account.status AS account_status,
+                account.onboarding_status,
+                account_tenant.account_tenant_id,
+                account_tenant.status AS tenant_link_status,
+                external_ref.external_ref_id,
+                external_ref.status AS reference_status
+            FROM platform_accounts account
+            LEFT JOIN platform_account_tenants account_tenant
+                ON account_tenant.account_id = account.account_id
+               AND account_tenant.tenant_code = $2
+               AND account_tenant.relationship_type = 'OWNER'
+               AND account_tenant.status <> 'ARCHIVED'
+            LEFT JOIN platform_external_tenant_refs external_ref
+                ON external_ref.account_id = account.account_id
+               AND external_ref.external_ref_id = $4::uuid
+               AND external_ref.tenant_code = $2
+               AND external_ref.status <> 'ARCHIVED'
+            WHERE account.account_id = $1::uuid
+              AND ($3::uuid IS NULL OR account_tenant.account_tenant_id = $3::uuid)
+              AND account.archived_at IS NULL
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_tenant_code,
+            safe_account_tenant_id,
+            safe_external_ref_id,
+        )
+        if not current:
+            raise AccountFoundationActivationNotFound("Account foundation was not found.")
+        if not current.get("account_tenant_id"):
+            raise AccountFoundationActivationNotReady(
+                "Account owner tenant link was not found for activation."
+            )
+        if not current.get("external_ref_id"):
+            raise AccountFoundationActivationNotReady(
+                "Account external reference was not found for activation."
+            )
+
+        previous_account_status = _safe_text(current["account_status"]).upper()
+        previous_onboarding_status = _safe_text(current["onboarding_status"]).upper()
+        previous_tenant_link_status = _safe_text(
+            current["tenant_link_status"]
+        ).upper()
+        reference_status = _safe_text(current["reference_status"]).upper()
+
+        if previous_account_status not in {"PENDING_ONBOARDING", "ACTIVE"}:
+            raise AccountFoundationActivationNotReady(
+                "Account foundation is not in an activatable state."
+            )
+        if previous_tenant_link_status not in {"PENDING_SETUP", "ACTIVE"}:
+            raise AccountFoundationActivationNotReady(
+                "Account owner tenant link is not in an activatable state."
+            )
+        if reference_status != "ACTIVE":
+            raise AccountFoundationActivationNotReady(
+                "Account external reference must be active before activation."
+            )
+
+        async with conn.transaction():
+            updated_account = await conn.fetchrow(
+                """
+                UPDATE platform_accounts
+                SET
+                    status = 'ACTIVE',
+                    onboarding_status = 'APPROVED',
+                    metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
+                        'account_foundation_activation_status',
+                        'ACCOUNT_FOUNDATION_ACTIVATED',
+                        'no_membership_write_confirmed', true,
+                        'no_seat_assignment_confirmed', true,
+                        'no_auth_claim_change_confirmed', true,
+                        'no_billing_or_money_movement_confirmed', true
+                    ),
+                    updated_by_ref = $2,
+                    updated_at = NOW()
+                WHERE account_id = $1::uuid
+                  AND status IN ('PENDING_ONBOARDING', 'ACTIVE')
+                RETURNING account_id, account_code, account_name, status, onboarding_status
+                """,
+                safe_account_id,
+                safe_actor_ref,
+            )
+            updated_tenant = await conn.fetchrow(
+                """
+                UPDATE platform_account_tenants
+                SET
+                    status = 'ACTIVE',
+                    metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
+                        'account_foundation_activation_status',
+                        'TENANT_LINK_ACTIVATED'
+                    ),
+                    updated_at = NOW()
+                WHERE account_tenant_id = $1::uuid
+                  AND status IN ('PENDING_SETUP', 'ACTIVE')
+                RETURNING account_tenant_id, status
+                """,
+                str(current["account_tenant_id"]),
+            )
+            inserted_seats = await conn.fetchrow(
+                """
+                WITH requested AS (
+                    SELECT DISTINCT unnest($2::text[]) AS seat_type
+                ),
+                inserted AS (
+                    INSERT INTO platform_seats (
+                        account_id,
+                        seat_type,
+                        status,
+                        metadata
+                    )
+                    SELECT
+                        $1::uuid,
+                        requested.seat_type,
+                        'AVAILABLE',
+                        jsonb_build_object(
+                            'source',
+                            'referral_saas_account_foundation_activation',
+                            'no_membership_assignment_confirmed',
+                            true,
+                            'no_auth_claim_change_confirmed',
+                            true
+                        )
+                    FROM requested
+                    WHERE NOT EXISTS (
+                        SELECT 1
+                        FROM platform_seats existing
+                        WHERE existing.account_id = $1::uuid
+                          AND existing.seat_type = requested.seat_type
+                          AND existing.status IN ('AVAILABLE', 'ASSIGNED', 'SUSPENDED')
+                    )
+                    RETURNING seat_type
+                )
+                SELECT
+                    COALESCE(jsonb_agg(seat_type ORDER BY seat_type), '[]'::jsonb)
+                        AS created_seat_types,
+                    COUNT(*)::int AS created_seat_count
+                FROM inserted
+                """,
+                safe_account_id,
+                list(requested_seat_types),
+            )
+            evidence = {
+                "account_id": safe_account_id,
+                "account_code": str(updated_account["account_code"]),
+                "account_name": str(updated_account["account_name"]),
+                "previous_account_status": previous_account_status,
+                "account_status": str(updated_account["status"]),
+                "previous_onboarding_status": previous_onboarding_status,
+                "onboarding_status": str(updated_account["onboarding_status"]),
+                "previous_tenant_link_status": previous_tenant_link_status,
+                "tenant_link_status": str(updated_tenant["status"]),
+                "requested_seat_types": list(requested_seat_types),
+                "created_seat_types": _json_list(
+                    inserted_seats["created_seat_types"] if inserted_seats else []
+                ),
+                "created_seat_count": int(
+                    inserted_seats["created_seat_count"] if inserted_seats else 0
+                ),
+                "command_status": "ACCOUNT_FOUNDATION_ACTIVATED",
+                "command_payload_hash": safe_payload_hash,
+                "no_membership_write_confirmed": True,
+                "no_seat_assignment_confirmed": True,
+                "no_invite_delivery_confirmed": True,
+                "no_auth_claim_change_confirmed": True,
+                "no_credential_creation_confirmed": True,
+                "no_campaign_activation_confirmed": True,
+                "no_go_live_action_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            }
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1::uuid, $2::uuid, $3::uuid, $4, $5, 'RECORDED', $6, $7,
+                    $8, $9, $10, $11, $12, $13::jsonb, $14::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                str(current["account_tenant_id"]),
+                safe_external_ref_id,
+                safe_tenant_code,
+                ACCOUNT_FOUNDATION_ACTIVATION_EVENT_TYPE,
+                safe_actor_ref,
+                role,
+                previous_account_status,
+                "ACCOUNT_FOUNDATION_ACTIVATED",
+                safe_reason_code,
+                _safe_text(correlation_id) or None,
+                safe_idempotency_hash,
+                _jsonb(evidence),
+                _jsonb(ACCOUNT_FOUNDATION_ACTIVATION_REDACTIONS),
+            )
+
+    return _activation_result_from_evidence(
+        evidence,
+        audit_event_id=(
+            str(audit_event["account_audit_event_id"]) if audit_event else None
+        ),
+        idempotency_status="RECORDED",
+    )
+
+
+def _normalise_activation_seat_types(values: Iterable[str] | None) -> tuple[str, ...]:
+    if isinstance(values, str):
+        values = [values]
+    requested = tuple(
+        dict.fromkeys(
+            (
+                _safe_text(value).upper()
+                for value in (values or DEFAULT_ACCOUNT_FOUNDATION_SEAT_TYPES)
+            )
+        )
+    )
+    if not requested:
+        raise AccountFoundationActivationValidationError(
+            "At least one seat type is required for account activation capacity."
+        )
+    unsupported = [
+        value for value in requested if value not in ALLOWED_ACCOUNT_FOUNDATION_SEAT_TYPES
+    ]
+    if unsupported:
+        raise AccountFoundationActivationValidationError(
+            "Seat type is not supported for Referral SaaS account activation."
+        )
+    return requested
+
+
+def _activation_result_from_evidence(
+    evidence: dict[str, Any],
+    *,
+    audit_event_id: str | None,
+    idempotency_status: str,
+) -> AccountFoundationActivationResult:
+    return AccountFoundationActivationResult(
+        account_id=_safe_text(evidence.get("account_id")),
+        account_code=_safe_text(evidence.get("account_code")),
+        account_name=_safe_text(evidence.get("account_name")),
+        previous_account_status=_safe_text(evidence.get("previous_account_status")),
+        account_status=_safe_text(evidence.get("account_status")),
+        previous_onboarding_status=_safe_text(
+            evidence.get("previous_onboarding_status")
+        ),
+        onboarding_status=_safe_text(evidence.get("onboarding_status")),
+        previous_tenant_link_status=_safe_text(
+            evidence.get("previous_tenant_link_status")
+        )
+        or None,
+        tenant_link_status=_safe_text(evidence.get("tenant_link_status")) or None,
+        activated_seat_types=tuple(
+            _safe_text(value)
+            for value in _json_list(evidence.get("requested_seat_types"))
+            if _safe_text(value)
+        ),
+        created_seat_count=int(evidence.get("created_seat_count") or 0),
+        command_status=_safe_text(evidence.get("command_status")),
+        audit_event_id=audit_event_id,
+        idempotency_status=idempotency_status,
+        guardrails=list(ACCOUNT_FOUNDATION_ACTIVATION_GUARDRAILS),
+        redactions=list(ACCOUNT_FOUNDATION_ACTIVATION_REDACTIONS),
+    )
+
+
 def _normalise_external_reference_rows(value: Any) -> list[dict[str, Any]]:
     if not value:
         return []
@@ -659,6 +1125,24 @@ def _normalise_external_reference_rows(value: Any) -> list[dict[str, Any]]:
         return decoded if isinstance(decoded, list) else []
     if isinstance(value, list):
         return [item for item in value if isinstance(item, dict)]
+    return []
+
+
+def _json_object(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        decoded = json.loads(value)
+        return decoded if isinstance(decoded, dict) else {}
+    return {}
+
+
+def _json_list(value: Any) -> list[Any]:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        decoded = json.loads(value)
+        return decoded if isinstance(decoded, list) else []
     return []
 
 

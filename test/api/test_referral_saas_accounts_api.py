@@ -9,6 +9,7 @@ from apps.api.main import app
 from apps.api.routers import referral_saas_accounts
 from services.referral_saas_account_foundation_service import (
     AccountFoundationContext,
+    AccountFoundationActivationResult,
     AccountFoundationListItem,
     AccountNotResolvable,
     AccountProfileMaintenanceResult,
@@ -185,6 +186,29 @@ def _access_provisioning_result(**overrides) -> AccessProvisioningRequestResult:
     }
     values.update(overrides)
     return AccessProvisioningRequestResult(**values)
+
+
+def _account_activation_result(**overrides) -> AccountFoundationActivationResult:
+    values = {
+        "account_id": "acct-1",
+        "account_code": "ACCT_FNB",
+        "account_name": "FNB Referral SaaS",
+        "previous_account_status": "PENDING_ONBOARDING",
+        "account_status": "ACTIVE",
+        "previous_onboarding_status": "READY_FOR_REVIEW",
+        "onboarding_status": "APPROVED",
+        "previous_tenant_link_status": "PENDING_SETUP",
+        "tenant_link_status": "ACTIVE",
+        "activated_seat_types": ("ADMIN", "OPERATOR"),
+        "created_seat_count": 2,
+        "command_status": "ACCOUNT_FOUNDATION_ACTIVATED",
+        "audit_event_id": "audit-account-activation-1",
+        "idempotency_status": "RECORDED",
+        "guardrails": ["ACCOUNT_FOUNDATION_ONLY", "NO_MEMBERSHIP_WRITE"],
+        "redactions": ["internal_tenant_identifier"],
+    }
+    values.update(overrides)
+    return AccountFoundationActivationResult(**values)
 
 
 def _profile_result(**overrides) -> AccountProfileMaintenanceResult:
@@ -515,6 +539,95 @@ async def test_referral_saas_account_reader_can_list_safe_account_registry(monke
     assert body["redactions"] == ["internal_tenant_identifier"]
     assert "tenantCode" not in str(body)
     assert calls == [{"limit": 20}]
+
+
+async def test_referral_saas_account_admin_can_activate_account_foundation(monkeypatch):
+    resolve_calls: list[dict] = []
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(
+            account_status="PENDING_ONBOARDING",
+            onboarding_status="READY_FOR_REVIEW",
+            tenant_link_status="PENDING_SETUP",
+        )
+
+    async def fake_activate_referral_saas_account_foundation(**kwargs):
+        command_calls.append(kwargs)
+        return _account_activation_result()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "activate_referral_saas_account_foundation",
+        fake_activate_referral_saas_account_foundation,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/activation-requests",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "activation": {"seatTypes": ["ADMIN", "OPERATOR"]},
+                "reasonCode": "CUSTOMER_ACCOUNT_FOUNDATION_ACTIVATION",
+                "correlationId": "corr-activation-1",
+                "idempotencyKey": "account-activation-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["activation"]["commandStatus"] == "ACCOUNT_FOUNDATION_ACTIVATED"
+    assert body["activation"]["accountStatus"] == "ACTIVE"
+    assert body["activation"]["tenantLinkStatus"] == "ACTIVE"
+    assert body["activation"]["seatCapacity"] == {
+        "seatTypes": ["ADMIN", "OPERATOR"],
+        "createdSeatCount": 2,
+    }
+    assert body["no_membership_write_confirmed"] is True
+    assert body["no_seat_assignment_confirmed"] is True
+    assert body["no_auth_claim_change_confirmed"] is True
+    assert body["no_billing_or_money_movement_confirmed"] is True
+    assert "tenantCode" not in body["account"]
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert command_calls[0]["account_id"] == "acct-1"
+    assert command_calls[0]["tenant_code"] == "FNB"
+    assert command_calls[0]["seat_types"] == ["ADMIN", "OPERATOR"]
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["command_payload_hash"]
+
+
+async def test_referral_saas_account_activation_rejects_runtime_context():
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/activation-requests",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "runtime",
+                },
+                "correlationId": "corr-activation-1",
+                "idempotencyKey": "account-activation-1",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "validation_error"
+    assert "setup" in detail["message"]
 
 
 async def test_referral_saas_account_admin_can_update_customer_profile(monkeypatch):
