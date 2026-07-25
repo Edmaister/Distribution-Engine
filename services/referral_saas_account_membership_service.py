@@ -25,6 +25,14 @@ EVENT_DUPLICATE: Final = "DUPLICATE"
 USER_ACTOR: Final = "USER"
 CLIENT_ACTOR: Final = "CLIENT"
 PRIMARY_TENANT_SCOPE: Final = "PRIMARY_ACCOUNT_TENANT"
+MANUAL_ACCESS_ACCEPTANCE_REASON: Final = "AMPLIFI_ADMIN_MANUAL_ACCESS_ACCEPTANCE"
+MANUAL_ACCESS_ACCEPTANCE_ADMIN_ROLES: Final = frozenset({"ADMIN", "AMPLIFI_ADMIN"})
+MANUAL_ACCESS_ACCEPTANCE_ACCOUNT_STATUSES: Final = frozenset(
+    {"ACTIVE", "PENDING_ONBOARDING"}
+)
+MANUAL_ACCESS_ACCEPTANCE_TENANT_LINK_STATUSES: Final = frozenset(
+    {"ACTIVE", "PENDING_SETUP"}
+)
 
 ROLE_FAMILIES: Final = frozenset(
     {
@@ -1714,8 +1722,17 @@ async def request_referral_saas_membership_activation(
     safe_idempotency_hash = _required_text(idempotency_key_hash)
     safe_payload_hash = _required_text(command_payload_hash)
     safe_command_payload = command_payload or {}
+    safe_command_actor_role = _optional_text(command_actor_role).upper()
+    is_manual_access_acceptance = safe_reason_code == MANUAL_ACCESS_ACCEPTANCE_REASON
 
     _reject_unsafe_activation_payload(safe_command_payload)
+    if (
+        is_manual_access_acceptance
+        and safe_command_actor_role not in MANUAL_ACCESS_ACCEPTANCE_ADMIN_ROLES
+    ):
+        raise MembershipInvitationUnsafeScope(
+            "Manual access acceptance requires an Amplifi Admin actor."
+        )
 
     async with db_connection() as conn:
         existing_audit = await conn.fetchrow(
@@ -1857,6 +1874,24 @@ async def request_referral_saas_membership_activation(
         elif duplicate_active:
             activation_status = "ACTIVATION_REJECTED_DUPLICATE_ACTIVE_MEMBERSHIP"
             accepted_subject_status = "ACCEPTED_SUBJECT_NOT_EVALUATED"
+        elif not safe_accepted_subject or safe_accepted_subject != invited_subject:
+            activation_status = "ACTIVATION_REJECTED_IDENTITY_NOT_ACCEPTED"
+            accepted_subject_status = "ACCEPTED_SUBJECT_MISSING_OR_MISMATCHED"
+        elif is_manual_access_acceptance:
+            if safe_account_status not in MANUAL_ACCESS_ACCEPTANCE_ACCOUNT_STATUSES:
+                activation_status = "ACTIVATION_REJECTED_ACCOUNT_NOT_ACTIVE"
+                accepted_subject_status = "ACCEPTED_SUBJECT_NOT_EVALUATED"
+            elif (
+                safe_tenant_link_status
+                not in MANUAL_ACCESS_ACCEPTANCE_TENANT_LINK_STATUSES
+            ):
+                activation_status = "ACTIVATION_REJECTED_TENANT_LINK_NOT_ACTIVE"
+                accepted_subject_status = "ACCEPTED_SUBJECT_NOT_EVALUATED"
+            elif safe_external_reference_status != "ACTIVE":
+                activation_status = "ACTIVATION_REJECTED_EXTERNAL_REFERENCE_NOT_ACTIVE"
+                accepted_subject_status = "ACCEPTED_SUBJECT_NOT_EVALUATED"
+            else:
+                activation_status = "MEMBERSHIP_ACTIVATED"
         elif safe_account_status != "ACTIVE":
             activation_status = "ACTIVATION_REJECTED_ACCOUNT_NOT_ACTIVE"
             accepted_subject_status = "ACCEPTED_SUBJECT_NOT_EVALUATED"
@@ -1866,9 +1901,6 @@ async def request_referral_saas_membership_activation(
         elif safe_external_reference_status != "ACTIVE":
             activation_status = "ACTIVATION_REJECTED_EXTERNAL_REFERENCE_NOT_ACTIVE"
             accepted_subject_status = "ACCEPTED_SUBJECT_NOT_EVALUATED"
-        elif not safe_accepted_subject or safe_accepted_subject != invited_subject:
-            activation_status = "ACTIVATION_REJECTED_IDENTITY_NOT_ACCEPTED"
-            accepted_subject_status = "ACCEPTED_SUBJECT_MISSING_OR_MISMATCHED"
         else:
             activation_status = "MEMBERSHIP_ACTIVATED"
 
@@ -1887,6 +1919,10 @@ async def request_referral_saas_membership_activation(
             "acceptance_evidence_present": bool(safe_acceptance_evidence_ref),
             "activation_next_action": activation_next_action,
             "command_payload_hash": safe_payload_hash,
+            "manual_access_acceptance_confirmed": is_manual_access_acceptance,
+            "account_status_at_acceptance": safe_account_status,
+            "tenant_link_status_at_acceptance": safe_tenant_link_status,
+            "external_reference_status_at_acceptance": safe_external_reference_status,
             "no_invite_delivery_confirmed": True,
             "no_auth_claim_change_confirmed": True,
             "no_seat_assignment_confirmed": True,
@@ -1909,6 +1945,10 @@ async def request_referral_saas_membership_activation(
                         metadata = metadata || jsonb_build_object(
                             'activation_status', 'MEMBERSHIP_ACTIVATED',
                             'acceptance_evidence_ref_present', $2,
+                            'manual_access_acceptance_confirmed', $5,
+                            'account_status_at_acceptance', $6,
+                            'tenant_link_status_at_acceptance', $7,
+                            'external_reference_status_at_acceptance', $8,
                             'no_auth_claim_change_confirmed', true,
                             'no_seat_assignment_confirmed', true
                         )
@@ -1921,6 +1961,10 @@ async def request_referral_saas_membership_activation(
                     bool(safe_acceptance_evidence_ref),
                     safe_membership_id,
                     safe_account_id,
+                    is_manual_access_acceptance,
+                    safe_account_status,
+                    safe_tenant_link_status,
+                    safe_external_reference_status,
                 )
                 if not updated:
                     raise MembershipActivationDuplicateActiveMembership(
@@ -1936,7 +1980,7 @@ async def request_referral_saas_membership_activation(
                     event_status=EVENT_RECORDED,
                     actor_ref=_optional_text(command_actor_ref)
                     or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
-                    actor_role=_optional_text(command_actor_role) or "UNKNOWN",
+                    actor_role=safe_command_actor_role or "UNKNOWN",
                     previous_status=membership_status,
                     next_status=activation_status,
                     reason_code=safe_reason_code,
@@ -1956,7 +2000,7 @@ async def request_referral_saas_membership_activation(
                 event_status="BLOCKED",
                 actor_ref=_optional_text(command_actor_ref)
                 or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
-                actor_role=_optional_text(command_actor_role) or "UNKNOWN",
+                actor_role=safe_command_actor_role or "UNKNOWN",
                 previous_status=membership_status,
                 next_status=activation_status,
                 reason_code=safe_reason_code,

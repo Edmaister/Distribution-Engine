@@ -6234,6 +6234,31 @@ Rollback notes: Remove the per-attempt add-person key and restore the previous p
 Explicit non-goals: Do not change backend command semantics, send invitation emails, create real login access, assign seats, propagate auth claims, create campaigns, expose tenant codes, bill, move money, or add broad DLaaS behavior.
 Definition of done: People and Access can safely re-add the same person and responsibility after removal without being swallowed by a stale idempotency replay. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
 
+## TASK-282: Allow manual accepted access during account setup
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Tightens the existing audited membership activation primitive so Amplifi Admin manual accepted-access evidence can be recorded during account setup without creating login, seat, auth-claim, invite-delivery, billing, or money side effects. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer People and Access maintenance; manual accepted-access evidence; membership lifecycle boundary.
+Objective: Make the People and Access manual accepted-access action persist and read back as accepted access for pending-onboarding setup accounts, instead of remaining `Named / Invited` with `Acceptance: Blocked`.
+Why now: Physical UI testing showed Amplifi Admin could enter manual acceptance evidence, but the read model still showed acceptance blocked because the backend activation command required a fully active account and tenant link.
+Files involved: `services/referral_saas_account_membership_service.py`; `test/test_referral_saas_account_membership_service.py`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: Allows `AMPLIFI_ADMIN_MANUAL_ACCESS_ACCEPTANCE` to activate only the membership lifecycle for pending-onboarding setup accounts when the actor is admin, the membership is invited, the accepted subject matches the invited identity, no duplicate active membership exists, the tenant link is active or pending setup, and the external reference is active. Audit evidence records the setup statuses at acceptance.
+Frontend impact: Renames the edit drawer save action to `Save person details`, renames the manual acceptance action to `Record accepted access`, and clarifies that accepted-access evidence is a separate action from saving person details.
+API impact: Existing membership activation API contract remains unchanged; the guarded command reason receives setup-aware handling.
+Tests added/updated: Added membership service coverage for manual accepted access during pending setup; updated People and Access drawer coverage for the separated acceptance action.
+Validation method: `pytest test/test_referral_saas_account_membership_service.py`; `npm.cmd run test -- ReferralSaasAccountMaintenancePage.test.tsx --run`; `npm.cmd run build`; `npm.cmd run lint`.
+Acceptance criteria: Amplifi Admin manual accepted-access evidence for a selected customer changes the person from invited/blocked acceptance to accepted access when identity and setup guardrails pass; the screen clearly separates saving person details from recording accepted access; no live invite email, login activation, seat assignment, auth/session claim change, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is added.
+Dependencies: TASK-249; TASK-250; TASK-279; TASK-280; TASK-281.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Restore the strict active-account activation gate for manual acceptance and revert the People and Access drawer copy/button label changes.
+Explicit non-goals: Do not create real login access, assign seats, propagate auth claims, send invitation emails, create credentials, create campaigns, expose tenant codes, bill, move money, or add broad DLaaS behavior.
+Definition of done: Manual accepted access behaves as setup evidence inside selected-customer People and Access while provisioning remains a separate governed workflow. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
