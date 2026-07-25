@@ -250,6 +250,7 @@ greenfield referral construction.
 142. TASK-276: Add People and Access intent maintenance.
 143. TASK-277: Fix People and Access drawer surface opacity.
 144. TASK-278: Fix People and Access access-intent idempotency reuse.
+145. TASK-279: Add Amplifi Admin manual access acceptance.
 
 ## 10/10 Exit Criteria
 
@@ -1147,6 +1148,12 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Fixes People and Access add/edit access-intent idempotency reuse by composing keys from account, email, display name, and responsibility. The backend idempotency conflict guard remains intact while distinct operator-entered person payloads no longer collide with stale keys; no invite email, login activation, seat assignment, auth-claim propagation, billing, or money movement is introduced.
+- TASK-279: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds an Amplifi Admin-only manual access acceptance action inside the selected-customer People and Access edit drawer. The UI requires acceptance evidence, shows accepted access separately from login/seat provisioning, and reuses the existing audited membership activation command boundary, while preserving no live invite delivery, no seat assignment, no auth-claim propagation, no billing, and no money movement.
 
 ## Explicit Deferrals
 

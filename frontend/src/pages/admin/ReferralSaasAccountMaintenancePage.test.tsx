@@ -495,6 +495,56 @@ function mockMembershipActivationReadinessMissingAll(): ReferralSaasMembershipAc
   };
 }
 
+function mockActiveMembershipPosture(): ReferralSaasAccountMembershipPostureResponse {
+  const base = mockMembershipPosture();
+  return {
+    ...base,
+    membershipPosture: {
+      ...base.membershipPosture,
+      invitedCount: 0,
+      activeCount: 1,
+      roleFamilies: [
+        {
+          ...base.membershipPosture.roleFamilies[0],
+          invitedCount: 0,
+          activeCount: 1,
+        },
+      ],
+      memberships: [
+        {
+          ...base.membershipPosture.memberships[0],
+          status: "ACTIVE",
+        },
+      ],
+    },
+  };
+}
+
+function mockActiveMembershipActivationReadiness(): ReferralSaasMembershipActivationReadinessResponse {
+  const base = mockMembershipActivationReadiness();
+  return {
+    ...base,
+    activationReadiness: {
+      ...base.activationReadiness,
+      activeCount: 1,
+      invitedCount: 0,
+      activationReadyCount: 0,
+      items: [
+        {
+          ...base.activationReadiness.items[0],
+          membershipStatus: "ACTIVE",
+          deliveryReadiness: "DELIVERY_NOT_REQUIRED",
+          activationReadiness: "ACTIVE",
+          provisioningReadiness: "PROVISIONING_BLOCKED",
+          blockers: [],
+          nextAction:
+            "Membership is active. Configure seats and auth claims through their separate governed workflows before login access is live.",
+        },
+      ],
+    },
+  };
+}
+
 function mockTechnicalSetupReadiness(): ReferralSaasTechnicalSetupReadinessResponse {
   return {
     status: "ok",
@@ -1433,6 +1483,61 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(JSON.stringify(mockedRequestReferralSaasMembershipActivation.mock.calls)).not.toMatch(
       /tenantCode|sendInvite|seatId|authClaims|goLive|wallet|settlement|money/i,
     );
+  });
+
+  it("shows accepted access separately from login and seat provisioning", async () => {
+    mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockActiveMembershipPosture());
+    mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockActiveMembershipActivationReadiness());
+    const { container } = renderWorkspace(
+      <ReferralSaasAccountMaintenancePage />,
+      "/admin/referral-saas/account-maintenance/acct-gabs/people",
+    );
+
+    expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
+    expect(screen.getAllByText("Accepted access").length).toBeGreaterThan(1);
+    expect(screen.getByText("Membership accepted; login and seats stay separate")).toBeInTheDocument();
+    expect(screen.getByText("Access state")).toBeInTheDocument();
+    expect(container.textContent).toContain("Acceptance: Accepted");
+    expect(container.textContent).toContain("Login and seat: Provisioning separate");
+  });
+
+  it("lets Amplifi Admin record manual access acceptance from the edit drawer", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/people");
+
+    expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    expect(screen.getByRole("heading", { name: "Edit person access" })).toBeInTheDocument();
+    expect(screen.getByText("Manual access acceptance")).toBeInTheDocument();
+    expect(screen.getByText(/does not send email, assign a seat, or change login permissions/i)).toBeInTheDocument();
+    const manualAcceptanceButton = screen.getByRole("button", { name: "Record manual acceptance" });
+    expect(manualAcceptanceButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Acceptance evidence"), {
+      target: { value: "Approved by customer admin on onboarding call" },
+    });
+    expect(manualAcceptanceButton).toBeEnabled();
+    fireEvent.click(manualAcceptanceButton);
+
+    await waitFor(() => expect(mockedRequestReferralSaasMembershipActivation).toHaveBeenCalledTimes(1));
+    expect(mockedRequestReferralSaasMembershipActivation.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      membershipRef: "membership-1",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      activation: {
+        acceptedSubject: "owner@gabs.example",
+        acceptanceEvidenceRef:
+          "manual-access-acceptance-acct-gabs-membership-1-owner-gabs-example-approved-by-customer-admin-on-onboarding-call",
+      },
+      reasonCode: "AMPLIFI_ADMIN_MANUAL_ACCESS_ACCEPTANCE",
+      correlationId: "customer-profile-access-activation-acct-gabs",
+      idempotencyKey:
+        "customer-profile-access-activation-acct-gabs-membership-1-owner-gabs-example-approved-by-customer-admin-on-onboarding-call-distribution-admin",
+    });
+    expect(await screen.findByText("Accepted access recorded.")).toBeInTheDocument();
   });
 
   it("opens Technical Setup as its own read-only customer page", async () => {

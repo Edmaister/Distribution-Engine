@@ -581,8 +581,9 @@
             selected-customer mutation-path proof runner, local mutation
             execution evidence, persisted export request/audit evidence, and
             clearer selected-customer selector and profile header labels,
-            People and Access drawer surface polish, and access-intent
-            idempotency-key hardening through TASK-278.
+            People and Access drawer surface polish, access-intent
+            idempotency-key hardening, and Amplifi Admin manual access
+            acceptance and accepted-access provisioning visibility through TASK-279.
           </p>
           <div class="score-row" aria-label="Current position">
             <div class="score">
@@ -605,7 +606,7 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-278 for Referral SaaS, with
+            Updated after TASK-134 through TASK-279 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
@@ -616,11 +617,11 @@
           </div>
           <div class="status-pill">
             <b>Customer-scoped campaign spine is now proof-ready</b>
-            <span>TASK-253 through TASK-278 add selected-customer campaign readiness, list/read, create, policy/settings, submit-for-review, review-decision API proof, review UX, activation/go-live contract, guarded activation API, activation UI, active-campaign Links and Codes, customer-scoped Reports, a read-only E2E proof runner, the redaction/report-wrapper fixes found by local execution, a guarded mutation-path proof runner, passing local mutation execution evidence, persisted export request/audit evidence, clearer selected-customer picker/profile-header/health-action labels, the accepted-access SQL parameter typing fix, People and Access add/edit/remove intent maintenance, disabled-intent filtering, missing-role Add prompts, an opaque drawer surface, and payload-specific access-intent idempotency keys while preserving no tenant-code exposure, no live invite delivery, no seat/auth changes, no billing, and no money movement.</span>
+            <span>TASK-253 through TASK-279 add selected-customer campaign readiness, list/read, create, policy/settings, submit-for-review, review-decision API proof, review UX, activation/go-live contract, guarded activation API, activation UI, active-campaign Links and Codes, customer-scoped Reports, a read-only E2E proof runner, the redaction/report-wrapper fixes found by local execution, a guarded mutation-path proof runner, passing local mutation execution evidence, persisted export request/audit evidence, clearer selected-customer picker/profile-header/health-action labels, the accepted-access SQL parameter typing fix, People and Access add/edit/remove intent maintenance, disabled-intent filtering, missing-role Add prompts, an opaque drawer surface, payload-specific access-intent idempotency keys, and Amplifi Admin manual access acceptance with required evidence plus visible accepted-access versus login/seat provisioning state while preserving no tenant-code exposure, no live invite delivery, no seat/auth changes, no billing, and no money movement.</span>
           </div>
           <div class="status-pill">
             <b>Selected-customer mutation proof passed</b>
-            <span>TASK-270 records local read-spine proof execution across registry, resolve, people/access posture, technical readiness, campaign list, campaign readiness, campaign report, and export preview. TASK-272 records passing local mutation proof for campaign create, policy, review, activation, code issue/validation, report, and export preview. TASK-273 persists export request/audit evidence. TASK-274 improves selected-customer card, profile-header, and Green/Red/Amber health-to-action clarity. TASK-275 closes the accepted-access activation 500 found in physical UI testing. TASK-276 adds safer People and Access edit/cancel intent, hides removed intent from the primary operator path, and shows missing-role Add prompts. TASK-277 fixes the add/edit drawer surface so only the page behind it is dimmed. TASK-278 prevents stale access-intent idempotency keys from blocking changed person payloads. The score still stays below 10/10 until export file storage/download, support persistence, and progress/attribution mutation proof are complete.</span>
+            <span>TASK-270 records local read-spine proof execution across registry, resolve, people/access posture, technical readiness, campaign list, campaign readiness, campaign report, and export preview. TASK-272 records passing local mutation proof for campaign create, policy, review, activation, code issue/validation, report, and export preview. TASK-273 persists export request/audit evidence. TASK-274 improves selected-customer card, profile-header, and Green/Red/Amber health-to-action clarity. TASK-275 closes the accepted-access activation 500 found in physical UI testing. TASK-276 adds safer People and Access edit/cancel intent, hides removed intent from the primary operator path, and shows missing-role Add prompts. TASK-277 fixes the add/edit drawer surface so only the page behind it is dimmed. TASK-278 prevents stale access-intent idempotency keys from blocking changed person payloads. TASK-279 adds an Amplifi Admin-only manual acceptance action that records evidence through the existing activation boundary and shows accepted access separately from login/seat provisioning. The score still stays below 10/10 until export file storage/download, support persistence, and progress/attribution mutation proof are complete.</span>
           </div>
           <div class="status-pill">
             <b>Safe status moved forward</b>
