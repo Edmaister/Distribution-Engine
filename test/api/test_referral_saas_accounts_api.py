@@ -42,6 +42,9 @@ from services.referral_saas_campaign_service import (
     ReferralSaasCampaignSetupResult,
     ReferralSaasCampaignSummary,
 )
+from services.referral_saas_support_case_service import (
+    SupportCaseIdempotencyConflict,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -3314,3 +3317,305 @@ async def test_referral_saas_account_reader_maps_safe_resolution_errors(
 
     assert response.status_code == status_code
     assert response.json()["detail"]["code"] == safe_code
+
+
+async def test_referral_saas_account_admin_can_create_customer_scoped_support_case(
+    monkeypatch,
+):
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    class FakeSupportCaseResult:
+        def to_safe_dict(self):
+            return {
+                "commandStatus": "SUPPORT_CASE_RECORDED",
+                "supportCase": {
+                    "caseRef": "case-1",
+                    "accountRef": "acct-1",
+                    "category": "READINESS_BLOCKER",
+                    "priority": "HIGH",
+                    "status": "OPEN",
+                    "title": "Campaign setup is blocked",
+                    "summary": "People and access setup needs review.",
+                    "sourceSurface": "customer_home",
+                    "evidenceLinks": [
+                        {
+                            "evidenceType": "PEOPLE_ACCESS",
+                            "evidenceRef": "acct-1:people",
+                            "safeStatus": "ACTION_REQUIRED",
+                            "redactions": ["internal_tenant_identifier"],
+                        }
+                    ],
+                    "redactions": ["internal_tenant_identifier"],
+                },
+                "idempotency": {"status": "RECORDED"},
+                "audit": {"accountAuditEventId": "audit-1"},
+                "guardrails": ["NO_REPAIR_REPLAY_RETRY"],
+                "redactions": ["internal_tenant_identifier"],
+            }
+
+    async def fake_create_referral_saas_support_case(**kwargs):
+        command_calls.append(kwargs)
+        return FakeSupportCaseResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "create_referral_saas_support_case",
+        fake_create_referral_saas_support_case,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/support-cases",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "support",
+                },
+                "category": "READINESS_BLOCKER",
+                "priority": "HIGH",
+                "title": "Campaign setup is blocked",
+                "summary": "People and access setup needs review.",
+                "sourceSurface": "customer_home",
+                "evidenceLinks": [
+                    {
+                        "evidenceType": "PEOPLE_ACCESS",
+                        "evidenceRef": "acct-1:people",
+                        "safeStatus": "ACTION_REQUIRED",
+                    }
+                ],
+                "idempotencyKey": "support-case-1",
+                "correlationId": "corr-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "accepted"
+    assert body["supportCase"]["commandStatus"] == "SUPPORT_CASE_RECORDED"
+    assert body["supportCase"]["supportCase"]["caseRef"] == "case-1"
+    assert body["no_repair_replay_retry_confirmed"] is True
+    assert body["no_billing_or_money_movement_confirmed"] is True
+    public_payload = {
+        "account": body["account"],
+        "account_scope": body["account_scope"],
+        "supportCase": body["supportCase"],
+    }
+    assert "tenant_code" not in str(public_payload)
+    assert command_calls
+    assert command_calls[0]["account_id"] == "acct-1"
+    assert command_calls[0]["tenant_code"] == "FNB"
+    assert command_calls[0]["category"] == "READINESS_BLOCKER"
+    assert command_calls[0]["priority"] == "HIGH"
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["request_payload_hash"]
+    assert command_calls[0]["correlation_id"] == "corr-1"
+
+
+async def test_referral_saas_account_support_case_rejects_unsafe_payload(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/support-cases",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "support",
+                },
+                "category": "READINESS_BLOCKER",
+                "priority": "HIGH",
+                "title": "Unsafe support case",
+                "summary": "This should be rejected.",
+                "evidenceLinks": [
+                    {
+                        "evidenceType": "PEOPLE_ACCESS",
+                        "evidenceRef": "acct-1:people",
+                        "metadata": {"raw_ucn": "1234567890"},
+                    }
+                ],
+                "idempotencyKey": "support-case-1",
+                "correlationId": "corr-1",
+            },
+        )
+
+    assert response.status_code == 400
+    body = response.json()
+    assert body["detail"]["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert body["detail"]["no_repair_replay_retry_confirmed"] is True
+    assert body["detail"]["no_billing_or_money_movement_confirmed"] is True
+
+
+async def test_referral_saas_account_support_case_idempotency_conflict(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    async def fake_create_referral_saas_support_case(**kwargs):
+        raise SupportCaseIdempotencyConflict(
+            "Idempotency key was reused with different support-case content."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "create_referral_saas_support_case",
+        fake_create_referral_saas_support_case,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/support-cases",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "category": "READINESS_BLOCKER",
+                "priority": "HIGH",
+                "title": "Campaign setup is blocked",
+                "summary": "People and access setup needs review.",
+                "idempotencyKey": "support-case-1",
+                "correlationId": "corr-1",
+            },
+        )
+
+    assert response.status_code == 409
+    body = response.json()
+    assert body["detail"]["code"] == "IDEMPOTENCY_CONFLICT"
+    assert body["detail"]["no_repair_replay_retry_confirmed"] is True
+
+
+async def test_referral_saas_account_admin_can_list_customer_scoped_support_cases(
+    monkeypatch,
+):
+    list_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    class FakeSupportCase:
+        def to_safe_dict(self):
+            return {
+                "caseRef": "case-1",
+                "accountRef": "acct-1",
+                "category": "ACCESS_SCOPE",
+                "priority": "MEDIUM",
+                "status": "OPEN",
+                "title": "People access check",
+                "summary": "Confirm account owner.",
+                "evidenceLinks": [],
+                "redactions": ["internal_tenant_identifier"],
+            }
+
+    async def fake_list_referral_saas_support_cases(**kwargs):
+        list_calls.append(kwargs)
+        return [FakeSupportCase()]
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_support_cases",
+        fake_list_referral_saas_support_cases,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/support-cases",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "support",
+                "status": "OPEN",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["supportCases"][0]["caseRef"] == "case-1"
+    assert body["no_product_state_mutation_confirmed"] is True
+    assert list_calls == [
+        {"account_id": "acct-1", "status_filter": "OPEN", "limit": 50}
+    ]
+
+
+async def test_referral_saas_account_admin_can_read_customer_scoped_support_case(
+    monkeypatch,
+):
+    read_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    class FakeSupportCase:
+        def to_safe_dict(self):
+            return {
+                "caseRef": "case-1",
+                "accountRef": "acct-1",
+                "category": "ACCESS_SCOPE",
+                "priority": "MEDIUM",
+                "status": "OPEN",
+                "title": "People access check",
+                "summary": "Confirm account owner.",
+                "evidenceLinks": [{"evidenceType": "PEOPLE_ACCESS"}],
+                "redactions": ["internal_tenant_identifier"],
+            }
+
+    async def fake_get_referral_saas_support_case(**kwargs):
+        read_calls.append(kwargs)
+        return FakeSupportCase()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_support_case",
+        fake_get_referral_saas_support_case,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/support-cases/case-1",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["supportCase"]["caseRef"] == "case-1"
+    assert body["no_product_state_mutation_confirmed"] is True
+    assert read_calls == [{"account_id": "acct-1", "case_ref": "case-1"}]

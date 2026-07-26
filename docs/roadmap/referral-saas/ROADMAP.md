@@ -1364,6 +1364,25 @@ greenfield referral construction.
   returned by the guarded activation command. A stale or mismatched activation
   response for another customer is suppressed, while the backend account path
   scope guard remains the source of truth for write safety.
+- TASK-297:
+  `dp/migrations/086_referral_saas_support_cases.sql`;
+  `services/referral_saas_support_case_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `test/test_referral_saas_support_case_migration.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Implements
+  selected-customer support-case persistence for create/list/read. The new
+  schema and service store safe case fields, safe evidence links, idempotency
+  hashes, account scope, and audit evidence, and the account wrapper routes
+  reject raw UCNs, provider payloads, secrets, tokens, repair/replay/retry
+  commands, campaign activation, invite delivery, auth-claim changes, billing,
+  money movement, and DLaaS marketplace side effects. Notes, status changes,
+  and frontend case UI remain separate tasks.
 
 ## Explicit Deferrals
 

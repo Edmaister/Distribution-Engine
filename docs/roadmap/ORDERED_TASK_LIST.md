@@ -6609,6 +6609,31 @@ Rollback notes: Revert the scoped frontend result state, regression test, and TA
 Explicit non-goals: Do not add schema, migrations, backend routes, account activation semantics, membership writes, seat assignment, invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, support-case persistence, repair/replay/retry commands, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Customer Health activation feedback is selected-customer safe and covered by regression tests. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because runtime support-case persistence, export file storage/download, governed auth/login lifecycle, progress/attribution mutation proof, and non-local proof repetition are still separate gaps. Priority: P0.
 
+## TASK-297: Implement selected-customer support-case persistence API
+
+Status: Complete (2026-07-26).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SUPPORT_CASE_PERSISTENCE_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses selected-customer account resolution, tenant/account scope, audit event logging, idempotency hashes, route redaction, support diagnostics, and safe evidence-link references. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer operator support-case persistence.
+Objective: Add the runtime schema, repository/service boundary, and selected-customer API routes for safe support-case create/list/read.
+Why now: TASK-295 defined the contract and the gap matrix still listed runtime support-case persistence as a blocker to 10/10 support capability. Operators need a durable customer-scoped case record before the UI can safely save support cases from diagnostics.
+Files involved: `dp/migrations/086_referral_saas_support_cases.sql`; `services/referral_saas_support_case_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/test_referral_saas_support_case_migration.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: Adds `referral_saas_support_cases` and `referral_saas_support_case_evidence_links` with account scope, internal tenant linkage, bounded category/priority/status values, idempotency payload hash, correlation id, safe metadata, redaction fields, and indexes for selected-customer lookup.
+Backend impact: Adds a support-case service with bounded validation, safe metadata checks, create/list/read behavior, idempotent replay, idempotency conflict rejection, and support-case audit evidence.
+Frontend impact: None in this task; selected-customer Support UI can now call a real create/list/read API in a later task.
+API impact: Implements `POST /v1/referral-saas/accounts/{account_ref}/support-cases`, `GET /v1/referral-saas/accounts/{account_ref}/support-cases`, and `GET /v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}` behind selected-customer account scope resolution.
+Tests added/updated: Migration parser tests; support-case create/list/read route tests; unsafe payload rejection; idempotency conflict mapping; bounded Referral SaaS route inventory.
+Validation method: `.\.venv_codex\Scripts\python.exe -m pytest test\test_referral_saas_support_case_migration.py -q`; `.\.venv_codex\Scripts\python.exe -m pytest test\api\test_referral_saas_accounts_api.py -k "support_case" -q`; route smoke inventory focused test; `git diff --check`.
+Acceptance criteria: Support-case create/list/read are customer-scoped, audit-backed, idempotent, redacted, and safe against raw UCN, provider payload, token, credential, repair/replay/retry, campaign activation, invite delivery, auth/session claim propagation, billing, money, and DLaaS marketplace side effects.
+Dependencies: TASK-178; TASK-180; TASK-182; TASK-184; TASK-273; TASK-295; TASK-296.
+Blocked by: Selected-customer Support page create/list UX, support-case notes/status changes, export file storage/download, governed auth/login lifecycle, progress/attribution mutation proof, and non-local proof repetition remain future tasks.
+Risk level: Medium.
+Rollback notes: Revert migration 086, service, route, tests, and docs for TASK-297.
+Explicit non-goals: Do not add support-case notes, status-change routes, repair/replay/retry commands, failure resolve/reprocess commands, attribution overrides, code reissue/revoke/rotate commands, campaign activation, export file creation, live invite delivery, credential creation, auth/session claim propagation, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, frontend UI, or source-code forks.
+Definition of done: Selected-customer support-case create/list/read persistence exists with schema, service, API, idempotency, audit, redaction, migration, route inventory, and targeted tests. Current rating improves the support/workflow foundation but remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because support-case UI, notes/status changes, export storage/download, governed auth/login lifecycle, progress/attribution mutation proof, and non-local proof repetition are still separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
