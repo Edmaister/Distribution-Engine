@@ -262,6 +262,7 @@ greenfield referral construction.
 154. TASK-294: Record activated People and Access provisioning proof execution.
 155. TASK-295: Define Referral SaaS support case persistence contract.
 156. TASK-296: Scope Customer Health account-foundation activation results.
+157. TASK-298: Clarify optional Platform login setup positioning.
 
 ## 10/10 Exit Criteria
 
@@ -1364,6 +1365,18 @@ greenfield referral construction.
   returned by the guarded activation command. A stale or mismatched activation
   response for another customer is suppressed, while the backend account path
   scope guard remains the source of truth for write safety.
+- TASK-298:
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `frontend/src/styles/base.css`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Clarifies the
+  selected-customer People and Access Platform login setup area. The required
+  workflow remains role-specific person confirmation for customer work, while
+  Platform login setup is explained as optional Amplifi sign-in setup that can be
+  skipped when a person only owns the relationship outside the platform.
 
 ## Explicit Deferrals
 

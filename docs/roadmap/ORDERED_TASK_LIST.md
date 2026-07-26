@@ -6609,6 +6609,31 @@ Rollback notes: Revert the scoped frontend result state, regression test, and TA
 Explicit non-goals: Do not add schema, migrations, backend routes, account activation semantics, membership writes, seat assignment, invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, support-case persistence, repair/replay/retry commands, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Customer Health activation feedback is selected-customer safe and covered by regression tests. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because runtime support-case persistence, export file storage/download, governed auth/login lifecycle, progress/attribution mutation proof, and non-local proof repetition are still separate gaps. Priority: P0.
 
+## TASK-298: Clarify optional Platform login setup positioning
+
+Status: Complete (2026-07-26).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses existing selected-customer People and Access, membership posture, activation readiness, and guarded access provisioning read models. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer People and Access CX; optional platform login setup boundary.
+Objective: Make the People and Access page clearly distinguish required customer-responsibility confirmation from optional Amplifi sign-in setup.
+Why now: Manual UI testing showed that the Platform login area still read like required setup debt after the owner and campaign manager were confirmed for referral work.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: People and Access now labels the lifecycle as `Still needed`, `Added`, `Confirmed for work`, and `Platform login optional`; the Platform login setup section explains when to use it, when to skip it, and that permissions/auth claims remain separately governed; optional actions now say `Set up platform login`.
+API impact: None; the existing guarded access provisioning API remains available only from the optional login setup area.
+Tests added/updated: Updated selected-customer People and Access tests for the clarified platform-login purpose copy, optional setup button label, and post-provisioning state label.
+Validation method: `npm.cmd test -- --run src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx --reporter=dot`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Operators can see that confirming required people completes the customer-management step for referral work; platform login setup is presented as optional sign-in setup only; no backend route, schema, invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is introduced.
+Dependencies: TASK-286; TASK-289; TASK-293; TASK-294.
+Blocked by: Governed auth/login lifecycle remains a separate future workflow.
+Risk level: Low.
+Rollback notes: Revert the People and Access copy/CSS/test updates and TASK-298 documentation changes.
+Explicit non-goals: Do not add schema, backend routes, user creation, live invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: People and Access keeps role-specific person rows as the main workflow and positions Platform login setup as an optional secondary follow-on. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because governed auth/login lifecycle, support persistence, export storage/download, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

@@ -1781,10 +1781,10 @@ export function ReferralSaasAccountMaintenancePage() {
                       <strong>{missingAccessRoleCount ? "People setup needs attention" : "People are confirmed"}</strong>
                       <p>{peopleAccessStatus}</p>
                       <div className="people-access-journey" aria-label="People and access lifecycle">
-                        {["Still needed", "Added", "Confirmed", "Login setup later"].map((stage) => (
+                        {["Still needed", "Added", "Confirmed for work", "Platform login optional"].map((stage) => (
                           <span
                             className={
-                              stage === "Confirmed" && activeAccessCount
+                              stage === "Confirmed for work" && activeAccessCount
                                 ? "current"
                                 : stage === "Still needed" && missingAccessRoleCount
                                   ? "current warning"
@@ -2078,12 +2078,17 @@ export function ReferralSaasAccountMaintenancePage() {
                       <div>
                         <strong>Platform login setup</strong>
                         <p>
-                          {accessReadinessSummary(
-                            activationReadiness.activationReadiness.overallStatus,
-                            activationReadiness.activationReadiness.missingRoleFamilies.length,
-                          )} Use this optional section only when a confirmed person needs to sign in to Amplifi. Login
-                          seats and permissions stay in a separate governed workflow.
+                          {missingAccessRoleCount
+                            ? "Finish confirming the required customer responsibilities first. "
+                            : "Referral work can continue because the required people are confirmed. "}
+                          Use platform login setup only when a confirmed person needs to sign in to Amplifi. This is
+                          separate from naming who manages the customer.
                         </p>
+                        <ul className="people-access-login-purpose" aria-label="Platform login setup purpose">
+                          <li>Use it for Amplifi sign-in access.</li>
+                          <li>Skip it when the person only owns the relationship outside the platform.</li>
+                          <li>Permissions and auth claims remain governed separately.</li>
+                        </ul>
                       </div>
                       <StatusBadge
                         label={formatDisplay(activationReadiness.activationReadiness.overallStatus)}
@@ -2107,8 +2112,8 @@ export function ReferralSaasAccountMaintenancePage() {
                       <div>
                         <strong>Optional login setup</strong>
                         <p>
-                          These people are confirmed for customer work. Set up login only if they must use the platform
-                          themselves.
+                          These people are confirmed for customer work. Set up platform login only for people who need
+                          to use Amplifi directly.
                         </p>
                       </div>
                       <div className="people-access-login-list">
@@ -2122,7 +2127,7 @@ export function ReferralSaasAccountMaintenancePage() {
                                 <strong>{formatDisplay(getValue(item, ["displayName"], "Named person"))}</strong>
                                 <span>
                                   {roleOptionForFamily(roleFamily).label} -{" "}
-                                  {seatAssigned ? "Login seat already assigned" : "Login not set up yet"}
+                                  {seatAssigned ? "Platform login set up" : "Platform login not set up"}
                                 </span>
                               </div>
                               <button
@@ -2131,7 +2136,11 @@ export function ReferralSaasAccountMaintenancePage() {
                                 onClick={() => requestAccessProvisioning(membershipRef, roleFamily)}
                                 type="button"
                               >
-                                {provisioningMutation.isPending ? "Setting up" : seatAssigned ? "Login seat assigned" : "Set up login"}
+                                {provisioningMutation.isPending
+                                  ? "Setting up"
+                                  : seatAssigned
+                                    ? "Platform login set up"
+                                    : "Set up platform login"}
                               </button>
                             </div>
                           );
