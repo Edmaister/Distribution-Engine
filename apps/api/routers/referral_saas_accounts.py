@@ -120,6 +120,18 @@ from services.referral_saas_reporting_service import (
     get_referral_saas_report,
     validate_referral_saas_report_export_request,
 )
+from services.referral_saas_support_case_service import (
+    SUPPORT_CASE_GUARDRAILS,
+    SUPPORT_CASE_REDACTIONS,
+    ReferralSaasSupportCaseCommandError,
+    SupportCaseIdempotencyConflict,
+    SupportCaseNotFound,
+    SupportCaseUnsafePayload,
+    SupportCaseValidationError,
+    create_referral_saas_support_case,
+    get_referral_saas_support_case,
+    list_referral_saas_support_cases,
+)
 from services.referral_saas_technical_setup_service import (
     build_referral_saas_technical_setup_readiness,
 )
@@ -190,6 +202,12 @@ REPORT_EXPORT_REQUEST_REDACTIONS = {
     *REPORT_REDACTIONS,
     *EXPORT_REQUEST_REDACTIONS,
 }
+SUPPORT_CASE_ROUTE_GUARDRAILS = {
+    *SUPPORT_CASE_GUARDRAILS,
+}
+SUPPORT_CASE_ROUTE_REDACTIONS = {
+    *SUPPORT_CASE_REDACTIONS,
+}
 
 
 class ReferralSaasAccountReportExportRequest(BaseModel):
@@ -205,6 +223,31 @@ class ReferralSaasAccountReportExportRequest(BaseModel):
 class ReferralSaasAccountFoundationActivationRequest(BaseModel):
     accountScope: dict[str, Any] = Field(default_factory=dict)
     activation: dict[str, Any] | None = Field(default=None)
+    reasonCode: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str | None = Field(default=None)
+
+
+class ReferralSaasSupportCaseEvidenceLinkRequest(BaseModel):
+    evidenceType: str | None = Field(default=None)
+    evidenceRef: str | None = Field(default=None)
+    safeStatus: str | None = Field(default=None)
+    warningCode: str | None = Field(default=None)
+    missingEvidenceCode: str | None = Field(default=None)
+    metadata: dict[str, Any] | None = Field(default=None)
+    redactions: list[str] | None = Field(default=None)
+
+
+class ReferralSaasSupportCaseCreateRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    category: str | None = Field(default=None)
+    priority: str | None = Field(default=None)
+    title: str | None = Field(default=None)
+    summary: str | None = Field(default=None)
+    sourceSurface: str | None = Field(default=None)
+    evidenceLinks: list[ReferralSaasSupportCaseEvidenceLinkRequest] | None = Field(
+        default=None
+    )
     reasonCode: str | None = Field(default=None)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str | None = Field(default=None)
@@ -376,6 +419,82 @@ def _reject_unsafe_report_export_request_payload(value: Any) -> None:
                             "no_export_file_created_confirmed": True,
                             "no_download_url_created_confirmed": True,
                             "no_storage_or_delivery_confirmed": True,
+                            "no_billing_or_money_movement_confirmed": True,
+                        },
+                    )
+                walk(nested)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(value)
+
+
+def _reject_unsafe_support_case_payload(value: Any) -> None:
+    unsafe_keys = {
+        "tenant_code",
+        "tenantCode",
+        "internal_tenant_code",
+        "internalTenantCode",
+        "rawUcn",
+        "raw_ucn",
+        "providerPayload",
+        "provider_payload",
+        "auditPayload",
+        "audit_payload",
+        "dlqPayload",
+        "dlq_payload",
+        "sqlError",
+        "sql_error",
+        "stackTrace",
+        "stack_trace",
+        "repair",
+        "replay",
+        "retry",
+        "requeue",
+        "override",
+        "activate",
+        "activation",
+        "webhook",
+        "credential",
+        "credentials",
+        "secret",
+        "token",
+        "authClaim",
+        "authClaims",
+        "invite",
+        "seat",
+        "billing",
+        "invoice",
+        "rewardAmount",
+        "rewardAmounts",
+        "funding",
+        "fulfilment",
+        "settlement",
+        "commission",
+        "wallet",
+        "payout",
+        "sponsorBilling",
+    }
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, nested in node.items():
+                if str(key) in unsafe_keys:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail={
+                            "code": "REJECTED_UNSAFE_PAYLOAD",
+                            "message": (
+                                "Support cases only accept safe selected-customer "
+                                "case summaries and evidence references. They do "
+                                "not accept raw evidence, repair/replay/retry, "
+                                "credential, invite, seat, billing, or money payloads."
+                            ),
+                            "guardrails": sorted(SUPPORT_CASE_ROUTE_GUARDRAILS),
+                            "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
+                            "no_repair_replay_retry_confirmed": True,
+                            "no_credential_or_auth_claim_change_confirmed": True,
                             "no_billing_or_money_movement_confirmed": True,
                         },
                     )
@@ -584,6 +703,13 @@ def _customer_report_guardrail() -> str:
         "move billing, funding, reward, settlement, wallet, invoice, or DLaaS "
         "marketplace records."
     )
+
+
+def _support_case_resolution_context(value: str | None) -> str:
+    normalised_context = (_optional_text(value) or "support").lower()
+    if normalised_context == "support":
+        return "setup"
+    return normalised_context
 
 
 def _resolution_error(exc: AccountFoundationResolutionError) -> HTTPException:
@@ -926,6 +1052,36 @@ def _account_foundation_activation_error(
             "no_credential_creation_confirmed": True,
             "no_campaign_activation_confirmed": True,
             "no_go_live_action_confirmed": True,
+            "no_billing_or_money_movement_confirmed": True,
+        },
+    )
+
+
+def _support_case_error(exc: ReferralSaasSupportCaseCommandError) -> HTTPException:
+    if isinstance(exc, SupportCaseValidationError):
+        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    elif isinstance(exc, SupportCaseNotFound):
+        status_code = status.HTTP_404_NOT_FOUND
+    elif isinstance(exc, SupportCaseIdempotencyConflict):
+        status_code = status.HTTP_409_CONFLICT
+    elif isinstance(exc, SupportCaseUnsafePayload):
+        status_code = status.HTTP_400_BAD_REQUEST
+    else:
+        status_code = status.HTTP_400_BAD_REQUEST
+
+    return HTTPException(
+        status_code=status_code,
+        detail={
+            "code": exc.safe_code,
+            "message": str(exc),
+            "guardrails": sorted(SUPPORT_CASE_ROUTE_GUARDRAILS),
+            "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
+            "no_repair_replay_retry_confirmed": True,
+            "no_referral_or_campaign_mutation_confirmed": True,
+            "no_progress_or_attribution_mutation_confirmed": True,
+            "no_report_or_export_mutation_confirmed": True,
+            "no_invite_delivery_confirmed": True,
+            "no_credential_or_auth_claim_change_confirmed": True,
             "no_billing_or_money_movement_confirmed": True,
         },
     )
@@ -2743,6 +2899,208 @@ async def create_referral_saas_account_report_export_request(
         "no_download_url_created_confirmed": True,
         "no_storage_or_delivery_confirmed": True,
         "no_tenant_code_exposure_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/support-cases")
+async def create_referral_saas_account_support_case(
+    account_ref: str,
+    request: ReferralSaasSupportCaseCreateRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    request_payload = request.model_dump(exclude_none=True)
+    _reject_unsafe_support_case_payload(request_payload)
+
+    account_scope = request.accountScope or {}
+    if not isinstance(account_scope, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope must be an object.",
+                "guardrails": sorted(SUPPORT_CASE_ROUTE_GUARDRAILS),
+                "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
+                "no_support_case_created_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        )
+
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = _support_case_resolution_context(account_scope.get("context"))
+    idempotency_key = _optional_text(request.idempotencyKey)
+    correlation_id = _optional_text(request.correlationId)
+    if not ref_type or not external_ref or not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": sorted(SUPPORT_CASE_ROUTE_GUARDRAILS),
+                "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
+                "no_support_case_created_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    evidence_links = [
+        link.model_dump(exclude_none=True) for link in request.evidenceLinks or []
+    ]
+    command_payload = {
+        "accountScope": {
+            "accountRef": _optional_text(account_ref),
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": normalised_context,
+        },
+        "supportCase": {
+            "category": request.category,
+            "priority": request.priority,
+            "title": request.title,
+            "summary": request.summary,
+            "sourceSurface": request.sourceSurface,
+            "evidenceLinks": evidence_links,
+        },
+        "reasonCode": request.reasonCode or "CUSTOMER_SUPPORT_CASE_CREATED",
+    }
+    try:
+        result = await create_referral_saas_support_case(
+            account_id=account.account_id,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            tenant_code=account.tenant_code,
+            category=request.category or "",
+            priority=request.priority or "",
+            title=request.title or "",
+            summary=request.summary or "",
+            source_surface=request.sourceSurface,
+            evidence_links=evidence_links,
+            reason_code=request.reasonCode,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_SUPPORT_CASE_CREATE",
+                    "account_ref": _optional_text(account_ref),
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            request_payload_hash=hash_payload(command_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except ReferralSaasSupportCaseCommandError as exc:
+        raise _support_case_error(exc) from exc
+
+    return {
+        "status": "accepted",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "supportCase": _redact_customer_report_payload(result.to_safe_dict()),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "Support case recorded for the selected customer. This creates "
+            "safe case and audit evidence only; it does not repair, replay, "
+            "retry, mutate product state, create credentials, change auth "
+            "claims, bill, or move money."
+        ),
+        "guardrails": sorted(SUPPORT_CASE_ROUTE_GUARDRAILS),
+        "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
+        "no_repair_replay_retry_confirmed": True,
+        "no_referral_or_campaign_mutation_confirmed": True,
+        "no_progress_or_attribution_mutation_confirmed": True,
+        "no_report_or_export_mutation_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_credential_or_auth_claim_change_confirmed": True,
+        "no_tenant_code_exposure_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/support-cases")
+async def list_referral_saas_account_support_cases(
+    account_ref: str,
+    ref_type: Annotated[str, Query(min_length=1)],
+    external_ref: Annotated[str, Query(min_length=1)],
+    context: Annotated[str, Query()] = "setup",
+    case_status: Annotated[str | None, Query(alias="status")] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=_support_case_resolution_context(context),
+    )
+    _assert_account_path_scope(account_ref, account)
+    try:
+        cases = await list_referral_saas_support_cases(
+            account_id=account.account_id,
+            status_filter=case_status,
+            limit=limit,
+        )
+    except ReferralSaasSupportCaseCommandError as exc:
+        raise _support_case_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "supportCases": [case.to_safe_dict() for case in cases],
+        "account_scope": _customer_report_account_scope(account),
+        "guardrails": sorted(SUPPORT_CASE_ROUTE_GUARDRAILS),
+        "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
+        "no_tenant_code_exposure_confirmed": True,
+        "no_product_state_mutation_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/support-cases/{case_ref}")
+async def read_referral_saas_account_support_case(
+    account_ref: str,
+    case_ref: str,
+    ref_type: Annotated[str, Query(min_length=1)],
+    external_ref: Annotated[str, Query(min_length=1)],
+    context: Annotated[str, Query()] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=_support_case_resolution_context(context),
+    )
+    _assert_account_path_scope(account_ref, account)
+    try:
+        support_case = await get_referral_saas_support_case(
+            account_id=account.account_id,
+            case_ref=case_ref,
+        )
+    except ReferralSaasSupportCaseCommandError as exc:
+        raise _support_case_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "supportCase": support_case.to_safe_dict(),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrails": sorted(SUPPORT_CASE_ROUTE_GUARDRAILS),
+        "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
+        "no_tenant_code_exposure_confirmed": True,
+        "no_product_state_mutation_confirmed": True,
         "no_billing_or_money_movement_confirmed": True,
     }
 
