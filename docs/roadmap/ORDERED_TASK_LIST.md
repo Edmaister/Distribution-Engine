@@ -6659,6 +6659,31 @@ Rollback notes: Revert the People and Access copy/CSS/test updates and TASK-298 
 Explicit non-goals: Do not add schema, backend routes, user creation, live invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: People and Access keeps role-specific person rows as the main workflow and positions Platform login setup as an optional secondary follow-on. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because governed auth/login lifecycle, support persistence, export storage/download, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-299: Add selected-customer support case UI
+
+Status: Complete (2026-07-26).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SUPPORT_CASE_PERSISTENCE_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses selected-customer account registry context, account-resolution scope, support-case API wrappers, query keys, and existing customer-scoped route shell. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer operator support workflow.
+Objective: Add the selected-customer Support page experience for listing and creating safe support cases against the current customer.
+Why now: TASK-297 delivered support-case create/list/read persistence, but the customer profile Support route still did not expose a customer-scoped case list or create action. Operators needed a simple support workflow inside the selected customer context before notes/status changes or repair guardrails can be productized.
+Files involved: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/api/queryKeys.ts`; `frontend/src/api/referralSaasAccountQueries.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SUPPORT_CASE_PERSISTENCE_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None to runtime behavior; consumes the existing TASK-297 support-case create/list API.
+Frontend impact: Adds selected-customer Support page case list/create UX, safe evidence-source links, status filter, create result feedback, and explicit support boundary copy.
+API impact: Adds frontend endpoint wrappers and query hook for `GET` and `POST /v1/referral-saas/accounts/{account_ref}/support-cases`.
+Tests added/updated: Endpoint wrapper tests for support-case list/create; selected-customer Support page test for listing, creating, refetching, and no unsafe adjacent actions.
+Validation method: `npm.cmd test -- --run src/api/endpoints/referralSaasAccounts.test.ts src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx --reporter=dot`; `npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Operators can open a selected customer's Support page, see only that customer's support cases, create a safe support case with bounded category/priority/title/summary metadata, and confirm no repair, replay, credential, invite, campaign, billing, money, raw tenant-code, or DLaaS marketplace action is exposed.
+Dependencies: TASK-184; TASK-295; TASK-297; TASK-298.
+Blocked by: Support-case notes/status changes, repair/replay guardrails, export file storage/download, governed auth/login lifecycle, progress/attribution mutation proof, and non-local proof repetition remain future tasks.
+Risk level: Low.
+Rollback notes: Revert the frontend support-case wrappers, query hook, selected-customer Support page, tests, and TASK-299 documentation updates.
+Explicit non-goals: Do not add schema, backend routes, support-case notes, status-change routes, repair/replay/retry commands, failure resolve/reprocess commands, attribution overrides, code reissue/revoke/rotate commands, campaign activation, export file creation, live invite delivery, credential creation, auth/session claim propagation, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Selected-customer Support can list and create safe customer-scoped support cases from the customer profile. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because support-case notes/status changes, export storage/download, governed auth/login lifecycle, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

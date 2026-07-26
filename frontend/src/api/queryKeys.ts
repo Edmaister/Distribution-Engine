@@ -127,6 +127,26 @@ export const queryKeys = {
       limit,
       refreshKey,
     ] as const,
+  referralSaasAccountSupportCaseList: (
+    accountRef: string,
+    refType: string,
+    externalRef: string,
+    context: string,
+    status: string,
+    limit: number,
+    refreshKey = 0,
+  ) =>
+    [
+      "referral-saas",
+      "account-support-case-list",
+      accountRef,
+      refType,
+      externalRef,
+      context,
+      status,
+      limit,
+      refreshKey,
+    ] as const,
   referralSaasReport: (reportType: string, tenantCode: string, refreshKey = 0) =>
     ["referral-saas", "report", reportType, tenantCode, refreshKey] as const,
   referralSaasCampaignReadiness: (

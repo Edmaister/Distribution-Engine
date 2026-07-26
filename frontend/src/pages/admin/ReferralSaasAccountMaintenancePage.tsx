@@ -26,6 +26,7 @@ import {
   useReferralSaasAccountMembershipPosture,
   useReferralSaasMembershipActivationReadiness,
   useReferralSaasAccountRegistry,
+  useReferralSaasAccountSupportCaseList,
   useReferralSaasTechnicalSetupReadiness,
 } from "../../api/referralSaasAccountQueries";
 import {
@@ -45,6 +46,7 @@ import {
 } from "../../api/endpoints/referralSaasReports";
 import {
   cancelReferralSaasMembershipInvitationIntent,
+  createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasMembershipInvitationIntent,
@@ -61,6 +63,7 @@ import {
   type ReferralSaasAccountCampaignPolicySettingsResponse,
   updateReferralSaasAccountProfile,
   type ReferralSaasAccountCampaignSetupCreateResponse,
+  type ReferralSaasSupportCaseCreateResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import type { CampaignReadinessOperation } from "../../api/endpoints/adminCampaignReadiness";
@@ -130,6 +133,13 @@ type CampaignReviewDraft = {
   decisionReason: string;
   reviewerRef: string;
   decision: "APPROVED" | "BLOCKED";
+};
+
+type SupportCaseDraft = {
+  category: string;
+  priority: string;
+  title: string;
+  summary: string;
 };
 
 type ScopedAccountActivationResult = {
@@ -264,6 +274,24 @@ const customerReportOptions: { value: ReferralSaasReportType; label: string; cop
     label: "Progress event health",
     copy: "Journey-event ingestion health and missing evidence.",
   },
+];
+
+const supportCaseCategoryOptions = [
+  { value: "VALIDATION_RECOVERY", label: "Validation issue" },
+  { value: "PROGRESS_DIAGNOSTIC", label: "Progress question" },
+  { value: "ATTRIBUTION_REVIEW", label: "Attribution review" },
+  { value: "READINESS_BLOCKER", label: "Readiness blocker" },
+  { value: "REPORTING_FRESHNESS", label: "Reporting freshness" },
+  { value: "INTEGRATION_HEALTH", label: "Integration health" },
+  { value: "ACCESS_SCOPE", label: "People and access" },
+  { value: "MANUAL_REVIEW_REQUIRED", label: "Manual review" },
+];
+
+const supportCasePriorityOptions = [
+  { value: "LOW", label: "Low" },
+  { value: "MEDIUM", label: "Medium" },
+  { value: "HIGH", label: "High" },
+  { value: "CRITICAL", label: "Critical" },
 ];
 
 const accessRoleOptions = [
@@ -2415,7 +2443,16 @@ export function ReferralSaasAccountMaintenancePage() {
                 />
               ) : null}
 
-              {["support", "attribution", "progress"].includes(selectedModule) ? (
+              {selectedModule === "support" ? (
+                <CustomerSupportCasesPage
+                  customerName={customerName}
+                  externalTenantRef={selectedExternalTenantRef}
+                  selectedAccount={selectedAccount}
+                  selectedCustomerPath={selectedCustomerPath}
+                />
+              ) : null}
+
+              {["attribution", "progress"].includes(selectedModule) ? (
                 <CustomerModulePage
                   customerName={customerName}
                   customerQuery={customerQuery}
@@ -4176,6 +4213,273 @@ function CustomerReportsPage({
         <div className="button-row">
           <Link className="button secondary" to={selectedCustomerPath}>
             Back to customer home
+          </Link>
+          <Link className="button secondary" to={`${selectedCustomerPath}/campaigns`}>
+            Open campaigns
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CustomerSupportCasesPage({
+  customerName,
+  externalTenantRef,
+  selectedAccount,
+  selectedCustomerPath,
+}: {
+  customerName: string;
+  externalTenantRef: string;
+  selectedAccount?: AccountRegistryItem;
+  selectedCustomerPath: string;
+}) {
+  const { refreshKey } = useRefreshContext();
+  const [statusFilter, setStatusFilter] = useState("OPEN");
+  const [draft, setDraft] = useState<SupportCaseDraft>({
+    category: "READINESS_BLOCKER",
+    priority: "MEDIUM",
+    title: "",
+    summary: "",
+  });
+  const [createResult, setCreateResult] = useState<ReferralSaasSupportCaseCreateResponse | null>(null);
+  const accountRef = selectedAccount?.accountId || "";
+  const accountScope = {
+    refType: "external_tenant_ref" as const,
+    externalRef: externalTenantRef,
+    context: "setup" as const,
+  };
+  const supportCasesQuery = useReferralSaasAccountSupportCaseList(
+    accountRef,
+    externalTenantRef,
+    Boolean(accountRef && externalTenantRef),
+    refreshKey,
+    statusFilter,
+  );
+  const supportCases = supportCasesQuery.data?.supportCases || [];
+  const canCreate = Boolean(accountRef && externalTenantRef && draft.title.trim().length >= 3 && draft.summary.trim().length >= 3);
+  const createMutation = useMutation({
+    mutationFn: () =>
+      createReferralSaasAccountSupportCase({
+        accountRef,
+        accountScope,
+        category: draft.category,
+        priority: draft.priority,
+        title: draft.title,
+        summary: draft.summary,
+        sourceSurface: "support_hub",
+        reasonCode: "CUSTOMER_SUPPORT_CASE_CREATED",
+        correlationId: `customer-support-${safeIdempotencyKey(accountRef, newAccessCreateAttemptKey())}`,
+        idempotencyKey: `customer-support-${safeIdempotencyKey(accountRef, draft.title, newAccessCreateAttemptKey())}`,
+      }),
+    onSuccess: async (response) => {
+      setCreateResult(response);
+      setDraft((current) => ({ ...current, title: "", summary: "" }));
+      await supportCasesQuery.refetch();
+    },
+  });
+  const createdCase = createResult?.supportCase.supportCase;
+
+  function updateDraft(field: keyof SupportCaseDraft, value: string) {
+    setDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  function submitSupportCase(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (canCreate) {
+      createMutation.mutate();
+    }
+  }
+
+  return (
+    <section className="panel customer-module-page">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Support</div>
+          <h2 className="panel-title">Support</h2>
+          <div className="panel-subtitle">
+            Create and view customer-scoped support cases without repair, replay, status-change, credential, billing, or money actions.
+          </div>
+        </div>
+        <StatusBadge label="Customer scoped" tone="success" />
+      </div>
+      <div className="panel-body route-list">
+        <div className="wizard-status-card">
+          <div>
+            <strong>Selected customer</strong>
+            <p>
+              {selectedAccount?.accountCode || "No account code"} - {externalTenantRef || "No customer reference"}
+            </p>
+          </div>
+          <StatusBadge label="No tenant code entry" tone="success" />
+        </div>
+
+        {supportCasesQuery.error ? <ErrorPanel error={supportCasesQuery.error} /> : null}
+        {createMutation.error ? <ErrorPanel error={createMutation.error} /> : null}
+
+        <div className="grid-2">
+          <form className="form-grid" onSubmit={submitSupportCase}>
+            <div>
+              <h3 className="section-heading">Create support case</h3>
+              <p className="muted">Record what needs investigation for this customer. This does not fix or mutate the underlying product state.</p>
+            </div>
+            <label>
+              Case type
+              <select onChange={(event) => updateDraft("category", event.target.value)} value={draft.category}>
+                {supportCaseCategoryOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Priority
+              <select onChange={(event) => updateDraft("priority", event.target.value)} value={draft.priority}>
+                {supportCasePriorityOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Short title
+              <input
+                onChange={(event) => updateDraft("title", event.target.value)}
+                placeholder="Example: Campaign readiness evidence missing"
+                value={draft.title}
+              />
+            </label>
+            <label>
+              What happened?
+              <textarea
+                onChange={(event) => updateDraft("summary", event.target.value)}
+                placeholder="Describe the customer-visible issue, the screen or evidence checked, and what the operator expected."
+                value={draft.summary}
+              />
+            </label>
+            <button className="button" disabled={!canCreate || createMutation.isPending} type="submit">
+              {createMutation.isPending ? "Creating support case" : "Create support case"}
+            </button>
+          </form>
+
+          <div className="panel-lite route-list">
+            <h3 className="section-heading">Where to collect evidence</h3>
+            <p className="muted">Open the relevant customer page, confirm the symptom, then create the case here.</p>
+            <Link className="route-card" to={`${selectedCustomerPath}/health`}>
+              <span>
+                <strong>Account health</strong>
+                <span>Check readiness blockers and go-live posture.</span>
+              </span>
+            </Link>
+            <Link className="route-card" to={`${selectedCustomerPath}/people`}>
+              <span>
+                <strong>People and access</strong>
+                <span>Confirm owner and campaign manager responsibilities.</span>
+              </span>
+            </Link>
+            <Link className="route-card" to={`${selectedCustomerPath}/technical`}>
+              <span>
+                <strong>Technical setup</strong>
+                <span>Check provider readiness before live delivery.</span>
+              </span>
+            </Link>
+            <Link className="route-card" to={`${selectedCustomerPath}/reports`}>
+              <span>
+                <strong>Reports</strong>
+                <span>Review tenant-safe performance evidence.</span>
+              </span>
+            </Link>
+          </div>
+        </div>
+
+        {createdCase ? (
+          <div className="wizard-summary-strip success">
+            <div>
+              <strong>Support case recorded.</strong>{" "}
+              {createdCase.caseRef} is {formatDisplay(createdCase.status)}. No repair, replay, credential, invite, campaign, billing, or money action was performed.
+            </div>
+            <StatusBadge label={formatDisplay(createResult?.supportCase.idempotency.status || "Recorded")} tone="success" />
+          </div>
+        ) : null}
+
+        <section className="panel-lite">
+          <div className="panel-header compact">
+            <div>
+              <h3 className="section-heading">Customer support cases</h3>
+              <div className="panel-subtitle">Only cases for {customerName} are shown here.</div>
+            </div>
+            <label>
+              Status
+              <select onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}>
+                <option value="">All statuses</option>
+                <option value="OPEN">Open</option>
+                <option value="INVESTIGATING">Investigating</option>
+                <option value="WAITING">Waiting</option>
+                <option value="RESOLVED">Resolved</option>
+                <option value="CLOSED">Closed</option>
+              </select>
+            </label>
+          </div>
+          {supportCasesQuery.isLoading ? <LoadingState label="Loading support cases" /> : null}
+          <DataTable
+            rows={supportCases}
+            emptyText="No support cases match this customer and status filter yet."
+            columns={[
+              {
+                key: "case",
+                header: "Case",
+                render: (row) => (
+                  <div>
+                    <strong>{formatDisplay(getValue(row, ["title"], "Untitled case"))}</strong>
+                    <div className="table-subtext">{formatDisplay(getValue(row, ["caseRef"], "No case reference"))}</div>
+                  </div>
+                ),
+              },
+              {
+                key: "type",
+                header: "Type",
+                render: (row) => formatCampaignLabel(getValue(row, ["category"], "Support case")),
+              },
+              {
+                key: "priority",
+                header: "Priority",
+                render: (row) => {
+                  const priority = formatDisplay(getValue(row, ["priority"], "Medium"));
+                  return <StatusBadge label={priority} tone={statusTone(priority)} />;
+                },
+              },
+              {
+                key: "status",
+                header: "Status",
+                render: (row) => {
+                  const status = formatDisplay(getValue(row, ["status"], "Open"));
+                  return <StatusBadge label={status} tone={statusTone(status)} />;
+                },
+              },
+              {
+                key: "summary",
+                header: "Summary",
+                render: (row) => <span className="table-subtext">{formatDisplay(getValue(row, ["summary"], "No summary"))}</span>,
+              },
+            ]}
+          />
+        </section>
+
+        <div className="wizard-status-card">
+          <div>
+            <strong>Support boundary</strong>
+            <p>
+              This page records and lists customer-scoped support cases. Notes, status changes, repair, replay, campaign activation, invite delivery, credential creation, billing, and money movement stay in separate governed workflows.
+            </p>
+          </div>
+          <StatusBadge label="Safe case metadata only" tone="success" />
+        </div>
+
+        <div className="button-row">
+          <Link className="button secondary" to={selectedCustomerPath}>
+            Customer home
           </Link>
           <Link className="button secondary" to={`${selectedCustomerPath}/campaigns`}>
             Open campaigns
