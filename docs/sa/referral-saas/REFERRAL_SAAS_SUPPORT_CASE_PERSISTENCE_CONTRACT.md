@@ -241,8 +241,10 @@ Future implementation tasks must prove:
 
 ## Next Task
 
-The next support task should add the schema/repository/API foundation for
-selected-customer support-case create/list/read with idempotency, audit, and
-redaction tests. Notes, status-change UI, repair/replay guardrails, and
-customer-facing support views should remain separate tasks unless the schema
-task stays small enough to review safely.
+TASK-297 implemented the schema/repository/API foundation for selected-customer
+support-case create/list/read with idempotency, audit, and redaction tests.
+
+The next support task should add the selected-customer Support UI for listing
+and creating cases against the current customer. Notes, status-change UI,
+repair/replay guardrails, and customer-facing support views should remain
+separate tasks unless the UI task stays small enough to review safely.
