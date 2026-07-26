@@ -19,6 +19,7 @@ import {
   previewReferralSaasAccountReportExport,
 } from "../../api/endpoints/referralSaasReports";
 import {
+  createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasAccountMembershipPosture,
@@ -35,6 +36,7 @@ import {
   requestReferralSaasMembershipInvitationDelivery,
   submitReferralSaasAccountCampaignReview,
   cancelReferralSaasMembershipInvitationIntent,
+  listReferralSaasAccountSupportCases,
   updateReferralSaasMembershipInvitationIntent,
   updateReferralSaasAccountCampaignPolicySettings,
   updateReferralSaasAccountProfile,
@@ -45,6 +47,8 @@ import {
   type ReferralSaasAccountCampaignListResponse,
   type ReferralSaasAccountRegistryResponse,
   type ReferralSaasAccountCampaignReadinessResponse,
+  type ReferralSaasSupportCaseCreateResponse,
+  type ReferralSaasSupportCaseListResponse,
   type ReferralSaasMembershipActivationReadinessResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
@@ -63,6 +67,7 @@ vi.mock("../../api/endpoints/referralSaasReports", () => ({
   previewReferralSaasAccountReportExport: vi.fn(),
 }));
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
+  createReferralSaasAccountSupportCase: vi.fn(),
   createReferralSaasAccountCampaignSetup: vi.fn(),
   getReferralSaasAccountCampaignReadiness: vi.fn(),
   getReferralSaasAccountMembershipPosture: vi.fn(),
@@ -79,6 +84,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   requestReferralSaasMembershipActivation: vi.fn(),
   submitReferralSaasAccountCampaignReview: vi.fn(),
   cancelReferralSaasMembershipInvitationIntent: vi.fn(),
+  listReferralSaasAccountSupportCases: vi.fn(),
   updateReferralSaasMembershipInvitationIntent: vi.fn(),
   updateReferralSaasAccountCampaignPolicySettings: vi.fn(),
   updateReferralSaasAccountProfile: vi.fn(),
@@ -90,6 +96,7 @@ const mockedIssueReferralSaasAccountCampaignCode = vi.mocked(issueReferralSaasAc
 const mockedValidateReferralSaasAccountCampaignCode = vi.mocked(validateReferralSaasAccountCampaignCode);
 const mockedGetReferralSaasAccountReport = vi.mocked(getReferralSaasAccountReport);
 const mockedPreviewReferralSaasAccountReportExport = vi.mocked(previewReferralSaasAccountReportExport);
+const mockedCreateReferralSaasAccountSupportCase = vi.mocked(createReferralSaasAccountSupportCase);
 const mockedCreateReferralSaasAccountCampaignSetup = vi.mocked(createReferralSaasAccountCampaignSetup);
 const mockedGetReferralSaasAccountCampaignReadiness = vi.mocked(getReferralSaasAccountCampaignReadiness);
 const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
@@ -106,6 +113,7 @@ const mockedRequestReferralSaasMembershipInvitationDelivery = vi.mocked(requestR
 const mockedRequestReferralSaasMembershipActivation = vi.mocked(requestReferralSaasMembershipActivation);
 const mockedSubmitReferralSaasAccountCampaignReview = vi.mocked(submitReferralSaasAccountCampaignReview);
 const mockedCancelReferralSaasMembershipInvitationIntent = vi.mocked(cancelReferralSaasMembershipInvitationIntent);
+const mockedListReferralSaasAccountSupportCases = vi.mocked(listReferralSaasAccountSupportCases);
 const mockedUpdateReferralSaasMembershipInvitationIntent = vi.mocked(updateReferralSaasMembershipInvitationIntent);
 const mockedUpdateReferralSaasAccountCampaignPolicySettings = vi.mocked(updateReferralSaasAccountCampaignPolicySettings);
 const mockedUpdateReferralSaasAccountProfile = vi.mocked(updateReferralSaasAccountProfile);
@@ -862,6 +870,95 @@ function mockCampaignList(): ReferralSaasAccountCampaignListResponse {
   };
 }
 
+function mockSupportCaseList(): ReferralSaasSupportCaseListResponse {
+  return {
+    status: "ok",
+    context: "setup",
+    account: {
+      accountId: "acct-gabs",
+      accountCode: "ACC-2201",
+      accountName: "Gaborone Partners",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "APPROVED",
+    },
+    supportCases: [
+      {
+        caseRef: "case-1",
+        accountRef: "acct-gabs",
+        category: "READINESS_BLOCKER",
+        priority: "HIGH",
+        status: "OPEN",
+        title: "Campaign readiness evidence missing",
+        summary: "Campaign setup needs safe evidence before testing.",
+        sourceSurface: "support_hub",
+        assigneeRef: null,
+        correlationId: "support-case-test-1",
+        createdByRef: "admin-user",
+        createdByRole: "AMPLIFI_ADMIN",
+        createdAt: "2026-07-25T10:00:00+00:00",
+        updatedAt: "2026-07-25T10:00:00+00:00",
+        evidenceLinks: [],
+        redactions: ["internal_tenant_identifier"],
+      },
+    ],
+    guardrails: ["CUSTOMER_SCOPED_SUPPORT_CASE"],
+    redactions: ["internal_tenant_identifier"],
+    no_tenant_code_exposure_confirmed: true,
+    no_product_state_mutation_confirmed: true,
+    no_billing_or_money_movement_confirmed: true,
+  };
+}
+
+function mockSupportCaseCreate(): ReferralSaasSupportCaseCreateResponse {
+  return {
+    status: "accepted",
+    context: "setup",
+    account: {
+      accountId: "acct-gabs",
+      accountCode: "ACC-2201",
+      accountName: "Gaborone Partners",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "APPROVED",
+    },
+    supportCase: {
+      commandStatus: "SUPPORT_CASE_RECORDED",
+      supportCase: {
+        caseRef: "case-2",
+        accountRef: "acct-gabs",
+        category: "ACCESS_SCOPE",
+        priority: "MEDIUM",
+        status: "OPEN",
+        title: "People access question",
+        summary: "Need to confirm who owns campaign access.",
+        sourceSurface: "support_hub",
+        assigneeRef: null,
+        correlationId: "support-case-test-2",
+        createdByRef: "admin-user",
+        createdByRole: "AMPLIFI_ADMIN",
+        createdAt: "2026-07-25T11:00:00+00:00",
+        updatedAt: "2026-07-25T11:00:00+00:00",
+        evidenceLinks: [],
+        redactions: ["internal_tenant_identifier"],
+      },
+      idempotency: { status: "SUPPORT_CASE_RECORDED" },
+      audit: { accountAuditEventId: "audit-support-case-2" },
+      guardrails: ["CUSTOMER_SCOPED_SUPPORT_CASE"],
+      redactions: ["internal_tenant_identifier"],
+    },
+    guardrail: "Support case recorded for the selected customer.",
+    guardrails: ["CUSTOMER_SCOPED_SUPPORT_CASE"],
+    redactions: ["internal_tenant_identifier"],
+    no_repair_replay_retry_confirmed: true,
+    no_referral_or_campaign_mutation_confirmed: true,
+    no_progress_or_attribution_mutation_confirmed: true,
+    no_report_or_export_mutation_confirmed: true,
+    no_invite_delivery_confirmed: true,
+    no_credential_or_auth_claim_change_confirmed: true,
+    no_tenant_code_exposure_confirmed: true,
+    no_billing_or_money_movement_confirmed: true,
+  };
+}
+
 function mockCampaignPolicySettings(): ReferralSaasAccountCampaignPolicySettingsResponse {
   return {
     status: "ok",
@@ -995,6 +1092,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockMembershipActivationReadiness());
     mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadiness());
     mockedListReferralSaasAccountCampaigns.mockResolvedValue(mockCampaignList());
+    mockedListReferralSaasAccountSupportCases.mockResolvedValue(mockSupportCaseList());
+    mockedCreateReferralSaasAccountSupportCase.mockResolvedValue(mockSupportCaseCreate());
     mockedGetReferralSaasAccountReport.mockResolvedValue({
       status: "ok",
       report: {
@@ -1644,6 +1743,52 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       "/admin/referral-saas/account-maintenance/acct-gabs",
     );
     expect(screen.queryByRole("heading", { name: "Health at a glance" })).not.toBeInTheDocument();
+  });
+
+  it("lists and creates support cases inside the selected customer Support page", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/support");
+
+    expect(await screen.findByRole("heading", { name: "Support" })).toBeInTheDocument();
+    expect(screen.getByText("Customer support cases")).toBeInTheDocument();
+    expect(await screen.findByText("Campaign readiness evidence missing")).toBeInTheDocument();
+    expect(mockedListReferralSaasAccountSupportCases).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      refType: "external_tenant_ref",
+      externalRef: "gabs-platform",
+      context: "setup",
+      status: "OPEN",
+      limit: 50,
+    });
+
+    fireEvent.change(screen.getByLabelText("Case type"), { target: { value: "ACCESS_SCOPE" } });
+    fireEvent.change(screen.getByLabelText("Priority"), { target: { value: "MEDIUM" } });
+    fireEvent.change(screen.getByLabelText("Short title"), { target: { value: "People access question" } });
+    fireEvent.change(screen.getByLabelText("What happened?"), {
+      target: { value: "Need to confirm who owns campaign access." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create support case" }));
+
+    await waitFor(() => expect(mockedCreateReferralSaasAccountSupportCase).toHaveBeenCalledTimes(1));
+    expect(mockedCreateReferralSaasAccountSupportCase.mock.calls[0][0]).toMatchObject({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      category: "ACCESS_SCOPE",
+      priority: "MEDIUM",
+      title: "People access question",
+      summary: "Need to confirm who owns campaign access.",
+      sourceSurface: "support_hub",
+      reasonCode: "CUSTOMER_SUPPORT_CASE_CREATED",
+    });
+    expect(await screen.findByText("Support case recorded.")).toBeInTheDocument();
+    expect(screen.getByText(/No repair, replay, credential, invite, campaign, billing, or money action was performed/i)).toBeInTheDocument();
+    expect(JSON.stringify(mockedCreateReferralSaasAccountSupportCase.mock.calls)).not.toMatch(
+      /tenant_code|tenantCode|repair|replay|retry|credentialCreation|authClaim|billing|money/i,
+    );
+    expect(screen.queryByRole("link", { name: /Open current support workspace/i })).not.toBeInTheDocument();
   });
 
   it("does not keep people access as the customer-home blocker after required access is accepted", async () => {

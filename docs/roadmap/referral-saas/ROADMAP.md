@@ -263,6 +263,7 @@ greenfield referral construction.
 155. TASK-295: Define Referral SaaS support case persistence contract.
 156. TASK-296: Scope Customer Health account-foundation activation results.
 157. TASK-298: Clarify optional Platform login setup positioning.
+158. TASK-299: Add selected-customer support case UI.
 
 ## 10/10 Exit Criteria
 
@@ -1396,6 +1397,24 @@ greenfield referral construction.
   workflow remains role-specific person confirmation for customer work, while
   Platform login setup is explained as optional Amplifi sign-in setup that can be
   skipped when a person only owns the relationship outside the platform.
+- TASK-299:
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/api/queryKeys.ts`;
+  `frontend/src/api/referralSaasAccountQueries.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_SUPPORT_CASE_PERSISTENCE_CONTRACT.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  selected-customer Support page list/create UX for support cases. Operators can
+  view only the selected customer's cases, create a bounded safe case with type,
+  priority, title, and summary, and jump to related customer evidence pages.
+  Notes, status changes, repair/replay actions, invite delivery, credential
+  creation, campaign activation, billing, money movement, and DLaaS marketplace
+  behavior remain outside this UI.
 
 ## Explicit Deferrals
 

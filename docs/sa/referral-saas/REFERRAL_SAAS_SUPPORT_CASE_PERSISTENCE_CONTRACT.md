@@ -200,17 +200,21 @@ Conflicting idempotency reuse must fail safely with no mutation.
 
 ## Frontend Product Contract
 
-The selected-customer Support page should eventually show:
+TASK-299 implements the selected-customer Support page list/create surface.
+The page now shows:
 
 1. open support cases for this customer
 2. a clear `Create support case` action
-3. the source evidence that can be attached
-4. the current case status and next action
+3. customer evidence pages the operator can open before creating the case
+4. current case status, priority, and summary from the selected customer list
 5. read-only links back to Link Inspection, Attribution Trace, Progress Status,
    Technical Setup, Reports, Campaigns, People and Access, or Account Health
 
 It should not show a generic global helpdesk, raw diagnostic dumps, DB queries,
 repair/replay buttons, money actions, or DLaaS marketplace operations.
+
+Notes, status changes, case assignment, and repair/replay guardrails remain
+separate future tasks.
 
 ## Acceptance Criteria For Implementation
 
@@ -239,12 +243,12 @@ Future implementation tasks must prove:
   invoice, payout, sponsor billing, white-label/embed, or SaaS billing work
 - no source-code fork
 
-## Next Task
+## Current Implementation State
 
 TASK-297 implemented the schema/repository/API foundation for selected-customer
 support-case create/list/read with idempotency, audit, and redaction tests.
 
-The next support task should add the selected-customer Support UI for listing
-and creating cases against the current customer. Notes, status-change UI,
-repair/replay guardrails, and customer-facing support views should remain
-separate tasks unless the UI task stays small enough to review safely.
+TASK-299 adds the selected-customer Support UI for listing and creating cases
+against the current customer. Notes, status-change UI, repair/replay guardrails,
+and customer-facing support views remain separate tasks unless a later support
+task stays small enough to review safely.

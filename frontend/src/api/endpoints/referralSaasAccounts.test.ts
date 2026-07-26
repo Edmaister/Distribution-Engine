@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { apiRequest } from "../client";
 import {
+  createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
   createReferralSaasAccountFromDraft,
   getReferralSaasAccountCampaign,
@@ -10,6 +11,7 @@ import {
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccountCampaigns,
+  listReferralSaasAccountSupportCases,
   listReferralSaasAccounts,
   recordReferralSaasAccountCampaignReviewDecision,
   cancelReferralSaasMembershipInvitationIntent,
@@ -502,6 +504,164 @@ describe("referralSaasAccounts endpoint client", () => {
     });
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|wallet|settlement|money_movement|activate_campaign/,
+    );
+  });
+
+  it("lists customer-scoped support cases without requiring tenant code entry", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      supportCases: [
+        {
+          caseRef: "case-1",
+          accountRef: "acct-1",
+          category: "READINESS_BLOCKER",
+          priority: "HIGH",
+          status: "OPEN",
+          title: "Campaign readiness evidence missing",
+          summary: "Campaign setup needs safe evidence before testing.",
+          sourceSurface: "support_hub",
+          assigneeRef: null,
+          correlationId: "case-correlation-1",
+          createdByRef: "admin-user",
+          createdByRole: "AMPLIFI_ADMIN",
+          createdAt: "2026-07-25T10:00:00+00:00",
+          updatedAt: "2026-07-25T10:00:00+00:00",
+          evidenceLinks: [],
+          redactions: ["internal_tenant_identifier"],
+        },
+      ],
+      guardrails: ["CUSTOMER_SCOPED_SUPPORT_CASE"],
+      redactions: ["internal_tenant_identifier"],
+      no_tenant_code_exposure_confirmed: true,
+      no_product_state_mutation_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    await expect(
+      listReferralSaasAccountSupportCases({
+        accountRef: " acct-1 ",
+        refType: "external_tenant_ref",
+        externalRef: " fnb-referrals ",
+        context: "setup",
+        status: " OPEN ",
+        limit: 25,
+      }),
+    ).resolves.toMatchObject({
+      supportCases: [{ caseRef: "case-1", status: "OPEN" }],
+      no_product_state_mutation_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts/acct-1/support-cases", {
+      query: {
+        ref_type: "external_tenant_ref",
+        external_ref: "fnb-referrals",
+        context: "setup",
+        status: "OPEN",
+        limit: 25,
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement|repair|replay|retry/,
+    );
+  });
+
+  it("creates a customer-scoped support case with safe account scope", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "accepted",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      supportCase: {
+        commandStatus: "SUPPORT_CASE_RECORDED",
+        supportCase: {
+          caseRef: "case-1",
+          accountRef: "acct-1",
+          category: "READINESS_BLOCKER",
+          priority: "HIGH",
+          status: "OPEN",
+          title: "Campaign readiness evidence missing",
+          summary: "Campaign setup needs safe evidence before testing.",
+          sourceSurface: "support_hub",
+          assigneeRef: null,
+          correlationId: "support-case-correlation-1",
+          createdByRef: "admin-user",
+          createdByRole: "AMPLIFI_ADMIN",
+          createdAt: "2026-07-25T10:00:00+00:00",
+          updatedAt: "2026-07-25T10:00:00+00:00",
+          evidenceLinks: [],
+          redactions: ["internal_tenant_identifier"],
+        },
+        idempotency: { status: "SUPPORT_CASE_RECORDED" },
+        audit: { accountAuditEventId: "audit-case-1" },
+        guardrails: ["CUSTOMER_SCOPED_SUPPORT_CASE"],
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrail: "Support case recorded for the selected customer.",
+      guardrails: ["CUSTOMER_SCOPED_SUPPORT_CASE"],
+      redactions: ["internal_tenant_identifier"],
+      no_repair_replay_retry_confirmed: true,
+      no_referral_or_campaign_mutation_confirmed: true,
+      no_progress_or_attribution_mutation_confirmed: true,
+      no_report_or_export_mutation_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_credential_or_auth_claim_change_confirmed: true,
+      no_tenant_code_exposure_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    await expect(
+      createReferralSaasAccountSupportCase({
+        accountRef: " acct-1 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " fnb-referrals ",
+          context: "setup",
+        },
+        category: " READINESS_BLOCKER ",
+        priority: " HIGH ",
+        title: " Campaign readiness evidence missing ",
+        summary: " Campaign setup needs safe evidence before testing. ",
+        sourceSurface: "support_hub",
+        correlationId: "support-case-correlation-1",
+        idempotencyKey: "support-case-1",
+      }),
+    ).resolves.toMatchObject({
+      supportCase: {
+        supportCase: { caseRef: "case-1", status: "OPEN" },
+        idempotency: { status: "SUPPORT_CASE_RECORDED" },
+      },
+      no_repair_replay_retry_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts/acct-1/support-cases", {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: "fnb-referrals",
+          context: "setup",
+        },
+        category: "READINESS_BLOCKER",
+        priority: "HIGH",
+        title: "Campaign readiness evidence missing",
+        summary: "Campaign setup needs safe evidence before testing.",
+        sourceSurface: "support_hub",
+        evidenceLinks: [],
+        reasonCode: "CUSTOMER_SUPPORT_CASE_CREATED",
+        correlationId: "support-case-correlation-1",
+        idempotencyKey: "support-case-1",
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement|credential|auth_claim/,
     );
   });
 
