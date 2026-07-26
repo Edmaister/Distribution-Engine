@@ -1572,6 +1572,65 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
   });
 
+  it("does not show a customer foundation activation result for a different selected account", async () => {
+    mockedRequestReferralSaasAccountFoundationActivation.mockResolvedValueOnce({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-rmca",
+        accountCode: "ACCT_RMCA",
+        accountName: "Test FNB RMCA 002",
+        accountStatus: "ACTIVE",
+        onboardingStatus: "APPROVED",
+      },
+      activation: {
+        accountId: "acct-rmca",
+        accountCode: "ACCT_RMCA",
+        accountName: "Test FNB RMCA 002",
+        previousAccountStatus: "PENDING_ONBOARDING",
+        accountStatus: "ACTIVE",
+        previousOnboardingStatus: "READY_FOR_REVIEW",
+        onboardingStatus: "APPROVED",
+        previousTenantLinkStatus: "PENDING_SETUP",
+        tenantLinkStatus: "ACTIVE",
+        seatCapacity: { seatTypes: ["ADMIN", "OPERATOR"], createdSeatCount: 2 },
+        commandStatus: "ACCOUNT_FOUNDATION_ACTIVATED",
+        auditEventId: "audit-account-activation-rmca",
+        idempotency: { status: "NEW_REQUEST" },
+        guardrails: ["NO_MEMBERSHIP_WRITE", "NO_SEAT_ASSIGNMENT"],
+        redactions: ["internal_tenant_identifier"],
+        noMembershipWriteConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noInviteDeliveryConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noCredentialCreationConfirmed: true,
+        noCampaignActivationConfirmed: true,
+        noGoLiveActionConfirmed: true,
+        noBillingOrMoneyMovementConfirmed: true,
+      },
+      guardrails: ["NO_MEMBERSHIP_WRITE", "NO_SEAT_ASSIGNMENT"],
+      redactions: ["internal_tenant_identifier"],
+      no_membership_write_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_credential_creation_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_go_live_action_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-fnb");
+
+    expect(await screen.findByRole("heading", { name: "FNB Referral SaaS" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Activate foundation" }));
+
+    await waitFor(() => expect(mockedRequestReferralSaasAccountFoundationActivation).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(screen.queryByText("Customer foundation activated.")).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/Test FNB RMCA 002 foundation/i)).not.toBeInTheDocument();
+  });
+
   it("opens People and Access as its own customer page from the next-best action", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs");
 

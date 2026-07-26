@@ -6584,6 +6584,31 @@ Rollback notes: Revert the TASK-295 documentation updates only.
 Explicit non-goals: Do not add schema, migrations, backend routes, frontend routes, permissions, repair/replay/retry commands, failure resolve/reprocess commands, attribution overrides, code reissue/revoke/rotate commands, campaign activation, export file creation, live invite delivery, credential creation, auth/session claim propagation, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has a reviewed selected-customer support-case persistence contract ready for the next schema/API implementation task. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because runtime support-case persistence, export file storage/download, governed auth/login lifecycle, progress/attribution mutation proof, and non-local proof repetition are still separate gaps. Priority: P0.
 
+## TASK-296: Scope Customer Health account-foundation activation results
+
+Status: Complete (2026-07-25).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses selected-customer account registry state and the guarded account-foundation activation command without changing backend schema or write boundaries. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer account health trust boundary.
+Objective: Prevent Account Health from showing a customer-foundation activation success message for a different selected customer.
+Why now: Manual UI testing showed `test-referral-fnb-002` displaying an activation message for `test-fnb-rmca-002`. Backend path-scope checks protect the command, but the frontend success message was stored without the selected account id and could therefore appear stale or mismatched after context changes.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None to runtime behavior; existing backend selected-account path scope remains the write safety boundary.
+Frontend impact: Account-foundation activation success is stored with the activation account id and rendered only when it matches the currently selected account.
+API impact: None.
+Tests added/updated: Frontend regression coverage for mismatched activation response suppression and matching activation success display.
+Validation method: `cd frontend; npm run test -- ReferralSaasAccountMaintenancePage.test.tsx`; `cd frontend; npm run build`; `git diff --check`; `rg -n "TASK-296|account-foundation activation|Customer Health" docs\roadmap docs\sa\referral-saas outputs\referral-attribution-dlaas-roadmap-infographic.html`.
+Acceptance criteria: A selected customer can still display its own activation success result, but a stale or mismatched activation response for another account is not rendered on the current customer's Account Health page; no backend schema, route, support-case write, invite delivery, credential creation, auth-claim propagation, campaign activation, billing, money movement, DLaaS marketplace behavior, or source-code fork is introduced.
+Dependencies: TASK-288; TASK-290; TASK-294.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert the scoped frontend result state, regression test, and TASK-296 documentation updates.
+Explicit non-goals: Do not add schema, migrations, backend routes, account activation semantics, membership writes, seat assignment, invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, support-case persistence, repair/replay/retry commands, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Customer Health activation feedback is selected-customer safe and covered by regression tests. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because runtime support-case persistence, export file storage/download, governed auth/login lifecycle, progress/attribution mutation proof, and non-local proof repetition are still separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
