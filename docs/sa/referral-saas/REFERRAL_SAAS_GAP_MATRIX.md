@@ -161,6 +161,12 @@ selected account id. This prevents stale or mismatched activation evidence from
 another customer being shown under the current customer profile while preserving
 the existing backend account path-scope guard as the write safety boundary.
 
+TASK-298 clarifies the selected-customer People and Access Platform login setup
+positioning. Required customer access work remains role-specific person
+confirmation for referral operations; Platform login setup is shown as optional
+Amplifi sign-in setup only, with permissions and auth claims still kept in a
+later governed workflow.
+
 ## Recommended Ordered Task Sequence
 
 1. TASK-134: Define Referral SaaS account setup contract.

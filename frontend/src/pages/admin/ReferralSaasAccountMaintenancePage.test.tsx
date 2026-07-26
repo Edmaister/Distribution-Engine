@@ -1732,11 +1732,12 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText("People setup needs attention")).toBeInTheDocument();
     expect(screen.getByText("Still need Campaign manager.")).toBeInTheDocument();
     expect(screen.getByText("Platform login setup")).toBeInTheDocument();
-    expect(screen.getByText(/Use this optional section only when a confirmed person needs to sign in/i)).toBeInTheDocument();
+    expect(container.textContent).toContain("Finish confirming the required customer responsibilities first.");
+    expect(container.textContent).toContain("Use platform login setup only when a confirmed person needs to sign in to Amplifi.");
     expect(container.textContent).toContain("Next: Add the person who owns this responsibility.");
     fireEvent.click(screen.getByRole("button", { name: "Show access diagnostics" }));
     expect(await screen.findByText("Readiness")).toBeInTheDocument();
-    expect(screen.getByText(/responsibility still needs to be named for this customer/i)).toBeInTheDocument();
+    expect(container.textContent).toContain("Contact: CONTACT_REFERENCE_PRESENT");
     expect(screen.getAllByText(/Campaign Manager/i).length).toBeGreaterThan(0);
     expect(screen.getByText("Configure an approved invitation delivery provider before sending invites.")).toBeInTheDocument();
     expect(screen.getAllByText("Gaborone owner").length).toBeGreaterThan(0);
@@ -1903,8 +1904,11 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText("Still need Campaign manager.")).toBeInTheDocument();
     expect(container.textContent).toContain("Next: Confirmed for customer work. Set up platform login later only if this person must sign in.");
     expect(screen.getByText("Platform login setup")).toBeInTheDocument();
+    expect(container.textContent).toContain("Finish confirming the required customer responsibilities first.");
+    expect(screen.getByText("Use it for Amplifi sign-in access.")).toBeInTheDocument();
+    expect(screen.getByText("Skip it when the person only owns the relationship outside the platform.")).toBeInTheDocument();
     expect(screen.getByText("Optional login setup")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Set up login" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Set up platform login" })).toBeEnabled();
   });
 
   it("requests optional platform login setup after access has been confirmed", async () => {
@@ -1918,7 +1922,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
-    const provisioningButton = await screen.findByRole("button", { name: "Set up login" });
+    const provisioningButton = await screen.findByRole("button", { name: "Set up platform login" });
     expect(provisioningButton).toBeEnabled();
 
     fireEvent.click(provisioningButton);
@@ -1943,7 +1947,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       idempotencyKey: "customer-profile-access-provisioning-acct-gabs-membership-1-distribution-admin-admin",
     });
     expect(await screen.findByText("Login setup recorded.")).toBeInTheDocument();
-    expect(container.textContent).toContain("Login seat assigned");
+    expect(container.textContent).toContain("Platform login set up");
     expect(JSON.stringify(mockedRequestReferralSaasAccessProvisioning.mock.calls)).not.toMatch(
       /tenantCode|sendInvite|credential|authClaims|goLive|wallet|settlement|money/i,
     );
