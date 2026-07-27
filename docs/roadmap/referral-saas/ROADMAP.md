@@ -267,6 +267,7 @@ greenfield referral construction.
 159. TASK-301: Define customer-scoped Integrations configuration contract.
 160. TASK-302: Add customer-scoped Integrations configuration API foundation.
 161. TASK-303: Add customer-scoped Integrations configuration UI.
+162. TASK-304: Define customer-scoped Integrations live execution contract.
 
 ## 10/10 Exit Criteria
 
@@ -312,6 +313,8 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_CREATE_CONTRACT.md`
 - TASK-301:
   `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CONFIGURATION_CONTRACT.md`
+- TASK-304:
+  `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_LIVE_EXECUTION_CONTRACT.md`
 
 ## Completed Implementation Outputs
 

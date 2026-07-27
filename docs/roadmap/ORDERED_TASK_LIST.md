@@ -6759,6 +6759,31 @@ Rollback notes: Revert the frontend endpoint helpers, Integrations UI form wirin
 Explicit non-goals: Do not create or store secrets, provider credentials, signing keys, raw webhook payloads, raw recipients, live webhooks, invite delivery, login credentials, seats, auth claims, campaigns, go-live actions, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: The selected-customer Integrations page can validate and save safe non-secret setup evidence against the TASK-302 API foundation. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because live provider execution, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-304: Define customer-scoped Integrations live execution contract
+
+Status: Complete (2026-07-28).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CONFIGURATION_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`.
+Shared primitive impact: Defines how future selected-customer Integrations execution should reuse account context, provider/catalog readiness, idempotency, audit, redaction, and safe route-contract patterns. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer-scoped live Integrations execution readiness for API verification, webhook test dispatch, message-provider checks, and governed credential requests.
+Objective: Define the boundary between saved non-secret Integrations setup evidence and future live provider execution so credential lifecycle, webhook testing, and provider-backed checks are implemented as explicit governed actions instead of hidden setup side effects.
+Why now: TASK-303 made the Integrations page usable for configuration, but live API/webhook/provider execution remains a production-critical gap that needs clear gates before runtime work starts.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_LIVE_EXECUTION_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None; future route families are contract-defined only.
+Frontend impact: None; future selected-customer Integrations UX states are contract-defined only.
+API impact: Defines future selected-customer route families for integrations execution readiness, API-access verification, webhook test dispatch, message-provider test checks, and credential lifecycle requests.
+Tests added/updated: None; docs-only contract task.
+Validation method: Contract/readback checks and `git diff --check`.
+Acceptance criteria: Contract separates setup evidence from live execution, identifies required gates, candidate routes, statuses, UX expectations, audit/idempotency/redaction requirements, and explicit non-goals for credentials, webhooks, invite delivery, auth, campaign activation, billing, money, DLaaS marketplace behavior, and source-code forks.
+Dependencies: TASK-300; TASK-301; TASK-302; TASK-303.
+Blocked by: Runtime execution-readiness API, provider approval/onboarding UI, credential lifecycle implementation, webhook dispatch/provider adapters, invite/referral-message delivery provider integration, auth-claim propagation, export file storage/download, support-case UI/notes/status changes, and non-local proof repetition.
+Risk level: Medium.
+Rollback notes: Revert the TASK-304 contract document plus roadmap, gap-matrix, public API map, ordered-task-list, and infographic references.
+Explicit non-goals: Do not add schema, migrations, runtime routes, service writes, frontend controls, API key creation, secret creation/storage/rotation/reveal, webhook subscription activation, webhook dispatch/retry/replay/queueing/signing, invite delivery, referral-message delivery, identity-provider integration, auth/session claim changes, campaign activation, go-live actions, support-case writes, export persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: The selected-customer Integrations live execution boundary is documented and ready to guide the next implementation task. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because runtime live execution, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
