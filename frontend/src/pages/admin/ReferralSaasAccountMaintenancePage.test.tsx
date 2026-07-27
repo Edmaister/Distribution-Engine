@@ -1526,9 +1526,9 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       "href",
       "/admin/referral-saas/account-maintenance/acct-gabs/people",
     );
-    expect(screen.getByRole("link", { name: /Check technical setup/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Check integrations/ })).toHaveAttribute(
       "href",
-      "/admin/referral-saas/account-maintenance/acct-gabs/technical",
+      "/admin/referral-saas/account-maintenance/acct-gabs/integrations",
     );
     expect(screen.queryByRole("heading", { name: "People and access" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^Open Campaigns/ })).toHaveAttribute(
@@ -1658,9 +1658,9 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.queryByRole("link", { name: /Fix first: Add who can manage this account/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Add who can manage this account/ })).not.toBeInTheDocument();
     expect(screen.getByText("No blocker")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Check technical setup/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Check integrations/ })).toHaveAttribute(
       "href",
-      "/admin/referral-saas/account-maintenance/acct-gabs/technical",
+      "/admin/referral-saas/account-maintenance/acct-gabs/integrations",
     );
     expect(screen.getByText("People and access").closest(".customer-function-card")).toHaveTextContent("Ready");
     expect(screen.getByText("People and access").closest(".customer-function-card")).toHaveTextContent(
@@ -1994,12 +1994,12 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(await screen.findByText("Accepted access recorded.")).toBeInTheDocument();
   });
 
-  it("opens Technical Setup as its own read-only customer page", async () => {
-    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/technical");
+  it("opens Integrations as its own read-only customer page", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/integrations");
 
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Technical setup" })).toBeInTheDocument();
-    expect(screen.getByText(/Check provider readiness for invites and referral messages/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Integrations" })).toBeInTheDocument();
+    expect(screen.getByText(/Manage the readiness view for API, webhook, invite delivery, and referral-message connections/i)).toBeInTheDocument();
     expect(await screen.findByText("Ready providers")).toBeInTheDocument();
     expect(screen.getByText("Need setup")).toBeInTheDocument();
     expect(screen.getByText("Supported channels")).toBeInTheDocument();
@@ -2014,6 +2014,13 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       context: "setup",
     });
     expect(screen.queryByRole("heading", { name: "Health at a glance" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the previous Technical Setup route as an Integrations compatibility alias", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/technical");
+
+    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Integrations" })).toBeInTheDocument();
   });
 
   it("opens Campaigns as a customer-scoped readiness page without tenant code entry", async () => {
@@ -2544,9 +2551,9 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       "href",
       "/admin/referral-saas/account-maintenance/acct-fnb/reports",
     );
-    expect(screen.getByRole("link", { name: /Technical setup/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Integrations/ })).toHaveAttribute(
       "href",
-      "/admin/referral-saas/account-maintenance/acct-fnb/technical",
+      "/admin/referral-saas/account-maintenance/acct-fnb/integrations",
     );
     expect(
       screen

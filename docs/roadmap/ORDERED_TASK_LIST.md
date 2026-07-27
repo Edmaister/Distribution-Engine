@@ -6659,6 +6659,31 @@ Rollback notes: Revert the People and Access copy/CSS/test updates and TASK-298 
 Explicit non-goals: Do not add schema, backend routes, user creation, live invite delivery, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, support-case writes, repair/replay/retry UI, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: People and Access keeps role-specific person rows as the main workflow and positions Platform login setup as an optional secondary follow-on. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because governed auth/login lifecycle, support persistence, export storage/download, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-300: Reframe selected-customer Technical Setup as Integrations
+
+Status: Complete (2026-07-27).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing selected-customer account context and technical setup readiness API as the read-only Integrations readiness view. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer Integrations workspace; API/webhook/provider readiness clarity.
+Objective: Rename and route the customer-scoped Technical Setup surface as Integrations so operators understand this is where API, webhook, invite-delivery, and referral-message connection readiness lives.
+Why now: Manual UX review found that `Technical setup` did not explain where webhook/API onboarding belongs and made the customer home feel like raw implementation detail rather than a customer-scoped product workspace.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None; the existing `GET /v1/referral-saas/accounts/{account_ref}/technical-setup-readiness` read model remains the source of truth for readiness.
+Frontend impact: Customer Home cards and next-best actions now label the module `Integrations`, route to `/integrations`, and describe API, webhook, invite-delivery, and referral-message readiness in plain language. The previous `/technical` route remains a compatibility alias.
+API impact: None; no new route and no write behavior.
+Tests added/updated: Updated selected-customer maintenance page tests for the Integrations route, copy, next actions, customer function card, and `/technical` compatibility alias.
+Validation method: `cd frontend; npm.cmd test -- --run src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx --reporter=dot`; `cd frontend; npm.cmd run build`; `git diff --check`.
+Acceptance criteria: Operators see `Integrations` from Customer Home and next-best actions; `/integrations` renders the readiness page; `/technical` still renders the same page for compatibility; backend readiness remains read-only; no credentials, webhook dispatch, invite delivery, membership activation, seat assignment, auth/session claim propagation, campaign activation, go-live, billing, money movement, DLaaS marketplace behavior, or source-code fork is introduced.
+Dependencies: TASK-244; TASK-245; TASK-274; TASK-298.
+Blocked by: Actual customer-scoped provider/API/webhook configuration commands remain future work.
+Risk level: Low.
+Rollback notes: Revert the route/copy/test updates and TASK-300 documentation changes.
+Explicit non-goals: Do not add schema, migrations, backend routes, provider credential storage, webhook dispatch, invite delivery, membership activation, seat assignment, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Selected-customer technical readiness is presented as an Integrations workspace with compatible routing and tests. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because actual provider/API/webhook configuration, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
