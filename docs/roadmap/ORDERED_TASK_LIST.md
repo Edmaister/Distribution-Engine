@@ -6734,6 +6734,31 @@ Rollback notes: Revert migration 087, the integration configuration service/rout
 Explicit non-goals: Do not create or store secrets, provider credentials, signing keys, raw webhook payloads, raw recipients, live webhooks, invite delivery, login credentials, seats, auth claims, campaigns, go-live actions, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: The selected-customer Integrations configuration backend foundation is implemented, tested, documented, and smoke-plan bounded. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because frontend Integrations controls, live provider execution, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-303: Add customer-scoped Integrations configuration UI
+
+Status: Complete (2026-07-27).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CONFIGURATION_CONTRACT.md`.
+Shared primitive impact: Reuses selected-customer account context, technical setup readiness, persisted Integrations configuration APIs, audit/idempotency/redaction guardrails, shared API client helpers, and existing customer-profile routing. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer-scoped Integrations setup for API access intent, webhook callback intent, event categories, invite delivery channel, and referral-message channel evidence.
+Objective: Wire the selected-customer Integrations page to the safe configuration read, validate, and save APIs so operators can capture setup evidence without leaving customer context or triggering live provider behavior.
+Why now: TASK-302 added the backend foundation, but the customer profile still needed a plain, actionable UI for operators to enter non-secret integration setup evidence and understand what remains blocked.
+Files involved: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `frontend/src/styles/base.css`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None; reuses TASK-302 persisted Integrations configuration schema.
+Backend impact: None; reuses TASK-302 read/validate/save routes.
+Frontend impact: Adds selected-customer Integrations controls for API environment/auth/use-case intent, webhook callback/event intent, message channel/provider-reference intent, saved evidence display, validate action, save action, success/error feedback, and safety copy.
+API impact: Wires the frontend client to `GET /v1/referral-saas/accounts/{account_ref}/integrations/configuration`, `POST /v1/referral-saas/accounts/{account_ref}/integrations/configuration/validate`, and `PUT /v1/referral-saas/accounts/{account_ref}/integrations/configuration`.
+Tests added/updated: Frontend API client typing/normalization support and customer-profile Integrations render/validate/save behavior tests.
+Validation method: Focused frontend tests for customer-scoped Integrations and TypeScript build/lint where local tooling is available; `git diff --check`.
+Acceptance criteria: Integrations page reads saved setup evidence, validates draft setup without saving, saves non-secret setup evidence through the guarded API, shows current provider readiness, keeps selected-customer scope, and preserves no-secret/no-credential/no-webhook-dispatch/no-invite/no-auth/no-campaign/no-billing/no-money boundaries.
+Dependencies: TASK-300; TASK-301; TASK-302.
+Blocked by: Live provider onboarding/approval UI, credential lifecycle, webhook dispatch/provider adapters, invite delivery provider integration, auth-claim propagation, export file storage/download, support-case UI, and non-local proof repetition.
+Risk level: Medium.
+Rollback notes: Revert the frontend endpoint helpers, Integrations UI form wiring, CSS additions, tests, and TASK-303 documentation updates.
+Explicit non-goals: Do not create or store secrets, provider credentials, signing keys, raw webhook payloads, raw recipients, live webhooks, invite delivery, login credentials, seats, auth claims, campaigns, go-live actions, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: The selected-customer Integrations page can validate and save safe non-secret setup evidence against the TASK-302 API foundation. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because live provider execution, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

@@ -22,6 +22,7 @@ import {
   createReferralSaasAccountCampaignSetup,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasAccountMembershipPosture,
+  getReferralSaasIntegrationConfiguration,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccountCampaigns,
@@ -33,11 +34,13 @@ import {
   requestReferralSaasAccessProvisioning,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
+  saveReferralSaasIntegrationConfiguration,
   submitReferralSaasAccountCampaignReview,
   cancelReferralSaasMembershipInvitationIntent,
   updateReferralSaasMembershipInvitationIntent,
   updateReferralSaasAccountCampaignPolicySettings,
   updateReferralSaasAccountProfile,
+  validateReferralSaasIntegrationConfiguration,
   type ReferralSaasAccountCampaignReviewResponse,
   type ReferralSaasAccountCampaignActivationResponse,
   type ReferralSaasAccountCampaignPolicySettingsResponse,
@@ -66,6 +69,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   createReferralSaasAccountCampaignSetup: vi.fn(),
   getReferralSaasAccountCampaignReadiness: vi.fn(),
   getReferralSaasAccountMembershipPosture: vi.fn(),
+  getReferralSaasIntegrationConfiguration: vi.fn(),
   getReferralSaasMembershipActivationReadiness: vi.fn(),
   getReferralSaasTechnicalSetupReadiness: vi.fn(),
   listReferralSaasAccountCampaigns: vi.fn(),
@@ -77,11 +81,13 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   requestReferralSaasAccessProvisioning: vi.fn(),
   requestReferralSaasMembershipInvitationDelivery: vi.fn(),
   requestReferralSaasMembershipActivation: vi.fn(),
+  saveReferralSaasIntegrationConfiguration: vi.fn(),
   submitReferralSaasAccountCampaignReview: vi.fn(),
   cancelReferralSaasMembershipInvitationIntent: vi.fn(),
   updateReferralSaasMembershipInvitationIntent: vi.fn(),
   updateReferralSaasAccountCampaignPolicySettings: vi.fn(),
   updateReferralSaasAccountProfile: vi.fn(),
+  validateReferralSaasIntegrationConfiguration: vi.fn(),
 }));
 
 const mockedGetAdminOnboardingDrafts = vi.mocked(getAdminOnboardingDrafts);
@@ -93,6 +99,7 @@ const mockedPreviewReferralSaasAccountReportExport = vi.mocked(previewReferralSa
 const mockedCreateReferralSaasAccountCampaignSetup = vi.mocked(createReferralSaasAccountCampaignSetup);
 const mockedGetReferralSaasAccountCampaignReadiness = vi.mocked(getReferralSaasAccountCampaignReadiness);
 const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
+const mockedGetReferralSaasIntegrationConfiguration = vi.mocked(getReferralSaasIntegrationConfiguration);
 const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferralSaasMembershipActivationReadiness);
 const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTechnicalSetupReadiness);
 const mockedListReferralSaasAccountCampaigns = vi.mocked(listReferralSaasAccountCampaigns);
@@ -104,11 +111,13 @@ const mockedRequestReferralSaasAccountFoundationActivation = vi.mocked(requestRe
 const mockedRequestReferralSaasAccessProvisioning = vi.mocked(requestReferralSaasAccessProvisioning);
 const mockedRequestReferralSaasMembershipInvitationDelivery = vi.mocked(requestReferralSaasMembershipInvitationDelivery);
 const mockedRequestReferralSaasMembershipActivation = vi.mocked(requestReferralSaasMembershipActivation);
+const mockedSaveReferralSaasIntegrationConfiguration = vi.mocked(saveReferralSaasIntegrationConfiguration);
 const mockedSubmitReferralSaasAccountCampaignReview = vi.mocked(submitReferralSaasAccountCampaignReview);
 const mockedCancelReferralSaasMembershipInvitationIntent = vi.mocked(cancelReferralSaasMembershipInvitationIntent);
 const mockedUpdateReferralSaasMembershipInvitationIntent = vi.mocked(updateReferralSaasMembershipInvitationIntent);
 const mockedUpdateReferralSaasAccountCampaignPolicySettings = vi.mocked(updateReferralSaasAccountCampaignPolicySettings);
 const mockedUpdateReferralSaasAccountProfile = vi.mocked(updateReferralSaasAccountProfile);
+const mockedValidateReferralSaasIntegrationConfiguration = vi.mocked(validateReferralSaasIntegrationConfiguration);
 
 function renderWorkspace(ui: ReactElement, initialEntry = "/admin/referral-saas/account-maintenance") {
   const client = new QueryClient({
@@ -780,6 +789,120 @@ function mockTechnicalSetupReadinessWithInviteProvider(): ReferralSaasTechnicalS
   };
 }
 
+function mockIntegrationConfigurationRead() {
+  const readiness = mockTechnicalSetupReadiness();
+  return {
+    status: "ok",
+    context: "setup" as const,
+    account: readiness.account,
+    integrationConfiguration: null,
+    technicalSetupReadiness: readiness.technicalSetupReadiness,
+    guardrail: "Selected-customer Integrations configuration view.",
+    guardrails: ["CUSTOMER_SCOPED_INTEGRATIONS_CONFIGURATION", "NO_SECRET_OR_CREDENTIAL_STORAGE"],
+    redactions: ["internal_tenant_identifier", "tenant_code", "provider_secret"],
+    no_secret_or_credential_storage_confirmed: true,
+    no_credential_creation_confirmed: true,
+    no_webhook_dispatch_confirmed: true,
+    no_invite_delivery_confirmed: true,
+    no_membership_activation_confirmed: true,
+    no_seat_assignment_confirmed: true,
+    no_auth_claim_change_confirmed: true,
+    no_campaign_activation_confirmed: true,
+    no_go_live_action_confirmed: true,
+    no_billing_or_money_movement_confirmed: true,
+  };
+}
+
+function mockIntegrationConfigurationValidation() {
+  return {
+    status: "ok",
+    context: "setup" as const,
+    account: mockTechnicalSetupReadiness().account,
+    validation: {
+      commandStatus: "INTEGRATION_CONFIGURATION_VALIDATED",
+      safeSetupPosture: { blockers: [] },
+      guardrails: ["CUSTOMER_SCOPED_INTEGRATIONS_CONFIGURATION", "NO_SECRET_OR_CREDENTIAL_STORAGE"],
+      redactions: ["internal_tenant_identifier", "tenant_code", "provider_secret"],
+      noSecretOrCredentialStorageConfirmed: true,
+      noCredentialCreationConfirmed: true,
+      noWebhookDispatchConfirmed: true,
+      noInviteDeliveryConfirmed: true,
+      noMembershipActivationConfirmed: true,
+      noSeatAssignmentConfirmed: true,
+      noAuthClaimChangeConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noGoLiveActionConfirmed: true,
+      noBillingOrMoneyMovementConfirmed: true,
+    },
+    guardrail: "Selected-customer Integrations configuration saved.",
+    guardrails: ["CUSTOMER_SCOPED_INTEGRATIONS_CONFIGURATION", "NO_SECRET_OR_CREDENTIAL_STORAGE"],
+    redactions: ["internal_tenant_identifier", "tenant_code", "provider_secret"],
+    no_configuration_saved_confirmed: true,
+    no_secret_or_credential_storage_confirmed: true,
+    no_credential_creation_confirmed: true,
+    no_webhook_dispatch_confirmed: true,
+    no_invite_delivery_confirmed: true,
+    no_billing_or_money_movement_confirmed: true,
+  };
+}
+
+function mockIntegrationConfigurationSave() {
+  return {
+    status: "accepted",
+    context: "setup" as const,
+    account: mockTechnicalSetupReadiness().account,
+    integrationConfigurationResult: {
+      commandStatus: "INTEGRATION_CONFIGURATION_SAVED",
+      configuration: {
+        configurationRef: "integration-config-1",
+        accountRef: "acct-gabs",
+        configurationStatus: "INTEGRATION_CONFIGURATION_SAVED",
+        apiEnvironment: {
+          environment: "LOCAL_DEVELOPMENT",
+          authMethod: "API_KEY",
+          useCases: ["CAMPAIGN_READ", "REFERRAL_CODE_VALIDATE", "REPORT_READ"],
+        },
+        webhookIntent: {
+          callbackUrl: "http://localhost:8000/webhooks/referral-saas",
+          eventCategories: ["CAMPAIGN", "REFERRAL", "PROGRESS"],
+          deliveryMode: "DRAFT_ONLY",
+        },
+        messageProviders: {
+          channels: ["EMAIL"],
+          providerRefs: [],
+          approvalIntent: "DRAFT_ONLY",
+        },
+        safeSetupPosture: { blockers: [] },
+        reasonCode: "CUSTOMER_INTEGRATION_CONFIGURATION",
+        correlationId: "customer-profile-integrations-acct-gabs",
+        createdByRef: "amplifi-admin",
+        createdByRole: "ADMIN",
+        createdAt: "2026-07-20T00:00:00",
+        updatedAt: "2026-07-20T00:00:00",
+        redactions: ["internal_tenant_identifier", "tenant_code", "provider_secret"],
+      },
+      validation: mockIntegrationConfigurationValidation().validation,
+      idempotency: { status: "INTEGRATION_CONFIGURATION_SAVED" },
+      audit: { accountAuditEventId: "audit-integrations-1" },
+      guardrails: ["CUSTOMER_SCOPED_INTEGRATIONS_CONFIGURATION", "NO_SECRET_OR_CREDENTIAL_STORAGE"],
+      redactions: ["internal_tenant_identifier", "tenant_code", "provider_secret"],
+    },
+    guardrail: "Selected-customer Integrations configuration saved.",
+    guardrails: ["CUSTOMER_SCOPED_INTEGRATIONS_CONFIGURATION", "NO_SECRET_OR_CREDENTIAL_STORAGE"],
+    redactions: ["internal_tenant_identifier", "tenant_code", "provider_secret"],
+    no_secret_or_credential_storage_confirmed: true,
+    no_credential_creation_confirmed: true,
+    no_webhook_dispatch_confirmed: true,
+    no_invite_delivery_confirmed: true,
+    no_membership_activation_confirmed: true,
+    no_seat_assignment_confirmed: true,
+    no_auth_claim_change_confirmed: true,
+    no_campaign_activation_confirmed: true,
+    no_go_live_action_confirmed: true,
+    no_billing_or_money_movement_confirmed: true,
+  };
+}
+
 function mockCampaignReadiness(): ReferralSaasAccountCampaignReadinessResponse {
   return {
     status: "ok",
@@ -992,6 +1115,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedGetAdminOnboardingDrafts.mockResolvedValue(mockDraftSelector());
     mockedGetAdminOnboardingState.mockResolvedValue(mockMaintenanceState());
     mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockMembershipPosture());
+    mockedGetReferralSaasIntegrationConfiguration.mockResolvedValue(mockIntegrationConfigurationRead());
     mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockMembershipActivationReadiness());
     mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadiness());
     mockedListReferralSaasAccountCampaigns.mockResolvedValue(mockCampaignList());
@@ -1111,6 +1235,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       no_webhook_delivery_confirmed: true,
       no_billing_or_money_movement_confirmed: true,
     });
+    mockedValidateReferralSaasIntegrationConfiguration.mockResolvedValue(mockIntegrationConfigurationValidation());
+    mockedSaveReferralSaasIntegrationConfiguration.mockResolvedValue(mockIntegrationConfigurationSave());
     mockedListReferralSaasAccounts.mockResolvedValue(mockAccountRegistry());
     mockedRecordReferralSaasMembershipInvitationIntent.mockResolvedValue({
       status: "ok",
@@ -1994,19 +2120,31 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(await screen.findByText("Accepted access recorded.")).toBeInTheDocument();
   });
 
-  it("opens Integrations as its own read-only customer page", async () => {
+  it("opens Integrations as a customer-scoped configuration page", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/integrations");
 
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Integrations" })).toBeInTheDocument();
-    expect(screen.getByText(/Manage the readiness view for API, webhook, invite delivery, and referral-message connections/i)).toBeInTheDocument();
+    expect(screen.getByText(/Save safe setup evidence for API, webhook, invite delivery, and referral-message connections/i)).toBeInTheDocument();
     expect(await screen.findByText("Ready providers")).toBeInTheDocument();
     expect(screen.getByText("Need setup")).toBeInTheDocument();
     expect(screen.getByText("Supported channels")).toBeInTheDocument();
+    expect(screen.getByText("Saved setup evidence")).toBeInTheDocument();
+    expect(screen.getByText("1. API access intent")).toBeInTheDocument();
+    expect(screen.getByText("2. Webhook intent")).toBeInTheDocument();
+    expect(screen.getByText("3. Message provider intent")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Validate setup" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save setup evidence" })).toBeInTheDocument();
     expect(screen.getByText("People invite delivery")).toBeInTheDocument();
     expect(screen.getByText("Configure and approve the Email provider for Referral SaaS before sending account access invites.")).toBeInTheDocument();
     expect(screen.getByText("Referral journey messages")).toBeInTheDocument();
     expect(screen.getByText(/No credentials are created, no webhook is dispatched, no invite is sent/i)).toBeInTheDocument();
+    expect(mockedGetReferralSaasIntegrationConfiguration).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      refType: "external_tenant_ref",
+      externalRef: "gabs-platform",
+      context: "setup",
+    });
     expect(mockedGetReferralSaasTechnicalSetupReadiness).toHaveBeenCalledWith({
       accountRef: "acct-gabs",
       refType: "external_tenant_ref",
@@ -2014,6 +2152,55 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       context: "setup",
     });
     expect(screen.queryByRole("heading", { name: "Health at a glance" })).not.toBeInTheDocument();
+  });
+
+  it("validates and saves Integrations configuration without live side effects", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/integrations");
+
+    expect(await screen.findByRole("heading", { name: "Integrations" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Validate setup" }));
+
+    await waitFor(() => expect(mockedValidateReferralSaasIntegrationConfiguration).toHaveBeenCalledTimes(1));
+    expect(mockedValidateReferralSaasIntegrationConfiguration).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      apiEnvironment: {
+        environment: "LOCAL_DEVELOPMENT",
+        authMethod: "API_KEY",
+        useCases: ["CAMPAIGN_READ", "REFERRAL_CODE_VALIDATE", "REPORT_READ"],
+      },
+      webhookIntent: {
+        callbackUrl: "http://localhost:8000/webhooks/referral-saas",
+        eventCategories: ["CAMPAIGN", "REFERRAL", "PROGRESS"],
+        deliveryMode: "DRAFT_ONLY",
+      },
+      messageProviders: {
+        channels: ["EMAIL"],
+        providerRefs: [],
+        approvalIntent: "DRAFT_ONLY",
+      },
+      reasonCode: "CUSTOMER_INTEGRATION_CONFIGURATION",
+      correlationId: "customer-profile-integrations-acct-gabs",
+      idempotencyKey:
+        "customer-profile-integrations-acct-gabs-local-development-api-key-campaign-read-referral-code-validate-report-read-http-localhost-8000-webhooks-referral-saas-campaign-referral-progress-email-email",
+    });
+    expect(JSON.stringify(mockedValidateReferralSaasIntegrationConfiguration.mock.calls)).not.toMatch(
+      /tenantCode|tenant_code|secret|credential|apiKey/i,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Save setup evidence" }));
+    await waitFor(() => expect(mockedSaveReferralSaasIntegrationConfiguration).toHaveBeenCalledTimes(1));
+    expect(mockedSaveReferralSaasIntegrationConfiguration.mock.calls[0][0]).toMatchObject({
+      accountRef: "acct-gabs",
+      reasonCode: "CUSTOMER_INTEGRATION_CONFIGURATION",
+      correlationId: "customer-profile-integrations-acct-gabs",
+    });
+    expect(await screen.findByText(/Integrations setup updated/i)).toBeInTheDocument();
+    expect(screen.getByText(/no credentials, webhook dispatch, invite delivery, campaign activation, billing, or money movement occurred/i)).toBeInTheDocument();
   });
 
   it("keeps the previous Technical Setup route as an Integrations compatibility alias", async () => {

@@ -53,13 +53,16 @@ import {
   requestReferralSaasAccessProvisioning,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
+  saveReferralSaasIntegrationConfiguration,
   submitReferralSaasAccountCampaignReview,
   updateReferralSaasMembershipInvitationIntent,
   updateReferralSaasAccountCampaignPolicySettings,
+  validateReferralSaasIntegrationConfiguration,
   type ReferralSaasAccountCampaignActivationResponse,
   type ReferralSaasAccountCampaignReviewResponse,
   type ReferralSaasAccountCampaignPolicySettingsResponse,
   updateReferralSaasAccountProfile,
+  getReferralSaasIntegrationConfiguration,
   type ReferralSaasAccountCampaignSetupCreateResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
@@ -137,6 +140,45 @@ type ScopedAccountActivationResult = {
   accountId: string;
   message: string;
 };
+
+type IntegrationConfigurationDraft = {
+  environment: string;
+  intendedAuthMethod: string;
+  allowedUse: string[];
+  callbackUrl: string;
+  eventCategories: string[];
+  inviteDeliveryChannel: string;
+  inviteProviderApprovalRef: string;
+  referralMessageChannels: string[];
+};
+
+const integrationUseCaseOptions = [
+  { value: "CAMPAIGN_READ", label: "Read campaign setup" },
+  { value: "CAMPAIGN_WRITE", label: "Create or update campaign setup" },
+  { value: "REFERRAL_CODE_ISSUE", label: "Issue referral codes" },
+  { value: "REFERRAL_CODE_VALIDATE", label: "Validate referral codes" },
+  { value: "PROGRESS_EVENT_INGEST", label: "Receive progress events" },
+  { value: "ATTRIBUTION_READ", label: "Read attribution trace" },
+  { value: "REPORT_READ", label: "Read reports" },
+  { value: "INVITE_DELIVERY", label: "Prepare invite delivery" },
+  { value: "REFERRAL_MESSAGE_DELIVERY", label: "Prepare referral messages" },
+];
+
+const integrationEventOptions = [
+  { value: "CAMPAIGN", label: "Campaign events" },
+  { value: "REFERRAL", label: "Referral events" },
+  { value: "PROGRESS", label: "Progress events" },
+  { value: "ATTRIBUTION", label: "Attribution events" },
+  { value: "REPORTING", label: "Reporting events" },
+  { value: "SUPPORT", label: "Support events" },
+];
+
+const integrationChannelOptions = [
+  { value: "EMAIL", label: "Email" },
+  { value: "SMS", label: "SMS" },
+  { value: "WHATSAPP", label: "WhatsApp" },
+  { value: "USSD", label: "USSD" },
+];
 
 const customerFunctions = [
   {
@@ -2299,8 +2341,10 @@ export function ReferralSaasAccountMaintenancePage() {
 
               {selectedModule === "integrations" || selectedModule === "technical" ? (
                 <CustomerTechnicalSetupPage
+                  account={selectedAccount}
                   customerName={customerName}
                   error={technicalSetupError}
+                  externalTenantRef={selectedExternalTenantRef}
                   isLoading={isTechnicalSetupLoading}
                   readiness={technicalSetupReadiness}
                 />
@@ -3822,21 +3866,86 @@ function CustomerLinksAndCodesPage({
 }
 
 function CustomerTechnicalSetupPage({
+  account,
   customerName,
   error,
+  externalTenantRef,
   isLoading,
   readiness,
 }: {
+  account?: AccountRegistryItem;
   customerName: string;
   error: unknown;
+  externalTenantRef: string;
   isLoading: boolean;
   readiness?: ReferralSaasTechnicalSetupReadinessResponse;
 }) {
+  const accountScope = {
+    refType: "external_tenant_ref" as const,
+    externalRef: externalTenantRef,
+    context: "setup" as const,
+  };
+  const [draft, setDraft] = useState<IntegrationConfigurationDraft>({
+    environment: "LOCAL_DEVELOPMENT",
+    intendedAuthMethod: "API_KEY",
+    allowedUse: ["CAMPAIGN_READ", "REFERRAL_CODE_VALIDATE", "REPORT_READ"],
+    callbackUrl: "http://localhost:8000/webhooks/referral-saas",
+    eventCategories: ["CAMPAIGN", "REFERRAL", "PROGRESS"],
+    inviteDeliveryChannel: "EMAIL",
+    inviteProviderApprovalRef: "",
+    referralMessageChannels: ["EMAIL"],
+  });
+  const configurationQuery = useQuery({
+    queryKey: [
+      "referral-saas",
+      "integration-configuration",
+      account?.accountId || "",
+      externalTenantRef,
+    ],
+    queryFn: () =>
+      getReferralSaasIntegrationConfiguration({
+        accountRef: account?.accountId || "",
+        refType: "external_tenant_ref",
+        externalRef: externalTenantRef,
+        context: "setup",
+      }),
+    enabled: Boolean(account?.accountId && externalTenantRef),
+    retry: false,
+  });
+  const [configurationMessage, setConfigurationMessage] = useState<string | null>(null);
+  const validationMutation = useMutation({
+    mutationFn: () =>
+      validateReferralSaasIntegrationConfiguration({
+        accountRef: account?.accountId || "",
+        ...buildIntegrationConfigurationPayload(draft, accountScope, account?.accountId || ""),
+      }),
+    onSuccess: (response) => {
+      setConfigurationMessage(
+        `${formatDisplay(response.validation.commandStatus)}. Setup evidence is valid and was not saved.`,
+      );
+    },
+  });
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      saveReferralSaasIntegrationConfiguration({
+        accountRef: account?.accountId || "",
+        ...buildIntegrationConfigurationPayload(draft, accountScope, account?.accountId || ""),
+      }),
+    onSuccess: async (response) => {
+      await configurationQuery.refetch();
+      setConfigurationMessage(
+        `${formatDisplay(response.integrationConfigurationResult.commandStatus)}. Safe setup evidence saved; no credentials, webhook dispatch, invite delivery, campaign activation, billing, or money movement occurred.`,
+      );
+    },
+  });
   const technicalReadiness = readiness?.technicalSetupReadiness;
+  const savedConfiguration = configurationQuery.data?.integrationConfiguration || null;
   const channelSummary = technicalReadiness?.channelSummary;
   const capabilities = technicalReadiness?.capabilities || [];
   const missingCapabilities = capabilities.filter((capability) => capability.status !== "READY");
   const supportedChannels = channelSummary?.supportedChannels || [];
+  const currentStatus = savedConfiguration?.configurationStatus || "NOT_SAVED";
+  const canSubmitConfiguration = Boolean(account?.accountId && externalTenantRef);
 
   return (
     <section className="panel customer-module-page" id="integrations">
@@ -3845,14 +3954,17 @@ function CustomerTechnicalSetupPage({
           <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Integrations</div>
           <h2 className="panel-title">Integrations</h2>
           <div className="panel-subtitle">
-            Manage the readiness view for API, webhook, invite delivery, and referral-message connections. This page checks setup; it does not create credentials or send anything.
+            Save safe setup evidence for API, webhook, invite delivery, and referral-message connections. This page does not create credentials or send anything.
           </div>
         </div>
-        <StatusBadge label="Read only" tone="info" />
+        <StatusBadge label={formatDisplay(currentStatus)} tone={statusTone(currentStatus)} />
       </div>
       <div className="panel-body route-list">
-        {isLoading ? <LoadingState label="Checking integration readiness" /> : null}
+        {isLoading || configurationQuery.isLoading ? <LoadingState label="Checking integration readiness" /> : null}
         {error ? <ErrorPanel error={error} /> : null}
+        {configurationQuery.error ? <ErrorPanel error={configurationQuery.error} /> : null}
+        {validationMutation.error ? <ErrorPanel error={validationMutation.error} /> : null}
+        {saveMutation.error ? <ErrorPanel error={saveMutation.error} /> : null}
         {technicalReadiness ? (
           <>
             <div className="grid-3">
@@ -3891,6 +4003,170 @@ function CustomerTechnicalSetupPage({
                 tone={statusTone(technicalReadiness.overallStatus)}
               />
             </div>
+
+            <div className="wizard-status-card">
+              <div>
+                <strong>Saved setup evidence</strong>
+                <p>
+                  {savedConfiguration
+                    ? `Last saved ${formatDisplay(savedConfiguration.configurationStatus)} setup by ${savedConfiguration.createdByRef || "an operator"}.`
+                    : "No Integrations setup evidence has been saved for this customer yet."}
+                </p>
+                {savedConfiguration ? (
+                  <span className="table-subtext">
+                    API: {formatDisplay(String(savedConfiguration.apiEnvironment.environment || "Not set"))}. Webhook:{" "}
+                    {String(savedConfiguration.webhookIntent.callbackUrl || "Not set")}. Invite channel:{" "}
+                    {formatDisplay(String(asArray(savedConfiguration.messageProviders.channels)[0] || "Not set"))}.
+                  </span>
+                ) : null}
+              </div>
+              <StatusBadge label="No secrets stored" tone="success" />
+            </div>
+
+            <div className="panel-lite">
+              <h3 className="section-heading">1. API access intent</h3>
+              <div className="grid-2">
+                <label>
+                  Environment
+                  <select
+                    onChange={(event) => setDraft({ ...draft, environment: event.target.value })}
+                    value={draft.environment}
+                  >
+                    <option value="LOCAL_DEVELOPMENT">Local development</option>
+                    <option value="SANDBOX">Sandbox</option>
+                    <option value="PRODUCTION_INTENT">Production intent</option>
+                  </select>
+                </label>
+                <label>
+                  Planned auth method
+                  <select
+                    onChange={(event) => setDraft({ ...draft, intendedAuthMethod: event.target.value })}
+                    value={draft.intendedAuthMethod}
+                  >
+                    <option value="API_KEY">API key</option>
+                    <option value="OAUTH_CLIENT_CREDENTIALS">OAuth client credentials</option>
+                    <option value="SIGNED_WEBHOOK">Signed webhook</option>
+                  </select>
+                </label>
+              </div>
+              <fieldset className="option-grid">
+                <legend>Allowed use</legend>
+                {integrationUseCaseOptions.map((option) => (
+                  <label className="checkbox-row" key={option.value}>
+                    <input
+                      checked={draft.allowedUse.includes(option.value)}
+                      onChange={() =>
+                        setDraft({
+                          ...draft,
+                          allowedUse: toggleListValue(draft.allowedUse, option.value),
+                        })
+                      }
+                      type="checkbox"
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
+              </fieldset>
+            </div>
+
+            <div className="panel-lite">
+              <h3 className="section-heading">2. Webhook intent</h3>
+              <label>
+                Callback URL
+                <input
+                  onChange={(event) => setDraft({ ...draft, callbackUrl: event.target.value })}
+                  placeholder="https://customer.example/webhooks/referral-saas"
+                  value={draft.callbackUrl}
+                />
+              </label>
+              <fieldset className="option-grid">
+                <legend>Events to prepare</legend>
+                {integrationEventOptions.map((option) => (
+                  <label className="checkbox-row" key={option.value}>
+                    <input
+                      checked={draft.eventCategories.includes(option.value)}
+                      onChange={() =>
+                        setDraft({
+                          ...draft,
+                          eventCategories: toggleListValue(draft.eventCategories, option.value),
+                        })
+                      }
+                      type="checkbox"
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
+              </fieldset>
+            </div>
+
+            <div className="panel-lite">
+              <h3 className="section-heading">3. Message provider intent</h3>
+              <div className="grid-2">
+                <label>
+                  Invite delivery channel
+                  <select
+                    onChange={(event) => setDraft({ ...draft, inviteDeliveryChannel: event.target.value })}
+                    value={draft.inviteDeliveryChannel}
+                  >
+                    {integrationChannelOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Provider reference
+                  <input
+                    onChange={(event) => setDraft({ ...draft, inviteProviderApprovalRef: event.target.value })}
+                    placeholder="Optional approved provider reference"
+                    value={draft.inviteProviderApprovalRef}
+                  />
+                </label>
+              </div>
+              <fieldset className="option-grid">
+                <legend>Referral message channels</legend>
+                {integrationChannelOptions.map((option) => (
+                  <label className="checkbox-row" key={option.value}>
+                    <input
+                      checked={draft.referralMessageChannels.includes(option.value)}
+                      onChange={() =>
+                        setDraft({
+                          ...draft,
+                          referralMessageChannels: toggleListValue(draft.referralMessageChannels, option.value),
+                        })
+                      }
+                      type="checkbox"
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
+              </fieldset>
+            </div>
+
+            <div className="action-row">
+              <button
+                className="button secondary"
+                disabled={!canSubmitConfiguration || validationMutation.isPending}
+                onClick={() => validationMutation.mutate()}
+                type="button"
+              >
+                {validationMutation.isPending ? "Validating" : "Validate setup"}
+              </button>
+              <button
+                className="button primary"
+                disabled={!canSubmitConfiguration || saveMutation.isPending}
+                onClick={() => saveMutation.mutate()}
+                type="button"
+              >
+                {saveMutation.isPending ? "Saving" : "Save setup evidence"}
+              </button>
+            </div>
+            {configurationMessage ? (
+              <div className="success-banner">
+                <strong>Integrations setup updated.</strong> {configurationMessage}
+              </div>
+            ) : null}
 
             <div className="route-list">
               {capabilities.map((capability) => (
@@ -4565,6 +4841,58 @@ function inviteDeliveryProviderRef(readiness?: ReferralSaasTechnicalSetupReadine
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function buildIntegrationConfigurationPayload(
+  draft: IntegrationConfigurationDraft,
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context: "setup";
+  },
+  accountId: string,
+) {
+  const providerRefs = draft.inviteProviderApprovalRef.trim()
+    ? [draft.inviteProviderApprovalRef.trim()]
+    : [];
+  return {
+    accountScope,
+    apiEnvironment: {
+      environment: draft.environment,
+      authMethod: draft.intendedAuthMethod,
+      useCases: draft.allowedUse,
+    },
+    webhookIntent: {
+      callbackUrl: draft.callbackUrl,
+      eventCategories: draft.eventCategories,
+      deliveryMode: "DRAFT_ONLY",
+    },
+    messageProviders: {
+      channels: Array.from(new Set([draft.inviteDeliveryChannel, ...draft.referralMessageChannels])),
+      providerRefs,
+      approvalIntent: providerRefs.length ? "PROVIDER_APPROVAL_REFERENCE_RECORDED" : "DRAFT_ONLY",
+    },
+    reasonCode: "CUSTOMER_INTEGRATION_CONFIGURATION",
+    correlationId: `customer-profile-integrations-${accountId}`,
+    idempotencyKey: safeIdempotencyKey(
+      "customer-profile-integrations",
+      accountId,
+      draft.environment,
+      draft.intendedAuthMethod,
+      ...draft.allowedUse,
+      draft.callbackUrl,
+      ...draft.eventCategories,
+      draft.inviteDeliveryChannel,
+      draft.inviteProviderApprovalRef,
+      ...draft.referralMessageChannels,
+    ),
+  };
+}
+
+function toggleListValue(values: string[], value: string) {
+  return values.includes(value)
+    ? values.filter((currentValue) => currentValue !== value)
+    : [...values, value];
 }
 
 function campaignEvidenceTone(value: string): StatusTone {
