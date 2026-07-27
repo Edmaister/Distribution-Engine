@@ -6684,6 +6684,31 @@ Rollback notes: Revert the route/copy/test updates and TASK-300 documentation ch
 Explicit non-goals: Do not add schema, migrations, backend routes, provider credential storage, webhook dispatch, invite delivery, membership activation, seat assignment, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Selected-customer technical readiness is presented as an Integrations workspace with compatible routing and tests. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because actual provider/API/webhook configuration, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-301: Define customer-scoped Integrations configuration contract
+
+Status: Complete (2026-07-27).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`.
+Shared primitive impact: Reuses selected-customer account context, existing technical setup readiness read model, provider approval readiness, webhook catalog source material, and account audit/idempotency patterns. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer Integrations configuration boundary for API access, webhooks, invite delivery, and referral-message providers.
+Objective: Define the future customer-scoped Integrations configuration contract before adding schema, API writes, or UI controls so the workspace can evolve from readiness-only diagnostics into governed setup evidence without creating unsafe side effects.
+Why now: TASK-300 made `Integrations` the selected-customer workspace for API, webhook, invite-delivery, and referral-message readiness. The next safe step is to pin the configuration boundary before implementing writes.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CONFIGURATION_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: No runtime backend change. Defines future selected-customer route family for `GET/PUT /v1/referral-saas/accounts/{accountRef}/integrations/configuration`, `POST /v1/referral-saas/accounts/{accountRef}/integrations/configuration/validate`, and `GET /v1/referral-saas/accounts/{accountRef}/integrations/webhook-catalog`.
+Frontend impact: No runtime frontend change. Defines the future Integrations UX contract around API access, webhooks, message providers, safe setup posture, one next action per blocker, and plain-language non-goals.
+API impact: Contract only. Candidate routes must resolve selected customer scope internally and reject raw secrets, internal tenant codes, live dispatch, invite delivery, auth/login changes, campaign activation, billing, money movement, and DLaaS marketplace behavior.
+Tests added/updated: None; docs-only contract task.
+Validation method: Documentation readback; `git diff --check`.
+Acceptance criteria: Contract names current facts versus future work; candidate routes, payload shape, validation gates, statuses, redactions, idempotency, audit, UX posture, and non-goals are explicit; roadmap, gap matrix, public API map, SA index, ordered list, and infographic reflect that runtime provider/API/webhook configuration remains future work.
+Dependencies: TASK-244; TASK-245; TASK-246; TASK-248; TASK-300.
+Blocked by: Runtime configuration schema/API/UI implementation, credential lifecycle, webhook dispatch/provider adapters, invite delivery provider integration, auth-claim propagation, export file storage/download, support-case UI, and non-local proof repetition.
+Risk level: Low.
+Rollback notes: Remove the TASK-301 contract and associated docs/index/infographic references.
+Explicit non-goals: Do not add schema, migrations, runtime routes, service writes, frontend controls, credential creation, secret storage, webhook callback registration, webhook dispatch, invite delivery, provider message delivery, membership activation, seat assignment, credential creation, auth/session claim propagation, campaign activation, go-live, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: The selected-customer Integrations configuration contract is documented and indexed as the next bounded implementation boundary. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because runtime provider/API/webhook configuration, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
