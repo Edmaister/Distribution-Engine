@@ -265,6 +265,7 @@ greenfield referral construction.
 157. TASK-298: Clarify optional Platform login setup positioning.
 158. TASK-300: Reframe selected-customer Technical Setup as Integrations.
 159. TASK-301: Define customer-scoped Integrations configuration contract.
+160. TASK-302: Add customer-scoped Integrations configuration API foundation.
 
 ## 10/10 Exit Criteria
 
@@ -312,6 +313,12 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CONFIGURATION_CONTRACT.md`
 
 ## Completed Implementation Outputs
+
+- TASK-302:
+  `dp/migrations/087_referral_saas_integrations_configuration.sql`;
+  `services/referral_saas_integrations_configuration_service.py`;
+  `GET/PUT /v1/referral-saas/accounts/{account_ref}/integrations/configuration`;
+  `POST /v1/referral-saas/accounts/{account_ref}/integrations/configuration/validate`.
 
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`
