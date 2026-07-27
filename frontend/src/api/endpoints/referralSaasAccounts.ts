@@ -226,6 +226,138 @@ export type ReferralSaasTechnicalSetupReadinessResponse = {
   no_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasIntegrationConfiguration = {
+  configurationRef: string;
+  accountRef: string;
+  configurationStatus: string;
+  apiEnvironment: Record<string, unknown>;
+  webhookIntent: Record<string, unknown>;
+  messageProviders: Record<string, unknown>;
+  safeSetupPosture: Record<string, unknown>;
+  reasonCode?: string | null;
+  correlationId?: string | null;
+  createdByRef?: string | null;
+  createdByRole?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  redactions: string[];
+};
+
+export type ReferralSaasIntegrationConfigurationPayload = {
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  apiEnvironment: {
+    environment: string;
+    authMethod: string;
+    useCases: string[];
+  };
+  webhookIntent: {
+    callbackUrl?: string;
+    eventCategories: string[];
+    deliveryMode: string;
+  };
+  messageProviders: {
+    channels: string[];
+    providerRefs: string[];
+    approvalIntent: string;
+  };
+  reasonCode?: string;
+  correlationId?: string;
+  idempotencyKey?: string;
+};
+
+export type ReferralSaasIntegrationConfigurationReadRequest = ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+};
+
+export type ReferralSaasIntegrationConfigurationReadResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  integrationConfiguration: ReferralSaasIntegrationConfiguration | null;
+  technicalSetupReadiness: ReferralSaasTechnicalSetupReadiness;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  no_secret_or_credential_storage_confirmed: boolean;
+  no_credential_creation_confirmed: boolean;
+  no_webhook_dispatch_confirmed: boolean;
+  no_invite_delivery_confirmed: boolean;
+  no_membership_activation_confirmed: boolean;
+  no_seat_assignment_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_go_live_action_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
+export type ReferralSaasIntegrationConfigurationValidation = {
+  commandStatus: string;
+  safeSetupPosture: Record<string, unknown>;
+  guardrails: string[];
+  redactions: string[];
+  noSecretOrCredentialStorageConfirmed: boolean;
+  noCredentialCreationConfirmed: boolean;
+  noWebhookDispatchConfirmed: boolean;
+  noInviteDeliveryConfirmed: boolean;
+  noMembershipActivationConfirmed: boolean;
+  noSeatAssignmentConfirmed: boolean;
+  noAuthClaimChangeConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noGoLiveActionConfirmed: boolean;
+  noBillingOrMoneyMovementConfirmed: boolean;
+};
+
+export type ReferralSaasIntegrationConfigurationValidateResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  validation: ReferralSaasIntegrationConfigurationValidation;
+  guardrails: string[];
+  redactions: string[];
+  no_configuration_saved_confirmed: boolean;
+  no_secret_or_credential_storage_confirmed: boolean;
+  no_credential_creation_confirmed: boolean;
+  no_webhook_dispatch_confirmed: boolean;
+  no_invite_delivery_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
+export type ReferralSaasIntegrationConfigurationSaveResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  integrationConfigurationResult: {
+    commandStatus: string;
+    configuration: ReferralSaasIntegrationConfiguration;
+    validation: ReferralSaasIntegrationConfigurationValidation;
+    idempotency: {
+      status: string;
+    };
+    audit: {
+      accountAuditEventId?: string | null;
+    };
+    guardrails: string[];
+    redactions: string[];
+  };
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  no_secret_or_credential_storage_confirmed: boolean;
+  no_credential_creation_confirmed: boolean;
+  no_webhook_dispatch_confirmed: boolean;
+  no_invite_delivery_confirmed: boolean;
+  no_membership_activation_confirmed: boolean;
+  no_seat_assignment_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_go_live_action_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasAccountCampaignReadinessRequest = ReferralSaasAccountResolutionRequest & {
   accountRef: string;
   campaignCode: string;
@@ -1617,4 +1749,84 @@ export function updateReferralSaasAccountProfile({
       },
     },
   );
+}
+
+export function getReferralSaasIntegrationConfiguration({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+}: ReferralSaasIntegrationConfigurationReadRequest): Promise<ReferralSaasIntegrationConfigurationReadResponse> {
+  return apiRequest<ReferralSaasIntegrationConfigurationReadResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/integrations/configuration`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+      },
+    },
+  );
+}
+
+export function validateReferralSaasIntegrationConfiguration({
+  accountRef,
+  ...payload
+}: ReferralSaasIntegrationConfigurationPayload & {
+  accountRef: string;
+}): Promise<ReferralSaasIntegrationConfigurationValidateResponse> {
+  return apiRequest<ReferralSaasIntegrationConfigurationValidateResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/integrations/configuration/validate`,
+    {
+      method: "POST",
+      body: normaliseIntegrationConfigurationPayload(payload),
+    },
+  );
+}
+
+export function saveReferralSaasIntegrationConfiguration({
+  accountRef,
+  ...payload
+}: ReferralSaasIntegrationConfigurationPayload & {
+  accountRef: string;
+}): Promise<ReferralSaasIntegrationConfigurationSaveResponse> {
+  return apiRequest<ReferralSaasIntegrationConfigurationSaveResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/integrations/configuration`,
+    {
+      method: "PUT",
+      body: normaliseIntegrationConfigurationPayload(payload),
+    },
+  );
+}
+
+function normaliseIntegrationConfigurationPayload(
+  payload: ReferralSaasIntegrationConfigurationPayload,
+) {
+  return {
+    accountScope: {
+      refType: payload.accountScope.refType,
+      externalRef: payload.accountScope.externalRef.trim(),
+      context: payload.accountScope.context || "setup",
+    },
+    apiEnvironment: {
+      environment: payload.apiEnvironment.environment,
+      authMethod: payload.apiEnvironment.authMethod,
+      useCases: payload.apiEnvironment.useCases,
+    },
+    webhookIntent: {
+      callbackUrl: payload.webhookIntent.callbackUrl?.trim() || undefined,
+      eventCategories: payload.webhookIntent.eventCategories,
+      deliveryMode: payload.webhookIntent.deliveryMode,
+    },
+    messageProviders: {
+      channels: payload.messageProviders.channels,
+      providerRefs: payload.messageProviders.providerRefs
+        .map((providerRef) => providerRef.trim())
+        .filter(Boolean),
+      approvalIntent: payload.messageProviders.approvalIntent,
+    },
+    reasonCode: payload.reasonCode?.trim() || undefined,
+    correlationId: payload.correlationId?.trim() || undefined,
+    idempotencyKey: payload.idempotencyKey?.trim() || undefined,
+  };
 }
