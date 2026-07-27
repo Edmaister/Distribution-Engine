@@ -132,6 +132,17 @@ from services.referral_saas_support_case_service import (
     get_referral_saas_support_case,
     list_referral_saas_support_cases,
 )
+from services.referral_saas_integrations_configuration_service import (
+    INTEGRATION_CONFIGURATION_GUARDRAILS,
+    INTEGRATION_CONFIGURATION_REDACTIONS,
+    IntegrationConfigurationIdempotencyConflict,
+    IntegrationConfigurationUnsafePayload,
+    IntegrationConfigurationValidationError,
+    ReferralSaasIntegrationConfigurationCommandError,
+    get_referral_saas_integration_configuration,
+    upsert_referral_saas_integration_configuration,
+    validate_referral_saas_integration_configuration,
+)
 from services.referral_saas_technical_setup_service import (
     build_referral_saas_technical_setup_readiness,
 )
@@ -208,6 +219,12 @@ SUPPORT_CASE_ROUTE_GUARDRAILS = {
 SUPPORT_CASE_ROUTE_REDACTIONS = {
     *SUPPORT_CASE_REDACTIONS,
 }
+INTEGRATION_CONFIGURATION_ROUTE_GUARDRAILS = {
+    *INTEGRATION_CONFIGURATION_GUARDRAILS,
+}
+INTEGRATION_CONFIGURATION_ROUTE_REDACTIONS = {
+    *INTEGRATION_CONFIGURATION_REDACTIONS,
+}
 
 
 class ReferralSaasAccountReportExportRequest(BaseModel):
@@ -248,6 +265,16 @@ class ReferralSaasSupportCaseCreateRequest(BaseModel):
     evidenceLinks: list[ReferralSaasSupportCaseEvidenceLinkRequest] | None = Field(
         default=None
     )
+    reasonCode: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str | None = Field(default=None)
+
+
+class ReferralSaasIntegrationConfigurationRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    apiEnvironment: dict[str, Any] | None = Field(default=None)
+    webhookIntent: dict[str, Any] | None = Field(default=None)
+    messageProviders: dict[str, Any] | None = Field(default=None)
     reasonCode: str | None = Field(default=None)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str | None = Field(default=None)
@@ -1082,6 +1109,39 @@ def _support_case_error(exc: ReferralSaasSupportCaseCommandError) -> HTTPExcepti
             "no_report_or_export_mutation_confirmed": True,
             "no_invite_delivery_confirmed": True,
             "no_credential_or_auth_claim_change_confirmed": True,
+            "no_billing_or_money_movement_confirmed": True,
+        },
+    )
+
+
+def _integration_configuration_error(
+    exc: ReferralSaasIntegrationConfigurationCommandError,
+) -> HTTPException:
+    if isinstance(exc, IntegrationConfigurationValidationError):
+        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    elif isinstance(exc, IntegrationConfigurationIdempotencyConflict):
+        status_code = status.HTTP_409_CONFLICT
+    elif isinstance(exc, IntegrationConfigurationUnsafePayload):
+        status_code = status.HTTP_400_BAD_REQUEST
+    else:
+        status_code = status.HTTP_400_BAD_REQUEST
+
+    return HTTPException(
+        status_code=status_code,
+        detail={
+            "code": exc.safe_code,
+            "message": str(exc),
+            "guardrails": sorted(INTEGRATION_CONFIGURATION_ROUTE_GUARDRAILS),
+            "redactions": sorted(INTEGRATION_CONFIGURATION_ROUTE_REDACTIONS),
+            "no_secret_or_credential_storage_confirmed": True,
+            "no_credential_creation_confirmed": True,
+            "no_webhook_dispatch_confirmed": True,
+            "no_invite_delivery_confirmed": True,
+            "no_membership_activation_confirmed": True,
+            "no_seat_assignment_confirmed": True,
+            "no_auth_claim_change_confirmed": True,
+            "no_campaign_activation_confirmed": True,
+            "no_go_live_action_confirmed": True,
             "no_billing_or_money_movement_confirmed": True,
         },
     )
@@ -2491,6 +2551,267 @@ async def read_referral_saas_technical_setup_readiness(
         "no_seat_assignment_confirmed": True,
         "no_campaign_activation_confirmed": True,
         "no_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/integrations/configuration")
+async def read_referral_saas_integration_configuration(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    readiness = build_referral_saas_technical_setup_readiness(
+        account_id=account.account_id,
+        account_status=account.account_status,
+        tenant_link_status=account.tenant_link_status,
+        external_reference_status=account.reference_status,
+    )
+    try:
+        configuration = await get_referral_saas_integration_configuration(
+            account_id=account.account_id,
+        )
+    except ReferralSaasIntegrationConfigurationCommandError as exc:
+        raise _integration_configuration_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "integrationConfiguration": (
+            configuration.to_safe_dict() if configuration else None
+        ),
+        "technicalSetupReadiness": readiness.to_safe_dict(),
+        "guardrail": (
+            "Read-only selected-customer Integrations configuration view. "
+            "It returns saved setup evidence and readiness only; it does not "
+            "store secrets, create credentials, dispatch webhooks, send "
+            "invites, activate memberships, assign seats, change auth claims, "
+            "activate campaigns, trigger go-live, bill, or move money."
+        ),
+        "guardrails": sorted(INTEGRATION_CONFIGURATION_ROUTE_GUARDRAILS),
+        "redactions": sorted(INTEGRATION_CONFIGURATION_ROUTE_REDACTIONS),
+        "no_secret_or_credential_storage_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_membership_activation_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_action_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/integrations/configuration/validate")
+async def validate_referral_saas_account_integration_configuration(
+    account_ref: str,
+    request: ReferralSaasIntegrationConfigurationRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    account_scope = request.accountScope
+    if not isinstance(account_scope, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope must be an object.",
+                "guardrails": sorted(INTEGRATION_CONFIGURATION_ROUTE_GUARDRAILS),
+                "redactions": sorted(INTEGRATION_CONFIGURATION_ROUTE_REDACTIONS),
+                "no_configuration_saved_confirmed": True,
+            },
+        )
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = _optional_text(account_scope.get("context")) or "setup"
+    if not ref_type or not external_ref:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope.refType and accountScope.externalRef are required.",
+                "guardrails": sorted(INTEGRATION_CONFIGURATION_ROUTE_GUARDRAILS),
+                "redactions": sorted(INTEGRATION_CONFIGURATION_ROUTE_REDACTIONS),
+                "no_configuration_saved_confirmed": True,
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    try:
+        validation = validate_referral_saas_integration_configuration(
+            account_status=account.account_status,
+            tenant_link_status=account.tenant_link_status,
+            external_reference_status=account.reference_status,
+            api_environment=request.apiEnvironment,
+            webhook_intent=request.webhookIntent,
+            message_providers=request.messageProviders,
+        )
+    except ReferralSaasIntegrationConfigurationCommandError as exc:
+        raise _integration_configuration_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "validation": validation.to_safe_dict(),
+        "guardrails": sorted(INTEGRATION_CONFIGURATION_ROUTE_GUARDRAILS),
+        "redactions": sorted(INTEGRATION_CONFIGURATION_ROUTE_REDACTIONS),
+        "no_configuration_saved_confirmed": True,
+        "no_secret_or_credential_storage_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.put("/accounts/{account_ref}/integrations/configuration")
+async def upsert_referral_saas_account_integration_configuration(
+    account_ref: str,
+    request: ReferralSaasIntegrationConfigurationRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    request_payload = request.model_dump(exclude_none=True)
+    account_scope = request.accountScope
+    if not isinstance(account_scope, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope must be an object.",
+                "guardrails": sorted(INTEGRATION_CONFIGURATION_ROUTE_GUARDRAILS),
+                "redactions": sorted(INTEGRATION_CONFIGURATION_ROUTE_REDACTIONS),
+                "no_configuration_saved_confirmed": True,
+            },
+        )
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = _optional_text(account_scope.get("context")) or "setup"
+    idempotency_key = _optional_text(request.idempotencyKey)
+    correlation_id = _optional_text(request.correlationId)
+    if not ref_type or not external_ref or not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": sorted(INTEGRATION_CONFIGURATION_ROUTE_GUARDRAILS),
+                "redactions": sorted(INTEGRATION_CONFIGURATION_ROUTE_REDACTIONS),
+                "no_configuration_saved_confirmed": True,
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    safe_account_ref = _assert_account_path_scope(account_ref, account)
+    command_payload = {
+        "accountScope": {
+            "accountRef": safe_account_ref,
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": normalised_context,
+        },
+        "apiEnvironment": request_payload.get("apiEnvironment") or {},
+        "webhookIntent": request_payload.get("webhookIntent") or {},
+        "messageProviders": request_payload.get("messageProviders") or {},
+        "reasonCode": request.reasonCode or "CUSTOMER_INTEGRATION_CONFIGURATION",
+    }
+    try:
+        result = await upsert_referral_saas_integration_configuration(
+            account_id=account.account_id,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            tenant_code=account.tenant_code,
+            account_status=account.account_status,
+            tenant_link_status=account.tenant_link_status,
+            external_reference_status=account.reference_status,
+            api_environment=request.apiEnvironment,
+            webhook_intent=request.webhookIntent,
+            message_providers=request.messageProviders,
+            reason_code=request.reasonCode,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_INTEGRATIONS_CONFIGURATION",
+                    "account_ref": safe_account_ref,
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            request_payload_hash=hash_payload(command_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except ReferralSaasIntegrationConfigurationCommandError as exc:
+        raise _integration_configuration_error(exc) from exc
+
+    return {
+        "status": "accepted",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "integrationConfigurationResult": result.to_safe_dict(),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "Integrations configuration intent saved for the selected "
+            "customer. This persists safe setup evidence only; it does not "
+            "store secrets, create credentials, dispatch webhooks, send "
+            "invites, activate memberships, assign seats, change auth claims, "
+            "activate campaigns, trigger go-live, bill, or move money."
+        ),
+        "guardrails": sorted(INTEGRATION_CONFIGURATION_ROUTE_GUARDRAILS),
+        "redactions": sorted(INTEGRATION_CONFIGURATION_ROUTE_REDACTIONS),
+        "no_secret_or_credential_storage_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_membership_activation_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_action_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
     }
 
 

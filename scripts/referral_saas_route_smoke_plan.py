@@ -249,6 +249,58 @@ READ_ONLY_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_integration_configuration_read",
+        method="GET",
+        path="/v1/referral-saas/accounts/{account_ref}/integrations/configuration",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS account reader role",
+        environment_rule="local/staging/production read-only where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -H "Authorization: Bearer {admin_token}" '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/integrations/configuration?ref_type={ref_type}'
+            '&external_ref={external_ref}&context=setup"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_integration_configuration_validate",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/integrations/configuration/validate",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS account reader role",
+        environment_rule="local/staging/production side-effect-free where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"apiEnvironment":{"environment":"SANDBOX",'
+            '"authMethod":"API_KEY","useCases":["CAMPAIGN_READ"]},'
+            '"webhookIntent":{"callbackUrl":"https://example.com/referral-events",'
+            '"eventCategories":["REFERRAL"]},'
+            '"messageProviders":{"channels":["EMAIL"],'
+            '"providerRefs":["approved-email-provider"]}}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/integrations/configuration/validate"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_account_campaign_list",
         method="GET",
         path="/v1/referral-saas/accounts/{account_ref}/campaigns",
@@ -1052,6 +1104,49 @@ SEEDED_WRITE_ROUTES = [
             '"idempotencyKey":"{idempotency_key}"}\' '
             '"{base_url}/v1/referral-saas/accounts/{account_ref}'
             '/memberships/{membership_ref}/access-provisioning"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_integration_configuration_save",
+        method="PUT",
+        path="/v1/referral-saas/accounts/{account_ref}/integrations/configuration",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin/operator role",
+        environment_rule=(
+            "local/staging seeded customer only; saves non-secret integration "
+            "configuration evidence without credentials, webhook dispatch, "
+            "invite delivery, auth changes, campaign activation, billing, or money"
+        ),
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "idempotency_key",
+            "correlation_id",
+        ],
+        expected_state_change=(
+            "creates or replays referral_saas_integration_configurations evidence "
+            "and account audit entry; no credentials, webhook dispatch, invite "
+            "delivery, auth/login changes, campaign activation, billing, or money"
+        ),
+        curl_template=(
+            'curl -sS -X PUT -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"apiEnvironment":{"environment":"SANDBOX",'
+            '"authMethod":"API_KEY","useCases":["CAMPAIGN_READ"]},'
+            '"webhookIntent":{"callbackUrl":"https://example.com/referral-events",'
+            '"eventCategories":["REFERRAL"]},'
+            '"messageProviders":{"channels":["EMAIL"],'
+            '"providerRefs":["approved-email-provider"]},'
+            '"reasonCode":"CUSTOMER_INTEGRATION_CONFIGURATION",'
+            '"correlationId":"{correlation_id}",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/integrations/configuration"'
         ),
     ),
     SmokeRoute(

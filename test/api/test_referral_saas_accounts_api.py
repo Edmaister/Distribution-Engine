@@ -42,6 +42,9 @@ from services.referral_saas_campaign_service import (
     ReferralSaasCampaignSetupResult,
     ReferralSaasCampaignSummary,
 )
+from services.referral_saas_integrations_configuration_service import (
+    IntegrationConfigurationIdempotencyConflict,
+)
 from services.referral_saas_support_case_service import (
     SupportCaseIdempotencyConflict,
 )
@@ -1508,6 +1511,284 @@ async def test_referral_saas_technical_setup_readiness_rejects_path_scope_mismat
     assert response.status_code == 400
     detail = response.json()["detail"]
     assert detail["code"] == "REJECTED_UNSAFE_SCOPE"
+
+
+async def test_referral_saas_account_admin_can_read_integration_configuration(
+    monkeypatch,
+):
+    read_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    class FakeIntegrationConfiguration:
+        def to_safe_dict(self):
+            return {
+                "configurationRef": "config-1",
+                "accountRef": "acct-1",
+                "configurationStatus": "INTEGRATION_CONFIGURATION_SAVED",
+                "apiEnvironment": {"environment": "SANDBOX"},
+                "webhookIntent": {"eventCategories": ["REFERRAL"]},
+                "messageProviders": {"channels": ["EMAIL"]},
+                "safeSetupPosture": {"blockers": []},
+                "redactions": ["provider_secret"],
+            }
+
+    async def fake_get_referral_saas_integration_configuration(**kwargs):
+        read_calls.append(kwargs)
+        return FakeIntegrationConfiguration()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_configuration",
+        fake_get_referral_saas_integration_configuration,
+    )
+    monkeypatch.setattr(
+        "services.channel_readiness_service.get_settings",
+        lambda: SimpleNamespace(
+            channel_email_provider_url=None,
+            channel_email_provider_secret=None,
+            channel_whatsapp_provider_url=None,
+            channel_whatsapp_provider_secret=None,
+            channel_sms_provider_url=None,
+            channel_sms_provider_secret=None,
+            channel_ussd_provider_url=None,
+            channel_ussd_provider_secret=None,
+        ),
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/integrations/configuration",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["integrationConfiguration"]["configurationRef"] == "config-1"
+    assert body["integrationConfiguration"]["apiEnvironment"] == {
+        "environment": "SANDBOX"
+    }
+    assert "tenantCode" not in body["account"]
+    assert body["no_secret_or_credential_storage_confirmed"] is True
+    assert body["no_webhook_dispatch_confirmed"] is True
+    assert read_calls == [{"account_id": "acct-1"}]
+
+
+async def test_referral_saas_account_admin_can_validate_integration_configuration(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/configuration/validate",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "apiEnvironment": {
+                    "environment": "SANDBOX",
+                    "authMethod": "API_KEY",
+                    "useCases": ["CAMPAIGN_READ"],
+                },
+                "webhookIntent": {
+                    "callbackUrl": "https://example.com/referral-events",
+                    "eventCategories": ["REFERRAL"],
+                },
+                "messageProviders": {
+                    "channels": ["EMAIL"],
+                    "providerRefs": ["approved-email-provider"],
+                },
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["validation"]["commandStatus"] == "INTEGRATION_CONFIGURATION_VALIDATED"
+    assert body["validation"]["safeSetupPosture"]["blockers"] == []
+    assert body["no_configuration_saved_confirmed"] is True
+    assert body["no_credential_creation_confirmed"] is True
+    assert body["no_billing_or_money_movement_confirmed"] is True
+
+
+async def test_referral_saas_account_admin_can_save_integration_configuration(
+    monkeypatch,
+):
+    save_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    class FakeSaveResult:
+        def to_safe_dict(self):
+            return {
+                "commandStatus": "INTEGRATION_CONFIGURATION_SAVED",
+                "configuration": {
+                    "configurationRef": "config-1",
+                    "configurationStatus": "INTEGRATION_CONFIGURATION_SAVED",
+                },
+                "validation": {
+                    "commandStatus": "INTEGRATION_CONFIGURATION_VALIDATED"
+                },
+                "idempotency": {"status": "INTEGRATION_CONFIGURATION_SAVED"},
+                "audit": {"accountAuditEventId": "audit-1"},
+            }
+
+    async def fake_upsert_referral_saas_integration_configuration(**kwargs):
+        save_calls.append(kwargs)
+        return FakeSaveResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "upsert_referral_saas_integration_configuration",
+        fake_upsert_referral_saas_integration_configuration,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/integrations/configuration",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "apiEnvironment": {
+                    "environment": "SANDBOX",
+                    "authMethod": "API_KEY",
+                    "useCases": ["CAMPAIGN_READ"],
+                },
+                "webhookIntent": {
+                    "callbackUrl": "https://example.com/referral-events",
+                    "eventCategories": ["REFERRAL"],
+                },
+                "messageProviders": {
+                    "channels": ["EMAIL"],
+                    "providerRefs": ["approved-email-provider"],
+                },
+                "reasonCode": "CUSTOMER_INTEGRATION_CONFIGURATION",
+                "correlationId": "corr-1",
+                "idempotencyKey": "integration-config-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "accepted"
+    assert (
+        body["integrationConfigurationResult"]["commandStatus"]
+        == "INTEGRATION_CONFIGURATION_SAVED"
+    )
+    assert body["no_secret_or_credential_storage_confirmed"] is True
+    assert body["no_campaign_activation_confirmed"] is True
+    assert save_calls[0]["account_id"] == "acct-1"
+    assert save_calls[0]["tenant_code"] == "FNB"
+    assert save_calls[0]["correlation_id"] == "corr-1"
+    assert save_calls[0]["actor_role"] == "ADMIN"
+
+
+async def test_referral_saas_account_integration_configuration_rejects_unsafe_payload(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/configuration/validate",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "apiEnvironment": {"environment": "SANDBOX", "apiKey": "secret"},
+                "webhookIntent": {},
+                "messageProviders": {},
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert detail["no_secret_or_credential_storage_confirmed"] is True
+    assert detail["no_webhook_dispatch_confirmed"] is True
+
+
+async def test_referral_saas_account_integration_configuration_idempotency_conflict(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    async def fake_upsert_referral_saas_integration_configuration(**kwargs):
+        raise IntegrationConfigurationIdempotencyConflict(
+            "Idempotency key was reused with different integrations configuration content."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "upsert_referral_saas_integration_configuration",
+        fake_upsert_referral_saas_integration_configuration,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/integrations/configuration",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "apiEnvironment": {"environment": "SANDBOX"},
+                "webhookIntent": {},
+                "messageProviders": {},
+                "correlationId": "corr-1",
+                "idempotencyKey": "integration-config-1",
+            },
+        )
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["code"] == "IDEMPOTENCY_CONFLICT"
+    assert detail["no_credential_creation_confirmed"] is True
+    assert detail["no_billing_or_money_movement_confirmed"] is True
     assert detail["no_invite_delivery_confirmed"] is True
     assert detail["no_auth_claim_change_confirmed"] is True
 
