@@ -263,6 +263,7 @@ greenfield referral construction.
 155. TASK-295: Define Referral SaaS support case persistence contract.
 156. TASK-296: Scope Customer Health account-foundation activation results.
 157. TASK-298: Clarify optional Platform login setup positioning.
+158. TASK-300: Reframe selected-customer Technical Setup as Integrations.
 
 ## 10/10 Exit Criteria
 
@@ -1396,6 +1397,20 @@ greenfield referral construction.
   workflow remains role-specific person confirmation for customer work, while
   Platform login setup is explained as optional Amplifi sign-in setup that can be
   skipped when a person only owns the relationship outside the platform.
+- TASK-300:
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Reframes the
+  selected-customer Technical Setup surface as Integrations. Customer Home and
+  next-best actions now route operators to `/integrations` for API, webhook,
+  invite-delivery, and referral-message provider readiness, while the previous
+  `/technical` path remains a compatibility alias. The backend readiness API
+  remains a read-only implementation detail; no provider credentials, webhook
+  dispatch, invite delivery, auth/login action, campaign activation, billing, or
+  money movement is introduced.
 
 ## Explicit Deferrals
 

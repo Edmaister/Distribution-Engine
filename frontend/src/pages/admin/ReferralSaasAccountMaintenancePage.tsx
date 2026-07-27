@@ -90,6 +90,7 @@ type CustomerModule =
   | "health"
   | "settings"
   | "people"
+  | "integrations"
   | "technical"
   | "campaigns"
   | "links"
@@ -193,10 +194,10 @@ const customerFunctions = [
     tone: "warning" as StatusTone,
   },
   {
-    title: "Technical setup",
-    copy: "Check invite delivery and referral message provider readiness.",
-    letsYou: "Know what provider setup is still needed before live invites or message testing.",
-    route: "technical",
+    title: "Integrations",
+    copy: "Set up the customer's API, webhook, and message-provider readiness.",
+    letsYou: "Know what technical connections are still needed before live invites or message testing.",
+    route: "integrations",
     icon: PlugZap,
     status: "Needs attention",
     tone: "warning" as StatusTone,
@@ -2296,7 +2297,7 @@ export function ReferralSaasAccountMaintenancePage() {
               </section>
               ) : null}
 
-              {selectedModule === "technical" ? (
+              {selectedModule === "integrations" || selectedModule === "technical" ? (
                 <CustomerTechnicalSetupPage
                   customerName={customerName}
                   error={technicalSetupError}
@@ -3838,19 +3839,19 @@ function CustomerTechnicalSetupPage({
   const supportedChannels = channelSummary?.supportedChannels || [];
 
   return (
-    <section className="panel customer-module-page" id="technical-setup">
+    <section className="panel customer-module-page" id="integrations">
       <div className="panel-header">
         <div>
-          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Technical setup</div>
-          <h2 className="panel-title">Technical setup</h2>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Integrations</div>
+          <h2 className="panel-title">Integrations</h2>
           <div className="panel-subtitle">
-            Check provider readiness for invites and referral messages. This page does not create credentials or send anything.
+            Manage the readiness view for API, webhook, invite delivery, and referral-message connections. This page checks setup; it does not create credentials or send anything.
           </div>
         </div>
         <StatusBadge label="Read only" tone="info" />
       </div>
       <div className="panel-body route-list">
-        {isLoading ? <LoadingState label="Checking technical setup readiness" /> : null}
+        {isLoading ? <LoadingState label="Checking integration readiness" /> : null}
         {error ? <ErrorPanel error={error} /> : null}
         {technicalReadiness ? (
           <>
@@ -3881,9 +3882,9 @@ function CustomerTechnicalSetupPage({
                 {missingCapabilities.length
                   ? `${customerName} still needs ${formatAreaCount(
                       missingCapabilities.length,
-                      "technical setup item",
+                      "integration setup item",
                     )} before live invite delivery or referral message testing.`
-                  : `${customerName} has the provider readiness needed for the checked technical capabilities.`}
+                  : `${customerName} has the provider readiness needed for the checked integration capabilities.`}
               </div>
               <StatusBadge
                 label={formatDisplay(technicalReadiness.overallStatus)}
@@ -4322,10 +4323,10 @@ function getCustomerNextActions({
         tone: "warning" as StatusTone,
       },
       {
-        title: "Check technical setup",
-        copy: "See whether invite delivery and referral message providers are ready.",
+        title: "Check integrations",
+        copy: "See whether API, webhook, invite delivery, and referral message providers are ready.",
         priority: "Next",
-        route: "technical",
+        route: "integrations",
         tone: "info" as StatusTone,
       },
       {
@@ -4340,10 +4341,10 @@ function getCustomerNextActions({
   if (blockedCount > 0 || missingEvidenceCount > 0 || hasSeatProvisioningWork) {
     return [
       {
-        title: "Check technical setup",
-        copy: "See whether invite delivery and referral message providers are ready.",
+        title: "Check integrations",
+        copy: "See whether API, webhook, invite delivery, and referral message providers are ready.",
         priority: "First",
-        route: "technical",
+        route: "integrations",
         tone: "warning" as StatusTone,
       },
       {
@@ -4592,6 +4593,9 @@ function buildCustomerModuleRoute(selectedCustomerPath: string, route: string, c
 }
 
 function normalizeCustomerModule(value: string | undefined): CustomerModule {
+  if (value === "technical") {
+    return "integrations";
+  }
   return isCustomerModule(value) ? value : "home";
 }
 
@@ -4601,6 +4605,7 @@ function isCustomerModule(value: string | undefined): value is CustomerModule {
     "health",
       "settings",
       "people",
+      "integrations",
       "technical",
       "campaigns",
       "links",
