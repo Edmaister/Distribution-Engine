@@ -264,6 +264,7 @@ greenfield referral construction.
 156. TASK-296: Scope Customer Health account-foundation activation results.
 157. TASK-298: Clarify optional Platform login setup positioning.
 158. TASK-300: Reframe selected-customer Technical Setup as Integrations.
+159. TASK-301: Define customer-scoped Integrations configuration contract.
 
 ## 10/10 Exit Criteria
 
@@ -307,6 +308,8 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_MEMBERSHIP_INVITATION_BOUNDARY.md`
 - TASK-255:
   `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_CAMPAIGN_CREATE_CONTRACT.md`
+- TASK-301:
+  `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CONFIGURATION_CONTRACT.md`
 
 ## Completed Implementation Outputs
 
@@ -1411,6 +1414,20 @@ greenfield referral construction.
   remains a read-only implementation detail; no provider credentials, webhook
   dispatch, invite delivery, auth/login action, campaign activation, billing, or
   money movement is introduced.
+- TASK-301:
+  `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CONFIGURATION_CONTRACT.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the
+  future selected-customer Integrations configuration boundary for API access,
+  webhook callback intent, event-category subscription intent, invite-delivery
+  provider approval intent, referral-message provider readiness, and safe
+  test-mode posture. This is contract-only; no runtime route, schema,
+  credential lifecycle, webhook dispatch, invite delivery, auth/login change,
+  campaign activation, billing, money movement, or DLaaS behavior is introduced.
 
 ## Explicit Deferrals
 

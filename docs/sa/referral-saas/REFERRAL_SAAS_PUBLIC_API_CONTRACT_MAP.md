@@ -31,6 +31,7 @@ Required boundary docs checked:
 - `docs/sa/referral-saas/REFERRAL_SAAS_SAFE_STATUS_CONTRACT.md`
 - `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`
 - `docs/sa/referral-saas/REFERRAL_SAAS_ACCOUNT_SETUP_WRAPPER_CONTRACT.md`
+- `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CONFIGURATION_CONTRACT.md`
 
 Source files inspected:
 
@@ -133,6 +134,15 @@ Future Referral SaaS APIs should follow these rules:
 | `/v1/referral-saas/accounts/{accountRef}/membership-invitations/{membershipRef}` | `DELETE` | TASK-276 invited access intent cancel wrapper | Account admin bridge | Implemented as guarded seeded write. Marks invited membership intent `DISABLED` and records audit evidence; it does not hard-delete access history, send invitations, activate membership, assign seats, change auth claims, activate campaigns, trigger go-live, or move money. |
 | `/v1/referral-saas/accounts/{accountRef}/memberships/{membershipRef}/access-provisioning` | `POST` | TASK-284 contract plus TASK-285 guarded API wrapper | Account admin bridge or future provisioning permission | Implemented as guarded seeded write. Requires active account, active tenant link, active external reference, active membership, available seat, audit, idempotency, and redaction before assigning a platform seat. It does not send invites, create credentials, mutate auth claims, activate campaigns, trigger go-live, bill, or move money. |
 | `/v1/referral-saas/accounts/{accountRef}/profile` | `PATCH` | TASK-238 customer profile settings maintenance wrapper | Account admin bridge | Implemented as guarded seeded write. Updates bounded durable profile metadata only: account name, account type, operating jurisdiction, customer type, and industry. Customer identifiers remain read-only; no external-reference rotation, account activation, membership write, invitation delivery, seat assignment, auth-claim change, credential lifecycle, campaign activation, go-live, billing, money, or DLaaS marketplace behavior. |
+
+### Integrations
+
+| Target route | Method | Current source/wrapper | Auth | Notes |
+|---|---|---|---|---|
+| `/v1/referral-saas/accounts/{accountRef}/integrations/configuration` | `GET` | TASK-301 contract plus existing technical setup readiness read model | SaaS account admin/operator bridge | Future read of customer-scoped API, webhook, invite-delivery, and referral-message provider setup evidence. |
+| `/v1/referral-saas/accounts/{accountRef}/integrations/configuration` | `PUT` | TASK-301 future command boundary | SaaS account admin/operator bridge | Future guarded save of non-secret integration setup evidence. Must reject raw secrets, internal tenant code, live dispatch, invite delivery, auth changes, campaign activation, billing, and money movement. |
+| `/v1/referral-saas/accounts/{accountRef}/integrations/configuration/validate` | `POST` | TASK-301 future validation boundary | SaaS account admin/operator bridge | Future validation-only check. No persistence, credential creation, webhook registration, message dispatch, or invite delivery. |
+| `/v1/referral-saas/accounts/{accountRef}/integrations/webhook-catalog` | `GET` | TASK-301 contract over webhook catalog source material | SaaS account admin/operator bridge | Future safe event-category/catalog read for setup. No subscription activation, callback registration, or webhook dispatch. |
 
 ### Campaigns
 
@@ -322,6 +332,13 @@ Rules:
   setup only and preserves idempotency/audit evidence while excluding
   activation, link generation, validation-track creation, policy write,
   webhook delivery, and money movement.
+- TASK-301 defines the selected-customer Integrations configuration route
+  family for future API access, webhook callback intent, event-category
+  subscription intent, invite-delivery provider approval intent, and
+  referral-message channel readiness. It is contract-only and does not add
+  runtime schema, credential lifecycle, webhook dispatch, invite delivery,
+  auth/login changes, campaign activation, billing, money movement, or DLaaS
+  marketplace behavior.
 - TASK-262 implements the selected-customer campaign submit/review routes:
   `POST /v1/referral-saas/accounts/{accountRef}/campaigns/{campaignRef}/review-submissions`
   and

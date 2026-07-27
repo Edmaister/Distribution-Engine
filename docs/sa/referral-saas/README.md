@@ -48,6 +48,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   contract.
 - `REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md` - TASK-143 public API contract
   map.
+- `REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CONFIGURATION_CONTRACT.md` - TASK-301
+  selected-customer Integrations configuration contract.
 - `REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md` - TASK-144 frontend IA and
   workflow contract.
 - `REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md` - TASK-145 operator support
