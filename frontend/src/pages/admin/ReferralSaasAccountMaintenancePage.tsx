@@ -47,6 +47,7 @@ import {
   cancelReferralSaasMembershipInvitationIntent,
   createReferralSaasAccountCampaignSetup,
   recordReferralSaasAccountCampaignReviewDecision,
+  recordReferralSaasApiAccessVerification,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasAccountCampaignActivation,
   requestReferralSaasAccountFoundationActivation,
@@ -3957,6 +3958,25 @@ function CustomerTechnicalSetupPage({
       );
     },
   });
+  const apiAccessVerificationMutation = useMutation({
+    mutationFn: () =>
+      recordReferralSaasApiAccessVerification({
+        accountRef: account?.accountId || "",
+        ...buildIntegrationApiAccessVerificationPayload(
+          draft,
+          accountScope,
+          account?.accountId || "",
+          savedConfiguration?.configurationRef || executionReadiness?.configurationRef || "no-configuration",
+        ),
+    }),
+    onSuccess: async (response) => {
+      const verification = response.integrationApiAccessVerification;
+      setConfigurationMessage(
+        `${formatDisplay(verification.verificationStatus)}. ${verification.plainLanguageSummary}`,
+      );
+      await executionReadinessQuery.refetch();
+    },
+  });
   const technicalReadiness = readiness?.technicalSetupReadiness;
   const savedConfiguration = configurationQuery.data?.integrationConfiguration || null;
   const executionReadiness = executionReadinessQuery.data?.integrationExecutionReadiness || null;
@@ -3967,6 +3987,13 @@ function CustomerTechnicalSetupPage({
   const executionActions = executionReadiness?.executionActions || [];
   const readyExecutionActions = executionReadiness?.readyActions || [];
   const executionBlockers = executionReadiness?.blockers || [];
+  const apiAccessAction = executionActions.find((action) => action.actionRef === "API_ACCESS_VERIFICATION");
+  const canRecordApiAccessVerification = Boolean(
+    account?.accountId &&
+      externalTenantRef &&
+      apiAccessAction?.status === "READY" &&
+      !apiAccessVerificationMutation.isPending,
+  );
   const currentStatus = savedConfiguration?.configurationStatus || "NOT_SAVED";
   const canSubmitConfiguration = Boolean(account?.accountId && externalTenantRef);
 
@@ -3991,6 +4018,7 @@ function CustomerTechnicalSetupPage({
         {executionReadinessQuery.error ? <ErrorPanel error={executionReadinessQuery.error} /> : null}
         {validationMutation.error ? <ErrorPanel error={validationMutation.error} /> : null}
         {saveMutation.error ? <ErrorPanel error={saveMutation.error} /> : null}
+        {apiAccessVerificationMutation.error ? <ErrorPanel error={apiAccessVerificationMutation.error} /> : null}
         {technicalReadiness ? (
           <>
             <div className="grid-3">
@@ -4240,6 +4268,18 @@ function CustomerTechnicalSetupPage({
                         <span className="table-subtext">{action.reason}</span>
                       </div>
                       <StatusBadge label={formatDisplay(action.status)} tone={statusTone(action.status)} />
+                      {action.actionRef === "API_ACCESS_VERIFICATION" ? (
+                        <button
+                          className="button secondary"
+                          disabled={!canRecordApiAccessVerification}
+                          onClick={() => apiAccessVerificationMutation.mutate()}
+                          type="button"
+                        >
+                          {apiAccessVerificationMutation.isPending
+                            ? "Recording API check"
+                            : "Record API access check"}
+                        </button>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -4973,6 +5013,51 @@ function buildIntegrationConfigurationPayload(
       draft.inviteDeliveryChannel,
       draft.inviteProviderApprovalRef,
       ...draft.referralMessageChannels,
+    ),
+  };
+}
+
+function buildIntegrationApiAccessVerificationPayload(
+  draft: IntegrationConfigurationDraft,
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context: "setup";
+  },
+  accountId: string,
+  configurationRef: string,
+) {
+  return {
+    accountScope,
+    verification: {
+      verificationType: "API_ACCESS_VERIFICATION",
+      configurationRef,
+      environment: draft.environment,
+      authMethod: draft.intendedAuthMethod,
+      intendedUseCases: draft.allowedUse,
+      noSecretOrCredentialStorageConfirmed: true,
+      noCredentialCreationConfirmed: true,
+      noCredentialLifecycleConfirmed: true,
+      noProviderCallConfirmed: true,
+      noWebhookDispatchConfirmed: true,
+      noInviteDeliveryConfirmed: true,
+      noMessageProviderDeliveryConfirmed: true,
+      noMembershipActivationConfirmed: true,
+      noSeatAssignmentConfirmed: true,
+      noAuthClaimChangeConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noGoLiveActionConfirmed: true,
+      noBillingOrMoneyMovementConfirmed: true,
+    },
+    reasonCode: "CUSTOMER_API_ACCESS_VERIFICATION",
+    correlationId: `customer-profile-integrations-api-verification-${accountId}`,
+    idempotencyKey: safeIdempotencyKey(
+      "customer-profile-integrations-api-verification",
+      accountId,
+      configurationRef,
+      draft.environment,
+      draft.intendedAuthMethod,
+      ...draft.allowedUse,
     ),
   };
 }
