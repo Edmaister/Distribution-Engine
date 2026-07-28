@@ -63,6 +63,7 @@ import {
   type ReferralSaasAccountCampaignPolicySettingsResponse,
   updateReferralSaasAccountProfile,
   getReferralSaasIntegrationConfiguration,
+  getReferralSaasIntegrationExecutionReadiness,
   type ReferralSaasAccountCampaignSetupCreateResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
@@ -3912,6 +3913,23 @@ function CustomerTechnicalSetupPage({
     enabled: Boolean(account?.accountId && externalTenantRef),
     retry: false,
   });
+  const executionReadinessQuery = useQuery({
+    queryKey: [
+      "referral-saas",
+      "integration-execution-readiness",
+      account?.accountId || "",
+      externalTenantRef,
+    ],
+    queryFn: () =>
+      getReferralSaasIntegrationExecutionReadiness({
+        accountRef: account?.accountId || "",
+        refType: "external_tenant_ref",
+        externalRef: externalTenantRef,
+        context: "setup",
+      }),
+    enabled: Boolean(account?.accountId && externalTenantRef),
+    retry: false,
+  });
   const [configurationMessage, setConfigurationMessage] = useState<string | null>(null);
   const validationMutation = useMutation({
     mutationFn: () =>
@@ -3933,6 +3951,7 @@ function CustomerTechnicalSetupPage({
       }),
     onSuccess: async (response) => {
       await configurationQuery.refetch();
+      await executionReadinessQuery.refetch();
       setConfigurationMessage(
         `${formatDisplay(response.integrationConfigurationResult.commandStatus)}. Safe setup evidence saved; no credentials, webhook dispatch, invite delivery, campaign activation, billing, or money movement occurred.`,
       );
@@ -3940,10 +3959,14 @@ function CustomerTechnicalSetupPage({
   });
   const technicalReadiness = readiness?.technicalSetupReadiness;
   const savedConfiguration = configurationQuery.data?.integrationConfiguration || null;
+  const executionReadiness = executionReadinessQuery.data?.integrationExecutionReadiness || null;
   const channelSummary = technicalReadiness?.channelSummary;
   const capabilities = technicalReadiness?.capabilities || [];
   const missingCapabilities = capabilities.filter((capability) => capability.status !== "READY");
   const supportedChannels = channelSummary?.supportedChannels || [];
+  const executionActions = executionReadiness?.executionActions || [];
+  const readyExecutionActions = executionReadiness?.readyActions || [];
+  const executionBlockers = executionReadiness?.blockers || [];
   const currentStatus = savedConfiguration?.configurationStatus || "NOT_SAVED";
   const canSubmitConfiguration = Boolean(account?.accountId && externalTenantRef);
 
@@ -3960,9 +3983,12 @@ function CustomerTechnicalSetupPage({
         <StatusBadge label={formatDisplay(currentStatus)} tone={statusTone(currentStatus)} />
       </div>
       <div className="panel-body route-list">
-        {isLoading || configurationQuery.isLoading ? <LoadingState label="Checking integration readiness" /> : null}
+        {isLoading || configurationQuery.isLoading || executionReadinessQuery.isLoading ? (
+          <LoadingState label="Checking integration readiness" />
+        ) : null}
         {error ? <ErrorPanel error={error} /> : null}
         {configurationQuery.error ? <ErrorPanel error={configurationQuery.error} /> : null}
+        {executionReadinessQuery.error ? <ErrorPanel error={executionReadinessQuery.error} /> : null}
         {validationMutation.error ? <ErrorPanel error={validationMutation.error} /> : null}
         {saveMutation.error ? <ErrorPanel error={saveMutation.error} /> : null}
         {technicalReadiness ? (
@@ -4165,6 +4191,68 @@ function CustomerTechnicalSetupPage({
             {configurationMessage ? (
               <div className="success-banner">
                 <strong>Integrations setup updated.</strong> {configurationMessage}
+              </div>
+            ) : null}
+
+            {executionReadiness ? (
+              <div className="panel-lite">
+                <div className="settings-summary-header">
+                  <div>
+                    <h3 className="section-heading">4. Live readiness check</h3>
+                    <p>
+                      Shows whether this customer can move from saved setup evidence into governed API, webhook,
+                      provider, or credential checks. It does not run those checks.
+                    </p>
+                  </div>
+                  <StatusBadge
+                    label={formatDisplay(executionReadiness.executionStatus)}
+                    tone={statusTone(executionReadiness.executionStatus)}
+                  />
+                </div>
+                <div className={`wizard-summary-strip ${executionBlockers.length ? "warning" : "success"}`}>
+                  <div>
+                    <strong>In plain English:</strong> {executionReadiness.plainLanguageSummary}
+                  </div>
+                  <StatusBadge
+                    label={`${readyExecutionActions.length} ready`}
+                    tone={readyExecutionActions.length ? "success" : "warning"}
+                  />
+                </div>
+                {executionBlockers.length ? (
+                  <div className="route-list">
+                    {executionBlockers.map((blocker) => (
+                      <div className="wizard-status-card" key={blocker.code}>
+                        <div>
+                          <strong>{formatDisplay(blocker.code)}</strong>
+                          <p>{blocker.message}</p>
+                        </div>
+                        <StatusBadge label="Fix first" tone="warning" />
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="route-list">
+                  {executionActions.map((action) => (
+                    <div className="wizard-status-card" key={action.actionRef}>
+                      <div>
+                        <strong>{action.label}</strong>
+                        <p>{action.nextStep}</p>
+                        <span className="table-subtext">{action.reason}</span>
+                      </div>
+                      <StatusBadge label={formatDisplay(action.status)} tone={statusTone(action.status)} />
+                    </div>
+                  ))}
+                </div>
+                <div className="wizard-status-card">
+                  <div>
+                    <strong>Still separate</strong>
+                    <p>
+                      Credential creation, webhook test dispatch, live invite delivery, referral-message delivery,
+                      auth changes, campaign activation, billing, and money movement stay in later governed workflows.
+                    </p>
+                  </div>
+                  <StatusBadge label="Read only" tone="info" />
+                </div>
               </div>
             ) : null}
 
