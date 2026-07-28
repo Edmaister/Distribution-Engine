@@ -7,6 +7,7 @@ import {
   getReferralSaasAccountCampaign,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasAccountMembershipPosture,
+  getReferralSaasIntegrationExecutionReadiness,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccountCampaigns,
@@ -377,6 +378,98 @@ describe("referralSaasAccounts endpoint client", () => {
     );
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|wallet|settlement|money_movement/,
+    );
+  });
+
+  it("reads Referral SaaS integration execution readiness without live provider execution", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+        accountName: "FNB Referral SaaS",
+      },
+      integrationConfiguration: null,
+      integrationExecutionReadiness: {
+        executionStatus: "INTEGRATION_EXECUTION_BLOCKED_CONFIGURATION_MISSING",
+        plainLanguageSummary: "Save Integrations setup evidence before live verification can start.",
+        blockers: [
+          {
+            code: "CONFIGURATION_MISSING",
+            message: "Save the customer's Integrations setup before live verification.",
+          },
+        ],
+        readyActions: [],
+        executionActions: [
+          {
+            actionRef: "SAVE_INTEGRATION_CONFIGURATION",
+            label: "Save Integrations setup",
+            status: "BLOCKED",
+            nextStep: "Open Integrations and save non-secret setup evidence.",
+            reason: "No saved configuration exists for this customer.",
+          },
+        ],
+        configurationRef: null,
+        configurationStatus: null,
+        guardrails: ["READ_ONLY_EXECUTION_READINESS"],
+        redactions: ["internal_tenant_identifier", "provider_secret"],
+        noSecretOrCredentialStorageConfirmed: true,
+        noCredentialCreationConfirmed: true,
+        noCredentialLifecycleConfirmed: true,
+        noWebhookDispatchConfirmed: true,
+        noInviteDeliveryConfirmed: true,
+        noMessageProviderDeliveryConfirmed: true,
+        noMembershipActivationConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noCampaignActivationConfirmed: true,
+        noGoLiveActionConfirmed: true,
+        noBillingOrMoneyMovementConfirmed: true,
+      },
+      guardrail: "Read-only selected-customer Integrations execution readiness.",
+      guardrails: ["READ_ONLY_EXECUTION_READINESS"],
+      redactions: ["internal_tenant_identifier", "provider_secret"],
+      no_secret_or_credential_storage_confirmed: true,
+      no_credential_creation_confirmed: true,
+      no_credential_lifecycle_confirmed: true,
+      no_webhook_dispatch_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_message_provider_delivery_confirmed: true,
+      no_membership_activation_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_go_live_action_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    await expect(
+      getReferralSaasIntegrationExecutionReadiness({
+        accountRef: " acct-1 ",
+        refType: "external_tenant_ref",
+        externalRef: " fnb-referrals ",
+        context: "setup",
+      }),
+    ).resolves.toMatchObject({
+      integrationExecutionReadiness: {
+        executionStatus: "INTEGRATION_EXECUTION_BLOCKED_CONFIGURATION_MISSING",
+        noCredentialLifecycleConfirmed: true,
+      },
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acct-1/integrations/execution-readiness",
+      {
+        query: {
+          ref_type: "external_tenant_ref",
+          external_ref: "fnb-referrals",
+          context: "setup",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|api_key|webhook_secret|wallet|settlement|money_movement/,
     );
   });
 

@@ -23,6 +23,7 @@ import {
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasAccountMembershipPosture,
   getReferralSaasIntegrationConfiguration,
+  getReferralSaasIntegrationExecutionReadiness,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccountCampaigns,
@@ -49,6 +50,7 @@ import {
   type ReferralSaasAccountRegistryResponse,
   type ReferralSaasAccountCampaignReadinessResponse,
   type ReferralSaasMembershipActivationReadinessResponse,
+  type ReferralSaasIntegrationExecutionReadinessResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import { ReferralSaasAccountMaintenancePage } from "./ReferralSaasAccountMaintenancePage";
@@ -70,6 +72,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   getReferralSaasAccountCampaignReadiness: vi.fn(),
   getReferralSaasAccountMembershipPosture: vi.fn(),
   getReferralSaasIntegrationConfiguration: vi.fn(),
+  getReferralSaasIntegrationExecutionReadiness: vi.fn(),
   getReferralSaasMembershipActivationReadiness: vi.fn(),
   getReferralSaasTechnicalSetupReadiness: vi.fn(),
   listReferralSaasAccountCampaigns: vi.fn(),
@@ -100,6 +103,7 @@ const mockedCreateReferralSaasAccountCampaignSetup = vi.mocked(createReferralSaa
 const mockedGetReferralSaasAccountCampaignReadiness = vi.mocked(getReferralSaasAccountCampaignReadiness);
 const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
 const mockedGetReferralSaasIntegrationConfiguration = vi.mocked(getReferralSaasIntegrationConfiguration);
+const mockedGetReferralSaasIntegrationExecutionReadiness = vi.mocked(getReferralSaasIntegrationExecutionReadiness);
 const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferralSaasMembershipActivationReadiness);
 const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTechnicalSetupReadiness);
 const mockedListReferralSaasAccountCampaigns = vi.mocked(listReferralSaasAccountCampaigns);
@@ -813,6 +817,122 @@ function mockIntegrationConfigurationRead() {
   };
 }
 
+function mockIntegrationExecutionReadiness(): ReferralSaasIntegrationExecutionReadinessResponse {
+  return {
+    status: "ok",
+    context: "setup",
+    account: mockTechnicalSetupReadiness().account,
+    integrationConfiguration: null,
+    integrationExecutionReadiness: {
+      executionStatus: "INTEGRATION_EXECUTION_BLOCKED_CONFIGURATION_MISSING",
+      plainLanguageSummary: "Save Integrations setup evidence before live verification can start.",
+      blockers: [
+        {
+          code: "CONFIGURATION_MISSING",
+          message: "Save the customer's Integrations setup before live verification.",
+        },
+      ],
+      readyActions: [],
+      executionActions: [
+        {
+          actionRef: "SAVE_INTEGRATION_CONFIGURATION",
+          label: "Save Integrations setup",
+          status: "BLOCKED",
+          nextStep: "Open Integrations and save non-secret setup evidence.",
+          reason: "No saved configuration exists for this customer.",
+        },
+      ],
+      configurationRef: null,
+      configurationStatus: null,
+      guardrails: ["READ_ONLY_EXECUTION_READINESS"],
+      redactions: ["internal_tenant_identifier", "provider_secret"],
+      noSecretOrCredentialStorageConfirmed: true,
+      noCredentialCreationConfirmed: true,
+      noCredentialLifecycleConfirmed: true,
+      noWebhookDispatchConfirmed: true,
+      noInviteDeliveryConfirmed: true,
+      noMessageProviderDeliveryConfirmed: true,
+      noMembershipActivationConfirmed: true,
+      noSeatAssignmentConfirmed: true,
+      noAuthClaimChangeConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noGoLiveActionConfirmed: true,
+      noBillingOrMoneyMovementConfirmed: true,
+    },
+    guardrail: "Read-only selected-customer Integrations execution readiness.",
+    guardrails: ["READ_ONLY_EXECUTION_READINESS"],
+    redactions: ["internal_tenant_identifier", "provider_secret"],
+    no_secret_or_credential_storage_confirmed: true,
+    no_credential_creation_confirmed: true,
+    no_credential_lifecycle_confirmed: true,
+    no_webhook_dispatch_confirmed: true,
+    no_invite_delivery_confirmed: true,
+    no_message_provider_delivery_confirmed: true,
+    no_membership_activation_confirmed: true,
+    no_seat_assignment_confirmed: true,
+    no_auth_claim_change_confirmed: true,
+    no_campaign_activation_confirmed: true,
+    no_go_live_action_confirmed: true,
+    no_billing_or_money_movement_confirmed: true,
+  };
+}
+
+function mockReadyIntegrationExecutionReadiness(): ReferralSaasIntegrationExecutionReadinessResponse {
+  const response = mockIntegrationExecutionReadiness();
+  return {
+    ...response,
+    integrationConfiguration: mockIntegrationConfigurationSave().integrationConfigurationResult.configuration,
+    integrationExecutionReadiness: {
+      ...response.integrationExecutionReadiness,
+      executionStatus: "INTEGRATION_EXECUTION_READY",
+      plainLanguageSummary:
+        "Saved Integrations setup can move into governed live verification checks. No live action has been run by this endpoint.",
+      blockers: [],
+      configurationRef: "integration-config-1",
+      configurationStatus: "INTEGRATION_CONFIGURATION_SAVED",
+      readyActions: [
+        {
+          actionRef: "API_ACCESS_VERIFICATION",
+          label: "Verify API access",
+          status: "READY",
+          nextStep: "Run a governed API-access verification command in a later task.",
+          reason: "Requires saved environment, auth method, and intended API use cases.",
+        },
+      ],
+      executionActions: [
+        {
+          actionRef: "API_ACCESS_VERIFICATION",
+          label: "Verify API access",
+          status: "READY",
+          nextStep: "Run a governed API-access verification command in a later task.",
+          reason: "Requires saved environment, auth method, and intended API use cases.",
+        },
+        {
+          actionRef: "WEBHOOK_TEST_DISPATCH",
+          label: "Run webhook test dispatch",
+          status: "READY",
+          nextStep: "Run a guarded webhook test-dispatch command in a later task.",
+          reason: "Requires an approved callback URL and selected event categories.",
+        },
+        {
+          actionRef: "MESSAGE_PROVIDER_TEST",
+          label: "Check message provider delivery",
+          status: "MISSING_EVIDENCE",
+          nextStep: "Run a governed provider delivery check in a later task.",
+          reason: "Requires selected channels and approved provider references.",
+        },
+        {
+          actionRef: "CREDENTIAL_REQUEST",
+          label: "Request governed credentials",
+          status: "READY",
+          nextStep: "Submit a governed credential lifecycle request in a later task.",
+          reason: "Requires the selected auth method without browser-supplied secrets.",
+        },
+      ],
+    },
+  };
+}
+
 function mockIntegrationConfigurationValidation() {
   return {
     status: "ok",
@@ -1116,6 +1236,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedGetAdminOnboardingState.mockResolvedValue(mockMaintenanceState());
     mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockMembershipPosture());
     mockedGetReferralSaasIntegrationConfiguration.mockResolvedValue(mockIntegrationConfigurationRead());
+    mockedGetReferralSaasIntegrationExecutionReadiness.mockResolvedValue(mockIntegrationExecutionReadiness());
     mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockMembershipActivationReadiness());
     mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadiness());
     mockedListReferralSaasAccountCampaigns.mockResolvedValue(mockCampaignList());
@@ -2133,6 +2254,9 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText("1. API access intent")).toBeInTheDocument();
     expect(screen.getByText("2. Webhook intent")).toBeInTheDocument();
     expect(screen.getByText("3. Message provider intent")).toBeInTheDocument();
+    expect(screen.getByText("4. Live readiness check")).toBeInTheDocument();
+    expect(screen.getByText(/Save Integrations setup evidence before live verification can start/i)).toBeInTheDocument();
+    expect(screen.getByText("Save Integrations setup")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Validate setup" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save setup evidence" })).toBeInTheDocument();
     expect(screen.getByText("People invite delivery")).toBeInTheDocument();
@@ -2140,6 +2264,12 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText("Referral journey messages")).toBeInTheDocument();
     expect(screen.getByText(/No credentials are created, no webhook is dispatched, no invite is sent/i)).toBeInTheDocument();
     expect(mockedGetReferralSaasIntegrationConfiguration).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      refType: "external_tenant_ref",
+      externalRef: "gabs-platform",
+      context: "setup",
+    });
+    expect(mockedGetReferralSaasIntegrationExecutionReadiness).toHaveBeenCalledWith({
       accountRef: "acct-gabs",
       refType: "external_tenant_ref",
       externalRef: "gabs-platform",
@@ -2155,6 +2285,9 @@ describe("ReferralSaasAccountMaintenancePage", () => {
   });
 
   it("validates and saves Integrations configuration without live side effects", async () => {
+    mockedGetReferralSaasIntegrationExecutionReadiness
+      .mockResolvedValueOnce(mockIntegrationExecutionReadiness())
+      .mockResolvedValueOnce(mockReadyIntegrationExecutionReadiness());
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/integrations");
 
     expect(await screen.findByRole("heading", { name: "Integrations" })).toBeInTheDocument();
@@ -2201,6 +2334,9 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     });
     expect(await screen.findByText(/Integrations setup updated/i)).toBeInTheDocument();
     expect(screen.getByText(/no credentials, webhook dispatch, invite delivery, campaign activation, billing, or money movement occurred/i)).toBeInTheDocument();
+    expect(await screen.findByText("Verify API access")).toBeInTheDocument();
+    expect(screen.getByText(/governed live verification checks/i)).toBeInTheDocument();
+    expect(mockedGetReferralSaasIntegrationExecutionReadiness).toHaveBeenCalledTimes(2);
   });
 
   it("keeps the previous Technical Setup route as an Integrations compatibility alias", async () => {

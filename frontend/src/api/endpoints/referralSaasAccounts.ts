@@ -294,6 +294,66 @@ export type ReferralSaasIntegrationConfigurationReadResponse = {
   no_billing_or_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasIntegrationExecutionAction = {
+  actionRef: string;
+  label: string;
+  status: string;
+  nextStep: string;
+  reason: string;
+};
+
+export type ReferralSaasIntegrationExecutionBlocker = {
+  code: string;
+  message: string;
+};
+
+export type ReferralSaasIntegrationExecutionReadiness = {
+  executionStatus: string;
+  plainLanguageSummary: string;
+  blockers: ReferralSaasIntegrationExecutionBlocker[];
+  readyActions: ReferralSaasIntegrationExecutionAction[];
+  executionActions: ReferralSaasIntegrationExecutionAction[];
+  configurationRef?: string | null;
+  configurationStatus?: string | null;
+  guardrails: string[];
+  redactions: string[];
+  noSecretOrCredentialStorageConfirmed: boolean;
+  noCredentialCreationConfirmed: boolean;
+  noCredentialLifecycleConfirmed: boolean;
+  noWebhookDispatchConfirmed: boolean;
+  noInviteDeliveryConfirmed: boolean;
+  noMessageProviderDeliveryConfirmed: boolean;
+  noMembershipActivationConfirmed: boolean;
+  noSeatAssignmentConfirmed: boolean;
+  noAuthClaimChangeConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noGoLiveActionConfirmed: boolean;
+  noBillingOrMoneyMovementConfirmed: boolean;
+};
+
+export type ReferralSaasIntegrationExecutionReadinessResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  integrationExecutionReadiness: ReferralSaasIntegrationExecutionReadiness;
+  integrationConfiguration: ReferralSaasIntegrationConfiguration | null;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  no_secret_or_credential_storage_confirmed: boolean;
+  no_credential_creation_confirmed: boolean;
+  no_credential_lifecycle_confirmed: boolean;
+  no_webhook_dispatch_confirmed: boolean;
+  no_invite_delivery_confirmed: boolean;
+  no_message_provider_delivery_confirmed: boolean;
+  no_membership_activation_confirmed: boolean;
+  no_seat_assignment_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_go_live_action_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasIntegrationConfigurationValidation = {
   commandStatus: string;
   safeSetupPosture: Record<string, unknown>;
@@ -1759,6 +1819,24 @@ export function getReferralSaasIntegrationConfiguration({
 }: ReferralSaasIntegrationConfigurationReadRequest): Promise<ReferralSaasIntegrationConfigurationReadResponse> {
   return apiRequest<ReferralSaasIntegrationConfigurationReadResponse>(
     `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/integrations/configuration`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+      },
+    },
+  );
+}
+
+export function getReferralSaasIntegrationExecutionReadiness({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+}: ReferralSaasIntegrationConfigurationReadRequest): Promise<ReferralSaasIntegrationExecutionReadinessResponse> {
+  return apiRequest<ReferralSaasIntegrationExecutionReadinessResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/integrations/execution-readiness`,
     {
       query: {
         ref_type: refType,
