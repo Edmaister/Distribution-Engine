@@ -101,6 +101,9 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Read-only product account | GET | `/v1/referral-saas/accounts/membership-posture` | Referral SaaS account membership posture wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/membership-activation-readiness` | Referral SaaS membership activation readiness wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/technical-setup-readiness` | Referral SaaS technical setup readiness wrapper |
+| Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/integrations/configuration` | Referral SaaS customer-scoped Integrations configuration read wrapper |
+| Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/integrations/execution-readiness` | Referral SaaS customer-scoped Integrations execution readiness wrapper |
+| Read-only product account | POST | `/v1/referral-saas/accounts/{account_ref}/integrations/configuration/validate` | Referral SaaS customer-scoped Integrations configuration validation wrapper; validation only |
 | Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/campaigns` | Referral SaaS customer-scoped campaign list wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}` | Referral SaaS customer-scoped campaign read wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/readiness` | Referral SaaS customer-scoped campaign readiness wrapper |
@@ -154,6 +157,9 @@ local/staging smoke classification:
 - `GET /v1/referral-saas/accounts/membership-posture`
 - `GET /v1/referral-saas/accounts/{account_ref}/membership-activation-readiness`
 - `GET /v1/referral-saas/accounts/{account_ref}/technical-setup-readiness`
+- `GET /v1/referral-saas/accounts/{account_ref}/integrations/configuration`
+- `GET /v1/referral-saas/accounts/{account_ref}/integrations/execution-readiness`
+- `POST /v1/referral-saas/accounts/{account_ref}/integrations/configuration/validate`
 - `GET /v1/referral-saas/accounts/{account_ref}/campaigns`
 - `GET /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}`
 - `GET /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/readiness`

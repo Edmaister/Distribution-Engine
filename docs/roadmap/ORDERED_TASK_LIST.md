@@ -6784,6 +6784,31 @@ Rollback notes: Revert the TASK-304 contract document plus roadmap, gap-matrix, 
 Explicit non-goals: Do not add schema, migrations, runtime routes, service writes, frontend controls, API key creation, secret creation/storage/rotation/reveal, webhook subscription activation, webhook dispatch/retry/replay/queueing/signing, invite delivery, referral-message delivery, identity-provider integration, auth/session claim changes, campaign activation, go-live actions, support-case writes, export persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: The selected-customer Integrations live execution boundary is documented and ready to guide the next implementation task. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because runtime live execution, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-305: Add customer-scoped Integrations execution readiness API
+
+Status: Complete (2026-07-28).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_LIVE_EXECUTION_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`.
+Shared primitive impact: Reuses selected-customer account context, saved Integrations configuration evidence, route smoke inventory, redaction, and no-side-effect guardrail primitives. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer-scoped Integrations execution readiness for API verification, webhook test dispatch, message-provider checks, and governed credential requests.
+Objective: Add the first runtime read-only API that tells the selected customer workspace whether saved Integrations setup can move into governed live verification without performing any provider execution.
+Why now: TASK-304 defined the live execution contract; the next production-readiness gap is a safe read model that the UI can consume before separate command endpoints are built.
+Files involved: `services/referral_saas_integrations_configuration_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/api/test_referral_saas_accounts_api.py`; route smoke inventory/plan tests and script; roadmap, gap matrix, public API map, route smoke inventory, and infographic docs.
+Database/schema impact: None.
+Backend impact: Adds `GET /v1/referral-saas/accounts/{account_ref}/integrations/execution-readiness` as a selected-customer read-only wrapper over account posture and saved Integrations configuration.
+Frontend impact: None in this task; the next UI task can consume the execution-readiness read model.
+API impact: Adds execution readiness statuses, blockers, ready actions, execution actions, guardrails, redactions, and explicit no credential/webhook/message/invite/auth/campaign/billing/money side-effect confirmations.
+Tests added/updated: Added API coverage for ready and missing-configuration execution readiness; updated mounted route smoke inventory and dry-run route smoke plan coverage.
+Validation method: Focused API/route smoke tests and `git diff --check`.
+Acceptance criteria: Selected-customer execution readiness is readable for active accounts with saved configuration; missing configuration is clearly blocked; no live provider/API/webhook/message/credential action is performed; route smoke inventory remains bounded.
+Dependencies: TASK-300; TASK-301; TASK-302; TASK-303; TASK-304.
+Blocked by: UI wiring, governed API-access verification command, webhook test-dispatch command, message-provider test-check command, credential lifecycle request command, runtime provider adapters, invite/referral-message delivery integration, auth-claim propagation, export file storage/download, support-case UI/notes/status changes, and non-local proof repetition.
+Risk level: Medium.
+Rollback notes: Revert the service read-model helper, API route, API tests, smoke plan/inventory updates, and TASK-305 documentation updates.
+Explicit non-goals: Do not add schema, migrations, service writes, frontend controls, API key creation, secret creation/storage/rotation/reveal, webhook subscription activation, webhook dispatch/retry/replay/queueing/signing, invite delivery, referral-message delivery, identity-provider integration, auth/session claim changes, campaign activation, go-live actions, support-case writes, export persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: The selected-customer Integrations execution-readiness API is mounted, tested, smoke-classified, and documented as the safe runtime bridge between saved setup evidence and later governed execution commands. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because UI wiring, runtime provider execution commands, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

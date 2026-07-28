@@ -22,6 +22,16 @@ INTEGRATION_CONFIGURATION_BLOCKED_PROVIDER_NOT_APPROVED = (
 INTEGRATION_CONFIGURATION_BLOCKED_UNSAFE_PAYLOAD = (
     "INTEGRATION_CONFIGURATION_BLOCKED_UNSAFE_PAYLOAD"
 )
+INTEGRATION_EXECUTION_READY = "INTEGRATION_EXECUTION_READY"
+INTEGRATION_EXECUTION_BLOCKED_ACCOUNT_NOT_ACTIVE = (
+    "INTEGRATION_EXECUTION_BLOCKED_ACCOUNT_NOT_ACTIVE"
+)
+INTEGRATION_EXECUTION_BLOCKED_CONFIGURATION_MISSING = (
+    "INTEGRATION_EXECUTION_BLOCKED_CONFIGURATION_MISSING"
+)
+INTEGRATION_EXECUTION_BLOCKED_PROVIDER_NOT_APPROVED = (
+    "INTEGRATION_EXECUTION_BLOCKED_PROVIDER_NOT_APPROVED"
+)
 
 INTEGRATION_CONFIGURATION_GUARDRAILS = [
     "CUSTOMER_SCOPED_INTEGRATIONS_CONFIGURATION",
@@ -52,6 +62,30 @@ INTEGRATION_CONFIGURATION_REDACTIONS = [
     "idempotency_key_hash",
     "payload_hash",
 ]
+INTEGRATION_EXECUTION_GUARDRAILS = list(
+    dict.fromkeys(
+        [
+            *INTEGRATION_CONFIGURATION_GUARDRAILS,
+            "CUSTOMER_SCOPED_INTEGRATIONS_EXECUTION_READINESS",
+            "SAVED_CONFIGURATION_REQUIRED",
+            "ACTIVE_ACCOUNT_LINK_REFERENCE_REQUIRED",
+            "NO_LIVE_PROVIDER_EXECUTION",
+            "NO_WEBHOOK_TEST_DISPATCH",
+            "NO_MESSAGE_PROVIDER_DELIVERY",
+            "NO_CREDENTIAL_LIFECYCLE",
+        ]
+    )
+)
+INTEGRATION_EXECUTION_REDACTIONS = list(
+    dict.fromkeys(
+        [
+            *INTEGRATION_CONFIGURATION_REDACTIONS,
+            "webhook_signing_material",
+            "credential_material",
+            "provider_runtime_payload",
+        ]
+    )
+)
 
 API_ENVIRONMENTS = frozenset({"LOCAL_DEVELOPMENT", "SANDBOX", "PRODUCTION_INTENT"})
 AUTH_METHODS = frozenset({"API_KEY", "OAUTH_CLIENT_CREDENTIALS", "SIGNED_WEBHOOK"})
@@ -177,6 +211,44 @@ class ReferralSaasIntegrationConfiguration:
             "createdAt": self.created_at,
             "updatedAt": self.updated_at,
             "redactions": self.redactions,
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasIntegrationExecutionReadiness:
+    execution_status: str
+    plain_language_summary: str
+    blockers: list[dict[str, Any]]
+    ready_actions: list[dict[str, Any]]
+    execution_actions: list[dict[str, Any]]
+    guardrails: list[str]
+    redactions: list[str]
+    configuration_ref: str | None = None
+    configuration_status: str | None = None
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "executionStatus": self.execution_status,
+            "plainLanguageSummary": self.plain_language_summary,
+            "blockers": self.blockers,
+            "readyActions": self.ready_actions,
+            "executionActions": self.execution_actions,
+            "configurationRef": self.configuration_ref,
+            "configurationStatus": self.configuration_status,
+            "guardrails": self.guardrails,
+            "redactions": self.redactions,
+            "noSecretOrCredentialStorageConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noCredentialLifecycleConfirmed": True,
+            "noWebhookDispatchConfirmed": True,
+            "noInviteDeliveryConfirmed": True,
+            "noMessageProviderDeliveryConfirmed": True,
+            "noMembershipActivationConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveActionConfirmed": True,
+            "noBillingOrMoneyMovementConfirmed": True,
         }
 
 
@@ -423,6 +495,207 @@ def validate_referral_saas_integration_configuration(
         },
         guardrails=INTEGRATION_CONFIGURATION_GUARDRAILS,
         redactions=INTEGRATION_CONFIGURATION_REDACTIONS,
+    )
+
+
+def _execution_blocker(code: str, message: str) -> dict[str, str]:
+    return {"code": code, "message": message}
+
+
+def _execution_action(
+    *,
+    action_ref: str,
+    label: str,
+    status: str,
+    next_step: str,
+    reason: str,
+) -> dict[str, str]:
+    return {
+        "actionRef": action_ref,
+        "label": label,
+        "status": status,
+        "nextStep": next_step,
+        "reason": reason,
+    }
+
+
+def build_referral_saas_integration_execution_readiness(
+    *,
+    account_status: str | None,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+    configuration: ReferralSaasIntegrationConfiguration | None,
+) -> ReferralSaasIntegrationExecutionReadiness:
+    blockers: list[dict[str, str]] = []
+    account_posture = {
+        "accountStatus": str(account_status or "").upper() or "UNKNOWN",
+        "tenantLinkStatus": str(tenant_link_status or "").upper() or "UNKNOWN",
+        "externalReferenceStatus": str(external_reference_status or "").upper()
+        or "UNKNOWN",
+    }
+    if account_posture["accountStatus"] != "ACTIVE":
+        blockers.append(
+            _execution_blocker(
+                "ACCOUNT_NOT_ACTIVE",
+                "Activate the customer account foundation before live verification.",
+            )
+        )
+    if account_posture["tenantLinkStatus"] != "ACTIVE":
+        blockers.append(
+            _execution_blocker(
+                "TENANT_LINK_NOT_ACTIVE",
+                "Activate the tenant link before live verification.",
+            )
+        )
+    if account_posture["externalReferenceStatus"] != "ACTIVE":
+        blockers.append(
+            _execution_blocker(
+                "EXTERNAL_REFERENCE_NOT_ACTIVE",
+                "Activate the selected customer reference before live verification.",
+            )
+        )
+
+    if configuration is None:
+        blockers.append(
+            _execution_blocker(
+                "CONFIGURATION_MISSING",
+                "Save the customer's Integrations setup before live verification.",
+            )
+        )
+        return ReferralSaasIntegrationExecutionReadiness(
+            execution_status=(
+                INTEGRATION_EXECUTION_BLOCKED_ACCOUNT_NOT_ACTIVE
+                if len(blockers) > 1
+                else INTEGRATION_EXECUTION_BLOCKED_CONFIGURATION_MISSING
+            ),
+            plain_language_summary=(
+                "Save Integrations setup evidence before API, webhook, or message "
+                "provider verification can start."
+            ),
+            blockers=blockers,
+            ready_actions=[],
+            execution_actions=[
+                _execution_action(
+                    action_ref="SAVE_INTEGRATION_CONFIGURATION",
+                    label="Save Integrations setup",
+                    status="BLOCKED",
+                    next_step="Open Integrations and save non-secret setup evidence.",
+                    reason="No saved configuration exists for this customer.",
+                )
+            ],
+            guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
+            redactions=INTEGRATION_EXECUTION_REDACTIONS,
+        )
+
+    if configuration.configuration_status != INTEGRATION_CONFIGURATION_SAVED:
+        blockers.append(
+            _execution_blocker(
+                "CONFIGURATION_NOT_SAVED",
+                "Save the Integrations configuration before live verification.",
+            )
+        )
+
+    api_environment = configuration.api_environment or {}
+    webhook_intent = configuration.webhook_intent or {}
+    message_providers = configuration.message_providers or {}
+
+    execution_actions = [
+        _execution_action(
+            action_ref="API_ACCESS_VERIFICATION",
+            label="Verify API access",
+            status=(
+                "READY"
+                if api_environment.get("environment")
+                and api_environment.get("authMethod")
+                and api_environment.get("useCases")
+                else "MISSING_EVIDENCE"
+            ),
+            next_step="Run a governed API-access verification command in a later task.",
+            reason="Requires saved environment, auth method, and intended API use cases.",
+        ),
+        _execution_action(
+            action_ref="WEBHOOK_TEST_DISPATCH",
+            label="Run webhook test dispatch",
+            status=(
+                "READY"
+                if webhook_intent.get("callbackUrl")
+                and webhook_intent.get("eventCategories")
+                else "MISSING_EVIDENCE"
+            ),
+            next_step="Run a guarded webhook test-dispatch command in a later task.",
+            reason="Requires an approved callback URL and selected event categories.",
+        ),
+        _execution_action(
+            action_ref="MESSAGE_PROVIDER_TEST",
+            label="Check message provider delivery",
+            status=(
+                "READY"
+                if message_providers.get("channels")
+                and message_providers.get("providerRefs")
+                else "MISSING_EVIDENCE"
+            ),
+            next_step="Run a governed provider delivery check in a later task.",
+            reason="Requires selected channels and approved provider references.",
+        ),
+        _execution_action(
+            action_ref="CREDENTIAL_REQUEST",
+            label="Request governed credentials",
+            status="READY" if api_environment.get("authMethod") else "MISSING_EVIDENCE",
+            next_step="Submit a governed credential lifecycle request in a later task.",
+            reason="Requires the selected auth method without browser-supplied secrets.",
+        ),
+    ]
+
+    provider_gap = (
+        bool(message_providers.get("channels")) and not message_providers.get("providerRefs")
+    )
+    if provider_gap:
+        blockers.append(
+            _execution_blocker(
+                "PROVIDER_NOT_APPROVED",
+                "Approve provider references before live provider checks.",
+            )
+        )
+
+    ready_actions = [
+        action for action in execution_actions if action["status"] == "READY"
+    ]
+    if any(item["code"].endswith("NOT_ACTIVE") for item in blockers):
+        execution_status = INTEGRATION_EXECUTION_BLOCKED_ACCOUNT_NOT_ACTIVE
+        plain_language_summary = (
+            "Activate the customer account foundation before Integrations live "
+            "verification can start."
+        )
+    elif any(
+        item["code"] in {"CONFIGURATION_NOT_SAVED", "CONFIGURATION_MISSING"}
+        for item in blockers
+    ):
+        execution_status = INTEGRATION_EXECUTION_BLOCKED_CONFIGURATION_MISSING
+        plain_language_summary = (
+            "Save Integrations setup evidence before live verification can start."
+        )
+    elif any(item["code"] == "PROVIDER_NOT_APPROVED" for item in blockers):
+        execution_status = INTEGRATION_EXECUTION_BLOCKED_PROVIDER_NOT_APPROVED
+        plain_language_summary = (
+            "Approve the customer provider references before live provider checks."
+        )
+    else:
+        execution_status = INTEGRATION_EXECUTION_READY
+        plain_language_summary = (
+            "Saved Integrations setup can move into governed live verification "
+            "checks. No live action has been run by this endpoint."
+        )
+
+    return ReferralSaasIntegrationExecutionReadiness(
+        execution_status=execution_status,
+        plain_language_summary=plain_language_summary,
+        blockers=blockers,
+        ready_actions=ready_actions,
+        execution_actions=execution_actions,
+        configuration_ref=configuration.configuration_ref,
+        configuration_status=configuration.configuration_status,
+        guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
+        redactions=INTEGRATION_EXECUTION_REDACTIONS,
     )
 
 

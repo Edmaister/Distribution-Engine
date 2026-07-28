@@ -268,6 +268,7 @@ greenfield referral construction.
 160. TASK-302: Add customer-scoped Integrations configuration API foundation.
 161. TASK-303: Add customer-scoped Integrations configuration UI.
 162. TASK-304: Define customer-scoped Integrations live execution contract.
+163. TASK-305: Add customer-scoped Integrations execution readiness API.
 
 ## 10/10 Exit Criteria
 
@@ -329,6 +330,12 @@ greenfield referral construction.
   `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
   selected-customer Integrations read/validate/save UI for safe non-secret
   setup evidence.
+
+- TASK-305:
+  `GET /v1/referral-saas/accounts/{account_ref}/integrations/execution-readiness`;
+  `services/referral_saas_integrations_configuration_service.py`;
+  read-only execution readiness over saved Integrations configuration, active
+  account/link/reference posture, provider evidence, guardrails, and redactions.
 
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`
