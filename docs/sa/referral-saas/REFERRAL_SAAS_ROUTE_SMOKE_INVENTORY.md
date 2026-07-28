@@ -139,6 +139,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/membership-invitations/{membership_ref}/delivery` | Referral SaaS invitation delivery request boundary; records blocked provider evidence only |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/activation` | Referral SaaS membership activation request boundary; activates membership lifecycle only after identity/account gates |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/access-provisioning` | Referral SaaS access provisioning request boundary; assigns an available seat to an active membership only, while leaving invite delivery, credentials, auth claims, campaign activation, billing, and money separate |
+| Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/integrations/api-access/verification` | Referral SaaS customer-scoped API-access verification evidence wrapper; records audit/idempotency evidence only and does not create credentials, call providers, dispatch webhooks, send messages, change auth, activate campaigns, bill, or move money |
 | Seeded local/staging write | PATCH | `/v1/referral-saas/accounts/{account_ref}/profile` | Referral SaaS customer profile settings maintenance wrapper |
 | Seeded local/staging write | POST | `/v1/progress` | Progress ingestion |
 
@@ -160,6 +161,7 @@ local/staging smoke classification:
 - `GET /v1/referral-saas/accounts/{account_ref}/integrations/configuration`
 - `GET /v1/referral-saas/accounts/{account_ref}/integrations/execution-readiness`
 - `POST /v1/referral-saas/accounts/{account_ref}/integrations/configuration/validate`
+- `POST /v1/referral-saas/accounts/{account_ref}/integrations/api-access/verification`
 - `GET /v1/referral-saas/accounts/{account_ref}/campaigns`
 - `GET /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}`
 - `GET /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/readiness`

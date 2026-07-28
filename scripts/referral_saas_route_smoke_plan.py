@@ -1172,6 +1172,45 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_api_access_verification",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/integrations/api-access/verification",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin/operator role",
+        environment_rule=(
+            "local/staging seeded customer only; records API-access verification "
+            "audit evidence without creating credentials, calling providers, "
+            "dispatching webhooks, sending messages, changing auth, billing, or money"
+        ),
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "idempotency_key",
+            "correlation_id",
+        ],
+        expected_state_change=(
+            "records or replays platform_account_audit_events evidence for "
+            "API-access verification; no credentials, provider calls, webhook "
+            "dispatch, invite/message delivery, auth/login changes, campaign "
+            "activation, billing, or money"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"verification":{"notes":"Smoke verifies saved API setup evidence."},'
+            '"reasonCode":"CUSTOMER_API_ACCESS_VERIFICATION",'
+            '"correlationId":"{correlation_id}",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/integrations/api-access/verification"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_account_report_export_request",
         method="POST",
         path="/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports",

@@ -1931,6 +1931,228 @@ async def test_referral_saas_account_integration_configuration_idempotency_confl
     assert detail["no_auth_claim_change_confirmed"] is True
 
 
+async def test_referral_saas_account_admin_can_record_api_access_verification(
+    monkeypatch,
+):
+    verification_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    class FakeIntegrationConfiguration:
+        configuration_ref = "config-1"
+        configuration_status = "INTEGRATION_CONFIGURATION_SAVED"
+        api_environment = {
+            "environment": "SANDBOX",
+            "authMethod": "API_KEY",
+            "useCases": ["CAMPAIGN_READ"],
+        }
+        webhook_intent = {}
+        message_providers = {}
+
+        def to_safe_dict(self):
+            return {
+                "configurationRef": self.configuration_ref,
+                "configurationStatus": self.configuration_status,
+                "apiEnvironment": self.api_environment,
+                "webhookIntent": self.webhook_intent,
+                "messageProviders": self.message_providers,
+            }
+
+    class FakeVerificationResult:
+        def to_safe_dict(self):
+            return {
+                "verificationStatus": "API_ACCESS_VERIFICATION_RECORDED",
+                "configurationRef": "config-1",
+                "accountRef": "acct-1",
+                "apiEnvironment": "SANDBOX",
+                "verifiedUseCases": ["CAMPAIGN_READ"],
+                "idempotency": {"status": "API_ACCESS_VERIFICATION_RECORDED"},
+                "audit": {"accountAuditEventId": "audit-1"},
+                "noCredentialCreationConfirmed": True,
+                "noWebhookDispatchConfirmed": True,
+            }
+
+    async def fake_get_referral_saas_integration_configuration(**kwargs):
+        return FakeIntegrationConfiguration()
+
+    async def fake_record_referral_saas_api_access_verification(**kwargs):
+        verification_calls.append(kwargs)
+        return FakeVerificationResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_configuration",
+        fake_get_referral_saas_integration_configuration,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "record_referral_saas_api_access_verification",
+        fake_record_referral_saas_api_access_verification,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/api-access/verification",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "verification": {"notes": "Verified saved API setup evidence."},
+                "reasonCode": "CUSTOMER_API_ACCESS_VERIFICATION",
+                "correlationId": "corr-1",
+                "idempotencyKey": "api-access-verify-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "accepted"
+    assert (
+        body["integrationApiAccessVerification"]["verificationStatus"]
+        == "API_ACCESS_VERIFICATION_RECORDED"
+    )
+    assert body["no_credential_creation_confirmed"] is True
+    assert body["no_webhook_dispatch_confirmed"] is True
+    assert body["no_message_provider_delivery_confirmed"] is True
+    assert verification_calls[0]["account_id"] == "acct-1"
+    assert verification_calls[0]["tenant_code"] == "FNB"
+    assert verification_calls[0]["correlation_id"] == "corr-1"
+    assert verification_calls[0]["actor_role"] == "ADMIN"
+
+
+async def test_referral_saas_account_api_access_verification_requires_command_scope(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        raise AssertionError("account should not resolve without idempotency metadata")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/api-access/verification",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "correlationId": "corr-1",
+            },
+        )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "validation_error"
+    assert detail["no_verification_recorded_confirmed"] is True
+
+
+async def test_referral_saas_account_api_access_verification_rejects_unsafe_payload(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        raise AssertionError("unsafe payload should fail before account lookup")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/api-access/verification",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "verification": {"apiKey": "secret"},
+                "reasonCode": "CUSTOMER_API_ACCESS_VERIFICATION",
+                "correlationId": "corr-1",
+                "idempotencyKey": "api-access-verify-1",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert detail["no_credential_creation_confirmed"] is True
+    assert detail["no_webhook_dispatch_confirmed"] is True
+
+
+async def test_referral_saas_account_api_access_verification_idempotency_conflict(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    async def fake_get_referral_saas_integration_configuration(**kwargs):
+        return SimpleNamespace(configuration_ref="config-1")
+
+    async def fake_record_referral_saas_api_access_verification(**kwargs):
+        raise IntegrationConfigurationIdempotencyConflict(
+            "Idempotency key was reused with different API-access verification content."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_configuration",
+        fake_get_referral_saas_integration_configuration,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "record_referral_saas_api_access_verification",
+        fake_record_referral_saas_api_access_verification,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/api-access/verification",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "verification": {"notes": "Changed verification evidence."},
+                "correlationId": "corr-1",
+                "idempotencyKey": "api-access-verify-1",
+            },
+        )
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["code"] == "IDEMPOTENCY_CONFLICT"
+    assert detail["no_credential_creation_confirmed"] is True
+    assert detail["no_auth_claim_change_confirmed"] is True
+
+
 async def test_referral_saas_account_admin_can_read_customer_scoped_campaign_readiness(
     monkeypatch,
 ):

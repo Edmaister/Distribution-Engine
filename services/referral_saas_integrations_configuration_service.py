@@ -32,6 +32,12 @@ INTEGRATION_EXECUTION_BLOCKED_CONFIGURATION_MISSING = (
 INTEGRATION_EXECUTION_BLOCKED_PROVIDER_NOT_APPROVED = (
     "INTEGRATION_EXECUTION_BLOCKED_PROVIDER_NOT_APPROVED"
 )
+INTEGRATION_API_ACCESS_VERIFICATION_EVENT = (
+    "INTEGRATION_API_ACCESS_VERIFICATION_RECORDED"
+)
+API_ACCESS_VERIFICATION_RECORDED = "API_ACCESS_VERIFICATION_RECORDED"
+API_ACCESS_VERIFICATION_REPLAYED = "API_ACCESS_VERIFICATION_REPLAYED"
+API_ACCESS_VERIFICATION_BLOCKED = "API_ACCESS_VERIFICATION_BLOCKED"
 
 INTEGRATION_CONFIGURATION_GUARDRAILS = [
     "CUSTOMER_SCOPED_INTEGRATIONS_CONFIGURATION",
@@ -272,6 +278,46 @@ class ReferralSaasIntegrationConfigurationSaveResult:
         }
 
 
+@dataclass(frozen=True)
+class ReferralSaasApiAccessVerificationResult:
+    verification_status: str
+    configuration_ref: str
+    account_ref: str
+    api_environment: str
+    verified_use_cases: list[str]
+    idempotency_status: str
+    audit_event_id: str | None
+    plain_language_summary: str
+    guardrails: list[str]
+    redactions: list[str]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "verificationStatus": self.verification_status,
+            "configurationRef": self.configuration_ref,
+            "accountRef": self.account_ref,
+            "apiEnvironment": self.api_environment,
+            "verifiedUseCases": self.verified_use_cases,
+            "idempotency": {"status": self.idempotency_status},
+            "audit": {"accountAuditEventId": self.audit_event_id},
+            "plainLanguageSummary": self.plain_language_summary,
+            "guardrails": self.guardrails,
+            "redactions": self.redactions,
+            "noSecretOrCredentialStorageConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noCredentialLifecycleConfirmed": True,
+            "noWebhookDispatchConfirmed": True,
+            "noInviteDeliveryConfirmed": True,
+            "noMessageProviderDeliveryConfirmed": True,
+            "noMembershipActivationConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveActionConfirmed": True,
+            "noBillingOrMoneyMovementConfirmed": True,
+        }
+
+
 def _jsonb(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
@@ -351,6 +397,10 @@ def _assert_safe_payload(value: Any, path: str = "configuration") -> None:
     elif isinstance(value, list):
         for index, nested in enumerate(value):
             _assert_safe_payload(nested, f"{path}[{index}]")
+
+
+def assert_safe_referral_saas_integration_execution_payload(value: Any) -> None:
+    _assert_safe_payload(value, "execution")
 
 
 def _normalise_callback_url(value: Any, environment: str) -> str | None:
@@ -906,4 +956,198 @@ async def upsert_referral_saas_integration_configuration(
         validation=validation,
         idempotency_status=safe_status,
         audit_event_id=str(audit_event["account_audit_event_id"]) if audit_event else None,
+    )
+
+
+async def record_referral_saas_api_access_verification(
+    *,
+    account_id: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    tenant_code: str,
+    account_status: str | None,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+    configuration: ReferralSaasIntegrationConfiguration | None,
+    reason_code: str | None,
+    correlation_id: str | None,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None,
+) -> ReferralSaasApiAccessVerificationResult:
+    safe_account_id = _require_bounded_text(
+        account_id, "account_id", min_length=1, max_length=80
+    )
+    safe_tenant_code = _require_bounded_text(
+        tenant_code, "tenant_code", min_length=1, max_length=120
+    )
+    safe_idempotency_hash = _require_bounded_text(
+        idempotency_key_hash, "idempotency_key_hash", min_length=1, max_length=256
+    )
+    safe_payload_hash = _require_bounded_text(
+        request_payload_hash, "request_payload_hash", min_length=1, max_length=256
+    )
+    safe_actor_ref = _require_bounded_text(
+        actor_ref, "actor_ref", min_length=1, max_length=160
+    )
+    safe_actor_role = _optional_text(actor_role)
+    safe_reason_code = _optional_text(reason_code) or "CUSTOMER_API_ACCESS_VERIFICATION"
+    safe_correlation_id = _optional_text(correlation_id)
+
+    readiness = build_referral_saas_integration_execution_readiness(
+        account_status=account_status,
+        tenant_link_status=tenant_link_status,
+        external_reference_status=external_reference_status,
+        configuration=configuration,
+    )
+    api_action = next(
+        (
+            action
+            for action in readiness.execution_actions
+            if action.get("actionRef") == "API_ACCESS_VERIFICATION"
+        ),
+        None,
+    )
+    if (
+        readiness.execution_status != INTEGRATION_EXECUTION_READY
+        or not api_action
+        or api_action.get("status") != "READY"
+        or configuration is None
+    ):
+        blocker_codes = [
+            str(item.get("code"))
+            for item in readiness.blockers
+            if isinstance(item, dict) and item.get("code")
+        ]
+        if api_action and api_action.get("status") != "READY":
+            blocker_codes.append("API_ACCESS_EVIDENCE_MISSING")
+        raise IntegrationConfigurationValidationError(
+            "API access verification requires an active account, active tenant link, "
+            "active external reference, saved Integrations configuration, API "
+            f"environment, auth method, and use cases. Blockers: {', '.join(blocker_codes) or 'UNKNOWN'}."
+        )
+
+    api_environment = configuration.api_environment or {}
+    environment = str(api_environment.get("environment") or "UNKNOWN")
+    verified_use_cases = [
+        str(item)
+        for item in (api_environment.get("useCases") or [])
+        if str(item).strip()
+    ]
+    evidence_summary = {
+        "integration_configuration_id": configuration.configuration_ref,
+        "verification_status": API_ACCESS_VERIFICATION_RECORDED,
+        "api_environment": environment,
+        "verified_use_cases": verified_use_cases,
+        "request_payload_hash": safe_payload_hash,
+        "no_secret_or_credential_storage_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_credential_lifecycle_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_message_provider_delivery_confirmed": True,
+        "no_membership_activation_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_action_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+    async with db_connection() as conn:
+        existing = await conn.fetchrow(
+            """
+            SELECT account_audit_event_id, evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC, account_audit_event_id DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            INTEGRATION_API_ACCESS_VERIFICATION_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing:
+            existing_evidence = _safe_json_dict(existing.get("evidence_summary"))
+            if _optional_text(existing_evidence.get("request_payload_hash")) != safe_payload_hash:
+                raise IntegrationConfigurationIdempotencyConflict(
+                    "Idempotency key was reused with different API-access verification content."
+                )
+            return ReferralSaasApiAccessVerificationResult(
+                verification_status=API_ACCESS_VERIFICATION_REPLAYED,
+                configuration_ref=configuration.configuration_ref,
+                account_ref=safe_account_id,
+                api_environment=environment,
+                verified_use_cases=verified_use_cases,
+                idempotency_status=API_ACCESS_VERIFICATION_REPLAYED,
+                audit_event_id=str(existing["account_audit_event_id"]),
+                plain_language_summary=(
+                    "API-access verification evidence was replayed from the same "
+                    "idempotency key and payload. No credential was created, no "
+                    "provider was called, and no adjacent workflow changed."
+                ),
+                guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
+                redactions=INTEGRATION_EXECUTION_REDACTIONS,
+            )
+
+        audit_event = await conn.fetchrow(
+            """
+            INSERT INTO platform_account_audit_events (
+                account_id,
+                account_tenant_id,
+                external_ref_id,
+                tenant_code,
+                event_type,
+                event_status,
+                actor_ref,
+                actor_role,
+                previous_status,
+                next_status,
+                reason_code,
+                correlation_id,
+                idempotency_key_hash,
+                evidence_summary,
+                redactions
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, 'RECORDED', $6, $7,
+                NULL, $8, $9, $10, $11, $12::jsonb, $13::jsonb
+            )
+            RETURNING account_audit_event_id
+            """,
+            safe_account_id,
+            _optional_text(account_tenant_id),
+            _optional_text(external_ref_id),
+            safe_tenant_code,
+            INTEGRATION_API_ACCESS_VERIFICATION_EVENT,
+            safe_actor_ref,
+            safe_actor_role,
+            API_ACCESS_VERIFICATION_RECORDED,
+            safe_reason_code,
+            safe_correlation_id,
+            safe_idempotency_hash,
+            _jsonb(evidence_summary),
+            _jsonb(INTEGRATION_EXECUTION_REDACTIONS),
+        )
+
+    return ReferralSaasApiAccessVerificationResult(
+        verification_status=API_ACCESS_VERIFICATION_RECORDED,
+        configuration_ref=configuration.configuration_ref,
+        account_ref=safe_account_id,
+        api_environment=environment,
+        verified_use_cases=verified_use_cases,
+        idempotency_status=API_ACCESS_VERIFICATION_RECORDED,
+        audit_event_id=(
+            str(audit_event["account_audit_event_id"]) if audit_event else None
+        ),
+        plain_language_summary=(
+            "API-access verification evidence was recorded for the selected "
+            "customer. No credential was created, no token was revealed, no "
+            "provider was called, and no adjacent workflow changed."
+        ),
+        guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
+        redactions=INTEGRATION_EXECUTION_REDACTIONS,
     )
