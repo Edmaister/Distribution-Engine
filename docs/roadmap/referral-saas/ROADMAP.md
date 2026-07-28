@@ -345,6 +345,15 @@ greenfield referral construction.
   read model, showing blockers, safe ready actions, post-save refresh, and
   explicit no-live-execution boundaries.
 
+- TASK-307:
+  `POST /v1/referral-saas/accounts/{account_ref}/integrations/api-access/verification`;
+  `services/referral_saas_integrations_configuration_service.py`;
+  first governed Integrations execution command for API-access verification
+  evidence, with account/link/reference gates, saved configuration gates,
+  idempotency/audit evidence, unsafe-payload rejection, and no credential,
+  provider, webhook, invite/message, auth, campaign, billing, or money side
+  effects.
+
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`
 - TASK-151: `test/test_referral_saas_route_smoke_inventory.py`;

@@ -77,9 +77,20 @@ Future routes should stay selected-customer scoped:
 | `/v1/referral-saas/accounts/{accountRef}/integrations/message-providers/test-delivery-check` | `POST` | Record readiness for invite/referral-message provider testing without live delivery unless an approved provider path exists. |
 | `/v1/referral-saas/accounts/{accountRef}/integrations/credential-requests` | `POST` | Request governed credential create/rotate/revoke activity without accepting raw secrets from the browser. |
 
-The first implementation may expose only execution readiness. Live execution
-commands should not be added until the readiness route proves the required
-gates and failure states.
+TASK-305 exposes execution readiness. TASK-307 implements the first governed
+execution command: `POST
+/v1/referral-saas/accounts/{accountRef}/integrations/api-access/verification`.
+That command records API-access verification evidence only after saved
+configuration and active account/link/reference gates pass. It is audited and
+idempotent, rejects unsafe secret-like payloads, and does not create,
+reveal, rotate, or accept credentials; call providers; dispatch webhooks; send
+invites or messages; activate memberships; assign seats; change auth claims;
+activate campaigns; trigger go-live; bill; or move money.
+
+Webhook test dispatch, message-provider checks, and credential lifecycle
+commands should not be added until their readiness gates and failure states are
+implemented with the same selected-customer, audit, idempotency, and redaction
+boundaries.
 
 ## Required Gates
 
