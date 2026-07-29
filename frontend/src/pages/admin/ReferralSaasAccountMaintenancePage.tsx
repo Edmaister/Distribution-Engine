@@ -48,6 +48,7 @@ import {
   createReferralSaasAccountCampaignSetup,
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasApiAccessVerification,
+  recordReferralSaasWebhookTestDispatch,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasAccountCampaignActivation,
   requestReferralSaasAccountFoundationActivation,
@@ -3977,6 +3978,25 @@ function CustomerTechnicalSetupPage({
       await executionReadinessQuery.refetch();
     },
   });
+  const webhookTestDispatchMutation = useMutation({
+    mutationFn: () =>
+      recordReferralSaasWebhookTestDispatch({
+        accountRef: account?.accountId || "",
+        ...buildIntegrationWebhookTestDispatchPayload(
+          draft,
+          accountScope,
+          account?.accountId || "",
+          savedConfiguration?.configurationRef || executionReadiness?.configurationRef || "no-configuration",
+        ),
+      }),
+    onSuccess: async (response) => {
+      const webhookTest = response.integrationWebhookTestDispatch;
+      setConfigurationMessage(
+        `${formatDisplay(webhookTest.dispatchStatus)}. ${webhookTest.plainLanguageSummary}`,
+      );
+      await executionReadinessQuery.refetch();
+    },
+  });
   const technicalReadiness = readiness?.technicalSetupReadiness;
   const savedConfiguration = configurationQuery.data?.integrationConfiguration || null;
   const executionReadiness = executionReadinessQuery.data?.integrationExecutionReadiness || null;
@@ -3988,11 +4008,18 @@ function CustomerTechnicalSetupPage({
   const readyExecutionActions = executionReadiness?.readyActions || [];
   const executionBlockers = executionReadiness?.blockers || [];
   const apiAccessAction = executionActions.find((action) => action.actionRef === "API_ACCESS_VERIFICATION");
+  const webhookTestAction = executionActions.find((action) => action.actionRef === "WEBHOOK_TEST_DISPATCH");
   const canRecordApiAccessVerification = Boolean(
     account?.accountId &&
       externalTenantRef &&
       apiAccessAction?.status === "READY" &&
       !apiAccessVerificationMutation.isPending,
+  );
+  const canRecordWebhookTestDispatch = Boolean(
+    account?.accountId &&
+      externalTenantRef &&
+      webhookTestAction?.status === "READY" &&
+      !webhookTestDispatchMutation.isPending,
   );
   const currentStatus = savedConfiguration?.configurationStatus || "NOT_SAVED";
   const canSubmitConfiguration = Boolean(account?.accountId && externalTenantRef);
@@ -4019,6 +4046,7 @@ function CustomerTechnicalSetupPage({
         {validationMutation.error ? <ErrorPanel error={validationMutation.error} /> : null}
         {saveMutation.error ? <ErrorPanel error={saveMutation.error} /> : null}
         {apiAccessVerificationMutation.error ? <ErrorPanel error={apiAccessVerificationMutation.error} /> : null}
+        {webhookTestDispatchMutation.error ? <ErrorPanel error={webhookTestDispatchMutation.error} /> : null}
         {technicalReadiness ? (
           <>
             <div className="grid-3">
@@ -4263,8 +4291,8 @@ function CustomerTechnicalSetupPage({
                   {executionActions.map((action) => (
                     <div className="wizard-status-card" key={action.actionRef}>
                       <div>
-                        <strong>{action.label}</strong>
-                        <p>{action.nextStep}</p>
+                        <strong>{integrationExecutionActionLabel(action.actionRef, action.label)}</strong>
+                        <p>{integrationExecutionActionNextStep(action.actionRef, action.nextStep)}</p>
                         <span className="table-subtext">{action.reason}</span>
                       </div>
                       <StatusBadge label={formatDisplay(action.status)} tone={statusTone(action.status)} />
@@ -4280,6 +4308,18 @@ function CustomerTechnicalSetupPage({
                             : "Record API access check"}
                         </button>
                       ) : null}
+                      {action.actionRef === "WEBHOOK_TEST_DISPATCH" ? (
+                        <button
+                          className="button secondary"
+                          disabled={!canRecordWebhookTestDispatch}
+                          onClick={() => webhookTestDispatchMutation.mutate()}
+                          type="button"
+                        >
+                          {webhookTestDispatchMutation.isPending
+                            ? "Recording webhook evidence"
+                            : "Record webhook test evidence"}
+                        </button>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -4287,8 +4327,8 @@ function CustomerTechnicalSetupPage({
                   <div>
                     <strong>Still separate</strong>
                     <p>
-                      Credential creation, webhook test dispatch, live invite delivery, referral-message delivery,
-                      auth changes, campaign activation, billing, and money movement stay in later governed workflows.
+                      Credential creation, live webhook dispatch, invite delivery, referral-message delivery, auth
+                      changes, campaign activation, billing, and money movement stay in later governed workflows.
                     </p>
                   </div>
                   <StatusBadge label="Read only" tone="info" />
@@ -5060,6 +5100,63 @@ function buildIntegrationApiAccessVerificationPayload(
       ...draft.allowedUse,
     ),
   };
+}
+
+function buildIntegrationWebhookTestDispatchPayload(
+  draft: IntegrationConfigurationDraft,
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context: "setup";
+  },
+  accountId: string,
+  configurationRef: string,
+) {
+  return {
+    accountScope,
+    webhookTest: {
+      testType: "WEBHOOK_TEST_DISPATCH",
+      configurationRef,
+      callbackUrlPresent: Boolean(draft.callbackUrl.trim()),
+      eventCategories: draft.eventCategories,
+      noSecretOrCredentialStorageConfirmed: true,
+      noCredentialCreationConfirmed: true,
+      noCredentialLifecycleConfirmed: true,
+      noWebhookDispatchConfirmed: true,
+      noProviderCallConfirmed: true,
+      noInviteDeliveryConfirmed: true,
+      noMessageProviderDeliveryConfirmed: true,
+      noMembershipActivationConfirmed: true,
+      noSeatAssignmentConfirmed: true,
+      noAuthClaimChangeConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noGoLiveActionConfirmed: true,
+      noBillingOrMoneyMovementConfirmed: true,
+    },
+    reasonCode: "CUSTOMER_WEBHOOK_TEST_DISPATCH",
+    correlationId: `customer-profile-integrations-webhook-test-${accountId}`,
+    idempotencyKey: safeIdempotencyKey(
+      "customer-profile-integrations-webhook-test",
+      accountId,
+      configurationRef,
+      draft.callbackUrl,
+      ...draft.eventCategories,
+    ),
+  };
+}
+
+function integrationExecutionActionLabel(actionRef: string, fallback: string) {
+  if (actionRef === "WEBHOOK_TEST_DISPATCH") {
+    return "Record webhook test evidence";
+  }
+  return fallback;
+}
+
+function integrationExecutionActionNextStep(actionRef: string, fallback: string) {
+  if (actionRef === "WEBHOOK_TEST_DISPATCH") {
+    return "Record governed webhook callback test evidence for this customer.";
+  }
+  return fallback;
 }
 
 function toggleListValue(values: string[], value: string) {
