@@ -38,6 +38,10 @@ INTEGRATION_API_ACCESS_VERIFICATION_EVENT = (
 API_ACCESS_VERIFICATION_RECORDED = "API_ACCESS_VERIFICATION_RECORDED"
 API_ACCESS_VERIFICATION_REPLAYED = "API_ACCESS_VERIFICATION_REPLAYED"
 API_ACCESS_VERIFICATION_BLOCKED = "API_ACCESS_VERIFICATION_BLOCKED"
+INTEGRATION_WEBHOOK_TEST_DISPATCH_EVENT = "INTEGRATION_WEBHOOK_TEST_DISPATCH_RECORDED"
+WEBHOOK_TEST_DISPATCH_RECORDED = "WEBHOOK_TEST_DISPATCH_RECORDED"
+WEBHOOK_TEST_DISPATCH_REPLAYED = "WEBHOOK_TEST_DISPATCH_REPLAYED"
+WEBHOOK_TEST_DISPATCH_BLOCKED = "WEBHOOK_TEST_DISPATCH_BLOCKED"
 
 INTEGRATION_CONFIGURATION_GUARDRAILS = [
     "CUSTOMER_SCOPED_INTEGRATIONS_CONFIGURATION",
@@ -298,6 +302,46 @@ class ReferralSaasApiAccessVerificationResult:
             "accountRef": self.account_ref,
             "apiEnvironment": self.api_environment,
             "verifiedUseCases": self.verified_use_cases,
+            "idempotency": {"status": self.idempotency_status},
+            "audit": {"accountAuditEventId": self.audit_event_id},
+            "plainLanguageSummary": self.plain_language_summary,
+            "guardrails": self.guardrails,
+            "redactions": self.redactions,
+            "noSecretOrCredentialStorageConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noCredentialLifecycleConfirmed": True,
+            "noWebhookDispatchConfirmed": True,
+            "noInviteDeliveryConfirmed": True,
+            "noMessageProviderDeliveryConfirmed": True,
+            "noMembershipActivationConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveActionConfirmed": True,
+            "noBillingOrMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasWebhookTestDispatchResult:
+    dispatch_status: str
+    configuration_ref: str
+    account_ref: str
+    callback_url_present: bool
+    event_categories: list[str]
+    idempotency_status: str
+    audit_event_id: str | None
+    plain_language_summary: str
+    guardrails: list[str]
+    redactions: list[str]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "dispatchStatus": self.dispatch_status,
+            "configurationRef": self.configuration_ref,
+            "accountRef": self.account_ref,
+            "callbackUrlPresent": self.callback_url_present,
+            "eventCategories": self.event_categories,
             "idempotency": {"status": self.idempotency_status},
             "audit": {"accountAuditEventId": self.audit_event_id},
             "plainLanguageSummary": self.plain_language_summary,
@@ -1147,6 +1191,200 @@ async def record_referral_saas_api_access_verification(
             "API-access verification evidence was recorded for the selected "
             "customer. No credential was created, no token was revealed, no "
             "provider was called, and no adjacent workflow changed."
+        ),
+        guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
+        redactions=INTEGRATION_EXECUTION_REDACTIONS,
+    )
+
+
+async def record_referral_saas_webhook_test_dispatch(
+    *,
+    account_id: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    tenant_code: str,
+    account_status: str | None,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+    configuration: ReferralSaasIntegrationConfiguration | None,
+    reason_code: str | None,
+    correlation_id: str | None,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None,
+) -> ReferralSaasWebhookTestDispatchResult:
+    safe_account_id = _require_bounded_text(
+        account_id, "account_id", min_length=1, max_length=80
+    )
+    safe_tenant_code = _require_bounded_text(
+        tenant_code, "tenant_code", min_length=1, max_length=120
+    )
+    safe_idempotency_hash = _require_bounded_text(
+        idempotency_key_hash, "idempotency_key_hash", min_length=1, max_length=256
+    )
+    safe_payload_hash = _require_bounded_text(
+        request_payload_hash, "request_payload_hash", min_length=1, max_length=256
+    )
+    safe_actor_ref = _require_bounded_text(
+        actor_ref, "actor_ref", min_length=1, max_length=160
+    )
+    safe_actor_role = _optional_text(actor_role)
+    safe_reason_code = _optional_text(reason_code) or "CUSTOMER_WEBHOOK_TEST_DISPATCH"
+    safe_correlation_id = _optional_text(correlation_id)
+
+    readiness = build_referral_saas_integration_execution_readiness(
+        account_status=account_status,
+        tenant_link_status=tenant_link_status,
+        external_reference_status=external_reference_status,
+        configuration=configuration,
+    )
+    webhook_action = next(
+        (
+            action
+            for action in readiness.execution_actions
+            if action.get("actionRef") == "WEBHOOK_TEST_DISPATCH"
+        ),
+        None,
+    )
+    if (
+        readiness.execution_status != INTEGRATION_EXECUTION_READY
+        or not webhook_action
+        or webhook_action.get("status") != "READY"
+        or configuration is None
+    ):
+        blocker_codes = [
+            str(item.get("code"))
+            for item in readiness.blockers
+            if isinstance(item, dict) and item.get("code")
+        ]
+        if webhook_action and webhook_action.get("status") != "READY":
+            blocker_codes.append("WEBHOOK_EVIDENCE_MISSING")
+        raise IntegrationConfigurationValidationError(
+            "Webhook test-dispatch evidence requires an active account, active "
+            "tenant link, active external reference, saved Integrations "
+            "configuration, callback URL, and event categories. Blockers: "
+            f"{', '.join(blocker_codes) or 'UNKNOWN'}."
+        )
+
+    webhook_intent = configuration.webhook_intent or {}
+    event_categories = [
+        str(item)
+        for item in (webhook_intent.get("eventCategories") or [])
+        if str(item).strip()
+    ]
+    evidence_summary = {
+        "integration_configuration_id": configuration.configuration_ref,
+        "dispatch_status": WEBHOOK_TEST_DISPATCH_RECORDED,
+        "callback_url_present": bool(webhook_intent.get("callbackUrl")),
+        "event_categories": event_categories,
+        "request_payload_hash": safe_payload_hash,
+        "no_secret_or_credential_storage_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_credential_lifecycle_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_message_provider_delivery_confirmed": True,
+        "no_membership_activation_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_action_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+    async with db_connection() as conn:
+        existing = await conn.fetchrow(
+            """
+            SELECT account_audit_event_id, evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC, account_audit_event_id DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            INTEGRATION_WEBHOOK_TEST_DISPATCH_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing:
+            existing_evidence = _safe_json_dict(existing.get("evidence_summary"))
+            if _optional_text(existing_evidence.get("request_payload_hash")) != safe_payload_hash:
+                raise IntegrationConfigurationIdempotencyConflict(
+                    "Idempotency key was reused with different webhook test-dispatch content."
+                )
+            return ReferralSaasWebhookTestDispatchResult(
+                dispatch_status=WEBHOOK_TEST_DISPATCH_REPLAYED,
+                configuration_ref=configuration.configuration_ref,
+                account_ref=safe_account_id,
+                callback_url_present=bool(webhook_intent.get("callbackUrl")),
+                event_categories=event_categories,
+                idempotency_status=WEBHOOK_TEST_DISPATCH_REPLAYED,
+                audit_event_id=str(existing["account_audit_event_id"]),
+                plain_language_summary=(
+                    "Webhook test-dispatch evidence was replayed from the same "
+                    "idempotency key and payload. No webhook was dispatched and "
+                    "no adjacent workflow changed."
+                ),
+                guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
+                redactions=INTEGRATION_EXECUTION_REDACTIONS,
+            )
+
+        audit_event = await conn.fetchrow(
+            """
+            INSERT INTO platform_account_audit_events (
+                account_id,
+                account_tenant_id,
+                external_ref_id,
+                tenant_code,
+                event_type,
+                event_status,
+                actor_ref,
+                actor_role,
+                previous_status,
+                next_status,
+                reason_code,
+                correlation_id,
+                idempotency_key_hash,
+                evidence_summary,
+                redactions
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, 'RECORDED', $6, $7,
+                NULL, $8, $9, $10, $11, $12::jsonb, $13::jsonb
+            )
+            RETURNING account_audit_event_id
+            """,
+            safe_account_id,
+            _optional_text(account_tenant_id),
+            _optional_text(external_ref_id),
+            safe_tenant_code,
+            INTEGRATION_WEBHOOK_TEST_DISPATCH_EVENT,
+            safe_actor_ref,
+            safe_actor_role,
+            WEBHOOK_TEST_DISPATCH_RECORDED,
+            safe_reason_code,
+            safe_correlation_id,
+            safe_idempotency_hash,
+            _jsonb(evidence_summary),
+            _jsonb(INTEGRATION_EXECUTION_REDACTIONS),
+        )
+
+    return ReferralSaasWebhookTestDispatchResult(
+        dispatch_status=WEBHOOK_TEST_DISPATCH_RECORDED,
+        configuration_ref=configuration.configuration_ref,
+        account_ref=safe_account_id,
+        callback_url_present=bool(webhook_intent.get("callbackUrl")),
+        event_categories=event_categories,
+        idempotency_status=WEBHOOK_TEST_DISPATCH_RECORDED,
+        audit_event_id=(
+            str(audit_event["account_audit_event_id"]) if audit_event else None
+        ),
+        plain_language_summary=(
+            "Webhook test-dispatch evidence was recorded for the selected "
+            "customer. No webhook was dispatched, no signing material was "
+            "created or revealed, and no adjacent workflow changed."
         ),
         guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
         redactions=INTEGRATION_EXECUTION_REDACTIONS,

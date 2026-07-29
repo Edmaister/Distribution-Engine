@@ -1211,6 +1211,45 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_webhook_test_dispatch",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/integrations/webhooks/test-dispatch",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin/operator role",
+        environment_rule=(
+            "local/staging seeded customer only; records webhook test-dispatch "
+            "audit evidence without dispatching webhooks, creating signing "
+            "material, sending messages, changing auth, billing, or money"
+        ),
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "idempotency_key",
+            "correlation_id",
+        ],
+        expected_state_change=(
+            "records or replays platform_account_audit_events evidence for "
+            "webhook test-dispatch readiness; no webhook dispatch, signing "
+            "material, credentials, invite/message delivery, auth/login changes, "
+            "campaign activation, billing, or money"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"webhookTest":{"notes":"Smoke records webhook callback test evidence."},'
+            '"reasonCode":"CUSTOMER_WEBHOOK_TEST_DISPATCH",'
+            '"correlationId":"{correlation_id}",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/integrations/webhooks/test-dispatch"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_account_report_export_request",
         method="POST",
         path="/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports",
