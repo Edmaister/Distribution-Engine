@@ -2350,23 +2350,20 @@ describe("ReferralSaasAccountMaintenancePage", () => {
 
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Integrations" })).toBeInTheDocument();
-    expect(screen.getByText(/Save safe setup evidence for API, webhook, invite delivery, and referral-message connections/i)).toBeInTheDocument();
-    expect(await screen.findByText("Ready providers")).toBeInTheDocument();
-    expect(screen.getByText("Need setup")).toBeInTheDocument();
-    expect(screen.getByText("Supported channels")).toBeInTheDocument();
-    expect(screen.getByText("Saved setup evidence")).toBeInTheDocument();
-    expect(screen.getByText("1. API access intent")).toBeInTheDocument();
-    expect(screen.getByText("2. Webhook intent")).toBeInTheDocument();
-    expect(screen.getByText("3. Message provider intent")).toBeInTheDocument();
-    expect(screen.getByText("4. Live readiness check")).toBeInTheDocument();
-    expect(screen.getByText(/Save Integrations setup evidence before live verification can start/i)).toBeInTheDocument();
-    expect(screen.getByText("Save Integrations setup")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Validate setup" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save setup evidence" })).toBeInTheDocument();
+    expect(screen.getByText(/Plan the customer's API, webhook, and message connection/i)).toBeInTheDocument();
+    expect(await screen.findAllByText("Draft plan")).toHaveLength(2);
+    expect(screen.getByText(/Save the connection plan before verification can start/i)).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Plan" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Verify" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByText("1. API connection")).toBeInTheDocument();
+    expect(screen.getByText("2. Webhook")).toBeInTheDocument();
+    expect(screen.getByText("3. Messages")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Validate plan" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save connection plan" })).toBeInTheDocument();
     expect(screen.getByText("People invite delivery")).toBeInTheDocument();
     expect(screen.getByText("Configure and approve the Email provider for Referral SaaS before sending account access invites.")).toBeInTheDocument();
     expect(screen.getByText("Referral journey messages")).toBeInTheDocument();
-    expect(screen.getByText(/No credentials are created, no webhook is dispatched, no invite is sent/i)).toBeInTheDocument();
+    expect(screen.getByText(/Saves a non-secret connection plan and records safe verification checks/i)).toBeInTheDocument();
     expect(mockedGetReferralSaasIntegrationConfiguration).toHaveBeenCalledWith({
       accountRef: "acct-gabs",
       refType: "external_tenant_ref",
@@ -2395,7 +2392,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/integrations");
 
     expect(await screen.findByRole("heading", { name: "Integrations" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Validate setup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Validate plan" }));
 
     await waitFor(() => expect(mockedValidateReferralSaasIntegrationConfiguration).toHaveBeenCalledTimes(1));
     expect(mockedValidateReferralSaasIntegrationConfiguration).toHaveBeenCalledWith({
@@ -2429,7 +2426,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       /tenantCode|tenant_code|secret|credential|apiKey/i,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Save setup evidence" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save connection plan" }));
     await waitFor(() => expect(mockedSaveReferralSaasIntegrationConfiguration).toHaveBeenCalledTimes(1));
     expect(mockedSaveReferralSaasIntegrationConfiguration.mock.calls[0][0]).toMatchObject({
       accountRef: "acct-gabs",
@@ -2437,8 +2434,9 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       correlationId: "customer-profile-integrations-acct-gabs",
     });
     expect(await screen.findByText(/Integrations setup updated/i)).toBeInTheDocument();
-    expect(screen.getByText(/no credentials, webhook dispatch, invite delivery, campaign activation, billing, or money movement occurred/i)).toBeInTheDocument();
-    expect(await screen.findByText("Verify API access")).toBeInTheDocument();
+    expect(screen.getByText(/Connection plan saved. Run verification checks next/i)).toBeInTheDocument();
+    expect(await screen.findByText("Verification checks")).toBeInTheDocument();
+    expect(screen.getByText("API access check")).toBeInTheDocument();
     expect(screen.getByText(/governed live verification checks/i)).toBeInTheDocument();
     expect(mockedGetReferralSaasIntegrationExecutionReadiness).toHaveBeenCalledTimes(2);
   });
@@ -2453,7 +2451,9 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/integrations");
 
     expect(await screen.findByRole("heading", { name: "Integrations" })).toBeInTheDocument();
-    const action = await screen.findByRole("button", { name: "Record API access check" });
+    expect(await screen.findAllByText("Ready to verify")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("tab", { name: "Verify" }));
+    const action = await screen.findByRole("button", { name: "Record API check" });
     fireEvent.click(action);
 
     await waitFor(() => expect(mockedRecordReferralSaasApiAccessVerification).toHaveBeenCalledTimes(1));
@@ -2509,7 +2509,9 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/integrations");
 
     expect(await screen.findByRole("heading", { name: "Integrations" })).toBeInTheDocument();
-    const action = await screen.findByRole("button", { name: "Record webhook test evidence" });
+    expect(await screen.findAllByText("Ready to verify")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("tab", { name: "Verify" }));
+    const action = await screen.findByRole("button", { name: "Record webhook test" });
     fireEvent.click(action);
 
     await waitFor(() => expect(mockedRecordReferralSaasWebhookTestDispatch).toHaveBeenCalledTimes(1));

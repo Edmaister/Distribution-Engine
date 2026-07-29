@@ -2350,6 +2350,7 @@ export function ReferralSaasAccountMaintenancePage() {
                   externalTenantRef={selectedExternalTenantRef}
                   isLoading={isTechnicalSetupLoading}
                   readiness={technicalSetupReadiness}
+                  selectedCustomerPath={selectedCustomerPath}
                 />
               ) : null}
 
@@ -3875,6 +3876,7 @@ function CustomerTechnicalSetupPage({
   externalTenantRef,
   isLoading,
   readiness,
+  selectedCustomerPath,
 }: {
   account?: AccountRegistryItem;
   customerName: string;
@@ -3882,6 +3884,7 @@ function CustomerTechnicalSetupPage({
   externalTenantRef: string;
   isLoading: boolean;
   readiness?: ReferralSaasTechnicalSetupReadinessResponse;
+  selectedCustomerPath: string;
 }) {
   const accountScope = {
     refType: "external_tenant_ref" as const,
@@ -3933,6 +3936,7 @@ function CustomerTechnicalSetupPage({
     retry: false,
   });
   const [configurationMessage, setConfigurationMessage] = useState<string | null>(null);
+  const [activeIntegrationTab, setActiveIntegrationTab] = useState<"plan" | "verify">("plan");
   const validationMutation = useMutation({
     mutationFn: () =>
       validateReferralSaasIntegrationConfiguration({
@@ -3941,7 +3945,7 @@ function CustomerTechnicalSetupPage({
       }),
     onSuccess: (response) => {
       setConfigurationMessage(
-        `${formatDisplay(response.validation.commandStatus)}. Setup evidence is valid and was not saved.`,
+        `${formatDisplay(response.validation.commandStatus)}. The connection plan is valid and was not saved yet.`,
       );
     },
   });
@@ -3954,8 +3958,9 @@ function CustomerTechnicalSetupPage({
     onSuccess: async (response) => {
       await configurationQuery.refetch();
       await executionReadinessQuery.refetch();
+      setActiveIntegrationTab("verify");
       setConfigurationMessage(
-        `${formatDisplay(response.integrationConfigurationResult.commandStatus)}. Safe setup evidence saved; no credentials, webhook dispatch, invite delivery, campaign activation, billing, or money movement occurred.`,
+        `${formatDisplay(response.integrationConfigurationResult.commandStatus)}. Connection plan saved. Run verification checks next. No credentials, webhook dispatch, invite delivery, campaign activation, billing, or money movement occurred.`,
       );
     },
   });
@@ -4000,10 +4005,8 @@ function CustomerTechnicalSetupPage({
   const technicalReadiness = readiness?.technicalSetupReadiness;
   const savedConfiguration = configurationQuery.data?.integrationConfiguration || null;
   const executionReadiness = executionReadinessQuery.data?.integrationExecutionReadiness || null;
-  const channelSummary = technicalReadiness?.channelSummary;
   const capabilities = technicalReadiness?.capabilities || [];
   const missingCapabilities = capabilities.filter((capability) => capability.status !== "READY");
-  const supportedChannels = channelSummary?.supportedChannels || [];
   const executionActions = executionReadiness?.executionActions || [];
   const readyExecutionActions = executionReadiness?.readyActions || [];
   const executionBlockers = executionReadiness?.blockers || [];
@@ -4021,8 +4024,19 @@ function CustomerTechnicalSetupPage({
       webhookTestAction?.status === "READY" &&
       !webhookTestDispatchMutation.isPending,
   );
-  const currentStatus = savedConfiguration?.configurationStatus || "NOT_SAVED";
   const canSubmitConfiguration = Boolean(account?.accountId && externalTenantRef);
+  const hasSavedConnectionPlan = Boolean(savedConfiguration?.configurationRef || executionReadiness?.configurationRef);
+  const stageLabel = hasSavedConnectionPlan
+    ? readyExecutionActions.length
+      ? "Ready to verify"
+      : "Saved plan"
+    : "Draft plan";
+  const stageTone = hasSavedConnectionPlan ? "success" : "warning";
+  const stageSentence = hasSavedConnectionPlan
+    ? readyExecutionActions.length
+      ? "Connection plan saved. Run the available verification checks next."
+      : "Connection plan saved. Resolve the listed setup gaps before live verification."
+    : "Save the connection plan before verification can start.";
 
   return (
     <section className="panel customer-module-page" id="integrations">
@@ -4031,10 +4045,10 @@ function CustomerTechnicalSetupPage({
           <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Integrations</div>
           <h2 className="panel-title">Integrations</h2>
           <div className="panel-subtitle">
-            Save safe setup evidence for API, webhook, invite delivery, and referral-message connections. This page does not create credentials or send anything.
+            Plan the customer's API, webhook, and message connection. Save the plan, then record safe verification evidence.
           </div>
         </div>
-        <StatusBadge label={formatDisplay(currentStatus)} tone={statusTone(currentStatus)} />
+        <StatusBadge label={stageLabel} tone={stageTone} />
       </div>
       <div className="panel-body route-list">
         {isLoading || configurationQuery.isLoading || executionReadinessQuery.isLoading ? (
@@ -4049,215 +4063,228 @@ function CustomerTechnicalSetupPage({
         {webhookTestDispatchMutation.error ? <ErrorPanel error={webhookTestDispatchMutation.error} /> : null}
         {technicalReadiness ? (
           <>
-            <div className="grid-3">
-              <KpiCard
-                label="Ready providers"
-                value={String(channelSummary?.readyCount ?? 0)}
-                footnote="Channels currently configured for safe use"
-                icon={CheckCircle2}
-              />
-              <KpiCard
-                label="Need setup"
-                value={String(channelSummary?.attentionCount ?? 0)}
-                footnote="Provider gaps to resolve before live delivery"
-                icon={AlertCircle}
-              />
-              <KpiCard
-                label="Supported channels"
-                value={String(channelSummary?.count ?? supportedChannels.length)}
-                footnote={`${channelSummary?.approvedInviteProviderCount ?? 0} approved for invite delivery`}
-                icon={PlugZap}
-              />
-            </div>
-
-            <div className={`wizard-summary-strip ${missingCapabilities.length ? "warning" : "success"}`}>
+            <div className={`integrations-stage-card ${hasSavedConnectionPlan ? "success" : "warning"}`}>
               <div>
-                <strong>In plain English:</strong>{" "}
-                {missingCapabilities.length
-                  ? `${customerName} still needs ${formatAreaCount(
-                      missingCapabilities.length,
-                      "integration setup item",
-                    )} before live invite delivery or referral message testing.`
-                  : `${customerName} has the provider readiness needed for the checked integration capabilities.`}
-              </div>
-              <StatusBadge
-                label={formatDisplay(technicalReadiness.overallStatus)}
-                tone={statusTone(technicalReadiness.overallStatus)}
-              />
-            </div>
-
-            <div className="wizard-status-card">
-              <div>
-                <strong>Saved setup evidence</strong>
-                <p>
-                  {savedConfiguration
-                    ? `Last saved ${formatDisplay(savedConfiguration.configurationStatus)} setup by ${savedConfiguration.createdByRef || "an operator"}.`
-                    : "No Integrations setup evidence has been saved for this customer yet."}
-                </p>
+                <strong>{stageLabel}</strong>
+                <p>{stageSentence}</p>
                 {savedConfiguration ? (
                   <span className="table-subtext">
-                    API: {formatDisplay(String(savedConfiguration.apiEnvironment.environment || "Not set"))}. Webhook:{" "}
-                    {String(savedConfiguration.webhookIntent.callbackUrl || "Not set")}. Invite channel:{" "}
-                    {formatDisplay(String(asArray(savedConfiguration.messageProviders.channels)[0] || "Not set"))}.
+                    Saved by {savedConfiguration.createdByRef || "an operator"} as{" "}
+                    {formatDisplay(savedConfiguration.configurationStatus)}.
                   </span>
                 ) : null}
               </div>
-              <StatusBadge label="No secrets stored" tone="success" />
-            </div>
-
-            <div className="panel-lite">
-              <h3 className="section-heading">1. API access intent</h3>
-              <div className="grid-2">
-                <label>
-                  Environment
-                  <select
-                    onChange={(event) => setDraft({ ...draft, environment: event.target.value })}
-                    value={draft.environment}
-                  >
-                    <option value="LOCAL_DEVELOPMENT">Local development</option>
-                    <option value="SANDBOX">Sandbox</option>
-                    <option value="PRODUCTION_INTENT">Production intent</option>
-                  </select>
-                </label>
-                <label>
-                  Planned auth method
-                  <select
-                    onChange={(event) => setDraft({ ...draft, intendedAuthMethod: event.target.value })}
-                    value={draft.intendedAuthMethod}
-                  >
-                    <option value="API_KEY">API key</option>
-                    <option value="OAUTH_CLIENT_CREDENTIALS">OAuth client credentials</option>
-                    <option value="SIGNED_WEBHOOK">Signed webhook</option>
-                  </select>
-                </label>
+              <div className="action-row">
+                <button
+                  className="button secondary"
+                  disabled={!canSubmitConfiguration || validationMutation.isPending}
+                  onClick={() => validationMutation.mutate()}
+                  type="button"
+                >
+                  {validationMutation.isPending ? "Validating" : "Validate plan"}
+                </button>
+                <button
+                  className="button primary"
+                  disabled={!canSubmitConfiguration || saveMutation.isPending}
+                  onClick={() => saveMutation.mutate()}
+                  type="button"
+                >
+                  {saveMutation.isPending ? "Saving" : "Save connection plan"}
+                </button>
               </div>
-              <fieldset className="option-grid">
-                <legend>Allowed use</legend>
-                {integrationUseCaseOptions.map((option) => (
-                  <label className="checkbox-row" key={option.value}>
-                    <input
-                      checked={draft.allowedUse.includes(option.value)}
-                      onChange={() =>
-                        setDraft({
-                          ...draft,
-                          allowedUse: toggleListValue(draft.allowedUse, option.value),
-                        })
-                      }
-                      type="checkbox"
-                    />
-                    <span>{option.label}</span>
-                  </label>
-                ))}
-              </fieldset>
             </div>
 
-            <div className="panel-lite">
-              <h3 className="section-heading">2. Webhook intent</h3>
-              <label>
-                Callback URL
-                <input
-                  onChange={(event) => setDraft({ ...draft, callbackUrl: event.target.value })}
-                  placeholder="https://customer.example/webhooks/referral-saas"
-                  value={draft.callbackUrl}
-                />
-              </label>
-              <fieldset className="option-grid">
-                <legend>Events to prepare</legend>
-                {integrationEventOptions.map((option) => (
-                  <label className="checkbox-row" key={option.value}>
-                    <input
-                      checked={draft.eventCategories.includes(option.value)}
-                      onChange={() =>
-                        setDraft({
-                          ...draft,
-                          eventCategories: toggleListValue(draft.eventCategories, option.value),
-                        })
-                      }
-                      type="checkbox"
-                    />
-                    <span>{option.label}</span>
-                  </label>
-                ))}
-              </fieldset>
-            </div>
-
-            <div className="panel-lite">
-              <h3 className="section-heading">3. Message provider intent</h3>
-              <div className="grid-2">
-                <label>
-                  Invite delivery channel
-                  <select
-                    onChange={(event) => setDraft({ ...draft, inviteDeliveryChannel: event.target.value })}
-                    value={draft.inviteDeliveryChannel}
-                  >
-                    {integrationChannelOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Provider reference
-                  <input
-                    onChange={(event) => setDraft({ ...draft, inviteProviderApprovalRef: event.target.value })}
-                    placeholder="Optional approved provider reference"
-                    value={draft.inviteProviderApprovalRef}
-                  />
-                </label>
-              </div>
-              <fieldset className="option-grid">
-                <legend>Referral message channels</legend>
-                {integrationChannelOptions.map((option) => (
-                  <label className="checkbox-row" key={option.value}>
-                    <input
-                      checked={draft.referralMessageChannels.includes(option.value)}
-                      onChange={() =>
-                        setDraft({
-                          ...draft,
-                          referralMessageChannels: toggleListValue(draft.referralMessageChannels, option.value),
-                        })
-                      }
-                      type="checkbox"
-                    />
-                    <span>{option.label}</span>
-                  </label>
-                ))}
-              </fieldset>
-            </div>
-
-            <div className="action-row">
+            <div className="customer-tabs integrations-tabs" role="tablist" aria-label="Integrations setup stages">
               <button
-                className="button secondary"
-                disabled={!canSubmitConfiguration || validationMutation.isPending}
-                onClick={() => validationMutation.mutate()}
+                aria-selected={activeIntegrationTab === "plan"}
+                className={activeIntegrationTab === "plan" ? "active" : ""}
+                onClick={() => setActiveIntegrationTab("plan")}
+                role="tab"
                 type="button"
               >
-                {validationMutation.isPending ? "Validating" : "Validate setup"}
+                Plan
               </button>
               <button
-                className="button primary"
-                disabled={!canSubmitConfiguration || saveMutation.isPending}
-                onClick={() => saveMutation.mutate()}
+                aria-selected={activeIntegrationTab === "verify"}
+                className={activeIntegrationTab === "verify" ? "active" : ""}
+                onClick={() => {
+                  if (!hasSavedConnectionPlan) {
+                    setConfigurationMessage("Save the connection plan first, then verification checks unlock.");
+                    return;
+                  }
+                  setActiveIntegrationTab("verify");
+                }}
+                role="tab"
                 type="button"
               >
-                {saveMutation.isPending ? "Saving" : "Save setup evidence"}
+                Verify
               </button>
             </div>
+
             {configurationMessage ? (
               <div className="success-banner">
                 <strong>Integrations setup updated.</strong> {configurationMessage}
               </div>
             ) : null}
 
-            {executionReadiness ? (
-              <div className="panel-lite">
+            {activeIntegrationTab === "plan" ? (
+              <div className="integrations-plan-grid">
+                <div className="panel-lite integrations-step-card">
+                  <h3 className="section-heading">1. API connection</h3>
+                  <p>Where this customer's systems will call Amplifi, and what they may use.</p>
+                  <div className="grid-2">
+                    <label>
+                      Environment
+                      <select
+                        onChange={(event) => setDraft({ ...draft, environment: event.target.value })}
+                        value={draft.environment}
+                      >
+                        <option value="LOCAL_DEVELOPMENT">Local development</option>
+                        <option value="SANDBOX">Sandbox</option>
+                        <option value="PRODUCTION_INTENT">Production intent</option>
+                      </select>
+                    </label>
+                    <label>
+                      Planned auth method
+                      <select
+                        onChange={(event) => setDraft({ ...draft, intendedAuthMethod: event.target.value })}
+                        value={draft.intendedAuthMethod}
+                      >
+                        <option value="API_KEY">API key</option>
+                        <option value="OAUTH_CLIENT_CREDENTIALS">OAuth client credentials</option>
+                        <option value="SIGNED_WEBHOOK">Signed webhook</option>
+                      </select>
+                    </label>
+                  </div>
+                  <fieldset className="option-grid">
+                    <legend>Allowed use</legend>
+                    {integrationUseCaseOptions.map((option) => (
+                      <label className="checkbox-row" key={option.value}>
+                        <input
+                          checked={draft.allowedUse.includes(option.value)}
+                          onChange={() =>
+                            setDraft({
+                              ...draft,
+                              allowedUse: toggleListValue(draft.allowedUse, option.value),
+                            })
+                          }
+                          type="checkbox"
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
+                  </fieldset>
+                </div>
+
+                <div className="panel-lite integrations-step-card">
+                  <h3 className="section-heading">2. Webhook</h3>
+                  <p>Where Amplifi should notify their systems. This is setup intent until verification is recorded.</p>
+                  <label>
+                    Callback URL
+                    <input
+                      onChange={(event) => setDraft({ ...draft, callbackUrl: event.target.value })}
+                      placeholder="https://customer.example/webhooks/referral-saas"
+                      value={draft.callbackUrl}
+                    />
+                  </label>
+                  <fieldset className="option-grid">
+                    <legend>Events to prepare</legend>
+                    {integrationEventOptions.map((option) => (
+                      <label className="checkbox-row" key={option.value}>
+                        <input
+                          checked={draft.eventCategories.includes(option.value)}
+                          onChange={() =>
+                            setDraft({
+                              ...draft,
+                              eventCategories: toggleListValue(draft.eventCategories, option.value),
+                            })
+                          }
+                          type="checkbox"
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
+                  </fieldset>
+                </div>
+
+                <div className="panel-lite integrations-step-card">
+                  <h3 className="section-heading">3. Messages</h3>
+                  <p>Invite and referral journey channels this customer intends to use.</p>
+                  <div className="grid-2">
+                    <label>
+                      Invite delivery channel
+                      <select
+                        onChange={(event) => setDraft({ ...draft, inviteDeliveryChannel: event.target.value })}
+                        value={draft.inviteDeliveryChannel}
+                      >
+                        {integrationChannelOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Provider reference
+                      <input
+                        onChange={(event) => setDraft({ ...draft, inviteProviderApprovalRef: event.target.value })}
+                        placeholder="Optional approved provider reference"
+                        value={draft.inviteProviderApprovalRef}
+                      />
+                    </label>
+                  </div>
+                  <fieldset className="option-grid">
+                    <legend>Referral message channels</legend>
+                    {integrationChannelOptions.map((option) => (
+                      <label className="checkbox-row" key={option.value}>
+                        <input
+                          checked={draft.referralMessageChannels.includes(option.value)}
+                          onChange={() =>
+                            setDraft({
+                              ...draft,
+                              referralMessageChannels: toggleListValue(
+                                draft.referralMessageChannels,
+                                option.value,
+                              ),
+                            })
+                          }
+                          type="checkbox"
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
+                  </fieldset>
+                  <details className="wizard-details integrations-details">
+                    <summary>Platform channel readiness ({missingCapabilities.length} gaps)</summary>
+                    <div className="route-list">
+                      {capabilities.map((capability) => (
+                        <div className="wizard-status-card" key={capability.code}>
+                          <div>
+                            <strong>{capability.label}</strong>
+                            <p>{capability.nextAction}</p>
+                            <span className="table-subtext">
+                              Needs {formatList(capability.requiredChannels)}. Ready:{" "}
+                              {formatList(capability.readyChannels)}. Missing:{" "}
+                              {formatList(capability.missingChannels)}.
+                            </span>
+                          </div>
+                          <StatusBadge label={formatDisplay(capability.status)} tone={statusTone(capability.status)} />
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+              </div>
+            ) : null}
+
+            {activeIntegrationTab === "verify" && executionReadiness ? (
+              <div className="panel-lite integrations-verify-panel">
                 <div className="settings-summary-header">
                   <div>
-                    <h3 className="section-heading">4. Live readiness check</h3>
+                    <h3 className="section-heading">Verification checks</h3>
                     <p>
-                      Shows whether this customer can move from saved setup evidence into governed API, webhook,
-                      provider, or credential checks. It does not run those checks.
+                      Available after the connection plan is saved. These checks record evidence; they do not create
+                      secrets, dispatch webhooks, send invites, or activate campaigns.
                     </p>
                   </div>
                   <StatusBadge
@@ -4289,7 +4316,7 @@ function CustomerTechnicalSetupPage({
                 ) : null}
                 <div className="route-list">
                   {executionActions.map((action) => (
-                    <div className="wizard-status-card" key={action.actionRef}>
+                    <div className="integrations-check-row" key={action.actionRef}>
                       <div>
                         <strong>{integrationExecutionActionLabel(action.actionRef, action.label)}</strong>
                         <p>{integrationExecutionActionNextStep(action.actionRef, action.nextStep)}</p>
@@ -4305,7 +4332,7 @@ function CustomerTechnicalSetupPage({
                         >
                           {apiAccessVerificationMutation.isPending
                             ? "Recording API check"
-                            : "Record API access check"}
+                            : "Record API check"}
                         </button>
                       ) : null}
                       {action.actionRef === "WEBHOOK_TEST_DISPATCH" ? (
@@ -4317,52 +4344,30 @@ function CustomerTechnicalSetupPage({
                         >
                           {webhookTestDispatchMutation.isPending
                             ? "Recording webhook evidence"
-                            : "Record webhook test evidence"}
+                            : "Record webhook test"}
                         </button>
                       ) : null}
                     </div>
                   ))}
                 </div>
-                <div className="wizard-status-card">
-                  <div>
-                    <strong>Still separate</strong>
-                    <p>
-                      Credential creation, live webhook dispatch, invite delivery, referral-message delivery, auth
-                      changes, campaign activation, billing, and money movement stay in later governed workflows.
-                    </p>
-                  </div>
-                  <StatusBadge label="Read only" tone="info" />
+                <div className="action-row integrations-handoff-row">
+                  <Link className="button secondary" to={`${selectedCustomerPath}/people`}>
+                    Open People & access
+                  </Link>
+                  <Link className="button primary" to={`${selectedCustomerPath}/campaigns`}>
+                    Continue to Campaigns
+                  </Link>
                 </div>
               </div>
             ) : null}
 
-            <div className="route-list">
-              {capabilities.map((capability) => (
-                <div className="wizard-status-card" key={capability.code}>
-                  <div>
-                    <strong>{capability.label}</strong>
-                    <p>{capability.nextAction}</p>
-                    <span className="table-subtext">
-                      Needs {formatList(capability.requiredChannels)}. Ready:{" "}
-                      {formatList(capability.readyChannels)}. Missing: {formatList(capability.missingChannels)}.
-                      {capability.missingApprovalChannels.length
-                        ? ` Approval needed: ${formatList(capability.missingApprovalChannels)}.`
-                        : ""}
-                      {capability.approvedProviderRefs.length
-                        ? ` Approved provider: ${formatList(capability.approvedProviderRefs)}.`
-                        : ""}
-                    </span>
-                  </div>
-                  <StatusBadge label={formatDisplay(capability.status)} tone={statusTone(capability.status)} />
-                </div>
-              ))}
-            </div>
-
-            <div className="wizard-status-card">
+            <div className="integrations-footnote">
               <div>
                 <strong>What this page will not do</strong>
                 <p>
-                  No credentials are created, no webhook is dispatched, no invite is sent, no login is activated, no seat is assigned, no campaign is launched, and no money moves.
+                  Saves a non-secret connection plan and records safe verification checks. It does not create
+                  credentials, dispatch business webhooks, send invites, activate login, assign seats, launch
+                  campaigns, bill, or move money.
                 </p>
               </div>
               <StatusBadge label="Safe setup check" tone="success" />
@@ -5147,14 +5152,20 @@ function buildIntegrationWebhookTestDispatchPayload(
 
 function integrationExecutionActionLabel(actionRef: string, fallback: string) {
   if (actionRef === "WEBHOOK_TEST_DISPATCH") {
-    return "Record webhook test evidence";
+    return "Webhook test";
+  }
+  if (actionRef === "API_ACCESS_VERIFICATION") {
+    return "API access check";
   }
   return fallback;
 }
 
 function integrationExecutionActionNextStep(actionRef: string, fallback: string) {
   if (actionRef === "WEBHOOK_TEST_DISPATCH") {
-    return "Record governed webhook callback test evidence for this customer.";
+    return "Record signed callback test evidence without dispatching a business webhook.";
+  }
+  if (actionRef === "API_ACCESS_VERIFICATION") {
+    return "Record that the planned API posture has been checked without creating credentials.";
   }
   return fallback;
 }
