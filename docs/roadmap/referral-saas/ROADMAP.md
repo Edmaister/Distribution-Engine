@@ -363,6 +363,15 @@ greenfield referral construction.
   provider, webhook, invite/message, auth, campaign, billing, or money side
   effects.
 
+- TASK-309:
+  `POST /v1/referral-saas/accounts/{account_ref}/integrations/webhooks/test-dispatch`;
+  `services/referral_saas_integrations_configuration_service.py`;
+  second governed Integrations execution command for webhook test-dispatch
+  evidence, with account/link/reference gates, saved webhook configuration
+  gates, idempotency/audit evidence, unsafe-payload rejection, and no webhook
+  dispatch, subscription activation, signing-material creation, credential,
+  provider, invite/message, auth, campaign, billing, or money side effects.
+
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`
 - TASK-151: `test/test_referral_saas_route_smoke_inventory.py`;

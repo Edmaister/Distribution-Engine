@@ -2153,6 +2153,227 @@ async def test_referral_saas_account_api_access_verification_idempotency_conflic
     assert detail["no_auth_claim_change_confirmed"] is True
 
 
+async def test_referral_saas_account_admin_can_record_webhook_test_dispatch(
+    monkeypatch,
+):
+    dispatch_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    class FakeIntegrationConfiguration:
+        configuration_ref = "config-1"
+        configuration_status = "INTEGRATION_CONFIGURATION_SAVED"
+        api_environment = {}
+        webhook_intent = {
+            "callbackUrl": "https://customer.example/webhooks/referral-saas",
+            "eventCategories": ["REFERRAL", "ATTRIBUTION"],
+        }
+        message_providers = {}
+
+        def to_safe_dict(self):
+            return {
+                "configurationRef": self.configuration_ref,
+                "configurationStatus": self.configuration_status,
+                "apiEnvironment": self.api_environment,
+                "webhookIntent": self.webhook_intent,
+                "messageProviders": self.message_providers,
+            }
+
+    class FakeDispatchResult:
+        def to_safe_dict(self):
+            return {
+                "dispatchStatus": "WEBHOOK_TEST_DISPATCH_RECORDED",
+                "configurationRef": "config-1",
+                "accountRef": "acct-1",
+                "callbackUrlPresent": True,
+                "eventCategories": ["REFERRAL", "ATTRIBUTION"],
+                "idempotency": {"status": "WEBHOOK_TEST_DISPATCH_RECORDED"},
+                "audit": {"accountAuditEventId": "audit-1"},
+                "noWebhookDispatchConfirmed": True,
+                "noCredentialCreationConfirmed": True,
+            }
+
+    async def fake_get_referral_saas_integration_configuration(**kwargs):
+        return FakeIntegrationConfiguration()
+
+    async def fake_record_referral_saas_webhook_test_dispatch(**kwargs):
+        dispatch_calls.append(kwargs)
+        return FakeDispatchResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_configuration",
+        fake_get_referral_saas_integration_configuration,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "record_referral_saas_webhook_test_dispatch",
+        fake_record_referral_saas_webhook_test_dispatch,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/webhooks/test-dispatch",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "webhookTest": {"notes": "Recorded signed callback test evidence."},
+                "reasonCode": "CUSTOMER_WEBHOOK_TEST_DISPATCH",
+                "correlationId": "corr-1",
+                "idempotencyKey": "webhook-test-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "accepted"
+    assert (
+        body["integrationWebhookTestDispatch"]["dispatchStatus"]
+        == "WEBHOOK_TEST_DISPATCH_RECORDED"
+    )
+    assert body["no_webhook_dispatch_confirmed"] is True
+    assert body["no_credential_creation_confirmed"] is True
+    assert body["no_message_provider_delivery_confirmed"] is True
+    assert dispatch_calls[0]["account_id"] == "acct-1"
+    assert dispatch_calls[0]["tenant_code"] == "FNB"
+    assert dispatch_calls[0]["correlation_id"] == "corr-1"
+    assert dispatch_calls[0]["actor_role"] == "ADMIN"
+
+
+async def test_referral_saas_account_webhook_test_dispatch_requires_command_scope(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        raise AssertionError("account should not resolve without idempotency metadata")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/webhooks/test-dispatch",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "correlationId": "corr-1",
+            },
+        )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "validation_error"
+    assert detail["no_webhook_test_recorded_confirmed"] is True
+
+
+async def test_referral_saas_account_webhook_test_dispatch_rejects_unsafe_payload(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        raise AssertionError("unsafe payload should fail before account lookup")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/webhooks/test-dispatch",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "webhookTest": {"signingSecret": "secret"},
+                "reasonCode": "CUSTOMER_WEBHOOK_TEST_DISPATCH",
+                "correlationId": "corr-1",
+                "idempotencyKey": "webhook-test-1",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert detail["no_credential_creation_confirmed"] is True
+    assert detail["no_webhook_dispatch_confirmed"] is True
+
+
+async def test_referral_saas_account_webhook_test_dispatch_idempotency_conflict(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    async def fake_get_referral_saas_integration_configuration(**kwargs):
+        return SimpleNamespace(configuration_ref="config-1")
+
+    async def fake_record_referral_saas_webhook_test_dispatch(**kwargs):
+        raise IntegrationConfigurationIdempotencyConflict(
+            "Idempotency key was reused with different webhook test-dispatch content."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_configuration",
+        fake_get_referral_saas_integration_configuration,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "record_referral_saas_webhook_test_dispatch",
+        fake_record_referral_saas_webhook_test_dispatch,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/webhooks/test-dispatch",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "webhookTest": {"notes": "Changed webhook evidence."},
+                "correlationId": "corr-1",
+                "idempotencyKey": "webhook-test-1",
+            },
+        )
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["code"] == "IDEMPOTENCY_CONFLICT"
+    assert detail["no_credential_creation_confirmed"] is True
+    assert detail["no_auth_claim_change_confirmed"] is True
+
+
 async def test_referral_saas_account_admin_can_read_customer_scoped_campaign_readiness(
     monkeypatch,
 ):

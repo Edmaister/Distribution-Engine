@@ -87,10 +87,18 @@ reveal, rotate, or accept credentials; call providers; dispatch webhooks; send
 invites or messages; activate memberships; assign seats; change auth claims;
 activate campaigns; trigger go-live; bill; or move money.
 
-Webhook test dispatch, message-provider checks, and credential lifecycle
-commands should not be added until their readiness gates and failure states are
-implemented with the same selected-customer, audit, idempotency, and redaction
-boundaries.
+TASK-309 implements the second governed execution command: `POST
+/v1/referral-saas/accounts/{accountRef}/integrations/webhooks/test-dispatch`.
+That command records webhook test-dispatch evidence only after saved webhook
+setup and active account/link/reference gates pass. It is audited and
+idempotent, rejects unsafe secret-like payloads, and does not dispatch a
+webhook, activate a subscription, create/reveal signing material, call a
+provider, send invites or messages, activate memberships, assign seats, change
+auth claims, activate campaigns, trigger go-live, bill, or move money.
+
+Message-provider checks and credential lifecycle commands should not be added
+until their readiness gates and failure states are implemented with the same
+selected-customer, audit, idempotency, and redaction boundaries.
 
 ## Required Gates
 
