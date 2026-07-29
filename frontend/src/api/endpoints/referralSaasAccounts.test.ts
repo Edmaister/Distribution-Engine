@@ -12,6 +12,7 @@ import {
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccountCampaigns,
   listReferralSaasAccounts,
+  recordReferralSaasApiAccessVerification,
   recordReferralSaasAccountCampaignReviewDecision,
   cancelReferralSaasMembershipInvitationIntent,
   requestReferralSaasAccountFoundationActivation,
@@ -470,6 +471,114 @@ describe("referralSaasAccounts endpoint client", () => {
     );
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|api_key|webhook_secret|wallet|settlement|money_movement/,
+    );
+  });
+
+  it("records customer-scoped API access verification without secret-bearing payloads", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "accepted",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+        accountName: "FNB Referral SaaS",
+      },
+      integrationApiAccessVerification: {
+        verificationStatus: "API_ACCESS_VERIFICATION_RECORDED",
+        configurationRef: "config-1",
+        accountRef: "acct-1",
+        apiEnvironment: "SANDBOX",
+        verifiedUseCases: ["CAMPAIGN_READ"],
+        idempotency: { status: "NEW_REQUEST" },
+        audit: { accountAuditEventId: "audit-1" },
+        plainLanguageSummary: "API-access verification evidence was recorded without credential creation.",
+        guardrails: ["NO_CREDENTIAL_CREATION"],
+        redactions: ["provider_secret"],
+        noSecretOrCredentialStorageConfirmed: true,
+        noCredentialCreationConfirmed: true,
+        noCredentialLifecycleConfirmed: true,
+        noWebhookDispatchConfirmed: true,
+        noInviteDeliveryConfirmed: true,
+        noMessageProviderDeliveryConfirmed: true,
+        noMembershipActivationConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noCampaignActivationConfirmed: true,
+        noGoLiveActionConfirmed: true,
+        noBillingOrMoneyMovementConfirmed: true,
+      },
+      guardrail: "API-access verification evidence recorded for the selected customer only.",
+      guardrails: ["NO_CREDENTIAL_CREATION"],
+      redactions: ["provider_secret"],
+      no_secret_or_credential_storage_confirmed: true,
+      no_credential_creation_confirmed: true,
+      no_credential_lifecycle_confirmed: true,
+      no_webhook_dispatch_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_message_provider_delivery_confirmed: true,
+      no_membership_activation_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_go_live_action_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    await expect(
+      recordReferralSaasApiAccessVerification({
+        accountRef: " acct-1 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " fnb-referrals ",
+          context: "setup",
+        },
+        verification: {
+          verificationType: "API_ACCESS_VERIFICATION",
+          environment: "SANDBOX",
+          authMethod: "API_KEY",
+          intendedUseCases: ["CAMPAIGN_READ"],
+          noCredentialCreationConfirmed: true,
+          noProviderCallConfirmed: true,
+          noWebhookDispatchConfirmed: true,
+        },
+        reasonCode: " CUSTOMER_API_ACCESS_VERIFICATION ",
+        correlationId: " corr-1 ",
+        idempotencyKey: " verify-1 ",
+      }),
+    ).resolves.toMatchObject({
+      integrationApiAccessVerification: {
+        verificationStatus: "API_ACCESS_VERIFICATION_RECORDED",
+        noCredentialCreationConfirmed: true,
+      },
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acct-1/integrations/api-access/verification",
+      {
+        method: "POST",
+        body: {
+          accountScope: {
+            refType: "external_tenant_ref",
+            externalRef: "fnb-referrals",
+            context: "setup",
+          },
+          verification: {
+            verificationType: "API_ACCESS_VERIFICATION",
+            environment: "SANDBOX",
+            authMethod: "API_KEY",
+            intendedUseCases: ["CAMPAIGN_READ"],
+            noCredentialCreationConfirmed: true,
+            noProviderCallConfirmed: true,
+            noWebhookDispatchConfirmed: true,
+          },
+          reasonCode: "CUSTOMER_API_ACCESS_VERIFICATION",
+          correlationId: "corr-1",
+          idempotencyKey: "verify-1",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|api_key_value|webhook_secret|wallet|settlement|money_movement/,
     );
   });
 

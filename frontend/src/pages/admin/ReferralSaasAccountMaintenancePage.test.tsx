@@ -29,6 +29,7 @@ import {
   listReferralSaasAccountCampaigns,
   listReferralSaasAccounts,
   recordReferralSaasAccountCampaignReviewDecision,
+  recordReferralSaasApiAccessVerification,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasAccountCampaignActivation,
   requestReferralSaasAccountFoundationActivation,
@@ -78,6 +79,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   listReferralSaasAccountCampaigns: vi.fn(),
   listReferralSaasAccounts: vi.fn(),
   recordReferralSaasAccountCampaignReviewDecision: vi.fn(),
+  recordReferralSaasApiAccessVerification: vi.fn(),
   recordReferralSaasMembershipInvitationIntent: vi.fn(),
   requestReferralSaasAccountCampaignActivation: vi.fn(),
   requestReferralSaasAccountFoundationActivation: vi.fn(),
@@ -109,6 +111,7 @@ const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTe
 const mockedListReferralSaasAccountCampaigns = vi.mocked(listReferralSaasAccountCampaigns);
 const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 const mockedRecordReferralSaasAccountCampaignReviewDecision = vi.mocked(recordReferralSaasAccountCampaignReviewDecision);
+const mockedRecordReferralSaasApiAccessVerification = vi.mocked(recordReferralSaasApiAccessVerification);
 const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordReferralSaasMembershipInvitationIntent);
 const mockedRequestReferralSaasAccountCampaignActivation = vi.mocked(requestReferralSaasAccountCampaignActivation);
 const mockedRequestReferralSaasAccountFoundationActivation = vi.mocked(requestReferralSaasAccountFoundationActivation);
@@ -933,6 +936,54 @@ function mockReadyIntegrationExecutionReadiness(): ReferralSaasIntegrationExecut
   };
 }
 
+function mockApiAccessVerificationResponse() {
+  return {
+    status: "accepted",
+    context: "setup" as const,
+    account: mockTechnicalSetupReadiness().account,
+    integrationApiAccessVerification: {
+      verificationStatus: "API_ACCESS_VERIFICATION_RECORDED",
+      configurationRef: "integration-config-1",
+      accountRef: "acct-gabs",
+      apiEnvironment: "LOCAL_DEVELOPMENT",
+      verifiedUseCases: ["CAMPAIGN_READ", "REFERRAL_CODE_VALIDATE", "REPORT_READ"],
+      idempotency: { status: "NEW_REQUEST" },
+      audit: { accountAuditEventId: "audit-api-access-1" },
+      plainLanguageSummary:
+        "API-access verification evidence was recorded for the selected customer without credential creation.",
+      guardrails: ["NO_CREDENTIAL_CREATION", "NO_PROVIDER_CALL"],
+      redactions: ["provider_secret"],
+      noSecretOrCredentialStorageConfirmed: true,
+      noCredentialCreationConfirmed: true,
+      noCredentialLifecycleConfirmed: true,
+      noWebhookDispatchConfirmed: true,
+      noInviteDeliveryConfirmed: true,
+      noMessageProviderDeliveryConfirmed: true,
+      noMembershipActivationConfirmed: true,
+      noSeatAssignmentConfirmed: true,
+      noAuthClaimChangeConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noGoLiveActionConfirmed: true,
+      noBillingOrMoneyMovementConfirmed: true,
+    },
+    guardrail: "API-access verification evidence recorded for the selected customer only.",
+    guardrails: ["NO_CREDENTIAL_CREATION", "NO_PROVIDER_CALL"],
+    redactions: ["provider_secret"],
+    no_secret_or_credential_storage_confirmed: true,
+    no_credential_creation_confirmed: true,
+    no_credential_lifecycle_confirmed: true,
+    no_webhook_dispatch_confirmed: true,
+    no_invite_delivery_confirmed: true,
+    no_message_provider_delivery_confirmed: true,
+    no_membership_activation_confirmed: true,
+    no_seat_assignment_confirmed: true,
+    no_auth_claim_change_confirmed: true,
+    no_campaign_activation_confirmed: true,
+    no_go_live_action_confirmed: true,
+    no_billing_or_money_movement_confirmed: true,
+  };
+}
+
 function mockIntegrationConfigurationValidation() {
   return {
     status: "ok",
@@ -1358,6 +1409,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     });
     mockedValidateReferralSaasIntegrationConfiguration.mockResolvedValue(mockIntegrationConfigurationValidation());
     mockedSaveReferralSaasIntegrationConfiguration.mockResolvedValue(mockIntegrationConfigurationSave());
+    mockedRecordReferralSaasApiAccessVerification.mockResolvedValue(mockApiAccessVerificationResponse());
     mockedListReferralSaasAccounts.mockResolvedValue(mockAccountRegistry());
     mockedRecordReferralSaasMembershipInvitationIntent.mockResolvedValue({
       status: "ok",
@@ -2336,6 +2388,62 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText(/no credentials, webhook dispatch, invite delivery, campaign activation, billing, or money movement occurred/i)).toBeInTheDocument();
     expect(await screen.findByText("Verify API access")).toBeInTheDocument();
     expect(screen.getByText(/governed live verification checks/i)).toBeInTheDocument();
+    expect(mockedGetReferralSaasIntegrationExecutionReadiness).toHaveBeenCalledTimes(2);
+  });
+
+  it("records API access verification from Integrations when the readiness action is ready", async () => {
+    mockedGetReferralSaasIntegrationConfiguration.mockResolvedValue({
+      ...mockIntegrationConfigurationRead(),
+      integrationConfiguration: mockIntegrationConfigurationSave().integrationConfigurationResult.configuration,
+    });
+    mockedGetReferralSaasIntegrationExecutionReadiness.mockResolvedValue(mockReadyIntegrationExecutionReadiness());
+
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/integrations");
+
+    expect(await screen.findByRole("heading", { name: "Integrations" })).toBeInTheDocument();
+    const action = await screen.findByRole("button", { name: "Record API access check" });
+    fireEvent.click(action);
+
+    await waitFor(() => expect(mockedRecordReferralSaasApiAccessVerification).toHaveBeenCalledTimes(1));
+    expect(mockedRecordReferralSaasApiAccessVerification).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      verification: {
+        verificationType: "API_ACCESS_VERIFICATION",
+        configurationRef: "integration-config-1",
+        environment: "LOCAL_DEVELOPMENT",
+        authMethod: "API_KEY",
+        intendedUseCases: ["CAMPAIGN_READ", "REFERRAL_CODE_VALIDATE", "REPORT_READ"],
+        noSecretOrCredentialStorageConfirmed: true,
+        noCredentialCreationConfirmed: true,
+        noCredentialLifecycleConfirmed: true,
+        noProviderCallConfirmed: true,
+        noWebhookDispatchConfirmed: true,
+        noInviteDeliveryConfirmed: true,
+        noMessageProviderDeliveryConfirmed: true,
+        noMembershipActivationConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noCampaignActivationConfirmed: true,
+        noGoLiveActionConfirmed: true,
+        noBillingOrMoneyMovementConfirmed: true,
+      },
+      reasonCode: "CUSTOMER_API_ACCESS_VERIFICATION",
+      correlationId: "customer-profile-integrations-api-verification-acct-gabs",
+      idempotencyKey:
+        "customer-profile-integrations-api-verification-acct-gabs-integration-config-1-local-development-api-key-campaign-read-referral-code-validate-report-read",
+    });
+    expect(JSON.stringify(mockedRecordReferralSaasApiAccessVerification.mock.calls)).not.toMatch(
+      /tenantCode|tenant_code|clientSecret|credentialValue|apiKeyValue|webhookSecret/i,
+    );
+    expect(
+      await screen.findByText(/API-access verification evidence was recorded/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/without credential creation/i)).toBeInTheDocument();
     expect(mockedGetReferralSaasIntegrationExecutionReadiness).toHaveBeenCalledTimes(2);
   });
 

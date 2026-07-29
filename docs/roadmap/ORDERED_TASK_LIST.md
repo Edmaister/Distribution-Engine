@@ -6859,6 +6859,31 @@ Rollback notes: Revert the API-access verification service command, route, tests
 Explicit non-goals: Do not add schema, migrations, frontend controls, API key creation, secret creation/storage/rotation/reveal, credential lifecycle execution, provider API calls, webhook subscription activation, webhook dispatch/retry/replay/queueing/signing, invite delivery, referral-message delivery, identity-provider integration, auth/session claim changes, campaign activation, go-live actions, support-case writes, export persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: The selected-customer Integrations API-access verification command is mounted, tested, smoke-classified, and documented as the first governed execution command over saved setup evidence. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because frontend command wiring, webhook/provider/credential execution, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-308: Wire Integrations API-access verification action into selected-customer UI
+
+Status: Complete (2026-07-29).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_LIVE_EXECUTION_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`.
+Shared primitive impact: Reuses selected-customer account context, TASK-305 execution-readiness actions, TASK-307 API-access verification command, shared frontend endpoint helpers, idempotency key normalization, redaction/no-side-effect copy, and query refresh patterns. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer Integrations API-access verification UX.
+Objective: Wire the selected-customer Integrations page to the governed API-access verification command so operators can record safe API-access verification evidence when readiness says that action is ready.
+Why now: TASK-307 added the backend command but left it invisible in the product surface. The next production-readiness step is to make the action usable from the selected-customer workspace without weakening no-secret/no-provider/no-webhook/no-auth/no-money boundaries.
+Files involved: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; focused frontend endpoint/page tests; roadmap, gap matrix, and infographic docs.
+Database/schema impact: None.
+Backend impact: None; consumes the TASK-307 route.
+Frontend impact: Adds the API-access verification endpoint helper, safe verification payload builder, Integrations readiness action button, mutation feedback, and readiness refetch after successful recording.
+API impact: Consumes `POST /v1/referral-saas/accounts/{account_ref}/integrations/api-access/verification`.
+Tests added/updated: Frontend endpoint test for safe API-access verification payload normalization; selected-customer Integrations page test for ready-action wiring, safe payload, success feedback, and execution-readiness refresh.
+Validation method: Focused frontend tests where local tooling is available; TypeScript build where local tooling is available; `git diff --check`.
+Acceptance criteria: The Integrations page shows a usable API-access verification action only when TASK-305 readiness marks `API_ACCESS_VERIFICATION` ready; clicking it calls the TASK-307 command with selected-customer scope, correlation, idempotency, and safe verification evidence; success refreshes execution readiness; no secret, raw credential, provider call, webhook dispatch, invite/message delivery, membership activation, seat assignment, auth/session, campaign activation, go-live, billing, money, or DLaaS side effect is introduced.
+Dependencies: TASK-300; TASK-301; TASK-302; TASK-303; TASK-304; TASK-305; TASK-306; TASK-307.
+Blocked by: Webhook test-dispatch command, message-provider test-check command, credential lifecycle request command, runtime provider adapters, invite/referral-message delivery integration, auth-claim propagation, export file storage/download, support-case UI/notes/status changes, progress/attribution mutation proof, and non-local proof repetition.
+Risk level: Low.
+Rollback notes: Revert the frontend endpoint helper, Integrations API-access verification action wiring, focused frontend tests, and TASK-308 documentation updates.
+Explicit non-goals: Do not add schema, migrations, backend routes, provider execution, API key creation, secret creation/storage/rotation/reveal, credential lifecycle execution, webhook subscription activation, webhook dispatch/retry/replay/queueing/signing, invite delivery, referral-message delivery, identity-provider integration, auth/session claim changes, campaign activation, go-live actions, support-case writes, export persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: The selected-customer Integrations page can call the governed TASK-307 API-access verification command, record safe verification evidence, show plain-language feedback, and refresh readiness without live provider, credential, webhook, auth, campaign, billing, money, or DLaaS side effects. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution because webhook/provider/credential execution, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
