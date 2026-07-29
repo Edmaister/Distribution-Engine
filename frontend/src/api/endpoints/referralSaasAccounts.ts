@@ -418,6 +418,70 @@ export type ReferralSaasApiAccessVerificationResponse = {
   no_billing_or_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasWebhookTestDispatchPayload = {
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  webhookTest: Record<string, unknown>;
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
+export type ReferralSaasWebhookTestDispatchResult = {
+  dispatchStatus: string;
+  configurationRef: string;
+  accountRef: string;
+  callbackUrlPresent: boolean;
+  eventCategories: string[];
+  idempotency: {
+    status: string;
+  };
+  audit: {
+    accountAuditEventId?: string | null;
+  };
+  plainLanguageSummary: string;
+  guardrails: string[];
+  redactions: string[];
+  noSecretOrCredentialStorageConfirmed: boolean;
+  noCredentialCreationConfirmed: boolean;
+  noCredentialLifecycleConfirmed: boolean;
+  noWebhookDispatchConfirmed: boolean;
+  noInviteDeliveryConfirmed: boolean;
+  noMessageProviderDeliveryConfirmed: boolean;
+  noMembershipActivationConfirmed: boolean;
+  noSeatAssignmentConfirmed: boolean;
+  noAuthClaimChangeConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noGoLiveActionConfirmed: boolean;
+  noBillingOrMoneyMovementConfirmed: boolean;
+};
+
+export type ReferralSaasWebhookTestDispatchResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  integrationWebhookTestDispatch: ReferralSaasWebhookTestDispatchResult;
+  account_scope?: Record<string, unknown>;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  no_secret_or_credential_storage_confirmed: boolean;
+  no_credential_creation_confirmed: boolean;
+  no_credential_lifecycle_confirmed: boolean;
+  no_webhook_dispatch_confirmed: boolean;
+  no_invite_delivery_confirmed: boolean;
+  no_message_provider_delivery_confirmed: boolean;
+  no_membership_activation_confirmed: boolean;
+  no_seat_assignment_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_go_live_action_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasIntegrationConfigurationValidation = {
   commandStatus: string;
   safeSetupPosture: Record<string, unknown>;
@@ -1928,6 +1992,31 @@ export function recordReferralSaasApiAccessVerification({
           context: payload.accountScope.context || "setup",
         },
         verification: payload.verification,
+        reasonCode: payload.reasonCode?.trim() || undefined,
+        correlationId: payload.correlationId.trim(),
+        idempotencyKey: payload.idempotencyKey.trim(),
+      },
+    },
+  );
+}
+
+export function recordReferralSaasWebhookTestDispatch({
+  accountRef,
+  ...payload
+}: ReferralSaasWebhookTestDispatchPayload & {
+  accountRef: string;
+}): Promise<ReferralSaasWebhookTestDispatchResponse> {
+  return apiRequest<ReferralSaasWebhookTestDispatchResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/integrations/webhooks/test-dispatch`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: payload.accountScope.refType,
+          externalRef: payload.accountScope.externalRef.trim(),
+          context: payload.accountScope.context || "setup",
+        },
+        webhookTest: payload.webhookTest,
         reasonCode: payload.reasonCode?.trim() || undefined,
         correlationId: payload.correlationId.trim(),
         idempotencyKey: payload.idempotencyKey.trim(),

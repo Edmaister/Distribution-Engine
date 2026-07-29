@@ -372,6 +372,15 @@ greenfield referral construction.
   dispatch, subscription activation, signing-material creation, credential,
   provider, invite/message, auth, campaign, billing, or money side effects.
 
+- TASK-310:
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  selected-customer Integrations webhook test evidence action over the
+  TASK-309 command, with plain-language action copy, idempotency/correlation,
+  no-secret/no-internal-tenant payload checks, success/error feedback,
+  readiness refresh, and no live webhook, provider, credential, invite/message,
+  auth, campaign, billing, or money side effects.
+
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`
 - TASK-151: `test/test_referral_saas_route_smoke_inventory.py`;

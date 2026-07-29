@@ -6909,6 +6909,31 @@ Rollback notes: Revert the service command, router endpoint, route smoke plan/in
 Explicit non-goals: Do not add schema, migrations, frontend controls, API key creation, secret creation/storage/rotation/reveal, credential lifecycle execution, provider API calls, webhook subscription activation, real webhook dispatch/retry/replay/queueing/signing, invite delivery, referral-message delivery, identity-provider integration, auth/session claim changes, campaign activation, go-live actions, support-case writes, export persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: The selected-customer Integrations webhook test-dispatch command is mounted, tested, smoke-classified, audited, idempotent, and documented as a governed execution command over saved setup evidence. Current rating remains 9.99/10 for Referral Management and 9.90/10 for Campaign Attribution until frontend webhook wiring, message-provider/credential execution, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition are complete. Priority: P0.
 
+## TASK-310: Wire Integrations webhook test evidence action
+
+Status: Complete (2026-07-29).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses selected-customer account context, saved Integrations configuration evidence, execution-readiness actions, governed webhook test-dispatch route, frontend idempotency/correlation helpers, redaction expectations, and no-side-effect guardrails. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer Integrations webhook test evidence UX.
+Objective: Wire the TASK-309 governed webhook test-dispatch command into the selected-customer Integrations UI as a plain-language evidence action.
+Why now: TASK-309 made the backend command available, but operators still could not run it from the customer-scoped workspace. Closing this gap makes the webhook readiness path testable from the actual product UI before provider execution, credential lifecycle, and live delivery are added.
+Files involved: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; focused frontend tests; roadmap, gap matrix, and infographic docs.
+Database/schema impact: None.
+Backend impact: None; uses existing `POST /v1/referral-saas/accounts/{account_ref}/integrations/webhooks/test-dispatch`.
+Frontend impact: Adds a typed endpoint helper, readiness action button, plain-language webhook evidence copy, safe success/error feedback, and readiness refresh after command completion.
+API impact: No new route; adds frontend consumption of the TASK-309 product wrapper route.
+Tests added/updated: Focused Integrations UI test for webhook test evidence payload, no secret/internal tenant leakage, no webhook dispatch confirmation, success feedback, and readiness refresh.
+Validation method: Focused frontend test, frontend lint/build where local tooling allows, and `git diff --check`.
+Acceptance criteria: Operators can record webhook test evidence from the selected-customer Integrations page when the execution-readiness action is `READY`; payload includes account scope, configuration ref, event categories, correlation ID, idempotency key, and no-side-effect confirmations; UI presents plain-language feedback; readiness refreshes; no secret, raw credential, internal tenant code, live webhook dispatch, provider call, invite/message delivery, membership activation, seat assignment, auth/session claim change, campaign activation, go-live, billing, money, DLaaS behavior, or source fork is introduced.
+Dependencies: TASK-300; TASK-301; TASK-302; TASK-303; TASK-304; TASK-305; TASK-306; TASK-307; TASK-308; TASK-309.
+Blocked by: Message-provider test-check command, credential lifecycle request command, runtime provider adapters, invite/referral-message delivery integration, auth-claim propagation, export file storage/download, support-case UI/notes/status changes, progress/attribution mutation proof, and non-local proof repetition.
+Risk level: Low.
+Rollback notes: Revert the frontend endpoint helper, Integrations webhook action wiring, focused frontend test, and TASK-310 documentation updates.
+Explicit non-goals: Do not add schema, migrations, backend routes, API key creation, secret creation/storage/rotation/reveal, credential lifecycle execution, provider API calls, webhook subscription activation, real webhook dispatch/retry/replay/queueing/signing, invite delivery, referral-message delivery, identity-provider integration, auth/session claim changes, campaign activation, go-live actions, support-case writes, export persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: The selected-customer Integrations page can call the governed webhook test-dispatch command, record safe webhook evidence, show plain-language feedback, and refresh readiness without live webhook, provider, credential, auth, campaign, billing, money, or DLaaS side effects. Current rating remains 9.99/10 for Referral Management and moves to 9.91/10 for Campaign Attribution because the UI-operable webhook evidence gap is closed while message-provider/credential execution, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
