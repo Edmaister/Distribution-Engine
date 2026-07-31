@@ -276,6 +276,7 @@ greenfield referral construction.
 168. TASK-310: Wire Integrations webhook test evidence action.
 169. TASK-311: Align Integrations page with Plan Save Verify CX.
 170. TASK-312: Add governed Integrations message-provider test-check command.
+171. TASK-313: Wire Integrations message-provider check UI.
 
 ## 10/10 Exit Criteria
 
@@ -404,6 +405,15 @@ greenfield referral construction.
   configuration gates, idempotency/audit evidence, unsafe-payload rejection,
   and no provider call, invite/message delivery, credential, webhook, auth,
   campaign, billing, or money side effects.
+
+- TASK-313:
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  selected-customer Integrations UI action for the governed message-provider
+  test-check command, with safe provider-readiness payloads,
+  idempotency/correlation, plain-language feedback, and readiness refresh while
+  preserving no provider call, invite/message delivery, credential, webhook,
+  auth, campaign, billing, or money side effects.
 
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`

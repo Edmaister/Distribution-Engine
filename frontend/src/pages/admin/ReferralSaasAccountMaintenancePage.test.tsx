@@ -30,6 +30,7 @@ import {
   listReferralSaasAccounts,
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasApiAccessVerification,
+  recordReferralSaasMessageProviderTest,
   recordReferralSaasWebhookTestDispatch,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasAccountCampaignActivation,
@@ -81,6 +82,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   listReferralSaasAccounts: vi.fn(),
   recordReferralSaasAccountCampaignReviewDecision: vi.fn(),
   recordReferralSaasApiAccessVerification: vi.fn(),
+  recordReferralSaasMessageProviderTest: vi.fn(),
   recordReferralSaasWebhookTestDispatch: vi.fn(),
   recordReferralSaasMembershipInvitationIntent: vi.fn(),
   requestReferralSaasAccountCampaignActivation: vi.fn(),
@@ -114,6 +116,7 @@ const mockedListReferralSaasAccountCampaigns = vi.mocked(listReferralSaasAccount
 const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 const mockedRecordReferralSaasAccountCampaignReviewDecision = vi.mocked(recordReferralSaasAccountCampaignReviewDecision);
 const mockedRecordReferralSaasApiAccessVerification = vi.mocked(recordReferralSaasApiAccessVerification);
+const mockedRecordReferralSaasMessageProviderTest = vi.mocked(recordReferralSaasMessageProviderTest);
 const mockedRecordReferralSaasWebhookTestDispatch = vi.mocked(recordReferralSaasWebhookTestDispatch);
 const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordReferralSaasMembershipInvitationIntent);
 const mockedRequestReferralSaasAccountCampaignActivation = vi.mocked(requestReferralSaasAccountCampaignActivation);
@@ -939,6 +942,35 @@ function mockReadyIntegrationExecutionReadiness(): ReferralSaasIntegrationExecut
   };
 }
 
+function mockReadyMessageProviderIntegrationExecutionReadiness(): ReferralSaasIntegrationExecutionReadinessResponse {
+  const response = mockReadyIntegrationExecutionReadiness();
+  return {
+    ...response,
+    integrationExecutionReadiness: {
+      ...response.integrationExecutionReadiness,
+      readyActions: [
+        ...response.integrationExecutionReadiness.readyActions,
+        {
+          actionRef: "MESSAGE_PROVIDER_TEST",
+          label: "Check message provider delivery",
+          status: "READY",
+          nextStep: "Record governed provider delivery evidence for this customer.",
+          reason: "Requires selected channels and approved provider references.",
+        },
+      ],
+      executionActions: response.integrationExecutionReadiness.executionActions.map((action) =>
+        action.actionRef === "MESSAGE_PROVIDER_TEST"
+          ? {
+              ...action,
+              status: "READY",
+              nextStep: "Record governed provider delivery evidence for this customer.",
+            }
+          : action,
+      ),
+    },
+  };
+}
+
 function mockApiAccessVerificationResponse() {
   return {
     status: "accepted",
@@ -1019,6 +1051,54 @@ function mockWebhookTestDispatchResponse() {
     },
     guardrail: "Webhook test-dispatch evidence recorded for the selected customer only.",
     guardrails: ["NO_WEBHOOK_DISPATCH", "NO_CREDENTIAL_CREATION"],
+    redactions: ["provider_secret"],
+    no_secret_or_credential_storage_confirmed: true,
+    no_credential_creation_confirmed: true,
+    no_credential_lifecycle_confirmed: true,
+    no_webhook_dispatch_confirmed: true,
+    no_invite_delivery_confirmed: true,
+    no_message_provider_delivery_confirmed: true,
+    no_membership_activation_confirmed: true,
+    no_seat_assignment_confirmed: true,
+    no_auth_claim_change_confirmed: true,
+    no_campaign_activation_confirmed: true,
+    no_go_live_action_confirmed: true,
+    no_billing_or_money_movement_confirmed: true,
+  };
+}
+
+function mockMessageProviderTestResponse() {
+  return {
+    status: "accepted",
+    context: "setup" as const,
+    account: mockTechnicalSetupReadiness().account,
+    integrationMessageProviderTest: {
+      testStatus: "MESSAGE_PROVIDER_TEST_RECORDED",
+      configurationRef: "integration-config-1",
+      accountRef: "acct-gabs",
+      channels: ["EMAIL"],
+      providerRefs: ["provider-approved-email"],
+      idempotency: { status: "MESSAGE_PROVIDER_TEST_RECORDED" },
+      audit: { accountAuditEventId: "audit-message-provider-test-1" },
+      plainLanguageSummary:
+        "Message-provider test evidence was recorded for the selected customer. No provider was called and no message was sent.",
+      guardrails: ["NO_MESSAGE_PROVIDER_DELIVERY", "NO_PROVIDER_CALL"],
+      redactions: ["provider_secret"],
+      noSecretOrCredentialStorageConfirmed: true,
+      noCredentialCreationConfirmed: true,
+      noCredentialLifecycleConfirmed: true,
+      noWebhookDispatchConfirmed: true,
+      noInviteDeliveryConfirmed: true,
+      noMessageProviderDeliveryConfirmed: true,
+      noMembershipActivationConfirmed: true,
+      noSeatAssignmentConfirmed: true,
+      noAuthClaimChangeConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noGoLiveActionConfirmed: true,
+      noBillingOrMoneyMovementConfirmed: true,
+    },
+    guardrail: "Message-provider test evidence recorded for the selected customer only.",
+    guardrails: ["NO_MESSAGE_PROVIDER_DELIVERY", "NO_PROVIDER_CALL"],
     redactions: ["provider_secret"],
     no_secret_or_credential_storage_confirmed: true,
     no_credential_creation_confirmed: true,
@@ -1462,6 +1542,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedSaveReferralSaasIntegrationConfiguration.mockResolvedValue(mockIntegrationConfigurationSave());
     mockedRecordReferralSaasApiAccessVerification.mockResolvedValue(mockApiAccessVerificationResponse());
     mockedRecordReferralSaasWebhookTestDispatch.mockResolvedValue(mockWebhookTestDispatchResponse());
+    mockedRecordReferralSaasMessageProviderTest.mockResolvedValue(mockMessageProviderTestResponse());
     mockedListReferralSaasAccounts.mockResolvedValue(mockAccountRegistry());
     mockedRecordReferralSaasMembershipInvitationIntent.mockResolvedValue({
       status: "ok",
@@ -2551,6 +2632,65 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
     expect(await screen.findByText(/Webhook test-dispatch evidence was recorded/i)).toBeInTheDocument();
     expect(screen.getByText(/No webhook was dispatched/i)).toBeInTheDocument();
+    expect(mockedGetReferralSaasIntegrationExecutionReadiness).toHaveBeenCalledTimes(2);
+  });
+
+  it("records message provider check evidence from Integrations when the readiness action is ready", async () => {
+    mockedGetReferralSaasIntegrationConfiguration.mockResolvedValue({
+      ...mockIntegrationConfigurationRead(),
+      integrationConfiguration: mockIntegrationConfigurationSave().integrationConfigurationResult.configuration,
+    });
+    mockedGetReferralSaasIntegrationExecutionReadiness.mockResolvedValue(
+      mockReadyMessageProviderIntegrationExecutionReadiness(),
+    );
+
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/integrations");
+
+    expect(await screen.findByRole("heading", { name: "Integrations" })).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText("Optional approved provider reference"), {
+      target: { value: "provider-approved-email" },
+    });
+    fireEvent.click(screen.getByRole("tab", { name: "Verify" }));
+    const action = await screen.findByRole("button", { name: "Record provider check" });
+    fireEvent.click(action);
+
+    await waitFor(() => expect(mockedRecordReferralSaasMessageProviderTest).toHaveBeenCalledTimes(1));
+    expect(mockedRecordReferralSaasMessageProviderTest).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      messageProviderTest: {
+        testType: "MESSAGE_PROVIDER_TEST",
+        configurationRef: "integration-config-1",
+        channels: ["EMAIL"],
+        providerRefs: ["provider-approved-email"],
+        noSecretOrCredentialStorageConfirmed: true,
+        noCredentialCreationConfirmed: true,
+        noCredentialLifecycleConfirmed: true,
+        noWebhookDispatchConfirmed: true,
+        noProviderCallConfirmed: true,
+        noInviteDeliveryConfirmed: true,
+        noMessageProviderDeliveryConfirmed: true,
+        noMembershipActivationConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noCampaignActivationConfirmed: true,
+        noGoLiveActionConfirmed: true,
+        noBillingOrMoneyMovementConfirmed: true,
+      },
+      reasonCode: "CUSTOMER_MESSAGE_PROVIDER_TEST",
+      correlationId: "customer-profile-integrations-message-provider-test-acct-gabs",
+      idempotencyKey:
+        "customer-profile-integrations-message-provider-test-acct-gabs-integration-config-1-email-provider-approved-email",
+    });
+    expect(JSON.stringify(mockedRecordReferralSaasMessageProviderTest.mock.calls)).not.toMatch(
+      /tenantCode|tenant_code|clientSecret|credentialValue|apiKeyValue|webhookSecret|wallet|settlementAccount|payout/i,
+    );
+    expect(await screen.findByText(/Message-provider test evidence was recorded/i)).toBeInTheDocument();
+    expect(screen.getByText(/No provider was called and no message was sent/i)).toBeInTheDocument();
     expect(mockedGetReferralSaasIntegrationExecutionReadiness).toHaveBeenCalledTimes(2);
   });
 
