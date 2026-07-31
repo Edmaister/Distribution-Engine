@@ -5,6 +5,7 @@
 
 # Python virtual environments
 .venv/
+.venv-codex/
 .venv_codex/
 venv/
 ENV/
@@ -20,6 +21,7 @@ __pycache__/
 htmlcov/
 coverage.xml
 .cache/
+.codex_test_deps/
 
 # Local/runtime outputs
 outputs/
