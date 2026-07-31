@@ -275,6 +275,7 @@ greenfield referral construction.
 167. TASK-309: Add governed Integrations webhook test-dispatch command.
 168. TASK-310: Wire Integrations webhook test evidence action.
 169. TASK-311: Align Integrations page with Plan Save Verify CX.
+170. TASK-312: Add governed Integrations message-provider test-check command.
 
 ## 10/10 Exit Criteria
 
@@ -394,6 +395,15 @@ greenfield referral construction.
   connection plan, then run available verification checks from a dedicated
   Verify stage with explicit People and Access and Campaigns handoffs. Existing
   TASK-302, TASK-305, TASK-307, and TASK-309 APIs remain the source of truth.
+
+- TASK-312:
+  `POST /v1/referral-saas/accounts/{account_ref}/integrations/message-providers/test-check`;
+  `services/referral_saas_integrations_configuration_service.py`;
+  third governed Integrations execution command for message-provider test
+  evidence, with account/link/reference gates, saved message-provider
+  configuration gates, idempotency/audit evidence, unsafe-payload rejection,
+  and no provider call, invite/message delivery, credential, webhook, auth,
+  campaign, billing, or money side effects.
 
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`

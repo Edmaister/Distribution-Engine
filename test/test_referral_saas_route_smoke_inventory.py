@@ -113,6 +113,10 @@ def test_referral_saas_current_smoke_routes_are_mounted():
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/integrations/webhooks/test-dispatch",
         ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/integrations/message-providers/test-check",
+        ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/activation-requests"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports"),
         ("POST", "/v1/referral-saas/referral-codes"),
@@ -208,6 +212,10 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/integrations/webhooks/test-dispatch",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/integrations/message-providers/test-check",
         ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/activation-requests"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports"),

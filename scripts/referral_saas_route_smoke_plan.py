@@ -1250,6 +1250,45 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_message_provider_test",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/integrations/message-providers/test-check",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin/operator role",
+        environment_rule=(
+            "local/staging seeded customer only; records message-provider test "
+            "audit evidence without calling providers, creating credentials, "
+            "dispatching webhooks, sending messages, changing auth, billing, or money"
+        ),
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "idempotency_key",
+            "correlation_id",
+        ],
+        expected_state_change=(
+            "records or replays platform_account_audit_events evidence for "
+            "message-provider readiness; no provider call, credentials, webhook "
+            "dispatch, invite/referral-message delivery, auth/login changes, "
+            "campaign activation, billing, or money"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"messageProviderTest":{"notes":"Smoke records message-provider readiness evidence."},'
+            '"reasonCode":"CUSTOMER_MESSAGE_PROVIDER_TEST",'
+            '"correlationId":"{correlation_id}",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/integrations/message-providers/test-check"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_account_report_export_request",
         method="POST",
         path="/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports",
