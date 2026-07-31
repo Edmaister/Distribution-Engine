@@ -133,17 +133,23 @@ from services.referral_saas_support_case_service import (
     list_referral_saas_support_cases,
 )
 from services.referral_saas_integrations_configuration_service import (
+    CREDENTIAL_REQUEST_GUARDRAILS,
+    CREDENTIAL_REQUEST_REDACTIONS,
     INTEGRATION_CONFIGURATION_GUARDRAILS,
     INTEGRATION_CONFIGURATION_REDACTIONS,
     INTEGRATION_EXECUTION_GUARDRAILS,
     INTEGRATION_EXECUTION_REDACTIONS,
+    IntegrationCredentialRequestNotFound,
     IntegrationConfigurationIdempotencyConflict,
     IntegrationConfigurationUnsafePayload,
     IntegrationConfigurationValidationError,
     ReferralSaasIntegrationConfigurationCommandError,
     assert_safe_referral_saas_integration_execution_payload,
     build_referral_saas_integration_execution_readiness,
+    create_referral_saas_integration_credential_request,
+    get_referral_saas_integration_credential_request,
     get_referral_saas_integration_configuration,
+    list_referral_saas_integration_credential_requests,
     record_referral_saas_api_access_verification,
     record_referral_saas_message_provider_test,
     record_referral_saas_webhook_test_dispatch,
@@ -312,6 +318,14 @@ class ReferralSaasWebhookTestDispatchRequest(BaseModel):
 class ReferralSaasMessageProviderTestRequest(BaseModel):
     accountScope: dict[str, Any] = Field(default_factory=dict)
     messageProviderTest: dict[str, Any] | None = Field(default=None)
+    reasonCode: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str | None = Field(default=None)
+
+
+class ReferralSaasCredentialRequestCreateRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    credentialRequest: dict[str, Any] | None = Field(default=None)
     reasonCode: str | None = Field(default=None)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str | None = Field(default=None)
@@ -1160,6 +1174,8 @@ def _integration_configuration_error(
         status_code = status.HTTP_409_CONFLICT
     elif isinstance(exc, IntegrationConfigurationUnsafePayload):
         status_code = status.HTTP_400_BAD_REQUEST
+    elif isinstance(exc, IntegrationCredentialRequestNotFound):
+        status_code = status.HTTP_404_NOT_FOUND
     else:
         status_code = status.HTTP_400_BAD_REQUEST
 
@@ -1168,10 +1184,20 @@ def _integration_configuration_error(
         detail={
             "code": exc.safe_code,
             "message": str(exc),
-            "guardrails": sorted(INTEGRATION_CONFIGURATION_ROUTE_GUARDRAILS),
-            "redactions": sorted(INTEGRATION_CONFIGURATION_ROUTE_REDACTIONS),
+            "guardrails": sorted(
+                set(INTEGRATION_CONFIGURATION_ROUTE_GUARDRAILS)
+                | set(CREDENTIAL_REQUEST_GUARDRAILS)
+            ),
+            "redactions": sorted(
+                set(INTEGRATION_CONFIGURATION_ROUTE_REDACTIONS)
+                | set(CREDENTIAL_REQUEST_REDACTIONS)
+            ),
             "no_secret_or_credential_storage_confirmed": True,
             "no_credential_creation_confirmed": True,
+            "no_credential_lifecycle_execution_confirmed": True,
+            "no_credential_reveal_or_download_confirmed": True,
+            "no_vault_write_confirmed": True,
+            "no_provider_call_confirmed": True,
             "no_webhook_dispatch_confirmed": True,
             "no_invite_delivery_confirmed": True,
             "no_membership_activation_confirmed": True,
@@ -3102,6 +3128,283 @@ async def record_referral_saas_account_message_provider_test(
         "no_secret_or_credential_storage_confirmed": True,
         "no_credential_creation_confirmed": True,
         "no_credential_lifecycle_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_message_provider_delivery_confirmed": True,
+        "no_membership_activation_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_action_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/integrations/credential-requests")
+async def create_referral_saas_account_integration_credential_request(
+    account_ref: str,
+    request: ReferralSaasCredentialRequestCreateRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        assert_safe_referral_saas_integration_execution_payload(request_payload)
+    except ReferralSaasIntegrationConfigurationCommandError as exc:
+        raise _integration_configuration_error(exc) from exc
+
+    account_scope = request.accountScope
+    credential_request = request.credentialRequest or {}
+    if not isinstance(account_scope, dict) or not isinstance(credential_request, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope and credentialRequest must be objects.",
+                "guardrails": sorted(CREDENTIAL_REQUEST_GUARDRAILS),
+                "redactions": sorted(CREDENTIAL_REQUEST_REDACTIONS),
+                "no_credential_request_recorded_confirmed": True,
+            },
+        )
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = _optional_text(account_scope.get("context")) or "setup"
+    idempotency_key = _optional_text(request.idempotencyKey)
+    correlation_id = _optional_text(request.correlationId)
+    request_type = _optional_text(credential_request.get("requestType"))
+    capability = _optional_text(credential_request.get("capability"))
+    if (
+        not ref_type
+        or not external_ref
+        or not idempotency_key
+        or not correlation_id
+        or not request_type
+        or not capability
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "credentialRequest.requestType, credentialRequest.capability, "
+                    "idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": sorted(CREDENTIAL_REQUEST_GUARDRAILS),
+                "redactions": sorted(CREDENTIAL_REQUEST_REDACTIONS),
+                "no_credential_request_recorded_confirmed": True,
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    safe_account_ref = _assert_account_path_scope(account_ref, account)
+    try:
+        configuration = await get_referral_saas_integration_configuration(
+            account_id=account.account_id,
+        )
+        command_payload = {
+            "accountScope": {
+                "accountRef": safe_account_ref,
+                "refType": ref_type,
+                "externalRef": external_ref,
+                "context": normalised_context,
+            },
+            "credentialRequest": credential_request,
+            "reasonCode": request.reasonCode or "CUSTOMER_CREDENTIAL_REQUEST",
+        }
+        result = await create_referral_saas_integration_credential_request(
+            account_id=account.account_id,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            tenant_code=account.tenant_code,
+            account_status=account.account_status,
+            tenant_link_status=account.tenant_link_status,
+            external_reference_status=account.reference_status,
+            configuration=configuration,
+            request_type=request_type,
+            capability=capability,
+            environment=_optional_text(credential_request.get("environment")),
+            intended_use=credential_request.get("intendedUse"),
+            requested_for=credential_request.get("requestedFor"),
+            reason_code=request.reasonCode,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_CREDENTIAL_REQUEST",
+                    "account_ref": safe_account_ref,
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            request_payload_hash=hash_payload(command_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except ReferralSaasIntegrationConfigurationCommandError as exc:
+        raise _integration_configuration_error(exc) from exc
+
+    return {
+        "status": "accepted",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "integrationCredentialRequestResult": result.to_safe_dict(),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "Credential request recorded for the selected customer only. This "
+            "does not create, reveal, store, rotate, revoke, download, or send "
+            "credentials; it does not write a vault, call a provider, dispatch "
+            "webhooks, send invites or messages, activate memberships, assign "
+            "seats, change auth claims, activate campaigns, trigger go-live, "
+            "bill, or move money."
+        ),
+        "guardrails": sorted(CREDENTIAL_REQUEST_GUARDRAILS),
+        "redactions": sorted(CREDENTIAL_REQUEST_REDACTIONS),
+        "no_secret_or_credential_storage_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_credential_lifecycle_execution_confirmed": True,
+        "no_credential_reveal_or_download_confirmed": True,
+        "no_vault_write_confirmed": True,
+        "no_provider_call_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_message_provider_delivery_confirmed": True,
+        "no_membership_activation_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_action_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/integrations/credential-requests")
+async def list_referral_saas_account_integration_credential_requests(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[str, Query(description="Selected-customer context.")] = "setup",
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    try:
+        requests = await list_referral_saas_integration_credential_requests(
+            account_id=account.account_id,
+            limit=limit,
+        )
+    except ReferralSaasIntegrationConfigurationCommandError as exc:
+        raise _integration_configuration_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "credentialRequests": [item.to_safe_dict() for item in requests],
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "Read-only selected-customer credential request list. It returns "
+            "request metadata only; no secrets, vault records, provider calls, "
+            "webhooks, invites, messages, auth, campaign, billing, or money "
+            "actions are performed."
+        ),
+        "guardrails": sorted(CREDENTIAL_REQUEST_GUARDRAILS),
+        "redactions": sorted(CREDENTIAL_REQUEST_REDACTIONS),
+        "no_secret_or_credential_storage_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_credential_lifecycle_execution_confirmed": True,
+        "no_credential_reveal_or_download_confirmed": True,
+        "no_vault_write_confirmed": True,
+        "no_provider_call_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_message_provider_delivery_confirmed": True,
+        "no_membership_activation_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_action_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.get(
+    "/accounts/{account_ref}/integrations/credential-requests/{credential_request_ref}"
+)
+async def read_referral_saas_account_integration_credential_request(
+    account_ref: str,
+    credential_request_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[str, Query(description="Selected-customer context.")] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    try:
+        credential_request = await get_referral_saas_integration_credential_request(
+            account_id=account.account_id,
+            credential_request_ref=credential_request_ref,
+        )
+    except ReferralSaasIntegrationConfigurationCommandError as exc:
+        raise _integration_configuration_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "credentialRequest": credential_request.to_safe_dict(),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "Read-only selected-customer credential request detail. It returns "
+            "safe request metadata only; no secret material or adjacent live "
+            "workflow is exposed or changed."
+        ),
+        "guardrails": sorted(CREDENTIAL_REQUEST_GUARDRAILS),
+        "redactions": sorted(CREDENTIAL_REQUEST_REDACTIONS),
+        "no_secret_or_credential_storage_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_credential_lifecycle_execution_confirmed": True,
+        "no_credential_reveal_or_download_confirmed": True,
+        "no_vault_write_confirmed": True,
+        "no_provider_call_confirmed": True,
         "no_webhook_dispatch_confirmed": True,
         "no_invite_delivery_confirmed": True,
         "no_message_provider_delivery_confirmed": True,

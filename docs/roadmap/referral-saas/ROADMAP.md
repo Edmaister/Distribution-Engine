@@ -278,6 +278,7 @@ greenfield referral construction.
 170. TASK-312: Add governed Integrations message-provider test-check command.
 171. TASK-313: Wire Integrations message-provider check UI.
 172. TASK-314: Define Integrations credential lifecycle request contract.
+173. TASK-315: Add Integrations credential request API foundation.
 
 ## 10/10 Exit Criteria
 
@@ -428,6 +429,18 @@ greenfield referral construction.
   campaign/no-billing/no-money side-effect boundaries. It is contract-only and
   does not add schema, routes, UI, secret storage, provider execution, or DLaaS
   behavior.
+
+- TASK-315:
+  `dp/migrations/088_referral_saas_integration_credential_requests.sql`;
+  `services/referral_saas_integrations_configuration_service.py`;
+  `POST/GET /v1/referral-saas/accounts/{account_ref}/integrations/credential-requests`;
+  `GET /v1/referral-saas/accounts/{account_ref}/integrations/credential-requests/{credential_request_ref}`;
+  selected-customer credential request persistence/API foundation for safe
+  request intent, review-ready posture, audit/idempotency evidence, and
+  redacted metadata. It does not create, reveal, store, rotate, revoke,
+  download, or send credentials; does not write a vault or call a provider; and
+  does not trigger webhook, invite/message, auth, campaign, billing, money, or
+  DLaaS side effects.
 
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`

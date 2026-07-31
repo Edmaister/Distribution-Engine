@@ -221,8 +221,12 @@ credential lifecycle request contract for future API key, webhook signing key,
 and provider credential-reference requests, including request vocabulary,
 selected-customer gates, review states, audit/idempotency/redaction rules, and
 no-secret/no-provider/no-webhook/no-message/no-auth/no-campaign/no-billing/no-
-money side-effect boundaries. Runtime credential request APIs/UI, provider/vault
-execution, webhook/provider execution, invite delivery, auth/login changes,
+money side-effect boundaries. TASK-315 adds the runtime credential request
+persistence/API foundation for create/list/read request metadata with
+idempotency, audit, redactions, selected-customer scope, saved-configuration
+gates, and no secret/provider/vault/credential-execution side effects.
+Credential request UI, review decisions, execution checks, provider/vault
+adapters, webhook/provider execution, invite delivery, auth/login changes,
 campaign activation, billing, and money movement remain separate future gaps.
 
 ## Recommended Ordered Task Sequence
