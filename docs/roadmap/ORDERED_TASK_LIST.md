@@ -7009,6 +7009,31 @@ Rollback notes: Revert the frontend endpoint helper, Integrations message-provid
 Explicit non-goals: Do not add schema, migrations, backend routes, API key creation, secret creation/storage/rotation/reveal, credential lifecycle execution, provider API calls, webhook subscription activation, real webhook dispatch/retry/replay/queueing/signing, invite delivery, referral-message delivery, identity-provider integration, auth/session claim changes, campaign activation, go-live actions, support-case writes, export persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: The selected-customer Integrations page can call the governed TASK-312 message-provider test-check command, record safe provider-readiness evidence, show plain-language feedback, and refresh readiness without live provider, message, credential, webhook, auth, campaign, billing, money, or DLaaS side effects. Current rating remains 9.99/10 for Referral Management and moves to 9.92/10 for Campaign Attribution because the UI-operable message-provider evidence gap is closed while credential lifecycle/runtime provider execution, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-314: Define Integrations credential lifecycle request contract
+
+Status: Complete (2026-07-31).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CONFIGURATION_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_LIVE_EXECUTION_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`.
+Shared primitive impact: Reuses selected-customer account context, saved Integrations configuration evidence, execution-readiness gates, account audit/idempotency/redaction posture, and no-side-effect guardrails. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer Integrations credential lifecycle request boundary.
+Objective: Define the selected-customer credential lifecycle request contract before implementing any credential request routes, schema, UI, provider/vault adapters, or secret-handling behavior.
+Why now: TASK-313 closed UI-operable message-provider evidence. The next listed Integrations blocker is credential lifecycle. A contract is required first so future credential work does not hide secret, provider, auth, campaign, billing, or money side effects inside configuration save or verification commands.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CREDENTIAL_LIFECYCLE_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; roadmap, gap matrix, and infographic docs.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: None.
+API impact: Documents the future selected-customer route family for credential request create/list/read/review/execution-check actions.
+Tests added/updated: None; contract-only task.
+Validation method: `git diff --check`; documentation readback.
+Acceptance criteria: The credential lifecycle boundary defines supported request types, selected-customer gates, request and response shapes, review statuses, idempotency/audit/redaction requirements, and explicit no-secret/no-provider/no-webhook/no-message/no-auth/no-campaign/no-billing/no-money side-effect boundaries.
+Dependencies: TASK-300; TASK-301; TASK-302; TASK-303; TASK-304; TASK-305; TASK-306; TASK-307; TASK-308; TASK-309; TASK-310; TASK-311; TASK-312; TASK-313.
+Blocked by: Runtime credential request schema/API/UI implementation, runtime provider adapters, invite/referral-message delivery integration, auth-claim propagation, export file storage/download, support-case UI/notes/status changes, progress/attribution mutation proof, and non-local proof repetition.
+Risk level: Low.
+Rollback notes: Revert the credential lifecycle contract document and TASK-314 documentation updates.
+Explicit non-goals: Do not add schema, migrations, backend routes, service writes, frontend controls, API key creation, secret creation/storage/rotation/reveal/browser submission/download, vault integration, provider API calls, webhook subscription activation, real webhook dispatch/retry/replay/queueing/signing, invite delivery, referral-message delivery, identity-provider integration, auth/session claim changes, campaign activation, go-live actions, support-case writes, export persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: The selected-customer Integrations credential lifecycle request contract is documented and cross-linked so runtime implementation can proceed from explicit request vocabulary, review states, audit/idempotency/redaction rules, and no-adjacent-action boundaries. Current rating remains 9.99/10 for Referral Management and 9.92/10 for Campaign Attribution because this de-risks credential work but does not yet add runtime credential request APIs/UI, provider adapters, export storage/download, support-case UI, progress/attribution mutation proof, or non-local proof repetition. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

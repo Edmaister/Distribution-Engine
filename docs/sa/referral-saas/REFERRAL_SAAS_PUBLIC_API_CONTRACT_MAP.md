@@ -147,7 +147,11 @@ Future Referral SaaS APIs should follow these rules:
 | `/v1/referral-saas/accounts/{accountRef}/integrations/api-access/verification` | `POST` | TASK-304 contract plus TASK-307 runtime command | SaaS account admin/operator bridge or future customer integration admin | Implemented as governed selected-customer API-access verification evidence. Requires saved Integrations configuration, active account/link/reference posture, correlation, idempotency, audit, redaction, and no-secret/no-provider/no-webhook/no-invite/no-message/no-auth/no-campaign/no-billing/no-money guardrails. It does not create, reveal, rotate, or accept credentials. |
 | `/v1/referral-saas/accounts/{accountRef}/integrations/webhooks/test-dispatch` | `POST` | TASK-304 contract | SaaS account admin/operator bridge or future customer integration admin | Future guarded webhook test-dispatch command. Must require approved callback, catalog, signing, idempotency, audit, and redaction gates before any test dispatch evidence is recorded. |
 | `/v1/referral-saas/accounts/{accountRef}/integrations/message-providers/test-delivery-check` | `POST` | TASK-304 contract | SaaS account admin/operator bridge or future customer integration admin | Future provider test-readiness command. Must not send live invite or referral messages unless a later approved provider execution task explicitly implements that behavior. |
-| `/v1/referral-saas/accounts/{accountRef}/integrations/credential-requests` | `POST` | TASK-304 contract | SaaS account admin/operator bridge or future customer integration admin | Future governed credential lifecycle request boundary. Must not accept raw secrets, tokens, signing keys, or credential material from the browser. |
+| `/v1/referral-saas/accounts/{accountRef}/integrations/credential-requests` | `POST` | TASK-304 contract plus TASK-314 credential lifecycle request contract | SaaS account admin/operator bridge or future customer integration admin | Future governed credential lifecycle request boundary. Must not accept raw secrets, tokens, signing keys, or credential material from the browser. Must record selected-customer scope, supported request type, review posture, idempotency, audit, redactions, and no-adjacent-action confirmations. |
+| `/v1/referral-saas/accounts/{accountRef}/integrations/credential-requests` | `GET` | TASK-314 contract | SaaS account admin/operator bridge or future customer integration admin | Future safe selected-customer credential request list. Must return summaries only; no secret reveal, credential download, provider payload, auth claim, campaign, billing, or money behavior. |
+| `/v1/referral-saas/accounts/{accountRef}/integrations/credential-requests/{requestRef}` | `GET` | TASK-314 contract | SaaS account admin/operator bridge or future customer integration admin | Future safe selected-customer credential request read. Must show lifecycle/review/audit posture without rendering secrets or provider internals. |
+| `/v1/referral-saas/accounts/{accountRef}/integrations/credential-requests/{requestRef}/review-decisions` | `POST` | TASK-314 contract | SaaS account admin/operator bridge or future governed reviewer | Future credential request approval/block decision. Approval must not itself create, reveal, rotate, revoke, or download credentials. |
+| `/v1/referral-saas/accounts/{accountRef}/integrations/credential-requests/{requestRef}/execution-checks` | `POST` | TASK-314 contract | SaaS account admin/operator bridge or future customer integration admin | Future safe execution-readiness evidence after review. Provider/vault execution remains a separate governed task. |
 
 ### Campaigns
 
@@ -344,6 +348,12 @@ Rules:
   runtime schema, credential lifecycle, webhook dispatch, invite delivery,
   auth/login changes, campaign activation, billing, money movement, or DLaaS
   marketplace behavior.
+- TASK-314 defines the selected-customer Integrations credential lifecycle
+  request family for future API key, webhook signing key, and provider
+  credential-reference requests. It is contract-only and does not add schema,
+  runtime routes, UI controls, secret storage/reveal, provider/vault execution,
+  webhook dispatch, invite/message delivery, auth/login changes, campaign
+  activation, billing, money movement, or DLaaS marketplace behavior.
 - TASK-262 implements the selected-customer campaign submit/review routes:
   `POST /v1/referral-saas/accounts/{accountRef}/campaigns/{campaignRef}/review-submissions`
   and

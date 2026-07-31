@@ -277,6 +277,7 @@ greenfield referral construction.
 169. TASK-311: Align Integrations page with Plan Save Verify CX.
 170. TASK-312: Add governed Integrations message-provider test-check command.
 171. TASK-313: Wire Integrations message-provider check UI.
+172. TASK-314: Define Integrations credential lifecycle request contract.
 
 ## 10/10 Exit Criteria
 
@@ -324,6 +325,8 @@ greenfield referral construction.
   `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CONFIGURATION_CONTRACT.md`
 - TASK-304:
   `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_LIVE_EXECUTION_CONTRACT.md`
+- TASK-314:
+  `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CREDENTIAL_LIFECYCLE_CONTRACT.md`
 
 ## Completed Implementation Outputs
 
@@ -414,6 +417,17 @@ greenfield referral construction.
   idempotency/correlation, plain-language feedback, and readiness refresh while
   preserving no provider call, invite/message delivery, credential, webhook,
   auth, campaign, billing, or money side effects.
+
+- TASK-314:
+  `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CREDENTIAL_LIFECYCLE_CONTRACT.md`;
+  selected-customer Integrations credential lifecycle request contract for
+  future API key, webhook signing key, and provider credential-reference
+  requests. The contract defines supported request types, selected-customer
+  gates, idempotency/audit/redaction requirements, review states, response
+  shape, and explicit no-secret/no-provider/no-webhook/no-message/no-auth/no-
+  campaign/no-billing/no-money side-effect boundaries. It is contract-only and
+  does not add schema, routes, UI, secret storage, provider execution, or DLaaS
+  behavior.
 
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`
