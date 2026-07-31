@@ -48,6 +48,7 @@ import {
   createReferralSaasAccountCampaignSetup,
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasApiAccessVerification,
+  recordReferralSaasMessageProviderTest,
   recordReferralSaasWebhookTestDispatch,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasAccountCampaignActivation,
@@ -4002,6 +4003,25 @@ function CustomerTechnicalSetupPage({
       await executionReadinessQuery.refetch();
     },
   });
+  const messageProviderTestMutation = useMutation({
+    mutationFn: () =>
+      recordReferralSaasMessageProviderTest({
+        accountRef: account?.accountId || "",
+        ...buildIntegrationMessageProviderTestPayload(
+          draft,
+          accountScope,
+          account?.accountId || "",
+          savedConfiguration?.configurationRef || executionReadiness?.configurationRef || "no-configuration",
+        ),
+      }),
+    onSuccess: async (response) => {
+      const providerTest = response.integrationMessageProviderTest;
+      setConfigurationMessage(
+        `${formatDisplay(providerTest.testStatus)}. ${providerTest.plainLanguageSummary}`,
+      );
+      await executionReadinessQuery.refetch();
+    },
+  });
   const technicalReadiness = readiness?.technicalSetupReadiness;
   const savedConfiguration = configurationQuery.data?.integrationConfiguration || null;
   const executionReadiness = executionReadinessQuery.data?.integrationExecutionReadiness || null;
@@ -4012,6 +4032,7 @@ function CustomerTechnicalSetupPage({
   const executionBlockers = executionReadiness?.blockers || [];
   const apiAccessAction = executionActions.find((action) => action.actionRef === "API_ACCESS_VERIFICATION");
   const webhookTestAction = executionActions.find((action) => action.actionRef === "WEBHOOK_TEST_DISPATCH");
+  const messageProviderTestAction = executionActions.find((action) => action.actionRef === "MESSAGE_PROVIDER_TEST");
   const canRecordApiAccessVerification = Boolean(
     account?.accountId &&
       externalTenantRef &&
@@ -4023,6 +4044,12 @@ function CustomerTechnicalSetupPage({
       externalTenantRef &&
       webhookTestAction?.status === "READY" &&
       !webhookTestDispatchMutation.isPending,
+  );
+  const canRecordMessageProviderTest = Boolean(
+    account?.accountId &&
+      externalTenantRef &&
+      messageProviderTestAction?.status === "READY" &&
+      !messageProviderTestMutation.isPending,
   );
   const canSubmitConfiguration = Boolean(account?.accountId && externalTenantRef);
   const hasSavedConnectionPlan = Boolean(savedConfiguration?.configurationRef || executionReadiness?.configurationRef);
@@ -4061,6 +4088,7 @@ function CustomerTechnicalSetupPage({
         {saveMutation.error ? <ErrorPanel error={saveMutation.error} /> : null}
         {apiAccessVerificationMutation.error ? <ErrorPanel error={apiAccessVerificationMutation.error} /> : null}
         {webhookTestDispatchMutation.error ? <ErrorPanel error={webhookTestDispatchMutation.error} /> : null}
+        {messageProviderTestMutation.error ? <ErrorPanel error={messageProviderTestMutation.error} /> : null}
         {technicalReadiness ? (
           <>
             <div className={`integrations-stage-card ${hasSavedConnectionPlan ? "success" : "warning"}`}>
@@ -4345,6 +4373,18 @@ function CustomerTechnicalSetupPage({
                           {webhookTestDispatchMutation.isPending
                             ? "Recording webhook evidence"
                             : "Record webhook test"}
+                        </button>
+                      ) : null}
+                      {action.actionRef === "MESSAGE_PROVIDER_TEST" ? (
+                        <button
+                          className="button secondary"
+                          disabled={!canRecordMessageProviderTest}
+                          onClick={() => messageProviderTestMutation.mutate()}
+                          type="button"
+                        >
+                          {messageProviderTestMutation.isPending
+                            ? "Recording provider check"
+                            : "Record provider check"}
                         </button>
                       ) : null}
                     </div>
@@ -5150,7 +5190,57 @@ function buildIntegrationWebhookTestDispatchPayload(
   };
 }
 
+function buildIntegrationMessageProviderTestPayload(
+  draft: IntegrationConfigurationDraft,
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context: "setup";
+  },
+  accountId: string,
+  configurationRef: string,
+) {
+  const providerRefs = draft.inviteProviderApprovalRef.trim()
+    ? [draft.inviteProviderApprovalRef.trim()]
+    : [];
+  const channels = Array.from(new Set([draft.inviteDeliveryChannel, ...draft.referralMessageChannels]));
+  return {
+    accountScope,
+    messageProviderTest: {
+      testType: "MESSAGE_PROVIDER_TEST",
+      configurationRef,
+      channels,
+      providerRefs,
+      noSecretOrCredentialStorageConfirmed: true,
+      noCredentialCreationConfirmed: true,
+      noCredentialLifecycleConfirmed: true,
+      noWebhookDispatchConfirmed: true,
+      noProviderCallConfirmed: true,
+      noInviteDeliveryConfirmed: true,
+      noMessageProviderDeliveryConfirmed: true,
+      noMembershipActivationConfirmed: true,
+      noSeatAssignmentConfirmed: true,
+      noAuthClaimChangeConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noGoLiveActionConfirmed: true,
+      noBillingOrMoneyMovementConfirmed: true,
+    },
+    reasonCode: "CUSTOMER_MESSAGE_PROVIDER_TEST",
+    correlationId: `customer-profile-integrations-message-provider-test-${accountId}`,
+    idempotencyKey: safeIdempotencyKey(
+      "customer-profile-integrations-message-provider-test",
+      accountId,
+      configurationRef,
+      ...channels,
+      ...providerRefs,
+    ),
+  };
+}
+
 function integrationExecutionActionLabel(actionRef: string, fallback: string) {
+  if (actionRef === "MESSAGE_PROVIDER_TEST") {
+    return "Message provider check";
+  }
   if (actionRef === "WEBHOOK_TEST_DISPATCH") {
     return "Webhook test";
   }
@@ -5161,6 +5251,9 @@ function integrationExecutionActionLabel(actionRef: string, fallback: string) {
 }
 
 function integrationExecutionActionNextStep(actionRef: string, fallback: string) {
+  if (actionRef === "MESSAGE_PROVIDER_TEST") {
+    return "Record that planned invite/referral message providers are ready without sending a message.";
+  }
   if (actionRef === "WEBHOOK_TEST_DISPATCH") {
     return "Record signed callback test evidence without dispatching a business webhook.";
   }
