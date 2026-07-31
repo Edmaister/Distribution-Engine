@@ -279,6 +279,7 @@ greenfield referral construction.
 171. TASK-313: Wire Integrations message-provider check UI.
 172. TASK-314: Define Integrations credential lifecycle request contract.
 173. TASK-315: Add Integrations credential request API foundation.
+174. TASK-316: Wire Integrations credential request UI.
 
 ## 10/10 Exit Criteria
 
@@ -441,6 +442,16 @@ greenfield referral construction.
   download, or send credentials; does not write a vault or call a provider; and
   does not trigger webhook, invite/message, auth, campaign, billing, money, or
   DLaaS side effects.
+
+- TASK-316:
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  selected-customer Integrations credential request UI over the TASK-315 API.
+  Operators can request governed credential setup from a saved connection plan,
+  list safe request metadata, see plain-language feedback, and refresh
+  readiness/request state while preserving no credential creation, reveal,
+  storage, download, provider, vault, webhook, invite/message, auth, campaign,
+  billing, money, or DLaaS side effects.
 
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`
