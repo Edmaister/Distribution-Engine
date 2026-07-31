@@ -48,6 +48,7 @@ import {
   createReferralSaasAccountCampaignSetup,
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasApiAccessVerification,
+  recordReferralSaasIntegrationCredentialRequest,
   recordReferralSaasMessageProviderTest,
   recordReferralSaasWebhookTestDispatch,
   recordReferralSaasMembershipInvitationIntent,
@@ -67,6 +68,7 @@ import {
   updateReferralSaasAccountProfile,
   getReferralSaasIntegrationConfiguration,
   getReferralSaasIntegrationExecutionReadiness,
+  listReferralSaasIntegrationCredentialRequests,
   type ReferralSaasAccountCampaignSetupCreateResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
@@ -3936,6 +3938,24 @@ function CustomerTechnicalSetupPage({
     enabled: Boolean(account?.accountId && externalTenantRef),
     retry: false,
   });
+  const credentialRequestsQuery = useQuery({
+    queryKey: [
+      "referral-saas",
+      "integration-credential-requests",
+      account?.accountId || "",
+      externalTenantRef,
+    ],
+    queryFn: () =>
+      listReferralSaasIntegrationCredentialRequests({
+        accountRef: account?.accountId || "",
+        refType: "external_tenant_ref",
+        externalRef: externalTenantRef,
+        context: "setup",
+        limit: 20,
+      }),
+    enabled: Boolean(account?.accountId && externalTenantRef),
+    retry: false,
+  });
   const [configurationMessage, setConfigurationMessage] = useState<string | null>(null);
   const [activeIntegrationTab, setActiveIntegrationTab] = useState<"plan" | "verify">("plan");
   const validationMutation = useMutation({
@@ -4022,9 +4042,31 @@ function CustomerTechnicalSetupPage({
       await executionReadinessQuery.refetch();
     },
   });
+  const credentialRequestMutation = useMutation({
+    mutationFn: () =>
+      recordReferralSaasIntegrationCredentialRequest({
+        accountRef: account?.accountId || "",
+        ...buildIntegrationCredentialRequestPayload(
+          draft,
+          accountScope,
+          account?.accountId || "",
+          savedConfiguration?.configurationRef || executionReadiness?.configurationRef || "no-configuration",
+          customerName,
+        ),
+      }),
+    onSuccess: async (response) => {
+      const requestResult = response.integrationCredentialRequestResult;
+      setConfigurationMessage(
+        `${formatDisplay(requestResult.commandStatus)}. ${requestResult.plainLanguageSummary}`,
+      );
+      await credentialRequestsQuery.refetch();
+      await executionReadinessQuery.refetch();
+    },
+  });
   const technicalReadiness = readiness?.technicalSetupReadiness;
   const savedConfiguration = configurationQuery.data?.integrationConfiguration || null;
   const executionReadiness = executionReadinessQuery.data?.integrationExecutionReadiness || null;
+  const credentialRequests = credentialRequestsQuery.data?.credentialRequests || [];
   const capabilities = technicalReadiness?.capabilities || [];
   const missingCapabilities = capabilities.filter((capability) => capability.status !== "READY");
   const executionActions = executionReadiness?.executionActions || [];
@@ -4033,6 +4075,7 @@ function CustomerTechnicalSetupPage({
   const apiAccessAction = executionActions.find((action) => action.actionRef === "API_ACCESS_VERIFICATION");
   const webhookTestAction = executionActions.find((action) => action.actionRef === "WEBHOOK_TEST_DISPATCH");
   const messageProviderTestAction = executionActions.find((action) => action.actionRef === "MESSAGE_PROVIDER_TEST");
+  const credentialRequestAction = executionActions.find((action) => action.actionRef === "CREDENTIAL_REQUEST");
   const canRecordApiAccessVerification = Boolean(
     account?.accountId &&
       externalTenantRef &&
@@ -4050,6 +4093,12 @@ function CustomerTechnicalSetupPage({
       externalTenantRef &&
       messageProviderTestAction?.status === "READY" &&
       !messageProviderTestMutation.isPending,
+  );
+  const canRecordCredentialRequest = Boolean(
+    account?.accountId &&
+      externalTenantRef &&
+      credentialRequestAction?.status === "READY" &&
+      !credentialRequestMutation.isPending,
   );
   const canSubmitConfiguration = Boolean(account?.accountId && externalTenantRef);
   const hasSavedConnectionPlan = Boolean(savedConfiguration?.configurationRef || executionReadiness?.configurationRef);
@@ -4084,11 +4133,13 @@ function CustomerTechnicalSetupPage({
         {error ? <ErrorPanel error={error} /> : null}
         {configurationQuery.error ? <ErrorPanel error={configurationQuery.error} /> : null}
         {executionReadinessQuery.error ? <ErrorPanel error={executionReadinessQuery.error} /> : null}
+        {credentialRequestsQuery.error ? <ErrorPanel error={credentialRequestsQuery.error} /> : null}
         {validationMutation.error ? <ErrorPanel error={validationMutation.error} /> : null}
         {saveMutation.error ? <ErrorPanel error={saveMutation.error} /> : null}
         {apiAccessVerificationMutation.error ? <ErrorPanel error={apiAccessVerificationMutation.error} /> : null}
         {webhookTestDispatchMutation.error ? <ErrorPanel error={webhookTestDispatchMutation.error} /> : null}
         {messageProviderTestMutation.error ? <ErrorPanel error={messageProviderTestMutation.error} /> : null}
+        {credentialRequestMutation.error ? <ErrorPanel error={credentialRequestMutation.error} /> : null}
         {technicalReadiness ? (
           <>
             <div className={`integrations-stage-card ${hasSavedConnectionPlan ? "success" : "warning"}`}>
@@ -4387,8 +4438,65 @@ function CustomerTechnicalSetupPage({
                             : "Record provider check"}
                         </button>
                       ) : null}
+                      {action.actionRef === "CREDENTIAL_REQUEST" ? (
+                        <button
+                          className="button secondary"
+                          disabled={!canRecordCredentialRequest}
+                          onClick={() => credentialRequestMutation.mutate()}
+                          type="button"
+                        >
+                          {credentialRequestMutation.isPending
+                            ? "Requesting credential setup"
+                            : "Request credential setup"}
+                        </button>
+                      ) : null}
                     </div>
                   ))}
+                </div>
+                <div className="panel-lite integrations-step-card">
+                  <div className="settings-summary-header">
+                    <div>
+                      <h3 className="section-heading">Credential setup requests</h3>
+                      <p>
+                        Record that this customer needs credential setup. This is a review request only; no key is
+                        created, shown, stored in a vault, sent to a provider, or downloaded from the browser.
+                      </p>
+                    </div>
+                    <StatusBadge
+                      label={credentialRequests.length ? `${credentialRequests.length} request${credentialRequests.length === 1 ? "" : "s"}` : "None yet"}
+                      tone={credentialRequests.length ? "info" : "neutral"}
+                    />
+                  </div>
+                  {credentialRequests.length ? (
+                    <div className="route-list">
+                      {credentialRequests.map((credentialRequest) => (
+                        <div className="wizard-status-card" key={credentialRequest.credentialRequestRef}>
+                          <div>
+                            <strong>
+                              {credentialRequestLabel(credentialRequest.requestType)} for{" "}
+                              {formatDisplay(credentialRequest.environment)}
+                            </strong>
+                            <p>
+                              {formatDisplay(credentialRequest.capability)} -{" "}
+                              {formatList(credentialRequest.intendedUse)}
+                            </p>
+                            <span className="table-subtext">
+                              {credentialRequest.credentialRequestRef}
+                              {credentialRequest.createdAt ? ` - ${credentialRequest.createdAt}` : ""}
+                            </span>
+                          </div>
+                          <StatusBadge
+                            label={formatDisplay(credentialRequest.reviewStatus)}
+                            tone={statusTone(credentialRequest.reviewStatus)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-panel">
+                      No credential setup request has been recorded for this customer yet.
+                    </div>
+                  )}
                 </div>
                 <div className="action-row integrations-handoff-row">
                   <Link className="button secondary" to={`${selectedCustomerPath}/people`}>
@@ -5237,7 +5345,57 @@ function buildIntegrationMessageProviderTestPayload(
   };
 }
 
+function buildIntegrationCredentialRequestPayload(
+  draft: IntegrationConfigurationDraft,
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context: "setup";
+  },
+  accountId: string,
+  configurationRef: string,
+  customerName: string,
+) {
+  const requestType =
+    draft.intendedAuthMethod === "SIGNED_WEBHOOK"
+      ? "WEBHOOK_SIGNING_KEY_CREATE"
+      : "API_KEY_CREATE";
+  const capability =
+    requestType === "WEBHOOK_SIGNING_KEY_CREATE"
+      ? "REFERRAL_SAAS_WEBHOOK_SIGNING"
+      : "REFERRAL_SAAS_API_ACCESS";
+  return {
+    accountScope,
+    credentialRequest: {
+      requestType,
+      capability,
+      environment: draft.environment,
+      intendedUse: draft.allowedUse,
+      requestedFor: {
+        customerName,
+        configurationRef,
+        requestedBy: "AMPLIFI_ADMIN",
+        requestReason: "Customer integration credential setup",
+      },
+    },
+    reasonCode: "CUSTOMER_CREDENTIAL_REQUEST",
+    correlationId: `customer-profile-integrations-credential-request-${accountId}`,
+    idempotencyKey: safeIdempotencyKey(
+      "customer-profile-integrations-credential-request",
+      accountId,
+      configurationRef,
+      requestType,
+      capability,
+      draft.environment,
+      ...draft.allowedUse,
+    ),
+  };
+}
+
 function integrationExecutionActionLabel(actionRef: string, fallback: string) {
+  if (actionRef === "CREDENTIAL_REQUEST") {
+    return "Credential setup request";
+  }
   if (actionRef === "MESSAGE_PROVIDER_TEST") {
     return "Message provider check";
   }
@@ -5251,6 +5409,9 @@ function integrationExecutionActionLabel(actionRef: string, fallback: string) {
 }
 
 function integrationExecutionActionNextStep(actionRef: string, fallback: string) {
+  if (actionRef === "CREDENTIAL_REQUEST") {
+    return "Record a governed setup request without creating, showing, storing, or sending credentials.";
+  }
   if (actionRef === "MESSAGE_PROVIDER_TEST") {
     return "Record that planned invite/referral message providers are ready without sending a message.";
   }
@@ -5261,6 +5422,22 @@ function integrationExecutionActionNextStep(actionRef: string, fallback: string)
     return "Record that the planned API posture has been checked without creating credentials.";
   }
   return fallback;
+}
+
+function credentialRequestLabel(requestType: string) {
+  if (requestType === "WEBHOOK_SIGNING_KEY_CREATE") {
+    return "Webhook signing setup";
+  }
+  if (requestType === "API_KEY_ROTATE") {
+    return "API key rotation";
+  }
+  if (requestType === "API_KEY_REVOKE") {
+    return "API key revoke";
+  }
+  if (requestType === "PROVIDER_CREDENTIAL_REFERENCE_CREATE") {
+    return "Provider credential reference";
+  }
+  return "API credential setup";
 }
 
 function toggleListValue(values: string[], value: string) {

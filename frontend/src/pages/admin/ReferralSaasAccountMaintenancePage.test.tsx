@@ -26,10 +26,12 @@ import {
   getReferralSaasIntegrationExecutionReadiness,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
+  listReferralSaasIntegrationCredentialRequests,
   listReferralSaasAccountCampaigns,
   listReferralSaasAccounts,
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasApiAccessVerification,
+  recordReferralSaasIntegrationCredentialRequest,
   recordReferralSaasMessageProviderTest,
   recordReferralSaasWebhookTestDispatch,
   recordReferralSaasMembershipInvitationIntent,
@@ -54,6 +56,7 @@ import {
   type ReferralSaasAccountCampaignReadinessResponse,
   type ReferralSaasMembershipActivationReadinessResponse,
   type ReferralSaasIntegrationExecutionReadinessResponse,
+  type ReferralSaasIntegrationCredentialRequestListResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import { ReferralSaasAccountMaintenancePage } from "./ReferralSaasAccountMaintenancePage";
@@ -78,10 +81,12 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   getReferralSaasIntegrationExecutionReadiness: vi.fn(),
   getReferralSaasMembershipActivationReadiness: vi.fn(),
   getReferralSaasTechnicalSetupReadiness: vi.fn(),
+  listReferralSaasIntegrationCredentialRequests: vi.fn(),
   listReferralSaasAccountCampaigns: vi.fn(),
   listReferralSaasAccounts: vi.fn(),
   recordReferralSaasAccountCampaignReviewDecision: vi.fn(),
   recordReferralSaasApiAccessVerification: vi.fn(),
+  recordReferralSaasIntegrationCredentialRequest: vi.fn(),
   recordReferralSaasMessageProviderTest: vi.fn(),
   recordReferralSaasWebhookTestDispatch: vi.fn(),
   recordReferralSaasMembershipInvitationIntent: vi.fn(),
@@ -112,10 +117,12 @@ const mockedGetReferralSaasIntegrationConfiguration = vi.mocked(getReferralSaasI
 const mockedGetReferralSaasIntegrationExecutionReadiness = vi.mocked(getReferralSaasIntegrationExecutionReadiness);
 const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferralSaasMembershipActivationReadiness);
 const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTechnicalSetupReadiness);
+const mockedListReferralSaasIntegrationCredentialRequests = vi.mocked(listReferralSaasIntegrationCredentialRequests);
 const mockedListReferralSaasAccountCampaigns = vi.mocked(listReferralSaasAccountCampaigns);
 const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 const mockedRecordReferralSaasAccountCampaignReviewDecision = vi.mocked(recordReferralSaasAccountCampaignReviewDecision);
 const mockedRecordReferralSaasApiAccessVerification = vi.mocked(recordReferralSaasApiAccessVerification);
+const mockedRecordReferralSaasIntegrationCredentialRequest = vi.mocked(recordReferralSaasIntegrationCredentialRequest);
 const mockedRecordReferralSaasMessageProviderTest = vi.mocked(recordReferralSaasMessageProviderTest);
 const mockedRecordReferralSaasWebhookTestDispatch = vi.mocked(recordReferralSaasWebhookTestDispatch);
 const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordReferralSaasMembershipInvitationIntent);
@@ -1115,6 +1122,116 @@ function mockMessageProviderTestResponse() {
   };
 }
 
+function mockIntegrationCredentialRequest() {
+  return {
+    credentialRequestRef: "credential-request-1",
+    accountRef: "acct-gabs",
+    configurationRef: "integration-config-1",
+    credentialRequestStatus: "REQUEST_RECORDED",
+    reviewStatus: "PENDING_REVIEW",
+    requestType: "API_KEY_CREATE",
+    capability: "REFERRAL_SAAS_API_ACCESS",
+    environment: "LOCAL_DEVELOPMENT",
+    intendedUse: ["CAMPAIGN_READ", "REFERRAL_CODE_VALIDATE", "REPORT_READ"],
+    requestedFor: {
+      customerName: "Gaborone Partners",
+      configurationRef: "integration-config-1",
+      requestedBy: "AMPLIFI_ADMIN",
+      requestReason: "Customer integration credential setup",
+    },
+    safeRequestPosture: {
+      credentialLifecycle: "REQUEST_ONLY",
+    },
+    reasonCode: "CUSTOMER_CREDENTIAL_REQUEST",
+    correlationId: "customer-profile-integrations-credential-request-acct-gabs",
+    createdByRef: "test-admin-key",
+    createdByRole: "AMPLIFI_ADMIN",
+    createdAt: "2026-07-31T00:00:00Z",
+    updatedAt: "2026-07-31T00:00:00Z",
+    redactions: ["provider_secret"],
+    noSecretOrCredentialStorageConfirmed: true,
+    noCredentialCreationConfirmed: true,
+    noCredentialLifecycleExecutionConfirmed: true,
+    noCredentialRevealOrDownloadConfirmed: true,
+    noVaultWriteConfirmed: true,
+    noProviderCallConfirmed: true,
+    noWebhookDispatchConfirmed: true,
+    noInviteDeliveryConfirmed: true,
+    noMessageProviderDeliveryConfirmed: true,
+    noMembershipActivationConfirmed: true,
+    noSeatAssignmentConfirmed: true,
+    noAuthClaimChangeConfirmed: true,
+    noCampaignActivationConfirmed: true,
+    noGoLiveActionConfirmed: true,
+    noBillingOrMoneyMovementConfirmed: true,
+  };
+}
+
+function mockIntegrationCredentialRequestList(
+  credentialRequests = [mockIntegrationCredentialRequest()],
+): ReferralSaasIntegrationCredentialRequestListResponse {
+  return {
+    status: "ok",
+    context: "setup",
+    account: mockTechnicalSetupReadiness().account,
+    credentialRequests,
+    guardrail: "Credential setup requests are listed for the selected customer only.",
+    guardrails: ["CUSTOMER_SCOPED_CREDENTIAL_REQUESTS", "NO_CREDENTIAL_CREATION"],
+    redactions: ["provider_secret"],
+    no_secret_or_credential_storage_confirmed: true,
+    no_credential_creation_confirmed: true,
+    no_credential_lifecycle_execution_confirmed: true,
+    no_credential_reveal_or_download_confirmed: true,
+    no_vault_write_confirmed: true,
+    no_provider_call_confirmed: true,
+    no_webhook_dispatch_confirmed: true,
+    no_invite_delivery_confirmed: true,
+    no_message_provider_delivery_confirmed: true,
+    no_membership_activation_confirmed: true,
+    no_seat_assignment_confirmed: true,
+    no_auth_claim_change_confirmed: true,
+    no_campaign_activation_confirmed: true,
+    no_go_live_action_confirmed: true,
+    no_billing_or_money_movement_confirmed: true,
+  };
+}
+
+function mockIntegrationCredentialRequestResponse() {
+  return {
+    status: "accepted",
+    context: "setup" as const,
+    account: mockTechnicalSetupReadiness().account,
+    integrationCredentialRequestResult: {
+      commandStatus: "CREDENTIAL_REQUEST_RECORDED",
+      credentialRequest: mockIntegrationCredentialRequest(),
+      idempotency: { status: "NEW_REQUEST" },
+      audit: { accountAuditEventId: "audit-credential-request-1" },
+      plainLanguageSummary:
+        "Credential setup request was recorded for the selected customer. No credential was created, revealed, stored, or sent.",
+      guardrails: ["NO_CREDENTIAL_CREATION", "NO_CREDENTIAL_REVEAL_OR_DOWNLOAD", "NO_PROVIDER_CALL"],
+      redactions: ["provider_secret"],
+    },
+    guardrail: "Credential setup request recorded for the selected customer only.",
+    guardrails: ["NO_CREDENTIAL_CREATION", "NO_CREDENTIAL_REVEAL_OR_DOWNLOAD", "NO_PROVIDER_CALL"],
+    redactions: ["provider_secret"],
+    no_secret_or_credential_storage_confirmed: true,
+    no_credential_creation_confirmed: true,
+    no_credential_lifecycle_execution_confirmed: true,
+    no_credential_reveal_or_download_confirmed: true,
+    no_vault_write_confirmed: true,
+    no_provider_call_confirmed: true,
+    no_webhook_dispatch_confirmed: true,
+    no_invite_delivery_confirmed: true,
+    no_message_provider_delivery_confirmed: true,
+    no_membership_activation_confirmed: true,
+    no_seat_assignment_confirmed: true,
+    no_auth_claim_change_confirmed: true,
+    no_campaign_activation_confirmed: true,
+    no_go_live_action_confirmed: true,
+    no_billing_or_money_movement_confirmed: true,
+  };
+}
+
 function mockIntegrationConfigurationValidation() {
   return {
     status: "ok",
@@ -1421,6 +1538,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedGetReferralSaasIntegrationExecutionReadiness.mockResolvedValue(mockIntegrationExecutionReadiness());
     mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockMembershipActivationReadiness());
     mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadiness());
+    mockedListReferralSaasIntegrationCredentialRequests.mockResolvedValue(mockIntegrationCredentialRequestList([]));
     mockedListReferralSaasAccountCampaigns.mockResolvedValue(mockCampaignList());
     mockedGetReferralSaasAccountReport.mockResolvedValue({
       status: "ok",
@@ -1541,6 +1659,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedValidateReferralSaasIntegrationConfiguration.mockResolvedValue(mockIntegrationConfigurationValidation());
     mockedSaveReferralSaasIntegrationConfiguration.mockResolvedValue(mockIntegrationConfigurationSave());
     mockedRecordReferralSaasApiAccessVerification.mockResolvedValue(mockApiAccessVerificationResponse());
+    mockedRecordReferralSaasIntegrationCredentialRequest.mockResolvedValue(mockIntegrationCredentialRequestResponse());
     mockedRecordReferralSaasWebhookTestDispatch.mockResolvedValue(mockWebhookTestDispatchResponse());
     mockedRecordReferralSaasMessageProviderTest.mockResolvedValue(mockMessageProviderTestResponse());
     mockedListReferralSaasAccounts.mockResolvedValue(mockAccountRegistry());
@@ -2692,6 +2811,57 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(await screen.findByText(/Message-provider test evidence was recorded/i)).toBeInTheDocument();
     expect(screen.getByText(/No provider was called and no message was sent/i)).toBeInTheDocument();
     expect(mockedGetReferralSaasIntegrationExecutionReadiness).toHaveBeenCalledTimes(2);
+  });
+
+  it("records credential setup requests from Integrations without creating credentials", async () => {
+    mockedGetReferralSaasIntegrationConfiguration.mockResolvedValue({
+      ...mockIntegrationConfigurationRead(),
+      integrationConfiguration: mockIntegrationConfigurationSave().integrationConfigurationResult.configuration,
+    });
+    mockedGetReferralSaasIntegrationExecutionReadiness.mockResolvedValue(mockReadyIntegrationExecutionReadiness());
+    mockedListReferralSaasIntegrationCredentialRequests
+      .mockResolvedValueOnce(mockIntegrationCredentialRequestList([]))
+      .mockResolvedValueOnce(mockIntegrationCredentialRequestList([mockIntegrationCredentialRequest()]));
+
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/integrations");
+
+    expect(await screen.findByRole("heading", { name: "Integrations" })).toBeInTheDocument();
+    expect(await screen.findAllByText("Ready to verify")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("tab", { name: "Verify" }));
+    const action = await screen.findByRole("button", { name: "Request credential setup" });
+    fireEvent.click(action);
+
+    await waitFor(() => expect(mockedRecordReferralSaasIntegrationCredentialRequest).toHaveBeenCalledTimes(1));
+    expect(mockedRecordReferralSaasIntegrationCredentialRequest).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      credentialRequest: {
+        requestType: "API_KEY_CREATE",
+        capability: "REFERRAL_SAAS_API_ACCESS",
+        environment: "LOCAL_DEVELOPMENT",
+        intendedUse: ["CAMPAIGN_READ", "REFERRAL_CODE_VALIDATE", "REPORT_READ"],
+        requestedFor: {
+          customerName: "Gaborone Partners",
+          configurationRef: "integration-config-1",
+          requestedBy: "AMPLIFI_ADMIN",
+          requestReason: "Customer integration credential setup",
+        },
+      },
+      reasonCode: "CUSTOMER_CREDENTIAL_REQUEST",
+      correlationId: "customer-profile-integrations-credential-request-acct-gabs",
+      idempotencyKey:
+        "customer-profile-integrations-credential-request-acct-gabs-integration-config-1-api-key-create-referral-saas-api-access-local-development-campaign-read-referral-code-validate-report-read",
+    });
+    expect(JSON.stringify(mockedRecordReferralSaasIntegrationCredentialRequest.mock.calls)).not.toMatch(
+      /tenantCode|tenant_code|clientSecret|credentialValue|apiKeyValue|webhookSecret|vault|download|money/i,
+    );
+    expect(await screen.findByText(/Credential setup request was recorded/i)).toBeInTheDocument();
+    expect(screen.getByText(/No credential was created, revealed, stored, or sent/i)).toBeInTheDocument();
+    await waitFor(() => expect(mockedListReferralSaasIntegrationCredentialRequests).toHaveBeenCalledTimes(2));
   });
 
   it("keeps the previous Technical Setup route as an Integrations compatibility alias", async () => {
