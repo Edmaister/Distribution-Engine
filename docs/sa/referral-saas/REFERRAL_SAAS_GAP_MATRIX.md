@@ -205,6 +205,10 @@ guardrails. TASK-310 wires that command into the selected-customer Integrations
 UI with plain-language webhook evidence copy, idempotency/correlation,
 success/error feedback, readiness refresh, and no live webhook/provider,
 credential, invite/message, auth, campaign, billing, or money side effects.
+TASK-311 aligns the selected-customer Integrations page to the recommended Plan,
+Save, Verify CX so operators can separate setup intent from verification
+evidence, see the right next action, and hand off cleanly to People and Access
+or Campaigns without source duplication.
 Runtime webhook/provider execution, credential lifecycle, message-provider
 delivery checks, invite delivery, auth/login changes, campaign activation,
 billing, and money movement remain separate future gaps.

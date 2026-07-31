@@ -270,6 +270,11 @@ greenfield referral construction.
 162. TASK-304: Define customer-scoped Integrations live execution contract.
 163. TASK-305: Add customer-scoped Integrations execution readiness API.
 164. TASK-306: Wire Integrations execution readiness into selected-customer UI.
+165. TASK-307: Add governed Integrations API-access verification command.
+166. TASK-308: Wire Integrations API-access verification action into selected-customer UI.
+167. TASK-309: Add governed Integrations webhook test-dispatch command.
+168. TASK-310: Wire Integrations webhook test evidence action.
+169. TASK-311: Align Integrations page with Plan Save Verify CX.
 
 ## 10/10 Exit Criteria
 
@@ -380,6 +385,15 @@ greenfield referral construction.
   no-secret/no-internal-tenant payload checks, success/error feedback,
   readiness refresh, and no live webhook, provider, credential, invite/message,
   auth, campaign, billing, or money side effects.
+
+- TASK-311:
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/styles/base.css`;
+  selected-customer Integrations page aligned to the recommended Plan, Save,
+  Verify CX. Operators now plan API/webhook/message setup, save the non-secret
+  connection plan, then run available verification checks from a dedicated
+  Verify stage with explicit People and Access and Campaigns handoffs. Existing
+  TASK-302, TASK-305, TASK-307, and TASK-309 APIs remain the source of truth.
 
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`

@@ -734,6 +734,75 @@ a {
   padding: 14px;
 }
 
+.integrations-stage-card,
+.integrations-footnote,
+.integrations-check-row {
+  align-items: flex-start;
+  background: var(--color-white);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-panel);
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 16px;
+}
+
+.integrations-stage-card.warning {
+  background: rgb(217 119 6 / 0.07);
+  border-color: rgb(217 119 6 / 0.22);
+}
+
+.integrations-stage-card.success {
+  background: rgb(13 158 114 / 0.07);
+  border-color: rgb(13 158 114 / 0.22);
+}
+
+.integrations-stage-card p,
+.integrations-step-card p,
+.integrations-check-row p,
+.integrations-footnote p {
+  color: var(--color-ink-soft);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 4px 0 0;
+}
+
+.integrations-tabs {
+  justify-content: flex-start;
+  margin: 0;
+}
+
+.integrations-plan-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.integrations-step-card {
+  gap: 16px;
+}
+
+.integrations-details {
+  border-top: 1px solid var(--color-rule);
+}
+
+.integrations-verify-panel {
+  gap: 16px;
+}
+
+.integrations-check-row {
+  align-items: center;
+}
+
+.integrations-check-row > div:first-child {
+  min-width: 0;
+}
+
+.integrations-handoff-row {
+  justify-content: flex-end;
+}
+
 .grid-3 {
   display: grid;
   gap: 14px;

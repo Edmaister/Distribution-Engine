@@ -6934,6 +6934,31 @@ Rollback notes: Revert the frontend endpoint helper, Integrations webhook action
 Explicit non-goals: Do not add schema, migrations, backend routes, API key creation, secret creation/storage/rotation/reveal, credential lifecycle execution, provider API calls, webhook subscription activation, real webhook dispatch/retry/replay/queueing/signing, invite delivery, referral-message delivery, identity-provider integration, auth/session claim changes, campaign activation, go-live actions, support-case writes, export persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: The selected-customer Integrations page can call the governed webhook test-dispatch command, record safe webhook evidence, show plain-language feedback, and refresh readiness without live webhook, provider, credential, auth, campaign, billing, money, or DLaaS side effects. Current rating remains 9.99/10 for Referral Management and moves to 9.91/10 for Campaign Attribution because the UI-operable webhook evidence gap is closed while message-provider/credential execution, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-311: Align Integrations page with Plan Save Verify CX
+
+Status: Complete (2026-07-29).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/integrations-mocks/index.html`; `docs/integrations-mocks/deck.html`.
+Shared primitive impact: Reuses selected-customer account context, saved Integrations configuration APIs, execution-readiness read model, API-access verification command, webhook test-dispatch command, frontend API helpers, and no-side-effect guardrail copy. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer Integrations setup and verification CX.
+Objective: Reframe the selected-customer Integrations page from a technical checklist into the recommended Plan, Save, Verify workflow.
+Why now: TASK-302 through TASK-310 created the configuration, readiness, and verification command spine, but the UI still mixed setup intent, channel readiness, and verification actions in one busy surface. Operators need a plain sequence: plan the connection, save the non-secret setup evidence, then run available verification checks.
+Files involved: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; `frontend/src/styles/base.css`; roadmap, gap matrix, and infographic docs.
+Database/schema impact: None.
+Backend impact: None; existing Integrations read/save/validate/readiness/API-verification/webhook-test routes remain the source of truth.
+Frontend impact: Adds a stage card, Plan/Verify tabs, API/webhook/message setup sections, collapsed platform readiness detail, verification checks only after a saved plan, plain-language safe-operation copy, and handoffs to People and Access and Campaigns.
+API impact: No new route; consumes existing TASK-302, TASK-305, TASK-307, and TASK-309 routes.
+Tests added/updated: Focused selected-customer Integrations UI tests for draft plan state, safe plan validation/save, post-save Verify state, API-access verification action, and webhook test action.
+Validation method: Focused frontend test, frontend lint/build, and `git diff --check`.
+Acceptance criteria: Operators can understand and use Integrations as Plan -> Save -> Verify; verification is separated from setup intent; successful save moves the UI to Verify; verification actions retain selected-customer scope, idempotency/correlation, safe payloads, and no live provider, credential, webhook, invite/message, auth/session, campaign activation, go-live, billing, money, DLaaS behavior, or source fork.
+Dependencies: TASK-300; TASK-301; TASK-302; TASK-303; TASK-304; TASK-305; TASK-306; TASK-307; TASK-308; TASK-309; TASK-310.
+Blocked by: Message-provider test-check command, credential lifecycle request command, runtime provider adapters, invite/referral-message delivery integration, auth-claim propagation, export file storage/download, support-case UI/notes/status changes, progress/attribution mutation proof, and non-local proof repetition.
+Risk level: Low.
+Rollback notes: Revert the Integrations page CX changes, focused frontend tests, style additions, and TASK-311 documentation updates.
+Explicit non-goals: Do not add schema, migrations, backend routes, API key creation, secret creation/storage/rotation/reveal, credential lifecycle execution, provider API calls, webhook subscription activation, real webhook dispatch/retry/replay/queueing/signing, invite delivery, referral-message delivery, identity-provider integration, auth/session claim changes, campaign activation, go-live actions, support-case writes, export persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: The selected-customer Integrations page follows the recommended Plan, Save, Verify CX, keeps setup and verification separate, preserves the guarded backend command boundaries, and is covered by focused frontend tests. Current rating remains 9.99/10 for Referral Management and 9.91/10 for Campaign Attribution because this closes an Integrations CX gap while message-provider/credential execution, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
