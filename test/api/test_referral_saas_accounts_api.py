@@ -44,6 +44,7 @@ from services.referral_saas_campaign_service import (
 )
 from services.referral_saas_integrations_configuration_service import (
     IntegrationConfigurationIdempotencyConflict,
+    IntegrationCredentialRequestNotFound,
 )
 from services.referral_saas_support_case_service import (
     SupportCaseIdempotencyConflict,
@@ -2595,6 +2596,390 @@ async def test_referral_saas_account_message_provider_test_idempotency_conflict(
     assert detail["code"] == "IDEMPOTENCY_CONFLICT"
     assert detail["no_credential_creation_confirmed"] is True
     assert detail["no_auth_claim_change_confirmed"] is True
+
+
+async def test_referral_saas_account_admin_can_create_integration_credential_request(
+    monkeypatch,
+):
+    request_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    class FakeIntegrationConfiguration:
+        configuration_ref = "config-1"
+        configuration_status = "INTEGRATION_CONFIGURATION_SAVED"
+        api_environment = {
+            "environment": "SANDBOX",
+            "authMethod": "API_KEY",
+            "useCases": ["CAMPAIGN_READ"],
+        }
+        webhook_intent = {}
+        message_providers = {}
+
+        def to_safe_dict(self):
+            return {
+                "configurationRef": self.configuration_ref,
+                "configurationStatus": self.configuration_status,
+                "apiEnvironment": self.api_environment,
+                "webhookIntent": self.webhook_intent,
+                "messageProviders": self.message_providers,
+            }
+
+    class FakeCredentialRequestResult:
+        def to_safe_dict(self):
+            return {
+                "commandStatus": "INTEGRATION_CREDENTIAL_REQUEST_RECORDED",
+                "credentialRequest": {
+                    "credentialRequestRef": "credreq-1",
+                    "requestType": "API_KEY_CREATE",
+                    "capability": "REFERRAL_SAAS_API_ACCESS",
+                    "reviewStatus": "READY_FOR_REVIEW",
+                },
+                "idempotency": {"status": "INTEGRATION_CREDENTIAL_REQUEST_RECORDED"},
+                "audit": {"accountAuditEventId": "audit-1"},
+                "noCredentialCreationConfirmed": True,
+                "noVaultWriteConfirmed": True,
+            }
+
+    async def fake_get_referral_saas_integration_configuration(**kwargs):
+        return FakeIntegrationConfiguration()
+
+    async def fake_create_referral_saas_integration_credential_request(**kwargs):
+        request_calls.append(kwargs)
+        return FakeCredentialRequestResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_configuration",
+        fake_get_referral_saas_integration_configuration,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "create_referral_saas_integration_credential_request",
+        fake_create_referral_saas_integration_credential_request,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/credential-requests",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "credentialRequest": {
+                    "requestType": "API_KEY_CREATE",
+                    "capability": "REFERRAL_SAAS_API_ACCESS",
+                    "environment": "SANDBOX",
+                    "intendedUse": ["CAMPAIGN_READ"],
+                    "requestedFor": {
+                        "integrationOwnerRef": "ops-team",
+                        "displayName": "Ops team",
+                    },
+                },
+                "reasonCode": "CUSTOMER_CREDENTIAL_REQUEST",
+                "correlationId": "corr-1",
+                "idempotencyKey": "credential-request-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "accepted"
+    assert (
+        body["integrationCredentialRequestResult"]["commandStatus"]
+        == "INTEGRATION_CREDENTIAL_REQUEST_RECORDED"
+    )
+    assert body["no_credential_creation_confirmed"] is True
+    assert body["no_credential_reveal_or_download_confirmed"] is True
+    assert body["no_vault_write_confirmed"] is True
+    assert body["no_provider_call_confirmed"] is True
+    assert request_calls[0]["account_id"] == "acct-1"
+    assert request_calls[0]["tenant_code"] == "FNB"
+    assert request_calls[0]["request_type"] == "API_KEY_CREATE"
+    assert request_calls[0]["capability"] == "REFERRAL_SAAS_API_ACCESS"
+    assert request_calls[0]["actor_role"] == "ADMIN"
+
+
+async def test_referral_saas_account_credential_request_requires_command_scope(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        raise AssertionError("account should not resolve without command scope")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/credential-requests",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "credentialRequest": {
+                    "requestType": "API_KEY_CREATE",
+                    "capability": "REFERRAL_SAAS_API_ACCESS",
+                },
+                "correlationId": "corr-1",
+            },
+        )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "validation_error"
+    assert detail["no_credential_request_recorded_confirmed"] is True
+
+
+async def test_referral_saas_account_credential_request_rejects_unsafe_payload(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        raise AssertionError("unsafe payload should fail before account lookup")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/credential-requests",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "credentialRequest": {
+                    "requestType": "API_KEY_CREATE",
+                    "capability": "REFERRAL_SAAS_API_ACCESS",
+                    "apiKey": "secret",
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "credential-request-1",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert detail["no_credential_creation_confirmed"] is True
+    assert detail["no_credential_lifecycle_execution_confirmed"] is True
+
+
+async def test_referral_saas_account_credential_request_idempotency_conflict(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    async def fake_get_referral_saas_integration_configuration(**kwargs):
+        return SimpleNamespace(configuration_ref="config-1")
+
+    async def fake_create_referral_saas_integration_credential_request(**kwargs):
+        raise IntegrationConfigurationIdempotencyConflict(
+            "Idempotency key was reused with different credential request content."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_configuration",
+        fake_get_referral_saas_integration_configuration,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "create_referral_saas_integration_credential_request",
+        fake_create_referral_saas_integration_credential_request,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/credential-requests",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "credentialRequest": {
+                    "requestType": "API_KEY_CREATE",
+                    "capability": "REFERRAL_SAAS_API_ACCESS",
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "credential-request-1",
+            },
+        )
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["code"] == "IDEMPOTENCY_CONFLICT"
+    assert detail["no_credential_creation_confirmed"] is True
+    assert detail["no_provider_call_confirmed"] is True
+
+
+async def test_referral_saas_account_admin_can_list_integration_credential_requests(
+    monkeypatch,
+):
+    list_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    class FakeCredentialRequest:
+        def to_safe_dict(self):
+            return {
+                "credentialRequestRef": "credreq-1",
+                "requestType": "API_KEY_CREATE",
+                "capability": "REFERRAL_SAAS_API_ACCESS",
+                "reviewStatus": "READY_FOR_REVIEW",
+            }
+
+    async def fake_list_referral_saas_integration_credential_requests(**kwargs):
+        list_calls.append(kwargs)
+        return [FakeCredentialRequest()]
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_integration_credential_requests",
+        fake_list_referral_saas_integration_credential_requests,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/integrations/credential-requests",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+                "limit": 25,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["credentialRequests"][0]["credentialRequestRef"] == "credreq-1"
+    assert body["no_credential_reveal_or_download_confirmed"] is True
+    assert list_calls[0]["account_id"] == "acct-1"
+    assert list_calls[0]["limit"] == 25
+
+
+async def test_referral_saas_account_admin_can_read_integration_credential_request(
+    monkeypatch,
+):
+    read_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    class FakeCredentialRequest:
+        def to_safe_dict(self):
+            return {
+                "credentialRequestRef": "credreq-1",
+                "requestType": "API_KEY_CREATE",
+                "capability": "REFERRAL_SAAS_API_ACCESS",
+                "reviewStatus": "READY_FOR_REVIEW",
+            }
+
+    async def fake_get_referral_saas_integration_credential_request(**kwargs):
+        read_calls.append(kwargs)
+        return FakeCredentialRequest()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_credential_request",
+        fake_get_referral_saas_integration_credential_request,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/integrations/credential-requests/credreq-1",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["credentialRequest"]["credentialRequestRef"] == "credreq-1"
+    assert body["no_secret_or_credential_storage_confirmed"] is True
+    assert read_calls[0]["account_id"] == "acct-1"
+    assert read_calls[0]["credential_request_ref"] == "credreq-1"
+
+
+async def test_referral_saas_account_credential_request_read_returns_404(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    async def fake_get_referral_saas_integration_credential_request(**kwargs):
+        raise IntegrationCredentialRequestNotFound("Credential request was not found.")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_credential_request",
+        fake_get_referral_saas_integration_credential_request,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/integrations/credential-requests/missing",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 404
+    detail = response.json()["detail"]
+    assert detail["code"] == "CREDENTIAL_REQUEST_NOT_FOUND"
+    assert detail["no_credential_creation_confirmed"] is True
 
 
 async def test_referral_saas_account_admin_can_read_customer_scoped_campaign_readiness(

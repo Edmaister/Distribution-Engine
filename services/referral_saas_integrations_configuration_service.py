@@ -46,6 +46,10 @@ INTEGRATION_MESSAGE_PROVIDER_TEST_EVENT = "INTEGRATION_MESSAGE_PROVIDER_TEST_REC
 MESSAGE_PROVIDER_TEST_RECORDED = "MESSAGE_PROVIDER_TEST_RECORDED"
 MESSAGE_PROVIDER_TEST_REPLAYED = "MESSAGE_PROVIDER_TEST_REPLAYED"
 MESSAGE_PROVIDER_TEST_BLOCKED = "MESSAGE_PROVIDER_TEST_BLOCKED"
+INTEGRATION_CREDENTIAL_REQUEST_EVENT = "INTEGRATION_CREDENTIAL_REQUEST_RECORDED"
+CREDENTIAL_REQUEST_RECORDED = "CREDENTIAL_REQUEST_RECORDED"
+CREDENTIAL_REQUEST_REPLAYED = "CREDENTIAL_REQUEST_REPLAYED"
+CREDENTIAL_REQUEST_READY_FOR_REVIEW = "CREDENTIAL_REQUEST_READY_FOR_REVIEW"
 
 INTEGRATION_CONFIGURATION_GUARDRAILS = [
     "CUSTOMER_SCOPED_INTEGRATIONS_CONFIGURATION",
@@ -100,8 +104,35 @@ INTEGRATION_EXECUTION_REDACTIONS = list(
         ]
     )
 )
+CREDENTIAL_REQUEST_GUARDRAILS = list(
+    dict.fromkeys(
+        [
+            *INTEGRATION_EXECUTION_GUARDRAILS,
+            "CUSTOMER_SCOPED_CREDENTIAL_REQUEST",
+            "CREDENTIAL_REQUEST_REVIEW_REQUIRED",
+            "NO_SECRET_CAPTURE",
+            "NO_CREDENTIAL_MATERIAL_STORAGE",
+            "NO_VAULT_WRITE",
+            "NO_CREDENTIAL_REVEAL_OR_DOWNLOAD",
+            "NO_CREDENTIAL_ROTATION_OR_REVOCATION_EXECUTION",
+        ]
+    )
+)
+CREDENTIAL_REQUEST_REDACTIONS = list(
+    dict.fromkeys(
+        [
+            *INTEGRATION_EXECUTION_REDACTIONS,
+            "credential_request_payload",
+            "credential_request_material",
+            "vault_reference",
+            "api_key_value",
+            "signing_key_value",
+        ]
+    )
+)
 
 API_ENVIRONMENTS = frozenset({"LOCAL_DEVELOPMENT", "SANDBOX", "PRODUCTION_INTENT"})
+CREDENTIAL_REQUEST_ENVIRONMENTS = frozenset({"SANDBOX", "STAGING", "PRODUCTION"})
 AUTH_METHODS = frozenset({"API_KEY", "OAUTH_CLIENT_CREDENTIALS", "SIGNED_WEBHOOK"})
 EVENT_CATEGORIES = frozenset(
     {"CAMPAIGN", "REFERRAL", "PROGRESS", "ATTRIBUTION", "REPORTING", "SUPPORT"}
@@ -118,6 +149,23 @@ INTEGRATION_USE_CASES = frozenset(
         "REPORT_READ",
         "INVITE_DELIVERY",
         "REFERRAL_MESSAGE_DELIVERY",
+    }
+)
+CREDENTIAL_REQUEST_TYPES = frozenset(
+    {
+        "API_KEY_CREATE",
+        "API_KEY_ROTATE",
+        "API_KEY_REVOKE",
+        "WEBHOOK_SIGNING_KEY_CREATE",
+        "WEBHOOK_SIGNING_KEY_ROTATE",
+        "PROVIDER_CREDENTIAL_REFERENCE_CREATE",
+    }
+)
+CREDENTIAL_REQUEST_CAPABILITIES = frozenset(
+    {
+        "REFERRAL_SAAS_API_ACCESS",
+        "REFERRAL_SAAS_WEBHOOK_SIGNING",
+        "REFERRAL_SAAS_PROVIDER_REFERENCE",
     }
 )
 FORBIDDEN_CONFIGURATION_KEYS = {
@@ -164,6 +212,12 @@ class IntegrationConfigurationIdempotencyConflict(
     ReferralSaasIntegrationConfigurationCommandError
 ):
     safe_code = "IDEMPOTENCY_CONFLICT"
+
+
+class IntegrationCredentialRequestNotFound(
+    ReferralSaasIntegrationConfigurationCommandError
+):
+    safe_code = "CREDENTIAL_REQUEST_NOT_FOUND"
 
 
 @dataclass(frozen=True)
@@ -406,6 +460,102 @@ class ReferralSaasMessageProviderTestResult:
         }
 
 
+@dataclass(frozen=True)
+class ReferralSaasIntegrationCredentialRequest:
+    credential_request_ref: str
+    account_ref: str
+    configuration_ref: str | None
+    credential_request_status: str
+    review_status: str
+    request_type: str
+    capability: str
+    environment: str
+    intended_use: list[str]
+    requested_for: dict[str, Any]
+    safe_request_posture: dict[str, Any]
+    reason_code: str | None
+    correlation_id: str | None
+    created_by_ref: str
+    created_by_role: str | None
+    created_at: str | None
+    updated_at: str | None
+    redactions: list[str]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "credentialRequestRef": self.credential_request_ref,
+            "accountRef": self.account_ref,
+            "configurationRef": self.configuration_ref,
+            "credentialRequestStatus": self.credential_request_status,
+            "reviewStatus": self.review_status,
+            "requestType": self.request_type,
+            "capability": self.capability,
+            "environment": self.environment,
+            "intendedUse": self.intended_use,
+            "requestedFor": self.requested_for,
+            "safeRequestPosture": self.safe_request_posture,
+            "reasonCode": self.reason_code,
+            "correlationId": self.correlation_id,
+            "createdByRef": self.created_by_ref,
+            "createdByRole": self.created_by_role,
+            "createdAt": self.created_at,
+            "updatedAt": self.updated_at,
+            "redactions": self.redactions,
+            "noSecretOrCredentialStorageConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noCredentialLifecycleExecutionConfirmed": True,
+            "noCredentialRevealOrDownloadConfirmed": True,
+            "noVaultWriteConfirmed": True,
+            "noProviderCallConfirmed": True,
+            "noWebhookDispatchConfirmed": True,
+            "noInviteDeliveryConfirmed": True,
+            "noMessageProviderDeliveryConfirmed": True,
+            "noMembershipActivationConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveActionConfirmed": True,
+            "noBillingOrMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasIntegrationCredentialRequestResult:
+    command_status: str
+    credential_request: ReferralSaasIntegrationCredentialRequest
+    idempotency_status: str
+    audit_event_id: str | None
+    plain_language_summary: str
+    guardrails: list[str]
+    redactions: list[str]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "credentialRequest": self.credential_request.to_safe_dict(),
+            "idempotency": {"status": self.idempotency_status},
+            "audit": {"accountAuditEventId": self.audit_event_id},
+            "plainLanguageSummary": self.plain_language_summary,
+            "guardrails": self.guardrails,
+            "redactions": self.redactions,
+            "noSecretOrCredentialStorageConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noCredentialLifecycleExecutionConfirmed": True,
+            "noCredentialRevealOrDownloadConfirmed": True,
+            "noVaultWriteConfirmed": True,
+            "noProviderCallConfirmed": True,
+            "noWebhookDispatchConfirmed": True,
+            "noInviteDeliveryConfirmed": True,
+            "noMessageProviderDeliveryConfirmed": True,
+            "noMembershipActivationConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveActionConfirmed": True,
+            "noBillingOrMoneyMovementConfirmed": True,
+        }
+
+
 def _jsonb(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
@@ -588,6 +738,46 @@ def _configuration_from_row(row: Any) -> ReferralSaasIntegrationConfiguration:
         updated_at=_as_iso(row.get("updated_at")),
         redactions=_safe_json_list(row.get("redactions")),
     )
+
+
+def _credential_request_from_row(row: Any) -> ReferralSaasIntegrationCredentialRequest:
+    return ReferralSaasIntegrationCredentialRequest(
+        credential_request_ref=str(row["integration_credential_request_id"]),
+        account_ref=str(row["account_id"]),
+        configuration_ref=(
+            str(row["integration_configuration_id"])
+            if row.get("integration_configuration_id")
+            else None
+        ),
+        credential_request_status=str(row["credential_request_status"]),
+        review_status=str(row["review_status"]),
+        request_type=str(row["request_type"]),
+        capability=str(row["capability"]),
+        environment=str(row["environment"]),
+        intended_use=_safe_json_list(row.get("intended_use")),
+        requested_for=_safe_json_dict(row.get("requested_for")),
+        safe_request_posture=_safe_json_dict(row.get("safe_request_posture")),
+        reason_code=_optional_text(row.get("reason_code")),
+        correlation_id=_optional_text(row.get("correlation_id")),
+        created_by_ref=str(row["created_by_ref"]),
+        created_by_role=_optional_text(row.get("created_by_role")),
+        created_at=_as_iso(row.get("created_at")),
+        updated_at=_as_iso(row.get("updated_at")),
+        redactions=_safe_json_list(row.get("redactions")),
+    )
+
+
+def _normalise_requested_for(value: dict[str, Any] | None) -> dict[str, Any]:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise IntegrationConfigurationValidationError("requestedFor must be an object.")
+    _assert_safe_payload(value, "requestedFor")
+    return {
+        "integrationOwnerRef": _optional_text(value.get("integrationOwnerRef")),
+        "displayName": _optional_text(value.get("displayName")),
+        "businessReason": _optional_text(value.get("businessReason")),
+    }
 
 
 def validate_referral_saas_integration_configuration(
@@ -1632,3 +1822,327 @@ async def record_referral_saas_message_provider_test(
         guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
         redactions=INTEGRATION_EXECUTION_REDACTIONS,
     )
+
+
+async def create_referral_saas_integration_credential_request(
+    *,
+    account_id: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    tenant_code: str,
+    account_status: str | None,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+    configuration: ReferralSaasIntegrationConfiguration | None,
+    request_type: str | None,
+    capability: str | None,
+    environment: str | None,
+    intended_use: list[str] | None,
+    requested_for: dict[str, Any] | None,
+    reason_code: str | None,
+    correlation_id: str | None,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None,
+) -> ReferralSaasIntegrationCredentialRequestResult:
+    safe_account_id = _require_bounded_text(
+        account_id, "account_id", min_length=1, max_length=80
+    )
+    safe_tenant_code = _require_bounded_text(
+        tenant_code, "tenant_code", min_length=1, max_length=120
+    )
+    safe_idempotency_hash = _require_bounded_text(
+        idempotency_key_hash, "idempotency_key_hash", min_length=1, max_length=256
+    )
+    safe_payload_hash = _require_bounded_text(
+        request_payload_hash, "request_payload_hash", min_length=1, max_length=256
+    )
+    safe_actor_ref = _require_bounded_text(
+        actor_ref, "actor_ref", min_length=1, max_length=160
+    )
+    safe_actor_role = _optional_text(actor_role)
+    safe_reason_code = _optional_text(reason_code) or "CUSTOMER_CREDENTIAL_REQUEST"
+    safe_correlation_id = _optional_text(correlation_id)
+    safe_request_type = _normalise_choice(
+        request_type, CREDENTIAL_REQUEST_TYPES, "credentialRequest.requestType"
+    )
+    safe_capability = _normalise_choice(
+        capability, CREDENTIAL_REQUEST_CAPABILITIES, "credentialRequest.capability"
+    )
+    safe_environment = _normalise_choice(
+        environment or "SANDBOX",
+        CREDENTIAL_REQUEST_ENVIRONMENTS,
+        "credentialRequest.environment",
+    )
+    safe_intended_use = _normalise_choice_list(
+        intended_use, INTEGRATION_USE_CASES, "credentialRequest.intendedUse"
+    )
+    safe_requested_for = _normalise_requested_for(requested_for)
+
+    readiness = build_referral_saas_integration_execution_readiness(
+        account_status=account_status,
+        tenant_link_status=tenant_link_status,
+        external_reference_status=external_reference_status,
+        configuration=configuration,
+    )
+    if (
+        readiness.execution_status != INTEGRATION_EXECUTION_READY
+        or configuration is None
+        or configuration.configuration_status != INTEGRATION_CONFIGURATION_SAVED
+    ):
+        blocker_codes = [
+            str(item.get("code"))
+            for item in readiness.blockers
+            if isinstance(item, dict) and item.get("code")
+        ]
+        if configuration is None:
+            blocker_codes.append("CONFIGURATION_MISSING")
+        raise IntegrationConfigurationValidationError(
+            "Credential requests require an active account, active tenant link, "
+            "active external reference, and saved Integrations configuration. "
+            f"Blockers: {', '.join(blocker_codes) or 'UNKNOWN'}."
+        )
+
+    posture = {
+        "requestStatus": CREDENTIAL_REQUEST_RECORDED,
+        "reviewStatus": "READY_FOR_REVIEW",
+        "configurationRef": configuration.configuration_ref,
+        "requestType": safe_request_type,
+        "capability": safe_capability,
+        "environment": safe_environment,
+        "intendedUse": safe_intended_use,
+        "requestedFor": safe_requested_for,
+        "no_secret_or_credential_storage_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_credential_lifecycle_execution_confirmed": True,
+        "no_credential_reveal_or_download_confirmed": True,
+        "no_vault_write_confirmed": True,
+        "no_provider_call_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_message_provider_delivery_confirmed": True,
+        "no_membership_activation_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_action_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+    async with db_connection() as conn:
+        existing = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_integration_credential_requests
+            WHERE account_id = $1
+              AND idempotency_key_hash = $2
+              AND archived_at IS NULL
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_idempotency_hash,
+        )
+        if existing:
+            if _optional_text(existing.get("request_payload_hash")) != safe_payload_hash:
+                raise IntegrationConfigurationIdempotencyConflict(
+                    "Idempotency key was reused with different credential request content."
+                )
+            return ReferralSaasIntegrationCredentialRequestResult(
+                command_status=CREDENTIAL_REQUEST_REPLAYED,
+                credential_request=_credential_request_from_row(existing),
+                idempotency_status=CREDENTIAL_REQUEST_REPLAYED,
+                audit_event_id=None,
+                plain_language_summary=(
+                    "Credential request was replayed from the same idempotency "
+                    "key and payload. No secret was created, revealed, stored, "
+                    "downloaded, rotated, revoked, or sent."
+                ),
+                guardrails=CREDENTIAL_REQUEST_GUARDRAILS,
+                redactions=CREDENTIAL_REQUEST_REDACTIONS,
+            )
+
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                """
+                INSERT INTO referral_saas_integration_credential_requests (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    integration_configuration_id,
+                    credential_request_status,
+                    review_status,
+                    request_type,
+                    capability,
+                    environment,
+                    intended_use,
+                    requested_for,
+                    safe_request_posture,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    request_payload_hash,
+                    created_by_ref,
+                    created_by_role,
+                    updated_by_ref,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, 'READY_FOR_REVIEW', $7, $8,
+                    $9, $10::jsonb, $11::jsonb, $12::jsonb, $13, $14,
+                    $15, $16, $17, $18, $17, $19::jsonb
+                )
+                RETURNING *
+                """,
+                safe_account_id,
+                _optional_text(account_tenant_id),
+                _optional_text(external_ref_id),
+                safe_tenant_code,
+                configuration.configuration_ref,
+                CREDENTIAL_REQUEST_RECORDED,
+                safe_request_type,
+                safe_capability,
+                safe_environment,
+                _jsonb(safe_intended_use),
+                _jsonb(safe_requested_for),
+                _jsonb(posture),
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                safe_payload_hash,
+                safe_actor_ref,
+                safe_actor_role,
+                _jsonb(CREDENTIAL_REQUEST_REDACTIONS),
+            )
+
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, 'RECORDED', $6, $7,
+                    NULL, $8, $9, $10, $11, $12::jsonb, $13::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                _optional_text(account_tenant_id),
+                _optional_text(external_ref_id),
+                safe_tenant_code,
+                INTEGRATION_CREDENTIAL_REQUEST_EVENT,
+                safe_actor_ref,
+                safe_actor_role,
+                CREDENTIAL_REQUEST_RECORDED,
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(
+                    {
+                        "integration_credential_request_id": str(
+                            row["integration_credential_request_id"]
+                        ),
+                        "integration_configuration_id": configuration.configuration_ref,
+                        "request_type": safe_request_type,
+                        "capability": safe_capability,
+                        "environment": safe_environment,
+                        "request_payload_hash": safe_payload_hash,
+                        "no_secret_or_credential_storage_confirmed": True,
+                        "no_credential_creation_confirmed": True,
+                        "no_credential_lifecycle_execution_confirmed": True,
+                        "no_vault_write_confirmed": True,
+                        "no_provider_call_confirmed": True,
+                        "no_webhook_dispatch_confirmed": True,
+                        "no_billing_or_money_movement_confirmed": True,
+                    }
+                ),
+                _jsonb(CREDENTIAL_REQUEST_REDACTIONS),
+            )
+
+    return ReferralSaasIntegrationCredentialRequestResult(
+        command_status=CREDENTIAL_REQUEST_RECORDED,
+        credential_request=_credential_request_from_row(row),
+        idempotency_status=CREDENTIAL_REQUEST_RECORDED,
+        audit_event_id=str(audit_event["account_audit_event_id"]) if audit_event else None,
+        plain_language_summary=(
+            "Credential request was recorded for review for the selected customer. "
+            "No secret was created, revealed, stored, downloaded, rotated, revoked, "
+            "or sent."
+        ),
+        guardrails=CREDENTIAL_REQUEST_GUARDRAILS,
+        redactions=CREDENTIAL_REQUEST_REDACTIONS,
+    )
+
+
+async def list_referral_saas_integration_credential_requests(
+    *,
+    account_id: str,
+    limit: int = 50,
+) -> list[ReferralSaasIntegrationCredentialRequest]:
+    safe_account_id = _require_bounded_text(
+        account_id, "account_id", min_length=1, max_length=80
+    )
+    safe_limit = max(1, min(int(limit or 50), 100))
+    async with db_connection() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT *
+            FROM referral_saas_integration_credential_requests
+            WHERE account_id = $1
+              AND archived_at IS NULL
+            ORDER BY created_at DESC, integration_credential_request_id DESC
+            LIMIT $2
+            """,
+            safe_account_id,
+            safe_limit,
+        )
+    return [_credential_request_from_row(row) for row in rows]
+
+
+async def get_referral_saas_integration_credential_request(
+    *,
+    account_id: str,
+    credential_request_ref: str,
+) -> ReferralSaasIntegrationCredentialRequest:
+    safe_account_id = _require_bounded_text(
+        account_id, "account_id", min_length=1, max_length=80
+    )
+    safe_credential_request_ref = _require_bounded_text(
+        credential_request_ref,
+        "credential_request_ref",
+        min_length=1,
+        max_length=80,
+    )
+    async with db_connection() as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_integration_credential_requests
+            WHERE account_id = $1
+              AND integration_credential_request_id = $2
+              AND archived_at IS NULL
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_credential_request_ref,
+        )
+    if not row:
+        raise IntegrationCredentialRequestNotFound(
+            "Credential request was not found for the selected customer."
+        )
+    return _credential_request_from_row(row)
