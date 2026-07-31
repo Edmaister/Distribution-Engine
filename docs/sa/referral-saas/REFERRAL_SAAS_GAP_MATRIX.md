@@ -216,9 +216,14 @@ payloads and preserving no-provider-call/no-invite-delivery/no-referral-message
 delivery/no-credential/no-webhook/no-auth/no-campaign/no-money guardrails.
 TASK-313 wires that command into the selected-customer Integrations UI with
 safe provider-readiness payloads, idempotency/correlation, plain-language
-feedback, and readiness refresh. Runtime webhook/provider execution,
-credential lifecycle, invite delivery, auth/login changes, campaign activation,
-billing, and money movement remain separate future gaps.
+feedback, and readiness refresh. TASK-314 defines the selected-customer
+credential lifecycle request contract for future API key, webhook signing key,
+and provider credential-reference requests, including request vocabulary,
+selected-customer gates, review states, audit/idempotency/redaction rules, and
+no-secret/no-provider/no-webhook/no-message/no-auth/no-campaign/no-billing/no-
+money side-effect boundaries. Runtime credential request APIs/UI, provider/vault
+execution, webhook/provider execution, invite delivery, auth/login changes,
+campaign activation, billing, and money movement remain separate future gaps.
 
 ## Recommended Ordered Task Sequence
 
