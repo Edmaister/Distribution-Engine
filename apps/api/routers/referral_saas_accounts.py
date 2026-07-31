@@ -145,6 +145,7 @@ from services.referral_saas_integrations_configuration_service import (
     build_referral_saas_integration_execution_readiness,
     get_referral_saas_integration_configuration,
     record_referral_saas_api_access_verification,
+    record_referral_saas_message_provider_test,
     record_referral_saas_webhook_test_dispatch,
     upsert_referral_saas_integration_configuration,
     validate_referral_saas_integration_configuration,
@@ -303,6 +304,14 @@ class ReferralSaasApiAccessVerificationRequest(BaseModel):
 class ReferralSaasWebhookTestDispatchRequest(BaseModel):
     accountScope: dict[str, Any] = Field(default_factory=dict)
     webhookTest: dict[str, Any] | None = Field(default=None)
+    reasonCode: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str | None = Field(default=None)
+
+
+class ReferralSaasMessageProviderTestRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    messageProviderTest: dict[str, Any] | None = Field(default=None)
     reasonCode: str | None = Field(default=None)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str | None = Field(default=None)
@@ -2967,6 +2976,126 @@ async def record_referral_saas_account_webhook_test_dispatch(
             "subscription, create or reveal signing material, send invites or "
             "messages, activate memberships, assign seats, change auth claims, "
             "activate campaigns, trigger go-live, bill, or move money."
+        ),
+        "guardrails": sorted(INTEGRATION_EXECUTION_ROUTE_GUARDRAILS),
+        "redactions": sorted(INTEGRATION_EXECUTION_ROUTE_REDACTIONS),
+        "no_secret_or_credential_storage_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_credential_lifecycle_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_message_provider_delivery_confirmed": True,
+        "no_membership_activation_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_action_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/integrations/message-providers/test-check")
+async def record_referral_saas_account_message_provider_test(
+    account_ref: str,
+    request: ReferralSaasMessageProviderTestRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        assert_safe_referral_saas_integration_execution_payload(request_payload)
+    except ReferralSaasIntegrationConfigurationCommandError as exc:
+        raise _integration_configuration_error(exc) from exc
+
+    account_scope = request.accountScope
+    if not isinstance(account_scope, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope must be an object.",
+                "guardrails": sorted(INTEGRATION_EXECUTION_ROUTE_GUARDRAILS),
+                "redactions": sorted(INTEGRATION_EXECUTION_ROUTE_REDACTIONS),
+                "no_message_provider_test_recorded_confirmed": True,
+            },
+        )
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = _optional_text(account_scope.get("context")) or "setup"
+    idempotency_key = _optional_text(request.idempotencyKey)
+    correlation_id = _optional_text(request.correlationId)
+    if not ref_type or not external_ref or not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": sorted(INTEGRATION_EXECUTION_ROUTE_GUARDRAILS),
+                "redactions": sorted(INTEGRATION_EXECUTION_ROUTE_REDACTIONS),
+                "no_message_provider_test_recorded_confirmed": True,
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    safe_account_ref = _assert_account_path_scope(account_ref, account)
+    try:
+        configuration = await get_referral_saas_integration_configuration(
+            account_id=account.account_id,
+        )
+        command_payload = {
+            "accountScope": {
+                "accountRef": safe_account_ref,
+                "refType": ref_type,
+                "externalRef": external_ref,
+                "context": normalised_context,
+            },
+            "messageProviderTest": request_payload.get("messageProviderTest") or {},
+            "reasonCode": request.reasonCode or "CUSTOMER_MESSAGE_PROVIDER_TEST",
+        }
+        result = await record_referral_saas_message_provider_test(
+            account_id=account.account_id,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            tenant_code=account.tenant_code,
+            account_status=account.account_status,
+            tenant_link_status=account.tenant_link_status,
+            external_reference_status=account.reference_status,
+            configuration=configuration,
+            reason_code=request.reasonCode,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_MESSAGE_PROVIDER_TEST",
+                    "account_ref": safe_account_ref,
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            request_payload_hash=hash_payload(command_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except ReferralSaasIntegrationConfigurationCommandError as exc:
+        raise _integration_configuration_error(exc) from exc
+
+    return {
+        "status": "accepted",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "integrationMessageProviderTest": result.to_safe_dict(),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "Message-provider test evidence recorded for the selected customer "
+            "only. This command does not call a provider, create credentials, "
+            "send an invite or referral message, dispatch a webhook, activate "
+            "memberships, assign seats, change auth claims, activate campaigns, "
+            "trigger go-live, bill, or move money."
         ),
         "guardrails": sorted(INTEGRATION_EXECUTION_ROUTE_GUARDRAILS),
         "redactions": sorted(INTEGRATION_EXECUTION_ROUTE_REDACTIONS),

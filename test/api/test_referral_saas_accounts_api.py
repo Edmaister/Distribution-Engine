@@ -2374,6 +2374,229 @@ async def test_referral_saas_account_webhook_test_dispatch_idempotency_conflict(
     assert detail["no_auth_claim_change_confirmed"] is True
 
 
+async def test_referral_saas_account_admin_can_record_message_provider_test(
+    monkeypatch,
+):
+    message_test_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    class FakeIntegrationConfiguration:
+        configuration_ref = "config-1"
+        configuration_status = "INTEGRATION_CONFIGURATION_SAVED"
+        api_environment = {}
+        webhook_intent = {}
+        message_providers = {
+            "channels": ["EMAIL", "SMS"],
+            "providerRefs": ["approved-email-provider"],
+        }
+
+        def to_safe_dict(self):
+            return {
+                "configurationRef": self.configuration_ref,
+                "configurationStatus": self.configuration_status,
+                "apiEnvironment": self.api_environment,
+                "webhookIntent": self.webhook_intent,
+                "messageProviders": self.message_providers,
+            }
+
+    class FakeMessageProviderTestResult:
+        def to_safe_dict(self):
+            return {
+                "testStatus": "MESSAGE_PROVIDER_TEST_RECORDED",
+                "configurationRef": "config-1",
+                "accountRef": "acct-1",
+                "channels": ["EMAIL", "SMS"],
+                "providerRefs": ["approved-email-provider"],
+                "idempotency": {"status": "MESSAGE_PROVIDER_TEST_RECORDED"},
+                "audit": {"accountAuditEventId": "audit-1"},
+                "noMessageProviderDeliveryConfirmed": True,
+                "noCredentialCreationConfirmed": True,
+            }
+
+    async def fake_get_referral_saas_integration_configuration(**kwargs):
+        return FakeIntegrationConfiguration()
+
+    async def fake_record_referral_saas_message_provider_test(**kwargs):
+        message_test_calls.append(kwargs)
+        return FakeMessageProviderTestResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_configuration",
+        fake_get_referral_saas_integration_configuration,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "record_referral_saas_message_provider_test",
+        fake_record_referral_saas_message_provider_test,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/message-providers/test-check",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "messageProviderTest": {
+                    "notes": "Recorded provider readiness evidence."
+                },
+                "reasonCode": "CUSTOMER_MESSAGE_PROVIDER_TEST",
+                "correlationId": "corr-1",
+                "idempotencyKey": "message-provider-test-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "accepted"
+    assert (
+        body["integrationMessageProviderTest"]["testStatus"]
+        == "MESSAGE_PROVIDER_TEST_RECORDED"
+    )
+    assert body["no_message_provider_delivery_confirmed"] is True
+    assert body["no_credential_creation_confirmed"] is True
+    assert body["no_webhook_dispatch_confirmed"] is True
+    assert message_test_calls[0]["account_id"] == "acct-1"
+    assert message_test_calls[0]["tenant_code"] == "FNB"
+    assert message_test_calls[0]["correlation_id"] == "corr-1"
+    assert message_test_calls[0]["actor_role"] == "ADMIN"
+
+
+async def test_referral_saas_account_message_provider_test_requires_command_scope(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        raise AssertionError("account should not resolve without idempotency metadata")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/message-providers/test-check",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "correlationId": "corr-1",
+            },
+        )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "validation_error"
+    assert detail["no_message_provider_test_recorded_confirmed"] is True
+
+
+async def test_referral_saas_account_message_provider_test_rejects_unsafe_payload(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        raise AssertionError("unsafe payload should fail before account lookup")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/message-providers/test-check",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "messageProviderTest": {"rawRecipient": "+27000000000"},
+                "reasonCode": "CUSTOMER_MESSAGE_PROVIDER_TEST",
+                "correlationId": "corr-1",
+                "idempotencyKey": "message-provider-test-1",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert detail["no_credential_creation_confirmed"] is True
+    assert detail["no_webhook_dispatch_confirmed"] is True
+
+
+async def test_referral_saas_account_message_provider_test_idempotency_conflict(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    async def fake_get_referral_saas_integration_configuration(**kwargs):
+        return SimpleNamespace(configuration_ref="config-1")
+
+    async def fake_record_referral_saas_message_provider_test(**kwargs):
+        raise IntegrationConfigurationIdempotencyConflict(
+            "Idempotency key was reused with different message-provider test content."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_configuration",
+        fake_get_referral_saas_integration_configuration,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "record_referral_saas_message_provider_test",
+        fake_record_referral_saas_message_provider_test,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/message-providers/test-check",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "messageProviderTest": {"notes": "Changed message evidence."},
+                "correlationId": "corr-1",
+                "idempotencyKey": "message-provider-test-1",
+            },
+        )
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["code"] == "IDEMPOTENCY_CONFLICT"
+    assert detail["no_credential_creation_confirmed"] is True
+    assert detail["no_auth_claim_change_confirmed"] is True
+
+
 async def test_referral_saas_account_admin_can_read_customer_scoped_campaign_readiness(
     monkeypatch,
 ):

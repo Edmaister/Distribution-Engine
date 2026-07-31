@@ -42,6 +42,10 @@ INTEGRATION_WEBHOOK_TEST_DISPATCH_EVENT = "INTEGRATION_WEBHOOK_TEST_DISPATCH_REC
 WEBHOOK_TEST_DISPATCH_RECORDED = "WEBHOOK_TEST_DISPATCH_RECORDED"
 WEBHOOK_TEST_DISPATCH_REPLAYED = "WEBHOOK_TEST_DISPATCH_REPLAYED"
 WEBHOOK_TEST_DISPATCH_BLOCKED = "WEBHOOK_TEST_DISPATCH_BLOCKED"
+INTEGRATION_MESSAGE_PROVIDER_TEST_EVENT = "INTEGRATION_MESSAGE_PROVIDER_TEST_RECORDED"
+MESSAGE_PROVIDER_TEST_RECORDED = "MESSAGE_PROVIDER_TEST_RECORDED"
+MESSAGE_PROVIDER_TEST_REPLAYED = "MESSAGE_PROVIDER_TEST_REPLAYED"
+MESSAGE_PROVIDER_TEST_BLOCKED = "MESSAGE_PROVIDER_TEST_BLOCKED"
 
 INTEGRATION_CONFIGURATION_GUARDRAILS = [
     "CUSTOMER_SCOPED_INTEGRATIONS_CONFIGURATION",
@@ -342,6 +346,46 @@ class ReferralSaasWebhookTestDispatchResult:
             "accountRef": self.account_ref,
             "callbackUrlPresent": self.callback_url_present,
             "eventCategories": self.event_categories,
+            "idempotency": {"status": self.idempotency_status},
+            "audit": {"accountAuditEventId": self.audit_event_id},
+            "plainLanguageSummary": self.plain_language_summary,
+            "guardrails": self.guardrails,
+            "redactions": self.redactions,
+            "noSecretOrCredentialStorageConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noCredentialLifecycleConfirmed": True,
+            "noWebhookDispatchConfirmed": True,
+            "noInviteDeliveryConfirmed": True,
+            "noMessageProviderDeliveryConfirmed": True,
+            "noMembershipActivationConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveActionConfirmed": True,
+            "noBillingOrMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasMessageProviderTestResult:
+    test_status: str
+    configuration_ref: str
+    account_ref: str
+    channels: list[str]
+    provider_refs: list[str]
+    idempotency_status: str
+    audit_event_id: str | None
+    plain_language_summary: str
+    guardrails: list[str]
+    redactions: list[str]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "testStatus": self.test_status,
+            "configurationRef": self.configuration_ref,
+            "accountRef": self.account_ref,
+            "channels": self.channels,
+            "providerRefs": self.provider_refs,
             "idempotency": {"status": self.idempotency_status},
             "audit": {"accountAuditEventId": self.audit_event_id},
             "plainLanguageSummary": self.plain_language_summary,
@@ -1385,6 +1429,205 @@ async def record_referral_saas_webhook_test_dispatch(
             "Webhook test-dispatch evidence was recorded for the selected "
             "customer. No webhook was dispatched, no signing material was "
             "created or revealed, and no adjacent workflow changed."
+        ),
+        guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
+        redactions=INTEGRATION_EXECUTION_REDACTIONS,
+    )
+
+
+async def record_referral_saas_message_provider_test(
+    *,
+    account_id: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    tenant_code: str,
+    account_status: str | None,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+    configuration: ReferralSaasIntegrationConfiguration | None,
+    reason_code: str | None,
+    correlation_id: str | None,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None,
+) -> ReferralSaasMessageProviderTestResult:
+    safe_account_id = _require_bounded_text(
+        account_id, "account_id", min_length=1, max_length=80
+    )
+    safe_tenant_code = _require_bounded_text(
+        tenant_code, "tenant_code", min_length=1, max_length=120
+    )
+    safe_idempotency_hash = _require_bounded_text(
+        idempotency_key_hash, "idempotency_key_hash", min_length=1, max_length=256
+    )
+    safe_payload_hash = _require_bounded_text(
+        request_payload_hash, "request_payload_hash", min_length=1, max_length=256
+    )
+    safe_actor_ref = _require_bounded_text(
+        actor_ref, "actor_ref", min_length=1, max_length=160
+    )
+    safe_actor_role = _optional_text(actor_role)
+    safe_reason_code = _optional_text(reason_code) or "CUSTOMER_MESSAGE_PROVIDER_TEST"
+    safe_correlation_id = _optional_text(correlation_id)
+
+    readiness = build_referral_saas_integration_execution_readiness(
+        account_status=account_status,
+        tenant_link_status=tenant_link_status,
+        external_reference_status=external_reference_status,
+        configuration=configuration,
+    )
+    message_action = next(
+        (
+            action
+            for action in readiness.execution_actions
+            if action.get("actionRef") == "MESSAGE_PROVIDER_TEST"
+        ),
+        None,
+    )
+    if (
+        readiness.execution_status != INTEGRATION_EXECUTION_READY
+        or not message_action
+        or message_action.get("status") != "READY"
+        or configuration is None
+    ):
+        blocker_codes = [
+            str(item.get("code"))
+            for item in readiness.blockers
+            if isinstance(item, dict) and item.get("code")
+        ]
+        if message_action and message_action.get("status") != "READY":
+            blocker_codes.append("MESSAGE_PROVIDER_EVIDENCE_MISSING")
+        raise IntegrationConfigurationValidationError(
+            "Message-provider test evidence requires an active account, active "
+            "tenant link, active external reference, saved Integrations "
+            "configuration, message channels, and approved provider references. "
+            f"Blockers: {', '.join(blocker_codes) or 'UNKNOWN'}."
+        )
+
+    message_providers = configuration.message_providers or {}
+    channels = [
+        str(item)
+        for item in (message_providers.get("channels") or [])
+        if str(item).strip()
+    ]
+    provider_refs = [
+        str(item)
+        for item in (message_providers.get("providerRefs") or [])
+        if str(item).strip()
+    ]
+    evidence_summary = {
+        "integration_configuration_id": configuration.configuration_ref,
+        "test_status": MESSAGE_PROVIDER_TEST_RECORDED,
+        "channels": channels,
+        "provider_refs_count": len(provider_refs),
+        "request_payload_hash": safe_payload_hash,
+        "no_secret_or_credential_storage_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_credential_lifecycle_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_message_provider_delivery_confirmed": True,
+        "no_membership_activation_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_action_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+    async with db_connection() as conn:
+        existing = await conn.fetchrow(
+            """
+            SELECT account_audit_event_id, evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC, account_audit_event_id DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            INTEGRATION_MESSAGE_PROVIDER_TEST_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing:
+            existing_evidence = _safe_json_dict(existing.get("evidence_summary"))
+            if _optional_text(existing_evidence.get("request_payload_hash")) != safe_payload_hash:
+                raise IntegrationConfigurationIdempotencyConflict(
+                    "Idempotency key was reused with different message-provider test content."
+                )
+            return ReferralSaasMessageProviderTestResult(
+                test_status=MESSAGE_PROVIDER_TEST_REPLAYED,
+                configuration_ref=configuration.configuration_ref,
+                account_ref=safe_account_id,
+                channels=channels,
+                provider_refs=provider_refs,
+                idempotency_status=MESSAGE_PROVIDER_TEST_REPLAYED,
+                audit_event_id=str(existing["account_audit_event_id"]),
+                plain_language_summary=(
+                    "Message-provider test evidence was replayed from the same "
+                    "idempotency key and payload. No provider was called, no "
+                    "message was sent, and no adjacent workflow changed."
+                ),
+                guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
+                redactions=INTEGRATION_EXECUTION_REDACTIONS,
+            )
+
+        audit_event = await conn.fetchrow(
+            """
+            INSERT INTO platform_account_audit_events (
+                account_id,
+                account_tenant_id,
+                external_ref_id,
+                tenant_code,
+                event_type,
+                event_status,
+                actor_ref,
+                actor_role,
+                previous_status,
+                next_status,
+                reason_code,
+                correlation_id,
+                idempotency_key_hash,
+                evidence_summary,
+                redactions
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, 'RECORDED', $6, $7,
+                NULL, $8, $9, $10, $11, $12::jsonb, $13::jsonb
+            )
+            RETURNING account_audit_event_id
+            """,
+            safe_account_id,
+            _optional_text(account_tenant_id),
+            _optional_text(external_ref_id),
+            safe_tenant_code,
+            INTEGRATION_MESSAGE_PROVIDER_TEST_EVENT,
+            safe_actor_ref,
+            safe_actor_role,
+            MESSAGE_PROVIDER_TEST_RECORDED,
+            safe_reason_code,
+            safe_correlation_id,
+            safe_idempotency_hash,
+            _jsonb(evidence_summary),
+            _jsonb(INTEGRATION_EXECUTION_REDACTIONS),
+        )
+
+    return ReferralSaasMessageProviderTestResult(
+        test_status=MESSAGE_PROVIDER_TEST_RECORDED,
+        configuration_ref=configuration.configuration_ref,
+        account_ref=safe_account_id,
+        channels=channels,
+        provider_refs=provider_refs,
+        idempotency_status=MESSAGE_PROVIDER_TEST_RECORDED,
+        audit_event_id=(
+            str(audit_event["account_audit_event_id"]) if audit_event else None
+        ),
+        plain_language_summary=(
+            "Message-provider test evidence was recorded for the selected "
+            "customer. No provider was called, no invite or referral message "
+            "was sent, and no adjacent workflow changed."
         ),
         guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
         redactions=INTEGRATION_EXECUTION_REDACTIONS,
