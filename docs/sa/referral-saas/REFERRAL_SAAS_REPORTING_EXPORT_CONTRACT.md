@@ -481,3 +481,97 @@ row limits and redaction evidence, and returns report metadata with
 side-effect-free payload content. Export creation, export IDs, files, storage,
 delivery, scheduling, retention, audit writes, download URLs, full account
 membership, and frontend screens remain explicit follow-up work.
+
+TASK-327 contract update: persisted export file storage/download is now a
+reviewed future implementation boundary. Existing TASK-273 export request rows
+remain the durable request/audit spine. A later runtime task may mark an export
+request as stored and downloadable only after regenerating the tenant-safe
+export payload from the validated request, enforcing account scope, redaction,
+row-limit, freshness, expiry, and audit gates, and returning a short-lived
+download affordance. This contract update does not create files, storage
+objects, download URLs, scheduled delivery, billing, money movement, provider
+calls, campaign mutations, repair/replay/retry actions, credential changes, or
+auth/session changes.
+
+## Persisted Export File Lifecycle Contract
+
+TASK-273 records the export request and audit evidence. TASK-327 defines the
+runtime file lifecycle that must be implemented next.
+
+### Lifecycle States
+
+| Phase | Existing request fields | Meaning |
+|---|---|---|
+| Request recorded | `request_status=READY_FOR_FILE_STORAGE`; `storage_status=NOT_STORED`; `download_status=NOT_AVAILABLE` | The customer asked for an export and the request passed validation, but no file exists yet. |
+| Storage pending | `storage_status=PENDING`; `download_status=PENDING` | A governed worker or command is preparing a tenant-safe payload. This must remain internal and audited. |
+| Stored and downloadable | `storage_status=STORED`; `download_status=AVAILABLE` | A tenant-safe export payload exists and may be downloaded by an authorised actor until expiry. |
+| Expired | `request_status=EXPIRED` or `storage_status=EXPIRED`; `download_status=EXPIRED` | The request or stored payload is past retention and cannot be downloaded. |
+| Failed | `request_status=FAILED` or `storage_status=FAILED` | File preparation failed without exposing raw payloads, secrets, or tenant internals. |
+
+### Required Runtime Behavior
+
+The export file implementation must:
+
+- resolve the selected customer/account from `account_id`, `account_tenant_id`,
+  and external reference evidence already recorded on the export request
+- regenerate the export payload from the report catalog and stored request
+  filters/dimensions instead of trusting a browser-provided file body
+- apply the same redaction, freshness, report-type, row-limit, date-window,
+  and tenant-scope rules used by validation and inline preview
+- store only tenant-safe JSON/CSV payloads and metadata needed for retrieval
+- preserve `tenant_code` internally while keeping customer-facing responses on
+  account/customer references
+- record audit evidence for file creation, download-readiness, download access,
+  expiry, and failed storage attempts
+- return an opaque `exportRequestId` and download state, not raw storage
+  bucket/object paths or internal tenant identifiers
+- enforce expiry/retention before returning any download response
+- keep scheduled delivery, external email delivery, billing-grade export
+  certification, and money movement outside this first implementation
+
+### Candidate Runtime Routes
+
+The customer-scoped product route family should remain bounded:
+
+```text
+POST /v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/{export_request_id}/file
+GET /v1/referral-saas/accounts/{account_ref}/exports/{export_request_id}
+GET /v1/referral-saas/accounts/{account_ref}/exports/{export_request_id}/download
+```
+
+The first route may be implemented as an operator/admin guarded command that
+creates a file from an existing request. The second route returns safe metadata
+and download readiness. The third route returns the downloadable payload or a
+short-lived retrieval envelope, depending on storage implementation. None of
+these routes may create new report requests, mutate campaigns, repair/replay
+events, call providers, deliver emails/messages, create credentials, change
+auth claims, bill, or move money.
+
+### File Content Rules
+
+Stored export files must include:
+
+- report type, format, redaction profile, generated time, freshness evidence,
+  source warnings, row count, and data window
+- only tenant-safe report rows from the approved report catalog
+- no raw UCNs, internal tenant codes in customer-facing payloads, provider
+  payloads, audit payloads, DLQ payloads, secrets, tokens, API keys, signing
+  material, funding/settlement/wallet/invoice/payout fields, or operator-only
+  trace payloads
+
+### Implementation Tests Required
+
+The implementation task must add tests for:
+
+- creating a stored export file from a recorded export request
+- idempotent same-payload replay and different-payload conflict
+- rejected unsafe download/file payload fields
+- account-scope mismatch and cross-customer rejection
+- expiry/retention blocking download
+- no tenant-code/raw-payload leakage in public responses
+- JSON and CSV content redaction
+- audit evidence for file creation and download/readiness
+- no scheduled delivery, credential/auth, provider, campaign, billing, money,
+  reward, funding, fulfilment, settlement, commission, wallet, invoice, payout,
+  sponsor billing, treasury, DLaaS marketplace, repair, replay, or retry side
+  effects
