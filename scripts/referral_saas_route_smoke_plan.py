@@ -1289,6 +1289,48 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_credential_execution_check",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/integrations/credential-requests/{credential_request_ref}/execution-checks",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin/operator role",
+        environment_rule=(
+            "local/staging seeded customer only; records approved credential "
+            "request execution-readiness audit evidence without creating "
+            "credentials, writing a vault, calling providers, sending messages, "
+            "changing auth, billing, or money"
+        ),
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "credential_request_ref",
+            "ref_type",
+            "external_ref",
+            "idempotency_key",
+            "correlation_id",
+        ],
+        expected_state_change=(
+            "records or replays platform_account_audit_events evidence for "
+            "approved credential execution readiness; no credential lifecycle, "
+            "provider, vault, webhook, invite/message, auth/login, campaign, "
+            "billing, or money side effects"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"executionCheck":{"reason":"Smoke records approved credential request execution readiness."},'
+            '"reasonCode":"CUSTOMER_CREDENTIAL_EXECUTION_CHECK",'
+            '"correlationId":"{correlation_id}",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/integrations/credential-requests/{credential_request_ref}'
+            '/execution-checks"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_account_report_export_request",
         method="POST",
         path="/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports",

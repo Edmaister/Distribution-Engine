@@ -238,9 +238,13 @@ side effects.
 TASK-318 wires the selected-customer Integrations UI to the review-decision API
 so approve/block governance can be performed from the Verify tab with
 plain-language feedback and refreshed readiness/request state. Credential
-execution checks, provider/vault adapters, webhook/provider execution, invite
-delivery, auth/login changes, campaign activation, billing, and money movement
-remain separate future gaps.
+TASK-319 adds the selected-customer credential execution-check API foundation
+so approved credential requests can record safe execution-readiness evidence
+with idempotency, audit, redaction, and no credential, provider, vault,
+webhook, message, auth, campaign, billing, money, or DLaaS side effects.
+Provider/vault adapters, webhook/provider execution, invite delivery,
+auth/login changes, campaign activation, billing, and money movement remain
+separate future gaps.
 
 ## Recommended Ordered Task Sequence
 
