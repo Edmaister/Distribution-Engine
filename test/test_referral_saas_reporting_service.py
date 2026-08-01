@@ -1370,3 +1370,179 @@ async def test_referral_saas_report_export_request_conflicts_on_idempotency_mism
             request_payload_hash="payload-hash",
             requested_by_ref="operator-1",
         )
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_report_export_file_stores_downloadable_payload(
+    monkeypatch,
+):
+    async def fake_build_referral_saas_report_export_preview(**kwargs):
+        return {
+            "export_request": {
+                "report_type": kwargs["report_type"],
+                "export_format": kwargs["export_format"],
+                "redaction_profile": kwargs["redaction_profile"],
+                "dimensions": kwargs["dimensions"],
+                "filters": kwargs["filters"],
+                "row_limit": kwargs["row_limit"],
+                "redactions": [],
+            },
+            "preview": {
+                "content_type": "application/json",
+                "file_extension": "json",
+                "metadata": {
+                    "tenant_scope": "FNB",
+                    "row_count": 1,
+                    "redactions": ["raw_ucn"],
+                },
+                "payload": {
+                    "metadata": {"tenant_scope": "FNB", "row_count": 1},
+                    "rows": [{"metric_name": "campaigns.ready_count", "value": 1}],
+                },
+            },
+        }
+
+    updated_metadata = {
+        "file_storage": {
+            "storage_mode": "database_metadata_inline",
+            "file_name": "referral-saas-campaign_performance-export-1.json",
+            "content_type": "application/json",
+            "content_sha256": "sha",
+            "byte_size": 100,
+            "content": '{"rows":[]}',
+        }
+    }
+    conn = FakeExportCommandConnection(
+        [
+            {
+                "export_request_id": "export-1",
+                "account_id": "acct-1",
+                "account_tenant_id": "acct-tenant-1",
+                "external_ref_id": "external-ref-1",
+                "tenant_code": "FNB",
+                "report_type": "campaign_performance",
+                "export_format": "json",
+                "redaction_profile": "tenant_safe",
+                "row_limit": 50,
+                "row_count": 0,
+                "request_status": "READY_FOR_FILE_STORAGE",
+                "storage_status": "NOT_STORED",
+                "delivery_status": "NOT_REQUESTED",
+                "download_status": "NOT_AVAILABLE",
+                "download_url": None,
+                "dimensions": ["campaign_code"],
+                "filters": {"campaign_code": "CAMP001"},
+                "metadata": {},
+                "redactions": [],
+                "reason_code": "REPORT_EXPORT",
+                "correlation_id": "corr-1",
+                "expires_at": datetime(2026, 7, 31, tzinfo=timezone.utc),
+            },
+            {
+                "export_request_id": "export-1",
+                "account_id": "acct-1",
+                "tenant_code": "FNB",
+                "report_type": "campaign_performance",
+                "export_format": "json",
+                "redaction_profile": "tenant_safe",
+                "row_limit": 50,
+                "row_count": 1,
+                "request_status": "READY_FOR_FILE_STORAGE",
+                "storage_status": "STORED",
+                "delivery_status": "NOT_REQUESTED",
+                "download_status": "AVAILABLE",
+                "download_url": None,
+                "metadata": updated_metadata,
+                "expires_at": datetime(2026, 7, 31, tzinfo=timezone.utc),
+            },
+            {"account_audit_event_id": "audit-1"},
+        ]
+    )
+    monkeypatch.setattr(
+        svc,
+        "build_referral_saas_report_export_preview",
+        fake_build_referral_saas_report_export_preview,
+    )
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+
+    result = await svc.create_referral_saas_report_export_file(
+        account_id="acct-1",
+        export_request_id="export-1",
+        idempotency_key_hash="file-idem",
+        request_payload_hash="file-payload",
+        requested_by_ref="operator-1",
+        requested_by_role="ADMIN",
+        correlation_id="corr-1",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "REPORT_EXPORT_FILE_STORED"
+    assert safe_payload["exportRequest"]["storageStatus"] == "STORED"
+    assert safe_payload["exportRequest"]["downloadStatus"] == "AVAILABLE"
+    assert safe_payload["exportRequest"]["downloadUrl"] is None
+    assert safe_payload["file"]["storageMode"] == "database_metadata_inline"
+    assert safe_payload["audit"]["accountAuditEventId"] == "audit-1"
+    joined_queries = "\n".join(query for query, _ in conn.fetchrow_calls)
+    assert "UPDATE referral_saas_report_export_requests" in joined_queries
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+    update_metadata = conn.fetchrow_calls[1][1][5]
+    assert "tenant_scope" not in update_metadata
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_report_export_file_download_returns_stored_content(
+    monkeypatch,
+):
+    conn = FakeExportCommandConnection(
+        [
+            {
+                "export_request_id": "export-1",
+                "account_id": "acct-1",
+                "account_tenant_id": "acct-tenant-1",
+                "external_ref_id": "external-ref-1",
+                "tenant_code": "FNB",
+                "report_type": "campaign_performance",
+                "export_format": "csv",
+                "redaction_profile": "tenant_safe",
+                "row_limit": 50,
+                "row_count": 1,
+                "request_status": "READY_FOR_FILE_STORAGE",
+                "storage_status": "STORED",
+                "delivery_status": "NOT_REQUESTED",
+                "download_status": "AVAILABLE",
+                "download_url": None,
+                "dimensions": [],
+                "filters": {},
+                "metadata": {
+                    "file_storage": {
+                        "storage_mode": "database_metadata_inline",
+                        "file_name": "report.csv",
+                        "content_type": "text/csv",
+                        "content_sha256": "sha",
+                        "byte_size": 20,
+                        "content": "metric_name,value\nready,1\n",
+                    }
+                },
+                "redactions": [],
+                "reason_code": "REPORT_EXPORT",
+                "correlation_id": "corr-1",
+                "expires_at": datetime(2026, 7, 31, tzinfo=timezone.utc),
+            },
+            {"account_audit_event_id": "audit-2"},
+        ]
+    )
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+
+    result = await svc.download_referral_saas_report_export_file(
+        account_id="acct-1",
+        export_request_id="export-1",
+        requested_by_ref="operator-1",
+        requested_by_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "REPORT_EXPORT_FILE_DOWNLOADED"
+    assert safe_payload["file"]["content"] == "metric_name,value\nready,1\n"
+    assert safe_payload["file"]["fileName"] == "report.csv"
+    audit_params = conn.fetchrow_calls[1][1]
+    assert svc.EXPORT_FILE_DOWNLOAD_EVENT in audit_params

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import json
 from dataclasses import dataclass
@@ -25,9 +26,15 @@ STATUS_VALIDATED_NOT_CREATED = "VALIDATED_NOT_CREATED"
 STATUS_EXPORT_REQUESTED = "REQUESTED"
 STATUS_EXPORT_REPLAYED = "REPLAYED"
 STATUS_READY_FOR_FILE_STORAGE = "READY_FOR_FILE_STORAGE"
+STATUS_EXPORT_FILE_STORED = "REPORT_EXPORT_FILE_STORED"
+STATUS_EXPORT_FILE_REPLAYED = "REPORT_EXPORT_FILE_REPLAYED"
+STATUS_EXPORT_FILE_METADATA_READ = "REPORT_EXPORT_FILE_METADATA_READ"
+STATUS_EXPORT_FILE_DOWNLOADED = "REPORT_EXPORT_FILE_DOWNLOADED"
 STORAGE_STATUS_NOT_STORED = "NOT_STORED"
+STORAGE_STATUS_STORED = "STORED"
 DELIVERY_STATUS_NOT_REQUESTED = "NOT_REQUESTED"
 DOWNLOAD_STATUS_NOT_AVAILABLE = "NOT_AVAILABLE"
+DOWNLOAD_STATUS_AVAILABLE = "AVAILABLE"
 EXPORT_FORMAT_CSV = "csv"
 EXPORT_FORMAT_JSON = "json"
 EXPORT_REDACTION_PROFILE_TENANT_SAFE = "tenant_safe"
@@ -36,6 +43,8 @@ MAX_EXPORT_ROW_LIMIT = 50000
 EXPORT_REQUEST_EVENT = "REPORT_EXPORT_REQUEST_RECORDED"
 EXPORT_REQUEST_RECORDED = "RECORDED"
 EXPORT_REQUEST_REPLAYED = "REPLAYED"
+EXPORT_FILE_EVENT = "REPORT_EXPORT_FILE_STORED"
+EXPORT_FILE_DOWNLOAD_EVENT = "REPORT_EXPORT_FILE_DOWNLOAD_READ"
 EXPORT_REQUEST_GUARDRAILS = [
     "NO_TENANT_CODE_EXPOSURE",
     "NO_EXPORT_FILE_CREATED",
@@ -55,6 +64,15 @@ EXPORT_REQUEST_REDACTIONS = [
     "funding",
     "settlement",
     "wallet",
+]
+EXPORT_FILE_GUARDRAILS = [
+    "NO_TENANT_CODE_EXPOSURE",
+    "NO_DOWNLOAD_URL_CREATED",
+    "NO_SCHEDULED_DELIVERY_CREATED",
+    "NO_WEBHOOK_DELIVERY",
+    "NO_CREDENTIAL_OR_AUTH_CHANGE",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_BILLING_OR_MONEY_MOVEMENT",
 ]
 SOURCE_PROGRESS_EVENT_HEALTH = "referral_progress_event_health"
 SOURCE_ATTRIBUTION_QUALITY = "referral_attribution_quality"
@@ -112,6 +130,14 @@ class ReportExportRequestIdempotencyConflict(ReferralSaasReportExportCommandErro
     safe_code = "IDEMPOTENCY_CONFLICT"
 
 
+class ReportExportFileNotFound(ReferralSaasReportExportCommandError):
+    safe_code = "EXPORT_REQUEST_NOT_FOUND"
+
+
+class ReportExportFileNotReady(ReferralSaasReportExportCommandError):
+    safe_code = "EXPORT_FILE_NOT_READY"
+
+
 @dataclass(frozen=True)
 class ReferralSaasReportExportRequestResult:
     command_status: str
@@ -158,6 +184,83 @@ class ReferralSaasReportExportRequestResult:
             ],
             "guardrails": list(EXPORT_REQUEST_GUARDRAILS),
             "redactions": list(EXPORT_REQUEST_REDACTIONS),
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasReportExportFileResult:
+    command_status: str
+    account_id: str
+    report_type: str
+    export_request_id: str
+    export_format: str
+    redaction_profile: str
+    row_limit: int
+    row_count: int
+    request_status: str
+    storage_status: str
+    delivery_status: str
+    download_status: str
+    download_url: str | None
+    expires_at: str | None
+    file_name: str | None
+    content_type: str | None
+    content_sha256: str | None
+    byte_size: int | None
+    storage_mode: str
+    idempotency_status: str | None
+    audit_event_id: str | None
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "accountRef": self.account_id,
+            "reportType": self.report_type,
+            "exportRequest": {
+                "exportRequestId": self.export_request_id,
+                "format": self.export_format,
+                "redactionProfile": self.redaction_profile,
+                "rowLimit": self.row_limit,
+                "rowCount": self.row_count,
+                "requestStatus": self.request_status,
+                "storageStatus": self.storage_status,
+                "deliveryStatus": self.delivery_status,
+                "downloadStatus": self.download_status,
+                "downloadUrl": self.download_url,
+                "expiresAt": self.expires_at,
+            },
+            "file": {
+                "fileName": self.file_name,
+                "contentType": self.content_type,
+                "contentSha256": self.content_sha256,
+                "byteSize": self.byte_size,
+                "storageMode": self.storage_mode,
+            },
+            "idempotency": {"status": self.idempotency_status},
+            "audit": {"accountAuditEventId": self.audit_event_id},
+            "nextActions": [
+                "Use the download route to retrieve the tenant-safe export payload",
+                "Keep scheduled delivery, webhook dispatch, and provider execution separate",
+                "Expire or regenerate the export when retention policy requires it",
+            ],
+            "guardrails": list(EXPORT_FILE_GUARDRAILS),
+            "redactions": list(EXPORT_REQUEST_REDACTIONS),
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasReportExportDownloadResult:
+    metadata: ReferralSaasReportExportFileResult
+    content: str
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        safe_metadata = self.metadata.to_safe_dict()
+        return {
+            **safe_metadata,
+            "file": {
+                **safe_metadata["file"],
+                "content": self.content,
+            },
         }
 
 REFERRAL_SAAS_REPORT_CATALOG: dict[str, dict[str, Any]] = {
@@ -604,6 +707,120 @@ def _as_iso(value: Any) -> str | None:
     return None
 
 
+def _from_jsonb(value: Any, fallback: Any) -> Any:
+    if value is None:
+        return fallback
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return fallback
+    return value
+
+
+def _file_metadata_from_export_row(row: Any) -> dict[str, Any]:
+    metadata = _from_jsonb(row.get("metadata"), {})
+    if not isinstance(metadata, dict):
+        metadata = {}
+    file_storage = metadata.get("file_storage")
+    if not isinstance(file_storage, dict):
+        return {}
+    return file_storage
+
+
+def _safe_export_file_payload(value: Any) -> Any:
+    hidden_keys = {
+        "tenant_code",
+        "tenantCode",
+        "tenant_scope",
+        "tenantScope",
+        "internal_tenant_code",
+        "internalTenantCode",
+    }
+    if isinstance(value, dict):
+        return {
+            key: _safe_export_file_payload(nested)
+            for key, nested in value.items()
+            if str(key) not in hidden_keys
+        }
+    if isinstance(value, list):
+        return [_safe_export_file_payload(item) for item in value]
+    return value
+
+
+def _file_result_from_export_row(
+    row: Any,
+    *,
+    account_id: str,
+    command_status: str,
+    idempotency_status: str | None = None,
+    audit_event_id: str | None = None,
+) -> ReferralSaasReportExportFileResult:
+    file_storage = _file_metadata_from_export_row(row)
+    return ReferralSaasReportExportFileResult(
+        command_status=command_status,
+        account_id=account_id,
+        report_type=str(row["report_type"]),
+        export_request_id=str(row["export_request_id"]),
+        export_format=str(row["export_format"]),
+        redaction_profile=str(row["redaction_profile"]),
+        row_limit=int(row["row_limit"]),
+        row_count=int(row.get("row_count") or 0),
+        request_status=str(row["request_status"]),
+        storage_status=str(row["storage_status"]),
+        delivery_status=str(row["delivery_status"]),
+        download_status=str(row["download_status"]),
+        download_url=_optional_export_text(row.get("download_url")) or None,
+        expires_at=_as_iso(row.get("expires_at")),
+        file_name=_optional_export_text(file_storage.get("file_name")) or None,
+        content_type=_optional_export_text(file_storage.get("content_type")) or None,
+        content_sha256=_optional_export_text(file_storage.get("content_sha256")) or None,
+        byte_size=int(file_storage["byte_size"])
+        if file_storage.get("byte_size") is not None
+        else None,
+        storage_mode=_optional_export_text(file_storage.get("storage_mode"))
+        or "not_stored",
+        idempotency_status=idempotency_status,
+        audit_event_id=audit_event_id,
+    )
+
+
+async def _fetch_export_request_row(conn: Any, account_id: str, export_request_id: str):
+    return await conn.fetchrow(
+        """
+        SELECT
+            export_request_id,
+            account_id,
+            account_tenant_id,
+            external_ref_id,
+            tenant_code,
+            report_type,
+            export_format,
+            redaction_profile,
+            row_limit,
+            row_count,
+            request_status,
+            storage_status,
+            delivery_status,
+            download_status,
+            download_url,
+            dimensions,
+            filters,
+            metadata,
+            redactions,
+            reason_code,
+            correlation_id,
+            expires_at
+        FROM referral_saas_report_export_requests
+        WHERE account_id = $1
+          AND export_request_id = $2
+        LIMIT 1
+        """,
+        account_id,
+        export_request_id,
+    )
+
+
 async def build_referral_saas_report_export_preview(
     *,
     tenant_code: str,
@@ -990,6 +1207,354 @@ async def create_referral_saas_report_export_request(
         audit_event_id=_optional_export_text(audit_event.get("account_audit_event_id"))
         or None,
     )
+
+
+async def create_referral_saas_report_export_file(
+    *,
+    account_id: str,
+    export_request_id: str,
+    correlation_id: str | None = None,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    requested_by_ref: str,
+    requested_by_role: str | None = None,
+    reason_code: str | None = None,
+) -> ReferralSaasReportExportFileResult:
+    safe_account_id = _required_export_text(account_id, "account_id")
+    safe_export_request_id = _required_export_text(
+        export_request_id,
+        "export_request_id",
+    )
+    safe_idempotency_hash = _required_export_text(
+        idempotency_key_hash,
+        "idempotency_key_hash",
+    )
+    safe_payload_hash = _required_export_text(
+        request_payload_hash,
+        "request_payload_hash",
+    )
+    safe_actor_ref = _required_export_text(requested_by_ref, "requested_by_ref")
+    safe_actor_role = _optional_export_text(requested_by_role) or None
+    safe_correlation_id = _optional_export_text(correlation_id) or None
+    safe_reason_code = (
+        _optional_export_text(reason_code) or "CUSTOMER_PROFILE_REPORT_EXPORT_FILE"
+    )
+
+    async with db_connection() as conn:
+        export_row = await _fetch_export_request_row(
+            conn,
+            safe_account_id,
+            safe_export_request_id,
+        )
+        if not export_row:
+            raise ReportExportFileNotFound(
+                "Report export request was not found for this customer account."
+            )
+
+        if str(export_row["storage_status"]) == STORAGE_STATUS_STORED:
+            return _file_result_from_export_row(
+                export_row,
+                account_id=safe_account_id,
+                command_status=STATUS_EXPORT_FILE_REPLAYED,
+                idempotency_status=EXPORT_REQUEST_REPLAYED,
+            )
+
+        dimensions = _from_jsonb(export_row.get("dimensions"), [])
+        filters = _from_jsonb(export_row.get("filters"), {})
+        metadata = _from_jsonb(export_row.get("metadata"), {})
+        if not isinstance(metadata, dict):
+            metadata = {}
+
+        export_preview = await build_referral_saas_report_export_preview(
+            tenant_code=str(export_row["tenant_code"]),
+            report_type=str(export_row["report_type"]),
+            export_format=str(export_row["export_format"]),
+            redaction_profile=str(export_row["redaction_profile"]),
+            dimensions=list(dimensions) if isinstance(dimensions, list) else [],
+            filters=dict(filters) if isinstance(filters, dict) else {},
+            row_limit=int(export_row["row_limit"]),
+        )
+        preview = export_preview["preview"]
+        payload = preview["payload"]
+        content = (
+            payload
+            if isinstance(payload, str)
+            else _jsonb(_safe_export_file_payload(payload))
+        )
+        content_sha256 = hashlib.sha256(content.encode("utf-8")).hexdigest()
+        byte_size = len(content.encode("utf-8"))
+        row_count = int(preview["metadata"].get("row_count") or 0)
+        file_name = (
+            f"referral-saas-{export_row['report_type']}-"
+            f"{safe_export_request_id}.{preview['file_extension']}"
+        )
+        stored_at = datetime.now(timezone.utc).isoformat()
+        file_storage = {
+            "storage_mode": "database_metadata_inline",
+            "file_name": file_name,
+            "content_type": preview["content_type"],
+            "content_sha256": content_sha256,
+            "byte_size": byte_size,
+            "stored_at": stored_at,
+            "content": content,
+            "idempotency_key_hash": safe_idempotency_hash,
+            "request_payload_hash": safe_payload_hash,
+            "guardrails": list(EXPORT_FILE_GUARDRAILS),
+            "no_download_url_created_confirmed": True,
+            "no_scheduled_delivery_created_confirmed": True,
+            "no_billing_or_money_movement_confirmed": True,
+        }
+        updated_metadata = {
+            **metadata,
+            "file_storage": file_storage,
+            "export_file_status": STORAGE_STATUS_STORED,
+            "download_status": DOWNLOAD_STATUS_AVAILABLE,
+            "no_download_url_created_confirmed": True,
+            "no_scheduled_delivery_created_confirmed": True,
+            "no_billing_or_money_movement_confirmed": True,
+        }
+        existing_redactions = _from_jsonb(export_row.get("redactions"), [])
+        if not isinstance(existing_redactions, list):
+            existing_redactions = []
+        preview_redactions = preview["metadata"].get("redactions", [])
+        if not isinstance(preview_redactions, list):
+            preview_redactions = []
+        redactions = sorted(
+            set([*existing_redactions, *preview_redactions, *EXPORT_REQUEST_REDACTIONS])
+        )
+
+        async with conn.transaction():
+            updated_row = await conn.fetchrow(
+                """
+                UPDATE referral_saas_report_export_requests
+                SET
+                    row_count = $3,
+                    storage_status = $4,
+                    download_status = $5,
+                    metadata = $6::jsonb,
+                    redactions = $7::jsonb,
+                    updated_at = NOW()
+                WHERE account_id = $1
+                  AND export_request_id = $2
+                RETURNING
+                    export_request_id,
+                    account_id,
+                    tenant_code,
+                    report_type,
+                    export_format,
+                    redaction_profile,
+                    row_limit,
+                    row_count,
+                    request_status,
+                    storage_status,
+                    delivery_status,
+                    download_status,
+                    download_url,
+                    metadata,
+                    expires_at
+                """,
+                safe_account_id,
+                safe_export_request_id,
+                row_count,
+                STORAGE_STATUS_STORED,
+                DOWNLOAD_STATUS_AVAILABLE,
+                _jsonb(updated_metadata),
+                _jsonb(redactions),
+            )
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8,
+                    $9, $10, $11, $12, $13, $14::jsonb, $15::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                export_row.get("account_tenant_id"),
+                export_row.get("external_ref_id"),
+                str(export_row["tenant_code"]),
+                EXPORT_FILE_EVENT,
+                STORAGE_STATUS_STORED,
+                safe_actor_ref,
+                safe_actor_role,
+                str(export_row["storage_status"]),
+                STORAGE_STATUS_STORED,
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(
+                    {
+                        "export_request_id": safe_export_request_id,
+                        "report_type": str(export_row["report_type"]),
+                        "export_format": str(export_row["export_format"]),
+                        "row_count": row_count,
+                        "content_sha256": content_sha256,
+                        "byte_size": byte_size,
+                        "storage_status": STORAGE_STATUS_STORED,
+                        "download_status": DOWNLOAD_STATUS_AVAILABLE,
+                        "download_url": None,
+                        "no_download_url_created_confirmed": True,
+                        "no_scheduled_delivery_created_confirmed": True,
+                        "no_billing_or_money_movement_confirmed": True,
+                    }
+                ),
+                _jsonb(redactions),
+            )
+
+    return _file_result_from_export_row(
+        updated_row,
+        account_id=safe_account_id,
+        command_status=STATUS_EXPORT_FILE_STORED,
+        idempotency_status=EXPORT_REQUEST_RECORDED,
+        audit_event_id=_optional_export_text(audit_event.get("account_audit_event_id"))
+        or None,
+    )
+
+
+async def get_referral_saas_report_export_file_metadata(
+    *,
+    account_id: str,
+    export_request_id: str,
+) -> ReferralSaasReportExportFileResult:
+    safe_account_id = _required_export_text(account_id, "account_id")
+    safe_export_request_id = _required_export_text(
+        export_request_id,
+        "export_request_id",
+    )
+    async with db_connection() as conn:
+        export_row = await _fetch_export_request_row(
+            conn,
+            safe_account_id,
+            safe_export_request_id,
+        )
+    if not export_row:
+        raise ReportExportFileNotFound(
+            "Report export request was not found for this customer account."
+        )
+    return _file_result_from_export_row(
+        export_row,
+        account_id=safe_account_id,
+        command_status=STATUS_EXPORT_FILE_METADATA_READ,
+    )
+
+
+async def download_referral_saas_report_export_file(
+    *,
+    account_id: str,
+    export_request_id: str,
+    requested_by_ref: str,
+    requested_by_role: str | None = None,
+    correlation_id: str | None = None,
+) -> ReferralSaasReportExportDownloadResult:
+    safe_account_id = _required_export_text(account_id, "account_id")
+    safe_export_request_id = _required_export_text(
+        export_request_id,
+        "export_request_id",
+    )
+    safe_actor_ref = _required_export_text(requested_by_ref, "requested_by_ref")
+    safe_actor_role = _optional_export_text(requested_by_role) or None
+    safe_correlation_id = _optional_export_text(correlation_id) or None
+
+    async with db_connection() as conn:
+        export_row = await _fetch_export_request_row(
+            conn,
+            safe_account_id,
+            safe_export_request_id,
+        )
+        if not export_row:
+            raise ReportExportFileNotFound(
+                "Report export request was not found for this customer account."
+            )
+        file_storage = _file_metadata_from_export_row(export_row)
+        content = str(file_storage.get("content") or "")
+        if str(export_row["download_status"]) != DOWNLOAD_STATUS_AVAILABLE or not content:
+            raise ReportExportFileNotReady(
+                "Report export file is not available for download yet."
+            )
+        download_audit_hash = hashlib.sha256(
+            (
+                "REFERRAL_SAAS_REPORT_EXPORT_DOWNLOAD|"
+                f"{safe_account_id}|{safe_export_request_id}|{safe_actor_ref}"
+            ).encode("utf-8")
+        ).hexdigest()
+        audit_event = await conn.fetchrow(
+            """
+            INSERT INTO platform_account_audit_events (
+                account_id,
+                account_tenant_id,
+                external_ref_id,
+                tenant_code,
+                event_type,
+                event_status,
+                actor_ref,
+                actor_role,
+                previous_status,
+                next_status,
+                reason_code,
+                correlation_id,
+                idempotency_key_hash,
+                evidence_summary,
+                redactions
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8,
+                $9, $10, $11, $12, $13, $14::jsonb, $15::jsonb
+            )
+            RETURNING account_audit_event_id
+            """,
+            safe_account_id,
+            export_row.get("account_tenant_id"),
+            export_row.get("external_ref_id"),
+            str(export_row["tenant_code"]),
+            EXPORT_FILE_DOWNLOAD_EVENT,
+            DOWNLOAD_STATUS_AVAILABLE,
+            safe_actor_ref,
+            safe_actor_role,
+            str(export_row["download_status"]),
+            DOWNLOAD_STATUS_AVAILABLE,
+            "CUSTOMER_PROFILE_REPORT_EXPORT_DOWNLOAD",
+            safe_correlation_id,
+            download_audit_hash,
+            _jsonb(
+                {
+                    "export_request_id": safe_export_request_id,
+                    "report_type": str(export_row["report_type"]),
+                    "content_sha256": file_storage.get("content_sha256"),
+                    "byte_size": file_storage.get("byte_size"),
+                    "download_url": None,
+                    "no_download_url_created_confirmed": True,
+                    "no_scheduled_delivery_created_confirmed": True,
+                    "no_billing_or_money_movement_confirmed": True,
+                }
+            ),
+            _jsonb(EXPORT_REQUEST_REDACTIONS),
+        )
+
+    metadata = _file_result_from_export_row(
+        export_row,
+        account_id=safe_account_id,
+        command_status=STATUS_EXPORT_FILE_DOWNLOADED,
+        audit_event_id=_optional_export_text(audit_event.get("account_audit_event_id"))
+        or None,
+    )
+    return ReferralSaasReportExportDownloadResult(metadata=metadata, content=content)
 
 
 def _analytics_filters(filters: dict[str, str]) -> dict[str, str]:

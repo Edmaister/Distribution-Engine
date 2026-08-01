@@ -1760,7 +1760,27 @@ greenfield referral construction.
   expiry, retention, and audit expectations; and explicit no scheduled
   delivery, provider, invite/message, credential/auth, campaign activation,
   repair/replay/retry, billing, money, DLaaS, or source-fork side effects.
-  Runtime export file creation/download remains the next bounded task.
+  TASK-328 follows as the bounded runtime export file creation/download
+  implementation.
+- TASK-328: `services/referral_saas_reporting_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `test/test_referral_saas_reporting_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  first runtime export file foundation over persisted selected-customer export
+  requests. The backend can create tenant-safe inline JSON/CSV file artifacts,
+  read file metadata without exposing content, download stored content, audit
+  file creation/download access, replay already-stored exports safely, and keep
+  object storage, signed URLs, scheduled delivery, providers, webhooks,
+  invite/message delivery, credentials, auth/session changes, campaign
+  activation, repair/replay/retry, billing, money, DLaaS, and source-fork side
+  effects out of scope. Scores remain 9.99/10 for Referral Management and move
+  to 9.995/10 for Campaign Attribution.
 
 ## Explicit Deferrals
 

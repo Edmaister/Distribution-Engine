@@ -493,10 +493,31 @@ objects, download URLs, scheduled delivery, billing, money movement, provider
 calls, campaign mutations, repair/replay/retry actions, credential changes, or
 auth/session changes.
 
+TASK-328 implementation update: the first runtime foundation now implements
+customer-scoped export file creation, metadata, and download routes over
+existing TASK-273 export request rows:
+
+```text
+POST /v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/{export_request_id}/file
+GET /v1/referral-saas/accounts/{account_ref}/exports/{export_request_id}
+GET /v1/referral-saas/accounts/{account_ref}/exports/{export_request_id}/download
+```
+
+The implementation regenerates the tenant-safe JSON/CSV payload from the stored
+request context, stores a bounded inline file artifact in existing request
+metadata, returns metadata without file content, returns stored content only
+through the download route, audits file creation and download reads, and safely
+replays already-stored exports. It still does not create object-store records,
+signed download URLs, scheduled delivery, provider/webhook dispatch,
+invite/message delivery, credential changes, auth/session changes, campaign
+activation, repair/replay/retry, billing, money movement, DLaaS behavior, or
+source forks.
+
 ## Persisted Export File Lifecycle Contract
 
 TASK-273 records the export request and audit evidence. TASK-327 defines the
-runtime file lifecycle that must be implemented next.
+runtime file lifecycle. TASK-328 implements the first inline file artifact,
+metadata, and download runtime over that lifecycle.
 
 ### Lifecycle States
 
@@ -529,9 +550,9 @@ The export file implementation must:
 - keep scheduled delivery, external email delivery, billing-grade export
   certification, and money movement outside this first implementation
 
-### Candidate Runtime Routes
+### Runtime Routes
 
-The customer-scoped product route family should remain bounded:
+The customer-scoped product route family remains bounded:
 
 ```text
 POST /v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/{export_request_id}/file
@@ -539,13 +560,12 @@ GET /v1/referral-saas/accounts/{account_ref}/exports/{export_request_id}
 GET /v1/referral-saas/accounts/{account_ref}/exports/{export_request_id}/download
 ```
 
-The first route may be implemented as an operator/admin guarded command that
-creates a file from an existing request. The second route returns safe metadata
-and download readiness. The third route returns the downloadable payload or a
-short-lived retrieval envelope, depending on storage implementation. None of
-these routes may create new report requests, mutate campaigns, repair/replay
-events, call providers, deliver emails/messages, create credentials, change
-auth claims, bill, or move money.
+The first route is an operator/admin guarded command that creates an inline
+tenant-safe file artifact from an existing request. The second route returns
+safe metadata and download readiness without file content. The third route
+returns the stored payload content. None of these routes may create new report
+requests, mutate campaigns, repair/replay events, call providers, deliver
+emails/messages, create credentials, change auth claims, bill, or move money.
 
 ### File Content Rules
 
@@ -559,9 +579,9 @@ Stored export files must include:
   material, funding/settlement/wallet/invoice/payout fields, or operator-only
   trace payloads
 
-### Implementation Tests Required
+### Implementation Tests
 
-The implementation task must add tests for:
+TASK-328 adds focused tests for:
 
 - creating a stored export file from a recorded export request
 - idempotent same-payload replay and different-payload conflict
