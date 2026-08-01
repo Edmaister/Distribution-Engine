@@ -590,9 +590,9 @@
             provisioning API wrapper, selected-customer UI action wiring, and
             the People and Access provisioning physical proof runner,
             Integrations configuration/readiness, API verification, webhook
-            evidence, message-provider checks, credential request API/UI, and
-            credential request review-decision API foundation and review UI
-            through TASK-318.
+            evidence, message-provider checks, credential request API/UI,
+            credential request review-decision API foundation and review UI,
+            and credential execution-check API foundation through TASK-319.
           </p>
           <div class="score-row" aria-label="Current position">
             <div class="score">
@@ -600,8 +600,8 @@
               <span>Referral management foundation after account setup, selected customer profile, people/access, customer-scoped modules, read-spine proof, mutation proof, and persisted export request/audit evidence</span>
             </div>
             <div class="score">
-              <strong>9.96/10</strong>
-              <span>Campaign attribution foundation with selected-customer campaign readiness, list/read, create, policy/settings, review, activation, active-campaign link/code continuation, customer-scoped reporting, Integrations API/webhook/message-provider evidence UI, credential lifecycle request API/UI, review-decision API foundation and UI, mutation proof, and export request audit</span>
+              <strong>9.97/10</strong>
+              <span>Campaign attribution foundation with selected-customer campaign readiness, list/read, create, policy/settings, review, activation, active-campaign link/code continuation, customer-scoped reporting, Integrations API/webhook/message-provider evidence UI, credential lifecycle request API/UI, review-decision API/UI, execution-check API foundation, mutation proof, and export request audit</span>
             </div>
             <div class="score">
               <strong>10/10</strong>
@@ -615,7 +615,7 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-318 for Referral SaaS, with
+            Updated after TASK-134 through TASK-319 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
@@ -1276,7 +1276,7 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">SaaS workflow implementation</div>
-            <div class="matrix-cell">Selected-customer account/profile, people/access add/edit/remove intent with disabled-intent filtering and missing-role Add prompts, Integrations readiness over the existing technical setup read model, TASK-301 Integrations configuration contract, TASK-302 persisted Integrations configuration schema/API foundation, TASK-303 selected-customer Integrations configuration UI controls, TASK-304 live Integrations execution contract, TASK-305 read-only Integrations execution-readiness API, TASK-306 selected-customer Integrations execution-readiness UI, TASK-307 governed API-access verification command, TASK-308 selected-customer API-verification UI action, TASK-309 governed webhook test-dispatch command, TASK-310 selected-customer webhook evidence UI action, TASK-311 Plan-Save-Verify Integrations CX alignment, TASK-312 governed message-provider test-check command, TASK-313 selected-customer message-provider check UI action, TASK-314 credential lifecycle request contract, TASK-315 runtime credential request API foundation, TASK-316 selected-customer credential request UI, TASK-317 credential request review-decision API foundation, TASK-318 selected-customer credential review UI, customer-scoped campaign readiness, campaign list/read, create, policy/settings, guarded submit/review API proof, review UX, activation/go-live contract/API, activation UI, active-campaign Links and Codes, customer-scoped Reports, passing read-spine physical proof, mutation-path proof tooling, passing mutation execution evidence, persisted export request/audit evidence, support-case persistence contract, and runtime support-case create/list/read schema/API now exist, but credential execution/provider-vault commands, runtime live provider behavior, support-case UI/notes/status changes, export file storage/downloads, and lifecycle hardening still need cohesive product workflows.</div>
+            <div class="matrix-cell">Selected-customer account/profile, people/access add/edit/remove intent with disabled-intent filtering and missing-role Add prompts, Integrations readiness over the existing technical setup read model, TASK-301 Integrations configuration contract, TASK-302 persisted Integrations configuration schema/API foundation, TASK-303 selected-customer Integrations configuration UI controls, TASK-304 live Integrations execution contract, TASK-305 read-only Integrations execution-readiness API, TASK-306 selected-customer Integrations execution-readiness UI, TASK-307 governed API-access verification command, TASK-308 selected-customer API-verification UI action, TASK-309 governed webhook test-dispatch command, TASK-310 selected-customer webhook evidence UI action, TASK-311 Plan-Save-Verify Integrations CX alignment, TASK-312 governed message-provider test-check command, TASK-313 selected-customer message-provider check UI action, TASK-314 credential lifecycle request contract, TASK-315 runtime credential request API foundation, TASK-316 selected-customer credential request UI, TASK-317 credential request review-decision API foundation, TASK-318 selected-customer credential review UI, TASK-319 credential execution-check API foundation, customer-scoped campaign readiness, campaign list/read, create, policy/settings, guarded submit/review API proof, review UX, activation/go-live contract/API, activation UI, active-campaign Links and Codes, customer-scoped Reports, passing read-spine physical proof, mutation-path proof tooling, passing mutation execution evidence, persisted export request/audit evidence, support-case persistence contract, and runtime support-case create/list/read schema/API now exist, but frontend credential execution-check wiring, credential provider-vault commands, runtime live provider behavior, support-case UI/notes/status changes, export file storage/downloads, and lifecycle hardening still need cohesive product workflows.</div>
             <div class="matrix-cell">Implement credential/runtime provider commands, selected-customer support-case UI, and export storage/download as separate customer-scoped modules with tests and no source duplication, then extend proof into progress/attribution mutation paths.</div>
           </div>
           <div class="matrix-row" role="row">

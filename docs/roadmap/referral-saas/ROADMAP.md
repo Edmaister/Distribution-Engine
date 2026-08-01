@@ -475,6 +475,16 @@ greenfield referral construction.
   storage, reveal, download, provider, vault, webhook, invite/message, auth,
   campaign, billing, money, or DLaaS side effects.
 
+- TASK-319:
+  `POST /v1/referral-saas/accounts/{account_ref}/integrations/credential-requests/{credential_request_ref}/execution-checks`;
+  `services/referral_saas_integrations_configuration_service.py`;
+  selected-customer Integrations credential execution-check API foundation.
+  Operators can record approved-request execution-readiness evidence with
+  idempotency, audit evidence, selected-customer scope, unsafe-payload
+  rejection, and no credential creation, storage, reveal, download, rotation,
+  revoke, provider, vault, webhook, invite/message, auth, campaign, billing,
+  money, or DLaaS side effects.
+
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`
 - TASK-151: `test/test_referral_saas_route_smoke_inventory.py`;
