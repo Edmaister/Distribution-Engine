@@ -14,6 +14,7 @@ import {
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccountSupportCases,
+  listReferralSaasOperatorSupportQueue,
   listReferralSaasIntegrationCredentialRequests,
   listReferralSaasAccountCampaigns,
   listReferralSaasAccounts,
@@ -2528,6 +2529,93 @@ describe("referralSaasAccounts endpoint client", () => {
         limit: 25,
       },
     });
+  });
+
+  it("lists the operator aggregate support queue through the read-only wrapper", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      operatorScope: {
+        surface: "operator_support_queue",
+        role: "REFERRAL_SAAS_READER",
+      },
+      supportQueue: {
+        supportCases: [
+          {
+            caseRef: "CASE-001",
+            accountRef: "acct-1",
+            customerLabel: "Acme Retail",
+            externalTenantRef: "acme-tenant",
+            organisationRef: "acme-org",
+            category: "ACCESS_SCOPE",
+            priority: "HIGH",
+            status: "OPEN",
+            title: "Owner responsibility missing",
+            sourceSurface: "people_access",
+            assigneeRef: null,
+            createdAt: "2026-08-01T08:00:00Z",
+            updatedAt: "2026-08-01T09:00:00Z",
+            evidenceLinkCount: 2,
+            noteCount: 1,
+            latestActivity: "Status OPEN",
+            redactions: ["internal_tenant_identifier"],
+            nextAction: "Open customer support case",
+          },
+        ],
+        filters: {},
+        nextCursor: null,
+        guardrails: ["READ_ONLY_QUEUE"],
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrail: "Operator support queue is a read-only aggregate.",
+      guardrails: ["READ_ONLY_QUEUE"],
+      redactions: ["internal_tenant_identifier"],
+      no_assignment_from_queue_confirmed: true,
+      no_case_lifecycle_mutation_confirmed: true,
+      no_repair_replay_retry_confirmed: true,
+      no_referral_or_campaign_mutation_confirmed: true,
+      no_progress_or_attribution_mutation_confirmed: true,
+      no_report_or_export_mutation_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_credential_or_auth_claim_change_confirmed: true,
+      no_tenant_code_exposure_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    await expect(
+      listReferralSaasOperatorSupportQueue({
+        status: " OPEN ",
+        priority: " HIGH ",
+        category: " ACCESS_SCOPE ",
+        accountRef: " acct-1 ",
+        sourceSurface: " people_access ",
+        assigneeRef: " operator-1 ",
+        limit: 25,
+        cursor: " cursor-1 ",
+      }),
+    ).resolves.toMatchObject({
+      supportQueue: {
+        supportCases: [{ caseRef: "CASE-001", accountRef: "acct-1" }],
+      },
+      no_assignment_from_queue_confirmed: true,
+      no_case_lifecycle_mutation_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/operator/support-cases", {
+      query: {
+        status: "OPEN",
+        priority: "HIGH",
+        category: "ACCESS_SCOPE",
+        account_ref: "acct-1",
+        source_surface: "people_access",
+        assignee_ref: "operator-1",
+        limit: 25,
+        cursor: "cursor-1",
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|raw_ucn|client_secret|password|credential|repair|replay|retry|wallet|settlement|money_movement/,
+    );
   });
 
   it("creates selected-customer support cases without repair or adjacent side effects", async () => {

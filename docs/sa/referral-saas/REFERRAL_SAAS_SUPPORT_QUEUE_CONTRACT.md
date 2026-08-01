@@ -5,9 +5,10 @@ TASK ID: TASK-324
 Product boundary: Referral Management and Campaign Attribution SaaS.
 
 Status: Contract defined by TASK-324. Runtime read-only aggregate queue API
-implemented by TASK-325. Queue UI, assignment workflow, repair/replay actions,
-export file delivery, provider execution, credential/auth actions, billing, and
-money movement remain separate governed tasks.
+implemented by TASK-325. Queue UI implemented by TASK-326. Assignment workflow,
+repair/replay actions, export file delivery, provider execution,
+credential/auth actions, billing, and money movement remain separate governed
+tasks.
 
 ## Boundary
 
@@ -142,8 +143,8 @@ database error order.
 
 ## Frontend Product Contract
 
-The future operator queue UI should be a separate Support Queue page, not a
-stacked panel inside a selected customer profile.
+The operator queue UI is a separate Support Queue page, not a stacked panel
+inside a selected customer profile.
 
 It should show:
 
@@ -186,11 +187,22 @@ TASK-325 implementation proves:
 - opening a queue item routes back to the selected-customer Support context
 - the route is read-only and cannot mutate cases or adjacent product state
 
+TASK-326 implementation proves:
+
+- the frontend queue consumes the TASK-325 API rather than a UI-only cache
+- queue filters are bounded to the contract's safe status, priority, category,
+  customer, and source-surface values
+- queue rows show safe customer/case metadata and route back to selected-customer
+  Support context
+- the queue page remains read-only and does not render assignment, case
+  mutation, repair/replay/retry, provider, invite, credential/auth, export,
+  billing, money, DLaaS, or source-fork controls
+
 ## Explicit Non-Goals
 
-- no schema, migration, frontend, permission, assignment, repair, replay, retry,
-  provider, invite, credential/auth, export, billing, money, DLaaS, or source
-  fork implementation in TASK-325
+- no schema, migration, backend-route, permission, assignment, repair, replay,
+  retry, provider, invite, credential/auth, export, billing, money, DLaaS, or
+  source fork implementation in TASK-326
 - no support assignment workflow
 - no case create/note/status mutation from the aggregate queue
 - no repair, replay, retry, reprocess, requeue, failure resolution, attribution
@@ -203,7 +215,7 @@ TASK-325 implementation proves:
 
 ## Next Task
 
-After TASK-325, the next support task should build the operator queue UI over
-the proven read-only API. Assignment, repair/replay/retry, provider execution,
-credential/auth, export, billing, and money work remain separate governed
-capabilities.
+After TASK-326, the next support tasks should add repair/replay/retry
+guardrails only as separate governed capabilities. Assignment, provider
+execution, credential/auth, export, billing, and money work remain separate
+governed capabilities.

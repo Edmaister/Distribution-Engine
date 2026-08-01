@@ -1015,6 +1015,66 @@ export type ReferralSaasSupportCaseListResponse = {
   no_billing_or_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasOperatorSupportQueueItem = {
+  caseRef: string;
+  accountRef: string;
+  customerLabel: string;
+  externalTenantRef?: string | null;
+  organisationRef?: string | null;
+  category: string;
+  priority: string;
+  status: string;
+  title: string;
+  sourceSurface?: string | null;
+  assigneeRef?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  evidenceLinkCount: number;
+  noteCount: number;
+  latestActivity: string;
+  redactions: string[];
+  nextAction: string;
+};
+
+export type ReferralSaasOperatorSupportQueueRequest = {
+  status?: string;
+  priority?: string;
+  category?: string;
+  accountRef?: string;
+  sourceSurface?: string;
+  assigneeRef?: string;
+  limit?: number;
+  cursor?: string;
+};
+
+export type ReferralSaasOperatorSupportQueueResponse = {
+  status: string;
+  operatorScope: {
+    surface: string;
+    role: string;
+  };
+  supportQueue: {
+    supportCases: ReferralSaasOperatorSupportQueueItem[];
+    filters: Record<string, unknown>;
+    nextCursor?: string | null;
+    guardrails: string[];
+    redactions: string[];
+  };
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  no_assignment_from_queue_confirmed: boolean;
+  no_case_lifecycle_mutation_confirmed: boolean;
+  no_repair_replay_retry_confirmed: boolean;
+  no_referral_or_campaign_mutation_confirmed: boolean;
+  no_progress_or_attribution_mutation_confirmed: boolean;
+  no_report_or_export_mutation_confirmed: boolean;
+  no_invite_delivery_confirmed: boolean;
+  no_credential_or_auth_claim_change_confirmed: boolean;
+  no_tenant_code_exposure_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasSupportCaseCreateRequest = {
   accountRef: string;
   accountScope: {
@@ -2026,6 +2086,33 @@ export function listReferralSaasAccountSupportCases({
         context,
         status: status?.trim() || undefined,
         limit,
+      },
+    },
+  );
+}
+
+export function listReferralSaasOperatorSupportQueue({
+  status,
+  priority,
+  category,
+  accountRef,
+  sourceSurface,
+  assigneeRef,
+  limit = 50,
+  cursor,
+}: ReferralSaasOperatorSupportQueueRequest): Promise<ReferralSaasOperatorSupportQueueResponse> {
+  return apiRequest<ReferralSaasOperatorSupportQueueResponse>(
+    "v1/referral-saas/operator/support-cases",
+    {
+      query: {
+        status: status?.trim() || undefined,
+        priority: priority?.trim() || undefined,
+        category: category?.trim() || undefined,
+        account_ref: accountRef?.trim() || undefined,
+        source_surface: sourceSurface?.trim() || undefined,
+        assignee_ref: assigneeRef?.trim() || undefined,
+        limit,
+        cursor: cursor?.trim() || undefined,
       },
     },
   );

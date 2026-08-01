@@ -7309,6 +7309,31 @@ Rollback notes: Revert the support-case service queue read model, operator route
 Explicit non-goals: Do not add schema, migrations, frontend screens, support assignment commands, support-case lifecycle mutations, repair/replay/retry commands, provider calls, webhook dispatch, invite/referral-message delivery, credential creation/storage/reveal/download, auth/session claim changes, campaign activation, export file persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has the runtime read-only aggregate support queue API needed before building a queue UI. Current rating remains 9.99/10 for Referral Management and 9.99/10 for Campaign Attribution because the aggregate queue API gap is closed while queue UI, export file storage/download, progress/attribution mutation proof, provider/vault execution, governed auth/login completion, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-326: Add operator aggregate support queue UI
+
+Status: Complete (2026-08-01).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SUPPORT_QUEUE_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses TASK-325 read-only aggregate queue API, selected-customer Support routing, support-case categories/priorities/statuses, safe account labels/references, frontend API client/query key/query hook primitives, and no-side-effect guardrails. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Operator aggregate support queue UI.
+Objective: Build a live read-only operator queue page over the TASK-325 support queue API.
+Why now: TASK-325 proved the runtime queue API. Operators need a UI to triage cross-customer support cases without DB access and without mixing case work into every selected-customer page.
+Files involved: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/api/queryKeys.ts`; `frontend/src/api/referralSaasAccountQueries.ts`; `frontend/src/layout/Sidebar.tsx`; `frontend/src/pages/admin/ReferralSaasSupportHubPage.tsx`; `frontend/src/pages/admin/ReferralSaasSupportHubPage.test.tsx`; support queue contract; roadmap, gap matrix, ordered task list, and infographic docs.
+Database/schema impact: None.
+Backend impact: None. Consumes the existing TASK-325 read-only operator queue route.
+Frontend impact: Adds a live Support queue page with KPIs, bounded filters, safe queue rows, selected-customer Support routing, diagnostic shortcuts, empty/error/loading states, and explicit no-mutation guardrails.
+API impact: Consumes `GET /v1/referral-saas/operator/support-cases`; no route, schema, or backend behavior change.
+Tests added/updated: Frontend endpoint client test for bounded query mapping and Support queue page tests for live queue rendering, filter calls, customer-support routing, and no adjacent-action controls.
+Validation method: `git diff --check`; frontend focused tests; `npm run lint`; `npm run build`.
+Acceptance criteria: Operators can open the Referral SaaS Support queue, view cross-customer support-case KPIs and rows from the runtime API, filter by safe support fields, route into the selected-customer Support page, and see clear no-adjacent-action boundaries without raw tenant identifiers, provider payloads, secrets, credentials, assignment controls, repair/replay/retry commands, provider execution, invite delivery, auth/session changes, campaign activation, export creation, billing, money, DLaaS behavior, or source-code forks.
+Dependencies: TASK-324; TASK-325; TASK-297; TASK-321; TASK-322; TASK-323.
+Blocked by: Repair/replay/retry guardrails, export file storage/download, progress/attribution mutation proof, provider/vault adapters, invite/referral-message delivery integration, governed auth/login completion, and non-local proof repetition.
+Risk level: Medium.
+Rollback notes: Revert the frontend queue client/hook/page/test/sidebar changes and roadmap/gap/contract/infographic updates.
+Explicit non-goals: Do not add backend routes, schema, migrations, assignment commands, case create/note/status mutation from the queue, repair/replay/retry, provider calls, webhook dispatch, invite/referral-message delivery, credential creation/storage/reveal/download, auth/session claim changes, campaign activation, export file persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has a live read-only operator aggregate Support queue UI over the TASK-325 API, with bounded filters, safe cross-customer case metadata, selected-customer routing, and no-adjacent-action guardrails. Current rating remains 9.99/10 for Referral Management and 9.99/10 for Campaign Attribution because the queue UI gap is closed while export file storage/download, progress/attribution mutation proof, provider/vault execution, governed auth/login completion, repair/replay guardrails, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
