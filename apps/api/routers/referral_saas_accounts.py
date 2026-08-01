@@ -122,6 +122,7 @@ from services.referral_saas_reporting_service import (
 )
 from services.referral_saas_support_case_service import (
     SUPPORT_CASE_GUARDRAILS,
+    SUPPORT_CASE_QUEUE_GUARDRAILS,
     SUPPORT_CASE_REDACTIONS,
     ReferralSaasSupportCaseCommandError,
     SupportCaseIdempotencyConflict,
@@ -132,6 +133,7 @@ from services.referral_saas_support_case_service import (
     change_referral_saas_support_case_status,
     create_referral_saas_support_case,
     get_referral_saas_support_case,
+    list_referral_saas_operator_support_queue,
     list_referral_saas_support_cases,
 )
 from services.referral_saas_integrations_configuration_service import (
@@ -232,6 +234,9 @@ REPORT_EXPORT_REQUEST_REDACTIONS = {
 }
 SUPPORT_CASE_ROUTE_GUARDRAILS = {
     *SUPPORT_CASE_GUARDRAILS,
+}
+SUPPORT_QUEUE_ROUTE_GUARDRAILS = {
+    *SUPPORT_CASE_QUEUE_GUARDRAILS,
 }
 SUPPORT_CASE_ROUTE_REDACTIONS = {
     *SUPPORT_CASE_REDACTIONS,
@@ -4727,6 +4732,68 @@ async def list_referral_saas_account_support_cases(
         "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
         "no_tenant_code_exposure_confirmed": True,
         "no_product_state_mutation_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.get("/operator/support-cases")
+async def list_referral_saas_operator_support_cases(
+    case_status: Annotated[str | None, Query(alias="status")] = None,
+    priority: Annotated[str | None, Query()] = None,
+    category: Annotated[str | None, Query()] = None,
+    account_ref: Annotated[str | None, Query()] = None,
+    source_surface: Annotated[str | None, Query()] = None,
+    assignee_ref: Annotated[str | None, Query()] = None,
+    created_from: Annotated[str | None, Query()] = None,
+    created_to: Annotated[str | None, Query()] = None,
+    updated_from: Annotated[str | None, Query()] = None,
+    updated_to: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    cursor: Annotated[str | None, Query()] = None,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    try:
+        queue = await list_referral_saas_operator_support_queue(
+            status_filter=case_status,
+            priority=priority,
+            category=category,
+            account_ref=account_ref,
+            source_surface=source_surface,
+            assignee_ref=assignee_ref,
+            created_from=created_from,
+            created_to=created_to,
+            updated_from=updated_from,
+            updated_to=updated_to,
+            limit=limit,
+            cursor=cursor,
+        )
+    except ReferralSaasSupportCaseCommandError as exc:
+        raise _support_case_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "operatorScope": {
+            "surface": "operator_support_queue",
+            "role": str(identity.get("role") or ""),
+        },
+        "supportQueue": queue.to_safe_dict(),
+        "guardrail": (
+            "Operator support queue is a read-only aggregate over persisted "
+            "customer support cases. Open a queue item inside the selected "
+            "customer Support page for case lifecycle work."
+        ),
+        "guardrails": sorted(SUPPORT_QUEUE_ROUTE_GUARDRAILS),
+        "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
+        "no_assignment_from_queue_confirmed": True,
+        "no_case_lifecycle_mutation_confirmed": True,
+        "no_repair_replay_retry_confirmed": True,
+        "no_referral_or_campaign_mutation_confirmed": True,
+        "no_progress_or_attribution_mutation_confirmed": True,
+        "no_report_or_export_mutation_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_credential_or_auth_claim_change_confirmed": True,
+        "no_tenant_code_exposure_confirmed": True,
         "no_billing_or_money_movement_confirmed": True,
     }
 

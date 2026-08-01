@@ -24,6 +24,7 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("GET", "/admin/outcomes/{referral_track_id}/trace"),
         ("GET", "/admin/analytics/reports/{report_type}"),
         ("GET", "/v1/referral-saas/operator/links/inspect"),
+        ("GET", "/v1/referral-saas/operator/support-cases"),
         ("GET", "/v1/referral-saas/operator/outcomes/{referral_track_id}/trace"),
         ("GET", "/v1/referral-saas/operator/referrals/{referral_track_id}/progress-status"),
         ("GET", "/v1/referral-saas/accounts"),
@@ -154,6 +155,7 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
     } == {
         ("GET", "/v1/referral-saas/reports/{report_type}"),
         ("GET", "/v1/referral-saas/operator/links/inspect"),
+        ("GET", "/v1/referral-saas/operator/support-cases"),
         ("GET", "/v1/referral-saas/operator/outcomes/{referral_track_id}/trace"),
         ("GET", "/v1/referral-saas/operator/referrals/{referral_track_id}/progress-status"),
         ("GET", "/v1/referral-saas/accounts"),

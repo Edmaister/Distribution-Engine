@@ -4,9 +4,10 @@ TASK ID: TASK-324
 
 Product boundary: Referral Management and Campaign Attribution SaaS.
 
-Status: Contract defined. Runtime aggregate queue API, UI, assignment workflow,
-repair/replay actions, export file delivery, provider execution, credential/auth
-actions, billing, and money movement remain separate governed tasks.
+Status: Contract defined by TASK-324. Runtime read-only aggregate queue API
+implemented by TASK-325. Queue UI, assignment workflow, repair/replay actions,
+export file delivery, provider execution, credential/auth actions, billing, and
+money movement remain separate governed tasks.
 
 ## Boundary
 
@@ -174,7 +175,7 @@ It must still preserve:
 
 ## Acceptance Criteria For Implementation
 
-Future implementation tasks must prove:
+TASK-325 implementation proves:
 
 - the queue reads from persisted support cases rather than a UI-only cache
 - operator scope is enforced server-side
@@ -187,8 +188,9 @@ Future implementation tasks must prove:
 
 ## Explicit Non-Goals
 
-- no schema, migration, repository, service, route, frontend, permission, or
-  runtime implementation in this task
+- no schema, migration, frontend, permission, assignment, repair, replay, retry,
+  provider, invite, credential/auth, export, billing, money, DLaaS, or source
+  fork implementation in TASK-325
 - no support assignment workflow
 - no case create/note/status mutation from the aggregate queue
 - no repair, replay, retry, reprocess, requeue, failure resolution, attribution
@@ -201,7 +203,7 @@ Future implementation tasks must prove:
 
 ## Next Task
 
-After this contract, the next support task should implement the read-only
-operator aggregate queue API over the existing support-case persistence model,
-with route inventory and API tests. The queue UI should follow only after the
-backend read model is proven.
+After TASK-325, the next support task should build the operator queue UI over
+the proven read-only API. Assignment, repair/replay/retry, provider execution,
+credential/auth, export, billing, and money work remain separate governed
+capabilities.

@@ -288,6 +288,7 @@ greenfield referral construction.
 180. TASK-322: Add selected-customer support-case notes and status API.
 181. TASK-323: Wire selected-customer support-case lifecycle UI.
 182. TASK-324: Define operator aggregate support queue contract.
+183. TASK-325: Add operator aggregate support queue API.
 
 ## 10/10 Exit Criteria
 
@@ -1713,6 +1714,22 @@ greenfield referral construction.
   runtime routes, UI, assignment, repair/replay/retry, provider, invite,
   credential, auth, export, campaign activation, billing, money, DLaaS, or
   source-fork behavior. Runtime queue API/UI remain separate tasks.
+- TASK-325: `services/referral_saas_support_case_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_SUPPORT_QUEUE_CONTRACT.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Implements
+  the read-only operator aggregate support queue API over persisted
+  selected-customer support cases. Operators can now read a cross-customer,
+  filter-bounded, redacted support queue with safe account labels, case
+  metadata, evidence/note counts, cursor pagination, and no assignment,
+  repair/replay/retry, provider, invite, credential, auth, export, campaign
+  activation, billing, money, DLaaS, or source-fork side effects. Queue UI
+  remains a separate task.
 
 ## Explicit Deferrals
 
