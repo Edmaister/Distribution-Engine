@@ -287,6 +287,7 @@ greenfield referral construction.
 179. TASK-321: Add selected-customer support-case UI.
 180. TASK-322: Add selected-customer support-case notes and status API.
 181. TASK-323: Wire selected-customer support-case lifecycle UI.
+182. TASK-324: Define operator aggregate support queue contract.
 
 ## 10/10 Exit Criteria
 
@@ -1699,6 +1700,19 @@ greenfield referral construction.
   source-fork side effects. Aggregate support queues, repair guardrails, export
   files, progress/attribution mutation proof, and non-local proof repetition
   remain separate tasks.
+- TASK-324: `docs/sa/referral-saas/REFERRAL_SAAS_SUPPORT_QUEUE_CONTRACT.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the
+  operator aggregate support queue contract over selected-customer support
+  cases. The contract sets the future read-only route, safe filters, queue item
+  fields, ordering, redactions, and no-adjacent-action guardrails without adding
+  runtime routes, UI, assignment, repair/replay/retry, provider, invite,
+  credential, auth, export, campaign activation, billing, money, DLaaS, or
+  source-fork behavior. Runtime queue API/UI remain separate tasks.
 
 ## Explicit Deferrals
 
