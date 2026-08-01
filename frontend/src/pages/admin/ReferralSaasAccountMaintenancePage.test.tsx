@@ -19,6 +19,8 @@ import {
   previewReferralSaasAccountReportExport,
 } from "../../api/endpoints/referralSaasReports";
 import {
+  addReferralSaasAccountSupportCaseNote,
+  changeReferralSaasAccountSupportCaseStatus,
   createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
   getReferralSaasAccountCampaignReadiness,
@@ -78,6 +80,8 @@ vi.mock("../../api/endpoints/referralSaasReports", () => ({
   previewReferralSaasAccountReportExport: vi.fn(),
 }));
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
+  addReferralSaasAccountSupportCaseNote: vi.fn(),
+  changeReferralSaasAccountSupportCaseStatus: vi.fn(),
   createReferralSaasAccountSupportCase: vi.fn(),
   createReferralSaasAccountCampaignSetup: vi.fn(),
   getReferralSaasAccountCampaignReadiness: vi.fn(),
@@ -118,6 +122,8 @@ const mockedIssueReferralSaasAccountCampaignCode = vi.mocked(issueReferralSaasAc
 const mockedValidateReferralSaasAccountCampaignCode = vi.mocked(validateReferralSaasAccountCampaignCode);
 const mockedGetReferralSaasAccountReport = vi.mocked(getReferralSaasAccountReport);
 const mockedPreviewReferralSaasAccountReportExport = vi.mocked(previewReferralSaasAccountReportExport);
+const mockedAddReferralSaasAccountSupportCaseNote = vi.mocked(addReferralSaasAccountSupportCaseNote);
+const mockedChangeReferralSaasAccountSupportCaseStatus = vi.mocked(changeReferralSaasAccountSupportCaseStatus);
 const mockedCreateReferralSaasAccountSupportCase = vi.mocked(createReferralSaasAccountSupportCase);
 const mockedCreateReferralSaasAccountCampaignSetup = vi.mocked(createReferralSaasAccountCampaignSetup);
 const mockedGetReferralSaasAccountCampaignReadiness = vi.mocked(getReferralSaasAccountCampaignReadiness);
@@ -3287,6 +3293,244 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(await screen.findByText("Support case recorded.")).toBeInTheDocument();
     expect(screen.getByText(/No repair, replay, retry/i)).toBeInTheDocument();
     expect(JSON.stringify(mockedCreateReferralSaasAccountSupportCase.mock.calls)).not.toMatch(
+      /tenant_code|credential|billing|money/i,
+    );
+  });
+
+  it("adds selected-customer support case notes from the support page", async () => {
+    mockedListReferralSaasAccountSupportCases.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACCT_GABS",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+      },
+      supportCases: [
+        {
+          caseRef: "case-support-1",
+          accountRef: "acct-gabs",
+          category: "VALIDATION_RECOVERY",
+          priority: "HIGH",
+          status: "OPEN",
+          title: "Referral code validation failed",
+          summary: "The branch pilot cannot validate a safe referral code.",
+          sourceSurface: "support_hub",
+          createdByRef: "operator",
+          evidenceLinks: [],
+          redactions: ["internal_tenant_identifier"],
+        },
+      ],
+      guardrails: ["NO_REPAIR_REPLAY_RETRY"],
+      redactions: ["internal_tenant_identifier"],
+      no_tenant_code_exposure_confirmed: true,
+      no_product_state_mutation_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+    mockedAddReferralSaasAccountSupportCaseNote.mockResolvedValue({
+      status: "ok",
+      context: "support",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACCT_GABS",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+      },
+      supportCaseLifecycle: {
+        commandStatus: "RECORDED",
+        supportCase: {
+          caseRef: "case-support-1",
+          accountRef: "acct-gabs",
+          category: "VALIDATION_RECOVERY",
+          priority: "HIGH",
+          status: "OPEN",
+          title: "Referral code validation failed",
+          summary: "The branch pilot cannot validate a safe referral code.",
+          sourceSurface: "support_hub",
+          createdByRef: "operator",
+          evidenceLinks: [],
+          redactions: ["internal_tenant_identifier"],
+        },
+        note: {
+          noteRef: "note-support-1",
+          supportCaseRef: "case-support-1",
+          noteType: "OPERATOR_NOTE",
+          noteText: "Called the customer and confirmed the branch test scope.",
+          createdByRef: "operator",
+          redactions: ["internal_tenant_identifier"],
+        },
+        idempotency: { status: "NEW_REQUEST" },
+        audit: { accountAuditEventId: "audit-note-1" },
+        guardrails: ["NO_REPAIR_REPLAY_RETRY"],
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrail: "Selected-customer support case note recorded.",
+      guardrails: ["NO_REPAIR_REPLAY_RETRY"],
+      redactions: ["internal_tenant_identifier"],
+      no_repair_replay_retry_confirmed: true,
+      no_referral_or_campaign_mutation_confirmed: true,
+      no_progress_or_attribution_mutation_confirmed: true,
+      no_report_or_export_mutation_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_credential_or_auth_claim_change_confirmed: true,
+      no_tenant_code_exposure_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/support");
+
+    expect(await screen.findByText("Referral code validation failed")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add note" }));
+    fireEvent.change(screen.getByLabelText("Support case note"), {
+      target: { value: "Called the customer and confirmed the branch test scope." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save note" }));
+
+    await waitFor(() => expect(mockedAddReferralSaasAccountSupportCaseNote).toHaveBeenCalledTimes(1));
+    expect(mockedAddReferralSaasAccountSupportCaseNote.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        accountRef: "acct-gabs",
+        caseRef: "case-support-1",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: "gabs-platform",
+          context: "support",
+        },
+        noteType: "OPERATOR_NOTE",
+        noteText: "Called the customer and confirmed the branch test scope.",
+      }),
+    );
+    expect(mockedAddReferralSaasAccountSupportCaseNote.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        correlationId: expect.stringContaining("support-note-case-support-1-"),
+        idempotencyKey: expect.stringContaining("support-note-acct-gabs-case-support-1-"),
+      }),
+    );
+    expect(await screen.findByText("Support case updated.")).toBeInTheDocument();
+    expect(screen.getByText(/Note added to Referral code validation failed/i)).toBeInTheDocument();
+    expect(JSON.stringify(mockedAddReferralSaasAccountSupportCaseNote.mock.calls)).not.toMatch(
+      /tenant_code|credential|billing|money/i,
+    );
+  });
+
+  it("changes selected-customer support case status from the support page", async () => {
+    mockedListReferralSaasAccountSupportCases.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACCT_GABS",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+      },
+      supportCases: [
+        {
+          caseRef: "case-support-1",
+          accountRef: "acct-gabs",
+          category: "VALIDATION_RECOVERY",
+          priority: "HIGH",
+          status: "OPEN",
+          title: "Referral code validation failed",
+          summary: "The branch pilot cannot validate a safe referral code.",
+          sourceSurface: "support_hub",
+          createdByRef: "operator",
+          evidenceLinks: [],
+          redactions: ["internal_tenant_identifier"],
+        },
+      ],
+      guardrails: ["NO_REPAIR_REPLAY_RETRY"],
+      redactions: ["internal_tenant_identifier"],
+      no_tenant_code_exposure_confirmed: true,
+      no_product_state_mutation_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+    mockedChangeReferralSaasAccountSupportCaseStatus.mockResolvedValue({
+      status: "ok",
+      context: "support",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACCT_GABS",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+      },
+      supportCaseLifecycle: {
+        commandStatus: "RECORDED",
+        supportCase: {
+          caseRef: "case-support-1",
+          accountRef: "acct-gabs",
+          category: "VALIDATION_RECOVERY",
+          priority: "HIGH",
+          status: "INVESTIGATING",
+          title: "Referral code validation failed",
+          summary: "The branch pilot cannot validate a safe referral code.",
+          sourceSurface: "support_hub",
+          createdByRef: "operator",
+          evidenceLinks: [],
+          redactions: ["internal_tenant_identifier"],
+        },
+        statusEvent: {
+          statusEventRef: "status-support-1",
+          supportCaseRef: "case-support-1",
+          fromStatus: "OPEN",
+          toStatus: "INVESTIGATING",
+          transitionReason: "Evidence reviewed and assigned to support.",
+          changedByRef: "operator",
+          redactions: ["internal_tenant_identifier"],
+        },
+        idempotency: { status: "NEW_REQUEST" },
+        audit: { accountAuditEventId: "audit-status-1" },
+        guardrails: ["NO_REPAIR_REPLAY_RETRY"],
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrail: "Selected-customer support case status changed.",
+      guardrails: ["NO_REPAIR_REPLAY_RETRY"],
+      redactions: ["internal_tenant_identifier"],
+      no_repair_replay_retry_confirmed: true,
+      no_referral_or_campaign_mutation_confirmed: true,
+      no_progress_or_attribution_mutation_confirmed: true,
+      no_report_or_export_mutation_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_credential_or_auth_claim_change_confirmed: true,
+      no_tenant_code_exposure_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/support");
+
+    expect(await screen.findByText("Referral code validation failed")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Change status" }));
+    fireEvent.change(screen.getByLabelText("Support case status"), {
+      target: { value: "INVESTIGATING" },
+    });
+    fireEvent.change(screen.getByLabelText("Support case status reason"), {
+      target: { value: "Evidence reviewed and assigned to support." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save status" }));
+
+    await waitFor(() => expect(mockedChangeReferralSaasAccountSupportCaseStatus).toHaveBeenCalledTimes(1));
+    expect(mockedChangeReferralSaasAccountSupportCaseStatus.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        accountRef: "acct-gabs",
+        caseRef: "case-support-1",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: "gabs-platform",
+          context: "support",
+        },
+        status: "INVESTIGATING",
+        transitionReason: "Evidence reviewed and assigned to support.",
+      }),
+    );
+    expect(mockedChangeReferralSaasAccountSupportCaseStatus.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        correlationId: expect.stringContaining("support-status-case-support-1-"),
+        idempotencyKey: expect.stringContaining("support-status-acct-gabs-case-support-1-"),
+      }),
+    );
+    expect(await screen.findByText("Support case updated.")).toBeInTheDocument();
+    expect(screen.getByText(/Referral code validation failed moved to Investigating/i)).toBeInTheDocument();
+    expect(JSON.stringify(mockedChangeReferralSaasAccountSupportCaseStatus.mock.calls)).not.toMatch(
       /tenant_code|credential|billing|money/i,
     );
   });

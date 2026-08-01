@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { apiRequest } from "../client";
 import {
+  addReferralSaasAccountSupportCaseNote,
+  changeReferralSaasAccountSupportCaseStatus,
   createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
   createReferralSaasAccountFromDraft,
@@ -2625,6 +2627,183 @@ describe("referralSaasAccounts endpoint client", () => {
         reasonCode: "CUSTOMER_SUPPORT_CASE_CREATED",
         correlationId: "support-case-acct-1",
         idempotencyKey: "support-case-acct-1-v1",
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|raw_ucn|client_secret|password|credential|repair|replay|retry|wallet|settlement|money_movement/,
+    );
+  });
+
+  it("adds selected-customer support case notes without repair or adjacent side effects", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "support",
+      account: { accountId: "acct-1", accountCode: "ACCT_FNB" },
+      supportCaseLifecycle: {
+        commandStatus: "RECORDED",
+        supportCase: {
+          caseRef: "case-1",
+          accountRef: "acct-1",
+          category: "VALIDATION_RECOVERY",
+          priority: "HIGH",
+          status: "OPEN",
+          title: "Referral code validation failed",
+          summary: "Safe customer-facing issue summary.",
+          createdByRef: "operator",
+          evidenceLinks: [],
+          redactions: ["internal_tenant_identifier"],
+        },
+        note: {
+          noteRef: "note-1",
+          supportCaseRef: "case-1",
+          noteType: "OPERATOR_NOTE",
+          noteText: "Called the customer and confirmed the branch test scope.",
+          createdByRef: "operator",
+          redactions: ["internal_tenant_identifier"],
+        },
+        idempotency: { status: "NEW_REQUEST" },
+        audit: { accountAuditEventId: "audit-note-1" },
+        guardrails: ["NO_REPAIR_REPLAY_RETRY"],
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrail: "Selected-customer support case note recorded.",
+      guardrails: ["NO_REPAIR_REPLAY_RETRY"],
+      redactions: ["internal_tenant_identifier"],
+      no_repair_replay_retry_confirmed: true,
+      no_referral_or_campaign_mutation_confirmed: true,
+      no_progress_or_attribution_mutation_confirmed: true,
+      no_report_or_export_mutation_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_credential_or_auth_claim_change_confirmed: true,
+      no_tenant_code_exposure_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    await expect(
+      addReferralSaasAccountSupportCaseNote({
+        accountRef: " acct-1 ",
+        caseRef: " case-1 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " fnb-referrals ",
+        },
+        noteType: " OPERATOR_NOTE ",
+        noteText: " Called the customer and confirmed the branch test scope. ",
+        correlationId: "support-note-case-1",
+        idempotencyKey: "support-note-case-1-v1",
+      }),
+    ).resolves.toMatchObject({
+      supportCaseLifecycle: {
+        note: {
+          noteRef: "note-1",
+        },
+      },
+      no_repair_replay_retry_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts/acct-1/support-cases/case-1/notes", {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: "fnb-referrals",
+          context: "support",
+        },
+        noteType: "OPERATOR_NOTE",
+        noteText: "Called the customer and confirmed the branch test scope.",
+        reasonCode: "CUSTOMER_SUPPORT_NOTE_ADDED",
+        correlationId: "support-note-case-1",
+        idempotencyKey: "support-note-case-1-v1",
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|raw_ucn|client_secret|password|credential|repair|replay|retry|wallet|settlement|money_movement/,
+    );
+  });
+
+  it("changes selected-customer support case status without repair or adjacent side effects", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "support",
+      account: { accountId: "acct-1", accountCode: "ACCT_FNB" },
+      supportCaseLifecycle: {
+        commandStatus: "RECORDED",
+        supportCase: {
+          caseRef: "case-1",
+          accountRef: "acct-1",
+          category: "VALIDATION_RECOVERY",
+          priority: "HIGH",
+          status: "INVESTIGATING",
+          title: "Referral code validation failed",
+          summary: "Safe customer-facing issue summary.",
+          createdByRef: "operator",
+          evidenceLinks: [],
+          redactions: ["internal_tenant_identifier"],
+        },
+        statusEvent: {
+          statusEventRef: "status-1",
+          supportCaseRef: "case-1",
+          fromStatus: "OPEN",
+          toStatus: "INVESTIGATING",
+          transitionReason: "Evidence reviewed and assigned to support.",
+          transitionedByRef: "operator",
+          redactions: ["internal_tenant_identifier"],
+        },
+        idempotency: { status: "NEW_REQUEST" },
+        audit: { accountAuditEventId: "audit-status-1" },
+        guardrails: ["NO_REPAIR_REPLAY_RETRY"],
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrail: "Selected-customer support case status changed.",
+      guardrails: ["NO_REPAIR_REPLAY_RETRY"],
+      redactions: ["internal_tenant_identifier"],
+      no_repair_replay_retry_confirmed: true,
+      no_referral_or_campaign_mutation_confirmed: true,
+      no_progress_or_attribution_mutation_confirmed: true,
+      no_report_or_export_mutation_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_credential_or_auth_claim_change_confirmed: true,
+      no_tenant_code_exposure_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    await expect(
+      changeReferralSaasAccountSupportCaseStatus({
+        accountRef: " acct-1 ",
+        caseRef: " case-1 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " fnb-referrals ",
+        },
+        status: " INVESTIGATING ",
+        transitionReason: " Evidence reviewed and assigned to support. ",
+        correlationId: "support-status-case-1",
+        idempotencyKey: "support-status-case-1-v1",
+      }),
+    ).resolves.toMatchObject({
+      supportCaseLifecycle: {
+        supportCase: {
+          status: "INVESTIGATING",
+        },
+      },
+      no_repair_replay_retry_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts/acct-1/support-cases/case-1/status", {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: "fnb-referrals",
+          context: "support",
+        },
+        status: "INVESTIGATING",
+        transitionReason: "Evidence reviewed and assigned to support.",
+        reasonCode: "CUSTOMER_SUPPORT_STATUS_CHANGED",
+        correlationId: "support-status-case-1",
+        idempotencyKey: "support-status-case-1-v1",
       },
     });
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(

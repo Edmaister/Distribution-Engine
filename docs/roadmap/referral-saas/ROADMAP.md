@@ -285,6 +285,8 @@ greenfield referral construction.
 177. TASK-319: Add Integrations credential execution-check API foundation.
 178. TASK-320: Wire Integrations credential execution-check UI.
 179. TASK-321: Add selected-customer support-case UI.
+180. TASK-322: Add selected-customer support-case notes and status API.
+181. TASK-323: Wire selected-customer support-case lifecycle UI.
 
 ## 10/10 Exit Criteria
 
@@ -1678,6 +1680,25 @@ greenfield referral construction.
   credential, auth, billing, money, DLaaS, or source-fork side effects. Support
   notes/status UI, aggregate support queues, repair guardrails, export files,
   and non-local proof repetition remain separate tasks.
+
+- TASK-323:
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_SUPPORT_CASE_PERSISTENCE_CONTRACT.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Wires the
+  selected-customer Support page to the TASK-322 lifecycle API. Operators can
+  add safe notes and move cases through bounded statuses from the customer
+  Support page, with idempotency/correlation payloads, post-save refresh, clear
+  success/error feedback, and no repair/replay/retry, provider, invite,
+  credential, auth, export, campaign activation, billing, money, DLaaS, or
+  source-fork side effects. Aggregate support queues, repair guardrails, export
+  files, progress/attribution mutation proof, and non-local proof repetition
+  remain separate tasks.
 
 ## Explicit Deferrals
 

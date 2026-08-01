@@ -44,7 +44,9 @@ import {
   type ReferralSaasReportType,
 } from "../../api/endpoints/referralSaasReports";
 import {
+  addReferralSaasAccountSupportCaseNote,
   cancelReferralSaasMembershipInvitationIntent,
+  changeReferralSaasAccountSupportCaseStatus,
   createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
   listReferralSaasAccountSupportCases,
@@ -76,6 +78,7 @@ import {
   type ReferralSaasAccountCampaignSetupCreateResponse,
   type ReferralSaasSupportCase,
   type ReferralSaasSupportCaseCreateResponse,
+  type ReferralSaasSupportCaseLifecycleResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import type { CampaignReadinessOperation } from "../../api/endpoints/adminCampaignReadiness";
@@ -155,6 +158,15 @@ type SupportCaseDraft = {
   summary: string;
   evidenceType: string;
   evidenceRef: string;
+};
+
+type SupportCaseLifecycleDraft = {
+  caseRef: string;
+  action: "note" | "status";
+  noteType: string;
+  noteText: string;
+  status: string;
+  transitionReason: string;
 };
 
 type ScopedAccountActivationResult = {
@@ -413,6 +425,21 @@ const supportCaseEvidenceOptions = [
   { value: "OPERATOR_NOTE", label: "Operator note" },
 ];
 
+const supportCaseNoteTypeOptions = [
+  { value: "OPERATOR_NOTE", label: "Operator note" },
+  { value: "CUSTOMER_UPDATE", label: "Customer update" },
+  { value: "EVIDENCE_SUMMARY", label: "Evidence summary" },
+  { value: "RESOLUTION_NOTE", label: "Resolution note" },
+];
+
+const supportCaseStatusOptions = [
+  { value: "OPEN", label: "Open" },
+  { value: "INVESTIGATING", label: "Investigating" },
+  { value: "WAITING", label: "Waiting" },
+  { value: "RESOLVED", label: "Resolved" },
+  { value: "CLOSED", label: "Closed" },
+];
+
 const customerTypeOptions = [
   {
     value: "DIRECT_CUSTOMER",
@@ -527,6 +554,10 @@ export function ReferralSaasAccountMaintenancePage() {
   });
   const [supportCaseResult, setSupportCaseResult] =
     useState<ReferralSaasSupportCaseCreateResponse | null>(null);
+  const [supportCaseLifecycleDraft, setSupportCaseLifecycleDraft] =
+    useState<SupportCaseLifecycleDraft | null>(null);
+  const [supportCaseLifecycleResult, setSupportCaseLifecycleResult] =
+    useState<ReferralSaasSupportCaseLifecycleResponse | null>(null);
   const scopeChanged =
     draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
     draftOrganisationRef.trim() !== appliedOrganisationRef;
@@ -755,6 +786,44 @@ export function ReferralSaasAccountMaintenancePage() {
         evidenceType: "",
         evidenceRef: "",
       });
+      await supportCasesQuery.refetch();
+    },
+  });
+  const supportCaseLifecycleMutation = useMutation({
+    mutationFn: (draft: SupportCaseLifecycleDraft) => {
+      if (!selectedAccount) {
+        throw new Error("Select a customer before working support cases.");
+      }
+      const accountScope = {
+        refType: "external_tenant_ref" as const,
+        externalRef: selectedExternalTenantRef,
+        context: "support" as const,
+      };
+      const idempotencySuffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      if (draft.action === "note") {
+        return addReferralSaasAccountSupportCaseNote({
+          accountRef: selectedAccount.accountId,
+          caseRef: draft.caseRef,
+          accountScope,
+          noteType: draft.noteType,
+          noteText: draft.noteText,
+          correlationId: `support-note-${draft.caseRef}-${idempotencySuffix}`,
+          idempotencyKey: `support-note-${selectedAccount.accountId}-${draft.caseRef}-${idempotencySuffix}`,
+        });
+      }
+      return changeReferralSaasAccountSupportCaseStatus({
+        accountRef: selectedAccount.accountId,
+        caseRef: draft.caseRef,
+        accountScope,
+        status: draft.status,
+        transitionReason: draft.transitionReason,
+        correlationId: `support-status-${draft.caseRef}-${idempotencySuffix}`,
+        idempotencyKey: `support-status-${selectedAccount.accountId}-${draft.caseRef}-${idempotencySuffix}`,
+      });
+    },
+    onSuccess: async (response) => {
+      setSupportCaseLifecycleResult(response);
+      setSupportCaseLifecycleDraft(null);
       await supportCasesQuery.refetch();
     },
   });
@@ -1265,6 +1334,7 @@ export function ReferralSaasAccountMaintenancePage() {
       ...values,
     }));
     setSupportCaseResult(null);
+    setSupportCaseLifecycleResult(null);
   }
 
   function submitSupportCase(event: FormEvent<HTMLFormElement>) {
@@ -1311,6 +1381,33 @@ export function ReferralSaasAccountMaintenancePage() {
         cleanedEvidenceType,
         cleanedEvidenceRef,
       ),
+    });
+  }
+
+  function submitSupportCaseLifecycle(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supportCaseLifecycleDraft) {
+      return;
+    }
+    const cleanedNoteText = supportCaseLifecycleDraft.noteText.trim();
+    const cleanedTransitionReason = supportCaseLifecycleDraft.transitionReason.trim();
+    if (
+      supportCaseLifecycleDraft.action === "note" &&
+      (!supportCaseLifecycleDraft.caseRef.trim() || !cleanedNoteText)
+    ) {
+      return;
+    }
+    if (
+      supportCaseLifecycleDraft.action === "status" &&
+      (!supportCaseLifecycleDraft.caseRef.trim() || !cleanedTransitionReason)
+    ) {
+      return;
+    }
+    setSupportCaseResult(null);
+    supportCaseLifecycleMutation.mutate({
+      ...supportCaseLifecycleDraft,
+      noteText: cleanedNoteText,
+      transitionReason: cleanedTransitionReason,
     });
   }
 
@@ -2647,10 +2744,19 @@ export function ReferralSaasAccountMaintenancePage() {
                   cases={supportCasesQuery.data?.supportCases || []}
                   customerName={customerName}
                   draft={supportCaseDraft}
-                  error={supportCasesQuery.error || supportCaseMutation.error}
+                  error={
+                    supportCasesQuery.error ||
+                    supportCaseMutation.error ||
+                    supportCaseLifecycleMutation.error
+                  }
                   isLoading={supportCasesQuery.isLoading}
+                  isLifecycleSaving={supportCaseLifecycleMutation.isPending}
                   isSaving={supportCaseMutation.isPending}
+                  lifecycleDraft={supportCaseLifecycleDraft}
+                  lifecycleResult={supportCaseLifecycleResult}
                   onChange={updateSupportCaseDraft}
+                  onLifecycleChange={setSupportCaseLifecycleDraft}
+                  onLifecycleSubmit={submitSupportCaseLifecycle}
                   onSubmit={submitSupportCase}
                   result={supportCaseResult}
                 />
@@ -5072,8 +5178,13 @@ function CustomerSupportCasesPage({
   draft,
   error,
   isLoading,
+  isLifecycleSaving,
   isSaving,
+  lifecycleDraft,
+  lifecycleResult,
   onChange,
+  onLifecycleChange,
+  onLifecycleSubmit,
   onSubmit,
   result,
 }: {
@@ -5082,13 +5193,19 @@ function CustomerSupportCasesPage({
   draft: SupportCaseDraft;
   error: unknown;
   isLoading: boolean;
+  isLifecycleSaving: boolean;
   isSaving: boolean;
+  lifecycleDraft: SupportCaseLifecycleDraft | null;
+  lifecycleResult: ReferralSaasSupportCaseLifecycleResponse | null;
   onChange: (values: Partial<SupportCaseDraft>) => void;
+  onLifecycleChange: (values: SupportCaseLifecycleDraft | null) => void;
+  onLifecycleSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   result: ReferralSaasSupportCaseCreateResponse | null;
 }) {
   const selectedCategory = supportCaseCategoryOptions.find((option) => option.value === draft.category);
   const selectedPriority = supportCasePriorityOptions.find((option) => option.value === draft.priority);
+  const selectedLifecycleCase = cases.find((supportCase) => supportCase.caseRef === lifecycleDraft?.caseRef);
   return (
     <section className="panel customer-module-page">
       <div className="panel-header">
@@ -5106,8 +5223,9 @@ function CustomerSupportCasesPage({
           <div>
             <strong>What this page does</strong>
             <p>
-              Create and list customer support cases linked to safe evidence. Notes, status changes,
-              repair, replay, retry, and operational fixes stay in later governed workflows.
+              Create and list customer support cases linked to safe evidence. Notes and status
+              changes can be recorded here. Repair, replay, retry, and operational fixes stay in
+              later governed workflows.
             </p>
           </div>
           <StatusBadge label="No repair actions" tone="success" />
@@ -5208,6 +5326,18 @@ function CustomerSupportCasesPage({
             credential change, billing, or money action was performed.
           </div>
         ) : null}
+        {lifecycleResult ? (
+          <div className="success-panel">
+            <strong>Support case updated.</strong>{" "}
+            {lifecycleResult.supportCaseLifecycle.note
+              ? `Note added to ${lifecycleResult.supportCaseLifecycle.supportCase.title}.`
+              : `${lifecycleResult.supportCaseLifecycle.supportCase.title} moved to ${formatDisplay(
+                  lifecycleResult.supportCaseLifecycle.supportCase.status,
+                )}.`}{" "}
+            No repair, replay, retry, referral mutation, campaign mutation, invite delivery,
+            credential change, billing, or money action was performed.
+          </div>
+        ) : null}
         <div className="wizard-status-card">
           <div>
             <strong>Customer cases</strong>
@@ -5273,13 +5403,163 @@ function CustomerSupportCasesPage({
                 header: "Updated",
                 render: (row) => formatDisplay(getValue(row, ["updatedAt"], "Not returned")),
               },
+              {
+                key: "actions",
+                header: "Work case",
+                render: (row) => {
+                  const caseRef = getValue(row, ["caseRef"], "");
+                  const currentStatus = getValue(row, ["status"], "OPEN");
+                  return (
+                    <div className="button-row">
+                      <button
+                        className="button secondary"
+                        onClick={() =>
+                          onLifecycleChange({
+                            caseRef,
+                            action: "note",
+                            noteType: "OPERATOR_NOTE",
+                            noteText: "",
+                            status: currentStatus,
+                            transitionReason: "",
+                          })
+                        }
+                        type="button"
+                      >
+                        Add note
+                      </button>
+                      <button
+                        className="button secondary"
+                        onClick={() =>
+                          onLifecycleChange({
+                            caseRef,
+                            action: "status",
+                            noteType: "OPERATOR_NOTE",
+                            noteText: "",
+                            status: currentStatus === "OPEN" ? "INVESTIGATING" : currentStatus,
+                            transitionReason: "",
+                          })
+                        }
+                        type="button"
+                      >
+                        Change status
+                      </button>
+                    </div>
+                  );
+                },
+              },
             ]}
           />
         )}
+        {lifecycleDraft ? (
+          <form className="wizard-status-card support-lifecycle-card" onSubmit={onLifecycleSubmit}>
+            <div>
+              <strong>
+                {lifecycleDraft.action === "note" ? "Add a case note" : "Change case status"}
+              </strong>
+              <p>
+                {selectedLifecycleCase?.title || "Selected support case"} stays customer-scoped. This records
+                evidence only.
+              </p>
+            </div>
+            {lifecycleDraft.action === "note" ? (
+              <>
+                <label className="field">
+                  <span>Note type</span>
+                  <select
+                    aria-label="Support case note type"
+                    className="input"
+                    onChange={(event) =>
+                      onLifecycleChange({ ...lifecycleDraft, noteType: event.target.value })
+                    }
+                    value={lifecycleDraft.noteType}
+                  >
+                    {supportCaseNoteTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Safe note</span>
+                  <textarea
+                    aria-label="Support case note"
+                    className="input textarea"
+                    onChange={(event) =>
+                      onLifecycleChange({ ...lifecycleDraft, noteText: event.target.value })
+                    }
+                    placeholder="Write a plain-language update. Do not paste raw customer identifiers, secrets, provider payloads, or bank data."
+                    value={lifecycleDraft.noteText}
+                  />
+                </label>
+              </>
+            ) : (
+              <>
+                <label className="field">
+                  <span>New status</span>
+                  <select
+                    aria-label="Support case status"
+                    className="input"
+                    onChange={(event) =>
+                      onLifecycleChange({ ...lifecycleDraft, status: event.target.value })
+                    }
+                    value={lifecycleDraft.status}
+                  >
+                    {supportCaseStatusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Why is the status changing?</span>
+                  <textarea
+                    aria-label="Support case status reason"
+                    className="input textarea"
+                    onChange={(event) =>
+                      onLifecycleChange({
+                        ...lifecycleDraft,
+                        transitionReason: event.target.value,
+                      })
+                    }
+                    placeholder="Example: Evidence reviewed and customer is waiting for integration setup confirmation."
+                    value={lifecycleDraft.transitionReason}
+                  />
+                </label>
+              </>
+            )}
+            <div className="button-row">
+              <button
+                className="button"
+                disabled={
+                  isLifecycleSaving ||
+                  (lifecycleDraft.action === "note"
+                    ? !lifecycleDraft.noteText.trim()
+                    : !lifecycleDraft.transitionReason.trim())
+                }
+                type="submit"
+              >
+                {isLifecycleSaving
+                  ? "Saving update"
+                  : lifecycleDraft.action === "note"
+                    ? "Save note"
+                    : "Save status"}
+              </button>
+              <button
+                className="button secondary"
+                onClick={() => onLifecycleChange(null)}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : null}
         <div className="customer-context-note">
-          This page records support demand. Case notes, assignment, status changes, and any repair action
-          remain separate tasks so support cannot silently mutate referral, campaign, progress, attribution,
-          export, credential, billing, or money state.
+          This page records support demand and the safe case trail. Assignment, repair actions,
+          replay, retry, provider execution, export creation, credential changes, billing, and money
+          movement remain separate governed workflows.
         </div>
       </div>
     </section>
