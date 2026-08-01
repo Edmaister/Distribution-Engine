@@ -280,6 +280,7 @@ greenfield referral construction.
 172. TASK-314: Define Integrations credential lifecycle request contract.
 173. TASK-315: Add Integrations credential request API foundation.
 174. TASK-316: Wire Integrations credential request UI.
+175. TASK-317: Add Integrations credential request review-decision API foundation.
 
 ## 10/10 Exit Criteria
 
@@ -452,6 +453,16 @@ greenfield referral construction.
   readiness/request state while preserving no credential creation, reveal,
   storage, download, provider, vault, webhook, invite/message, auth, campaign,
   billing, money, or DLaaS side effects.
+
+- TASK-317:
+  `POST /v1/referral-saas/accounts/{account_ref}/integrations/credential-requests/{credential_request_ref}/review-decisions`;
+  `services/referral_saas_integrations_configuration_service.py`;
+  selected-customer credential request review-decision API foundation.
+  Operators can approve or block a recorded credential request for later
+  governed execution with idempotency, audit evidence, selected-customer
+  scope, unsafe-payload rejection, and no credential creation, storage, reveal,
+  download, provider, vault, webhook, invite/message, auth, campaign, billing,
+  money, or DLaaS side effects.
 
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`
