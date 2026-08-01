@@ -15,6 +15,7 @@ import {
   listReferralSaasAccounts,
   recordReferralSaasApiAccessVerification,
   recordReferralSaasIntegrationCredentialRequest,
+  recordReferralSaasIntegrationCredentialReviewDecision,
   recordReferralSaasMessageProviderTest,
   recordReferralSaasAccountCampaignReviewDecision,
   cancelReferralSaasMembershipInvitationIntent,
@@ -874,6 +875,137 @@ describe("referralSaasAccounts endpoint client", () => {
           limit: 20,
         },
       },
+    );
+  });
+
+  it("records customer-scoped credential setup review decisions without executing credential lifecycle", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "accepted",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+        accountName: "FNB Referral SaaS",
+      },
+      integrationCredentialReviewDecisionResult: {
+        commandStatus: "CREDENTIAL_REQUEST_REVIEW_RECORDED",
+        credentialRequest: {
+          credentialRequestRef: "credential-request-1",
+          accountRef: "acct-1",
+          credentialRequestStatus: "REQUEST_RECORDED",
+          reviewStatus: "REVIEW_APPROVED",
+          requestType: "API_KEY_CREATE",
+          capability: "REFERRAL_SAAS_API_ACCESS",
+          environment: "SANDBOX",
+          intendedUse: ["CAMPAIGN_READ"],
+          requestedFor: {},
+          safeRequestPosture: {},
+          redactions: ["provider_secret"],
+          noSecretOrCredentialStorageConfirmed: true,
+          noCredentialCreationConfirmed: true,
+          noCredentialLifecycleExecutionConfirmed: true,
+          noCredentialRevealOrDownloadConfirmed: true,
+          noVaultWriteConfirmed: true,
+          noProviderCallConfirmed: true,
+          noWebhookDispatchConfirmed: true,
+          noInviteDeliveryConfirmed: true,
+          noMessageProviderDeliveryConfirmed: true,
+          noMembershipActivationConfirmed: true,
+          noSeatAssignmentConfirmed: true,
+          noAuthClaimChangeConfirmed: true,
+          noCampaignActivationConfirmed: true,
+          noGoLiveActionConfirmed: true,
+          noBillingOrMoneyMovementConfirmed: true,
+        },
+        reviewStatus: "REVIEW_APPROVED",
+        idempotency: { status: "CREDENTIAL_REQUEST_REVIEW_RECORDED" },
+        audit: { accountAuditEventId: "audit-credential-review-1" },
+        plainLanguageSummary:
+          "Credential request was approved for later governed execution. No secret was created, revealed, stored, downloaded, or sent.",
+        guardrails: ["NO_CREDENTIAL_CREATION"],
+        redactions: ["provider_secret"],
+        noSecretOrCredentialStorageConfirmed: true,
+        noCredentialCreationConfirmed: true,
+        noCredentialLifecycleExecutionConfirmed: true,
+        noCredentialRevealOrDownloadConfirmed: true,
+        noVaultWriteConfirmed: true,
+        noProviderCallConfirmed: true,
+        noWebhookDispatchConfirmed: true,
+        noInviteDeliveryConfirmed: true,
+        noMessageProviderDeliveryConfirmed: true,
+        noMembershipActivationConfirmed: true,
+        noSeatAssignmentConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noCampaignActivationConfirmed: true,
+        noGoLiveActionConfirmed: true,
+        noBillingOrMoneyMovementConfirmed: true,
+      },
+      guardrail: "Credential request review decision recorded for the selected customer.",
+      guardrails: ["NO_CREDENTIAL_CREATION"],
+      redactions: ["provider_secret"],
+      no_secret_or_credential_storage_confirmed: true,
+      no_credential_creation_confirmed: true,
+      no_credential_lifecycle_execution_confirmed: true,
+      no_credential_reveal_or_download_confirmed: true,
+      no_vault_write_confirmed: true,
+      no_provider_call_confirmed: true,
+      no_webhook_dispatch_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_message_provider_delivery_confirmed: true,
+      no_membership_activation_confirmed: true,
+      no_seat_assignment_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_go_live_action_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    await expect(
+      recordReferralSaasIntegrationCredentialReviewDecision({
+        accountRef: " acct-1 ",
+        credentialRequestRef: " credential-request-1 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " fnb-referrals ",
+          context: "setup",
+        },
+        reviewDecision: {
+          decision: "APPROVED",
+          reason: " Reviewed for later governed execution. ",
+        },
+        reasonCode: " CUSTOMER_CREDENTIAL_REQUEST_APPROVED ",
+        correlationId: " corr-credential-review-1 ",
+        idempotencyKey: " credential-review-1 ",
+      }),
+    ).resolves.toMatchObject({
+      integrationCredentialReviewDecisionResult: {
+        commandStatus: "CREDENTIAL_REQUEST_REVIEW_RECORDED",
+        reviewStatus: "REVIEW_APPROVED",
+      },
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acct-1/integrations/credential-requests/credential-request-1/review-decisions",
+      {
+        method: "POST",
+        body: {
+          accountScope: {
+            refType: "external_tenant_ref",
+            externalRef: "fnb-referrals",
+            context: "setup",
+          },
+          reviewDecision: {
+            decision: "APPROVED",
+            reason: "Reviewed for later governed execution.",
+          },
+          reasonCode: "CUSTOMER_CREDENTIAL_REQUEST_APPROVED",
+          correlationId: "corr-credential-review-1",
+          idempotencyKey: "credential-review-1",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|api_key_value|webhook_secret|credential_value|vault|download|provider_call|money_movement/,
     );
   });
 

@@ -281,6 +281,7 @@ greenfield referral construction.
 173. TASK-315: Add Integrations credential request API foundation.
 174. TASK-316: Wire Integrations credential request UI.
 175. TASK-317: Add Integrations credential request review-decision API foundation.
+176. TASK-318: Wire Integrations credential request review UI.
 
 ## 10/10 Exit Criteria
 
@@ -463,6 +464,16 @@ greenfield referral construction.
   scope, unsafe-payload rejection, and no credential creation, storage, reveal,
   download, provider, vault, webhook, invite/message, auth, campaign, billing,
   money, or DLaaS side effects.
+
+- TASK-318:
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  selected-customer Integrations credential request review UI over the
+  TASK-317 API. Operators can approve or block ready credential setup requests
+  from the Verify tab, receive plain-language governance feedback, and refresh
+  credential request/readiness state while preserving no credential creation,
+  storage, reveal, download, provider, vault, webhook, invite/message, auth,
+  campaign, billing, money, or DLaaS side effects.
 
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`

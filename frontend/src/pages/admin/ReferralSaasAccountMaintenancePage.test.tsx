@@ -32,6 +32,7 @@ import {
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasApiAccessVerification,
   recordReferralSaasIntegrationCredentialRequest,
+  recordReferralSaasIntegrationCredentialReviewDecision,
   recordReferralSaasMessageProviderTest,
   recordReferralSaasWebhookTestDispatch,
   recordReferralSaasMembershipInvitationIntent,
@@ -87,6 +88,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   recordReferralSaasAccountCampaignReviewDecision: vi.fn(),
   recordReferralSaasApiAccessVerification: vi.fn(),
   recordReferralSaasIntegrationCredentialRequest: vi.fn(),
+  recordReferralSaasIntegrationCredentialReviewDecision: vi.fn(),
   recordReferralSaasMessageProviderTest: vi.fn(),
   recordReferralSaasWebhookTestDispatch: vi.fn(),
   recordReferralSaasMembershipInvitationIntent: vi.fn(),
@@ -123,6 +125,9 @@ const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 const mockedRecordReferralSaasAccountCampaignReviewDecision = vi.mocked(recordReferralSaasAccountCampaignReviewDecision);
 const mockedRecordReferralSaasApiAccessVerification = vi.mocked(recordReferralSaasApiAccessVerification);
 const mockedRecordReferralSaasIntegrationCredentialRequest = vi.mocked(recordReferralSaasIntegrationCredentialRequest);
+const mockedRecordReferralSaasIntegrationCredentialReviewDecision = vi.mocked(
+  recordReferralSaasIntegrationCredentialReviewDecision,
+);
 const mockedRecordReferralSaasMessageProviderTest = vi.mocked(recordReferralSaasMessageProviderTest);
 const mockedRecordReferralSaasWebhookTestDispatch = vi.mocked(recordReferralSaasWebhookTestDispatch);
 const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordReferralSaasMembershipInvitationIntent);
@@ -1232,6 +1237,61 @@ function mockIntegrationCredentialRequestResponse() {
   };
 }
 
+function mockIntegrationCredentialReviewDecisionResponse(reviewStatus = "REVIEW_APPROVED") {
+  return {
+    status: "accepted",
+    context: "setup" as const,
+    account: mockTechnicalSetupReadiness().account,
+    integrationCredentialReviewDecisionResult: {
+      commandStatus: "CREDENTIAL_REQUEST_REVIEW_RECORDED",
+      credentialRequest: {
+        ...mockIntegrationCredentialRequest(),
+        reviewStatus,
+      },
+      reviewStatus,
+      idempotency: { status: "CREDENTIAL_REQUEST_REVIEW_RECORDED" },
+      audit: { accountAuditEventId: "audit-credential-review-1" },
+      plainLanguageSummary:
+        "Credential request was approved for later governed execution. No secret was created, revealed, stored, downloaded, or sent.",
+      guardrails: ["NO_CREDENTIAL_CREATION", "NO_CREDENTIAL_REVEAL_OR_DOWNLOAD", "NO_PROVIDER_CALL"],
+      redactions: ["provider_secret"],
+      noSecretOrCredentialStorageConfirmed: true,
+      noCredentialCreationConfirmed: true,
+      noCredentialLifecycleExecutionConfirmed: true,
+      noCredentialRevealOrDownloadConfirmed: true,
+      noVaultWriteConfirmed: true,
+      noProviderCallConfirmed: true,
+      noWebhookDispatchConfirmed: true,
+      noInviteDeliveryConfirmed: true,
+      noMessageProviderDeliveryConfirmed: true,
+      noMembershipActivationConfirmed: true,
+      noSeatAssignmentConfirmed: true,
+      noAuthClaimChangeConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noGoLiveActionConfirmed: true,
+      noBillingOrMoneyMovementConfirmed: true,
+    },
+    guardrail: "Credential request review decision recorded for the selected customer.",
+    guardrails: ["NO_CREDENTIAL_CREATION", "NO_CREDENTIAL_REVEAL_OR_DOWNLOAD", "NO_PROVIDER_CALL"],
+    redactions: ["provider_secret"],
+    no_secret_or_credential_storage_confirmed: true,
+    no_credential_creation_confirmed: true,
+    no_credential_lifecycle_execution_confirmed: true,
+    no_credential_reveal_or_download_confirmed: true,
+    no_vault_write_confirmed: true,
+    no_provider_call_confirmed: true,
+    no_webhook_dispatch_confirmed: true,
+    no_invite_delivery_confirmed: true,
+    no_message_provider_delivery_confirmed: true,
+    no_membership_activation_confirmed: true,
+    no_seat_assignment_confirmed: true,
+    no_auth_claim_change_confirmed: true,
+    no_campaign_activation_confirmed: true,
+    no_go_live_action_confirmed: true,
+    no_billing_or_money_movement_confirmed: true,
+  };
+}
+
 function mockIntegrationConfigurationValidation() {
   return {
     status: "ok",
@@ -1660,6 +1720,9 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedSaveReferralSaasIntegrationConfiguration.mockResolvedValue(mockIntegrationConfigurationSave());
     mockedRecordReferralSaasApiAccessVerification.mockResolvedValue(mockApiAccessVerificationResponse());
     mockedRecordReferralSaasIntegrationCredentialRequest.mockResolvedValue(mockIntegrationCredentialRequestResponse());
+    mockedRecordReferralSaasIntegrationCredentialReviewDecision.mockResolvedValue(
+      mockIntegrationCredentialReviewDecisionResponse(),
+    );
     mockedRecordReferralSaasWebhookTestDispatch.mockResolvedValue(mockWebhookTestDispatchResponse());
     mockedRecordReferralSaasMessageProviderTest.mockResolvedValue(mockMessageProviderTestResponse());
     mockedListReferralSaasAccounts.mockResolvedValue(mockAccountRegistry());
@@ -2862,6 +2925,59 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(await screen.findByText(/Credential setup request was recorded/i)).toBeInTheDocument();
     expect(screen.getByText(/No credential was created, revealed, stored, or sent/i)).toBeInTheDocument();
     await waitFor(() => expect(mockedListReferralSaasIntegrationCredentialRequests).toHaveBeenCalledTimes(2));
+  });
+
+  it("reviews credential setup requests from Integrations when they are ready for approval", async () => {
+    mockedGetReferralSaasIntegrationConfiguration.mockResolvedValue({
+      ...mockIntegrationConfigurationRead(),
+      integrationConfiguration: mockIntegrationConfigurationSave().integrationConfigurationResult.configuration,
+    });
+    mockedGetReferralSaasIntegrationExecutionReadiness.mockResolvedValue(mockReadyIntegrationExecutionReadiness());
+    mockedListReferralSaasIntegrationCredentialRequests.mockResolvedValue(
+      mockIntegrationCredentialRequestList([
+        {
+          ...mockIntegrationCredentialRequest(),
+          reviewStatus: "READY_FOR_REVIEW",
+        },
+      ]),
+    );
+
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/integrations");
+
+    expect(await screen.findByRole("heading", { name: "Integrations" })).toBeInTheDocument();
+    expect(await screen.findAllByText("Ready to verify")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("tab", { name: "Verify" }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Verify" })).toHaveAttribute("aria-selected", "true"));
+    expect(await screen.findByText(/credential-request-1/)).toBeInTheDocument();
+    const action = await screen.findByRole("button", { name: "Approve request" });
+    fireEvent.click(action);
+
+    await waitFor(() => expect(mockedRecordReferralSaasIntegrationCredentialReviewDecision).toHaveBeenCalledTimes(1));
+    expect(mockedRecordReferralSaasIntegrationCredentialReviewDecision).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      credentialRequestRef: "credential-request-1",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      reviewDecision: {
+        decision: "APPROVED",
+        reason:
+          "Amplifi Admin reviewed this credential setup request and approved it for later governed execution.",
+      },
+      reasonCode: "CUSTOMER_CREDENTIAL_REQUEST_APPROVED",
+      correlationId:
+        "customer-profile-integrations-credential-review-acct-gabs-credential-request-1-approved",
+      idempotencyKey:
+        "customer-profile-integrations-credential-review-acct-gabs-credential-request-1-approved",
+    });
+    expect(JSON.stringify(mockedRecordReferralSaasIntegrationCredentialReviewDecision.mock.calls)).not.toMatch(
+      /tenantCode|tenant_code|clientSecret|credentialValue|apiKeyValue|webhookSecret|vault|download|providerCall|money/i,
+    );
+    expect(await screen.findByText(/Credential request was approved for later governed execution/i)).toBeInTheDocument();
+    await waitFor(() => expect(mockedListReferralSaasIntegrationCredentialRequests).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mockedGetReferralSaasIntegrationExecutionReadiness).toHaveBeenCalledTimes(2));
   });
 
   it("keeps the previous Technical Setup route as an Integrations compatibility alias", async () => {

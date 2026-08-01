@@ -49,6 +49,7 @@ import {
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasApiAccessVerification,
   recordReferralSaasIntegrationCredentialRequest,
+  recordReferralSaasIntegrationCredentialReviewDecision,
   recordReferralSaasMessageProviderTest,
   recordReferralSaasWebhookTestDispatch,
   recordReferralSaasMembershipInvitationIntent,
@@ -648,7 +649,6 @@ export function ReferralSaasAccountMaintenancePage() {
   const blockedCount = toCount(summary?.blocked_count);
   const missingEvidenceCount = toCount(summary?.missing_evidence_count);
   const goLiveDisabledCount = toCount(summary?.go_live_disabled_count);
-  const waitingCount = Math.max(0, missingEvidenceCount - blockedCount);
   const overallStatus = formatDisplay(readiness?.overall_status || "go_live_disabled");
   const customerName = selectedAccount?.accountName || formatDisplay(appliedOrganisationRef);
   const selectedCustomerPath = selectedAccount
@@ -4063,6 +4063,31 @@ function CustomerTechnicalSetupPage({
       await executionReadinessQuery.refetch();
     },
   });
+  const credentialReviewMutation = useMutation({
+    mutationFn: ({
+      credentialRequestRef,
+      decision,
+    }: {
+      credentialRequestRef: string;
+      decision: "APPROVED" | "BLOCKED";
+    }) =>
+      recordReferralSaasIntegrationCredentialReviewDecision(
+        buildIntegrationCredentialReviewDecisionPayload(
+          accountScope,
+          account?.accountId || "",
+          credentialRequestRef,
+          decision,
+        ),
+      ),
+    onSuccess: async (response) => {
+      const reviewResult = response.integrationCredentialReviewDecisionResult;
+      setConfigurationMessage(
+        `${formatDisplay(reviewResult.commandStatus)}. ${reviewResult.plainLanguageSummary}`,
+      );
+      await credentialRequestsQuery.refetch();
+      await executionReadinessQuery.refetch();
+    },
+  });
   const technicalReadiness = readiness?.technicalSetupReadiness;
   const savedConfiguration = configurationQuery.data?.integrationConfiguration || null;
   const executionReadiness = executionReadinessQuery.data?.integrationExecutionReadiness || null;
@@ -4140,6 +4165,7 @@ function CustomerTechnicalSetupPage({
         {webhookTestDispatchMutation.error ? <ErrorPanel error={webhookTestDispatchMutation.error} /> : null}
         {messageProviderTestMutation.error ? <ErrorPanel error={messageProviderTestMutation.error} /> : null}
         {credentialRequestMutation.error ? <ErrorPanel error={credentialRequestMutation.error} /> : null}
+        {credentialReviewMutation.error ? <ErrorPanel error={credentialReviewMutation.error} /> : null}
         {technicalReadiness ? (
           <>
             <div className={`integrations-stage-card ${hasSavedConnectionPlan ? "success" : "warning"}`}>
@@ -4489,6 +4515,36 @@ function CustomerTechnicalSetupPage({
                             label={formatDisplay(credentialRequest.reviewStatus)}
                             tone={statusTone(credentialRequest.reviewStatus)}
                           />
+                          {credentialRequest.reviewStatus === "READY_FOR_REVIEW" ? (
+                            <div className="action-row">
+                              <button
+                                className="button secondary"
+                                disabled={credentialReviewMutation.isPending}
+                                onClick={() =>
+                                  credentialReviewMutation.mutate({
+                                    credentialRequestRef: credentialRequest.credentialRequestRef,
+                                    decision: "BLOCKED",
+                                  })
+                                }
+                                type="button"
+                              >
+                                Block request
+                              </button>
+                              <button
+                                className="button primary"
+                                disabled={credentialReviewMutation.isPending}
+                                onClick={() =>
+                                  credentialReviewMutation.mutate({
+                                    credentialRequestRef: credentialRequest.credentialRequestRef,
+                                    decision: "APPROVED",
+                                  })
+                                }
+                                type="button"
+                              >
+                                Approve request
+                              </button>
+                            </div>
+                          ) : null}
                         </div>
                       ))}
                     </div>
@@ -5388,6 +5444,43 @@ function buildIntegrationCredentialRequestPayload(
       capability,
       draft.environment,
       ...draft.allowedUse,
+    ),
+  };
+}
+
+function buildIntegrationCredentialReviewDecisionPayload(
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context: "setup";
+  },
+  accountId: string,
+  credentialRequestRef: string,
+  decision: "APPROVED" | "BLOCKED",
+) {
+  const decisionSlug = decision.toLowerCase();
+  const reason =
+    decision === "APPROVED"
+      ? "Amplifi Admin reviewed this credential setup request and approved it for later governed execution."
+      : "Amplifi Admin reviewed this credential setup request and blocked later governed execution.";
+  return {
+    accountRef: accountId,
+    credentialRequestRef,
+    accountScope,
+    reviewDecision: {
+      decision,
+      reason,
+    },
+    reasonCode:
+      decision === "APPROVED"
+        ? "CUSTOMER_CREDENTIAL_REQUEST_APPROVED"
+        : "CUSTOMER_CREDENTIAL_REQUEST_BLOCKED",
+    correlationId: `customer-profile-integrations-credential-review-${accountId}-${credentialRequestRef}-${decisionSlug}`,
+    idempotencyKey: safeIdempotencyKey(
+      "customer-profile-integrations-credential-review",
+      accountId,
+      credentialRequestRef,
+      decisionSlug,
     ),
   };
 }
