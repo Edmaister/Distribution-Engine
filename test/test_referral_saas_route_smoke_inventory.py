@@ -181,6 +181,8 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("PATCH", "/v1/referral-saas/accounts/{account_ref}/profile"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/campaigns"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/support-cases"),
+        ("POST", "/v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}/notes"),
+        ("POST", "/v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}/status"),
         (
             "PUT",
             "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/policy-settings",
