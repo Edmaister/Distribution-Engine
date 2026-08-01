@@ -7184,6 +7184,31 @@ Rollback notes: Revert the frontend endpoint helper, Integrations execution-chec
 Explicit non-goals: Do not add schema, migrations, backend routes, API key creation, secret creation/storage/rotation/reveal/browser submission/download, vault integration, provider API calls, webhook subscription activation, real webhook dispatch/retry/replay/queueing/signing, invite delivery, referral-message delivery, identity-provider integration, auth/session claim changes, campaign activation, go-live actions, support-case writes, export persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: The selected-customer Integrations page can call the governed TASK-319 credential execution-check API, record approved-request readiness evidence, show plain-language feedback, and refresh readiness/request state without credential, provider, vault, webhook, message, auth, campaign, billing, money, or DLaaS side effects. Current rating remains 9.99/10 for Referral Management and moves to 9.98/10 for Campaign Attribution because the UI-operable execution-readiness gap is closed while actual provider/vault execution, export storage/download, support-case UI, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-321: Add selected-customer support-case UI
+
+Status: Complete (2026-08-01).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses selected-customer account context, TASK-297 support-case create/list/read persistence, account-scope redaction, idempotency payload hashing, safe evidence links, audit evidence, and no-side-effect guardrails. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Selected-customer Support case list/create UI.
+Objective: Add a customer-scoped Support page that lets operators record and view safe support cases from the selected customer profile without leaving customer context or triggering repair/replay/retry behavior.
+Why now: TASK-297 implemented selected-customer support-case persistence, but operators still had no customer-scoped UI to create or review cases. This left support evidence disconnected from the customer workspace and kept `support-case UI` listed as a 10/10 gap.
+Files involved: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; roadmap, gap matrix, contract map, and infographic docs.
+Database/schema impact: None.
+Backend impact: None; uses the existing TASK-297 selected-customer support-case API as the source of truth.
+Frontend impact: Adds support-case list/create endpoint helpers, a standalone customer-scoped Support page, safe category/priority/evidence controls, success/error feedback, support-case list rendering, and no-adjacent-action guardrail copy.
+API impact: Adds frontend client coverage for `GET /v1/referral-saas/accounts/{accountRef}/support-cases` and `POST /v1/referral-saas/accounts/{accountRef}/support-cases`.
+Tests added/updated: Frontend endpoint tests for selected-customer support-case list/create payloads and selected-customer Support page test for case creation, safe evidence linking, success feedback, refresh behavior, and no internal tenant/credential/billing/money leakage.
+Validation method: `npm --prefix frontend run test -- referralSaasAccounts.test.ts ReferralSaasAccountMaintenancePage.test.tsx`; `npm --prefix frontend run build`; `npm --prefix frontend run lint`; `git diff --check`.
+Acceptance criteria: Operators can open a selected customer's Support page, record a safe support case with optional safe evidence reference, see plain-language success feedback, and view customer-scoped cases without raw UCNs, provider payloads, secrets, credentials, cross-tenant evidence, repair/replay/retry commands, campaign activation, export creation, invite delivery, auth/session changes, billing, money, DLaaS behavior, or source-code forks.
+Dependencies: TASK-184; TASK-295; TASK-297.
+Blocked by: Support-case notes/status changes, operator aggregate queue, repair/replay/retry guardrails, export file storage/download, progress/attribution mutation proof, provider/vault adapters, invite/referral-message delivery integration, auth-claim propagation, and non-local proof repetition.
+Risk level: Low.
+Rollback notes: Revert the frontend endpoint helpers, Support page UI wiring, focused frontend tests, roadmap/gap updates, ordered task entry, and infographic update.
+Explicit non-goals: Do not add schema, migrations, backend routes, support-case notes, support-case status transitions, operator aggregate queues, repair/replay/retry commands, credential creation/storage/reveal/download, provider calls, webhook dispatch, invite/referral-message delivery, auth/session claim changes, campaign activation, export file persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: The selected-customer Support page can list and create safe support cases through the TASK-297 API, link only safe evidence references, show plain-language feedback, and preserve all no-adjacent-action guardrails. Current rating remains 9.99/10 for Referral Management and moves to 9.99/10 for Campaign Attribution because the UI-operable support-case gap is closed while notes/status changes, export file storage/download, progress/attribution mutation proof, actual provider/vault execution, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

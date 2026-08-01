@@ -19,6 +19,7 @@ import {
   previewReferralSaasAccountReportExport,
 } from "../../api/endpoints/referralSaasReports";
 import {
+  createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasAccountMembershipPosture,
@@ -27,6 +28,7 @@ import {
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasIntegrationCredentialRequests,
+  listReferralSaasAccountSupportCases,
   listReferralSaasAccountCampaigns,
   listReferralSaasAccounts,
   recordReferralSaasAccountCampaignReviewDecision,
@@ -76,6 +78,7 @@ vi.mock("../../api/endpoints/referralSaasReports", () => ({
   previewReferralSaasAccountReportExport: vi.fn(),
 }));
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
+  createReferralSaasAccountSupportCase: vi.fn(),
   createReferralSaasAccountCampaignSetup: vi.fn(),
   getReferralSaasAccountCampaignReadiness: vi.fn(),
   getReferralSaasAccountMembershipPosture: vi.fn(),
@@ -84,6 +87,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   getReferralSaasMembershipActivationReadiness: vi.fn(),
   getReferralSaasTechnicalSetupReadiness: vi.fn(),
   listReferralSaasIntegrationCredentialRequests: vi.fn(),
+  listReferralSaasAccountSupportCases: vi.fn(),
   listReferralSaasAccountCampaigns: vi.fn(),
   listReferralSaasAccounts: vi.fn(),
   recordReferralSaasAccountCampaignReviewDecision: vi.fn(),
@@ -114,6 +118,7 @@ const mockedIssueReferralSaasAccountCampaignCode = vi.mocked(issueReferralSaasAc
 const mockedValidateReferralSaasAccountCampaignCode = vi.mocked(validateReferralSaasAccountCampaignCode);
 const mockedGetReferralSaasAccountReport = vi.mocked(getReferralSaasAccountReport);
 const mockedPreviewReferralSaasAccountReportExport = vi.mocked(previewReferralSaasAccountReportExport);
+const mockedCreateReferralSaasAccountSupportCase = vi.mocked(createReferralSaasAccountSupportCase);
 const mockedCreateReferralSaasAccountCampaignSetup = vi.mocked(createReferralSaasAccountCampaignSetup);
 const mockedGetReferralSaasAccountCampaignReadiness = vi.mocked(getReferralSaasAccountCampaignReadiness);
 const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
@@ -122,6 +127,7 @@ const mockedGetReferralSaasIntegrationExecutionReadiness = vi.mocked(getReferral
 const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferralSaasMembershipActivationReadiness);
 const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTechnicalSetupReadiness);
 const mockedListReferralSaasIntegrationCredentialRequests = vi.mocked(listReferralSaasIntegrationCredentialRequests);
+const mockedListReferralSaasAccountSupportCases = vi.mocked(listReferralSaasAccountSupportCases);
 const mockedListReferralSaasAccountCampaigns = vi.mocked(listReferralSaasAccountCampaigns);
 const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 const mockedRecordReferralSaasAccountCampaignReviewDecision = vi.mocked(recordReferralSaasAccountCampaignReviewDecision);
@@ -1659,6 +1665,22 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockMembershipActivationReadiness());
     mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadiness());
     mockedListReferralSaasIntegrationCredentialRequests.mockResolvedValue(mockIntegrationCredentialRequestList([]));
+    mockedListReferralSaasAccountSupportCases.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACCT_GABS",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+      },
+      supportCases: [],
+      guardrails: ["NO_REPAIR_REPLAY_RETRY"],
+      redactions: ["internal_tenant_identifier"],
+      no_tenant_code_exposure_confirmed: true,
+      no_product_state_mutation_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
     mockedListReferralSaasAccountCampaigns.mockResolvedValue(mockCampaignList());
     mockedGetReferralSaasAccountReport.mockResolvedValue({
       status: "ok",
@@ -2127,6 +2149,47 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       no_policy_write_confirmed: true,
       no_webhook_delivery_confirmed: true,
       no_money_movement_confirmed: true,
+    });
+    mockedCreateReferralSaasAccountSupportCase.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACCT_GABS",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+      },
+      supportCase: {
+        commandStatus: "RECORDED",
+        supportCase: {
+          caseRef: "case-support-1",
+          accountRef: "acct-gabs",
+          category: "VALIDATION_RECOVERY",
+          priority: "HIGH",
+          status: "OPEN",
+          title: "Referral code validation failed",
+          summary: "The branch pilot cannot validate a safe referral code.",
+          sourceSurface: "support_hub",
+          createdByRef: "operator",
+          evidenceLinks: [],
+          redactions: ["internal_tenant_identifier"],
+        },
+        idempotency: { status: "NEW_REQUEST" },
+        audit: { accountAuditEventId: "audit-support-1" },
+        guardrails: ["NO_REPAIR_REPLAY_RETRY"],
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrail: "Selected-customer support case recorded.",
+      guardrails: ["NO_REPAIR_REPLAY_RETRY"],
+      redactions: ["internal_tenant_identifier"],
+      no_repair_replay_retry_confirmed: true,
+      no_referral_or_campaign_mutation_confirmed: true,
+      no_progress_or_attribution_mutation_confirmed: true,
+      no_report_or_export_mutation_confirmed: true,
+      no_invite_delivery_confirmed: true,
+      no_credential_or_auth_claim_change_confirmed: true,
+      no_tenant_code_exposure_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
     });
   });
 
@@ -3157,6 +3220,74 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     });
     expect(JSON.stringify(mockedGetReferralSaasAccountCampaignReadiness.mock.calls)).not.toMatch(
       /tenantCode|tenant_code|activateCampaign|money/i,
+    );
+  });
+
+  it("records selected-customer support cases from the support page", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/support");
+
+    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Support cases" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(mockedListReferralSaasAccountSupportCases).toHaveBeenCalledWith({
+        accountRef: "acct-gabs",
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+        limit: 50,
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText("What needs help?"), {
+      target: { value: "VALIDATION_RECOVERY" },
+    });
+    fireEvent.change(screen.getByLabelText("Priority"), {
+      target: { value: "HIGH" },
+    });
+    fireEvent.change(screen.getByLabelText("Case title"), {
+      target: { value: "Referral code validation failed" },
+    });
+    fireEvent.change(screen.getByLabelText("What happened?"), {
+      target: { value: "The branch pilot cannot validate a safe referral code." },
+    });
+    fireEvent.change(screen.getByLabelText("Safe evidence type"), {
+      target: { value: "LINK_CODE_INSPECTION" },
+    });
+    fireEvent.change(screen.getByLabelText("Safe evidence reference"), {
+      target: { value: "link-check-1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Record support case" }));
+
+    await waitFor(() => expect(mockedCreateReferralSaasAccountSupportCase).toHaveBeenCalled());
+    expect(mockedCreateReferralSaasAccountSupportCase.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        accountRef: "acct-gabs",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: "gabs-platform",
+          context: "setup",
+        },
+        category: "VALIDATION_RECOVERY",
+        priority: "HIGH",
+        title: "Referral code validation failed",
+        summary: "The branch pilot cannot validate a safe referral code.",
+        sourceSurface: "support_hub",
+        reasonCode: "CUSTOMER_SUPPORT_CASE_CREATED",
+        correlationId: "customer-profile-support-case-acct-gabs",
+        evidenceLinks: [
+          {
+            evidenceType: "LINK_CODE_INSPECTION",
+            evidenceRef: "link-check-1",
+            safeStatus: "CUSTOMER_SCOPED",
+            redactions: ["internal_tenant_identifier"],
+          },
+        ],
+      }),
+    );
+    expect(await screen.findByText("Support case recorded.")).toBeInTheDocument();
+    expect(screen.getByText(/No repair, replay, retry/i)).toBeInTheDocument();
+    expect(JSON.stringify(mockedCreateReferralSaasAccountSupportCase.mock.calls)).not.toMatch(
+      /tenant_code|credential|billing|money/i,
     );
   });
 

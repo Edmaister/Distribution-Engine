@@ -282,6 +282,9 @@ greenfield referral construction.
 174. TASK-316: Wire Integrations credential request UI.
 175. TASK-317: Add Integrations credential request review-decision API foundation.
 176. TASK-318: Wire Integrations credential request review UI.
+177. TASK-319: Add Integrations credential execution-check API foundation.
+178. TASK-320: Wire Integrations credential execution-check UI.
+179. TASK-321: Add selected-customer support-case UI.
 
 ## 10/10 Exit Criteria
 
@@ -494,6 +497,16 @@ greenfield referral construction.
   credential request/readiness state while preserving no credential creation,
   storage, reveal, download, rotation, revoke, provider, vault, webhook,
   invite/message, auth, campaign, billing, money, or DLaaS side effects.
+
+- TASK-321:
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  selected-customer Support case list/create UI over the TASK-297 API.
+  Operators can record customer-scoped support cases with safe categories,
+  priority, optional safe evidence references, idempotency, plain-language
+  feedback, and no repair, replay, retry, credential, provider, webhook,
+  invite/message, auth, campaign, export, billing, money, or DLaaS side
+  effects.
 
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`
@@ -1627,6 +1640,23 @@ greenfield referral construction.
   without creating, storing, revealing, downloading, rotating, revoking, or
   sending credentials and without provider, vault, webhook, message, auth,
   campaign, go-live, billing, money, DLaaS, or source-fork side effects.
+
+- TASK-321:
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  selected-customer Support page over the TASK-297 support-case API. Operators
+  can list and create safe customer-scoped support cases, attach optional safe
+  evidence references, and receive plain-language feedback while keeping
+  support notes/status changes, repair/replay/retry, credentials, provider
+  calls, webhook dispatch, invite/message delivery, auth, campaign activation,
+  exports, billing, money, DLaaS, and source-fork side effects out of scope.
 
 ## Explicit Deferrals
 
