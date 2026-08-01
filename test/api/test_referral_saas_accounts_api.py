@@ -3823,6 +3823,185 @@ async def test_referral_saas_account_report_export_request_rejects_unsafe_payloa
     assert body["detail"]["no_billing_or_money_movement_confirmed"] is True
 
 
+async def test_referral_saas_account_admin_can_create_report_export_file(
+    monkeypatch,
+):
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    class FakeExportFileResult:
+        def to_safe_dict(self):
+            return {
+                "commandStatus": "REPORT_EXPORT_FILE_STORED",
+                "accountRef": "acct-1",
+                "reportType": "campaign_performance",
+                "exportRequest": {
+                    "exportRequestId": "export-1",
+                    "format": "json",
+                    "redactionProfile": "tenant_safe",
+                    "rowLimit": 50,
+                    "rowCount": 1,
+                    "requestStatus": "READY_FOR_FILE_STORAGE",
+                    "storageStatus": "STORED",
+                    "deliveryStatus": "NOT_REQUESTED",
+                    "downloadStatus": "AVAILABLE",
+                    "downloadUrl": None,
+                    "expiresAt": "2026-07-31T00:00:00+00:00",
+                },
+                "file": {
+                    "fileName": "report.json",
+                    "contentType": "application/json",
+                    "contentSha256": "sha",
+                    "byteSize": 100,
+                    "storageMode": "database_metadata_inline",
+                },
+                "idempotency": {"status": "RECORDED"},
+                "audit": {"accountAuditEventId": "audit-1"},
+                "guardrails": ["NO_DOWNLOAD_URL_CREATED"],
+                "redactions": ["internal_tenant_identifier"],
+            }
+
+    async def fake_create_referral_saas_report_export_file(**kwargs):
+        command_calls.append(kwargs)
+        return FakeExportFileResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "create_referral_saas_report_export_file",
+        fake_create_referral_saas_report_export_file,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/reports/campaign_performance/exports/export-1/file",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "idempotencyKey": "export-file-1",
+                "correlationId": "corr-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "stored"
+    assert body["reportExport"]["commandStatus"] == "REPORT_EXPORT_FILE_STORED"
+    assert body["reportExport"]["exportRequest"]["downloadStatus"] == "AVAILABLE"
+    assert body["reportExport"]["exportRequest"]["downloadUrl"] is None
+    assert body["no_download_url_created_confirmed"] is True
+    assert body["no_scheduled_delivery_created_confirmed"] is True
+    public_export_payload = {
+        "account": body["account"],
+        "account_scope": body["account_scope"],
+        "reportExport": body["reportExport"],
+        "redactions": body["redactions"],
+    }
+    assert "tenant_code" not in str(public_export_payload)
+    assert command_calls
+    assert command_calls[0]["account_id"] == "acct-1"
+    assert command_calls[0]["export_request_id"] == "export-1"
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["request_payload_hash"]
+
+
+async def test_referral_saas_account_admin_can_download_report_export_file(
+    monkeypatch,
+):
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+        )
+
+    class FakeExportDownloadResult:
+        def to_safe_dict(self):
+            return {
+                "commandStatus": "REPORT_EXPORT_FILE_DOWNLOADED",
+                "accountRef": "acct-1",
+                "reportType": "campaign_performance",
+                "exportRequest": {
+                    "exportRequestId": "export-1",
+                    "format": "csv",
+                    "redactionProfile": "tenant_safe",
+                    "rowLimit": 50,
+                    "rowCount": 1,
+                    "requestStatus": "READY_FOR_FILE_STORAGE",
+                    "storageStatus": "STORED",
+                    "deliveryStatus": "NOT_REQUESTED",
+                    "downloadStatus": "AVAILABLE",
+                    "downloadUrl": None,
+                    "expiresAt": "2026-07-31T00:00:00+00:00",
+                },
+                "file": {
+                    "fileName": "report.csv",
+                    "contentType": "text/csv",
+                    "contentSha256": "sha",
+                    "byteSize": 20,
+                    "storageMode": "database_metadata_inline",
+                    "content": "metric_name,value\nready,1\n",
+                },
+                "idempotency": {"status": None},
+                "audit": {"accountAuditEventId": "audit-1"},
+                "guardrails": ["NO_DOWNLOAD_URL_CREATED"],
+                "redactions": ["internal_tenant_identifier"],
+            }
+
+    async def fake_download_referral_saas_report_export_file(**kwargs):
+        command_calls.append(kwargs)
+        return FakeExportDownloadResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "download_referral_saas_report_export_file",
+        fake_download_referral_saas_report_export_file,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/exports/export-1/download",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+                "correlation_id": "corr-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "downloadable"
+    assert body["reportExport"]["file"]["content"] == "metric_name,value\nready,1\n"
+    assert body["reportExport"]["exportRequest"]["downloadUrl"] is None
+    assert body["no_download_url_created_confirmed"] is True
+    assert command_calls[0]["account_id"] == "acct-1"
+    assert command_calls[0]["export_request_id"] == "export-1"
+
+
 async def test_referral_saas_account_report_rejects_path_scope_mismatch(
     monkeypatch,
 ):

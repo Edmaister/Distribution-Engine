@@ -7359,6 +7359,31 @@ Rollback notes: Revert the reporting/export contract update plus roadmap/gap/ord
 Explicit non-goals: Do not add schema, migrations, backend routes, frontend controls, storage adapters, export files, download URLs, scheduled delivery, provider calls, webhook dispatch, invite/referral-message delivery, credential creation/storage/reveal/download, auth/session claim changes, campaign activation, repair/replay/retry, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has the reviewed contract needed for the next runtime export file storage/download implementation task. Current rating remains 9.99/10 for Referral Management and 9.99/10 for Campaign Attribution because the contract gap is closed while runtime export file storage/download, progress/attribution mutation proof, provider/vault execution, governed auth/login completion, repair/replay guardrails, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-328: Add Referral SaaS export file runtime foundation
+
+Status: Complete (2026-08-01).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing tenant-safe report/export catalog, persisted export request table, account/external-reference scope, idempotency/audit posture, redaction rules, freshness rules, selected-customer report/export routes, and TASK-327 lifecycle contract. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer-scoped export file storage/download runtime foundation.
+Objective: Implement first runtime file creation, metadata, and download routes for persisted report export requests without provider delivery or external storage.
+Why now: TASK-327 defined the contract and export file storage/download is a visible remaining 10/10 reporting gap.
+Files involved: `services/referral_saas_reporting_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/test_referral_saas_reporting_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; roadmap/gap/infographic docs.
+Database/schema impact: None. Uses existing `referral_saas_report_export_requests` status and metadata fields.
+Backend impact: Adds customer-scoped export file create/read/download service functions and API routes with audit, idempotency, tenant-safe content sanitisation, and inline metadata storage.
+Frontend impact: None.
+API impact: Adds `POST /v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/{export_request_id}/file`, `GET /v1/referral-saas/accounts/{account_ref}/exports/{export_request_id}`, and `GET /v1/referral-saas/accounts/{account_ref}/exports/{export_request_id}/download`.
+Tests added/updated: Service export file storage/download tests, API wrapper tests, route smoke inventory update.
+Validation method: `git diff --check`; Python `py_compile` for edited backend files; focused pytest for export-file service/API/route inventory.
+Acceptance criteria: A persisted report export request can be converted into a tenant-safe inline JSON/CSV file artifact, metadata can be read without content exposure, download returns the stored content, and all actions retain no-adjacent-action guardrails.
+Dependencies: TASK-142; TASK-165; TASK-167; TASK-268; TASK-273; TASK-327.
+Blocked by: Provider/vault adapters, object-store/signed URL hardening, scheduled delivery, full frontend download controls, invite/referral-message delivery integration, governed auth/login completion, repair/replay guardrails, and non-local proof repetition.
+Risk level: Medium.
+Rollback notes: Revert service/router/tests/docs.
+Explicit non-goals: No schema/migration, frontend controls, object storage, download URL, scheduled delivery, webhook dispatch, provider delivery, invite/referral-message delivery, credential creation/storage/reveal/download, auth/session claim changes, campaign activation, repair/replay/retry, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, DLaaS, source forks.
+Definition of done: Runtime export file creation/read/download exists for persisted customer-scoped report export requests with tenant-safe inline content, audit, route inventory, and no-adjacent-action guardrails. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.995/10 because export file runtime is now implemented while object-store/signed URL hardening, scheduled delivery, governed auth/login completion, repair/replay guardrails, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

@@ -114,9 +114,14 @@ from services.referral_saas_reporting_service import (
     EXPORT_REQUEST_GUARDRAILS,
     EXPORT_REQUEST_REDACTIONS,
     ReferralSaasReportExportCommandError,
+    ReportExportFileNotFound,
+    ReportExportFileNotReady,
     ReportExportRequestIdempotencyConflict,
     build_referral_saas_report_export_preview,
     create_referral_saas_report_export_request,
+    create_referral_saas_report_export_file,
+    download_referral_saas_report_export_file,
+    get_referral_saas_report_export_file_metadata,
     get_referral_saas_report,
     validate_referral_saas_report_export_request,
 )
@@ -4333,6 +4338,258 @@ async def create_referral_saas_account_report_export_request(
         "no_export_file_created_confirmed": True,
         "no_download_url_created_confirmed": True,
         "no_storage_or_delivery_confirmed": True,
+        "no_tenant_code_exposure_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/reports/{report_type}/exports/{export_request_id}/file")
+async def create_referral_saas_account_report_export_file(
+    account_ref: str,
+    report_type: str,
+    export_request_id: str,
+    payload: dict[str, Any] = Body(default_factory=dict),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    request_payload = dict(payload or {})
+    _reject_unsafe_report_export_request_payload(request_payload)
+
+    account_scope = request_payload.get("accountScope") or {}
+    if not isinstance(account_scope, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope must be an object.",
+                "guardrails": sorted(REPORT_EXPORT_REQUEST_GUARDRAILS),
+                "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
+                "no_download_url_created_confirmed": True,
+                "no_scheduled_delivery_created_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        )
+
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    idempotency_key = _optional_text(request_payload.get("idempotencyKey"))
+    correlation_id = _optional_text(request_payload.get("correlationId"))
+    reason_code = (
+        _optional_text(request_payload.get("reasonCode"))
+        or "CUSTOMER_PROFILE_REPORT_EXPORT_FILE"
+    )
+    if not ref_type or not external_ref or not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": sorted(REPORT_EXPORT_REQUEST_GUARDRAILS),
+                "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
+                "no_download_url_created_confirmed": True,
+                "no_scheduled_delivery_created_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    command_payload = {
+        "accountScope": {
+            "accountRef": _optional_text(account_ref),
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": normalised_context,
+        },
+        "reportType": _optional_text(report_type),
+        "exportRequestId": _optional_text(export_request_id),
+        "reasonCode": reason_code,
+    }
+
+    try:
+        result = await create_referral_saas_report_export_file(
+            account_id=account.account_id,
+            export_request_id=export_request_id,
+            reason_code=reason_code,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_REPORT_EXPORT_FILE",
+                    "account_ref": _optional_text(account_ref),
+                    "report_type": _optional_text(report_type),
+                    "export_request_id": _optional_text(export_request_id),
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            request_payload_hash=hash_payload(command_payload),
+            requested_by_ref=_actor_ref(admin_identity),
+            requested_by_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except ReportExportFileNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": exc.safe_code,
+                "message": str(exc),
+                "guardrails": sorted(REPORT_EXPORT_REQUEST_GUARDRAILS),
+                "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
+            },
+        ) from exc
+    except (ReferralSaasReportExportCommandError, ValueError) as exc:
+        safe_code = getattr(exc, "safe_code", "validation_error")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": safe_code,
+                "message": str(exc),
+                "guardrails": sorted(REPORT_EXPORT_REQUEST_GUARDRAILS),
+                "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
+                "no_download_url_created_confirmed": True,
+                "no_scheduled_delivery_created_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        ) from exc
+
+    safe_result = _redact_customer_report_payload(result.to_safe_dict())
+    if safe_result["reportType"] != _optional_text(report_type):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "REPORT_TYPE_SCOPE_MISMATCH",
+                "message": "Export request does not match the requested report type.",
+                "guardrails": sorted(REPORT_EXPORT_REQUEST_GUARDRAILS),
+                "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
+            },
+        )
+
+    return {
+        "status": "stored",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "reportExport": safe_result,
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "Tenant-safe export file stored for the selected customer. This "
+            "does not create a download URL, scheduled delivery, webhook, "
+            "credential, auth change, campaign activation, billing event, "
+            "or money movement."
+        ),
+        "guardrails": sorted(result.to_safe_dict()["guardrails"]),
+        "redactions": sorted(result.to_safe_dict()["redactions"]),
+        "no_download_url_created_confirmed": True,
+        "no_scheduled_delivery_created_confirmed": True,
+        "no_tenant_code_exposure_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/exports/{export_request_id}")
+async def get_referral_saas_account_report_export_file_metadata(
+    account_ref: str,
+    export_request_id: str,
+    ref_type: Annotated[str, Query(min_length=1)],
+    external_ref: Annotated[str, Query(min_length=1)],
+    context: str = Query(default="setup"),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    try:
+        result = await get_referral_saas_report_export_file_metadata(
+            account_id=account.account_id,
+            export_request_id=export_request_id,
+        )
+    except ReportExportFileNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": exc.safe_code,
+                "message": str(exc),
+                "guardrails": sorted(REPORT_EXPORT_REQUEST_GUARDRAILS),
+                "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
+            },
+        ) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "reportExport": _redact_customer_report_payload(result.to_safe_dict()),
+        "account_scope": _customer_report_account_scope(account),
+        "no_export_content_returned_confirmed": True,
+        "no_download_url_created_confirmed": True,
+        "no_tenant_code_exposure_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/exports/{export_request_id}/download")
+async def download_referral_saas_account_report_export_file(
+    account_ref: str,
+    export_request_id: str,
+    ref_type: Annotated[str, Query(min_length=1)],
+    external_ref: Annotated[str, Query(min_length=1)],
+    context: str = Query(default="setup"),
+    correlation_id: str | None = Query(default=None),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    try:
+        result = await download_referral_saas_report_export_file(
+            account_id=account.account_id,
+            export_request_id=export_request_id,
+            requested_by_ref=_actor_ref(admin_identity),
+            requested_by_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=correlation_id,
+        )
+    except ReportExportFileNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": exc.safe_code,
+                "message": str(exc),
+                "guardrails": sorted(REPORT_EXPORT_REQUEST_GUARDRAILS),
+                "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
+            },
+        ) from exc
+    except ReportExportFileNotReady as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": exc.safe_code,
+                "message": str(exc),
+                "guardrails": sorted(REPORT_EXPORT_REQUEST_GUARDRAILS),
+                "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
+            },
+        ) from exc
+
+    return {
+        "status": "downloadable",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "reportExport": _redact_customer_report_payload(result.to_safe_dict()),
+        "account_scope": _customer_report_account_scope(account),
+        "no_download_url_created_confirmed": True,
+        "no_scheduled_delivery_created_confirmed": True,
         "no_tenant_code_exposure_confirmed": True,
         "no_billing_or_money_movement_confirmed": True,
     }
