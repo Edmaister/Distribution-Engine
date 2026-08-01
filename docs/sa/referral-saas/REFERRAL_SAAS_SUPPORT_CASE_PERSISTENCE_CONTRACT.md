@@ -4,9 +4,11 @@ TASK ID: TASK-295
 
 Product boundary: Referral Management and Campaign Attribution SaaS.
 
-Status: Contract only. No runtime behavior, schema, route, permission,
-frontend, repair/replay action, audit write, or test implementation is added by
-this task.
+Status: Implemented through TASK-297, TASK-321, TASK-322, and TASK-323 for
+selected-customer create/list/read plus safe note and bounded status-change
+lifecycle behavior. Repair/replay actions, aggregate operator queues,
+customer-facing support views, provider execution, credential/auth actions,
+billing, and money movement remain separate governed tasks.
 
 ## Boundary
 
@@ -244,11 +246,12 @@ Future implementation tasks must prove:
 TASK-297 implemented the schema/repository/API foundation for selected-customer
 support-case create/list/read with idempotency, audit, and redaction tests.
 TASK-321 added the selected-customer Support UI for listing and creating cases
-against the current customer. TASK-322 adds the notes/status backend
+against the current customer. TASK-322 added the notes/status backend
 foundation through selected-customer account routes with idempotency, audit,
-and redaction tests.
+and redaction tests. TASK-323 wires those lifecycle commands into the
+selected-customer Support UI so operators can add safe notes and move cases
+through bounded statuses without leaving customer context.
 
-The next support task should wire notes/status changes into the Support UI.
-Repair/replay guardrails, aggregate operator queues, and customer-facing support
-views should remain separate tasks unless the UI task stays small enough to
-review safely.
+The next support tasks should focus on aggregate operator queues and reviewed
+repair/replay guardrails. Customer-facing support views should remain separate
+unless explicitly pulled into a small, reviewed task.
