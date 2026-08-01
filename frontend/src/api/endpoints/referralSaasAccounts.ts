@@ -709,6 +709,77 @@ export type ReferralSaasIntegrationCredentialReviewDecisionResponse = {
   no_billing_or_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasIntegrationCredentialExecutionCheckRequest = {
+  accountRef: string;
+  credentialRequestRef: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  executionCheck: {
+    reason: string;
+    reasonCode?: string;
+  };
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
+export type ReferralSaasIntegrationCredentialExecutionCheckResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  integrationCredentialExecutionCheckResult: {
+    commandStatus: string;
+    credentialRequest: ReferralSaasIntegrationCredentialRequest;
+    executionCheckStatus: string;
+    idempotency: {
+      status: string;
+    };
+    audit: {
+      accountAuditEventId?: string | null;
+    };
+    plainLanguageSummary: string;
+    guardrails: string[];
+    redactions: string[];
+    noSecretOrCredentialStorageConfirmed: boolean;
+    noCredentialCreationConfirmed: boolean;
+    noCredentialLifecycleExecutionConfirmed: boolean;
+    noCredentialRevealOrDownloadConfirmed: boolean;
+    noVaultWriteConfirmed: boolean;
+    noProviderCallConfirmed: boolean;
+    noWebhookDispatchConfirmed: boolean;
+    noInviteDeliveryConfirmed: boolean;
+    noMessageProviderDeliveryConfirmed: boolean;
+    noMembershipActivationConfirmed: boolean;
+    noSeatAssignmentConfirmed: boolean;
+    noAuthClaimChangeConfirmed: boolean;
+    noCampaignActivationConfirmed: boolean;
+    noGoLiveActionConfirmed: boolean;
+    noBillingOrMoneyMovementConfirmed: boolean;
+  };
+  account_scope?: Record<string, unknown>;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  no_secret_or_credential_storage_confirmed: boolean;
+  no_credential_creation_confirmed: boolean;
+  no_credential_lifecycle_execution_confirmed: boolean;
+  no_credential_reveal_or_download_confirmed: boolean;
+  no_vault_write_confirmed: boolean;
+  no_provider_call_confirmed: boolean;
+  no_webhook_dispatch_confirmed: boolean;
+  no_invite_delivery_confirmed: boolean;
+  no_message_provider_delivery_confirmed: boolean;
+  no_membership_activation_confirmed: boolean;
+  no_seat_assignment_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_go_live_action_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasIntegrationCredentialRequestListRequest =
   ReferralSaasAccountResolutionRequest & {
     accountRef: string;
@@ -2368,6 +2439,41 @@ export function recordReferralSaasIntegrationCredentialReviewDecision({
           reason: reviewDecision.reason.trim(),
         },
         reasonCode: reasonCode?.trim() || "CUSTOMER_CREDENTIAL_REQUEST_REVIEW",
+        correlationId: correlationId.trim(),
+        idempotencyKey: idempotencyKey.trim(),
+      },
+    },
+  );
+}
+
+export function recordReferralSaasIntegrationCredentialExecutionCheck({
+  accountRef,
+  credentialRequestRef,
+  accountScope,
+  executionCheck,
+  reasonCode,
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasIntegrationCredentialExecutionCheckRequest): Promise<ReferralSaasIntegrationCredentialExecutionCheckResponse> {
+  return apiRequest<ReferralSaasIntegrationCredentialExecutionCheckResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(
+      accountRef.trim(),
+    )}/integrations/credential-requests/${encodeURIComponent(
+      credentialRequestRef.trim(),
+    )}/execution-checks`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        executionCheck: {
+          reason: executionCheck.reason.trim(),
+          reasonCode: executionCheck.reasonCode?.trim() || "CUSTOMER_CREDENTIAL_EXECUTION_READY_CHECK",
+        },
+        reasonCode: reasonCode?.trim() || "CUSTOMER_CREDENTIAL_EXECUTION_READY_CHECK",
         correlationId: correlationId.trim(),
         idempotencyKey: idempotencyKey.trim(),
       },

@@ -242,6 +242,10 @@ TASK-319 adds the selected-customer credential execution-check API foundation
 so approved credential requests can record safe execution-readiness evidence
 with idempotency, audit, redaction, and no credential, provider, vault,
 webhook, message, auth, campaign, billing, money, or DLaaS side effects.
+TASK-320 wires the selected-customer Integrations UI to that execution-check
+API so approved credential setup requests expose a plain-language
+`Check approved setup` action, refresh request/readiness state, and keep actual
+credential/provider/vault execution as a separate governed gap.
 Provider/vault adapters, webhook/provider execution, invite delivery,
 auth/login changes, campaign activation, billing, and money movement remain
 separate future gaps.
