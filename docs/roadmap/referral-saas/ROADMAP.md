@@ -1781,6 +1781,23 @@ greenfield referral construction.
   activation, repair/replay/retry, billing, money, DLaaS, and source-fork side
   effects out of scope. Scores remain 9.99/10 for Referral Management and move
   to 9.995/10 for Campaign Attribution.
+- TASK-329: `frontend/src/api/endpoints/referralSaasReports.ts`;
+  `frontend/src/api/endpoints/referralSaasReports.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  selected-customer Reports Prepare CSV and Download file UI over the TASK-328
+  runtime routes. Operators can create the persisted export request, prepare a
+  tenant-safe inline CSV file, see file metadata, and download the stored
+  content without tenant-code entry, signed URLs, scheduled delivery, provider
+  dispatch, invite/message delivery, credentials, auth/session changes,
+  campaign activation, repair/replay/retry, billing, money, DLaaS, or
+  source-fork side effects. Scores remain 9.99/10 for Referral Management and
+  move to 9.997/10 for Campaign Attribution.
 
 ## Explicit Deferrals
 

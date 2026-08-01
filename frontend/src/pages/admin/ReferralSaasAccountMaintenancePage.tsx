@@ -38,6 +38,9 @@ import {
   type ReferralSaasLinkRecord,
 } from "../../api/endpoints/referralSaasLinks";
 import {
+  createReferralSaasAccountReportExportFile,
+  createReferralSaasAccountReportExportRequest,
+  downloadReferralSaasAccountReportExportFile,
   getReferralSaasAccountReport,
   previewReferralSaasAccountReportExport,
   type ReferralSaasExportFormat,
@@ -4984,13 +4987,106 @@ function CustomerReportsPage({
         rowLimit: 100,
       }),
   });
+  const prepareDownloadMutation = useMutation({
+    mutationFn: async (format: ReferralSaasExportFormat) => {
+      const requestResponse = await createReferralSaasAccountReportExportRequest({
+        accountRef: selectedAccount?.accountId || "",
+        accountScope,
+        reportType,
+        format,
+        redactionProfile: "tenant_safe",
+        filters,
+        rowLimit: 100,
+        correlationId: safeIdempotencyKey(
+          "customer-report-export-request",
+          selectedAccount?.accountId || "",
+          reportType,
+          campaignCode || "all-campaigns",
+          format,
+        ),
+        idempotencyKey: safeIdempotencyKey(
+          "customer-report-export-request",
+          selectedAccount?.accountId || "",
+          reportType,
+          campaignCode || "all-campaigns",
+          format,
+        ),
+      });
+      const exportPayload = asRecord(requestResponse.reportExport);
+      const requestRecord = asRecord(getNestedValue(exportPayload, ["exportRequest"], {}));
+      const exportRequestId = textValue(getNestedValue(requestRecord, ["exportRequestId"], ""));
+      if (!exportRequestId) {
+        throw new Error("The export request was accepted, but no export request ID was returned.");
+      }
+      return createReferralSaasAccountReportExportFile({
+        accountRef: selectedAccount?.accountId || "",
+        accountScope,
+        reportType,
+        exportRequestId,
+        correlationId: safeIdempotencyKey(
+          "customer-report-export-file",
+          selectedAccount?.accountId || "",
+          reportType,
+          exportRequestId,
+        ),
+        idempotencyKey: safeIdempotencyKey(
+          "customer-report-export-file",
+          selectedAccount?.accountId || "",
+          reportType,
+          exportRequestId,
+        ),
+      });
+    },
+  });
   const report = asRecord(reportQuery.data?.report);
   const metrics = asArray(getNestedValue(report, ["metrics"], []));
   const rows = asArray(getNestedValue(report, ["rows"], metrics));
   const warnings = asArray(getNestedValue(report, ["warnings"], []));
   const preview = asRecord(previewMutation.data?.export_preview);
   const previewRows = asArray(getNestedValue(preview, ["sample_rows"], getNestedValue(preview, ["rows"], [])));
+  const preparedExportPayload = asRecord(prepareDownloadMutation.data?.reportExport);
+  const preparedExportRequest = asRecord(getNestedValue(preparedExportPayload, ["exportRequest"], {}));
+  const preparedExportFile = asRecord(getNestedValue(preparedExportPayload, ["file"], {}));
+  const preparedExportRequestId = textValue(getNestedValue(preparedExportRequest, ["exportRequestId"], ""));
+  const downloadMutation = useMutation({
+    mutationFn: async () => {
+      if (!preparedExportRequestId) {
+        throw new Error("Prepare the export file before downloading it.");
+      }
+      const response = await downloadReferralSaasAccountReportExportFile({
+        accountRef: selectedAccount?.accountId || "",
+        accountScope,
+        exportRequestId: preparedExportRequestId,
+        correlationId: safeIdempotencyKey(
+          "customer-report-export-download",
+          selectedAccount?.accountId || "",
+          preparedExportRequestId,
+        ),
+      });
+      const exportPayload = asRecord(response.reportExport);
+      const file = asRecord(getNestedValue(exportPayload, ["file"], {}));
+      downloadCustomerReportFile({
+        content: textValue(getNestedValue(file, ["content"], "")),
+        contentType: textValue(getNestedValue(file, ["contentType"], "text/plain"), "text/plain"),
+        fileName: textValue(
+          getNestedValue(file, ["fileName"], `${customerName}-${reportType}.${textValue(getNestedValue(preparedExportRequest, ["format"], "csv"), "csv")}`),
+          `${customerName}-${reportType}.csv`,
+        ),
+      });
+      return response;
+    },
+  });
+  const exportFileName = textValue(getNestedValue(preparedExportFile, ["fileName"], ""));
+  const exportFileType = textValue(getNestedValue(preparedExportFile, ["contentType"], ""));
+  const exportFileSize = textValue(getNestedValue(preparedExportFile, ["byteSize"], ""));
+  const exportRowCount = textValue(getNestedValue(preparedExportRequest, ["rowCount"], ""));
+  const exportDownloadStatus = textValue(getNestedValue(preparedExportRequest, ["downloadStatus"], ""));
   const activeReport = customerReportOptions.find((option) => option.value === reportType) || customerReportOptions[0];
+  const resetExportState = () => {
+    previewMutation.reset();
+    prepareDownloadMutation.reset();
+    downloadMutation.reset();
+  };
 
   return (
     <section className="panel customer-module-page">
@@ -5018,6 +5114,8 @@ function CustomerReportsPage({
         {campaignListError ? <ErrorPanel error={campaignListError} /> : null}
         {reportQuery.error ? <ErrorPanel error={reportQuery.error} /> : null}
         {previewMutation.error ? <ErrorPanel error={previewMutation.error} /> : null}
+        {prepareDownloadMutation.error ? <ErrorPanel error={prepareDownloadMutation.error} /> : null}
+        {downloadMutation.error ? <ErrorPanel error={downloadMutation.error} /> : null}
 
         <div className="grid-2">
           <div className="panel-lite">
@@ -5027,7 +5125,10 @@ function CustomerReportsPage({
                 <button
                   className={`route-card ${option.value === reportType ? "selected" : ""}`}
                   key={option.value}
-                  onClick={() => setReportType(option.value)}
+                  onClick={() => {
+                    setReportType(option.value);
+                    resetExportState();
+                  }}
                   type="button"
                 >
                   <span>
@@ -5047,7 +5148,13 @@ function CustomerReportsPage({
             {isCampaignListLoading ? <LoadingState label="Loading campaigns" /> : null}
             <label>
               Campaign filter
-              <select onChange={(event) => setCampaignCode(event.target.value)} value={campaignCode}>
+              <select
+                onChange={(event) => {
+                  setCampaignCode(event.target.value);
+                  resetExportState();
+                }}
+                value={campaignCode}
+              >
                 <option value="">All campaigns for this customer</option>
                 {campaigns.map((campaign) => (
                   <option key={campaign.campaignCode} value={campaign.campaignCode}>
@@ -5080,10 +5187,10 @@ function CustomerReportsPage({
             value={String(warnings.length)}
           />
           <KpiCard
-            footnote="No file, storage, or delivery is created"
+            footnote={exportFileName ? "Tenant-safe file prepared for this customer" : "Preview first, then prepare a file"}
             icon={Download}
             label="Export mode"
-            value="Preview"
+            value={exportFileName ? "Download ready" : "Preview"}
           />
         </div>
 
@@ -5163,6 +5270,53 @@ function CustomerReportsPage({
             />
           </section>
         ) : null}
+
+        <section className="panel-lite">
+          <div className="panel-header compact">
+            <div>
+              <h3 className="section-heading">4. Prepare download</h3>
+              <div className="panel-subtitle">
+                Create a tenant-safe export file for this selected customer only. No email, scheduled delivery,
+                external download URL, billing, campaign activation, or money movement is triggered.
+              </div>
+            </div>
+            <StatusBadge label={exportFileName ? "Download ready" : "No file yet"} tone={exportFileName ? "success" : "warning"} />
+          </div>
+          <div className="wizard-status-card">
+            <div>
+              <strong>{exportFileName || "Prepare a file when the report looks right"}</strong>
+              <p>
+                {exportFileName
+                  ? `${formatDisplay(exportFileType)} - ${exportFileSize || "0"} bytes - ${exportRowCount || rows.length} rows - ${formatDisplay(exportDownloadStatus || "available")}`
+                  : "Use this after reviewing the report rows or export preview. The backend records the export request and file metadata for audit."}
+              </p>
+            </div>
+            <div className="button-row">
+              <button
+                className="button secondary"
+                disabled={prepareDownloadMutation.isPending || !selectedAccount}
+                onClick={() => prepareDownloadMutation.mutate("csv")}
+                type="button"
+              >
+                <Download size={16} /> {prepareDownloadMutation.isPending ? "Preparing" : "Prepare CSV"}
+              </button>
+              <button
+                className="button"
+                disabled={downloadMutation.isPending || !preparedExportRequestId}
+                onClick={() => downloadMutation.mutate()}
+                type="button"
+              >
+                <Download size={16} /> {downloadMutation.isPending ? "Downloading" : "Download file"}
+              </button>
+            </div>
+          </div>
+          {downloadMutation.data ? (
+            <div className="success-panel">
+              <strong>Download started.</strong> The file content came from the selected-customer export route.
+              No signed URL, scheduled delivery, email, credential, billing, campaign activation, or money movement was created.
+            </div>
+          ) : null}
+        </section>
 
         <div className="button-row">
           <Link className="button secondary" to={selectedCustomerPath}>
@@ -6356,6 +6510,36 @@ function safeIdempotencyKey(...parts: string[]) {
     .map((part) => part.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, ""))
     .filter(Boolean)
     .join("-");
+}
+
+function textValue(value: unknown, fallback = "") {
+  if (typeof value === "string") {
+    return value.trim() || fallback;
+  }
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  return String(value).trim() || fallback;
+}
+
+function downloadCustomerReportFile({
+  content,
+  contentType,
+  fileName,
+}: {
+  content: string;
+  contentType: string;
+  fileName: string;
+}) {
+  const blob = new Blob([content], { type: contentType || "text/plain" });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
 }
 
 function newAccessCreateAttemptKey() {

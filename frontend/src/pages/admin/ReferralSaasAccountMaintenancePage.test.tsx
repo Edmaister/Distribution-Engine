@@ -15,6 +15,9 @@ import {
   validateReferralSaasAccountCampaignCode,
 } from "../../api/endpoints/referralSaasLinks";
 import {
+  createReferralSaasAccountReportExportFile,
+  createReferralSaasAccountReportExportRequest,
+  downloadReferralSaasAccountReportExportFile,
   getReferralSaasAccountReport,
   previewReferralSaasAccountReportExport,
 } from "../../api/endpoints/referralSaasReports";
@@ -76,6 +79,9 @@ vi.mock("../../api/endpoints/referralSaasLinks", () => ({
   validateReferralSaasAccountCampaignCode: vi.fn(),
 }));
 vi.mock("../../api/endpoints/referralSaasReports", () => ({
+  createReferralSaasAccountReportExportFile: vi.fn(),
+  createReferralSaasAccountReportExportRequest: vi.fn(),
+  downloadReferralSaasAccountReportExportFile: vi.fn(),
   getReferralSaasAccountReport: vi.fn(),
   previewReferralSaasAccountReportExport: vi.fn(),
 }));
@@ -122,6 +128,9 @@ const mockedIssueReferralSaasAccountCampaignCode = vi.mocked(issueReferralSaasAc
 const mockedValidateReferralSaasAccountCampaignCode = vi.mocked(validateReferralSaasAccountCampaignCode);
 const mockedGetReferralSaasAccountReport = vi.mocked(getReferralSaasAccountReport);
 const mockedPreviewReferralSaasAccountReportExport = vi.mocked(previewReferralSaasAccountReportExport);
+const mockedCreateReferralSaasAccountReportExportRequest = vi.mocked(createReferralSaasAccountReportExportRequest);
+const mockedCreateReferralSaasAccountReportExportFile = vi.mocked(createReferralSaasAccountReportExportFile);
+const mockedDownloadReferralSaasAccountReportExportFile = vi.mocked(downloadReferralSaasAccountReportExportFile);
 const mockedAddReferralSaasAccountSupportCaseNote = vi.mocked(addReferralSaasAccountSupportCaseNote);
 const mockedChangeReferralSaasAccountSupportCaseStatus = vi.mocked(changeReferralSaasAccountSupportCaseStatus);
 const mockedCreateReferralSaasAccountSupportCase = vi.mocked(createReferralSaasAccountSupportCase);
@@ -1663,6 +1672,8 @@ function mockCampaignActivation(): ReferralSaasAccountCampaignActivationResponse
 describe("ReferralSaasAccountMaintenancePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.URL.createObjectURL = vi.fn(() => "blob:customer-report-export");
+    window.URL.revokeObjectURL = vi.fn();
     mockedGetAdminOnboardingDrafts.mockResolvedValue(mockDraftSelector());
     mockedGetAdminOnboardingState.mockResolvedValue(mockMaintenanceState());
     mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockMembershipPosture());
@@ -1727,6 +1738,61 @@ describe("ReferralSaasAccountMaintenancePage", () => {
         external_tenant_ref: "gabs-platform",
       },
       guardrail: "Preview only.",
+    });
+    mockedCreateReferralSaasAccountReportExportRequest.mockResolvedValue({
+      status: "accepted",
+      reportExport: {
+        exportRequest: {
+          exportRequestId: "export-1",
+          format: "csv",
+          rowCount: 1,
+          storageStatus: "NOT_STORED",
+          downloadStatus: "NOT_AVAILABLE",
+          downloadUrl: null,
+        },
+        file: {},
+      },
+    });
+    mockedCreateReferralSaasAccountReportExportFile.mockResolvedValue({
+      status: "stored",
+      reportExport: {
+        exportRequest: {
+          exportRequestId: "export-1",
+          format: "csv",
+          rowCount: 1,
+          storageStatus: "STORED",
+          downloadStatus: "AVAILABLE",
+          downloadUrl: null,
+        },
+        file: {
+          fileName: "campaign-performance-export-1.csv",
+          contentType: "text/csv",
+          contentSha256: "sha256-safe",
+          byteSize: 64,
+          storageMode: "INLINE_DB",
+        },
+      },
+    });
+    mockedDownloadReferralSaasAccountReportExportFile.mockResolvedValue({
+      status: "downloaded",
+      reportExport: {
+        exportRequest: {
+          exportRequestId: "export-1",
+          format: "csv",
+          rowCount: 1,
+          storageStatus: "STORED",
+          downloadStatus: "AVAILABLE",
+          downloadUrl: null,
+        },
+        file: {
+          fileName: "campaign-performance-export-1.csv",
+          contentType: "text/csv",
+          contentSha256: "sha256-safe",
+          byteSize: 64,
+          storageMode: "INLINE_DB",
+          content: "campaign_code,metric_name,value\nCAMP001,referrals.completed_count,4\n",
+        },
+      },
     });
     mockedGetReferralSaasAccountCampaignReadiness.mockResolvedValue(mockCampaignReadiness());
     mockedUpdateReferralSaasAccountCampaignPolicySettings.mockResolvedValue(mockCampaignPolicySettings());
@@ -3940,8 +4006,61 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       filters: { campaign_code: "CAMP001" },
       rowLimit: 100,
     });
+
+    fireEvent.click(screen.getByRole("button", { name: /Prepare CSV/i }));
+    await waitFor(() => expect(mockedCreateReferralSaasAccountReportExportRequest).toHaveBeenCalledTimes(1));
+    expect(mockedCreateReferralSaasAccountReportExportRequest.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      reportType: "campaign_performance",
+      format: "csv",
+      redactionProfile: "tenant_safe",
+      filters: { campaign_code: "CAMP001" },
+      rowLimit: 100,
+      correlationId: "customer-report-export-request-acct-gabs-campaign-performance-camp001-csv",
+      idempotencyKey: "customer-report-export-request-acct-gabs-campaign-performance-camp001-csv",
+    });
+    await waitFor(() => expect(mockedCreateReferralSaasAccountReportExportFile).toHaveBeenCalledTimes(1));
+    expect(mockedCreateReferralSaasAccountReportExportFile.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      reportType: "campaign_performance",
+      exportRequestId: "export-1",
+      correlationId: "customer-report-export-file-acct-gabs-campaign-performance-export-1",
+      idempotencyKey: "customer-report-export-file-acct-gabs-campaign-performance-export-1",
+    });
+    expect(await screen.findByText("campaign-performance-export-1.csv")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Download file/i }));
+    await waitFor(() => expect(mockedDownloadReferralSaasAccountReportExportFile).toHaveBeenCalledTimes(1));
+    expect(mockedDownloadReferralSaasAccountReportExportFile.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      exportRequestId: "export-1",
+      correlationId: "customer-report-export-download-acct-gabs-export-1",
+    });
+    expect(await screen.findByText("Download started.")).toBeInTheDocument();
     expect(screen.queryByText("Reports Target")).not.toBeInTheDocument();
-    expect(JSON.stringify(mockedGetReferralSaasAccountReport.mock.calls)).not.toMatch(/tenantCode|tenant_code/i);
+    expect(
+      JSON.stringify([
+        mockedGetReferralSaasAccountReport.mock.calls,
+        mockedCreateReferralSaasAccountReportExportRequest.mock.calls,
+        mockedCreateReferralSaasAccountReportExportFile.mock.calls,
+        mockedDownloadReferralSaasAccountReportExportFile.mock.calls,
+      ]),
+    ).not.toMatch(/tenantCode|tenant_code|scheduledDelivery|billing|money|credential|campaignActivation/i);
   });
 
   it("saves selected customer profile settings through the maintenance command", async () => {

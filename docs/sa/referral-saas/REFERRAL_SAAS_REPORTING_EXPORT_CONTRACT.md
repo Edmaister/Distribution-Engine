@@ -513,11 +513,29 @@ invite/message delivery, credential changes, auth/session changes, campaign
 activation, repair/replay/retry, billing, money movement, DLaaS behavior, or
 source forks.
 
+TASK-329 implementation update: the selected-customer Reports UI now exposes
+that runtime as a plain operator workflow:
+
+```text
+Preview export -> Prepare CSV -> Download file
+```
+
+The UI creates the persisted export request, creates the inline tenant-safe
+file artifact, displays file metadata, and downloads the stored content from
+the TASK-328 customer-scoped route. It keeps account scope in the selected
+customer context, never asks the operator for `tenant_code`, resets file state
+when report or campaign scope changes, and keeps signed URLs, scheduled
+delivery, provider dispatch, invite/message delivery, credentials,
+auth/session changes, campaign activation, repair/replay/retry, billing,
+money movement, DLaaS behavior, and source forks out of scope.
+
 ## Persisted Export File Lifecycle Contract
 
 TASK-273 records the export request and audit evidence. TASK-327 defines the
 runtime file lifecycle. TASK-328 implements the first inline file artifact,
-metadata, and download runtime over that lifecycle.
+metadata, and download runtime over that lifecycle. TASK-329 exposes that
+runtime in the selected-customer Reports UI through a bounded Prepare CSV and
+Download file workflow.
 
 ### Lifecycle States
 
@@ -595,3 +613,12 @@ TASK-328 adds focused tests for:
   reward, funding, fulfilment, settlement, commission, wallet, invoice, payout,
   sponsor billing, treasury, DLaaS marketplace, repair, replay, or retry side
   effects
+
+TASK-329 adds frontend-focused tests for:
+
+- selected-customer export request creation without tenant-code input
+- customer-scoped file creation and download route calls
+- report/campaign scope carried into the export request
+- stored file metadata shown before download
+- no scheduled delivery, credential/auth, provider, campaign activation,
+  billing, money, DLaaS, or source-fork payload fields from the UI workflow
