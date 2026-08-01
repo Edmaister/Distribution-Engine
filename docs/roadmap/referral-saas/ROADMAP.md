@@ -1748,6 +1748,19 @@ greenfield referral construction.
   no assignment, repair/replay/retry, provider, invite, credential, auth,
   export, campaign activation, billing, money, DLaaS, or source-fork side
   effects.
+- TASK-327: `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the
+  persisted export file storage/download/retention lifecycle over the existing
+  TASK-273 export request/audit spine. The contract defines request, pending,
+  stored/downloadable, expired, and failed states; candidate customer-scoped
+  file/read/download routes; redaction, freshness, row-limit, account-scope,
+  expiry, retention, and audit expectations; and explicit no scheduled
+  delivery, provider, invite/message, credential/auth, campaign activation,
+  repair/replay/retry, billing, money, DLaaS, or source-fork side effects.
+  Runtime export file creation/download remains the next bounded task.
 
 ## Explicit Deferrals
 

@@ -7334,6 +7334,31 @@ Rollback notes: Revert the frontend queue client/hook/page/test/sidebar changes 
 Explicit non-goals: Do not add backend routes, schema, migrations, assignment commands, case create/note/status mutation from the queue, repair/replay/retry, provider calls, webhook dispatch, invite/referral-message delivery, credential creation/storage/reveal/download, auth/session claim changes, campaign activation, export file persistence/downloads, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
 Definition of done: Referral SaaS has a live read-only operator aggregate Support queue UI over the TASK-325 API, with bounded filters, safe cross-customer case metadata, selected-customer routing, and no-adjacent-action guardrails. Current rating remains 9.99/10 for Referral Management and 9.99/10 for Campaign Attribution because the queue UI gap is closed while export file storage/download, progress/attribution mutation proof, provider/vault execution, governed auth/login completion, repair/replay guardrails, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-327: Define export file storage and download lifecycle contract
+
+Status: Complete (2026-08-01).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses existing tenant-safe report/export catalog, TASK-273 persisted export request table, account/external-reference scope, idempotency/audit posture, redaction rules, freshness rules, and selected-customer report/export routes. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer-scoped report export file lifecycle contract.
+Objective: Define the safe persisted export file storage/download/retention lifecycle before implementing file creation or download routes.
+Why now: TASK-273 records export request/audit evidence and TASK-326 closes aggregate support queue UI, leaving export file storage/download/retention as one of the most visible remaining 10/10 reporting gaps. The current table already has storage/download status fields, but the implementation needs a reviewed contract for file content, expiry, access checks, redactions, and no-adjacent-action boundaries.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None. Documents the future runtime boundary over existing `referral_saas_report_export_requests` request/status fields.
+Frontend impact: None.
+API impact: Documents candidate customer-scoped file creation, metadata/readiness, and download routes without implementing them.
+Tests added/updated: Docs-only readback.
+Validation method: `git diff --check`; readback of updated contract/task/gap/roadmap/infographic wording.
+Acceptance criteria: Referral SaaS has a reviewed export storage/download contract that defines request, pending, stored/downloadable, expired, and failed states; required redaction/freshness/row-limit/account-scope gates; candidate routes; audit/retention expectations; file-content rules; implementation test expectations; and explicit no side effects for scheduled delivery, provider calls, credentials, auth, campaign activation, repair/replay/retry, billing, money, DLaaS, or source-code forks.
+Dependencies: TASK-142; TASK-165; TASK-167; TASK-268; TASK-273.
+Blocked by: Runtime export file storage/download implementation, progress/attribution mutation proof, provider/vault adapters, invite/referral-message delivery integration, governed auth/login completion, repair/replay guardrails, and non-local proof repetition.
+Risk level: Low.
+Rollback notes: Revert the reporting/export contract update plus roadmap/gap/ordered-task/infographic updates.
+Explicit non-goals: Do not add schema, migrations, backend routes, frontend controls, storage adapters, export files, download URLs, scheduled delivery, provider calls, webhook dispatch, invite/referral-message delivery, credential creation/storage/reveal/download, auth/session claim changes, campaign activation, repair/replay/retry, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, broad DLaaS marketplace behavior, or source-code forks.
+Definition of done: Referral SaaS has the reviewed contract needed for the next runtime export file storage/download implementation task. Current rating remains 9.99/10 for Referral Management and 9.99/10 for Campaign Attribution because the contract gap is closed while runtime export file storage/download, progress/attribution mutation proof, provider/vault execution, governed auth/login completion, repair/replay guardrails, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
