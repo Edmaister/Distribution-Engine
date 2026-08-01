@@ -169,6 +169,10 @@ type SupportCaseLifecycleDraft = {
   transitionReason: string;
 };
 
+type SupportCaseLifecycleMutationInput = SupportCaseLifecycleDraft & {
+  requestKey: string;
+};
+
 type ScopedAccountActivationResult = {
   accountId: string;
   message: string;
@@ -790,7 +794,7 @@ export function ReferralSaasAccountMaintenancePage() {
     },
   });
   const supportCaseLifecycleMutation = useMutation({
-    mutationFn: (draft: SupportCaseLifecycleDraft) => {
+    mutationFn: (draft: SupportCaseLifecycleMutationInput) => {
       if (!selectedAccount) {
         throw new Error("Select a customer before working support cases.");
       }
@@ -799,7 +803,7 @@ export function ReferralSaasAccountMaintenancePage() {
         externalRef: selectedExternalTenantRef,
         context: "support" as const,
       };
-      const idempotencySuffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const idempotencySuffix = draft.requestKey;
       if (draft.action === "note") {
         return addReferralSaasAccountSupportCaseNote({
           accountRef: selectedAccount.accountId,
@@ -1407,6 +1411,7 @@ export function ReferralSaasAccountMaintenancePage() {
     supportCaseLifecycleMutation.mutate({
       ...supportCaseLifecycleDraft,
       noteText: cleanedNoteText,
+      requestKey: newSupportCaseLifecycleRequestKey(),
       transitionReason: cleanedTransitionReason,
     });
   }
@@ -6354,6 +6359,13 @@ function safeIdempotencyKey(...parts: string[]) {
 }
 
 function newAccessCreateAttemptKey() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function newSupportCaseLifecycleRequestKey() {
   if (window.crypto?.randomUUID) {
     return window.crypto.randomUUID();
   }
