@@ -69,6 +69,40 @@ export type ReferralSaasExportPreviewResponse = {
   guardrail?: string;
 };
 
+export type ReferralSaasExportFileResponse = {
+  status?: string;
+  reportExport?: Record<string, unknown>;
+  account_scope?: ReferralSaasAccountScope;
+  guardrail?: string;
+  no_download_url_created_confirmed?: boolean;
+  no_scheduled_delivery_created_confirmed?: boolean;
+  no_tenant_code_exposure_confirmed?: boolean;
+  no_billing_or_money_movement_confirmed?: boolean;
+};
+
+export type ReferralSaasAccountExportFileRequest = ReferralSaasAccountExportRequest & {
+  correlationId: string;
+  idempotencyKey: string;
+  reasonCode?: string;
+};
+
+export type ReferralSaasAccountExportFileCreateRequest = {
+  accountRef: string;
+  accountScope: ReferralSaasCustomerAccountScopeRequest;
+  reportType: ReferralSaasReportType;
+  exportRequestId: string;
+  correlationId: string;
+  idempotencyKey: string;
+  reasonCode?: string;
+};
+
+export type ReferralSaasAccountExportFileReadRequest = {
+  accountRef: string;
+  accountScope: ReferralSaasCustomerAccountScopeRequest;
+  exportRequestId: string;
+  correlationId?: string;
+};
+
 function reportPath(reportType: ReferralSaasReportType, suffix = ""): string {
   return `v1/referral-saas/reports/${encodeURIComponent(reportType)}${suffix}`;
 }
@@ -118,6 +152,42 @@ function exportBody(request: ReferralSaasExportRequest) {
     row_limit: request.rowLimit,
     data_window_start: request.dataWindowStart,
     data_window_end: request.dataWindowEnd,
+  };
+}
+
+function exportRequestBody(request: ReferralSaasAccountExportFileRequest) {
+  return {
+    ...exportBody(request),
+    accountScope: {
+      refType: request.accountScope.refType,
+      externalRef: request.accountScope.externalRef,
+      context: request.accountScope.context || "setup",
+    },
+    correlationId: request.correlationId,
+    idempotencyKey: request.idempotencyKey,
+    reasonCode: request.reasonCode,
+  };
+}
+
+function exportFileCommandBody(request: ReferralSaasAccountExportFileCreateRequest) {
+  return {
+    accountScope: {
+      refType: request.accountScope.refType,
+      externalRef: request.accountScope.externalRef,
+      context: request.accountScope.context || "setup",
+    },
+    correlationId: request.correlationId,
+    idempotencyKey: request.idempotencyKey,
+    reasonCode: request.reasonCode,
+  };
+}
+
+function exportFileQuery(request: ReferralSaasAccountExportFileReadRequest) {
+  return {
+    ref_type: request.accountScope.refType,
+    external_ref: request.accountScope.externalRef,
+    context: request.accountScope.context || "setup",
+    correlation_id: request.correlationId,
   };
 }
 
@@ -177,6 +247,60 @@ export function previewReferralSaasAccountReportExport(
       method: "POST",
       query: accountScopeQuery(request),
       body: exportBody(request),
+    },
+  );
+}
+
+export function createReferralSaasAccountReportExportRequest(
+  request: ReferralSaasAccountExportFileRequest,
+): Promise<ReferralSaasExportFileResponse> {
+  return apiRequest<ReferralSaasExportFileResponse>(
+    accountReportPath(request.accountRef, request.reportType, "/exports"),
+    {
+      method: "POST",
+      body: exportRequestBody(request),
+    },
+  );
+}
+
+export function createReferralSaasAccountReportExportFile(
+  request: ReferralSaasAccountExportFileCreateRequest,
+): Promise<ReferralSaasExportFileResponse> {
+  return apiRequest<ReferralSaasExportFileResponse>(
+    accountReportPath(
+      request.accountRef,
+      request.reportType,
+      `/exports/${encodeURIComponent(request.exportRequestId)}/file`,
+    ),
+    {
+      method: "POST",
+      body: exportFileCommandBody(request),
+    },
+  );
+}
+
+export function getReferralSaasAccountReportExportFileMetadata(
+  request: ReferralSaasAccountExportFileReadRequest,
+): Promise<ReferralSaasExportFileResponse> {
+  return apiRequest<ReferralSaasExportFileResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(request.accountRef)}/exports/${encodeURIComponent(
+      request.exportRequestId,
+    )}`,
+    {
+      query: exportFileQuery(request),
+    },
+  );
+}
+
+export function downloadReferralSaasAccountReportExportFile(
+  request: ReferralSaasAccountExportFileReadRequest,
+): Promise<ReferralSaasExportFileResponse> {
+  return apiRequest<ReferralSaasExportFileResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(request.accountRef)}/exports/${encodeURIComponent(
+      request.exportRequestId,
+    )}/download`,
+    {
+      query: exportFileQuery(request),
     },
   );
 }
