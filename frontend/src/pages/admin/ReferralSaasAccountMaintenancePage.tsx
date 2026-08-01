@@ -45,7 +45,9 @@ import {
 } from "../../api/endpoints/referralSaasReports";
 import {
   cancelReferralSaasMembershipInvitationIntent,
+  createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
+  listReferralSaasAccountSupportCases,
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasApiAccessVerification,
   recordReferralSaasIntegrationCredentialRequest,
@@ -72,6 +74,8 @@ import {
   getReferralSaasIntegrationExecutionReadiness,
   listReferralSaasIntegrationCredentialRequests,
   type ReferralSaasAccountCampaignSetupCreateResponse,
+  type ReferralSaasSupportCase,
+  type ReferralSaasSupportCaseCreateResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import type { CampaignReadinessOperation } from "../../api/endpoints/adminCampaignReadiness";
@@ -142,6 +146,15 @@ type CampaignReviewDraft = {
   decisionReason: string;
   reviewerRef: string;
   decision: "APPROVED" | "BLOCKED";
+};
+
+type SupportCaseDraft = {
+  category: string;
+  priority: string;
+  title: string;
+  summary: string;
+  evidenceType: string;
+  evidenceRef: string;
 };
 
 type ScopedAccountActivationResult = {
@@ -338,6 +351,68 @@ const accessRoleOptions = [
   },
 ];
 
+const supportCaseCategoryOptions = [
+  {
+    value: "VALIDATION_RECOVERY",
+    label: "Validation or code issue",
+    copy: "A referral code, link, or validation result needs investigation.",
+  },
+  {
+    value: "PROGRESS_DIAGNOSTIC",
+    label: "Progress status issue",
+    copy: "A referral journey milestone looks missing, delayed, or unclear.",
+  },
+  {
+    value: "ATTRIBUTION_REVIEW",
+    label: "Attribution question",
+    copy: "The customer needs to understand who got credit and why.",
+  },
+  {
+    value: "READINESS_BLOCKER",
+    label: "Readiness blocker",
+    copy: "Something is blocking safe campaign or referral testing.",
+  },
+  {
+    value: "REPORTING_FRESHNESS",
+    label: "Reporting question",
+    copy: "A report, export, or freshness signal needs checking.",
+  },
+  {
+    value: "INTEGRATION_HEALTH",
+    label: "Integration setup issue",
+    copy: "API, webhook, invite, or message-provider setup needs investigation.",
+  },
+  {
+    value: "ACCESS_SCOPE",
+    label: "People or access issue",
+    copy: "Customer access, responsibility, or login setup needs investigation.",
+  },
+  {
+    value: "MANUAL_REVIEW_REQUIRED",
+    label: "Manual review",
+    copy: "A human review is needed before deciding the next action.",
+  },
+];
+
+const supportCasePriorityOptions = [
+  { value: "LOW", label: "Low", copy: "Useful context, but not blocking current customer work." },
+  { value: "MEDIUM", label: "Medium", copy: "Needs attention, but safe testing can usually continue." },
+  { value: "HIGH", label: "High", copy: "Blocks safe customer testing or a key operator workflow." },
+  { value: "CRITICAL", label: "Critical", copy: "Stops launch-readiness or creates urgent customer risk." },
+];
+
+const supportCaseEvidenceOptions = [
+  { value: "", label: "No evidence link yet" },
+  { value: "LINK_CODE_INSPECTION", label: "Link or code inspection" },
+  { value: "ATTRIBUTION_TRACE", label: "Attribution trace" },
+  { value: "PROGRESS_STATUS", label: "Progress status" },
+  { value: "CAMPAIGN_READINESS", label: "Campaign readiness" },
+  { value: "REPORTING_EVIDENCE", label: "Reporting evidence" },
+  { value: "TECHNICAL_SETUP", label: "Integration setup" },
+  { value: "PEOPLE_ACCESS", label: "People and access" },
+  { value: "OPERATOR_NOTE", label: "Operator note" },
+];
+
 const customerTypeOptions = [
   {
     value: "DIRECT_CUSTOMER",
@@ -442,10 +517,21 @@ export function ReferralSaasAccountMaintenancePage() {
   });
   const [campaignReviewResult, setCampaignReviewResult] =
     useState<ReferralSaasAccountCampaignReviewResponse | null>(null);
+  const [supportCaseDraft, setSupportCaseDraft] = useState<SupportCaseDraft>({
+    category: supportCaseCategoryOptions[0].value,
+    priority: "MEDIUM",
+    title: "",
+    summary: "",
+    evidenceType: "",
+    evidenceRef: "",
+  });
+  const [supportCaseResult, setSupportCaseResult] =
+    useState<ReferralSaasSupportCaseCreateResponse | null>(null);
   const scopeChanged =
     draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
     draftOrganisationRef.trim() !== appliedOrganisationRef;
   const canCheckScope = Boolean(draftExternalTenantRef.trim() && draftOrganisationRef.trim() && scopeChanged);
+  const selectedModule = normalizeCustomerModule(customerModule);
 
   const {
     data: accountRegistry,
@@ -502,6 +588,25 @@ export function ReferralSaasAccountMaintenancePage() {
     Boolean(accountId && selectedAccount && selectedExternalTenantRef),
     refreshKey,
   );
+  const supportCasesQuery = useQuery({
+    queryKey: [
+      "referral-saas-account-support-cases",
+      selectedAccount?.accountId,
+      selectedExternalTenantRef,
+      refreshKey,
+    ],
+    queryFn: () =>
+      listReferralSaasAccountSupportCases({
+        accountRef: selectedAccount?.accountId || "",
+        refType: "external_tenant_ref",
+        externalRef: selectedExternalTenantRef,
+        context: "setup",
+        limit: 50,
+      }),
+    enabled: Boolean(
+      selectedModule === "support" && accountId && selectedAccount && selectedExternalTenantRef,
+    ),
+  });
   const refreshPeopleAccessReadModels = async () => {
     await Promise.all([refetchMembershipPosture(), refetchActivationReadiness()]);
   };
@@ -638,6 +743,21 @@ export function ReferralSaasAccountMaintenancePage() {
       setCampaignReviewResult(response);
     },
   });
+  const supportCaseMutation = useMutation({
+    mutationFn: createReferralSaasAccountSupportCase,
+    onSuccess: async (response) => {
+      setSupportCaseResult(response);
+      setSupportCaseDraft({
+        category: supportCaseCategoryOptions[0].value,
+        priority: "MEDIUM",
+        title: "",
+        summary: "",
+        evidenceType: "",
+        evidenceRef: "",
+      });
+      await supportCasesQuery.refetch();
+    },
+  });
   const pendingAccount = accountItems.find((account) => account.accountId === pendingAccountId);
   const operatingMarkets = getOperatingMarkets(accountItems);
   const accountsForMarket = accountItems.filter(
@@ -655,7 +775,6 @@ export function ReferralSaasAccountMaintenancePage() {
   const selectedCustomerPath = selectedAccount
     ? `/admin/referral-saas/account-maintenance/${encodeURIComponent(selectedAccount.accountId)}`
     : "/admin/referral-saas/account-maintenance";
-  const selectedModule = normalizeCustomerModule(customerModule);
   const customerQuery = `?external_tenant_ref=${encodeURIComponent(
     selectedExternalTenantRef,
   )}&organisation_ref=${encodeURIComponent(selectedOrganisationRef)}`;
@@ -1138,6 +1257,61 @@ export function ReferralSaasAccountMaintenancePage() {
       ...values,
     }));
     setCampaignReviewResult(null);
+  }
+
+  function updateSupportCaseDraft(values: Partial<SupportCaseDraft>) {
+    setSupportCaseDraft((current) => ({
+      ...current,
+      ...values,
+    }));
+    setSupportCaseResult(null);
+  }
+
+  function submitSupportCase(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const cleanedTitle = supportCaseDraft.title.trim();
+    const cleanedSummary = supportCaseDraft.summary.trim();
+    const cleanedEvidenceType = supportCaseDraft.evidenceType.trim();
+    const cleanedEvidenceRef = supportCaseDraft.evidenceRef.trim();
+    if (!selectedAccount || !selectedExternalTenantRef || !cleanedTitle || !cleanedSummary) {
+      return;
+    }
+    supportCaseMutation.mutate({
+      accountRef: selectedAccount.accountId,
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: selectedExternalTenantRef,
+        context: "setup",
+      },
+      category: supportCaseDraft.category,
+      priority: supportCaseDraft.priority,
+      title: cleanedTitle,
+      summary: cleanedSummary,
+      sourceSurface: "support_hub",
+      evidenceLinks:
+        cleanedEvidenceType && cleanedEvidenceRef
+          ? [
+              {
+                evidenceType: cleanedEvidenceType,
+                evidenceRef: cleanedEvidenceRef,
+                safeStatus: "CUSTOMER_SCOPED",
+                redactions: ["internal_tenant_identifier"],
+              },
+            ]
+          : [],
+      reasonCode: "CUSTOMER_SUPPORT_CASE_CREATED",
+      correlationId: `customer-profile-support-case-${selectedAccount.accountId}`,
+      idempotencyKey: safeIdempotencyKey(
+        "customer-profile-support-case",
+        selectedAccount.accountId,
+        supportCaseDraft.category,
+        supportCaseDraft.priority,
+        cleanedTitle,
+        cleanedSummary,
+        cleanedEvidenceType,
+        cleanedEvidenceRef,
+      ),
+    });
   }
 
   function submitCampaignSetup(event: FormEvent<HTMLFormElement>) {
@@ -2468,7 +2642,21 @@ export function ReferralSaasAccountMaintenancePage() {
                 />
               ) : null}
 
-              {["support", "attribution", "progress"].includes(selectedModule) ? (
+              {selectedModule === "support" ? (
+                <CustomerSupportCasesPage
+                  cases={supportCasesQuery.data?.supportCases || []}
+                  customerName={customerName}
+                  draft={supportCaseDraft}
+                  error={supportCasesQuery.error || supportCaseMutation.error}
+                  isLoading={supportCasesQuery.isLoading}
+                  isSaving={supportCaseMutation.isPending}
+                  onChange={updateSupportCaseDraft}
+                  onSubmit={submitSupportCase}
+                  result={supportCaseResult}
+                />
+              ) : null}
+
+              {["attribution", "progress"].includes(selectedModule) ? (
                 <CustomerModulePage
                   customerName={customerName}
                   customerQuery={customerQuery}
@@ -4872,6 +5060,226 @@ function CustomerReportsPage({
           <Link className="button secondary" to={`${selectedCustomerPath}/campaigns`}>
             Open campaigns
           </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CustomerSupportCasesPage({
+  cases,
+  customerName,
+  draft,
+  error,
+  isLoading,
+  isSaving,
+  onChange,
+  onSubmit,
+  result,
+}: {
+  cases: ReferralSaasSupportCase[];
+  customerName: string;
+  draft: SupportCaseDraft;
+  error: unknown;
+  isLoading: boolean;
+  isSaving: boolean;
+  onChange: (values: Partial<SupportCaseDraft>) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  result: ReferralSaasSupportCaseCreateResponse | null;
+}) {
+  const selectedCategory = supportCaseCategoryOptions.find((option) => option.value === draft.category);
+  const selectedPriority = supportCasePriorityOptions.find((option) => option.value === draft.priority);
+  return (
+    <section className="panel customer-module-page">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Support</div>
+          <h2 className="panel-title">Support cases</h2>
+          <div className="panel-subtitle">
+            Record safe support cases for this customer and review what is already open.
+          </div>
+        </div>
+        <StatusBadge label="Customer scoped" tone="success" />
+      </div>
+      <div className="panel-body route-list">
+        <div className="wizard-status-card">
+          <div>
+            <strong>What this page does</strong>
+            <p>
+              Create and list customer support cases linked to safe evidence. Notes, status changes,
+              repair, replay, retry, and operational fixes stay in later governed workflows.
+            </p>
+          </div>
+          <StatusBadge label="No repair actions" tone="success" />
+        </div>
+        <form className="account-setup-scope-form" onSubmit={onSubmit}>
+          <label className="field">
+            <span>What needs help?</span>
+            <select
+              aria-label="What needs help?"
+              className="input"
+              onChange={(event) => onChange({ category: event.target.value })}
+              value={draft.category}
+            >
+              {supportCaseCategoryOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {selectedCategory ? <span className="field-help">{selectedCategory.copy}</span> : null}
+          </label>
+          <label className="field">
+            <span>Priority</span>
+            <select
+              aria-label="Priority"
+              className="input"
+              onChange={(event) => onChange({ priority: event.target.value })}
+              value={draft.priority}
+            >
+              {supportCasePriorityOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {selectedPriority ? <span className="field-help">{selectedPriority.copy}</span> : null}
+          </label>
+          <label className="field">
+            <span>Case title</span>
+            <input
+              aria-label="Case title"
+              className="input"
+              onChange={(event) => onChange({ title: event.target.value })}
+              placeholder="Example: Referral code validation failed for branch pilot"
+              value={draft.title}
+            />
+          </label>
+          <label className="field">
+            <span>What happened?</span>
+            <textarea
+              aria-label="What happened?"
+              className="input textarea"
+              onChange={(event) => onChange({ summary: event.target.value })}
+              placeholder="Explain the issue in plain language. Do not paste raw customer identifiers, secrets, provider payloads, or banking data."
+              value={draft.summary}
+            />
+          </label>
+          <label className="field">
+            <span>Safe evidence type</span>
+            <select
+              aria-label="Safe evidence type"
+              className="input"
+              onChange={(event) => onChange({ evidenceType: event.target.value, evidenceRef: "" })}
+              value={draft.evidenceType}
+            >
+              {supportCaseEvidenceOptions.map((option) => (
+                <option key={option.value || "none"} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Safe evidence reference</span>
+            <input
+              aria-label="Safe evidence reference"
+              className="input"
+              disabled={!draft.evidenceType}
+              onChange={(event) => onChange({ evidenceRef: event.target.value })}
+              placeholder={draft.evidenceType ? "Example: LINK_CHECK_123" : "Choose an evidence type first"}
+              value={draft.evidenceRef}
+            />
+          </label>
+          <button
+            className="button"
+            disabled={isSaving || !draft.title.trim() || !draft.summary.trim()}
+            type="submit"
+          >
+            {isSaving ? "Recording case" : "Record support case"}
+          </button>
+        </form>
+        {error ? <ErrorPanel error={error} /> : null}
+        {result ? (
+          <div className="success-panel">
+            <strong>Support case recorded.</strong>{" "}
+            {result.supportCase.supportCase.title} is {formatDisplay(result.supportCase.supportCase.status)}.
+            No repair, replay, retry, referral mutation, campaign mutation, invite delivery,
+            credential change, billing, or money action was performed.
+          </div>
+        ) : null}
+        <div className="wizard-status-card">
+          <div>
+            <strong>Customer cases</strong>
+            <p>Only cases for {customerName} are shown here.</p>
+          </div>
+          <StatusBadge label={`${cases.length} cases`} tone={cases.length ? "info" : "success"} />
+        </div>
+        {isLoading ? (
+          <LoadingState label="Loading support cases" />
+        ) : (
+          <DataTable
+            rows={cases}
+            emptyText="No support cases have been recorded for this customer yet."
+            columns={[
+              {
+                key: "case",
+                header: "Case",
+                render: (row) => (
+                  <div>
+                    <strong>{getValue(row, ["title"], "Support case")}</strong>
+                    <div className="table-subtext">{getValue(row, ["summary"], "No summary returned.")}</div>
+                    <div className="table-subtext">{getValue(row, ["caseRef"], "No case reference returned.")}</div>
+                  </div>
+                ),
+              },
+              {
+                key: "type",
+                header: "Type",
+                render: (row) => formatDisplay(getValue(row, ["category"], "Manual review")),
+              },
+              {
+                key: "priority",
+                header: "Priority",
+                render: (row) => (
+                  <StatusBadge
+                    label={formatDisplay(getValue(row, ["priority"], "Medium"))}
+                    tone={statusTone(getValue(row, ["priority"], "Medium"))}
+                  />
+                ),
+              },
+              {
+                key: "status",
+                header: "Status",
+                render: (row) => (
+                  <StatusBadge
+                    label={formatDisplay(getValue(row, ["status"], "Open"))}
+                    tone={statusTone(getValue(row, ["status"], "Open"))}
+                  />
+                ),
+              },
+              {
+                key: "evidence",
+                header: "Evidence",
+                render: (row) => {
+                  const links = asArray(getValue(row, ["evidenceLinks"], "") || []);
+                  return links.length
+                    ? `${links.length} safe evidence link${links.length === 1 ? "" : "s"}`
+                    : "No evidence link";
+                },
+              },
+              {
+                key: "updated",
+                header: "Updated",
+                render: (row) => formatDisplay(getValue(row, ["updatedAt"], "Not returned")),
+              },
+            ]}
+          />
+        )}
+        <div className="customer-context-note">
+          This page records support demand. Case notes, assignment, status changes, and any repair action
+          remain separate tasks so support cannot silently mutate referral, campaign, progress, attribution,
+          export, credential, billing, or money state.
         </div>
       </div>
     </section>

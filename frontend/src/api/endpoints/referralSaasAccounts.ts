@@ -938,6 +938,109 @@ export type ReferralSaasAccountCampaignReadResponse = {
   no_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasSupportCaseEvidenceLink = {
+  evidenceLinkId?: string | null;
+  evidenceType: string;
+  evidenceRef: string;
+  safeStatus?: string | null;
+  warningCode?: string | null;
+  missingEvidenceCode?: string | null;
+  redactions: string[];
+};
+
+export type ReferralSaasSupportCase = {
+  caseRef: string;
+  accountRef: string;
+  category: string;
+  priority: string;
+  status: string;
+  title: string;
+  summary: string;
+  sourceSurface?: string | null;
+  assigneeRef?: string | null;
+  correlationId?: string | null;
+  createdByRef: string;
+  createdByRole?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  evidenceLinks: ReferralSaasSupportCaseEvidenceLink[];
+  redactions: string[];
+};
+
+export type ReferralSaasSupportCaseListRequest = ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+  status?: string;
+  limit?: number;
+};
+
+export type ReferralSaasSupportCaseListResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  supportCases: ReferralSaasSupportCase[];
+  account_scope?: Record<string, unknown>;
+  guardrails: string[];
+  redactions: string[];
+  no_tenant_code_exposure_confirmed: boolean;
+  no_product_state_mutation_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
+export type ReferralSaasSupportCaseCreateRequest = {
+  accountRef: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  category: string;
+  priority: string;
+  title: string;
+  summary: string;
+  sourceSurface?: string;
+  evidenceLinks?: Array<{
+    evidenceType: string;
+    evidenceRef: string;
+    safeStatus?: string;
+    warningCode?: string;
+    missingEvidenceCode?: string;
+    redactions?: string[];
+  }>;
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
+export type ReferralSaasSupportCaseCreateResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  supportCase: {
+    commandStatus: string;
+    supportCase: ReferralSaasSupportCase;
+    idempotency: {
+      status: string;
+    };
+    audit: {
+      accountAuditEventId?: string | null;
+    };
+    guardrails: string[];
+    redactions: string[];
+  };
+  account_scope?: Record<string, unknown>;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  no_repair_replay_retry_confirmed: boolean;
+  no_referral_or_campaign_mutation_confirmed: boolean;
+  no_progress_or_attribution_mutation_confirmed: boolean;
+  no_report_or_export_mutation_confirmed: boolean;
+  no_invite_delivery_confirmed: boolean;
+  no_credential_or_auth_claim_change_confirmed: boolean;
+  no_tenant_code_exposure_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasAccountCampaignReadinessResponse = {
   status: string;
   context: ReferralSaasAccountResolutionContext;
@@ -1810,6 +1913,72 @@ export function getReferralSaasAccountCampaignReadiness({
         context,
         opportunity_id: opportunityId?.trim() || undefined,
         include_evidence: includeEvidence,
+      },
+    },
+  );
+}
+
+export function listReferralSaasAccountSupportCases({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+  status,
+  limit = 50,
+}: ReferralSaasSupportCaseListRequest): Promise<ReferralSaasSupportCaseListResponse> {
+  return apiRequest<ReferralSaasSupportCaseListResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/support-cases`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+        status: status?.trim() || undefined,
+        limit,
+      },
+    },
+  );
+}
+
+export function createReferralSaasAccountSupportCase({
+  accountRef,
+  accountScope,
+  category,
+  priority,
+  title,
+  summary,
+  sourceSurface,
+  evidenceLinks = [],
+  reasonCode,
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasSupportCaseCreateRequest): Promise<ReferralSaasSupportCaseCreateResponse> {
+  return apiRequest<ReferralSaasSupportCaseCreateResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/support-cases`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        category: category.trim(),
+        priority: priority.trim(),
+        title: title.trim(),
+        summary: summary.trim(),
+        sourceSurface: sourceSurface?.trim() || undefined,
+        evidenceLinks: evidenceLinks.map((link) => ({
+          evidenceType: link.evidenceType.trim(),
+          evidenceRef: link.evidenceRef.trim(),
+          safeStatus: link.safeStatus?.trim() || undefined,
+          warningCode: link.warningCode?.trim() || undefined,
+          missingEvidenceCode: link.missingEvidenceCode?.trim() || undefined,
+          redactions: link.redactions || [],
+        })),
+        reasonCode: reasonCode?.trim() || "CUSTOMER_SUPPORT_CASE_CREATED",
+        correlationId: correlationId.trim(),
+        idempotencyKey: idempotencyKey.trim(),
       },
     },
   );
