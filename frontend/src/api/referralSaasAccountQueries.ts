@@ -8,6 +8,7 @@ import {
   getReferralSaasAccountMembershipPosture,
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccounts,
+  listReferralSaasOperatorSupportQueue,
   resolveReferralSaasAccount,
 } from "./endpoints/referralSaasAccounts";
 import type { CampaignReadinessOperation } from "./endpoints/adminCampaignReadiness";
@@ -87,6 +88,51 @@ export function useReferralSaasAccountRegistry(limit = 50, refreshKey = 0) {
   return useQuery({
     queryKey: queryKeys.referralSaasAccountRegistry(limit, refreshKey),
     queryFn: () => listReferralSaasAccounts(limit),
+  });
+}
+
+export function useReferralSaasOperatorSupportQueue(
+  filters: {
+    status?: string;
+    priority?: string;
+    category?: string;
+    accountRef?: string;
+    sourceSurface?: string;
+    assigneeRef?: string;
+    limit?: number;
+  },
+  refreshKey = 0,
+) {
+  const status = filters.status?.trim() || "";
+  const priority = filters.priority?.trim() || "";
+  const category = filters.category?.trim() || "";
+  const accountRef = filters.accountRef?.trim() || "";
+  const sourceSurface = filters.sourceSurface?.trim() || "";
+  const assigneeRef = filters.assigneeRef?.trim() || "";
+  const limit = filters.limit || 50;
+
+  return useQuery({
+    queryKey: queryKeys.referralSaasOperatorSupportQueue(
+      status,
+      priority,
+      category,
+      accountRef,
+      sourceSurface,
+      assigneeRef,
+      limit,
+      refreshKey,
+    ),
+    queryFn: () =>
+      listReferralSaasOperatorSupportQueue({
+        status,
+        priority,
+        category,
+        accountRef,
+        sourceSurface,
+        assigneeRef,
+        limit,
+      }),
+    retry: false,
   });
 }
 

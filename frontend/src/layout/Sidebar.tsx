@@ -33,7 +33,7 @@ const referralSaasSections = [
       { to: "/admin/referral-saas/campaigns", label: "Campaigns", icon: Target, sub: "Scoped" },
       { to: "/admin/referral-saas/link-codes", label: "Links & Codes", icon: Link2, sub: "Scoped" },
       { to: "/admin/referral-saas/reports", label: "Reports", icon: ChartNoAxesColumn, sub: "Scoped" },
-      { to: "/admin/referral-saas/support", label: "Support", icon: ShieldCheck, sub: "Scoped" },
+      { to: "/admin/referral-saas/support", label: "Support", icon: ShieldCheck, sub: "Queue" },
     ],
   },
   {
@@ -87,7 +87,7 @@ const platformSections = [
       { to: "/admin/referral-saas/account-maintenance", label: "Referral SaaS Maintenance", icon: ShieldCheck, sub: "Maintain" },
       { to: "/admin/referral-saas/campaigns", label: "Referral SaaS Campaigns", icon: Target, sub: "Ready" },
       { to: "/admin/referral-saas/link-codes", label: "Referral SaaS Links", icon: Link2, sub: "Codes" },
-      { to: "/admin/referral-saas/support", label: "Referral SaaS Support", icon: ShieldCheck, sub: "Hub" },
+      { to: "/admin/referral-saas/support", label: "Referral SaaS Support", icon: ShieldCheck, sub: "Queue" },
       { to: "/admin/referral-saas/operator-links", label: "Referral SaaS Inspect", icon: ShieldCheck, sub: "Ops" },
       { to: "/admin/referral-saas/attribution-trace", label: "Referral SaaS Trace", icon: Split, sub: "Trace" },
       { to: "/admin/referral-saas/progress-status", label: "Referral SaaS Status", icon: ListChecks, sub: "Status" },

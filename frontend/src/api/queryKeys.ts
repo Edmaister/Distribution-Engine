@@ -49,6 +49,28 @@ export const queryKeys = {
     ] as const,
   referralSaasAccountRegistry: (limit: number, refreshKey = 0) =>
     ["referral-saas", "account-registry", limit, refreshKey] as const,
+  referralSaasOperatorSupportQueue: (
+    status: string,
+    priority: string,
+    category: string,
+    accountRef: string,
+    sourceSurface: string,
+    assigneeRef: string,
+    limit: number,
+    refreshKey = 0,
+  ) =>
+    [
+      "referral-saas",
+      "operator-support-queue",
+      status,
+      priority,
+      category,
+      accountRef,
+      sourceSurface,
+      assigneeRef,
+      limit,
+      refreshKey,
+    ] as const,
   referralSaasAccountResolver: (
     refType: string,
     externalRef: string,

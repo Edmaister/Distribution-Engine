@@ -1730,6 +1730,24 @@ greenfield referral construction.
   repair/replay/retry, provider, invite, credential, auth, export, campaign
   activation, billing, money, DLaaS, or source-fork side effects. Queue UI
   remains a separate task.
+- TASK-326: `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/api/queryKeys.ts`;
+  `frontend/src/api/referralSaasAccountQueries.ts`;
+  `frontend/src/layout/Sidebar.tsx`;
+  `frontend/src/pages/admin/ReferralSaasSupportHubPage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasSupportHubPage.test.tsx`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_SUPPORT_QUEUE_CONTRACT.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the live
+  read-only operator aggregate Support queue UI over the TASK-325 API.
+  Operators can triage cross-customer support cases with KPIs, bounded filters,
+  safe case rows, selected-customer Support routing, diagnostic shortcuts, and
+  no assignment, repair/replay/retry, provider, invite, credential, auth,
+  export, campaign activation, billing, money, DLaaS, or source-fork side
+  effects.
 
 ## Explicit Deferrals
 
