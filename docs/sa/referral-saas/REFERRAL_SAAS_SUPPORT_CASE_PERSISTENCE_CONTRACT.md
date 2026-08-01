@@ -150,7 +150,7 @@ The next implementation tasks should prefer selected-customer routes:
 | `/v1/referral-saas/accounts/{account_ref}/support-cases` | `GET` | List support cases for the selected customer. |
 | `/v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}` | `GET` | Read one support case and its safe evidence links. |
 | `/v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}/notes` | `POST` | Add a safe operator note. |
-| `/v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}/status-changes` | `POST` | Move a case through the bounded status lifecycle. |
+| `/v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}/status` | `POST` | Move a case through the bounded status lifecycle. |
 
 Future operator-only aggregate routes may exist, but customer-scoped product
 work should start from selected-customer account routes.
@@ -243,8 +243,12 @@ Future implementation tasks must prove:
 
 TASK-297 implemented the schema/repository/API foundation for selected-customer
 support-case create/list/read with idempotency, audit, and redaction tests.
+TASK-321 added the selected-customer Support UI for listing and creating cases
+against the current customer. TASK-322 adds the notes/status backend
+foundation through selected-customer account routes with idempotency, audit,
+and redaction tests.
 
-The next support task should add the selected-customer Support UI for listing
-and creating cases against the current customer. Notes, status-change UI,
-repair/replay guardrails, and customer-facing support views should remain
-separate tasks unless the UI task stays small enough to review safely.
+The next support task should wire notes/status changes into the Support UI.
+Repair/replay guardrails, aggregate operator queues, and customer-facing support
+views should remain separate tasks unless the UI task stays small enough to
+review safely.

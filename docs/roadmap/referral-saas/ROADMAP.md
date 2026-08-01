@@ -1658,6 +1658,27 @@ greenfield referral construction.
   calls, webhook dispatch, invite/message delivery, auth, campaign activation,
   exports, billing, money, DLaaS, and source-fork side effects out of scope.
 
+- TASK-322:
+  `dp/migrations/089_referral_saas_support_case_lifecycle.sql`;
+  `services/referral_saas_support_case_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `test/test_referral_saas_support_case_lifecycle_migration.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_SUPPORT_CASE_PERSISTENCE_CONTRACT.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  selected-customer support-case lifecycle backend foundation. Operators can
+  add safe notes and move cases through bounded statuses through audited,
+  idempotent account-scoped API commands while preserving no repair/replay/retry,
+  referral/campaign/progress/attribution/report/export mutation, invite,
+  credential, auth, billing, money, DLaaS, or source-fork side effects. Support
+  notes/status UI, aggregate support queues, repair guardrails, export files,
+  and non-local proof repetition remain separate tasks.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:

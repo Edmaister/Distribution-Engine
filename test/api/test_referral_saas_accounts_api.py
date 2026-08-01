@@ -5483,3 +5483,172 @@ async def test_referral_saas_account_admin_can_read_customer_scoped_support_case
     assert body["supportCase"]["caseRef"] == "case-1"
     assert body["no_product_state_mutation_confirmed"] is True
     assert read_calls == [{"account_id": "acct-1", "case_ref": "case-1"}]
+
+
+async def test_referral_saas_account_admin_can_add_customer_scoped_support_case_note(
+    monkeypatch,
+):
+    note_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    class FakeSupportCaseNoteResult:
+        def to_safe_dict(self):
+            return {
+                "commandStatus": "SUPPORT_CASE_NOTE_RECORDED",
+                "supportCase": {
+                    "caseRef": "case-1",
+                    "accountRef": "acct-1",
+                    "status": "OPEN",
+                    "notes": [{"noteRef": "note-1", "noteText": "Called customer."}],
+                    "statusEvents": [],
+                    "redactions": ["internal_tenant_identifier"],
+                },
+                "note": {
+                    "noteRef": "note-1",
+                    "caseRef": "case-1",
+                    "noteType": "OPERATOR_NOTE",
+                    "noteText": "Called customer.",
+                },
+                "idempotency": {"status": "RECORDED"},
+                "audit": {"accountAuditEventId": "audit-1"},
+                "guardrails": ["NO_REPAIR_REPLAY_RETRY"],
+                "redactions": ["internal_tenant_identifier"],
+            }
+
+    async def fake_add_referral_saas_support_case_note(**kwargs):
+        note_calls.append(kwargs)
+        return FakeSupportCaseNoteResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "add_referral_saas_support_case_note",
+        fake_add_referral_saas_support_case_note,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/support-cases/case-1/notes",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "support",
+                },
+                "noteType": "OPERATOR_NOTE",
+                "noteText": "Called customer.",
+                "idempotencyKey": "support-case-note-1",
+                "correlationId": "corr-note-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "accepted"
+    assert body["supportCaseLifecycle"]["commandStatus"] == "SUPPORT_CASE_NOTE_RECORDED"
+    assert body["supportCaseLifecycle"]["note"]["noteRef"] == "note-1"
+    assert body["no_repair_replay_retry_confirmed"] is True
+    assert body["no_billing_or_money_movement_confirmed"] is True
+    assert note_calls
+    assert note_calls[0]["account_id"] == "acct-1"
+    assert note_calls[0]["tenant_code"] == "FNB"
+    assert note_calls[0]["case_ref"] == "case-1"
+    assert note_calls[0]["note_type"] == "OPERATOR_NOTE"
+    assert note_calls[0]["note_text"] == "Called customer."
+    assert note_calls[0]["idempotency_key_hash"]
+    assert note_calls[0]["request_payload_hash"]
+    assert note_calls[0]["correlation_id"] == "corr-note-1"
+
+
+async def test_referral_saas_account_admin_can_change_customer_scoped_support_case_status(
+    monkeypatch,
+):
+    status_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    class FakeSupportCaseStatusResult:
+        def to_safe_dict(self):
+            return {
+                "commandStatus": "SUPPORT_CASE_STATUS_RECORDED",
+                "supportCase": {
+                    "caseRef": "case-1",
+                    "accountRef": "acct-1",
+                    "status": "INVESTIGATING",
+                    "notes": [],
+                    "statusEvents": [
+                        {
+                            "statusEventRef": "status-event-1",
+                            "fromStatus": "OPEN",
+                            "toStatus": "INVESTIGATING",
+                        }
+                    ],
+                    "redactions": ["internal_tenant_identifier"],
+                },
+                "statusEvent": {
+                    "statusEventRef": "status-event-1",
+                    "caseRef": "case-1",
+                    "fromStatus": "OPEN",
+                    "toStatus": "INVESTIGATING",
+                    "transitionReason": "Operator picked up the case.",
+                },
+                "idempotency": {"status": "RECORDED"},
+                "audit": {"accountAuditEventId": "audit-1"},
+                "guardrails": ["NO_REPAIR_REPLAY_RETRY"],
+                "redactions": ["internal_tenant_identifier"],
+            }
+
+    async def fake_change_referral_saas_support_case_status(**kwargs):
+        status_calls.append(kwargs)
+        return FakeSupportCaseStatusResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "change_referral_saas_support_case_status",
+        fake_change_referral_saas_support_case_status,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/support-cases/case-1/status",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "support",
+                },
+                "status": "INVESTIGATING",
+                "transitionReason": "Operator picked up the case.",
+                "idempotencyKey": "support-case-status-1",
+                "correlationId": "corr-status-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "accepted"
+    assert body["supportCaseLifecycle"]["commandStatus"] == "SUPPORT_CASE_STATUS_RECORDED"
+    assert body["supportCaseLifecycle"]["statusEvent"]["toStatus"] == "INVESTIGATING"
+    assert body["no_repair_replay_retry_confirmed"] is True
+    assert body["no_billing_or_money_movement_confirmed"] is True
+    assert status_calls
+    assert status_calls[0]["account_id"] == "acct-1"
+    assert status_calls[0]["tenant_code"] == "FNB"
+    assert status_calls[0]["case_ref"] == "case-1"
+    assert status_calls[0]["to_status"] == "INVESTIGATING"
+    assert status_calls[0]["transition_reason"] == "Operator picked up the case."
+    assert status_calls[0]["idempotency_key_hash"]
+    assert status_calls[0]["request_payload_hash"]
+    assert status_calls[0]["correlation_id"] == "corr-status-1"
