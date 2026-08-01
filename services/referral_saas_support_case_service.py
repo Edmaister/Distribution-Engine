@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 import json
 from typing import Any
 
@@ -107,6 +108,13 @@ FORBIDDEN_METADATA_KEYS = {
     "stackTrace",
 }
 MAX_CASE_LIST_LIMIT = 100
+SUPPORT_CASE_QUEUE_GUARDRAILS = [
+    *SUPPORT_CASE_GUARDRAILS,
+    "OPERATOR_AGGREGATE_SUPPORT_QUEUE",
+    "READ_ONLY_QUEUE",
+    "CUSTOMER_SAFE_QUEUE_ITEMS",
+    "NO_ASSIGNMENT_FROM_QUEUE",
+]
 
 
 class ReferralSaasSupportCaseCommandError(Exception):
@@ -307,6 +315,66 @@ class ReferralSaasSupportCaseStatusResult:
         }
 
 
+@dataclass(frozen=True)
+class ReferralSaasSupportQueueItem:
+    case_ref: str
+    account_ref: str
+    customer_label: str
+    external_tenant_ref: str | None
+    organisation_ref: str | None
+    category: str
+    priority: str
+    status: str
+    title: str
+    source_surface: str | None
+    assignee_ref: str | None
+    created_at: str | None
+    updated_at: str | None
+    evidence_link_count: int
+    note_count: int
+    latest_activity: str
+    redactions: list[str]
+    next_action: str
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "caseRef": self.case_ref,
+            "accountRef": self.account_ref,
+            "customerLabel": self.customer_label,
+            "externalTenantRef": self.external_tenant_ref,
+            "organisationRef": self.organisation_ref,
+            "category": self.category,
+            "priority": self.priority,
+            "status": self.status,
+            "title": self.title,
+            "sourceSurface": self.source_surface,
+            "assigneeRef": self.assignee_ref,
+            "createdAt": self.created_at,
+            "updatedAt": self.updated_at,
+            "evidenceLinkCount": self.evidence_link_count,
+            "noteCount": self.note_count,
+            "latestActivity": self.latest_activity,
+            "redactions": self.redactions,
+            "nextAction": self.next_action,
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasSupportQueueResult:
+    support_cases: list[ReferralSaasSupportQueueItem]
+    filters: dict[str, Any]
+    next_cursor: str | None
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "supportCases": [case.to_safe_dict() for case in self.support_cases],
+            "filters": self.filters,
+            "nextCursor": self.next_cursor,
+            "guardrails": SUPPORT_CASE_QUEUE_GUARDRAILS,
+            "redactions": SUPPORT_CASE_REDACTIONS,
+        }
+
+
 def _jsonb(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
@@ -333,6 +401,28 @@ def _normalise_choice(value: Any, allowed: frozenset[str], field_name: str) -> s
             f"{field_name} must be one of: {', '.join(sorted(allowed))}."
         )
     return safe_value
+
+
+def _normalise_optional_choice(
+    value: Any, allowed: frozenset[str], field_name: str
+) -> str | None:
+    if value is None or _clean_text(value) == "":
+        return None
+    return _normalise_choice(value, allowed, field_name)
+
+
+def _normalise_optional_datetime(value: Any, field_name: str) -> datetime | None:
+    safe_value = _optional_text(value)
+    if not safe_value:
+        return None
+    if len(safe_value) > 64:
+        raise SupportCaseValidationError(f"{field_name} must be a valid date-time.")
+    try:
+        return datetime.fromisoformat(safe_value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise SupportCaseValidationError(
+            f"{field_name} must be a valid ISO date-time."
+        ) from exc
 
 
 def _require_bounded_text(
@@ -439,6 +529,43 @@ def _support_case_from_row(
         notes=notes or [],
         status_events=status_events or [],
         redactions=_safe_json_list(row.get("redactions")),
+    )
+
+
+def _support_queue_item_from_row(row: Any) -> ReferralSaasSupportQueueItem:
+    latest_status = _optional_text(row.get("latest_status"))
+    latest_note_type = _optional_text(row.get("latest_note_type"))
+    latest_activity = (
+        f"Status changed to {latest_status}"
+        if latest_status
+        else f"Latest note: {latest_note_type}"
+        if latest_note_type
+        else "Case updated"
+    )
+    return ReferralSaasSupportQueueItem(
+        case_ref=str(row["support_case_id"]),
+        account_ref=str(row["account_id"]),
+        customer_label=str(row.get("customer_label") or row["account_id"]),
+        external_tenant_ref=_optional_text(row.get("external_tenant_ref")),
+        organisation_ref=_optional_text(row.get("organisation_ref")),
+        category=str(row["category"]),
+        priority=str(row["priority"]),
+        status=str(row["status"]),
+        title=str(row["title"]),
+        source_surface=_optional_text(row.get("source_surface")),
+        assignee_ref=_optional_text(row.get("assignee_ref")),
+        created_at=_as_iso(row.get("created_at")),
+        updated_at=_as_iso(row.get("updated_at")),
+        evidence_link_count=int(row.get("evidence_link_count") or 0),
+        note_count=int(row.get("note_count") or 0),
+        latest_activity=latest_activity,
+        redactions=sorted(
+            {
+                *_safe_json_list(row.get("redactions")),
+                *SUPPORT_CASE_REDACTIONS,
+            }
+        ),
+        next_action="Open customer support case",
     )
 
 
@@ -775,6 +902,208 @@ async def list_referral_saas_support_cases(
             safe_limit,
         )
     return [_support_case_from_row(row) for row in rows]
+
+
+async def list_referral_saas_operator_support_queue(
+    *,
+    status_filter: str | None = None,
+    priority: str | None = None,
+    category: str | None = None,
+    account_ref: str | None = None,
+    source_surface: str | None = None,
+    assignee_ref: str | None = None,
+    created_from: str | None = None,
+    created_to: str | None = None,
+    updated_from: str | None = None,
+    updated_to: str | None = None,
+    limit: int = 50,
+    cursor: str | None = None,
+) -> ReferralSaasSupportQueueResult:
+    safe_status = _normalise_optional_choice(
+        status_filter, SUPPORT_CASE_STATUSES, "status"
+    )
+    safe_priority = _normalise_optional_choice(
+        priority, SUPPORT_CASE_PRIORITIES, "priority"
+    )
+    safe_category = _normalise_optional_choice(
+        category, SUPPORT_CASE_CATEGORIES, "category"
+    )
+    safe_source_surface = _optional_text(source_surface)
+    if safe_source_surface and safe_source_surface not in SAFE_SOURCE_SURFACES:
+        raise SupportCaseValidationError(
+            f"sourceSurface must be one of: {', '.join(sorted(SAFE_SOURCE_SURFACES))}."
+        )
+    safe_account_ref = (
+        _require_bounded_text(account_ref, "account_ref", min_length=1, max_length=80)
+        if _optional_text(account_ref)
+        else None
+    )
+    safe_assignee_ref = (
+        _require_bounded_text(
+            assignee_ref, "assignee_ref", min_length=1, max_length=160
+        )
+        if _optional_text(assignee_ref)
+        else None
+    )
+    safe_created_from = _normalise_optional_datetime(created_from, "created_from")
+    safe_created_to = _normalise_optional_datetime(created_to, "created_to")
+    safe_updated_from = _normalise_optional_datetime(updated_from, "updated_from")
+    safe_updated_to = _normalise_optional_datetime(updated_to, "updated_to")
+    safe_limit = max(1, min(int(limit or 50), MAX_CASE_LIST_LIMIT))
+    safe_offset = 0
+    safe_cursor = _optional_text(cursor)
+    if safe_cursor:
+        if not safe_cursor.isdigit():
+            raise SupportCaseValidationError("cursor is not valid for this queue.")
+        safe_offset = int(safe_cursor)
+
+    async with db_connection() as conn:
+        rows = await conn.fetch(
+            """
+            WITH evidence_counts AS (
+                SELECT support_case_id, COUNT(*)::int AS evidence_link_count
+                FROM referral_saas_support_case_evidence_links
+                GROUP BY support_case_id
+            ),
+            note_counts AS (
+                SELECT
+                    support_case_id,
+                    COUNT(*)::int AS note_count,
+                    MAX(created_at) AS latest_note_at
+                FROM referral_saas_support_case_notes
+                WHERE archived_at IS NULL
+                GROUP BY support_case_id
+            ),
+            latest_notes AS (
+                SELECT DISTINCT ON (support_case_id)
+                    support_case_id,
+                    note_type AS latest_note_type
+                FROM referral_saas_support_case_notes
+                WHERE archived_at IS NULL
+                ORDER BY support_case_id, created_at DESC, support_case_note_id DESC
+            ),
+            latest_status_events AS (
+                SELECT DISTINCT ON (support_case_id)
+                    support_case_id,
+                    to_status AS latest_status,
+                    created_at AS latest_status_at
+                FROM referral_saas_support_case_status_events
+                WHERE archived_at IS NULL
+                ORDER BY support_case_id, created_at DESC, support_case_status_event_id DESC
+            )
+            SELECT
+                support_case.*,
+                COALESCE(account.account_name, account.account_code, support_case.account_id::text)
+                    AS customer_label,
+                account.account_code,
+                (
+                    SELECT external_ref.external_ref
+                    FROM platform_external_tenant_refs external_ref
+                    WHERE external_ref.account_id = support_case.account_id
+                      AND external_ref.ref_type = 'external_tenant_ref'
+                      AND external_ref.archived_at IS NULL
+                    ORDER BY
+                        CASE external_ref.status WHEN 'ACTIVE' THEN 0 ELSE 1 END,
+                        external_ref.updated_at DESC,
+                        external_ref.external_ref_id DESC
+                    LIMIT 1
+                ) AS external_tenant_ref,
+                (
+                    SELECT organisation.organisation_ref
+                    FROM platform_organisations organisation
+                    WHERE organisation.account_id = support_case.account_id
+                      AND organisation.archived_at IS NULL
+                    ORDER BY
+                        CASE organisation.status WHEN 'ACTIVE' THEN 0 ELSE 1 END,
+                        organisation.updated_at DESC,
+                        organisation.organisation_id DESC
+                    LIMIT 1
+                ) AS organisation_ref,
+                COALESCE(evidence_counts.evidence_link_count, 0) AS evidence_link_count,
+                COALESCE(note_counts.note_count, 0) AS note_count,
+                latest_notes.latest_note_type,
+                latest_status_events.latest_status,
+                GREATEST(
+                    support_case.updated_at,
+                    COALESCE(note_counts.latest_note_at, support_case.updated_at),
+                    COALESCE(latest_status_events.latest_status_at, support_case.updated_at)
+                ) AS latest_activity_at
+            FROM referral_saas_support_cases support_case
+            LEFT JOIN platform_accounts account
+                ON account.account_id = support_case.account_id
+            LEFT JOIN evidence_counts
+                ON evidence_counts.support_case_id = support_case.support_case_id
+            LEFT JOIN note_counts
+                ON note_counts.support_case_id = support_case.support_case_id
+            LEFT JOIN latest_notes
+                ON latest_notes.support_case_id = support_case.support_case_id
+            LEFT JOIN latest_status_events
+                ON latest_status_events.support_case_id = support_case.support_case_id
+            WHERE support_case.archived_at IS NULL
+              AND ($1::text IS NULL OR support_case.status = $1)
+              AND ($2::text IS NULL OR support_case.priority = $2)
+              AND ($3::text IS NULL OR support_case.category = $3)
+              AND (
+                    $4::text IS NULL
+                    OR support_case.account_id::text = $4
+                    OR account.account_code = $4
+                  )
+              AND ($5::text IS NULL OR support_case.source_surface = $5)
+              AND ($6::text IS NULL OR support_case.assignee_ref = $6)
+              AND ($7::timestamptz IS NULL OR support_case.created_at >= $7)
+              AND ($8::timestamptz IS NULL OR support_case.created_at <= $8)
+              AND ($9::timestamptz IS NULL OR support_case.updated_at >= $9)
+              AND ($10::timestamptz IS NULL OR support_case.updated_at <= $10)
+            ORDER BY
+                CASE support_case.status
+                    WHEN 'OPEN' THEN 0
+                    WHEN 'INVESTIGATING' THEN 1
+                    WHEN 'WAITING' THEN 2
+                    ELSE 3
+                END,
+                CASE support_case.priority
+                    WHEN 'CRITICAL' THEN 0
+                    WHEN 'HIGH' THEN 1
+                    WHEN 'MEDIUM' THEN 2
+                    ELSE 3
+                END,
+                latest_activity_at DESC,
+                support_case.support_case_id DESC
+            LIMIT $11
+            OFFSET $12
+            """,
+            safe_status,
+            safe_priority,
+            safe_category,
+            safe_account_ref,
+            safe_source_surface,
+            safe_assignee_ref,
+            safe_created_from,
+            safe_created_to,
+            safe_updated_from,
+            safe_updated_to,
+            safe_limit + 1,
+            safe_offset,
+        )
+
+    visible_rows = rows[:safe_limit]
+    return ReferralSaasSupportQueueResult(
+        support_cases=[_support_queue_item_from_row(row) for row in visible_rows],
+        filters={
+            "status": safe_status,
+            "priority": safe_priority,
+            "category": safe_category,
+            "accountRef": safe_account_ref,
+            "sourceSurface": safe_source_surface,
+            "assigneeRef": safe_assignee_ref,
+            "createdFrom": _as_iso(safe_created_from),
+            "createdTo": _as_iso(safe_created_to),
+            "updatedFrom": _as_iso(safe_updated_from),
+            "updatedTo": _as_iso(safe_updated_to),
+            "limit": safe_limit,
+        },
+        next_cursor=str(safe_offset + safe_limit) if len(rows) > safe_limit else None,
+    )
 
 
 async def get_referral_saas_support_case(

@@ -5431,6 +5431,91 @@ async def test_referral_saas_account_admin_can_list_customer_scoped_support_case
     ]
 
 
+async def test_referral_saas_account_admin_can_list_operator_support_queue(
+    monkeypatch,
+):
+    queue_calls: list[dict] = []
+
+    class FakeQueue:
+        def to_safe_dict(self):
+            return {
+                "supportCases": [
+                    {
+                        "caseRef": "case-1",
+                        "accountRef": "acct-1",
+                        "customerLabel": "FNB Referral SaaS",
+                        "externalTenantRef": "fnb-referrals",
+                        "organisationRef": "fnb-org",
+                        "category": "ACCESS_SCOPE",
+                        "priority": "HIGH",
+                        "status": "OPEN",
+                        "title": "People access check",
+                        "sourceSurface": "people_access",
+                        "evidenceLinkCount": 1,
+                        "noteCount": 0,
+                        "latestActivity": "Case updated",
+                        "redactions": ["internal_tenant_identifier"],
+                        "nextAction": "Open customer support case",
+                    }
+                ],
+                "filters": {"status": "OPEN", "limit": 25},
+                "nextCursor": None,
+                "guardrails": ["READ_ONLY_QUEUE"],
+                "redactions": ["internal_tenant_identifier"],
+            }
+
+    async def fake_list_referral_saas_operator_support_queue(**kwargs):
+        queue_calls.append(kwargs)
+        return FakeQueue()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_operator_support_queue",
+        fake_list_referral_saas_operator_support_queue,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/operator/support-cases",
+            params={
+                "status": "OPEN",
+                "priority": "HIGH",
+                "category": "ACCESS_SCOPE",
+                "account_ref": "ACCT_FNB",
+                "source_surface": "people_access",
+                "assignee_ref": "operator-1",
+                "limit": 25,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["supportQueue"]["supportCases"][0]["caseRef"] == "case-1"
+    assert body["supportQueue"]["supportCases"][0]["nextAction"] == (
+        "Open customer support case"
+    )
+    assert body["operatorScope"]["surface"] == "operator_support_queue"
+    assert body["no_assignment_from_queue_confirmed"] is True
+    assert body["no_case_lifecycle_mutation_confirmed"] is True
+    assert body["no_tenant_code_exposure_confirmed"] is True
+    assert queue_calls == [
+        {
+            "status_filter": "OPEN",
+            "priority": "HIGH",
+            "category": "ACCESS_SCOPE",
+            "account_ref": "ACCT_FNB",
+            "source_surface": "people_access",
+            "assignee_ref": "operator-1",
+            "created_from": None,
+            "created_to": None,
+            "updated_from": None,
+            "updated_to": None,
+            "limit": 25,
+            "cursor": None,
+        }
+    ]
+
+
 async def test_referral_saas_account_admin_can_read_customer_scoped_support_case(
     monkeypatch,
 ):
