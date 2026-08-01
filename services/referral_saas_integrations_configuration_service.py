@@ -47,9 +47,14 @@ MESSAGE_PROVIDER_TEST_RECORDED = "MESSAGE_PROVIDER_TEST_RECORDED"
 MESSAGE_PROVIDER_TEST_REPLAYED = "MESSAGE_PROVIDER_TEST_REPLAYED"
 MESSAGE_PROVIDER_TEST_BLOCKED = "MESSAGE_PROVIDER_TEST_BLOCKED"
 INTEGRATION_CREDENTIAL_REQUEST_EVENT = "INTEGRATION_CREDENTIAL_REQUEST_RECORDED"
+INTEGRATION_CREDENTIAL_REQUEST_REVIEW_EVENT = (
+    "INTEGRATION_CREDENTIAL_REQUEST_REVIEW_DECISION_RECORDED"
+)
 CREDENTIAL_REQUEST_RECORDED = "CREDENTIAL_REQUEST_RECORDED"
 CREDENTIAL_REQUEST_REPLAYED = "CREDENTIAL_REQUEST_REPLAYED"
 CREDENTIAL_REQUEST_READY_FOR_REVIEW = "CREDENTIAL_REQUEST_READY_FOR_REVIEW"
+CREDENTIAL_REQUEST_REVIEW_RECORDED = "CREDENTIAL_REQUEST_REVIEW_RECORDED"
+CREDENTIAL_REQUEST_REVIEW_REPLAYED = "CREDENTIAL_REQUEST_REVIEW_REPLAYED"
 
 INTEGRATION_CONFIGURATION_GUARDRAILS = [
     "CUSTOMER_SCOPED_INTEGRATIONS_CONFIGURATION",
@@ -167,6 +172,9 @@ CREDENTIAL_REQUEST_CAPABILITIES = frozenset(
         "REFERRAL_SAAS_WEBHOOK_SIGNING",
         "REFERRAL_SAAS_PROVIDER_REFERENCE",
     }
+)
+CREDENTIAL_REQUEST_REVIEW_STATUSES = frozenset(
+    {"REVIEW_APPROVED", "REVIEW_REJECTED"}
 )
 FORBIDDEN_CONFIGURATION_KEYS = {
     "tenant_code",
@@ -533,6 +541,45 @@ class ReferralSaasIntegrationCredentialRequestResult:
         return {
             "commandStatus": self.command_status,
             "credentialRequest": self.credential_request.to_safe_dict(),
+            "idempotency": {"status": self.idempotency_status},
+            "audit": {"accountAuditEventId": self.audit_event_id},
+            "plainLanguageSummary": self.plain_language_summary,
+            "guardrails": self.guardrails,
+            "redactions": self.redactions,
+            "noSecretOrCredentialStorageConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noCredentialLifecycleExecutionConfirmed": True,
+            "noCredentialRevealOrDownloadConfirmed": True,
+            "noVaultWriteConfirmed": True,
+            "noProviderCallConfirmed": True,
+            "noWebhookDispatchConfirmed": True,
+            "noInviteDeliveryConfirmed": True,
+            "noMessageProviderDeliveryConfirmed": True,
+            "noMembershipActivationConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveActionConfirmed": True,
+            "noBillingOrMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasIntegrationCredentialReviewDecisionResult:
+    command_status: str
+    credential_request: ReferralSaasIntegrationCredentialRequest
+    review_status: str
+    idempotency_status: str
+    audit_event_id: str | None
+    plain_language_summary: str
+    guardrails: list[str]
+    redactions: list[str]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "credentialRequest": self.credential_request.to_safe_dict(),
+            "reviewStatus": self.review_status,
             "idempotency": {"status": self.idempotency_status},
             "audit": {"accountAuditEventId": self.audit_event_id},
             "plainLanguageSummary": self.plain_language_summary,
@@ -2146,3 +2193,253 @@ async def get_referral_saas_integration_credential_request(
             "Credential request was not found for the selected customer."
         )
     return _credential_request_from_row(row)
+
+
+async def record_referral_saas_integration_credential_review_decision(
+    *,
+    account_id: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    tenant_code: str,
+    credential_request_ref: str,
+    review_status: str | None,
+    review_reason: str | None,
+    reason_code: str | None,
+    correlation_id: str | None,
+    idempotency_key_hash: str,
+    command_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None,
+) -> ReferralSaasIntegrationCredentialReviewDecisionResult:
+    safe_account_id = _require_bounded_text(
+        account_id, "account_id", min_length=1, max_length=80
+    )
+    safe_tenant_code = _require_bounded_text(
+        tenant_code, "tenant_code", min_length=1, max_length=120
+    )
+    safe_credential_request_ref = _require_bounded_text(
+        credential_request_ref,
+        "credential_request_ref",
+        min_length=1,
+        max_length=80,
+    )
+    safe_review_status = _normalise_choice(
+        review_status,
+        CREDENTIAL_REQUEST_REVIEW_STATUSES,
+        "reviewDecision.reviewStatus",
+    )
+    safe_review_reason = _require_bounded_text(
+        review_reason,
+        "reviewDecision.reason",
+        min_length=3,
+        max_length=1000,
+    )
+    safe_reason_code = (
+        _optional_text(reason_code) or "CUSTOMER_CREDENTIAL_REVIEW_DECISION"
+    )
+    safe_correlation_id = _require_bounded_text(
+        correlation_id, "correlation_id", min_length=1, max_length=160
+    )
+    safe_idempotency_hash = _require_bounded_text(
+        idempotency_key_hash, "idempotency_key_hash", min_length=1, max_length=256
+    )
+    safe_payload_hash = _require_bounded_text(
+        command_payload_hash, "command_payload_hash", min_length=1, max_length=256
+    )
+    safe_actor_ref = _require_bounded_text(
+        actor_ref, "actor_ref", min_length=1, max_length=160
+    )
+    safe_actor_role = _optional_text(actor_role)
+
+    async with db_connection() as conn:
+        existing_audit = await conn.fetchrow(
+            """
+            SELECT account_audit_event_id, evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            INTEGRATION_CREDENTIAL_REQUEST_REVIEW_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_audit:
+            evidence = existing_audit.get("evidence_summary") or {}
+            if isinstance(evidence, str):
+                evidence = json.loads(evidence)
+            if _optional_text(evidence.get("command_payload_hash")) != safe_payload_hash:
+                raise IntegrationConfigurationIdempotencyConflict(
+                    "Idempotency key was reused with different credential review content."
+                )
+            replayed_request = await conn.fetchrow(
+                """
+                SELECT *
+                FROM referral_saas_integration_credential_requests
+                WHERE account_id = $1
+                  AND integration_credential_request_id = $2
+                  AND archived_at IS NULL
+                LIMIT 1
+                """,
+                safe_account_id,
+                _optional_text(evidence.get("credential_request_ref"))
+                or safe_credential_request_ref,
+            )
+            if not replayed_request:
+                raise IntegrationCredentialRequestNotFound(
+                    "Credential request was not found for the selected customer."
+                )
+            return ReferralSaasIntegrationCredentialReviewDecisionResult(
+                command_status=CREDENTIAL_REQUEST_REVIEW_REPLAYED,
+                credential_request=_credential_request_from_row(replayed_request),
+                review_status=_optional_text(evidence.get("review_status"))
+                or safe_review_status,
+                idempotency_status=CREDENTIAL_REQUEST_REVIEW_REPLAYED,
+                audit_event_id=str(existing_audit["account_audit_event_id"]),
+                plain_language_summary=(
+                    "Credential request review decision was replayed from the "
+                    "same idempotency key and payload. No credential was created, "
+                    "revealed, stored, downloaded, rotated, revoked, or sent."
+                ),
+                guardrails=CREDENTIAL_REQUEST_GUARDRAILS,
+                redactions=CREDENTIAL_REQUEST_REDACTIONS,
+            )
+
+        current = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_integration_credential_requests
+            WHERE account_id = $1
+              AND integration_credential_request_id = $2
+              AND archived_at IS NULL
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_credential_request_ref,
+        )
+        if not current:
+            raise IntegrationCredentialRequestNotFound(
+                "Credential request was not found for the selected customer."
+            )
+
+        previous_review_status = str(current["review_status"])
+        if previous_review_status != "READY_FOR_REVIEW":
+            raise IntegrationConfigurationValidationError(
+                "Credential request review decisions can only be recorded while the request is READY_FOR_REVIEW."
+            )
+
+        posture = _safe_json_dict(current.get("safe_request_posture"))
+        posture.update(
+            {
+                "reviewStatus": safe_review_status,
+                "reviewReasonHash": safe_payload_hash,
+                "reviewedByRef": safe_actor_ref,
+                "reviewedByRole": safe_actor_role,
+                "no_secret_or_credential_storage_confirmed": True,
+                "no_credential_creation_confirmed": True,
+                "no_credential_lifecycle_execution_confirmed": True,
+                "no_credential_reveal_or_download_confirmed": True,
+                "no_vault_write_confirmed": True,
+                "no_provider_call_confirmed": True,
+                "no_webhook_dispatch_confirmed": True,
+                "no_invite_delivery_confirmed": True,
+                "no_message_provider_delivery_confirmed": True,
+                "no_auth_claim_change_confirmed": True,
+                "no_campaign_activation_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            }
+        )
+
+        async with conn.transaction():
+            updated = await conn.fetchrow(
+                """
+                UPDATE referral_saas_integration_credential_requests
+                SET review_status = $3,
+                    safe_request_posture = $4::jsonb,
+                    updated_by_ref = $5,
+                    updated_at = NOW()
+                WHERE account_id = $1
+                  AND integration_credential_request_id = $2
+                  AND archived_at IS NULL
+                RETURNING *
+                """,
+                safe_account_id,
+                safe_credential_request_ref,
+                safe_review_status,
+                _jsonb(posture),
+                safe_actor_ref,
+            )
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, 'RECORDED', $6, $7,
+                    $8, $9, $10, $11, $12, $13::jsonb, $14::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                _optional_text(account_tenant_id),
+                _optional_text(external_ref_id),
+                safe_tenant_code,
+                INTEGRATION_CREDENTIAL_REQUEST_REVIEW_EVENT,
+                safe_actor_ref,
+                safe_actor_role,
+                previous_review_status,
+                safe_review_status,
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(
+                    {
+                        "credential_request_ref": safe_credential_request_ref,
+                        "review_status": safe_review_status,
+                        "review_reason_hash": safe_payload_hash,
+                        "command_payload_hash": safe_payload_hash,
+                        "reason_present": bool(safe_review_reason),
+                        "no_secret_or_credential_storage_confirmed": True,
+                        "no_credential_creation_confirmed": True,
+                        "no_credential_lifecycle_execution_confirmed": True,
+                        "no_credential_reveal_or_download_confirmed": True,
+                        "no_vault_write_confirmed": True,
+                        "no_provider_call_confirmed": True,
+                        "no_webhook_dispatch_confirmed": True,
+                        "no_billing_or_money_movement_confirmed": True,
+                    }
+                ),
+                _jsonb(CREDENTIAL_REQUEST_REDACTIONS),
+            )
+
+    review_word = "approved" if safe_review_status == "REVIEW_APPROVED" else "blocked"
+    return ReferralSaasIntegrationCredentialReviewDecisionResult(
+        command_status=CREDENTIAL_REQUEST_REVIEW_RECORDED,
+        credential_request=_credential_request_from_row(updated),
+        review_status=safe_review_status,
+        idempotency_status=CREDENTIAL_REQUEST_REVIEW_RECORDED,
+        audit_event_id=str(audit_event["account_audit_event_id"]) if audit_event else None,
+        plain_language_summary=(
+            f"Credential request was {review_word} for later governed execution. "
+            "No secret was created, revealed, stored, downloaded, rotated, "
+            "revoked, written to a vault, or sent to a provider."
+        ),
+        guardrails=CREDENTIAL_REQUEST_GUARDRAILS,
+        redactions=CREDENTIAL_REQUEST_REDACTIONS,
+    )
