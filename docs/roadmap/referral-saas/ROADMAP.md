@@ -485,6 +485,16 @@ greenfield referral construction.
   revoke, provider, vault, webhook, invite/message, auth, campaign, billing,
   money, or DLaaS side effects.
 
+- TASK-320:
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  selected-customer Integrations credential execution-check UI over the
+  TASK-319 API. Operators can check approved credential setup requests from the
+  Verify tab, receive plain-language execution-readiness feedback, and refresh
+  credential request/readiness state while preserving no credential creation,
+  storage, reveal, download, rotation, revoke, provider, vault, webhook,
+  invite/message, auth, campaign, billing, money, or DLaaS side effects.
+
 - TASK-149: `test/test_referral_saas_golden_path_contract.py`
 - TASK-150: `test/test_referral_saas_golden_path_contract.py`
 - TASK-151: `test/test_referral_saas_route_smoke_inventory.py`;
@@ -1600,6 +1610,23 @@ greenfield referral construction.
   test-mode posture. This is contract-only; no runtime route, schema,
   credential lifecycle, webhook dispatch, invite delivery, auth/login change,
   campaign activation, billing, money movement, or DLaaS behavior is introduced.
+- TASK-320:
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Wires the
+  selected-customer Integrations UI to the TASK-319 credential execution-check
+  API. Approved credential setup requests now expose a plain-language
+  `Check approved setup` action in the Verify tab, record safe
+  execution-readiness evidence, and refresh credential request/readiness state
+  without creating, storing, revealing, downloading, rotating, revoking, or
+  sending credentials and without provider, vault, webhook, message, auth,
+  campaign, go-live, billing, money, DLaaS, or source-fork side effects.
 
 ## Explicit Deferrals
 

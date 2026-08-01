@@ -49,6 +49,7 @@ import {
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasApiAccessVerification,
   recordReferralSaasIntegrationCredentialRequest,
+  recordReferralSaasIntegrationCredentialExecutionCheck,
   recordReferralSaasIntegrationCredentialReviewDecision,
   recordReferralSaasMessageProviderTest,
   recordReferralSaasWebhookTestDispatch,
@@ -4088,6 +4089,24 @@ function CustomerTechnicalSetupPage({
       await executionReadinessQuery.refetch();
     },
   });
+  const credentialExecutionCheckMutation = useMutation({
+    mutationFn: (credentialRequestRef: string) =>
+      recordReferralSaasIntegrationCredentialExecutionCheck(
+        buildIntegrationCredentialExecutionCheckPayload(
+          accountScope,
+          account?.accountId || "",
+          credentialRequestRef,
+        ),
+      ),
+    onSuccess: async (response) => {
+      const executionResult = response.integrationCredentialExecutionCheckResult;
+      setConfigurationMessage(
+        `${formatDisplay(executionResult.commandStatus)}. ${executionResult.plainLanguageSummary}`,
+      );
+      await credentialRequestsQuery.refetch();
+      await executionReadinessQuery.refetch();
+    },
+  });
   const technicalReadiness = readiness?.technicalSetupReadiness;
   const savedConfiguration = configurationQuery.data?.integrationConfiguration || null;
   const executionReadiness = executionReadinessQuery.data?.integrationExecutionReadiness || null;
@@ -4166,6 +4185,7 @@ function CustomerTechnicalSetupPage({
         {messageProviderTestMutation.error ? <ErrorPanel error={messageProviderTestMutation.error} /> : null}
         {credentialRequestMutation.error ? <ErrorPanel error={credentialRequestMutation.error} /> : null}
         {credentialReviewMutation.error ? <ErrorPanel error={credentialReviewMutation.error} /> : null}
+        {credentialExecutionCheckMutation.error ? <ErrorPanel error={credentialExecutionCheckMutation.error} /> : null}
         {technicalReadiness ? (
           <>
             <div className={`integrations-stage-card ${hasSavedConnectionPlan ? "success" : "warning"}`}>
@@ -4542,6 +4562,24 @@ function CustomerTechnicalSetupPage({
                                 type="button"
                               >
                                 Approve request
+                              </button>
+                            </div>
+                          ) : null}
+                          {credentialRequest.reviewStatus === "REVIEW_APPROVED" ? (
+                            <div className="action-row">
+                              <button
+                                className="button secondary"
+                                disabled={credentialExecutionCheckMutation.isPending}
+                                onClick={() =>
+                                  credentialExecutionCheckMutation.mutate(
+                                    credentialRequest.credentialRequestRef,
+                                  )
+                                }
+                                type="button"
+                              >
+                                {credentialExecutionCheckMutation.isPending
+                                  ? "Checking approved setup"
+                                  : "Check approved setup"}
                               </button>
                             </div>
                           ) : null}
@@ -5481,6 +5519,34 @@ function buildIntegrationCredentialReviewDecisionPayload(
       accountId,
       credentialRequestRef,
       decisionSlug,
+    ),
+  };
+}
+
+function buildIntegrationCredentialExecutionCheckPayload(
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context: "setup";
+  },
+  accountId: string,
+  credentialRequestRef: string,
+) {
+  return {
+    accountRef: accountId,
+    credentialRequestRef,
+    accountScope,
+    executionCheck: {
+      reason:
+        "Amplifi Admin checked that this approved credential setup request is ready for later governed execution.",
+      reasonCode: "CUSTOMER_CREDENTIAL_EXECUTION_READY_CHECK",
+    },
+    reasonCode: "CUSTOMER_CREDENTIAL_EXECUTION_READY_CHECK",
+    correlationId: `customer-profile-integrations-credential-execution-check-${accountId}-${credentialRequestRef}`,
+    idempotencyKey: safeIdempotencyKey(
+      "customer-profile-integrations-credential-execution-check",
+      accountId,
+      credentialRequestRef,
     ),
   };
 }
