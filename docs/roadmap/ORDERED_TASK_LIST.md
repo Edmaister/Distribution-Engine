@@ -7484,6 +7484,406 @@ Rollback notes: Revert reporting service/router/test/docs updates.
 Explicit non-goals: No schema/migration, frontend route changes, external object-store provider adapter, scheduled delivery, provider/webhook dispatch, invite/referral-message delivery, credential creation/storage/reveal/download, auth/session claim changes, campaign activation, repair/replay/retry, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, DLaaS, or source forks.
 Definition of done: Runtime export file creation now produces safe signed-download metadata over persisted customer-scoped report export requests. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.999/10 because the object-store/signed URL runtime hardening gap is closed while scheduled delivery, governed auth/login completion, repair/replay guardrails, progress/attribution mutation proof, provider/vault execution, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-333: Define Referral SaaS scheduled report delivery contract
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses tenant-safe report/export catalog, selected-customer account scope, export request/file lifecycle, signed-download metadata, retention rules, idempotency, audit, and no-adjacent-action guardrails. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Scheduled report delivery contract.
+Objective: Define the customer-scoped scheduled delivery boundary for recurring Referral SaaS reports and export files.
+Why now: TASK-332 closed signed-download runtime hardening. The remaining reporting gap is scheduled delivery, which needs a reviewed contract before runtime jobs or UI controls are introduced.
+Files likely involved: `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; roadmap, gap matrix, ordered task list, and infographic docs.
+Database/schema impact: None in this contract task.
+Backend impact: None. Runtime schedule persistence and execution remain separate tasks.
+Frontend impact: None. UI controls remain a separate task.
+API impact: Documents candidate schedule create/list/update/cancel/readiness routes, safe schedule fields, cadence constraints, recipient restrictions, retention interactions, audit evidence, and failure states.
+Tests to add/update: Docs-only readback.
+Validation method: `git diff --check`; contract readback.
+Acceptance criteria: The scheduled delivery contract defines cadence, recipient, report/export, signed-download, expiry, failure, retry, idempotency, audit, redaction, and no side-effect boundaries without sending email, creating credentials, dispatching providers, changing auth, activating campaigns, billing, moving money, or adding DLaaS scope.
+Dependencies: TASK-327; TASK-328; TASK-329; TASK-330; TASK-331; TASK-332.
+Blocked by: Runtime scheduled delivery API, scheduled delivery UI, provider/vault adapters, governed auth/login completion, repair/replay guardrails, progress/attribution mutation proof, and non-local proof repetition.
+Risk level: Low.
+Rollback notes: Revert reporting/export contract and roadmap/gap/task updates.
+Explicit non-goals: No schema, migrations, backend routes, frontend controls, scheduled job execution, email delivery, provider calls, webhook dispatch, credential creation/storage/reveal/download, auth/session claim changes, campaign activation, repair/replay/retry, billing, money movement, DLaaS, or source-code forks.
+Definition of done: Referral SaaS has a reviewed scheduled report delivery contract that can drive runtime API and UI tasks without blurring export, provider, auth, billing, or DLaaS boundaries. Priority: P0.
+
+## TASK-334: Add scheduled report delivery API foundation
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses report/export catalog, customer account scope, external-reference resolution, signed-download runtime, idempotency, audit, redaction, route inventory, and schedule contract from TASK-333. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Scheduled report delivery API.
+Objective: Add guarded customer-scoped scheduled report delivery create/list/update/cancel/readiness API routes without executing live delivery.
+Why now: TASK-333 will define the boundary. The next gap is runtime schedule state and validation so the UI can manage schedules without sending reports yet.
+Files likely involved: `services/referral_saas_reporting_service.py`; `apps/api/routers/referral_saas_accounts.py`; reporting API tests; route smoke inventory; roadmap/gap docs.
+Database/schema impact: Add or reuse persisted schedule state only if the current schema does not already contain an appropriate table; migration must be tenant/account scoped and replay-safe.
+Backend impact: Adds schedule persistence/readiness commands with bounded cadence, recipients, report type, idempotency, audit, redaction, and safe failure states.
+Frontend impact: None. UI wiring remains TASK-335.
+API impact: Adds or wires guarded schedule routes over the TASK-333 contract.
+Tests to add/update: API tests, service tests, idempotency/conflict tests, redaction tests, route smoke inventory.
+Validation method: `git diff --check`; Python compile; focused pytest for reporting schedule routes.
+Acceptance criteria: Operators can persist and inspect customer-scoped scheduled report delivery intent and safely cancel/update it; no report email, provider dispatch, credential/auth change, campaign activation, billing, money, DLaaS, or source-fork side effect occurs.
+Dependencies: TASK-333.
+Blocked by: Scheduled delivery UI, live delivery worker/provider adapter, governed auth/login completion, repair/replay guardrails, progress/attribution mutation proof, and non-local proof repetition.
+Risk level: Medium.
+Rollback notes: Revert service/router/tests/migration/docs updates.
+Explicit non-goals: No live email/report delivery worker, provider calls, credential creation/storage/reveal/download, auth/session claim changes, campaign activation, repair/replay/retry, billing, money movement, DLaaS, or source-code forks.
+Definition of done: Referral SaaS has a guarded scheduled report delivery API foundation for customer-scoped delivery intent and readiness, leaving live dispatch as a later provider-governed step. Priority: P0.
+
+## TASK-335: Wire selected-customer scheduled report delivery UI
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses selected-customer Reports page, report/export API client, schedule API foundation, frontend query keys, account context, and no-adjacent-action copy patterns. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Scheduled report delivery UI.
+Objective: Add plain-language selected-customer Reports controls for scheduled delivery intent, readiness, pause/cancel, and next action.
+Why now: Once the API foundation exists, operators need a clear UI that explains schedule intent versus live delivery and keeps reports customer-scoped.
+Files likely involved: `frontend/src/api/endpoints/referralSaasReports.ts`; selected-customer Reports page; frontend tests; roadmap/gap docs.
+Database/schema impact: None.
+Backend impact: None. Consumes TASK-334 routes.
+Frontend impact: Adds schedule create/update/cancel/readiness UX with clear recipient/cadence controls, status, empty/error/loading states, and no-live-delivery guardrails.
+API impact: Consumes TASK-334 schedule routes.
+Tests to add/update: Frontend API-client tests and selected-customer Reports UI tests.
+Validation method: `git diff --check`; frontend focused tests; `npm run lint`; `npm run build`.
+Acceptance criteria: Operators can configure, review, pause/cancel, and understand scheduled report delivery intent from the selected-customer Reports page without leaving customer context or accidentally sending live reports.
+Dependencies: TASK-333; TASK-334.
+Blocked by: Live delivery worker/provider adapter, governed auth/login completion, repair/replay guardrails, progress/attribution mutation proof, and non-local proof repetition.
+Risk level: Medium.
+Rollback notes: Revert frontend API/page/test/docs updates.
+Explicit non-goals: No backend schedule execution, email delivery, provider calls, credential/auth changes, campaign activation, repair/replay/retry, billing, money movement, DLaaS, or source-code forks.
+Definition of done: Scheduled report delivery becomes visible and manageable as customer-scoped intent in the Reports UI, closing the visible scheduled-delivery UX gap while live provider dispatch remains governed separately. Priority: P0.
+
+## TASK-336: Define governed repair and replay guardrails contract
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses support cases, link/code inspection, progress/status diagnostics, attribution trace, audit/idempotency posture, and no-adjacent-action guardrails. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Governed repair/replay contract.
+Objective: Define which repair/replay actions are allowed, blocked, read-only, or require approval across validation, progress, attribution, reporting, and support cases.
+Why now: Support capture, case lifecycle, diagnostics, and aggregate queue now exist. The remaining operations gap is safe repair/replay posture without creating a dangerous generic mutation console.
+Files likely involved: `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md`; support queue contract; public API contract map; roadmap/gap docs.
+Database/schema impact: None in this contract task.
+Backend impact: None. Runtime readiness/command APIs remain separate tasks.
+Frontend impact: None. UI remains separate.
+API impact: Documents safe read-only readiness and future command boundaries.
+Tests to add/update: Docs-only readback.
+Validation method: `git diff --check`; contract readback.
+Acceptance criteria: Contract defines allowed action classes, approval gates, replay idempotency, audit evidence, redactions, failure states, support-case linkage, and explicit exclusions for money, billing, provider dispatch, credential/auth changes, campaign activation, and broad DLaaS actions.
+Dependencies: TASK-178; TASK-180; TASK-182; TASK-184; TASK-295; TASK-297; TASK-321; TASK-322; TASK-323; TASK-324; TASK-325; TASK-326.
+Blocked by: Runtime repair/replay readiness API and UI.
+Risk level: Low.
+Rollback notes: Revert support workflow/API map/gap/task docs.
+Explicit non-goals: No backend commands, no frontend controls, no event replay, no data repair, no retry dispatch, no provider calls, no auth/session changes, no campaign activation, no billing, no money, no DLaaS expansion.
+Definition of done: Referral SaaS has a reviewed repair/replay guardrail contract so future operator actions are bounded, auditable, and separated from generic database or provider operations. Priority: P0.
+
+## TASK-337: Add support-case repair/replay readiness API
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses support-case persistence, diagnostics, inspection, trace, progress/status read models, repair/replay contract, audit posture, and redactions. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Repair/replay readiness API.
+Objective: Add read-only repair/replay readiness over selected support cases and selected-customer diagnostics.
+Why now: Before any repair/replay commands exist, operators need a safe API that says what can be considered, what is blocked, and why.
+Files likely involved: support-case service/router/tests; route smoke inventory; support workflow docs; roadmap/gap docs.
+Database/schema impact: None unless existing support evidence cannot model readiness source links.
+Backend impact: Adds read-only readiness classification and no-mutation guardrails.
+Frontend impact: None. UI remains TASK-338.
+API impact: Adds or wires selected-customer/support-case readiness route.
+Tests to add/update: API tests for allowed/blocked/unknown readiness states, redactions, no-mutation behavior, and route inventory.
+Validation method: `git diff --check`; Python compile; focused pytest.
+Acceptance criteria: Operators can read repair/replay readiness for a selected case without performing repair, replay, retry, provider dispatch, auth change, campaign activation, billing, money, or DLaaS action.
+Dependencies: TASK-336.
+Blocked by: UI wiring and later command-specific repair/replay tasks.
+Risk level: Medium.
+Rollback notes: Revert service/router/tests/docs updates.
+Explicit non-goals: No actual repair/replay/retry command execution, no generic mutation console, no provider/webhook dispatch, no credential/auth changes, no campaign activation, no billing, no money, no DLaaS scope.
+Definition of done: Support cases expose safe repair/replay readiness as evidence, giving operators a production support posture without enabling dangerous mutations. Priority: P0.
+
+## TASK-338: Wire support-case repair/replay readiness UI
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses selected-customer Support page, aggregate queue routing, diagnostics links, repair/replay readiness API, and frontend safe-action copy. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Repair/replay readiness UI.
+Objective: Show support-case repair/replay readiness in plain language with no executable repair/replay buttons unless later command-specific tasks add them.
+Why now: The UI must make support maturity visible without turning support into a hidden technical console.
+Files likely involved: selected-customer Support page, support queue page as needed, frontend API client/tests, support workflow docs.
+Database/schema impact: None.
+Backend impact: None. Consumes TASK-337.
+Frontend impact: Adds readiness cards, evidence links, blocked reasons, and next-task language to Support.
+API impact: Consumes TASK-337 readiness route.
+Tests to add/update: Frontend support readiness rendering tests and no-action regression tests.
+Validation method: `git diff --check`; frontend focused tests; lint/build.
+Acceptance criteria: Operators can see if a support case is repair/replay eligible, blocked, or read-only and can navigate to evidence, without any repair/replay/retry side effect.
+Dependencies: TASK-336; TASK-337.
+Blocked by: Future command-specific repair/replay execution tasks.
+Risk level: Medium.
+Rollback notes: Revert frontend API/page/test/docs updates.
+Explicit non-goals: No repair/replay/retry command execution, provider calls, credential/auth changes, campaign activation, billing, money, DLaaS, or source-code forks.
+Definition of done: Support UI explains repair/replay posture clearly and safely, closing the visible support-operations readiness gap while execution remains separately governed. Priority: P0.
+
+## TASK-339: Define progress and attribution mutation proof contract
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_EVENT_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ATTRIBUTION_TRACE_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses referral progress ingestion, dedupe, payload hashing, attribution trace, selected-customer campaign/link/report routes, E2E proof tooling, audit, and redaction standards. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Progress/attribution mutation proof contract.
+Objective: Define the exact selected-customer mutation proof path from campaign/link/code through progress event ingestion to attribution trace and reports.
+Why now: Read surfaces and campaign/reporting flows are strong; the remaining launch confidence gap is proving progress and attribution mutation paths end to end.
+Files likely involved: progress and attribution SA contracts; E2E live verification plan; roadmap/gap docs.
+Database/schema impact: None in this contract task.
+Backend impact: None.
+Frontend impact: None.
+API impact: Documents proof inputs, expected state transitions, safe failures, redactions, idempotency, audit, and no-adjacent-action boundaries.
+Tests to add/update: Docs-only readback.
+Validation method: `git diff --check`; contract readback.
+Acceptance criteria: Contract defines a repeatable proof path with deterministic identifiers, allowed writes, expected progress/attribution/report outputs, rollback/cleanup posture, and explicit boundaries against provider, auth, billing, money, DLaaS, and source forks.
+Dependencies: TASK-138; TASK-139; TASK-147; TASK-149; TASK-150; TASK-180; TASK-181; TASK-182; TASK-183; TASK-267; TASK-268; TASK-271; TASK-272.
+Blocked by: Proof runner implementation and recorded execution.
+Risk level: Low.
+Rollback notes: Revert proof contract/roadmap/gap docs.
+Explicit non-goals: No runtime implementation, no provider calls, no auth changes, no campaign go-live beyond approved proof scope, no billing, no money, no DLaaS expansion.
+Definition of done: Referral SaaS has a reviewed progress/attribution mutation proof contract that can drive the final proof runner and execution tasks. Priority: P0.
+
+## TASK-340: Add progress and attribution mutation proof runner
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_EVENT_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ATTRIBUTION_TRACE_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses proof-runner patterns, selected-customer APIs, progress ingestion, attribution trace, report/export read models, idempotency, audit, and redaction guardrails. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Progress/attribution mutation proof runner.
+Objective: Implement a repeatable local/staging-capable proof runner for the TASK-339 selected-customer mutation path.
+Why now: The contract must be executable so the remaining mutation-proof gap is evidence-based rather than theoretical.
+Files likely involved: proof scripts/tests; API/service tests; progress/attribution docs; roadmap/gap docs.
+Database/schema impact: None unless proof evidence requires a safe metadata table; prefer existing audit/proof artifacts.
+Backend impact: Adds or updates proof tooling only; product routes remain unchanged unless a missing bounded wrapper is discovered.
+Frontend impact: None.
+API impact: Uses existing selected-customer and progress/attribution routes.
+Tests to add/update: Proof-runner unit/integration tests, idempotency replay checks, redaction checks.
+Validation method: `git diff --check`; Python compile; focused proof-runner tests; local dry-run where available.
+Acceptance criteria: The runner can seed/use a selected customer, execute allowed progress/attribution mutations, verify trace/report outputs, replay idempotently, and record safe evidence without adjacent side effects.
+Dependencies: TASK-339.
+Blocked by: Local/staging runtime availability for execution evidence.
+Risk level: Medium.
+Rollback notes: Revert proof-runner scripts/tests/docs updates.
+Explicit non-goals: No production writes without explicit approval, no provider/webhook/invite delivery, no credential/auth change, no billing, no money, no DLaaS scope.
+Definition of done: A repeatable proof runner exists for selected-customer progress and attribution mutation paths. Priority: P0.
+
+## TASK-341: Record progress and attribution mutation proof execution
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses TASK-340 proof runner, local/staging environment controls, audit evidence, route smoke posture, and redaction rules. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Progress/attribution mutation proof execution.
+Objective: Execute TASK-340 against an approved environment and record safe evidence for progress and attribution mutation proof.
+Why now: A runner is useful only when its execution is proven and documented.
+Files likely involved: proof evidence docs; roadmap/gap/infographic docs; optional sanitized output artifacts.
+Database/schema impact: Approved environment proof only; no schema changes.
+Backend impact: None unless execution exposes defects requiring separate fix tasks.
+Frontend impact: None unless execution exposes selected-customer UX defects requiring separate tasks.
+API impact: None.
+Tests to add/update: Proof execution evidence; any regression tests for discovered defects.
+Validation method: Run TASK-340 proof runner against approved local/staging data; record sanitized evidence and no-side-effect confirmations.
+Acceptance criteria: Progress ingestion, dedupe/replay, attribution trace, and report/readback prove the selected-customer mutation path with safe evidence and no provider/auth/billing/money side effects.
+Dependencies: TASK-340.
+Blocked by: Approved runtime environment and safe credentials.
+Risk level: Medium.
+Rollback notes: Revert evidence-doc updates only; do not revert product code unless a separate defect task is opened.
+Explicit non-goals: No unapproved production writes, provider calls, credential/auth changes, campaign billing/go-live beyond approved proof scope, money movement, DLaaS expansion, or source forks.
+Definition of done: Referral SaaS has recorded progress/attribution mutation proof evidence sufficient to close that gap in the matrix. Priority: P0.
+
+## TASK-342: Define provider/vault runtime adapter contract
+
+Status: Planned.
+Product boundary: Shared Platform with Referral SaaS impact.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Defines shared provider/vault adapter boundaries consumed by Referral SaaS Integrations and future DLaaS surfaces. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Provider/vault runtime adapter contract.
+Objective: Define how approved credential requests become safe provider/vault execution references without exposing secrets or creating provider side effects from setup pages.
+Why now: Integrations setup, readiness, verification, credential request/review, and execution checks exist. The remaining gap is the runtime adapter/vault model that can move from evidence to governed execution.
+Files likely involved: Integrations SA contracts; platform product docs; public API contract map; roadmap/gap docs.
+Database/schema impact: None in this contract task.
+Backend impact: None.
+Frontend impact: None.
+API impact: Documents adapter inputs/outputs, secret references, vault semantics, approval gates, audit, redactions, failure states, and no-adjacent-action boundaries.
+Tests to add/update: Docs-only readback.
+Validation method: `git diff --check`; contract readback.
+Acceptance criteria: Contract defines provider/vault adapter lifecycle, secret reference handling, approval/execution gates, audit evidence, failure taxonomy, and boundaries against raw secret exposure, uncontrolled provider dispatch, auth changes, campaign activation, billing, money, or DLaaS expansion.
+Dependencies: TASK-301; TASK-302; TASK-303; TASK-304; TASK-305; TASK-306; TASK-307; TASK-308; TASK-309; TASK-310; TASK-312; TASK-313; TASK-314; TASK-315; TASK-316; TASK-317; TASK-318; TASK-319; TASK-320.
+Blocked by: Runtime adapter readiness API and later provider-specific implementation.
+Risk level: Low.
+Rollback notes: Revert Integrations/platform contract and roadmap/gap/task docs.
+Explicit non-goals: No provider calls, no credential storage/reveal/download, no vault integration, no frontend controls, no auth/session changes, no campaign activation, no billing, no money, no DLaaS implementation.
+Definition of done: Referral SaaS and shared platform have a reviewed provider/vault adapter contract for the next readiness and runtime implementation tasks. Priority: P0.
+
+## TASK-343: Add provider/vault execution readiness API
+
+Status: Planned.
+Product boundary: Shared Platform with Referral SaaS impact.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses Integrations configuration, credential requests/review, execution-check readiness, provider/vault contract, account scope, audit, and redactions. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Provider/vault execution readiness API.
+Objective: Add a read-only readiness API that tells whether approved Integration credentials are ready for provider/vault execution and what is still blocked.
+Why now: This closes the visibility gap between credential approval and real provider/vault implementation without creating secrets or dispatching provider calls.
+Files likely involved: Integrations services/router/tests; route smoke inventory; Integrations contracts; roadmap/gap docs.
+Database/schema impact: None unless existing credential request metadata cannot represent readiness safely.
+Backend impact: Adds read-only provider/vault readiness classification.
+Frontend impact: None. UI remains TASK-344.
+API impact: Adds or wires selected-customer Integrations provider/vault readiness route.
+Tests to add/update: API tests for ready/blocked/missing/failed readiness states, redactions, and no-side-effect guardrails.
+Validation method: `git diff --check`; Python compile; focused pytest.
+Acceptance criteria: Operators can inspect provider/vault execution readiness without exposing secrets, creating credentials, calling providers, dispatching webhooks/messages, changing auth, activating campaigns, billing, moving money, or adding DLaaS scope.
+Dependencies: TASK-342.
+Blocked by: UI wiring and provider-specific runtime adapters.
+Risk level: Medium.
+Rollback notes: Revert service/router/tests/docs updates.
+Explicit non-goals: No vault integration, no provider calls, no credential storage/reveal/download, no live webhook/message dispatch, no auth/session changes, no campaign activation, no billing, no money, no DLaaS implementation.
+Definition of done: Integrations has a provider/vault readiness API that makes the remaining execution gap visible and testable without unsafe side effects. Priority: P0.
+
+## TASK-344: Wire provider/vault execution readiness UI
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; Integrations SA contracts; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses selected-customer Integrations page, provider/vault readiness API, credential request/review UI, frontend query keys, and no-secret/no-provider-dispatch copy patterns. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Provider/vault execution readiness UI.
+Objective: Show provider/vault execution readiness inside selected-customer Integrations in plain language, with next actions separated from live provider execution.
+Why now: Operators need to understand whether Integrations are merely configured, approved for credential setup, or ready for governed execution.
+Files likely involved: selected-customer Integrations UI, frontend API client/tests, Integrations docs.
+Database/schema impact: None.
+Backend impact: None. Consumes TASK-343.
+Frontend impact: Adds readiness state, blocked reasons, evidence links, and next action copy.
+API impact: Consumes TASK-343 readiness route.
+Tests to add/update: Frontend page and API-client tests.
+Validation method: `git diff --check`; frontend focused tests; lint/build.
+Acceptance criteria: Integrations UI clearly separates setup evidence, credential approval, provider/vault readiness, and future live execution without exposing secrets or offering unsafe live-action controls.
+Dependencies: TASK-342; TASK-343.
+Blocked by: Provider-specific runtime adapters.
+Risk level: Medium.
+Rollback notes: Revert frontend API/page/test/docs updates.
+Explicit non-goals: No provider calls, no secret reveal, no credential creation/storage/download, no webhook/message dispatch, no auth changes, no campaign activation, no billing, no money, no DLaaS implementation.
+Definition of done: The selected-customer Integrations UI exposes provider/vault readiness clearly enough to guide operators and close the visible execution-readiness gap. Priority: P0.
+
+## TASK-345: Define governed auth/login completion contract
+
+Status: Planned.
+Product boundary: Shared Platform with Referral SaaS impact.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses People and Access membership lifecycle, account-foundation activation, seat provisioning, auth/claim boundaries, audit, idempotency, and redactions. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Governed auth/login completion contract.
+Objective: Define the controlled path from accepted customer access and optional seat provisioning to actual login permission/auth claim readiness.
+Why now: People and Access now names, accepts, and provisions seats, but login/auth claim propagation remains intentionally separated. The next step is to define the governed completion boundary without overloading People and Access.
+Files likely involved: People and Access SA docs; account/membership contracts; public API contract map; roadmap/gap docs.
+Database/schema impact: None in this contract task.
+Backend impact: None.
+Frontend impact: None.
+API impact: Documents candidate readiness/command routes, actor roles, evidence, failure states, and no-adjacent-action guardrails.
+Tests to add/update: Docs-only readback.
+Validation method: `git diff --check`; contract readback.
+Acceptance criteria: Contract defines when login setup is allowed, what seat assignment means, what auth claims remain external/governed, required approvals, audit evidence, redactions, and explicit boundaries against credentials being silently created or permissions changed.
+Dependencies: TASK-242; TASK-249; TASK-250; TASK-252; TASK-279; TASK-283; TASK-284; TASK-285; TASK-286; TASK-288; TASK-289; TASK-290; TASK-294.
+Blocked by: Runtime auth/login API boundary and UI wiring.
+Risk level: Low.
+Rollback notes: Revert auth/login contract and roadmap/gap/task docs.
+Explicit non-goals: No identity-provider integration, no credential creation, no auth/session claim changes, no email invites, no provider calls, no campaign activation, no billing, no money, no DLaaS implementation.
+Definition of done: Referral SaaS has a reviewed governed auth/login completion contract that explains how People and Access moves from accepted/provisioned to actual sign-in readiness. Priority: P0.
+
+## TASK-346: Add governed auth/login completion API boundary
+
+Status: Planned.
+Product boundary: Shared Platform with Referral SaaS impact.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses membership activation, seat provisioning, auth/login contract, account scope, admin actor checks, idempotency, audit, and redactions. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Governed auth/login completion API.
+Objective: Add read-only readiness and guarded completion intent APIs for platform login setup without directly mutating identity-provider claims unless explicitly supported and approved.
+Why now: TASK-345 will define the boundary; runtime API support is needed before UI can show accurate next actions.
+Files likely involved: account membership service/router/tests; route smoke inventory; auth/login contract; roadmap/gap docs.
+Database/schema impact: Prefer existing membership/provisioning audit state; add migration only if login completion intent needs durable state not already available.
+Backend impact: Adds readiness/intent APIs with admin actor gates, audit, idempotency, and safe blocked states.
+Frontend impact: None. UI remains TASK-347.
+API impact: Adds or wires governed login readiness/completion-intent routes.
+Tests to add/update: API tests for ready/blocked/completed states, idempotency, audit, redactions, and no identity-provider side effects.
+Validation method: `git diff --check`; Python compile; focused pytest.
+Acceptance criteria: Operators can record and inspect governed login completion intent/readiness for accepted/provisioned people without silently creating credentials, changing auth claims, sending invites, activating campaigns, billing, moving money, or adding DLaaS scope.
+Dependencies: TASK-345.
+Blocked by: UI wiring and optional future identity-provider adapter.
+Risk level: Medium.
+Rollback notes: Revert service/router/tests/migration/docs updates.
+Explicit non-goals: No identity-provider call, credential creation, invite delivery, auth/session claim mutation, provider call, campaign activation, billing, money, DLaaS, or source forks.
+Definition of done: Referral SaaS has a governed auth/login API boundary that makes login completion visible and auditable without unsafe identity-provider side effects. Priority: P0.
+
+## TASK-347: Wire governed auth/login completion UI
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; People and Access/auth-login contracts; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses People and Access person-first lifecycle UI, login setup section, auth/login API boundary, frontend query keys, and no-side-effect copy. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Governed auth/login completion UI.
+Objective: Make actual platform login setup visible as its own governed People and Access action after accepted access and seat readiness.
+Why now: People and Access currently explains login is separate; the next UX gap is showing exactly where the governed login completion step lives.
+Files likely involved: selected-customer People and Access UI, frontend API client/tests, auth/login docs.
+Database/schema impact: None.
+Backend impact: None. Consumes TASK-346.
+Frontend impact: Adds login readiness/completion section, person-level next action, status feedback, and boundary copy.
+API impact: Consumes TASK-346 routes.
+Tests to add/update: Frontend People and Access tests for login readiness, completion feedback, and no hidden auth side effects.
+Validation method: `git diff --check`; frontend focused tests; lint/build.
+Acceptance criteria: Operators can see and record governed login completion intent/status from People and Access, with plain-language separation between customer access, seat provisioning, login credentials, and auth claims.
+Dependencies: TASK-345; TASK-346.
+Blocked by: Optional future identity-provider adapter and non-local proof.
+Risk level: Medium.
+Rollback notes: Revert frontend API/page/test/docs updates.
+Explicit non-goals: No identity-provider call, credential creation, invite delivery, auth/session claim mutation, campaign activation, billing, money, DLaaS, or source-code forks.
+Definition of done: People and Access has a clear governed login completion UX, closing the visible auth/login completion gap while real identity-provider execution remains separately governed. Priority: P0.
+
+## TASK-348: Run non-local Referral SaaS launch verification
+
+Status: Blocked.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses live DB/state verification, route smoke checks, selected-customer proof runners, read-only DB posture, and no-side-effect guardrails. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Non-local launch verification.
+Objective: Repeat launch-critical Referral SaaS verification outside the local laptop environment using approved read-only DB/runtime credentials and approved smoke/proof routes.
+Why now: Local proof is strong, but the gap matrix still caps production confidence until staging/production-like verification proves schema, route, state, and tenant-scope behavior.
+Files likely involved: E2E live verification plan; live evidence docs; roadmap/gap/infographic docs; optional sanitized logs.
+Database/schema impact: Read-only non-local verification only.
+Backend impact: None unless verification exposes defects requiring separate tasks.
+Frontend impact: None unless verification exposes defects requiring separate tasks.
+API impact: Uses approved read-only/safe smoke routes only.
+Tests to add/update: Non-local verification evidence; any regression tests for discovered defects.
+Validation method: Approved non-local read-only DB checks, protected API smoke checks, selected-customer proof runners where explicitly allowed, and sanitized evidence recording.
+Acceptance criteria: Launch-critical tables, constraints, statuses, route smoke checks, selected-customer account/campaign/report/support/integration paths, and no-side-effect guardrails are verified in a non-local environment.
+Dependencies: TASK-027; TASK-147; TASK-152; TASK-153; TASK-269; TASK-271; TASK-287; TASK-291; TASK-294; TASK-341.
+Blocked by: Approved strict read-only non-local DB credentials, approved runtime/API base URL, approved test keys/tokens, and explicit permission for any non-read-only proof execution.
+Risk level: Medium.
+Rollback notes: Evidence-only task; product fixes must be separate tasks.
+Explicit non-goals: No unapproved writes, no raw secret extraction, no repair/replay/retry, no provider dispatch, no credential/auth mutation, no campaign go-live beyond explicit proof scope, no billing, no money, no DLaaS expansion.
+Definition of done: Referral SaaS has recorded non-local launch verification evidence sufficient to remove the remaining environment-confidence blocker from the 10/10 gap matrix. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

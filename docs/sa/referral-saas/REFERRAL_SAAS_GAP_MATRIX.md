@@ -293,7 +293,10 @@ separate future gaps.
 7. TASK-147: Define Referral SaaS E2E and live verification plan.
 8. TASK-140: Add Referral SaaS operator link/code investigation contract.
 9. TASK-141: Define Referral SaaS safe status contract.
-10. Implement scheduled delivery controls and non-local proof after TASK-332 signed-download runtime hardening.
+10. TASK-333 through TASK-348 now map the remaining launch-hardening gaps:
+    scheduled report delivery, governed repair/replay posture, progress and
+    attribution mutation proof, provider/vault execution readiness, governed
+    auth/login completion, and non-local launch verification.
 11. TASK-143: Create Referral SaaS public API contract map.
 12. TASK-144: Define Referral SaaS frontend IA and workflow contract.
 13. TASK-145: Define Referral SaaS operator support workflow.
@@ -313,6 +316,25 @@ of strong internal flows.
 TASK-134 should remain contract/design first unless it discovers a small,
 well-contained implementation path that does not require schema, auth, or
 membership changes beyond its scope.
+
+## Remaining Launch-Hardening Task Map
+
+The matrix no longer points at broad undefined "future work" for the final
+Referral SaaS wedge. Remaining gaps are now mapped to explicit tasks:
+
+| Gap | Task path | Intended close-out |
+| --- | --- | --- |
+| Scheduled report delivery | TASK-333 to TASK-335 | Contract, guarded schedule API, and selected-customer Reports UI for scheduled delivery intent. |
+| Repair/replay guardrails | TASK-336 to TASK-338 | Contract, read-only support-case readiness API, and Support UI posture without unsafe mutation buttons. |
+| Progress/attribution mutation proof | TASK-339 to TASK-341 | Contract, repeatable proof runner, and recorded execution evidence. |
+| Provider/vault execution readiness | TASK-342 to TASK-344 | Shared provider/vault contract, read-only readiness API, and Integrations UI visibility. |
+| Governed auth/login completion | TASK-345 to TASK-347 | Contract, guarded API boundary, and People and Access UI for login completion status/intent. |
+| Non-local launch verification | TASK-348 plus TASK-027 | Staging/production-like read-only verification and approved smoke/proof evidence. |
+
+TASK-027 remains blocked by approved non-local credentials and access. It is a
+production-confidence blocker, not a missing product feature. TASK-348 is the
+Referral SaaS launch-verification wrapper that should consume that access once
+available.
 
 ## Explicit Deferrals
 

@@ -289,6 +289,29 @@ greenfield referral construction.
 181. TASK-323: Wire selected-customer support-case lifecycle UI.
 182. TASK-324: Define operator aggregate support queue contract.
 183. TASK-325: Add operator aggregate support queue API.
+184. TASK-326: Add operator aggregate support queue UI.
+185. TASK-327: Define export file storage and download lifecycle contract.
+186. TASK-328: Add Referral SaaS export file runtime foundation.
+187. TASK-329: Add selected-customer report export download UI.
+188. TASK-330: Enforce Referral SaaS report export retention expiry.
+189. TASK-331: Define Referral SaaS export object-store signed URL contract.
+190. TASK-332: Add Referral SaaS export signed URL runtime.
+191. TASK-333: Define Referral SaaS scheduled report delivery contract.
+192. TASK-334: Add scheduled report delivery API foundation.
+193. TASK-335: Wire selected-customer scheduled report delivery UI.
+194. TASK-336: Define governed repair and replay guardrails contract.
+195. TASK-337: Add support-case repair/replay readiness API.
+196. TASK-338: Wire support-case repair/replay readiness UI.
+197. TASK-339: Define progress and attribution mutation proof contract.
+198. TASK-340: Add progress and attribution mutation proof runner.
+199. TASK-341: Record progress and attribution mutation proof execution.
+200. TASK-342: Define provider/vault runtime adapter contract.
+201. TASK-343: Add provider/vault execution readiness API.
+202. TASK-344: Wire provider/vault execution readiness UI.
+203. TASK-345: Define governed auth/login completion contract.
+204. TASK-346: Add governed auth/login completion API boundary.
+205. TASK-347: Wire governed auth/login completion UI.
+206. TASK-348: Run non-local Referral SaaS launch verification.
 
 ## 10/10 Exit Criteria
 
