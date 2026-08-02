@@ -637,3 +637,74 @@ TASK-330 adds focused service tests for:
 - expired export metadata returns expired request, storage, and download states
   without a download URL
 - expired export download is blocked before file read/audit side effects
+
+## Object-Store And Signed URL Hardening Contract
+
+TASK-331 defines the next production hardening boundary for export storage. The
+current runtime stores tenant-safe inline export content behind customer-scoped
+routes. The hardened runtime may move file bytes into an object store and may
+return short-lived signed download URLs, but only through a governed storage
+adapter that preserves the same customer/account, redaction, freshness,
+retention, audit, and no-adjacent-action rules.
+
+### Storage Adapter Boundary
+
+The storage adapter must:
+
+- accept only a tenant-safe generated export payload from the report runtime,
+  never a browser-supplied file body
+- derive an object key from the account ID and export request ID, not from raw
+  customer-entered names, tenant codes, UCNs, email addresses, or report filters
+- persist only an opaque `storage_ref` plus safe metadata such as file name,
+  content type, byte size, content hash, generation time, and retention expiry
+- keep bucket names, object paths, provider response payloads, credentials,
+  signing material, and internal tenant identifiers out of public API responses
+- record audit evidence for object write, metadata read, signed-url request,
+  signed-url expiry, failed write, and failed signing attempts
+- fail closed when storage configuration, signing configuration, account scope,
+  retention, redaction, freshness, or row-limit evidence is missing
+
+### Signed Download URL Rules
+
+Signed URLs are optional and must be treated as an implementation detail, not
+as the export identity. When enabled:
+
+- the public response returns a short-lived `downloadUrl` only after account
+  scope, authorisation, file state, retention, and redaction checks pass
+- URL TTL must be shorter than or equal to the remaining export retention
+  window and must default to a short operational window
+- expired files return `REPORT_EXPORT_FILE_EXPIRED` and never return or renew a
+  signed URL
+- failed signing returns a safe product error without exposing provider
+  internals
+- the signed URL must not trigger scheduled delivery, provider messaging,
+  webhook dispatch, credential creation, auth/session changes, campaign
+  activation, billing, or money movement
+
+### Additional States
+
+| State | Meaning |
+|---|---|
+| `OBJECT_STORAGE_NOT_CONFIGURED` | The selected customer/report can export, but no approved storage adapter is configured for stored-object delivery. |
+| `OBJECT_STORAGE_WRITE_FAILED` | Tenant-safe file generation succeeded but the governed object write failed without exposing provider details. |
+| `SIGNED_URL_NOT_AVAILABLE` | A stored object exists, but signed download URLs are not configured or not allowed for this actor/context. |
+| `SIGNED_URL_EXPIRED` | A previous signed URL is no longer valid; the actor must request a fresh download check while the export is still inside retention. |
+| `EXPORT_FILE_EXPIRED` | The export or stored object is outside retention and cannot be downloaded or signed again. |
+
+### Implementation Test Expectations
+
+The runtime implementation task must add tests for:
+
+- object-store write metadata without raw bucket/object path leakage
+- signed URL TTL bounded by remaining retention
+- expired export blocking URL signing and object download
+- account-scope mismatch and cross-customer signed URL rejection
+- safe failure for missing storage/signing configuration
+- no tenant code, UCN, provider payload, secret, token, signing material, audit
+  payload, billing, settlement, reward, wallet, invoice, payout, or money fields
+  in public export responses
+- audit evidence for object write, signed-url request, and failure states
+- no scheduled delivery, provider/webhook dispatch, invite/referral-message
+  delivery, credential/auth mutation, campaign activation, repair/replay/retry,
+  billing, money movement, DLaaS marketplace behavior, or source-code fork
+  side effects

@@ -1813,6 +1813,18 @@ greenfield referral construction.
   provider, credential/auth, campaign, billing, money, DLaaS, or source-fork
   side effects. Scores remain 9.99/10 for Referral Management and move to
   9.998/10 for Campaign Attribution.
+- TASK-331: `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the
+  object-store/signed URL hardening contract for report exports. The contract
+  requires opaque storage references, signed URL TTL bounded by retention,
+  safe storage/signing failure states, audit evidence, no raw bucket/object
+  paths or signing material in public responses, and no scheduled delivery,
+  provider, credential/auth, campaign, billing, money, DLaaS, or source-fork
+  side effects. Scores remain 9.99/10 for Referral Management and 9.998/10 for
+  Campaign Attribution because runtime hardening remains the next task.
 
 ## Explicit Deferrals
 
