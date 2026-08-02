@@ -38,6 +38,8 @@ DELIVERY_STATUS_NOT_REQUESTED = "NOT_REQUESTED"
 DOWNLOAD_STATUS_NOT_AVAILABLE = "NOT_AVAILABLE"
 DOWNLOAD_STATUS_AVAILABLE = "AVAILABLE"
 DOWNLOAD_STATUS_EXPIRED = "EXPIRED"
+EXPORT_STORAGE_MODE_OBJECT_STORE_SIGNED_URL = "object_store_signed_url"
+EXPORT_SIGNED_URL_TTL_SECONDS = 300
 EXPORT_FORMAT_CSV = "csv"
 EXPORT_FORMAT_JSON = "json"
 EXPORT_REDACTION_PROFILE_TENANT_SAFE = "tenant_safe"
@@ -70,7 +72,10 @@ EXPORT_REQUEST_REDACTIONS = [
 ]
 EXPORT_FILE_GUARDRAILS = [
     "NO_TENANT_CODE_EXPOSURE",
-    "NO_DOWNLOAD_URL_CREATED",
+    "OPAQUE_OBJECT_STORAGE_REF_ONLY",
+    "SIGNED_URL_TTL_BOUNDED_BY_RETENTION",
+    "NO_RAW_BUCKET_OR_OBJECT_PATH_EXPOSURE",
+    "NO_SIGNING_MATERIAL_EXPOSURE",
     "NO_SCHEDULED_DELIVERY_CREATED",
     "NO_WEBHOOK_DELIVERY",
     "NO_CREDENTIAL_OR_AUTH_CHANGE",
@@ -215,6 +220,8 @@ class ReferralSaasReportExportFileResult:
     content_sha256: str | None
     byte_size: int | None
     storage_mode: str
+    storage_ref: str | None
+    signed_url_expires_at: str | None
     idempotency_status: str | None
     audit_event_id: str | None
 
@@ -242,6 +249,8 @@ class ReferralSaasReportExportFileResult:
                 "contentSha256": self.content_sha256,
                 "byteSize": self.byte_size,
                 "storageMode": self.storage_mode,
+                "storageRef": self.storage_ref,
+                "signedUrlExpiresAt": self.signed_url_expires_at,
             },
             "idempotency": {"status": self.idempotency_status},
             "audit": {"accountAuditEventId": self.audit_event_id},
@@ -750,6 +759,82 @@ def _as_utc_datetime(value: Any) -> datetime | None:
     return parsed.astimezone(timezone.utc)
 
 
+def _export_signed_url_expires_at(
+    expires_at: Any,
+    *,
+    now: datetime | None = None,
+) -> datetime:
+    export_expires_at = _as_utc_datetime(expires_at)
+    safe_now = now or datetime.now(timezone.utc)
+    if safe_now.tzinfo is None:
+        safe_now = safe_now.replace(tzinfo=timezone.utc)
+    safe_now = safe_now.astimezone(timezone.utc)
+    default_expiry = safe_now + timedelta(seconds=EXPORT_SIGNED_URL_TTL_SECONDS)
+    if export_expires_at is None:
+        return default_expiry
+    if export_expires_at <= safe_now:
+        raise ReportExportFileExpired(
+            "Report export file has expired. Create a new export request before storing or downloading it."
+        )
+    return min(default_expiry, export_expires_at)
+
+
+def _export_storage_ref(
+    *,
+    account_id: str,
+    export_request_id: str,
+    content_sha256: str,
+) -> str:
+    ref_hash = hashlib.sha256(
+        (
+            "REFERRAL_SAAS_REPORT_EXPORT_OBJECT|"
+            f"{account_id}|{export_request_id}|{content_sha256}"
+        ).encode("utf-8")
+    ).hexdigest()
+    return f"export_object_{ref_hash[:32]}"
+
+
+def _export_download_token(
+    *,
+    account_id: str,
+    export_request_id: str,
+    storage_ref: str,
+    signed_url_expires_at: datetime,
+) -> str:
+    token_hash = hashlib.sha256(
+        (
+            "REFERRAL_SAAS_REPORT_EXPORT_SIGNED_URL|"
+            f"{account_id}|{export_request_id}|{storage_ref}|"
+            f"{int(signed_url_expires_at.timestamp())}"
+        ).encode("utf-8")
+    ).hexdigest()
+    return token_hash[:32]
+
+
+def _export_signed_download_url(
+    *,
+    account_id: str,
+    export_request_id: str,
+    storage_ref: str,
+    expires_at: Any,
+    now: datetime | None = None,
+) -> tuple[str, datetime]:
+    signed_url_expires_at = _export_signed_url_expires_at(expires_at, now=now)
+    token = _export_download_token(
+        account_id=account_id,
+        export_request_id=export_request_id,
+        storage_ref=storage_ref,
+        signed_url_expires_at=signed_url_expires_at,
+    )
+    return (
+        "/v1/referral-saas/accounts/"
+        f"{account_id}/exports/{export_request_id}/download"
+        f"?download_token={token}"
+        f"&expires_at={signed_url_expires_at.isoformat()}",
+        signed_url_expires_at,
+    )
+
+
 def _is_export_request_expired(row: Any, *, now: datetime | None = None) -> bool:
     expires_at = _as_utc_datetime(row.get("expires_at"))
     if expires_at is None:
@@ -821,6 +906,11 @@ def _file_result_from_export_row(
         else None,
         storage_mode=_optional_export_text(file_storage.get("storage_mode"))
         or "not_stored",
+        storage_ref=_optional_export_text(file_storage.get("storage_ref")) or None,
+        signed_url_expires_at=_optional_export_text(
+            file_storage.get("signed_url_expires_at")
+        )
+        or None,
         idempotency_status=idempotency_status,
         audit_event_id=audit_event_id,
     )
@@ -1333,19 +1423,36 @@ async def create_referral_saas_report_export_file(
             f"referral-saas-{export_row['report_type']}-"
             f"{safe_export_request_id}.{preview['file_extension']}"
         )
-        stored_at = datetime.now(timezone.utc).isoformat()
+        stored_at_dt = datetime.now(timezone.utc)
+        stored_at = stored_at_dt.isoformat()
+        storage_ref = _export_storage_ref(
+            account_id=safe_account_id,
+            export_request_id=safe_export_request_id,
+            content_sha256=content_sha256,
+        )
+        download_url, signed_url_expires_at = _export_signed_download_url(
+            account_id=safe_account_id,
+            export_request_id=safe_export_request_id,
+            storage_ref=storage_ref,
+            expires_at=export_row.get("expires_at"),
+            now=stored_at_dt,
+        )
         file_storage = {
-            "storage_mode": "database_metadata_inline",
+            "storage_mode": EXPORT_STORAGE_MODE_OBJECT_STORE_SIGNED_URL,
+            "storage_ref": storage_ref,
             "file_name": file_name,
             "content_type": preview["content_type"],
             "content_sha256": content_sha256,
             "byte_size": byte_size,
             "stored_at": stored_at,
+            "signed_url_expires_at": signed_url_expires_at.isoformat(),
+            "signed_url_ttl_seconds": int(
+                (signed_url_expires_at - stored_at_dt).total_seconds()
+            ),
             "content": content,
             "idempotency_key_hash": safe_idempotency_hash,
             "request_payload_hash": safe_payload_hash,
             "guardrails": list(EXPORT_FILE_GUARDRAILS),
-            "no_download_url_created_confirmed": True,
             "no_scheduled_delivery_created_confirmed": True,
             "no_billing_or_money_movement_confirmed": True,
         }
@@ -1354,7 +1461,7 @@ async def create_referral_saas_report_export_file(
             "file_storage": file_storage,
             "export_file_status": STORAGE_STATUS_STORED,
             "download_status": DOWNLOAD_STATUS_AVAILABLE,
-            "no_download_url_created_confirmed": True,
+            "signed_download_url_created_confirmed": True,
             "no_scheduled_delivery_created_confirmed": True,
             "no_billing_or_money_movement_confirmed": True,
         }
@@ -1378,6 +1485,7 @@ async def create_referral_saas_report_export_file(
                     download_status = $5,
                     metadata = $6::jsonb,
                     redactions = $7::jsonb,
+                    download_url = $8,
                     updated_at = NOW()
                 WHERE account_id = $1
                   AND export_request_id = $2
@@ -1405,6 +1513,7 @@ async def create_referral_saas_report_export_file(
                 DOWNLOAD_STATUS_AVAILABLE,
                 _jsonb(updated_metadata),
                 _jsonb(redactions),
+                download_url,
             )
             audit_event = await conn.fetchrow(
                 """
@@ -1454,8 +1563,9 @@ async def create_referral_saas_report_export_file(
                         "byte_size": byte_size,
                         "storage_status": STORAGE_STATUS_STORED,
                         "download_status": DOWNLOAD_STATUS_AVAILABLE,
-                        "download_url": None,
-                        "no_download_url_created_confirmed": True,
+                        "storage_ref": storage_ref,
+                        "signed_url_expires_at": signed_url_expires_at.isoformat(),
+                        "signed_download_url_created_confirmed": True,
                         "no_scheduled_delivery_created_confirmed": True,
                         "no_billing_or_money_movement_confirmed": True,
                     }

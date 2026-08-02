@@ -3854,7 +3854,10 @@ async def test_referral_saas_account_admin_can_create_report_export_file(
                     "storageStatus": "STORED",
                     "deliveryStatus": "NOT_REQUESTED",
                     "downloadStatus": "AVAILABLE",
-                    "downloadUrl": None,
+                    "downloadUrl": (
+                        "/v1/referral-saas/accounts/acct-1/exports/export-1/download"
+                        "?download_token=signed&expires_at=2026-07-30T12:05:00+00:00"
+                    ),
                     "expiresAt": "2026-07-31T00:00:00+00:00",
                 },
                 "file": {
@@ -3862,11 +3865,13 @@ async def test_referral_saas_account_admin_can_create_report_export_file(
                     "contentType": "application/json",
                     "contentSha256": "sha",
                     "byteSize": 100,
-                    "storageMode": "database_metadata_inline",
+                    "storageMode": "object_store_signed_url",
+                    "storageRef": "export_object_abc123",
+                    "signedUrlExpiresAt": "2026-07-30T12:05:00+00:00",
                 },
                 "idempotency": {"status": "RECORDED"},
                 "audit": {"accountAuditEventId": "audit-1"},
-                "guardrails": ["NO_DOWNLOAD_URL_CREATED"],
+                "guardrails": ["OPAQUE_OBJECT_STORAGE_REF_ONLY"],
                 "redactions": ["internal_tenant_identifier"],
             }
 
@@ -3904,8 +3909,10 @@ async def test_referral_saas_account_admin_can_create_report_export_file(
     assert body["status"] == "stored"
     assert body["reportExport"]["commandStatus"] == "REPORT_EXPORT_FILE_STORED"
     assert body["reportExport"]["exportRequest"]["downloadStatus"] == "AVAILABLE"
-    assert body["reportExport"]["exportRequest"]["downloadUrl"] is None
-    assert body["no_download_url_created_confirmed"] is True
+    assert body["reportExport"]["exportRequest"]["downloadUrl"].startswith(
+        "/v1/referral-saas/accounts/acct-1/exports/export-1/download"
+    )
+    assert body["signed_download_url_created_confirmed"] is True
     assert body["no_scheduled_delivery_created_confirmed"] is True
     public_export_payload = {
         "account": body["account"],
@@ -3949,7 +3956,10 @@ async def test_referral_saas_account_admin_can_download_report_export_file(
                     "storageStatus": "STORED",
                     "deliveryStatus": "NOT_REQUESTED",
                     "downloadStatus": "AVAILABLE",
-                    "downloadUrl": None,
+                    "downloadUrl": (
+                        "/v1/referral-saas/accounts/acct-1/exports/export-1/download"
+                        "?download_token=signed&expires_at=2026-07-30T12:05:00+00:00"
+                    ),
                     "expiresAt": "2026-07-31T00:00:00+00:00",
                 },
                 "file": {
@@ -3957,12 +3967,14 @@ async def test_referral_saas_account_admin_can_download_report_export_file(
                     "contentType": "text/csv",
                     "contentSha256": "sha",
                     "byteSize": 20,
-                    "storageMode": "database_metadata_inline",
+                    "storageMode": "object_store_signed_url",
+                    "storageRef": "export_object_abc123",
+                    "signedUrlExpiresAt": "2026-07-30T12:05:00+00:00",
                     "content": "metric_name,value\nready,1\n",
                 },
                 "idempotency": {"status": None},
                 "audit": {"accountAuditEventId": "audit-1"},
-                "guardrails": ["NO_DOWNLOAD_URL_CREATED"],
+                "guardrails": ["OPAQUE_OBJECT_STORAGE_REF_ONLY"],
                 "redactions": ["internal_tenant_identifier"],
             }
 
@@ -3996,8 +4008,10 @@ async def test_referral_saas_account_admin_can_download_report_export_file(
     body = response.json()
     assert body["status"] == "downloadable"
     assert body["reportExport"]["file"]["content"] == "metric_name,value\nready,1\n"
-    assert body["reportExport"]["exportRequest"]["downloadUrl"] is None
-    assert body["no_download_url_created_confirmed"] is True
+    assert body["reportExport"]["exportRequest"]["downloadUrl"].startswith(
+        "/v1/referral-saas/accounts/acct-1/exports/export-1/download"
+    )
+    assert body["signed_download_route_used_confirmed"] is True
     assert command_calls[0]["account_id"] == "acct-1"
     assert command_calls[0]["export_request_id"] == "export-1"
 
