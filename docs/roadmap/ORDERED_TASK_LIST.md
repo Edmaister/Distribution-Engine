@@ -7434,6 +7434,31 @@ Rollback notes: Revert service/router/tests/docs.
 Explicit non-goals: No schema/migration, frontend controls, object storage, signed URLs, scheduled delivery, provider/webhook dispatch, invite/referral-message delivery, credential creation/storage/reveal/download, auth/session claim changes, campaign activation, repair/replay/retry, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, DLaaS, or source forks.
 Definition of done: Export retention expiry is enforced for runtime file creation, metadata, and download over persisted customer-scoped report export requests. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.998/10 because retention expiry is now enforced while object-store/signed URL hardening, scheduled delivery, governed auth/login completion, repair/replay guardrails, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-331: Define Referral SaaS export object-store signed URL contract
+
+Status: Complete (2026-08-02).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing tenant-safe report/export catalog, selected-customer account scope, TASK-273 export request spine, TASK-327 lifecycle contract, TASK-328 runtime file routes, TASK-329 frontend download workflow, and TASK-330 expiry enforcement. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer-scoped report export object-store and signed-download hardening.
+Objective: Define the safe object-store adapter and signed URL boundary for persisted Referral SaaS report exports before implementing external storage or signed-download behavior.
+Why now: TASK-328 through TASK-330 created, exposed, and expiry-hardened the inline export runtime. The remaining reporting/export hardening gap is the production storage/download model: object references, signed URL TTLs, provider failure states, audit evidence, and no leakage of buckets, object paths, credentials, tenant codes, provider payloads, or signing material.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None. Documents the future storage adapter and signed-download boundary over the existing export request/file lifecycle.
+Frontend impact: None.
+API impact: Documents future signed-download response rules and safe failure states without adding or changing routes.
+Tests added/updated: Docs-only readback.
+Validation method: `git diff --check`; readback of updated contract/task/gap/roadmap/infographic wording.
+Acceptance criteria: Referral SaaS has a reviewed object-store/signed URL export contract that defines opaque storage references, safe metadata, signed URL TTL and expiry rules, storage/signing failure states, required audit evidence, no raw bucket/object/provider/credential leakage, and explicit no side effects for scheduled delivery, provider calls, credentials, auth, campaign activation, repair/replay/retry, billing, money, DLaaS, or source-code forks.
+Dependencies: TASK-273; TASK-327; TASK-328; TASK-329; TASK-330.
+Blocked by: Runtime object-store/signed URL implementation, scheduled delivery controls, provider/vault adapters, invite/referral-message delivery integration, governed auth/login completion, repair/replay guardrails, progress/attribution mutation proof, and non-local proof repetition.
+Risk level: Low.
+Rollback notes: Revert the reporting/export contract update plus roadmap/gap/ordered-task/infographic updates.
+Explicit non-goals: No schema/migration, backend routes, frontend controls, storage adapters, object-store writes, signed URL generation, scheduled delivery, provider/webhook dispatch, invite/referral-message delivery, credential creation/storage/reveal/download, auth/session claim changes, campaign activation, repair/replay/retry, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, DLaaS, or source forks.
+Definition of done: Referral SaaS has the reviewed storage adapter and signed URL hardening contract needed for the next runtime implementation task. Current rating remains 9.99/10 for Referral Management and 9.998/10 for Campaign Attribution because this closes ambiguity in the export hardening design while runtime object-store/signed URL implementation, scheduled delivery, governed auth/login completion, repair/replay guardrails, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
