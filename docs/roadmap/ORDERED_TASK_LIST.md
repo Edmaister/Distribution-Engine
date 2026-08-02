@@ -7409,6 +7409,31 @@ Rollback notes: Revert the frontend report API client/page/test changes plus doc
 Explicit non-goals: No backend route/schema/migration changes, object storage, signed URLs, scheduled delivery, provider/webhook dispatch, invite/referral-message delivery, credential creation/storage/reveal/download, auth/session claim changes, campaign activation, repair/replay/retry, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, DLaaS, or source forks.
 Definition of done: Selected-customer Reports has a tested Prepare CSV and Download file workflow over the existing TASK-328 runtime export routes, with account-scoped payloads, tenant-safe download behavior, metadata feedback, and no-adjacent-action guardrails. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.997/10 because the frontend export-download gap is closed while object-store/signed URL hardening, scheduled delivery, governed auth/login completion, repair/replay guardrails, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-330: Enforce Referral SaaS report export retention expiry
+
+Status: Complete (2026-08-02).
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the existing tenant-safe report/export catalog, selected-customer account scope, TASK-273 export request spine, TASK-327 lifecycle contract, TASK-328 runtime file routes, and TASK-329 frontend download workflow. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer-scoped report export retention lifecycle.
+Objective: Enforce `expires_at` before export file storage/download and return safe expired metadata so stale tenant-safe report files cannot be downloaded after the retention window.
+Why now: TASK-329 closed the visible frontend download-control gap, but the runtime still needed expiry enforcement before the reporting/export lifecycle could be treated as production-grade rather than a happy-path download feature.
+Files involved: `services/referral_saas_reporting_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/test_referral_saas_reporting_service.py`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; roadmap/gap/infographic docs.
+Database/schema impact: None. Uses existing `referral_saas_report_export_requests.expires_at` and status metadata.
+Backend impact: Blocks expired export file creation and download with `REPORT_EXPORT_FILE_EXPIRED`; marks expired metadata with `storage_status=EXPIRED`, `download_status=EXPIRED`, and no download URL.
+Frontend impact: None. Existing UI receives explicit expired metadata/conflict states from the backend.
+API impact: Existing file create/download routes now return safe `409 REPORT_EXPORT_FILE_EXPIRED` conflicts when the persisted export request is expired.
+Tests added/updated: Focused reporting service export-file tests for expired metadata and expired download blocking.
+Validation method: `git diff --check`; Python `py_compile` for edited backend files; focused pytest for reporting service export-file paths.
+Acceptance criteria: Expired report export requests cannot be converted into downloadable files, expired file metadata is visible without exposing file content or download URLs, and download attempts fail safely without scheduled delivery, provider, credential/auth, campaign, billing, money, DLaaS, or source-fork side effects.
+Dependencies: TASK-273; TASK-327; TASK-328; TASK-329.
+Blocked by: Provider/vault adapters, object-store/signed URL hardening, scheduled delivery, invite/referral-message delivery integration, governed auth/login completion, repair/replay guardrails, progress/attribution mutation proof, and non-local proof repetition.
+Risk level: Low.
+Rollback notes: Revert service/router/tests/docs.
+Explicit non-goals: No schema/migration, frontend controls, object storage, signed URLs, scheduled delivery, provider/webhook dispatch, invite/referral-message delivery, credential creation/storage/reveal/download, auth/session claim changes, campaign activation, repair/replay/retry, billing, money movement, reward, funding, fulfilment, settlement, commission, wallet, invoice, payout, sponsor billing, treasury, DLaaS, or source forks.
+Definition of done: Export retention expiry is enforced for runtime file creation, metadata, and download over persisted customer-scoped report export requests. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.998/10 because retention expiry is now enforced while object-store/signed URL hardening, scheduled delivery, governed auth/login completion, repair/replay guardrails, progress/attribution mutation proof, and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

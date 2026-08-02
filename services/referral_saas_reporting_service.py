@@ -30,11 +30,14 @@ STATUS_EXPORT_FILE_STORED = "REPORT_EXPORT_FILE_STORED"
 STATUS_EXPORT_FILE_REPLAYED = "REPORT_EXPORT_FILE_REPLAYED"
 STATUS_EXPORT_FILE_METADATA_READ = "REPORT_EXPORT_FILE_METADATA_READ"
 STATUS_EXPORT_FILE_DOWNLOADED = "REPORT_EXPORT_FILE_DOWNLOADED"
+STATUS_EXPORT_FILE_EXPIRED = "REPORT_EXPORT_FILE_EXPIRED"
 STORAGE_STATUS_NOT_STORED = "NOT_STORED"
 STORAGE_STATUS_STORED = "STORED"
+STORAGE_STATUS_EXPIRED = "EXPIRED"
 DELIVERY_STATUS_NOT_REQUESTED = "NOT_REQUESTED"
 DOWNLOAD_STATUS_NOT_AVAILABLE = "NOT_AVAILABLE"
 DOWNLOAD_STATUS_AVAILABLE = "AVAILABLE"
+DOWNLOAD_STATUS_EXPIRED = "EXPIRED"
 EXPORT_FORMAT_CSV = "csv"
 EXPORT_FORMAT_JSON = "json"
 EXPORT_REDACTION_PROFILE_TENANT_SAFE = "tenant_safe"
@@ -136,6 +139,10 @@ class ReportExportFileNotFound(ReferralSaasReportExportCommandError):
 
 class ReportExportFileNotReady(ReferralSaasReportExportCommandError):
     safe_code = "EXPORT_FILE_NOT_READY"
+
+
+class ReportExportFileExpired(ReferralSaasReportExportCommandError):
+    safe_code = "REPORT_EXPORT_FILE_EXPIRED"
 
 
 @dataclass(frozen=True)
@@ -728,6 +735,40 @@ def _file_metadata_from_export_row(row: Any) -> dict[str, Any]:
     return file_storage
 
 
+def _as_utc_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _is_export_request_expired(row: Any, *, now: datetime | None = None) -> bool:
+    expires_at = _as_utc_datetime(row.get("expires_at"))
+    if expires_at is None:
+        return False
+    safe_now = now or datetime.now(timezone.utc)
+    if safe_now.tzinfo is None:
+        safe_now = safe_now.replace(tzinfo=timezone.utc)
+    return expires_at <= safe_now.astimezone(timezone.utc)
+
+
+def _expired_export_row(row: Any) -> dict[str, Any]:
+    data = dict(row)
+    data["request_status"] = STATUS_EXPORT_FILE_EXPIRED
+    data["storage_status"] = STORAGE_STATUS_EXPIRED
+    data["download_status"] = DOWNLOAD_STATUS_EXPIRED
+    data["download_url"] = None
+    return data
+
+
 def _safe_export_file_payload(value: Any) -> Any:
     hidden_keys = {
         "tenant_code",
@@ -1250,6 +1291,10 @@ async def create_referral_saas_report_export_file(
             raise ReportExportFileNotFound(
                 "Report export request was not found for this customer account."
             )
+        if _is_export_request_expired(export_row):
+            raise ReportExportFileExpired(
+                "Report export file has expired. Create a new export request before storing or downloading it."
+            )
 
         if str(export_row["storage_status"]) == STORAGE_STATUS_STORED:
             return _file_result_from_export_row(
@@ -1448,8 +1493,13 @@ async def get_referral_saas_report_export_file_metadata(
         raise ReportExportFileNotFound(
             "Report export request was not found for this customer account."
         )
+    safe_export_row = (
+        _expired_export_row(export_row)
+        if _is_export_request_expired(export_row)
+        else export_row
+    )
     return _file_result_from_export_row(
-        export_row,
+        safe_export_row,
         account_id=safe_account_id,
         command_status=STATUS_EXPORT_FILE_METADATA_READ,
     )
@@ -1481,6 +1531,10 @@ async def download_referral_saas_report_export_file(
         if not export_row:
             raise ReportExportFileNotFound(
                 "Report export request was not found for this customer account."
+            )
+        if _is_export_request_expired(export_row):
+            raise ReportExportFileExpired(
+                "Report export file has expired. Create a new export request before downloading it."
             )
         file_storage = _file_metadata_from_export_row(export_row)
         content = str(file_storage.get("content") or "")

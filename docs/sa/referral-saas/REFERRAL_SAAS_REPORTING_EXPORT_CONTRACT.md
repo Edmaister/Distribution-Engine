@@ -529,13 +529,22 @@ delivery, provider dispatch, invite/message delivery, credentials,
 auth/session changes, campaign activation, repair/replay/retry, billing,
 money movement, DLaaS behavior, and source forks out of scope.
 
+TASK-330 implementation update: retention expiry is now enforced by the
+runtime. Expired export requests cannot be converted into files or downloaded;
+metadata returns `REPORT_EXPORT_FILE_EXPIRED`, `storage_status=EXPIRED`, and
+`download_status=EXPIRED` without a download URL. The file create and download
+routes return safe `409 REPORT_EXPORT_FILE_EXPIRED` conflicts while preserving
+the same no scheduled delivery, provider, credential/auth, campaign, billing,
+money, DLaaS, and source-fork boundaries.
+
 ## Persisted Export File Lifecycle Contract
 
 TASK-273 records the export request and audit evidence. TASK-327 defines the
 runtime file lifecycle. TASK-328 implements the first inline file artifact,
 metadata, and download runtime over that lifecycle. TASK-329 exposes that
 runtime in the selected-customer Reports UI through a bounded Prepare CSV and
-Download file workflow.
+Download file workflow. TASK-330 enforces retention expiry before file creation
+or download and reports expired metadata safely.
 
 ### Lifecycle States
 
@@ -544,7 +553,7 @@ Download file workflow.
 | Request recorded | `request_status=READY_FOR_FILE_STORAGE`; `storage_status=NOT_STORED`; `download_status=NOT_AVAILABLE` | The customer asked for an export and the request passed validation, but no file exists yet. |
 | Storage pending | `storage_status=PENDING`; `download_status=PENDING` | A governed worker or command is preparing a tenant-safe payload. This must remain internal and audited. |
 | Stored and downloadable | `storage_status=STORED`; `download_status=AVAILABLE` | A tenant-safe export payload exists and may be downloaded by an authorised actor until expiry. |
-| Expired | `request_status=EXPIRED` or `storage_status=EXPIRED`; `download_status=EXPIRED` | The request or stored payload is past retention and cannot be downloaded. |
+| Expired | `request_status=REPORT_EXPORT_FILE_EXPIRED` or `storage_status=EXPIRED`; `download_status=EXPIRED` | The request or stored payload is past retention and cannot be stored or downloaded. |
 | Failed | `request_status=FAILED` or `storage_status=FAILED` | File preparation failed without exposing raw payloads, secrets, or tenant internals. |
 
 ### Required Runtime Behavior
@@ -622,3 +631,9 @@ TASK-329 adds frontend-focused tests for:
 - stored file metadata shown before download
 - no scheduled delivery, credential/auth, provider, campaign activation,
   billing, money, DLaaS, or source-fork payload fields from the UI workflow
+
+TASK-330 adds focused service tests for:
+
+- expired export metadata returns expired request, storage, and download states
+  without a download URL
+- expired export download is blocked before file read/audit side effects

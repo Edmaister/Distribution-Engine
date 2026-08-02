@@ -114,6 +114,7 @@ from services.referral_saas_reporting_service import (
     EXPORT_REQUEST_GUARDRAILS,
     EXPORT_REQUEST_REDACTIONS,
     ReferralSaasReportExportCommandError,
+    ReportExportFileExpired,
     ReportExportFileNotFound,
     ReportExportFileNotReady,
     ReportExportRequestIdempotencyConflict,
@@ -4444,6 +4445,19 @@ async def create_referral_saas_account_report_export_file(
                 "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
             },
         ) from exc
+    except ReportExportFileExpired as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": exc.safe_code,
+                "message": str(exc),
+                "guardrails": sorted(REPORT_EXPORT_REQUEST_GUARDRAILS),
+                "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
+                "no_download_url_created_confirmed": True,
+                "no_scheduled_delivery_created_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        ) from exc
     except (ReferralSaasReportExportCommandError, ValueError) as exc:
         safe_code = getattr(exc, "safe_code", "validation_error")
         raise HTTPException(
@@ -4571,7 +4585,7 @@ async def download_referral_saas_account_report_export_file(
                 "redactions": sorted(REPORT_EXPORT_REQUEST_REDACTIONS),
             },
         ) from exc
-    except ReportExportFileNotReady as exc:
+    except (ReportExportFileExpired, ReportExportFileNotReady) as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
