@@ -1222,7 +1222,7 @@ async def test_referral_saas_report_export_request_records_request_and_audit(
                 "row_count": 1,
                 "export_format": "csv",
                 "redaction_profile": "tenant_safe",
-                "expires_at": datetime(2026, 7, 31, tzinfo=timezone.utc),
+                "expires_at": datetime(2027, 7, 31, tzinfo=timezone.utc),
             },
             {"account_audit_event_id": "audit-1"},
         ]
@@ -1294,7 +1294,7 @@ async def test_referral_saas_report_export_request_replays_same_idempotency(
                 "row_count": 0,
                 "export_format": "json",
                 "redaction_profile": "tenant_safe",
-                "expires_at": datetime(2026, 7, 31, tzinfo=timezone.utc),
+                "expires_at": datetime(2027, 7, 31, tzinfo=timezone.utc),
                 "request_payload_hash": "payload-hash",
             }
         ]
@@ -1436,7 +1436,7 @@ async def test_referral_saas_report_export_file_stores_downloadable_payload(
                 "redactions": [],
                 "reason_code": "REPORT_EXPORT",
                 "correlation_id": "corr-1",
-                "expires_at": datetime(2026, 7, 31, tzinfo=timezone.utc),
+                "expires_at": datetime(2027, 7, 31, tzinfo=timezone.utc),
             },
             {
                 "export_request_id": "export-1",
@@ -1453,7 +1453,7 @@ async def test_referral_saas_report_export_file_stores_downloadable_payload(
                 "download_status": "AVAILABLE",
                 "download_url": None,
                 "metadata": updated_metadata,
-                "expires_at": datetime(2026, 7, 31, tzinfo=timezone.utc),
+                "expires_at": datetime(2027, 7, 31, tzinfo=timezone.utc),
             },
             {"account_audit_event_id": "audit-1"},
         ]
@@ -1526,7 +1526,7 @@ async def test_referral_saas_report_export_file_download_returns_stored_content(
                 "redactions": [],
                 "reason_code": "REPORT_EXPORT",
                 "correlation_id": "corr-1",
-                "expires_at": datetime(2026, 7, 31, tzinfo=timezone.utc),
+                "expires_at": datetime(2027, 7, 31, tzinfo=timezone.utc),
             },
             {"account_audit_event_id": "audit-2"},
         ]
@@ -1546,3 +1546,108 @@ async def test_referral_saas_report_export_file_download_returns_stored_content(
     assert safe_payload["file"]["fileName"] == "report.csv"
     audit_params = conn.fetchrow_calls[1][1]
     assert svc.EXPORT_FILE_DOWNLOAD_EVENT in audit_params
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_report_export_file_metadata_marks_expired_export(
+    monkeypatch,
+):
+    conn = FakeExportCommandConnection(
+        [
+            {
+                "export_request_id": "export-expired",
+                "account_id": "acct-1",
+                "tenant_code": "FNB",
+                "report_type": "campaign_performance",
+                "export_format": "csv",
+                "redaction_profile": "tenant_safe",
+                "row_limit": 50,
+                "row_count": 1,
+                "request_status": "READY_FOR_FILE_STORAGE",
+                "storage_status": "STORED",
+                "delivery_status": "NOT_REQUESTED",
+                "download_status": "AVAILABLE",
+                "download_url": None,
+                "metadata": {
+                    "file_storage": {
+                        "storage_mode": "database_metadata_inline",
+                        "file_name": "report.csv",
+                        "content_type": "text/csv",
+                        "content_sha256": "sha",
+                        "byte_size": 20,
+                        "content": "metric_name,value\nready,1\n",
+                    }
+                },
+                "expires_at": datetime(2026, 7, 31, tzinfo=timezone.utc),
+            },
+        ]
+    )
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+
+    result = await svc.get_referral_saas_report_export_file_metadata(
+        account_id="acct-1",
+        export_request_id="export-expired",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["exportRequest"]["requestStatus"] == "REPORT_EXPORT_FILE_EXPIRED"
+    assert safe_payload["exportRequest"]["storageStatus"] == "EXPIRED"
+    assert safe_payload["exportRequest"]["downloadStatus"] == "EXPIRED"
+    assert safe_payload["exportRequest"]["downloadUrl"] is None
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_report_export_file_download_blocks_expired_export(
+    monkeypatch,
+):
+    conn = FakeExportCommandConnection(
+        [
+            {
+                "export_request_id": "export-expired",
+                "account_id": "acct-1",
+                "account_tenant_id": "acct-tenant-1",
+                "external_ref_id": "external-ref-1",
+                "tenant_code": "FNB",
+                "report_type": "campaign_performance",
+                "export_format": "csv",
+                "redaction_profile": "tenant_safe",
+                "row_limit": 50,
+                "row_count": 1,
+                "request_status": "READY_FOR_FILE_STORAGE",
+                "storage_status": "STORED",
+                "delivery_status": "NOT_REQUESTED",
+                "download_status": "AVAILABLE",
+                "download_url": None,
+                "dimensions": [],
+                "filters": {},
+                "metadata": {
+                    "file_storage": {
+                        "storage_mode": "database_metadata_inline",
+                        "file_name": "report.csv",
+                        "content_type": "text/csv",
+                        "content_sha256": "sha",
+                        "byte_size": 20,
+                        "content": "metric_name,value\nready,1\n",
+                    }
+                },
+                "redactions": [],
+                "reason_code": "REPORT_EXPORT",
+                "correlation_id": "corr-1",
+                "expires_at": datetime(2026, 7, 31, tzinfo=timezone.utc),
+            },
+        ]
+    )
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+
+    with pytest.raises(
+        svc.ReportExportFileExpired,
+        match="Report export file has expired",
+    ):
+        await svc.download_referral_saas_report_export_file(
+            account_id="acct-1",
+            export_request_id="export-expired",
+            requested_by_ref="operator-1",
+            requested_by_role="ADMIN",
+        )
+
+    assert len(conn.fetchrow_calls) == 1

@@ -1798,6 +1798,21 @@ greenfield referral construction.
   campaign activation, repair/replay/retry, billing, money, DLaaS, or
   source-fork side effects. Scores remain 9.99/10 for Referral Management and
   move to 9.997/10 for Campaign Attribution.
+- TASK-330: `services/referral_saas_reporting_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `test/test_referral_saas_reporting_service.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Enforces
+  report export retention expiry over the TASK-328/TASK-329 runtime. Expired
+  export requests cannot be converted into files or downloaded, metadata is
+  returned as expired without a download URL, and safe `409
+  REPORT_EXPORT_FILE_EXPIRED` conflicts preserve no scheduled delivery,
+  provider, credential/auth, campaign, billing, money, DLaaS, or source-fork
+  side effects. Scores remain 9.99/10 for Referral Management and move to
+  9.998/10 for Campaign Attribution.
 
 ## Explicit Deferrals
 
