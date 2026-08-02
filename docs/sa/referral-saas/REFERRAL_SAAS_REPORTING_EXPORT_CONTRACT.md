@@ -16,8 +16,12 @@ referral, campaign-link, and route-link evidence; TASK-162 adds
 TASK-163 adds `link_code_performance` over durable referral code, campaign
 code, campaign-referral link, and route-referral link evidence. TASK-164 adds
 `reward_visibility_summary` as count-only operational visibility over persisted
-reward rows and pending mission bonus evidence. Export jobs, frontend, full
-SaaS account membership resolution, permission changes, and storage remain
+reward rows and pending mission bonus evidence. TASK-327 through TASK-332
+define and implement the persisted export file lifecycle, selected-customer
+download controls, retention expiry, object-store/signed URL contract, and
+signed-download runtime metadata. TASK-333 defines scheduled delivery
+boundaries. Runtime scheduled delivery API/UI, provider dispatch, full SaaS
+account membership resolution, permission changes, and live delivery remain
 unimplemented.
 
 ## Boundary
@@ -637,6 +641,151 @@ TASK-330 adds focused service tests for:
 - expired export metadata returns expired request, storage, and download states
   without a download URL
 - expired export download is blocked before file read/audit side effects
+
+## Scheduled Report Delivery Contract
+
+TASK-333 defines the customer-scoped schedule boundary for recurring Referral
+SaaS reports. A schedule is configuration intent only until the runtime API,
+worker, provider/vault adapter, and selected-customer UI are implemented in
+later tasks. This contract must not be used to send email, call a provider,
+create credentials, mutate login access, activate campaigns, repair/replay
+events, bill, move money, or expand into DLaaS marketplace behavior.
+
+### Candidate Routes
+
+Runtime routes should stay under the selected customer account context:
+
+| Route | Purpose | Side effects allowed |
+|---|---|---|
+| `POST /v1/referral-saas/accounts/{account_ref}/reports/{report_type}/delivery-schedules` | Create a recurring delivery schedule intent. | Persist schedule intent and audit only. |
+| `GET /v1/referral-saas/accounts/{account_ref}/reports/{report_type}/delivery-schedules` | List schedules for one report type and customer. | Read-only. |
+| `GET /v1/referral-saas/accounts/{account_ref}/delivery-schedules/{schedule_id}` | Read one schedule and its readiness/failure state. | Read-only. |
+| `PATCH /v1/referral-saas/accounts/{account_ref}/delivery-schedules/{schedule_id}` | Update cadence, recipients, format, pause/resume, or cancel state. | Persist schedule intent and audit only. |
+| `GET /v1/referral-saas/accounts/{account_ref}/delivery-schedules/{schedule_id}/readiness` | Explain whether a schedule is safe to execute later. | Read-only. |
+
+The route shape may be adjusted during TASK-334 if the implementation reuses
+existing router conventions, but it must preserve selected-customer scope,
+report type scope, idempotency, audit, and no-adjacent-action behavior.
+
+### Schedule Fields
+
+The schedule payload must use safe product fields:
+
+- `schedule_id`: opaque schedule reference returned by the platform
+- `account_ref`: selected-customer account reference from the route context
+- `report_type`: one approved Referral SaaS report type
+- `campaign_ref`: optional customer-scoped campaign reference when required
+- `cadence`: bounded value such as `DAILY`, `WEEKLY`, or `MONTHLY`
+- `timezone`: explicit IANA timezone for run calculation
+- `format`: approved export format such as `CSV`
+- `recipient_contact_refs`: customer-scoped contact/access references, not raw
+  provider recipients
+- `redaction_profile`: approved report/export redaction profile
+- `retention_days`: bounded value no greater than the export retention policy
+- `status`: schedule lifecycle state
+- `next_run_at` and `last_run_at`: calculated timestamps when known
+- `last_export_request_id`: optional export request created by a future
+  executor
+- `last_delivery_status`: safe status from a future delivery executor
+- `blocked_reasons`, `warnings`, and `guardrails`: plain product-safe evidence
+- `idempotency_key_hash` and `correlation_id`: audit/debug evidence only
+
+The public API must not accept or return raw tenant codes, UCNs, raw email
+provider payloads, bucket names, object paths, signing material, API keys,
+secrets, tokens, auth claims, DLQ payloads, invoice IDs, wallet IDs, payout
+IDs, or settlement/funding/commission internals.
+
+### Cadence Rules
+
+Schedules must use bounded product cadence rather than arbitrary cron strings.
+The implementation should reject unsupported intervals, missing timezone,
+ambiguous local times, negative or unbounded retention, and schedules whose
+next run falls outside a configured operational window. Paused or cancelled
+schedules must not be picked up by any executor.
+
+### Recipient Rules
+
+Recipients must be derived from customer-scoped People and Access or approved
+contact evidence. A schedule may reference a contact/access record that proves
+who should receive the report, but provider-specific delivery remains blocked
+until the Integrations/provider/vault path approves the delivery channel.
+
+Recipient readiness must fail closed when:
+
+- no approved recipient contact/access evidence exists
+- the recipient is outside the selected customer account
+- the contact reference is disabled, removed, or redacted
+- the delivery provider is not configured, not approved, or not execution-ready
+- the requested channel is not approved for scheduled report delivery
+
+### Report, Export, Signed URL, And Retention Interaction
+
+A future scheduler must create an ordinary report export request through the
+same customer-scoped export lifecycle. It must not create a special delivery
+file path. Every scheduled run must still pass report readiness, redaction,
+freshness, row-limit, retention, file generation, storage, and signed-download
+checks.
+
+Signed URLs, when available, are run output, not schedule identity:
+
+- schedule configuration must never store signed URLs
+- signed URL TTL must be bounded by remaining export retention
+- expired export files cannot be delivered or re-signed
+- failed export creation must mark the run as failed without provider dispatch
+- no schedule may extend file retention or bypass redaction/freshness rules
+
+### Schedule States
+
+| State | Meaning |
+|---|---|
+| `DRAFT` | Schedule intent exists, but readiness is incomplete. |
+| `READY` | Schedule intent is valid and can be picked up by a future governed executor. |
+| `PAUSED` | Schedule is valid but intentionally not executable. |
+| `CANCELLED` | Schedule is closed and must not execute. |
+| `BLOCKED` | Schedule cannot execute because recipient, provider, report, account, retention, or permission evidence is missing. |
+| `FAILED` | A future execution attempt failed safely. |
+
+### Safe Error Codes
+
+| Error code | Meaning |
+|---|---|
+| `REPORT_DELIVERY_SCHEDULE_INVALID` | Cadence, timezone, format, report type, retention, or schedule state is invalid. |
+| `REPORT_DELIVERY_RECIPIENT_BLOCKED` | Recipient evidence is missing, disabled, removed, cross-account, or redacted. |
+| `REPORT_DELIVERY_PROVIDER_NOT_READY` | The delivery provider/channel is not configured or not approved for execution. |
+| `REPORT_DELIVERY_REPORT_NOT_READY` | Report readiness, freshness, redaction, or row-limit checks failed. |
+| `REPORT_DELIVERY_EXPORT_EXPIRED` | The export file or signed URL is outside retention. |
+| `REPORT_DELIVERY_ACCOUNT_SCOPE_CONFLICT` | The schedule, report, recipient, or export does not belong to the selected customer. |
+| `REPORT_DELIVERY_IDEMPOTENCY_CONFLICT` | The idempotency key was reused with different schedule content. |
+| `REPORT_DELIVERY_DISABLED` | The schedule is paused, cancelled, or globally disabled. |
+
+### Audit And Idempotency
+
+Schedule create/update/pause/resume/cancel commands must be idempotent and
+audited. Audit evidence should capture actor, customer account, report type,
+safe recipient references, cadence, timezone, redaction profile, retention
+choice, status transition, idempotency hash, correlation ID, and guardrails.
+
+Runtime delivery attempts must be auditable separately from schedule
+configuration. A future executor should record run started, export created,
+storage/signed URL result, provider dispatch readiness, delivery success/fail,
+and final run state without exposing provider internals.
+
+### Implementation Test Expectations
+
+TASK-334 and TASK-335 must add tests for:
+
+- customer-scope create/list/read/update/cancel behavior
+- idempotent schedule create/update and conflict rejection
+- cadence, timezone, report type, export format, and retention validation
+- recipient contact/access readiness and cross-customer rejection
+- report/export readiness and retention expiry blocking execution readiness
+- signed URL TTL never exceeding export retention
+- no raw tenant code, UCN, provider payload, object path, credential, secret,
+  token, signing material, auth claim, billing, settlement, reward, wallet,
+  invoice, payout, or money fields in public responses
+- no provider dispatch, webhook call, invite/referral-message delivery,
+  credential/auth mutation, campaign activation, repair/replay/retry, billing,
+  money movement, DLaaS marketplace behavior, or source-code fork side effects
 
 ## Object-Store And Signed URL Hardening Contract
 

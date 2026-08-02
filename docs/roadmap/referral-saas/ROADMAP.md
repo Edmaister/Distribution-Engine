@@ -1863,6 +1863,17 @@ greenfield referral construction.
   material, tenant code, provider payload, credential/auth, campaign, billing,
   money, DLaaS, or source-fork side effect is exposed. Scores remain 9.99/10
   for Referral Management and move to 9.999/10 for Campaign Attribution.
+- TASK-333: `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the
+  customer-scoped scheduled report delivery contract. The contract covers
+  schedule routes, safe schedule fields, cadence, recipients, report/export
+  readiness, signed URL and retention interaction, lifecycle states, safe
+  error codes, audit/idempotency, and no-side-effect boundaries. Scores remain
+  9.99/10 for Referral Management and 9.999/10 for Campaign Attribution
+  because runtime schedule API/UI and governed provider execution remain open.
 
 ## Explicit Deferrals
 
