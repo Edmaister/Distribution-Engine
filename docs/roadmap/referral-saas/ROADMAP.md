@@ -1825,6 +1825,21 @@ greenfield referral construction.
   provider, credential/auth, campaign, billing, money, DLaaS, or source-fork
   side effects. Scores remain 9.99/10 for Referral Management and 9.998/10 for
   Campaign Attribution because runtime hardening remains the next task.
+- TASK-332: `services/referral_saas_reporting_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `test/test_referral_saas_reporting_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  runtime signed-download layer for persisted customer-scoped report export
+  files. Export file creation now stores an opaque storage reference and a
+  short-lived signed download URL bounded by retention, public file metadata
+  stays content-free and storage-safe, and no raw object path, bucket, signing
+  material, tenant code, provider payload, credential/auth, campaign, billing,
+  money, DLaaS, or source-fork side effect is exposed. Scores remain 9.99/10
+  for Referral Management and move to 9.999/10 for Campaign Attribution.
 
 ## Explicit Deferrals
 

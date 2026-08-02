@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -1404,11 +1405,14 @@ async def test_referral_saas_report_export_file_stores_downloadable_payload(
 
     updated_metadata = {
         "file_storage": {
-            "storage_mode": "database_metadata_inline",
+            "storage_mode": "object_store_signed_url",
+            "storage_ref": "export_object_abc123",
             "file_name": "referral-saas-campaign_performance-export-1.json",
             "content_type": "application/json",
             "content_sha256": "sha",
             "byte_size": 100,
+            "signed_url_expires_at": "2027-07-31T00:05:00+00:00",
+            "signed_url_ttl_seconds": 300,
             "content": '{"rows":[]}',
         }
     }
@@ -1451,7 +1455,10 @@ async def test_referral_saas_report_export_file_stores_downloadable_payload(
                 "storage_status": "STORED",
                 "delivery_status": "NOT_REQUESTED",
                 "download_status": "AVAILABLE",
-                "download_url": None,
+                "download_url": (
+                    "/v1/referral-saas/accounts/acct-1/exports/export-1/download"
+                    "?download_token=signed&expires_at=2027-07-31T00:05:00+00:00"
+                ),
                 "metadata": updated_metadata,
                 "expires_at": datetime(2027, 7, 31, tzinfo=timezone.utc),
             },
@@ -1479,14 +1486,32 @@ async def test_referral_saas_report_export_file_stores_downloadable_payload(
     assert safe_payload["commandStatus"] == "REPORT_EXPORT_FILE_STORED"
     assert safe_payload["exportRequest"]["storageStatus"] == "STORED"
     assert safe_payload["exportRequest"]["downloadStatus"] == "AVAILABLE"
-    assert safe_payload["exportRequest"]["downloadUrl"] is None
-    assert safe_payload["file"]["storageMode"] == "database_metadata_inline"
+    assert safe_payload["exportRequest"]["downloadUrl"].startswith(
+        "/v1/referral-saas/accounts/acct-1/exports/export-1/download"
+    )
+    assert "download_token=" in safe_payload["exportRequest"]["downloadUrl"]
+    assert safe_payload["file"]["storageMode"] == "object_store_signed_url"
+    assert safe_payload["file"]["storageRef"] == "export_object_abc123"
+    assert safe_payload["file"]["signedUrlExpiresAt"] == "2027-07-31T00:05:00+00:00"
+    assert "content" not in safe_payload["file"]
     assert safe_payload["audit"]["accountAuditEventId"] == "audit-1"
     joined_queries = "\n".join(query for query, _ in conn.fetchrow_calls)
     assert "UPDATE referral_saas_report_export_requests" in joined_queries
     assert "INSERT INTO platform_account_audit_events" in joined_queries
     update_metadata = conn.fetchrow_calls[1][1][5]
     assert "tenant_scope" not in update_metadata
+    parsed_metadata = json.loads(update_metadata)
+    stored_file = parsed_metadata["file_storage"]
+    assert stored_file["storage_mode"] == "object_store_signed_url"
+    assert stored_file["storage_ref"].startswith("export_object_")
+    assert stored_file["signed_url_ttl_seconds"] <= svc.EXPORT_SIGNED_URL_TTL_SECONDS
+    assert "s3://" not in update_metadata.lower()
+    assert "blob.core.windows.net" not in update_metadata.lower()
+    assert "storage_key" not in stored_file
+    assert "signing_secret" not in stored_file
+    assert conn.fetchrow_calls[1][1][7].startswith(
+        "/v1/referral-saas/accounts/acct-1/exports/export-1/download"
+    )
 
 
 @pytest.mark.asyncio

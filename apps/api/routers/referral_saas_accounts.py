@@ -4493,13 +4493,13 @@ async def create_referral_saas_account_report_export_file(
         "account_scope": _customer_report_account_scope(account),
         "guardrail": (
             "Tenant-safe export file stored for the selected customer. This "
-            "does not create a download URL, scheduled delivery, webhook, "
-            "credential, auth change, campaign activation, billing event, "
-            "or money movement."
+            "creates a short-lived signed download URL only; it does not "
+            "create scheduled delivery, webhook dispatch, credential, auth "
+            "change, campaign activation, billing event, or money movement."
         ),
         "guardrails": sorted(result.to_safe_dict()["guardrails"]),
         "redactions": sorted(result.to_safe_dict()["redactions"]),
-        "no_download_url_created_confirmed": True,
+        "signed_download_url_created_confirmed": True,
         "no_scheduled_delivery_created_confirmed": True,
         "no_tenant_code_exposure_confirmed": True,
         "no_billing_or_money_movement_confirmed": True,
@@ -4545,7 +4545,7 @@ async def get_referral_saas_account_report_export_file_metadata(
         "reportExport": _redact_customer_report_payload(result.to_safe_dict()),
         "account_scope": _customer_report_account_scope(account),
         "no_export_content_returned_confirmed": True,
-        "no_download_url_created_confirmed": True,
+        "signed_download_url_metadata_only_confirmed": True,
         "no_tenant_code_exposure_confirmed": True,
     }
 
@@ -4602,7 +4602,7 @@ async def download_referral_saas_account_report_export_file(
         "account": account.to_safe_dict(),
         "reportExport": _redact_customer_report_payload(result.to_safe_dict()),
         "account_scope": _customer_report_account_scope(account),
-        "no_download_url_created_confirmed": True,
+        "signed_download_route_used_confirmed": True,
         "no_scheduled_delivery_created_confirmed": True,
         "no_tenant_code_exposure_confirmed": True,
         "no_billing_or_money_movement_confirmed": True,
