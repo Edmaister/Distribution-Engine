@@ -7486,7 +7486,7 @@ Definition of done: Runtime export file creation now produces safe signed-downlo
 
 ## TASK-333: Define Referral SaaS scheduled report delivery contract
 
-Status: Planned.
+Status: Completed on 2026-08-03.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Reuses tenant-safe report/export catalog, selected-customer account scope, export request/file lifecycle, signed-download metadata, retention rules, idempotency, audit, and no-adjacent-action guardrails. Source duplication: No.
@@ -7496,18 +7496,18 @@ Objective: Define the customer-scoped scheduled delivery boundary for recurring 
 Why now: TASK-332 closed signed-download runtime hardening. The remaining reporting gap is scheduled delivery, which needs a reviewed contract before runtime jobs or UI controls are introduced.
 Files likely involved: `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; roadmap, gap matrix, ordered task list, and infographic docs.
 Database/schema impact: None in this contract task.
-Backend impact: None. Runtime schedule persistence and execution remain separate tasks.
-Frontend impact: None. UI controls remain a separate task.
-API impact: Documents candidate schedule create/list/update/cancel/readiness routes, safe schedule fields, cadence constraints, recipient restrictions, retention interactions, audit evidence, and failure states.
+Backend impact: None. Runtime schedule persistence and execution remain TASK-334 and later governed execution work.
+Frontend impact: None. Selected-customer schedule controls remain TASK-335.
+API impact: Documents candidate schedule create/list/update/cancel/readiness routes, safe schedule fields, cadence constraints, recipient restrictions, retention and signed-URL interactions, audit evidence, lifecycle states, and safe failure codes.
 Tests to add/update: Docs-only readback.
 Validation method: `git diff --check`; contract readback.
 Acceptance criteria: The scheduled delivery contract defines cadence, recipient, report/export, signed-download, expiry, failure, retry, idempotency, audit, redaction, and no side-effect boundaries without sending email, creating credentials, dispatching providers, changing auth, activating campaigns, billing, moving money, or adding DLaaS scope.
 Dependencies: TASK-327; TASK-328; TASK-329; TASK-330; TASK-331; TASK-332.
-Blocked by: Runtime scheduled delivery API, scheduled delivery UI, provider/vault adapters, governed auth/login completion, repair/replay guardrails, progress/attribution mutation proof, and non-local proof repetition.
+Blocked by: None for the contract. Runtime scheduled delivery API, scheduled delivery UI, provider/vault adapters, governed auth/login completion, repair/replay guardrails, progress/attribution mutation proof, and non-local proof repetition remain separate tasks.
 Risk level: Low.
 Rollback notes: Revert reporting/export contract and roadmap/gap/task updates.
 Explicit non-goals: No schema, migrations, backend routes, frontend controls, scheduled job execution, email delivery, provider calls, webhook dispatch, credential creation/storage/reveal/download, auth/session claim changes, campaign activation, repair/replay/retry, billing, money movement, DLaaS, or source-code forks.
-Definition of done: Referral SaaS has a reviewed scheduled report delivery contract that can drive runtime API and UI tasks without blurring export, provider, auth, billing, or DLaaS boundaries. Priority: P0.
+Definition of done: Referral SaaS has a reviewed scheduled report delivery contract that can drive runtime API and UI tasks without blurring export, provider, auth, billing, or DLaaS boundaries. Current rating remains 9.99/10 for Referral Management and 9.999/10 for Campaign Attribution because schedule execution, API persistence, UI controls, provider/vault execution, governed auth/login completion, repair/replay guardrails, progress/attribution mutation proof, and non-local proof remain separate gaps. Priority: P0.
 
 ## TASK-334: Add scheduled report delivery API foundation
 
