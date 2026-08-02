@@ -263,6 +263,19 @@ class FakeExportCommandConnection:
         return FakeTransaction()
 
 
+class FakeScheduleCommandConnection(FakeExportCommandConnection):
+    def __init__(self, fetchrow_results, fetch_results: list[list[dict]] | None = None):
+        super().__init__(fetchrow_results)
+        self.fetch_results = list(fetch_results or [])
+        self.fetch_calls = []
+
+    async def fetch(self, query, *params):
+        self.fetch_calls.append((query, params))
+        if not self.fetch_results:
+            raise AssertionError(f"unexpected fetch: {query}")
+        return self.fetch_results.pop(0)
+
+
 def _overview() -> dict:
     return {
         "tenant_code": "FNB",
@@ -1371,6 +1384,190 @@ async def test_referral_saas_report_export_request_conflicts_on_idempotency_mism
             request_payload_hash="payload-hash",
             requested_by_ref="operator-1",
         )
+
+
+def _schedule_row(**overrides):
+    row = {
+        "schedule_id": "schedule-1",
+        "account_id": "acct-1",
+        "tenant_code": "FNB",
+        "report_type": "campaign_performance",
+        "campaign_ref": "CAMP001",
+        "cadence": "WEEKLY",
+        "timezone": "Africa/Johannesburg",
+        "export_format": "json",
+        "redaction_profile": "tenant_safe",
+        "recipient_contact_refs": json.dumps(["contact-owner"]),
+        "retention_days": 7,
+        "schedule_status": "READY",
+        "last_delivery_status": "NOT_REQUESTED",
+        "next_run_at": None,
+        "last_run_at": None,
+        "blocked_reasons": json.dumps([]),
+        "warnings": json.dumps(["LIVE_DELIVERY_WORKER_NOT_ENABLED"]),
+        "request_payload_hash": "payload-hash",
+        "idempotency_key_hash": "idem-hash",
+        "account_tenant_id": "account-tenant-1",
+        "external_ref_id": "external-ref-1",
+    }
+    row.update(overrides)
+    return row
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_report_delivery_schedule_records_intent_and_audit(
+    monkeypatch,
+):
+    conn = FakeScheduleCommandConnection(
+        [
+            None,
+            _schedule_row(),
+            {"account_audit_event_id": "audit-1"},
+        ]
+    )
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+
+    result = await svc.create_referral_saas_report_delivery_schedule(
+        account_id="acct-1",
+        account_tenant_id="account-tenant-1",
+        external_ref_id="external-ref-1",
+        tenant_code="FNB",
+        report_type="campaign_performance",
+        cadence="weekly",
+        timezone_name="Africa/Johannesburg",
+        recipient_contact_refs=["contact-owner"],
+        campaign_ref="CAMP001",
+        idempotency_key_hash="idem-hash",
+        request_payload_hash="payload-hash",
+        requested_by_ref="operator-1",
+        requested_by_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "REPORT_DELIVERY_SCHEDULE_RECORDED"
+    assert safe_payload["deliverySchedule"]["scheduleStatus"] == "READY"
+    assert safe_payload["deliverySchedule"]["deliveryStatus"] == "NOT_REQUESTED"
+    assert safe_payload["deliverySchedule"]["recipientContactRefs"] == [
+        "contact-owner"
+    ]
+    assert safe_payload["noLiveDeliveryExecutedConfirmed"] is True
+    assert safe_payload["noEmailSentConfirmed"] is True
+    joined_queries = "\n".join(query for query, _ in conn.fetchrow_calls)
+    assert "INSERT INTO referral_saas_report_delivery_schedules" in joined_queries
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_report_delivery_schedule_blocks_missing_recipients(
+    monkeypatch,
+):
+    conn = FakeScheduleCommandConnection(
+        [
+            None,
+            _schedule_row(
+                recipient_contact_refs=json.dumps([]),
+                schedule_status="BLOCKED",
+                blocked_reasons=json.dumps(["REPORT_DELIVERY_RECIPIENT_BLOCKED"]),
+            ),
+            {"account_audit_event_id": "audit-1"},
+        ]
+    )
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+
+    result = await svc.create_referral_saas_report_delivery_schedule(
+        account_id="acct-1",
+        account_tenant_id="account-tenant-1",
+        external_ref_id="external-ref-1",
+        tenant_code="FNB",
+        report_type="campaign_performance",
+        cadence="monthly",
+        timezone_name="Africa/Johannesburg",
+        recipient_contact_refs=[],
+        idempotency_key_hash="idem-hash",
+        request_payload_hash="payload-hash",
+        requested_by_ref="operator-1",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["deliverySchedule"]["scheduleStatus"] == "BLOCKED"
+    assert "REPORT_DELIVERY_RECIPIENT_BLOCKED" in safe_payload["readiness"][
+        "blockedReasons"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_report_delivery_schedule_replays_same_idempotency(
+    monkeypatch,
+):
+    conn = FakeScheduleCommandConnection([_schedule_row()])
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+
+    result = await svc.create_referral_saas_report_delivery_schedule(
+        account_id="acct-1",
+        account_tenant_id="account-tenant-1",
+        external_ref_id="external-ref-1",
+        tenant_code="FNB",
+        report_type="campaign_performance",
+        cadence="weekly",
+        timezone_name="Africa/Johannesburg",
+        recipient_contact_refs=["contact-owner"],
+        idempotency_key_hash="idem-hash",
+        request_payload_hash="payload-hash",
+        requested_by_ref="operator-1",
+    )
+
+    assert result.to_safe_dict()["commandStatus"] == "REPORT_DELIVERY_SCHEDULE_REPLAYED"
+    assert len(conn.fetchrow_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_report_delivery_schedule_conflicts_on_payload_mismatch(
+    monkeypatch,
+):
+    conn = FakeScheduleCommandConnection(
+        [_schedule_row(request_payload_hash="different-payload")]
+    )
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+
+    with pytest.raises(
+        svc.ReportDeliveryScheduleIdempotencyConflict,
+        match="Idempotency key was reused",
+    ):
+        await svc.create_referral_saas_report_delivery_schedule(
+            account_id="acct-1",
+            account_tenant_id="account-tenant-1",
+            external_ref_id="external-ref-1",
+            tenant_code="FNB",
+            report_type="campaign_performance",
+            cadence="weekly",
+            timezone_name="Africa/Johannesburg",
+            recipient_contact_refs=["contact-owner"],
+            idempotency_key_hash="idem-hash",
+            request_payload_hash="payload-hash",
+            requested_by_ref="operator-1",
+        )
+
+
+@pytest.mark.asyncio
+async def test_referral_saas_report_delivery_schedule_list_and_readiness(monkeypatch):
+    conn = FakeScheduleCommandConnection(
+        [_schedule_row()],
+        fetch_results=[[_schedule_row(schedule_id="schedule-1")]],
+    )
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+
+    schedules = await svc.list_referral_saas_report_delivery_schedules(
+        account_id="acct-1",
+        report_type="campaign_performance",
+    )
+    readiness = await svc.get_referral_saas_report_delivery_schedule_readiness(
+        account_id="acct-1",
+        schedule_id="schedule-1",
+    )
+
+    assert schedules[0].to_safe_dict()["deliverySchedule"]["scheduleId"] == "schedule-1"
+    assert readiness["scheduleId"] == "schedule-1"
+    assert readiness["readiness"]["status"] == "READY"
 
 
 @pytest.mark.asyncio

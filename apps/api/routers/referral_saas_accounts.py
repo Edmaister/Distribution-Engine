@@ -113,17 +113,27 @@ from services.referral_saas_campaign_service import (
 from services.referral_saas_reporting_service import (
     EXPORT_REQUEST_GUARDRAILS,
     EXPORT_REQUEST_REDACTIONS,
+    DELIVERY_SCHEDULE_GUARDRAILS,
+    DELIVERY_SCHEDULE_REDACTIONS,
     ReferralSaasReportExportCommandError,
+    ReferralSaasReportDeliveryScheduleCommandError,
     ReportExportFileExpired,
     ReportExportFileNotFound,
     ReportExportFileNotReady,
+    ReportDeliveryScheduleIdempotencyConflict,
+    ReportDeliveryScheduleNotFound,
     ReportExportRequestIdempotencyConflict,
     build_referral_saas_report_export_preview,
     create_referral_saas_report_export_request,
+    create_referral_saas_report_delivery_schedule,
     create_referral_saas_report_export_file,
     download_referral_saas_report_export_file,
+    get_referral_saas_report_delivery_schedule,
+    get_referral_saas_report_delivery_schedule_readiness,
     get_referral_saas_report_export_file_metadata,
     get_referral_saas_report,
+    list_referral_saas_report_delivery_schedules,
+    update_referral_saas_report_delivery_schedule,
     validate_referral_saas_report_export_request,
 )
 from services.referral_saas_support_case_service import (
@@ -223,6 +233,11 @@ REPORT_EXPORT_REQUEST_GUARDRAILS = {
     "ACCOUNT_SCOPE_RESOLVED_INTERNALLY",
     *EXPORT_REQUEST_GUARDRAILS,
 }
+REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS = {
+    "CUSTOMER_SCOPED_REPORT_DELIVERY_SCHEDULE",
+    "ACCOUNT_SCOPE_RESOLVED_INTERNALLY",
+    *DELIVERY_SCHEDULE_GUARDRAILS,
+}
 REPORT_REDACTIONS = {
     "internal_tenant_identifier",
     "internal_report_scope",
@@ -237,6 +252,10 @@ REPORT_REDACTIONS = {
 REPORT_EXPORT_REQUEST_REDACTIONS = {
     *REPORT_REDACTIONS,
     *EXPORT_REQUEST_REDACTIONS,
+}
+REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS = {
+    *REPORT_REDACTIONS,
+    *DELIVERY_SCHEDULE_REDACTIONS,
 }
 SUPPORT_CASE_ROUTE_GUARDRAILS = {
     *SUPPORT_CASE_GUARDRAILS,
@@ -269,6 +288,21 @@ class ReferralSaasAccountReportExportRequest(BaseModel):
     row_limit: int | None = Field(default=None)
     data_window_start: datetime | None = Field(default=None)
     data_window_end: datetime | None = Field(default=None)
+
+
+class ReferralSaasReportDeliveryScheduleRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    cadence: str | None = Field(default=None)
+    timezone: str | None = Field(default=None)
+    format: str | None = Field(default=None)
+    redactionProfile: str | None = Field(default=None)
+    recipientContactRefs: list[str] | None = Field(default=None)
+    retentionDays: int | None = Field(default=None)
+    campaignRef: str | None = Field(default=None)
+    scheduleStatus: str | None = Field(default=None)
+    reasonCode: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str | None = Field(default=None)
 
 
 class ReferralSaasAccountFoundationActivationRequest(BaseModel):
@@ -4341,6 +4375,438 @@ async def create_referral_saas_account_report_export_request(
         "no_storage_or_delivery_confirmed": True,
         "no_tenant_code_exposure_confirmed": True,
         "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/reports/{report_type}/delivery-schedules")
+async def create_referral_saas_account_report_delivery_schedule(
+    account_ref: str,
+    report_type: str,
+    request: ReferralSaasReportDeliveryScheduleRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    request_payload = request.model_dump(exclude_none=True)
+    _reject_unsafe_report_export_request_payload(request_payload)
+    account_scope = request_payload.get("accountScope") or {}
+    if not isinstance(account_scope, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope must be an object.",
+                "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+                "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+                "no_live_delivery_executed_confirmed": True,
+            },
+        )
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    idempotency_key = _optional_text(request.idempotencyKey)
+    correlation_id = _optional_text(request.correlationId)
+    if (
+        not ref_type
+        or not external_ref
+        or not idempotency_key
+        or not correlation_id
+        or not request.cadence
+        or not request.timezone
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, cadence, "
+                    "timezone, idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+                "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+                "no_live_delivery_executed_confirmed": True,
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    command_payload = {
+        "accountScope": {
+            "accountRef": _optional_text(account_ref),
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": normalised_context,
+        },
+        "reportType": _optional_text(report_type),
+        "deliverySchedule": {
+            "cadence": request.cadence,
+            "timezone": request.timezone,
+            "format": request.format,
+            "redactionProfile": request.redactionProfile,
+            "recipientContactRefs": request.recipientContactRefs,
+            "retentionDays": request.retentionDays,
+            "campaignRef": request.campaignRef,
+            "scheduleStatus": request.scheduleStatus,
+        },
+        "reasonCode": request.reasonCode
+        or "CUSTOMER_PROFILE_REPORT_DELIVERY_SCHEDULE",
+    }
+    try:
+        result = await create_referral_saas_report_delivery_schedule(
+            account_id=account.account_id,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            tenant_code=account.tenant_code,
+            report_type=report_type,
+            cadence=request.cadence,
+            timezone_name=request.timezone,
+            recipient_contact_refs=request.recipientContactRefs,
+            export_format=request.format,
+            redaction_profile=request.redactionProfile,
+            campaign_ref=request.campaignRef,
+            retention_days=request.retentionDays,
+            schedule_status=request.scheduleStatus,
+            reason_code=request.reasonCode,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_REPORT_DELIVERY_SCHEDULE",
+                    "account_ref": _optional_text(account_ref),
+                    "report_type": _optional_text(report_type),
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            request_payload_hash=hash_payload(command_payload),
+            requested_by_ref=_actor_ref(admin_identity),
+            requested_by_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except ReportDeliveryScheduleIdempotencyConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": exc.safe_code,
+                "message": str(exc),
+                "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+                "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+                "no_live_delivery_executed_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        ) from exc
+    except (ReferralSaasReportDeliveryScheduleCommandError, ValueError) as exc:
+        safe_code = getattr(exc, "safe_code", "validation_error")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": safe_code,
+                "message": str(exc),
+                "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+                "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+                "no_live_delivery_executed_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        ) from exc
+
+    return {
+        "status": "accepted",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "reportDeliverySchedule": _redact_customer_report_payload(
+            result.to_safe_dict()
+        ),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "Report delivery schedule intent recorded for the selected customer. "
+            "No live delivery, email, webhook dispatch, credential, auth change, "
+            "campaign activation, billing event, or money movement was performed."
+        ),
+        "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+        "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+        "no_live_delivery_executed_confirmed": True,
+        "no_email_sent_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_credential_or_auth_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/reports/{report_type}/delivery-schedules")
+async def list_referral_saas_account_report_delivery_schedules(
+    account_ref: str,
+    report_type: str,
+    ref_type: Annotated[str, Query(min_length=1)],
+    external_ref: Annotated[str, Query(min_length=1)],
+    context: str = Query(default="setup"),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    schedules = await list_referral_saas_report_delivery_schedules(
+        account_id=account.account_id,
+        report_type=report_type,
+    )
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "reportType": report_type,
+        "deliverySchedules": [
+            _redact_customer_report_payload(schedule.to_safe_dict())
+            for schedule in schedules
+        ],
+        "account_scope": _customer_report_account_scope(account),
+        "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+        "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+        "no_live_delivery_executed_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/delivery-schedules/{schedule_id}")
+async def get_referral_saas_account_report_delivery_schedule(
+    account_ref: str,
+    schedule_id: str,
+    ref_type: Annotated[str, Query(min_length=1)],
+    external_ref: Annotated[str, Query(min_length=1)],
+    context: str = Query(default="setup"),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    try:
+        schedule = await get_referral_saas_report_delivery_schedule(
+            account_id=account.account_id,
+            schedule_id=schedule_id,
+        )
+    except ReportDeliveryScheduleNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": exc.safe_code,
+                "message": str(exc),
+                "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+                "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+            },
+        ) from exc
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "reportDeliverySchedule": _redact_customer_report_payload(
+            schedule.to_safe_dict()
+        ),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+        "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+        "no_live_delivery_executed_confirmed": True,
+    }
+
+
+@router.patch("/accounts/{account_ref}/delivery-schedules/{schedule_id}")
+async def update_referral_saas_account_report_delivery_schedule(
+    account_ref: str,
+    schedule_id: str,
+    request: ReferralSaasReportDeliveryScheduleRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    request_payload = request.model_dump(exclude_none=True)
+    _reject_unsafe_report_export_request_payload(request_payload)
+    account_scope = request_payload.get("accountScope") or {}
+    if not isinstance(account_scope, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope must be an object.",
+                "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+                "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+                "no_live_delivery_executed_confirmed": True,
+            },
+        )
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    idempotency_key = _optional_text(request.idempotencyKey)
+    correlation_id = _optional_text(request.correlationId)
+    if not ref_type or not external_ref or not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+                "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+                "no_live_delivery_executed_confirmed": True,
+            },
+        )
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    command_payload = {
+        "accountScope": {
+            "accountRef": _optional_text(account_ref),
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": normalised_context,
+        },
+        "scheduleId": _optional_text(schedule_id),
+        "deliverySchedule": {
+            "cadence": request.cadence,
+            "timezone": request.timezone,
+            "format": request.format,
+            "redactionProfile": request.redactionProfile,
+            "recipientContactRefs": request.recipientContactRefs,
+            "retentionDays": request.retentionDays,
+            "campaignRef": request.campaignRef,
+            "scheduleStatus": request.scheduleStatus,
+        },
+        "reasonCode": request.reasonCode
+        or "CUSTOMER_PROFILE_REPORT_DELIVERY_SCHEDULE_UPDATE",
+    }
+    try:
+        result = await update_referral_saas_report_delivery_schedule(
+            account_id=account.account_id,
+            schedule_id=schedule_id,
+            cadence=request.cadence,
+            timezone_name=request.timezone,
+            recipient_contact_refs=request.recipientContactRefs,
+            export_format=request.format,
+            redaction_profile=request.redactionProfile,
+            campaign_ref=request.campaignRef,
+            retention_days=request.retentionDays,
+            schedule_status=request.scheduleStatus,
+            reason_code=request.reasonCode,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_REPORT_DELIVERY_SCHEDULE_UPDATE",
+                    "account_ref": _optional_text(account_ref),
+                    "schedule_id": _optional_text(schedule_id),
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            request_payload_hash=hash_payload(command_payload),
+            requested_by_ref=_actor_ref(admin_identity),
+            requested_by_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except ReportDeliveryScheduleNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": exc.safe_code,
+                "message": str(exc),
+                "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+                "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+            },
+        ) from exc
+    except ReportDeliveryScheduleIdempotencyConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": exc.safe_code,
+                "message": str(exc),
+                "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+                "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+                "no_live_delivery_executed_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        ) from exc
+    except (ReferralSaasReportDeliveryScheduleCommandError, ValueError) as exc:
+        safe_code = getattr(exc, "safe_code", "validation_error")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": safe_code,
+                "message": str(exc),
+                "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+                "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+                "no_live_delivery_executed_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        ) from exc
+    return {
+        "status": "accepted",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "reportDeliverySchedule": _redact_customer_report_payload(
+            result.to_safe_dict()
+        ),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "Report delivery schedule updated for the selected customer. No live "
+            "delivery, email, webhook dispatch, credential, auth change, campaign "
+            "activation, billing event, or money movement was performed."
+        ),
+        "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+        "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+        "no_live_delivery_executed_confirmed": True,
+        "no_email_sent_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_credential_or_auth_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/delivery-schedules/{schedule_id}/readiness")
+async def get_referral_saas_account_report_delivery_schedule_readiness(
+    account_ref: str,
+    schedule_id: str,
+    ref_type: Annotated[str, Query(min_length=1)],
+    external_ref: Annotated[str, Query(min_length=1)],
+    context: str = Query(default="setup"),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    try:
+        readiness = await get_referral_saas_report_delivery_schedule_readiness(
+            account_id=account.account_id,
+            schedule_id=schedule_id,
+        )
+    except ReportDeliveryScheduleNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": exc.safe_code,
+                "message": str(exc),
+                "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+                "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+            },
+        ) from exc
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "reportDeliveryScheduleReadiness": _redact_customer_report_payload(readiness),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrails": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_GUARDRAILS),
+        "redactions": sorted(REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS),
+        "no_live_delivery_executed_confirmed": True,
     }
 
 

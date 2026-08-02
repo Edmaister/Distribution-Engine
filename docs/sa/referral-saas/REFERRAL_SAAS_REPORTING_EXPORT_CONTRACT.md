@@ -645,11 +645,13 @@ TASK-330 adds focused service tests for:
 ## Scheduled Report Delivery Contract
 
 TASK-333 defines the customer-scoped schedule boundary for recurring Referral
-SaaS reports. A schedule is configuration intent only until the runtime API,
-worker, provider/vault adapter, and selected-customer UI are implemented in
-later tasks. This contract must not be used to send email, call a provider,
-create credentials, mutate login access, activate campaigns, repair/replay
-events, bill, move money, or expand into DLaaS marketplace behavior.
+SaaS reports. TASK-334 implements the guarded runtime API foundation for
+persisting and inspecting schedule intent. A schedule remains configuration
+intent only until the worker, provider/vault adapter, and selected-customer UI
+are implemented in later tasks. This contract must not be used to send email,
+call a provider, create credentials, mutate login access, activate campaigns,
+repair/replay events, bill, move money, or expand into DLaaS marketplace
+behavior.
 
 ### Candidate Routes
 
@@ -663,9 +665,9 @@ Runtime routes should stay under the selected customer account context:
 | `PATCH /v1/referral-saas/accounts/{account_ref}/delivery-schedules/{schedule_id}` | Update cadence, recipients, format, pause/resume, or cancel state. | Persist schedule intent and audit only. |
 | `GET /v1/referral-saas/accounts/{account_ref}/delivery-schedules/{schedule_id}/readiness` | Explain whether a schedule is safe to execute later. | Read-only. |
 
-The route shape may be adjusted during TASK-334 if the implementation reuses
-existing router conventions, but it must preserve selected-customer scope,
-report type scope, idempotency, audit, and no-adjacent-action behavior.
+TASK-334 implements these routes under existing selected-customer router
+conventions while preserving account scope, report type scope, idempotency,
+audit, and no-adjacent-action behavior.
 
 ### Schedule Fields
 
@@ -772,14 +774,15 @@ and final run state without exposing provider internals.
 
 ### Implementation Test Expectations
 
-TASK-334 and TASK-335 must add tests for:
+TASK-334 adds backend/API tests for schedule persistence, readiness, route
+inventory, and smoke-plan coverage. TASK-335 must add selected-customer UI
+tests for:
 
-- customer-scope create/list/read/update/cancel behavior
-- idempotent schedule create/update and conflict rejection
-- cadence, timezone, report type, export format, and retention validation
-- recipient contact/access readiness and cross-customer rejection
-- report/export readiness and retention expiry blocking execution readiness
-- signed URL TTL never exceeding export retention
+- customer-scope schedule list/create/update/cancel behavior in the Reports UI
+- schedule empty, loading, error, blocked, ready, paused, and cancelled states
+- cadence, timezone, recipient, format, and retention controls
+- recipient contact/access readiness messaging
+- report/export readiness and retention expiry messaging
 - no raw tenant code, UCN, provider payload, object path, credential, secret,
   token, signing material, auth claim, billing, settlement, reward, wallet,
   invoice, payout, or money fields in public responses

@@ -7511,7 +7511,7 @@ Definition of done: Referral SaaS has a reviewed scheduled report delivery contr
 
 ## TASK-334: Add scheduled report delivery API foundation
 
-Status: Planned.
+Status: Completed.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Reuses report/export catalog, customer account scope, external-reference resolution, signed-download runtime, idempotency, audit, redaction, route inventory, and schedule contract from TASK-333. Source duplication: No.
@@ -7520,19 +7520,20 @@ Linked platform/product capability: Scheduled report delivery API.
 Objective: Add guarded customer-scoped scheduled report delivery create/list/update/cancel/readiness API routes without executing live delivery.
 Why now: TASK-333 will define the boundary. The next gap is runtime schedule state and validation so the UI can manage schedules without sending reports yet.
 Files likely involved: `services/referral_saas_reporting_service.py`; `apps/api/routers/referral_saas_accounts.py`; reporting API tests; route smoke inventory; roadmap/gap docs.
-Database/schema impact: Add or reuse persisted schedule state only if the current schema does not already contain an appropriate table; migration must be tenant/account scoped and replay-safe.
-Backend impact: Adds schedule persistence/readiness commands with bounded cadence, recipients, report type, idempotency, audit, redaction, and safe failure states.
+Database/schema impact: Adds `referral_saas_report_delivery_schedules` as a tenant/account-scoped schedule-intent table with bounded lifecycle/status constraints and replay-safe indexes.
+Backend impact: Adds schedule persistence/readiness commands and customer-scoped create/list/read/update/readiness routes with bounded cadence, recipients, report type, idempotency, audit, redaction, and safe failure states.
 Frontend impact: None. UI wiring remains TASK-335.
 API impact: Adds or wires guarded schedule routes over the TASK-333 contract.
-Tests to add/update: API tests, service tests, idempotency/conflict tests, redaction tests, route smoke inventory.
+Tests to add/update: Completed with migration tests, service tests, API tests, idempotency/conflict tests, route smoke inventory, and route smoke plan coverage.
 Validation method: `git diff --check`; Python compile; focused pytest for reporting schedule routes.
-Acceptance criteria: Operators can persist and inspect customer-scoped scheduled report delivery intent and safely cancel/update it; no report email, provider dispatch, credential/auth change, campaign activation, billing, money, DLaaS, or source-fork side effect occurs.
+Acceptance criteria: Completed. Operators can persist and inspect customer-scoped scheduled report delivery intent and safely update it; no report email, provider dispatch, credential/auth change, campaign activation, billing, money, DLaaS, or source-fork side effect occurs.
 Dependencies: TASK-333.
 Blocked by: Scheduled delivery UI, live delivery worker/provider adapter, governed auth/login completion, repair/replay guardrails, progress/attribution mutation proof, and non-local proof repetition.
 Risk level: Medium.
 Rollback notes: Revert service/router/tests/migration/docs updates.
 Explicit non-goals: No live email/report delivery worker, provider calls, credential creation/storage/reveal/download, auth/session claim changes, campaign activation, repair/replay/retry, billing, money movement, DLaaS, or source-code forks.
-Definition of done: Referral SaaS has a guarded scheduled report delivery API foundation for customer-scoped delivery intent and readiness, leaving live dispatch as a later provider-governed step. Priority: P0.
+Completed output: `dp/migrations/090_referral_saas_report_delivery_schedules.sql`; `services/referral_saas_reporting_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/test_referral_saas_report_delivery_schedule_migration.py`; `test/test_referral_saas_reporting_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; `scripts/referral_saas_route_smoke_plan.py`; `test/test_referral_saas_route_smoke_plan.py`; roadmap/gap/infographic updates.
+Definition of done: Referral SaaS has a guarded scheduled report delivery API foundation for customer-scoped delivery intent and readiness, leaving UI management and live dispatch as later governed steps. Priority: P0.
 
 ## TASK-335: Wire selected-customer scheduled report delivery UI
 

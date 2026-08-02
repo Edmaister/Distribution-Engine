@@ -1874,6 +1874,28 @@ greenfield referral construction.
   error codes, audit/idempotency, and no-side-effect boundaries. Scores remain
   9.99/10 for Referral Management and 9.999/10 for Campaign Attribution
   because runtime schedule API/UI and governed provider execution remain open.
+- TASK-334: `dp/migrations/090_referral_saas_report_delivery_schedules.sql`;
+  `services/referral_saas_reporting_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `test/test_referral_saas_report_delivery_schedule_migration.py`;
+  `test/test_referral_saas_reporting_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  guarded customer-scoped scheduled report delivery API foundation. The backend
+  now persists schedule intent/readiness, supports create/list/read/update and
+  readiness inspection, records audit/idempotency evidence, keeps recipient
+  references opaque, blocks unsafe raw delivery payloads, and confirms no live
+  report delivery, email, webhook dispatch, credential/auth change, campaign
+  activation, billing, money, DLaaS, or source-fork side effect. Scores remain
+  9.99/10 for Referral Management and 9.999/10 for Campaign Attribution
+  because selected-customer schedule UI and governed provider execution remain
+  open.
 
 ## Explicit Deferrals
 
