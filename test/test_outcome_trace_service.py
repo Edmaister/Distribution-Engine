@@ -180,6 +180,15 @@ async def test_get_outcome_trace_returns_contract_shape_for_complete_source_trai
         "11111111-1111-4111-8111-111111111111",
         "FNB",
     )
+    reward_query = conn.fetch_calls[4][0]
+    funding_query = conn.fetch_calls[6][0]
+    fulfilment_query = conn.fetch_calls[7][0]
+    assert "r.referral_track_id = $1::text" in reward_query
+    assert "referral_track_id = $1::text" in funding_query
+    assert "fr.correlation_id = $1::text" in funding_query
+    assert "mfa.correlation_id = $1::text" in funding_query
+    assert "referral_track_id = $1::text" in fulfilment_query
+    assert "correlation_id = $1::text" in fulfilment_query
     assert result["trace_id"] == (
         "outcome:referral_track_id:11111111-1111-4111-8111-111111111111"
     )

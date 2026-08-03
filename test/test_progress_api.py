@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import os
+
+os.environ.setdefault("REFERRAL_CODE_SECRET", "test-referral-secret-123456789")
+
 from fastapi import HTTPException, Response
 import pytest
 import asyncio
@@ -52,6 +56,40 @@ def test_post_progress_sets_status_and_returns_body(monkeypatch):
     assert result["referralTrackId"] == "track-1"
     assert captured["req"] == req
     assert captured["tenant_code"] == "FNB"
+
+
+def test_post_progress_raises_http_error_for_service_rejection(monkeypatch):
+    async def fake_handle_progress_event(req, tenant_code=None):
+        return (
+            {
+                "status": "error",
+                "referralTrackId": "track-1",
+                "eventType": "UCN_CAPTURED",
+                "deduped": False,
+                "message": "refereeUCN does not match the referral instance",
+            },
+            400,
+        )
+
+    monkeypatch.setattr(mod, "handle_progress_event", fake_handle_progress_event)
+
+    req = ProgressPostRequest(
+        referralTrackId="track-1",
+        eventType="UCN_CAPTURED",
+        refereeUCN="ucn-1",
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(
+            mod.post_progress(
+                req=req,
+                response=Response(),
+                identity={"tenant_code": "FNB"},
+            )
+        )
+
+    assert exc.value.status_code == 400
+    assert exc.value.detail["message"] == "refereeUCN does not match the referral instance"
 
 
 def test_progress_request_accepts_insurance_event_and_journey_fields():

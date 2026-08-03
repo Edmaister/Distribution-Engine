@@ -7693,7 +7693,7 @@ Definition of done: A repeatable proof runner exists for selected-customer progr
 
 ## TASK-341: Record progress and attribution mutation proof execution
 
-Status: Planned.
+Status: Complete (2026-08-03).
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Reuses TASK-340 proof runner, local/staging environment controls, audit evidence, route smoke posture, and redaction rules. Source duplication: No.
@@ -7703,17 +7703,18 @@ Objective: Execute TASK-340 against an approved environment and record safe evid
 Why now: A runner is useful only when its execution is proven and documented.
 Files likely involved: proof evidence docs; roadmap/gap/infographic docs; optional sanitized output artifacts.
 Database/schema impact: Approved environment proof only; no schema changes.
-Backend impact: None unless execution exposes defects requiring separate fix tasks.
+Backend impact: Fixed the shared progress route safe-error handling and the outcome trace mixed UUID/text readback comparisons exposed by local proof execution.
 Frontend impact: None unless execution exposes selected-customer UX defects requiring separate tasks.
 API impact: None.
-Tests to add/update: Proof execution evidence; any regression tests for discovered defects.
-Validation method: Run TASK-340 proof runner against approved local/staging data; record sanitized evidence and no-side-effect confirmations.
+Tests to add/update: Added proof execution evidence and regression coverage for discovered progress/trace defects.
+Validation method: Ran TASK-340 proof runner against approved local data; recorded sanitized evidence and no-side-effect confirmations.
 Acceptance criteria: Progress ingestion, dedupe/replay, attribution trace, and report/readback prove the selected-customer mutation path with safe evidence and no provider/auth/billing/money side effects.
 Dependencies: TASK-340.
-Blocked by: Approved runtime environment and safe credentials.
+Blocked by: None for local execution. Non-local staging/production-like proof repetition remains a separate launch-hardening task.
 Risk level: Medium.
-Rollback notes: Revert evidence-doc updates only; do not revert product code unless a separate defect task is opened.
+Rollback notes: Revert evidence-doc, proof-runner, progress route, and outcome trace regression updates if the proof evidence or trace fix is invalid.
 Explicit non-goals: No unapproved production writes, provider calls, credential/auth changes, campaign billing/go-live beyond approved proof scope, money movement, DLaaS expansion, or source forks.
+Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_EXECUTION_TASK_341.md`; `scripts/referral_saas_progress_attribution_physical_check.py`; `apps/api/routers/progress.py`; `services/outcome_trace_service.py`; focused tests; script README, proof-contract, roadmap, gap-matrix, and infographic updates. Records passing local execution for selected-customer campaign/link/code setup, referral validation, identity capture, `/v1/progress` ingestion, dedupe replay, later milestone ingestion, progress status readback, attribution trace readback, and campaign report readback. The proof also fixes split admin/progress credentials, controlled progress 4xx handling, and trace UUID/text readback defects while confirming no provider/webhook/invite/credential/auth/billing/money/DLaaS side effects.
 Definition of done: Referral SaaS has recorded progress/attribution mutation proof evidence sufficient to close that gap in the matrix. Priority: P0.
 
 ## TASK-342: Define provider/vault runtime adapter contract

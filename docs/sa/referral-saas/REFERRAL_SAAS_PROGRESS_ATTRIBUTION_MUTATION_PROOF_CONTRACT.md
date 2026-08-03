@@ -306,17 +306,18 @@ The runner remains a proof tool only. It does not add a Referral SaaS-specific
 progress route, schema, table, or fork. It fails on unsafe secret/adjacent
 payload fields, duplicate progress mutation instead of dedupe, missing referral
 track ID, unavailable trace state, and missing customer-scoped report readback.
-TASK-341 must still execute this runner against approved local/staging data and
-record sanitized evidence.
+TASK-341 executed this runner against approved local data and recorded sanitized
+evidence in
+`docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_EXECUTION_TASK_341.md`.
 
 ## Launch Rating Impact
 
-TASK-339 closes ambiguity in the progress/attribution proof design and TASK-340
-adds the repeatable runner. Current rating remains:
+TASK-339 closes ambiguity in the progress/attribution proof design, TASK-340
+adds the repeatable runner, and TASK-341 records passing local execution
+evidence. Current rating is:
 
 - Referral Management: 9.99/10
-- Campaign Attribution: 9.999/10
+- Campaign Attribution: 9.9995/10
 
-Campaign Attribution should only move to 10/10 after TASK-341 records
-successful execution evidence, subject to non-local proof and remaining
-provider/auth governance gates.
+Campaign Attribution should only move to 10/10 after non-local proof repetition
+and remaining provider/auth governance gates are complete.

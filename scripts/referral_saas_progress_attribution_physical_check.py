@@ -17,9 +17,12 @@ from scripts import referral_saas_selected_customer_mutation_e2e_physical_check 
 
 DEFAULT_BASE_URL = setup_check.DEFAULT_BASE_URL
 DEFAULT_ADMIN_KEY = setup_check.DEFAULT_ADMIN_KEY
+DEFAULT_PROGRESS_KEY = os.environ.get("PROGRESS_API_KEY", os.environ.get("PARTNER_API_KEY", "test-partner-key"))
 DEFAULT_TENANT_CODE = os.environ.get("TENANT_CODE", "FNB")
 DEFAULT_JOURNEY_CODE = "BANKING_TRANSACTIONAL"
 DEFAULT_JOURNEY_VERSION = "v1"
+DEFAULT_PROGRESS_PRODUCT = "TRANSACTIONAL"
+DEFAULT_PROGRESS_SUB_PRODUCT = "DDA13"
 
 SECRET_OR_ADJACENT_KEYS = {
     "api_key",
@@ -103,8 +106,8 @@ def _progress_payload(
     if account_number:
         payload["accountNumber"] = account_number
     if event_type == "ACCOUNT_OPENED":
-        payload["product"] = "TRANSACTIONAL"
-        payload["subProduct"] = "CURRENT_ACCOUNT"
+        payload["product"] = DEFAULT_PROGRESS_PRODUCT
+        payload["subProduct"] = DEFAULT_PROGRESS_SUB_PRODUCT
     return payload
 
 
@@ -124,6 +127,20 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     referee_ucn = args.referee_ucn or f"task340{suffix[-8:]}"
     account_number = args.account_number or f"340{suffix[-8:]}0001"
 
+    identity_capture_result = setup_check.post_json(
+        base_url=args.base_url,
+        path=f"/v1/referral-saas/referrals/{referral_track_id}/referee-ucn",
+        admin_key=args.progress_key,
+        payload={"refereeUcn": referee_ucn},
+    )
+    setup_check.require_success(
+        "capture referral referee identity",
+        identity_capture_result,
+        allowed={200, 201},
+    )
+    read_check.assert_no_internal_scope_leak(identity_capture_result.payload)
+    _require_no_secret_or_adjacent_payload(identity_capture_result.payload)
+
     first_payload = _progress_payload(
         referral_track_id=referral_track_id,
         event_type="UCN_CAPTURED",
@@ -134,7 +151,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     first_progress_result = setup_check.post_json(
         base_url=args.base_url,
         path="/v1/progress",
-        admin_key=args.admin_key,
+        admin_key=args.progress_key,
         payload=first_payload,
     )
     _require_progress_result(
@@ -148,7 +165,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     replay_progress_result = setup_check.post_json(
         base_url=args.base_url,
         path="/v1/progress",
-        admin_key=args.admin_key,
+        admin_key=args.progress_key,
         payload=first_payload,
     )
     _require_progress_result(
@@ -170,7 +187,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     later_progress_result = setup_check.post_json(
         base_url=args.base_url,
         path="/v1/progress",
-        admin_key=args.admin_key,
+        admin_key=args.progress_key,
         payload=later_payload,
     )
     _require_progress_result(
@@ -223,6 +240,14 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "created_campaign": mutation_result["created_campaign"],
         "issued_referral_code": mutation_result["issued_referral_code"],
         "referral_track_id": referral_track_id,
+        "identity_capture": {
+            "status": identity_capture_result.status_code,
+            "captureStatus": (
+                identity_capture_result.payload.get("identityCapture", {}).get("captureStatus")
+                if isinstance(identity_capture_result.payload.get("identityCapture"), dict)
+                else None
+            ),
+        },
         "progress_events": {
             "first": {
                 "eventType": "UCN_CAPTURED",
@@ -272,6 +297,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument("--base-url", default=os.environ.get("API_BASE_URL", DEFAULT_BASE_URL))
     parser.add_argument("--admin-key", default=os.environ.get("LOCAL_API_KEY", DEFAULT_ADMIN_KEY))
+    parser.add_argument(
+        "--progress-key",
+        default=DEFAULT_PROGRESS_KEY,
+        help=(
+            "Partner/API key used only for /v1/progress ingestion. "
+            "Selected-customer setup/readback calls continue to use --admin-key."
+        ),
+    )
     parser.add_argument("--tenant-code", default=DEFAULT_TENANT_CODE)
     parser.add_argument("--external-tenant-ref")
     parser.add_argument("--organisation-ref")

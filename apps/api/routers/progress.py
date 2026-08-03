@@ -35,6 +35,9 @@ async def post_progress(
     # pass tenant into service (must be supported there)
     body, code = await handle_progress_event(req, tenant_code=tenant_code)
 
+    if code >= 400:
+        raise HTTPException(status_code=code, detail=body)
+
     response.status_code = code
     return body
 

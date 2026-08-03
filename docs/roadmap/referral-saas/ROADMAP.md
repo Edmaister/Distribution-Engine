@@ -313,6 +313,16 @@ greenfield referral construction.
 205. TASK-347: Wire governed auth/login completion UI.
 206. TASK-348: Run non-local Referral SaaS launch verification.
 
+- TASK-341: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_EXECUTION_TASK_341.md`;
+  `scripts/referral_saas_progress_attribution_physical_check.py`;
+  `apps/api/routers/progress.py`;
+  `services/outcome_trace_service.py`;
+  focused progress/proof/trace tests;
+  `scripts/README.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Records passing approved local execution for the progress/attribution mutation proof. The proof creates campaign/link/code evidence in a selected-customer context, validates a referral, captures identity, records and replays progress with dedupe, records a later milestone, reads progress status, reads attribution trace, and reads the campaign report while confirming no provider, webhook, invite, credential, auth, billing, money, or DLaaS side effects. The task also fixes split admin/progress credentials, controlled progress 4xx handling, and outcome-trace UUID/text readback defects found by the physical run. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.9995/10 while non-local proof, provider/vault execution, governed auth/login completion, and governed repair/replay execution remain separate launch-hardening tracks.
+
 ## 10/10 Exit Criteria
 
 - A new tenant can onboard, configure a campaign, issue/validate referral links
