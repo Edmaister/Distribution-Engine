@@ -57,6 +57,7 @@ import {
   changeReferralSaasAccountSupportCaseStatus,
   createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
+  getReferralSaasAccountSupportCaseRepairReplayReadiness,
   listReferralSaasAccountSupportCases,
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasApiAccessVerification,
@@ -87,6 +88,9 @@ import {
   type ReferralSaasSupportCase,
   type ReferralSaasSupportCaseCreateResponse,
   type ReferralSaasSupportCaseLifecycleResponse,
+  type ReferralSaasSupportCaseRepairReplayAction,
+  type ReferralSaasSupportCaseRepairReplayReadiness,
+  type ReferralSaasSupportCaseRepairReplayReadinessResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import type { CampaignReadinessOperation } from "../../api/endpoints/adminCampaignReadiness";
@@ -570,6 +574,7 @@ export function ReferralSaasAccountMaintenancePage() {
     useState<SupportCaseLifecycleDraft | null>(null);
   const [supportCaseLifecycleResult, setSupportCaseLifecycleResult] =
     useState<ReferralSaasSupportCaseLifecycleResponse | null>(null);
+  const [supportReadinessCaseRef, setSupportReadinessCaseRef] = useState("");
   const scopeChanged =
     draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
     draftOrganisationRef.trim() !== appliedOrganisationRef;
@@ -648,6 +653,34 @@ export function ReferralSaasAccountMaintenancePage() {
       }),
     enabled: Boolean(
       selectedModule === "support" && accountId && selectedAccount && selectedExternalTenantRef,
+    ),
+  });
+  const supportCases = supportCasesQuery.data?.supportCases || [];
+  const selectedSupportReadinessCase =
+    supportCases.find((supportCase) => supportCase.caseRef === supportReadinessCaseRef) ||
+    supportCases[0];
+  const supportRepairReplayReadinessQuery = useQuery({
+    queryKey: [
+      "referral-saas-account-support-case-repair-replay-readiness",
+      selectedAccount?.accountId,
+      selectedSupportReadinessCase?.caseRef,
+      selectedExternalTenantRef,
+      refreshKey,
+    ],
+    queryFn: () =>
+      getReferralSaasAccountSupportCaseRepairReplayReadiness({
+        accountRef: selectedAccount?.accountId || "",
+        caseRef: selectedSupportReadinessCase?.caseRef || "",
+        refType: "external_tenant_ref",
+        externalRef: selectedExternalTenantRef,
+        context: "support",
+      }),
+    enabled: Boolean(
+      selectedModule === "support" &&
+        accountId &&
+        selectedAccount &&
+        selectedExternalTenantRef &&
+        selectedSupportReadinessCase?.caseRef,
     ),
   });
   const refreshPeopleAccessReadModels = async () => {
@@ -2754,8 +2787,9 @@ export function ReferralSaasAccountMaintenancePage() {
 
               {selectedModule === "support" ? (
                 <CustomerSupportCasesPage
-                  cases={supportCasesQuery.data?.supportCases || []}
+                  cases={supportCases}
                   customerName={customerName}
+                  customerQuery={customerQuery}
                   draft={supportCaseDraft}
                   error={
                     supportCasesQuery.error ||
@@ -2764,14 +2798,20 @@ export function ReferralSaasAccountMaintenancePage() {
                   }
                   isLoading={supportCasesQuery.isLoading}
                   isLifecycleSaving={supportCaseLifecycleMutation.isPending}
+                  isReadinessLoading={supportRepairReplayReadinessQuery.isLoading}
                   isSaving={supportCaseMutation.isPending}
                   lifecycleDraft={supportCaseLifecycleDraft}
                   lifecycleResult={supportCaseLifecycleResult}
                   onChange={updateSupportCaseDraft}
                   onLifecycleChange={setSupportCaseLifecycleDraft}
+                  onReadinessCaseChange={setSupportReadinessCaseRef}
                   onLifecycleSubmit={submitSupportCaseLifecycle}
                   onSubmit={submitSupportCase}
+                  readiness={supportRepairReplayReadinessQuery.data || null}
+                  readinessCaseRef={selectedSupportReadinessCase?.caseRef || ""}
+                  readinessError={supportRepairReplayReadinessQuery.error}
                   result={supportCaseResult}
+                  selectedCustomerPath={selectedCustomerPath}
                 />
               ) : null}
 
@@ -5678,33 +5718,47 @@ function CustomerReportsPage({
 function CustomerSupportCasesPage({
   cases,
   customerName,
+  customerQuery,
   draft,
   error,
   isLoading,
   isLifecycleSaving,
+  isReadinessLoading,
   isSaving,
   lifecycleDraft,
   lifecycleResult,
   onChange,
   onLifecycleChange,
+  onReadinessCaseChange,
   onLifecycleSubmit,
   onSubmit,
+  readiness,
+  readinessCaseRef,
+  readinessError,
   result,
+  selectedCustomerPath,
 }: {
   cases: ReferralSaasSupportCase[];
   customerName: string;
+  customerQuery: string;
   draft: SupportCaseDraft;
   error: unknown;
   isLoading: boolean;
   isLifecycleSaving: boolean;
+  isReadinessLoading: boolean;
   isSaving: boolean;
   lifecycleDraft: SupportCaseLifecycleDraft | null;
   lifecycleResult: ReferralSaasSupportCaseLifecycleResponse | null;
   onChange: (values: Partial<SupportCaseDraft>) => void;
   onLifecycleChange: (values: SupportCaseLifecycleDraft | null) => void;
+  onReadinessCaseChange: (caseRef: string) => void;
   onLifecycleSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  readiness: ReferralSaasSupportCaseRepairReplayReadinessResponse | null;
+  readinessCaseRef: string;
+  readinessError: unknown;
   result: ReferralSaasSupportCaseCreateResponse | null;
+  selectedCustomerPath: string;
 }) {
   const selectedCategory = supportCaseCategoryOptions.find((option) => option.value === draft.category);
   const selectedPriority = supportCasePriorityOptions.find((option) => option.value === draft.priority);
@@ -5916,6 +5970,13 @@ function CustomerSupportCasesPage({
                     <div className="button-row">
                       <button
                         className="button secondary"
+                        onClick={() => onReadinessCaseChange(caseRef)}
+                        type="button"
+                      >
+                        Review readiness
+                      </button>
+                      <button
+                        className="button secondary"
                         onClick={() =>
                           onLifecycleChange({
                             caseRef,
@@ -5953,6 +6014,17 @@ function CustomerSupportCasesPage({
             ]}
           />
         )}
+        <SupportCaseRepairReplayReadinessPanel
+          cases={cases}
+          customerName={customerName}
+          customerQuery={customerQuery}
+          error={readinessError}
+          isLoading={isReadinessLoading}
+          onSelectCase={onReadinessCaseChange}
+          readiness={readiness?.repairReplayReadiness || null}
+          readinessCaseRef={readinessCaseRef}
+          selectedCustomerPath={selectedCustomerPath}
+        />
         {lifecycleDraft ? (
           <form className="wizard-status-card support-lifecycle-card" onSubmit={onLifecycleSubmit}>
             <div>
@@ -6067,6 +6139,209 @@ function CustomerSupportCasesPage({
       </div>
     </section>
   );
+}
+
+function SupportCaseRepairReplayReadinessPanel({
+  cases,
+  customerName,
+  customerQuery,
+  error,
+  isLoading,
+  onSelectCase,
+  readiness,
+  readinessCaseRef,
+  selectedCustomerPath,
+}: {
+  cases: ReferralSaasSupportCase[];
+  customerName: string;
+  customerQuery: string;
+  error: unknown;
+  isLoading: boolean;
+  onSelectCase: (caseRef: string) => void;
+  readiness: ReferralSaasSupportCaseRepairReplayReadiness | null;
+  readinessCaseRef: string;
+  selectedCustomerPath: string;
+}) {
+  if (!cases.length) {
+    return (
+      <div className="wizard-status-card">
+        <div>
+          <strong>Repair/replay readiness</strong>
+          <p>Record a support case first. Readiness is shown only against a selected case.</p>
+        </div>
+        <StatusBadge label="Waiting for case" tone="info" />
+      </div>
+    );
+  }
+
+  const evidenceRoute = supportCaseEvidenceRoute(
+    selectedCustomerPath,
+    readiness?.owningWorkflow || "support_hub",
+    customerQuery,
+  );
+  const evidenceLinks = readiness?.supportCase.evidenceLinks || [];
+  const safeActionCount =
+    readiness?.allowedActions.filter((action) => action.status === "AVAILABLE").length || 0;
+  const blockedActionCount =
+    readiness?.allowedActions.filter((action) => action.status === "BLOCKED").length || 0;
+
+  return (
+    <div className="wizard-status-card support-lifecycle-card">
+      <div>
+        <strong>Repair/replay readiness</strong>
+        <p>
+          Read-only posture for one support case. This shows what evidence can be reviewed and
+          why a future governed fix is blocked here.
+        </p>
+      </div>
+      <StatusBadge
+        label={readiness ? formatDisplay(readiness.overallStatus) : "Select case"}
+        tone={readiness ? statusTone(readiness.overallStatus) : "info"}
+      />
+      <label className="field">
+        <span>Case to review</span>
+        <select
+          aria-label="Support case readiness case"
+          className="input"
+          onChange={(event) => onSelectCase(event.target.value)}
+          value={readinessCaseRef}
+        >
+          {cases.map((supportCase) => (
+            <option key={supportCase.caseRef} value={supportCase.caseRef}>
+              {supportCase.title} - {supportCase.caseRef}
+            </option>
+          ))}
+        </select>
+      </label>
+      {isLoading ? <LoadingState label="Checking support-case readiness" /> : null}
+      {error ? <ErrorPanel error={error} /> : null}
+      {readiness ? (
+        <>
+          <div className="grid-3">
+            <KpiCard
+              label="Safe diagnostics"
+              icon={Search}
+              value={safeActionCount}
+              footnote="Evidence review only"
+            />
+            <KpiCard
+              label="Blocked future actions"
+              icon={AlertCircle}
+              value={blockedActionCount}
+              footnote="No repair/replay command here"
+            />
+            <KpiCard
+              label="Required evidence"
+              icon={ListChecks}
+              value={readiness.requiredEvidence.length}
+              footnote="Needed before a governed command exists"
+            />
+          </div>
+          <div className="customer-context-note">
+            <strong>In plain English:</strong>{" "}
+            {supportCaseReadinessPlainEnglish(readiness, customerName)}
+          </div>
+          <div className="route-list">
+            {readiness.allowedActions.map((action) => (
+              <div className="wizard-status-card" key={`${action.action}-${action.status}`}>
+                <div>
+                  <strong>{action.label || formatDisplay(action.action)}</strong>
+                  <p>{supportCaseActionCopy(action)}</p>
+                </div>
+                <StatusBadge label={formatDisplay(action.status)} tone={statusTone(action.status)} />
+              </div>
+            ))}
+          </div>
+          <div className="wizard-status-card">
+            <div>
+              <strong>Evidence to inspect</strong>
+              <p>
+                Owning workflow: {formatDisplay(readiness.owningWorkflow)}. Open the evidence
+                area if the operator needs to continue investigation.
+              </p>
+            </div>
+            <Link className="button secondary" to={evidenceRoute}>
+              Open evidence area
+            </Link>
+          </div>
+          <DataTable
+            rows={evidenceLinks}
+            emptyText="No evidence is linked to this support case yet."
+            columns={[
+              {
+                key: "type",
+                header: "Evidence type",
+                render: (row) => formatDisplay(row.evidenceType),
+              },
+              {
+                key: "ref",
+                header: "Safe reference",
+                render: (row) => row.evidenceRef,
+              },
+              {
+                key: "status",
+                header: "Safe status",
+                render: (row) => (
+                  <StatusBadge
+                    label={formatDisplay(row.safeStatus || "Not returned")}
+                    tone={statusTone(row.safeStatus || "INFO")}
+                  />
+                ),
+              },
+            ]}
+          />
+          <div className="customer-context-note">
+            No executable repair, replay, retry, provider dispatch, credential/auth change,
+            campaign activation, billing, or money movement is available from this page.
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function supportCaseReadinessPlainEnglish(
+  readiness: ReferralSaasSupportCaseRepairReplayReadiness,
+  customerName: string,
+) {
+  if (readiness.overallStatus === "CASE_CLOSED") {
+    return `${readiness.supportCase.title} is closed for ${customerName}. Reopen or create a new case before reviewing any future governed action.`;
+  }
+  if (readiness.overallStatus === "ACTION_NOT_SUPPORTED") {
+    return `${readiness.supportCase.title} is a support investigation only. Use the evidence area; no repair or replay path applies to this case.`;
+  }
+  return `${readiness.supportCase.title} has evidence to inspect. A future governed repair or replay may be considered later, but this page only shows readiness and blockers.`;
+}
+
+function supportCaseActionCopy(action: ReferralSaasSupportCaseRepairReplayAction) {
+  if (action.action === "READ_ONLY_DIAGNOSTIC") {
+    return action.status === "AVAILABLE"
+      ? "You can review safe evidence for this case."
+      : "The case is closed, so diagnostic review is read-only history.";
+  }
+  if (action.action === "HARD_EXCLUDED") {
+    return "This case type does not support repair or replay.";
+  }
+  return "Blocked until a future governed command exists with audit, idempotency, evidence, and approval gates.";
+}
+
+function supportCaseEvidenceRoute(
+  selectedCustomerPath: string,
+  owningWorkflow: string,
+  customerQuery: string,
+) {
+  const moduleRoute =
+    {
+      account_health: "health",
+      attribution_trace: "attribution",
+      integrations: "integrations",
+      links_and_codes: "links",
+      people_and_access: "people",
+      progress_status: "progress",
+      reports: "reports",
+      support_hub: "support",
+    }[owningWorkflow] || "support";
+  return `${selectedCustomerPath}/${moduleRoute}${customerQuery}`;
 }
 
 function CustomerModulePage({

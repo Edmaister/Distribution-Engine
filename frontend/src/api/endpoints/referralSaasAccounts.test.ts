@@ -14,6 +14,7 @@ import {
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccountSupportCases,
+  getReferralSaasAccountSupportCaseRepairReplayReadiness,
   listReferralSaasOperatorSupportQueue,
   listReferralSaasIntegrationCredentialRequests,
   listReferralSaasAccountCampaigns,
@@ -2529,6 +2530,96 @@ describe("referralSaasAccounts endpoint client", () => {
         limit: 25,
       },
     });
+  });
+
+  it("reads selected-customer support-case repair/replay readiness through the read-only wrapper", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "support",
+      account: { accountId: "acct-1", accountCode: "ACCT_FNB" },
+      repairReplayReadiness: {
+        caseRef: "case-1",
+        accountRef: "acct-1",
+        category: "PROGRESS_DIAGNOSTIC",
+        status: "OPEN",
+        overallStatus: "REVIEW_REQUIRED",
+        actionSummary: "Readiness only.",
+        owningWorkflow: "progress_status",
+        allowedActions: [
+          {
+            action: "READ_ONLY_DIAGNOSTIC",
+            status: "AVAILABLE",
+            label: "Review support evidence",
+            reasonCode: "EVIDENCE_AVAILABLE",
+          },
+          {
+            action: "GOVERNED_REPLAY",
+            status: "BLOCKED",
+            label: "Replay stored progress evidence",
+            reasonCode: "FUTURE_GOVERNED_COMMAND_REQUIRED",
+          },
+        ],
+        requiredEvidence: ["support_case_link", "before_state_hash"],
+        supportCase: {
+          caseRef: "case-1",
+          accountRef: "acct-1",
+          category: "PROGRESS_DIAGNOSTIC",
+          priority: "HIGH",
+          status: "OPEN",
+          title: "Progress event missing",
+          summary: "The customer cannot see progress.",
+          createdByRef: "operator",
+          evidenceLinks: [],
+          redactions: ["internal_tenant_identifier"],
+        },
+        guardrails: ["READ_ONLY_REPAIR_REPLAY_READINESS"],
+        redactions: ["internal_tenant_identifier"],
+        no_repair_replay_retry_confirmed: true,
+        no_provider_dispatch_confirmed: true,
+        no_credential_or_auth_claim_change_confirmed: true,
+        no_campaign_activation_confirmed: true,
+        no_billing_or_money_movement_confirmed: true,
+      },
+      guardrail: "Read-only support-case repair/replay readiness.",
+      guardrails: ["READ_ONLY_REPAIR_REPLAY_READINESS"],
+      redactions: ["internal_tenant_identifier"],
+      no_repair_replay_retry_confirmed: true,
+      no_provider_dispatch_confirmed: true,
+      no_credential_or_auth_claim_change_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_tenant_code_exposure_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    await expect(
+      getReferralSaasAccountSupportCaseRepairReplayReadiness({
+        accountRef: " acct-1 ",
+        caseRef: " case-1 ",
+        refType: "external_tenant_ref",
+        externalRef: " fnb-referrals ",
+        context: "support",
+      }),
+    ).resolves.toMatchObject({
+      repairReplayReadiness: {
+        overallStatus: "REVIEW_REQUIRED",
+        owningWorkflow: "progress_status",
+      },
+      no_repair_replay_retry_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acct-1/support-cases/case-1/repair-replay-readiness",
+      {
+        query: {
+          ref_type: "external_tenant_ref",
+          external_ref: "fnb-referrals",
+          context: "support",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls)).not.toMatch(
+      /provider_dispatch|credential_creation|auth_claim|campaign_activation|billing|money/i,
+    );
   });
 
   it("lists the operator aggregate support queue through the read-only wrapper", async () => {

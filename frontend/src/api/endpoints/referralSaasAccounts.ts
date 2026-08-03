@@ -1015,6 +1015,56 @@ export type ReferralSaasSupportCaseListResponse = {
   no_billing_or_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasSupportCaseRepairReplayAction = {
+  action: string;
+  status: string;
+  label?: string | null;
+  reasonCode?: string | null;
+};
+
+export type ReferralSaasSupportCaseRepairReplayReadiness = {
+  caseRef: string;
+  accountRef: string;
+  category: string;
+  status: string;
+  overallStatus: string;
+  actionSummary: string;
+  owningWorkflow: string;
+  allowedActions: ReferralSaasSupportCaseRepairReplayAction[];
+  requiredEvidence: string[];
+  supportCase: ReferralSaasSupportCase;
+  guardrails: string[];
+  redactions: string[];
+  no_repair_replay_retry_confirmed: boolean;
+  no_provider_dispatch_confirmed: boolean;
+  no_credential_or_auth_claim_change_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
+export type ReferralSaasSupportCaseRepairReplayReadinessRequest =
+  ReferralSaasAccountResolutionRequest & {
+    accountRef: string;
+    caseRef: string;
+  };
+
+export type ReferralSaasSupportCaseRepairReplayReadinessResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  repairReplayReadiness: ReferralSaasSupportCaseRepairReplayReadiness;
+  account_scope?: Record<string, unknown>;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  no_repair_replay_retry_confirmed: boolean;
+  no_provider_dispatch_confirmed: boolean;
+  no_credential_or_auth_claim_change_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_tenant_code_exposure_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasOperatorSupportQueueItem = {
   caseRef: string;
   accountRef: string;
@@ -2086,6 +2136,27 @@ export function listReferralSaasAccountSupportCases({
         context,
         status: status?.trim() || undefined,
         limit,
+      },
+    },
+  );
+}
+
+export function getReferralSaasAccountSupportCaseRepairReplayReadiness({
+  accountRef,
+  caseRef,
+  refType,
+  externalRef,
+  context = "support",
+}: ReferralSaasSupportCaseRepairReplayReadinessRequest): Promise<ReferralSaasSupportCaseRepairReplayReadinessResponse> {
+  return apiRequest<ReferralSaasSupportCaseRepairReplayReadinessResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(
+      accountRef.trim(),
+    )}/support-cases/${encodeURIComponent(caseRef.trim())}/repair-replay-readiness`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
       },
     },
   );
