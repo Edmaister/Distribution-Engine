@@ -1896,6 +1896,23 @@ greenfield referral construction.
   9.99/10 for Referral Management and 9.999/10 for Campaign Attribution
   because selected-customer schedule UI and governed provider execution remain
   open.
+- TASK-335: `frontend/src/api/endpoints/referralSaasReports.ts`;
+  `frontend/src/api/endpoints/referralSaasReports.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Wires
+  selected-customer Reports to the scheduled report delivery API foundation.
+  Operators can create schedule intent, list existing schedules, check
+  readiness, pause/resume, and cancel without leaving customer context. The UI
+  keeps cadence, timezone, format, recipient contact reference, retention, and
+  no-live-delivery guardrails explicit. Scores remain 9.99/10 for Referral
+  Management and 9.999/10 for Campaign Attribution because governed provider
+  execution, repair/replay guardrails, progress/attribution mutation proof,
+  governed auth/login completion, and non-local proof repetition remain open.
 
 ## Explicit Deferrals
 

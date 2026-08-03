@@ -39,10 +39,15 @@ import {
 } from "../../api/endpoints/referralSaasLinks";
 import {
   createReferralSaasAccountReportExportFile,
+  createReferralSaasAccountReportDeliverySchedule,
   createReferralSaasAccountReportExportRequest,
   downloadReferralSaasAccountReportExportFile,
+  getReferralSaasAccountReportDeliveryScheduleReadiness,
   getReferralSaasAccountReport,
+  listReferralSaasAccountReportDeliverySchedules,
   previewReferralSaasAccountReportExport,
+  updateReferralSaasAccountReportDeliverySchedule,
+  type ReferralSaasReportDeliveryCadence,
   type ReferralSaasExportFormat,
   type ReferralSaasReportType,
 } from "../../api/endpoints/referralSaasReports";
@@ -4937,6 +4942,11 @@ function CustomerReportsPage({
   const { refreshKey } = useRefreshContext();
   const [reportType, setReportType] = useState<ReferralSaasReportType>("campaign_performance");
   const [campaignCode, setCampaignCode] = useState("");
+  const [scheduleCadence, setScheduleCadence] = useState<ReferralSaasReportDeliveryCadence>("weekly");
+  const [scheduleTimezone, setScheduleTimezone] = useState("Africa/Johannesburg");
+  const [scheduleFormat, setScheduleFormat] = useState<ReferralSaasExportFormat>("csv");
+  const [scheduleRetentionDays, setScheduleRetentionDays] = useState(7);
+  const [scheduleRecipientRef, setScheduleRecipientRef] = useState("");
   const accountScope = {
     refType: "external_tenant_ref" as const,
     externalRef: externalTenantRef,
@@ -4971,6 +4981,24 @@ function CustomerReportsPage({
         accountScope,
         reportType,
         filters,
+      }),
+    enabled: Boolean(selectedAccount?.accountId && externalTenantRef),
+    retry: false,
+  });
+  const scheduleListQuery = useQuery({
+    queryKey: [
+      "referral-saas",
+      "customer-report-delivery-schedules",
+      selectedAccount?.accountId || "",
+      externalTenantRef,
+      reportType,
+      refreshKey,
+    ],
+    queryFn: () =>
+      listReferralSaasAccountReportDeliverySchedules({
+        accountRef: selectedAccount?.accountId || "",
+        accountScope,
+        reportType,
       }),
     enabled: Boolean(selectedAccount?.accountId && externalTenantRef),
     retry: false,
@@ -5076,16 +5104,119 @@ function CustomerReportsPage({
       return response;
     },
   });
+  const scheduleMutation = useMutation({
+    mutationFn: () => {
+      const recipientRef = scheduleRecipientRef.trim();
+      const key = safeIdempotencyKey(
+        "customer-report-delivery-schedule",
+        selectedAccount?.accountId || "",
+        reportType,
+        campaignCode || "all-campaigns",
+        scheduleCadence,
+        scheduleTimezone,
+        scheduleFormat,
+        String(scheduleRetentionDays),
+        recipientRef || "no-recipient",
+      );
+      return createReferralSaasAccountReportDeliverySchedule({
+        accountRef: selectedAccount?.accountId || "",
+        accountScope,
+        reportType,
+        cadence: scheduleCadence,
+        timezone: scheduleTimezone,
+        format: scheduleFormat,
+        redactionProfile: "tenant_safe",
+        recipientContactRefs: recipientRef ? [recipientRef] : [],
+        retentionDays: scheduleRetentionDays,
+        campaignRef: campaignCode || undefined,
+        scheduleStatus: recipientRef ? "ready" : "blocked",
+        reasonCode: "CUSTOMER_PROFILE_REPORT_DELIVERY_SCHEDULE_UI",
+        correlationId: key,
+        idempotencyKey: key,
+      });
+    },
+    onSuccess: () => {
+      void scheduleListQuery.refetch();
+    },
+  });
+  const updateScheduleMutation = useMutation({
+    mutationFn: ({
+      scheduleId,
+      scheduleStatus,
+    }: {
+      scheduleId: string;
+      scheduleStatus: "ready" | "paused" | "cancelled";
+    }) => {
+      const key = safeIdempotencyKey(
+        "customer-report-delivery-schedule-update",
+        selectedAccount?.accountId || "",
+        scheduleId,
+        scheduleStatus,
+      );
+      return updateReferralSaasAccountReportDeliverySchedule({
+        accountRef: selectedAccount?.accountId || "",
+        accountScope,
+        scheduleId,
+        scheduleStatus,
+        reasonCode: `CUSTOMER_PROFILE_REPORT_DELIVERY_SCHEDULE_${scheduleStatus.toUpperCase()}`,
+        correlationId: key,
+        idempotencyKey: key,
+      });
+    },
+    onSuccess: () => {
+      void scheduleListQuery.refetch();
+    },
+  });
+  const readinessMutation = useMutation({
+    mutationFn: (scheduleId: string) =>
+      getReferralSaasAccountReportDeliveryScheduleReadiness({
+        accountRef: selectedAccount?.accountId || "",
+        accountScope,
+        scheduleId,
+      }),
+  });
   const exportFileName = textValue(getNestedValue(preparedExportFile, ["fileName"], ""));
   const exportFileType = textValue(getNestedValue(preparedExportFile, ["contentType"], ""));
   const exportFileSize = textValue(getNestedValue(preparedExportFile, ["byteSize"], ""));
   const exportRowCount = textValue(getNestedValue(preparedExportRequest, ["rowCount"], ""));
   const exportDownloadStatus = textValue(getNestedValue(preparedExportRequest, ["downloadStatus"], ""));
   const activeReport = customerReportOptions.find((option) => option.value === reportType) || customerReportOptions[0];
+  const scheduleRows = asArray(scheduleListQuery.data?.deliverySchedules).map((entry) => {
+    const record = asRecord(entry);
+    const schedule = asRecord(getNestedValue(record, ["deliverySchedule"], record));
+    const readiness = asRecord(getNestedValue(record, ["readiness"], {}));
+    return {
+      record,
+      schedule,
+      readiness,
+      scheduleId: textValue(getNestedValue(schedule, ["scheduleId"], "")),
+      status: textValue(getNestedValue(schedule, ["scheduleStatus"], "draft")),
+      cadence: textValue(getNestedValue(schedule, ["cadence"], "weekly")),
+      timezone: textValue(getNestedValue(schedule, ["timezone"], "")),
+      format: textValue(getNestedValue(schedule, ["format"], "csv")),
+      recipients: textArray(getNestedValue(schedule, ["recipientContactRefs"], [])),
+      retentionDays: textValue(getNestedValue(schedule, ["retentionDays"], "7")),
+      campaignRef: textValue(getNestedValue(schedule, ["campaignRef"], "")),
+      readinessStatus: textValue(getNestedValue(readiness, ["status"], getNestedValue(schedule, ["scheduleStatus"], "draft"))),
+      blockedReasons: textArray(getNestedValue(readiness, ["blockedReasons"], getNestedValue(schedule, ["blockedReasons"], []))),
+      warnings: textArray(getNestedValue(readiness, ["warnings"], getNestedValue(schedule, ["warnings"], []))),
+    };
+  });
+  const latestSchedule = asRecord(scheduleMutation.data?.reportDeliverySchedule);
+  const latestScheduleRecord = asRecord(getNestedValue(latestSchedule, ["deliverySchedule"], {}));
+  const updatedSchedule = asRecord(updateScheduleMutation.data?.reportDeliverySchedule);
+  const updatedScheduleRecord = asRecord(getNestedValue(updatedSchedule, ["deliverySchedule"], {}));
+  const readinessResult = asRecord(readinessMutation.data?.reportDeliveryScheduleReadiness);
+  const readinessSchedule = asRecord(getNestedValue(readinessResult, ["deliverySchedule"], {}));
+  const readinessDetails = asRecord(getNestedValue(readinessResult, ["readiness"], readinessResult));
+  const readinessStatus = textValue(getNestedValue(readinessDetails, ["status"], ""));
   const resetExportState = () => {
     previewMutation.reset();
     prepareDownloadMutation.reset();
     downloadMutation.reset();
+    scheduleMutation.reset();
+    updateScheduleMutation.reset();
+    readinessMutation.reset();
   };
 
   return (
@@ -5116,6 +5247,10 @@ function CustomerReportsPage({
         {previewMutation.error ? <ErrorPanel error={previewMutation.error} /> : null}
         {prepareDownloadMutation.error ? <ErrorPanel error={prepareDownloadMutation.error} /> : null}
         {downloadMutation.error ? <ErrorPanel error={downloadMutation.error} /> : null}
+        {scheduleListQuery.error ? <ErrorPanel error={scheduleListQuery.error} /> : null}
+        {scheduleMutation.error ? <ErrorPanel error={scheduleMutation.error} /> : null}
+        {updateScheduleMutation.error ? <ErrorPanel error={updateScheduleMutation.error} /> : null}
+        {readinessMutation.error ? <ErrorPanel error={readinessMutation.error} /> : null}
 
         <div className="grid-2">
           <div className="panel-lite">
@@ -5316,6 +5451,215 @@ function CustomerReportsPage({
               No signed URL, scheduled delivery, email, credential, billing, campaign activation, or money movement was created.
             </div>
           ) : null}
+        </section>
+
+        <section className="panel-lite">
+          <div className="panel-header compact">
+            <div>
+              <h3 className="section-heading">5. Schedule delivery intent</h3>
+              <div className="panel-subtitle">
+                Record when this customer report should be delivered later. This does not send a report today.
+              </div>
+            </div>
+            <StatusBadge label="Intent only" tone="info" />
+          </div>
+          <div className="grid-2">
+            <div className="route-list">
+              <label>
+                Cadence
+                <select
+                  onChange={(event) => setScheduleCadence(event.target.value as ReferralSaasReportDeliveryCadence)}
+                  value={scheduleCadence}
+                >
+                  <option value="weekly">Weekly</option>
+                  <option value="daily">Daily</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </label>
+              <label>
+                Timezone
+                <input
+                  onChange={(event) => setScheduleTimezone(event.target.value)}
+                  placeholder="Example: Africa/Johannesburg"
+                  value={scheduleTimezone}
+                />
+              </label>
+              <label>
+                Format
+                <select
+                  onChange={(event) => setScheduleFormat(event.target.value as ReferralSaasExportFormat)}
+                  value={scheduleFormat}
+                >
+                  <option value="csv">CSV</option>
+                  <option value="json">JSON</option>
+                </select>
+              </label>
+              <label>
+                Retention days
+                <input
+                  max={7}
+                  min={1}
+                  onChange={(event) => setScheduleRetentionDays(Number(event.target.value) || 7)}
+                  type="number"
+                  value={scheduleRetentionDays}
+                />
+              </label>
+              <label>
+                Recipient contact reference
+                <input
+                  onChange={(event) => setScheduleRecipientRef(event.target.value)}
+                  placeholder="Example: contact-owner"
+                  value={scheduleRecipientRef}
+                />
+              </label>
+              <button
+                className="button primary"
+                disabled={scheduleMutation.isPending || !selectedAccount?.accountId || !scheduleTimezone.trim()}
+                onClick={() => scheduleMutation.mutate()}
+                type="button"
+              >
+                <Download size={16} /> {scheduleMutation.isPending ? "Saving schedule" : "Save schedule intent"}
+              </button>
+            </div>
+            <div className="wizard-status-card vertical">
+              <div>
+                <strong>Delivery boundary</strong>
+                <p>
+                  Schedule intent is customer-scoped and audit-friendly. It does not send email, call a provider,
+                  dispatch webhooks, create credentials, activate a campaign, bill, or move money.
+                </p>
+              </div>
+              <StatusBadge label={campaignCode ? `Campaign: ${campaignCode}` : "All campaigns"} tone="info" />
+            </div>
+          </div>
+
+          {scheduleMutation.data ? (
+            <div className="success-panel">
+              <strong>Schedule intent saved.</strong>{" "}
+              {textValue(getNestedValue(latestScheduleRecord, ["scheduleId"], "The schedule"))} is{" "}
+              {formatDisplay(getNestedValue(latestScheduleRecord, ["scheduleStatus"], "recorded"))}. No live delivery
+              was executed.
+            </div>
+          ) : null}
+          {updateScheduleMutation.data ? (
+            <div className="success-panel">
+              <strong>Schedule updated.</strong>{" "}
+              {textValue(getNestedValue(updatedScheduleRecord, ["scheduleId"], "The schedule"))} is now{" "}
+              {formatDisplay(getNestedValue(updatedScheduleRecord, ["scheduleStatus"], "updated"))}. No live delivery
+              was executed.
+            </div>
+          ) : null}
+          {readinessMutation.data ? (
+            <div className="wizard-status-card">
+              <div>
+                <strong>Readiness checked.</strong>
+                <p>
+                  {textValue(getNestedValue(readinessSchedule, ["scheduleId"], "Selected schedule"))} is{" "}
+                  {formatDisplay(readinessStatus || "not ready")}.{" "}
+                  {formatList(textArray(getNestedValue(readinessDetails, ["blockedReasons"], [])))}{" "}
+                  blockers.
+                </p>
+              </div>
+              <StatusBadge label={formatDisplay(readinessStatus || "Checked")} tone={statusTone(readinessStatus)} />
+            </div>
+          ) : null}
+
+          {scheduleListQuery.isLoading ? <LoadingState label="Loading delivery schedules" /> : null}
+          <DataTable
+            rows={scheduleRows}
+            emptyText="No scheduled delivery intent has been recorded for this customer report yet."
+            columns={[
+              {
+                key: "schedule",
+                header: "Schedule",
+                render: (row) => (
+                  <div>
+                    <strong>{formatDisplay(getValue(row, ["cadence"], "Weekly"))}</strong>
+                    <div className="muted">
+                      {formatDisplay(getValue(row, ["format"], "CSV"))} - {getValue(row, ["timezone"], "No timezone")}
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: "scope",
+                header: "Scope",
+                render: (row) => (
+                  <div>
+                    <strong>{getValue(row, ["campaignRef"], "") || "All campaigns"}</strong>
+                    <div className="muted">
+                      {textArray(row.recipients).join(", ") || "No recipient contact reference"}
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: "status",
+                header: "Status",
+                render: (row) => {
+                  const status = formatDisplay(getValue(row, ["status"], "Draft"));
+                  const warningCount = textArray(getNestedValue(row, ["warnings"], [])).length;
+                  const blockedCount = textArray(getNestedValue(row, ["blockedReasons"], [])).length;
+                  return (
+                    <div>
+                      <StatusBadge label={status} tone={statusTone(status)} />
+                      <div className="muted">
+                        {blockedCount} blockers, {warningCount} warnings
+                      </div>
+                    </div>
+                  );
+                },
+              },
+              {
+                key: "actions",
+                header: "Actions",
+                render: (row) => {
+                  const scheduleId = textValue(getValue(row, ["scheduleId"], ""));
+                  const status = textValue(getValue(row, ["status"], ""));
+                  const isPaused = status.toUpperCase() === "PAUSED";
+                  const isCancelled = status.toUpperCase() === "CANCELLED";
+                  return (
+                    <div className="button-row">
+                      <button
+                        className="button secondary"
+                        disabled={!scheduleId || readinessMutation.isPending}
+                        onClick={() => readinessMutation.mutate(scheduleId)}
+                        type="button"
+                      >
+                        Check readiness
+                      </button>
+                      <button
+                        className="button secondary"
+                        disabled={!scheduleId || updateScheduleMutation.isPending || isCancelled}
+                        onClick={() =>
+                          updateScheduleMutation.mutate({
+                            scheduleId,
+                            scheduleStatus: isPaused ? "ready" : "paused",
+                          })
+                        }
+                        type="button"
+                      >
+                        {isPaused ? "Resume" : "Pause"}
+                      </button>
+                      <button
+                        className="button secondary"
+                        disabled={!scheduleId || updateScheduleMutation.isPending || isCancelled}
+                        onClick={() =>
+                          updateScheduleMutation.mutate({
+                            scheduleId,
+                            scheduleStatus: "cancelled",
+                          })
+                        }
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  );
+                },
+              },
+            ]}
+          />
         </section>
 
         <div className="button-row">
@@ -6520,6 +6864,13 @@ function textValue(value: unknown, fallback = "") {
     return fallback;
   }
   return String(value).trim() || fallback;
+}
+
+function textArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((entry) => textValue(entry)).filter(Boolean);
 }
 
 function downloadCustomerReportFile({

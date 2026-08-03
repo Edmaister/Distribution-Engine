@@ -103,6 +103,79 @@ export type ReferralSaasAccountExportFileReadRequest = {
   correlationId?: string;
 };
 
+export type ReferralSaasReportDeliveryCadence = "daily" | "weekly" | "monthly";
+
+export type ReferralSaasReportDeliveryScheduleStatus =
+  | "draft"
+  | "ready"
+  | "paused"
+  | "cancelled"
+  | "blocked";
+
+export type ReferralSaasAccountReportDeliveryScheduleRequest = {
+  accountRef: string;
+  accountScope: ReferralSaasCustomerAccountScopeRequest;
+  reportType: ReferralSaasReportType;
+  cadence: ReferralSaasReportDeliveryCadence;
+  timezone: string;
+  format?: ReferralSaasExportFormat;
+  redactionProfile?: "tenant_safe";
+  recipientContactRefs?: string[];
+  retentionDays?: number;
+  campaignRef?: string;
+  scheduleStatus?: ReferralSaasReportDeliveryScheduleStatus;
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
+export type ReferralSaasAccountReportDeliveryScheduleUpdateRequest = {
+  accountRef: string;
+  accountScope: ReferralSaasCustomerAccountScopeRequest;
+  scheduleId: string;
+  reportType?: ReferralSaasReportType;
+  cadence?: ReferralSaasReportDeliveryCadence;
+  timezone?: string;
+  format?: ReferralSaasExportFormat;
+  redactionProfile?: "tenant_safe";
+  recipientContactRefs?: string[];
+  retentionDays?: number;
+  campaignRef?: string;
+  scheduleStatus?: ReferralSaasReportDeliveryScheduleStatus;
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
+export type ReferralSaasAccountReportDeliveryScheduleListRequest = {
+  accountRef: string;
+  accountScope: ReferralSaasCustomerAccountScopeRequest;
+  reportType: ReferralSaasReportType;
+};
+
+export type ReferralSaasAccountReportDeliveryScheduleReadinessRequest = {
+  accountRef: string;
+  accountScope: ReferralSaasCustomerAccountScopeRequest;
+  scheduleId: string;
+};
+
+export type ReferralSaasReportDeliveryScheduleResponse = {
+  status?: string;
+  reportDeliverySchedule?: Record<string, unknown>;
+  deliverySchedules?: Record<string, unknown>[];
+  reportDeliveryScheduleReadiness?: Record<string, unknown>;
+  account_scope?: ReferralSaasAccountScope;
+  guardrail?: string;
+  guardrails?: string[];
+  redactions?: string[];
+  no_live_delivery_executed_confirmed?: boolean;
+  no_email_sent_confirmed?: boolean;
+  no_webhook_dispatch_confirmed?: boolean;
+  no_credential_or_auth_change_confirmed?: boolean;
+  no_campaign_activation_confirmed?: boolean;
+  no_billing_or_money_movement_confirmed?: boolean;
+};
+
 function reportPath(reportType: ReferralSaasReportType, suffix = ""): string {
   return `v1/referral-saas/reports/${encodeURIComponent(reportType)}${suffix}`;
 }
@@ -188,6 +261,43 @@ function exportFileQuery(request: ReferralSaasAccountExportFileReadRequest) {
     external_ref: request.accountScope.externalRef,
     context: request.accountScope.context || "setup",
     correlation_id: request.correlationId,
+  };
+}
+
+function deliveryScheduleBody(
+  request:
+    | ReferralSaasAccountReportDeliveryScheduleRequest
+    | ReferralSaasAccountReportDeliveryScheduleUpdateRequest,
+) {
+  return {
+    accountScope: {
+      refType: request.accountScope.refType,
+      externalRef: request.accountScope.externalRef,
+      context: request.accountScope.context || "setup",
+    },
+    cadence: request.cadence,
+    timezone: request.timezone,
+    format: request.format,
+    redactionProfile: request.redactionProfile,
+    recipientContactRefs: request.recipientContactRefs,
+    retentionDays: request.retentionDays,
+    campaignRef: request.campaignRef,
+    scheduleStatus: request.scheduleStatus,
+    reasonCode: request.reasonCode,
+    correlationId: request.correlationId,
+    idempotencyKey: request.idempotencyKey,
+  };
+}
+
+function deliveryScheduleQuery(
+  request:
+    | ReferralSaasAccountReportDeliveryScheduleListRequest
+    | ReferralSaasAccountReportDeliveryScheduleReadinessRequest,
+) {
+  return {
+    ref_type: request.accountScope.refType,
+    external_ref: request.accountScope.externalRef,
+    context: request.accountScope.context || "setup",
   };
 }
 
@@ -301,6 +411,56 @@ export function downloadReferralSaasAccountReportExportFile(
     )}/download`,
     {
       query: exportFileQuery(request),
+    },
+  );
+}
+
+export function createReferralSaasAccountReportDeliverySchedule(
+  request: ReferralSaasAccountReportDeliveryScheduleRequest,
+): Promise<ReferralSaasReportDeliveryScheduleResponse> {
+  return apiRequest<ReferralSaasReportDeliveryScheduleResponse>(
+    accountReportPath(request.accountRef, request.reportType, "/delivery-schedules"),
+    {
+      method: "POST",
+      body: deliveryScheduleBody(request),
+    },
+  );
+}
+
+export function listReferralSaasAccountReportDeliverySchedules(
+  request: ReferralSaasAccountReportDeliveryScheduleListRequest,
+): Promise<ReferralSaasReportDeliveryScheduleResponse> {
+  return apiRequest<ReferralSaasReportDeliveryScheduleResponse>(
+    accountReportPath(request.accountRef, request.reportType, "/delivery-schedules"),
+    {
+      query: deliveryScheduleQuery(request),
+    },
+  );
+}
+
+export function updateReferralSaasAccountReportDeliverySchedule(
+  request: ReferralSaasAccountReportDeliveryScheduleUpdateRequest,
+): Promise<ReferralSaasReportDeliveryScheduleResponse> {
+  return apiRequest<ReferralSaasReportDeliveryScheduleResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(request.accountRef)}/delivery-schedules/${encodeURIComponent(
+      request.scheduleId,
+    )}`,
+    {
+      method: "PATCH",
+      body: deliveryScheduleBody(request),
+    },
+  );
+}
+
+export function getReferralSaasAccountReportDeliveryScheduleReadiness(
+  request: ReferralSaasAccountReportDeliveryScheduleReadinessRequest,
+): Promise<ReferralSaasReportDeliveryScheduleResponse> {
+  return apiRequest<ReferralSaasReportDeliveryScheduleResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(request.accountRef)}/delivery-schedules/${encodeURIComponent(
+      request.scheduleId,
+    )}/readiness`,
+    {
+      query: deliveryScheduleQuery(request),
     },
   );
 }

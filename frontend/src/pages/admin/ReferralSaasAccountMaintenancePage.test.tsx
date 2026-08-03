@@ -15,11 +15,15 @@ import {
   validateReferralSaasAccountCampaignCode,
 } from "../../api/endpoints/referralSaasLinks";
 import {
+  createReferralSaasAccountReportDeliverySchedule,
   createReferralSaasAccountReportExportFile,
   createReferralSaasAccountReportExportRequest,
   downloadReferralSaasAccountReportExportFile,
+  getReferralSaasAccountReportDeliveryScheduleReadiness,
   getReferralSaasAccountReport,
+  listReferralSaasAccountReportDeliverySchedules,
   previewReferralSaasAccountReportExport,
+  updateReferralSaasAccountReportDeliverySchedule,
 } from "../../api/endpoints/referralSaasReports";
 import {
   addReferralSaasAccountSupportCaseNote,
@@ -79,11 +83,15 @@ vi.mock("../../api/endpoints/referralSaasLinks", () => ({
   validateReferralSaasAccountCampaignCode: vi.fn(),
 }));
 vi.mock("../../api/endpoints/referralSaasReports", () => ({
+  createReferralSaasAccountReportDeliverySchedule: vi.fn(),
   createReferralSaasAccountReportExportFile: vi.fn(),
   createReferralSaasAccountReportExportRequest: vi.fn(),
   downloadReferralSaasAccountReportExportFile: vi.fn(),
+  getReferralSaasAccountReportDeliveryScheduleReadiness: vi.fn(),
   getReferralSaasAccountReport: vi.fn(),
+  listReferralSaasAccountReportDeliverySchedules: vi.fn(),
   previewReferralSaasAccountReportExport: vi.fn(),
+  updateReferralSaasAccountReportDeliverySchedule: vi.fn(),
 }));
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   addReferralSaasAccountSupportCaseNote: vi.fn(),
@@ -128,6 +136,18 @@ const mockedIssueReferralSaasAccountCampaignCode = vi.mocked(issueReferralSaasAc
 const mockedValidateReferralSaasAccountCampaignCode = vi.mocked(validateReferralSaasAccountCampaignCode);
 const mockedGetReferralSaasAccountReport = vi.mocked(getReferralSaasAccountReport);
 const mockedPreviewReferralSaasAccountReportExport = vi.mocked(previewReferralSaasAccountReportExport);
+const mockedCreateReferralSaasAccountReportDeliverySchedule = vi.mocked(
+  createReferralSaasAccountReportDeliverySchedule,
+);
+const mockedListReferralSaasAccountReportDeliverySchedules = vi.mocked(
+  listReferralSaasAccountReportDeliverySchedules,
+);
+const mockedUpdateReferralSaasAccountReportDeliverySchedule = vi.mocked(
+  updateReferralSaasAccountReportDeliverySchedule,
+);
+const mockedGetReferralSaasAccountReportDeliveryScheduleReadiness = vi.mocked(
+  getReferralSaasAccountReportDeliveryScheduleReadiness,
+);
 const mockedCreateReferralSaasAccountReportExportRequest = vi.mocked(createReferralSaasAccountReportExportRequest);
 const mockedCreateReferralSaasAccountReportExportFile = vi.mocked(createReferralSaasAccountReportExportFile);
 const mockedDownloadReferralSaasAccountReportExportFile = vi.mocked(downloadReferralSaasAccountReportExportFile);
@@ -1793,6 +1813,117 @@ describe("ReferralSaasAccountMaintenancePage", () => {
           content: "campaign_code,metric_name,value\nCAMP001,referrals.completed_count,4\n",
         },
       },
+    });
+    mockedListReferralSaasAccountReportDeliverySchedules.mockResolvedValue({
+      status: "ok",
+      deliverySchedules: [
+        {
+          commandStatus: "REPORT_DELIVERY_SCHEDULE_RECORDED",
+          deliverySchedule: {
+            scheduleId: "schedule-1",
+            cadence: "WEEKLY",
+            timezone: "Africa/Johannesburg",
+            format: "csv",
+            redactionProfile: "tenant_safe",
+            recipientContactRefs: ["contact-owner"],
+            retentionDays: 7,
+            scheduleStatus: "READY",
+            deliveryStatus: "NOT_REQUESTED",
+            campaignRef: "CAMP001",
+            nextRunAt: null,
+            lastRunAt: null,
+            blockedReasons: [],
+            warnings: ["LIVE_DELIVERY_WORKER_NOT_ENABLED"],
+          },
+          readiness: {
+            status: "READY",
+            blockedReasons: [],
+            warnings: ["LIVE_DELIVERY_WORKER_NOT_ENABLED"],
+          },
+          noLiveDeliveryExecutedConfirmed: true,
+          noEmailSentConfirmed: true,
+          noWebhookDispatchConfirmed: true,
+          noCredentialOrAuthChangeConfirmed: true,
+          noCampaignActivationConfirmed: true,
+          noBillingOrMoneyMovementConfirmed: true,
+        },
+      ],
+      account_scope: {
+        source: "selected_customer_account",
+        account_ref: "acct-gabs",
+        external_tenant_ref: "gabs-platform",
+      },
+      guardrails: ["NO_LIVE_DELIVERY_EXECUTION"],
+      redactions: ["internal_tenant_identifier"],
+      no_live_delivery_executed_confirmed: true,
+    });
+    mockedCreateReferralSaasAccountReportDeliverySchedule.mockResolvedValue({
+      status: "accepted",
+      reportDeliverySchedule: {
+        commandStatus: "REPORT_DELIVERY_SCHEDULE_RECORDED",
+        deliverySchedule: {
+          scheduleId: "schedule-2",
+          cadence: "WEEKLY",
+          timezone: "Africa/Johannesburg",
+          format: "csv",
+          redactionProfile: "tenant_safe",
+          recipientContactRefs: ["contact-owner"],
+          retentionDays: 7,
+          scheduleStatus: "READY",
+          deliveryStatus: "NOT_REQUESTED",
+          campaignRef: "CAMP001",
+          nextRunAt: null,
+          lastRunAt: null,
+          blockedReasons: [],
+          warnings: ["LIVE_DELIVERY_WORKER_NOT_ENABLED"],
+        },
+        readiness: {
+          status: "READY",
+          blockedReasons: [],
+          warnings: ["LIVE_DELIVERY_WORKER_NOT_ENABLED"],
+        },
+      },
+      guardrail: "Report delivery schedule intent recorded.",
+      no_live_delivery_executed_confirmed: true,
+      no_email_sent_confirmed: true,
+      no_webhook_dispatch_confirmed: true,
+      no_credential_or_auth_change_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+    mockedUpdateReferralSaasAccountReportDeliverySchedule.mockResolvedValue({
+      status: "accepted",
+      reportDeliverySchedule: {
+        commandStatus: "REPORT_DELIVERY_SCHEDULE_UPDATED",
+        deliverySchedule: {
+          scheduleId: "schedule-1",
+          scheduleStatus: "PAUSED",
+        },
+        readiness: {
+          status: "PAUSED",
+          blockedReasons: [],
+          warnings: ["LIVE_DELIVERY_WORKER_NOT_ENABLED"],
+        },
+      },
+      guardrail: "Report delivery schedule updated.",
+      no_live_delivery_executed_confirmed: true,
+      no_email_sent_confirmed: true,
+      no_webhook_dispatch_confirmed: true,
+      no_credential_or_auth_change_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+    mockedGetReferralSaasAccountReportDeliveryScheduleReadiness.mockResolvedValue({
+      status: "ok",
+      reportDeliveryScheduleReadiness: {
+        scheduleId: "schedule-1",
+        readiness: {
+          status: "READY",
+          blockedReasons: [],
+          warnings: ["LIVE_DELIVERY_WORKER_NOT_ENABLED"],
+        },
+      },
+      no_live_delivery_executed_confirmed: true,
     });
     mockedGetReferralSaasAccountCampaignReadiness.mockResolvedValue(mockCampaignReadiness());
     mockedUpdateReferralSaasAccountCampaignPolicySettings.mockResolvedValue(mockCampaignPolicySettings());
@@ -3964,6 +4095,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText("No tenant code entry")).toBeInTheDocument();
 
     await waitFor(() => expect(mockedGetReferralSaasAccountReport).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockedListReferralSaasAccountReportDeliverySchedules).toHaveBeenCalledTimes(1));
     expect(mockedGetReferralSaasAccountReport.mock.calls[0][0]).toEqual({
       accountRef: "acct-gabs",
       accountScope: {
@@ -3973,6 +4105,15 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       },
       reportType: "campaign_performance",
       filters: undefined,
+    });
+    expect(mockedListReferralSaasAccountReportDeliverySchedules.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      reportType: "campaign_performance",
     });
 
     fireEvent.change(screen.getByLabelText("Campaign filter"), {
@@ -4052,6 +4193,64 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       correlationId: "customer-report-export-download-acct-gabs-export-1",
     });
     expect(await screen.findByText("Download started.")).toBeInTheDocument();
+
+    expect(screen.getByRole("heading", { name: "5. Schedule delivery intent" })).toBeInTheDocument();
+    expect(screen.getByText(/This does not send a report today/i)).toBeInTheDocument();
+    expect(screen.getByText("Intent only")).toBeInTheDocument();
+    expect(await screen.findByText("contact-owner")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Recipient contact reference"), {
+      target: { value: "contact-owner" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Save schedule intent/i }));
+    await waitFor(() => expect(mockedCreateReferralSaasAccountReportDeliverySchedule).toHaveBeenCalledTimes(1));
+    expect(mockedCreateReferralSaasAccountReportDeliverySchedule.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      reportType: "campaign_performance",
+      cadence: "weekly",
+      timezone: "Africa/Johannesburg",
+      format: "csv",
+      redactionProfile: "tenant_safe",
+      recipientContactRefs: ["contact-owner"],
+      retentionDays: 7,
+      campaignRef: "CAMP001",
+      scheduleStatus: "ready",
+      reasonCode: "CUSTOMER_PROFILE_REPORT_DELIVERY_SCHEDULE_UI",
+      correlationId:
+        "customer-report-delivery-schedule-acct-gabs-campaign-performance-camp001-weekly-africa-johannesburg-csv-7-contact-owner",
+      idempotencyKey:
+        "customer-report-delivery-schedule-acct-gabs-campaign-performance-camp001-weekly-africa-johannesburg-csv-7-contact-owner",
+    });
+    expect(await screen.findByText("Schedule intent saved.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Check readiness" }));
+    await waitFor(() => expect(mockedGetReferralSaasAccountReportDeliveryScheduleReadiness).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      scheduleId: "schedule-1",
+    }));
+    fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+    await waitFor(() => expect(mockedUpdateReferralSaasAccountReportDeliverySchedule).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      scheduleId: "schedule-1",
+      scheduleStatus: "paused",
+      reasonCode: "CUSTOMER_PROFILE_REPORT_DELIVERY_SCHEDULE_PAUSED",
+      correlationId: "customer-report-delivery-schedule-update-acct-gabs-schedule-1-paused",
+      idempotencyKey: "customer-report-delivery-schedule-update-acct-gabs-schedule-1-paused",
+    }));
+    expect(await screen.findByText("Schedule updated.")).toBeInTheDocument();
     expect(screen.queryByText("Reports Target")).not.toBeInTheDocument();
     expect(
       JSON.stringify([
@@ -4059,8 +4258,11 @@ describe("ReferralSaasAccountMaintenancePage", () => {
         mockedCreateReferralSaasAccountReportExportRequest.mock.calls,
         mockedCreateReferralSaasAccountReportExportFile.mock.calls,
         mockedDownloadReferralSaasAccountReportExportFile.mock.calls,
+        mockedCreateReferralSaasAccountReportDeliverySchedule.mock.calls,
+        mockedUpdateReferralSaasAccountReportDeliverySchedule.mock.calls,
+        mockedGetReferralSaasAccountReportDeliveryScheduleReadiness.mock.calls,
       ]),
-    ).not.toMatch(/tenantCode|tenant_code|scheduledDelivery|billing|money|credential|campaignActivation/i);
+    ).not.toMatch(/tenantCode|tenant_code|billing|money|credential|campaignActivation/i);
   });
 
   it("saves selected customer profile settings through the maintenance command", async () => {

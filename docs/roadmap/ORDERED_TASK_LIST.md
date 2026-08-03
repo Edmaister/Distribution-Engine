@@ -7537,7 +7537,7 @@ Definition of done: Referral SaaS has a guarded scheduled report delivery API fo
 
 ## TASK-335: Wire selected-customer scheduled report delivery UI
 
-Status: Planned.
+Status: Completed.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_REPORTING_EXPORT_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Reuses selected-customer Reports page, report/export API client, schedule API foundation, frontend query keys, account context, and no-adjacent-action copy patterns. Source duplication: No.
@@ -7558,6 +7558,7 @@ Blocked by: Live delivery worker/provider adapter, governed auth/login completio
 Risk level: Medium.
 Rollback notes: Revert frontend API/page/test/docs updates.
 Explicit non-goals: No backend schedule execution, email delivery, provider calls, credential/auth changes, campaign activation, repair/replay/retry, billing, money movement, DLaaS, or source-code forks.
+Completed output: `frontend/src/api/endpoints/referralSaasReports.ts`; `frontend/src/api/endpoints/referralSaasReports.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; roadmap/gap/reporting-contract/infographic updates.
 Definition of done: Scheduled report delivery becomes visible and manageable as customer-scoped intent in the Reports UI, closing the visible scheduled-delivery UX gap while live provider dispatch remains governed separately. Priority: P0.
 
 ## TASK-336: Define governed repair and replay guardrails contract
