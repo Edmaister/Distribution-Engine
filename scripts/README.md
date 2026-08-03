@@ -45,6 +45,12 @@ initialization, seeding, backfilling, nightly refreshes, and health checks.
   replay, refreshed read models, and optional live DB evidence without invite
   delivery, credential creation, auth-claim propagation, campaign activation,
   go-live, billing, or money movement.
+- `referral_saas_progress_attribution_physical_check.py` - Run TASK-340
+  selected-customer progress and attribution mutation proof over campaign/code
+  setup, referral validation, `/v1/progress` ingest/replay, later milestone
+  ingest, progress status, attribution trace, and customer report readback
+  without provider, webhook, invite, credential, auth, billing, money, or DLaaS
+  side effects.
 
 ## Usage
 
@@ -69,6 +75,7 @@ python scripts/referral_saas_route_smoke_plan.py --include-seeded-writes
 python scripts/referral_saas_selected_customer_e2e_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref <customer-reference>
 python scripts/referral_saas_selected_customer_mutation_e2e_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref <customer-reference>
 python scripts/referral_saas_people_access_provisioning_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref <customer-reference> --database
+python scripts/referral_saas_progress_attribution_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --tenant-code FNB --external-tenant-ref <customer-reference>
 ```
 
 ## Migration Replay Contract

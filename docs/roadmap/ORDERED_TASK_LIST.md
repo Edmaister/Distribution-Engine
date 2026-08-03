@@ -7667,7 +7667,7 @@ Definition of done: Referral SaaS has a reviewed progress/attribution mutation p
 
 ## TASK-340: Add progress and attribution mutation proof runner
 
-Status: Planned.
+Status: Completed.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_EVENT_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ATTRIBUTION_TRACE_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Reuses proof-runner patterns, selected-customer APIs, progress ingestion, attribution trace, report/export read models, idempotency, audit, and redaction guardrails. Source duplication: No.
@@ -7680,14 +7680,15 @@ Database/schema impact: None unless proof evidence requires a safe metadata tabl
 Backend impact: Adds or updates proof tooling only; product routes remain unchanged unless a missing bounded wrapper is discovered.
 Frontend impact: None.
 API impact: Uses existing selected-customer and progress/attribution routes.
-Tests to add/update: Proof-runner unit/integration tests, idempotency replay checks, redaction checks.
-Validation method: `git diff --check`; Python compile; focused proof-runner tests; local dry-run where available.
+Tests to add/update: Added proof-runner tests for payload construction, progress replay dedupe expectation, missing referral track rejection, and unsafe payload rejection.
+Validation method: `git diff --check`; Python compile; focused proof-runner tests.
 Acceptance criteria: The runner can seed/use a selected customer, execute allowed progress/attribution mutations, verify trace/report outputs, replay idempotently, and record safe evidence without adjacent side effects.
 Dependencies: TASK-339.
-Blocked by: Local/staging runtime availability for execution evidence.
+Blocked by: TASK-341 recorded execution evidence.
 Risk level: Medium.
 Rollback notes: Revert proof-runner scripts/tests/docs updates.
 Explicit non-goals: No production writes without explicit approval, no provider/webhook/invite delivery, no credential/auth change, no billing, no money, no DLaaS scope.
+Completed output: `scripts/referral_saas_progress_attribution_physical_check.py`; `test/test_referral_saas_progress_attribution_physical_check.py`; `scripts/referral_saas_selected_customer_mutation_e2e_physical_check.py`; `test/test_referral_saas_selected_customer_mutation_e2e_physical_check.py`; script README, proof-contract, roadmap, gap-matrix, and infographic updates. Adds a repeatable CLI runner that reuses the selected-customer campaign/link/code mutation proof, captures the referral track ID, records and replays `/v1/progress`, records a later milestone, reads operator progress status, attribution trace, and customer-scoped campaign report evidence, and fails on dedupe mismatch or unsafe adjacent payloads without provider/webhook/invite/credential/auth/billing/money/DLaaS side effects.
 Definition of done: A repeatable proof runner exists for selected-customer progress and attribution mutation paths. Priority: P0.
 
 ## TASK-341: Record progress and attribution mutation proof execution

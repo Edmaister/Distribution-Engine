@@ -1985,6 +1985,25 @@ greenfield referral construction.
   Campaign Attribution because runner implementation, recorded execution,
   governed provider execution, governed auth/login completion, and non-local
   proof repetition remain open.
+- TASK-340:
+  `scripts/referral_saas_progress_attribution_physical_check.py`;
+  `test/test_referral_saas_progress_attribution_physical_check.py`;
+  `scripts/referral_saas_selected_customer_mutation_e2e_physical_check.py`;
+  `test/test_referral_saas_selected_customer_mutation_e2e_physical_check.py`;
+  `scripts/README.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_CONTRACT.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  repeatable TASK-340 proof runner. The runner reuses the selected-customer
+  campaign/link/code mutation path, captures `referralTrackId`, records and
+  replays `/v1/progress`, records a later milestone, reads progress status,
+  attribution trace, and customer-scoped campaign report evidence, and fails on
+  dedupe mismatch or unsafe adjacent payloads. Scores remain 9.99/10 for
+  Referral Management and 9.999/10 for Campaign Attribution because TASK-341
+  execution evidence, governed provider execution, governed auth/login
+  completion, and non-local proof repetition remain open.
 
 ## Explicit Deferrals
 

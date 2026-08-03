@@ -109,7 +109,10 @@ def test_run_verifies_selected_customer_mutation_path(monkeypatch):
             return _ok(
                 {
                     "status": "ok",
-                    "validation": {"validationStatus": "VALIDATED"},
+                    "validation": {
+                        "validationStatus": "VALIDATED",
+                        "referralTrackId": "11111111-1111-4111-8111-111111111111",
+                    },
                     "no_campaign_activation_confirmed": True,
                     "no_webhook_delivery_confirmed": True,
                     "no_billing_or_money_movement_confirmed": True,
@@ -161,6 +164,7 @@ def test_run_verifies_selected_customer_mutation_path(monkeypatch):
     assert result["selected_customer"]["accountRef"] == "acct-271"
     assert result["created_campaign"]["campaignCode"] == "TASK271"
     assert result["issued_referral_code"] == "REF271"
+    assert result["referral_track_id"] == "11111111-1111-4111-8111-111111111111"
     assert result["campaign_mutation_limited_to_setup_policy_review_activation"] is True
     assert result["link_code_mutation_limited_to_issue_and_validation"] is True
     assert result["no_webhook_delivery"] is True
