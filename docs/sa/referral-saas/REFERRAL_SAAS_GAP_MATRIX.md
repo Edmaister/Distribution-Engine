@@ -286,6 +286,12 @@ progress/attribution proof repetition remain separate future gaps.
 Provider/vault adapters, webhook/provider execution, invite delivery,
 auth/login changes, campaign activation, billing, and money movement remain
 separate future gaps.
+TASK-342 defines the shared provider/vault runtime adapter contract that will
+turn approved credential requests into governed readiness and future opaque
+provider/vault execution references. It closes the ambiguity in the adapter
+boundary, failure taxonomy, audit/idempotency, redaction, and no-adjacent-action
+rules, but does not implement a readiness API, vault write, provider call, or UI
+control.
 
 ## Recommended Ordered Task Sequence
 
@@ -332,7 +338,7 @@ Referral SaaS wedge. Remaining gaps are now mapped to explicit tasks:
 | Scheduled report delivery | TASK-335 | TASK-333 contract, TASK-334 guarded schedule API persistence/readiness, and TASK-335 selected-customer Reports UI controls are complete. Remaining close-out is governed provider execution and non-local proof. |
 | Repair/replay guardrails | TASK-336 to TASK-338 | TASK-336 contract, TASK-337 read-only support-case readiness API, and TASK-338 Support UI posture without unsafe mutation buttons are complete. Runtime repair/replay execution remains a future governed command track, not a launch UI gap. |
 | Progress/attribution mutation proof | TASK-339 to TASK-341 | TASK-339 contract, TASK-340 repeatable proof runner, and TASK-341 approved local execution evidence are complete. Remaining close-out is non-local staging/production-like proof repetition. |
-| Provider/vault execution readiness | TASK-342 to TASK-344 | Shared provider/vault contract, read-only readiness API, and Integrations UI visibility. |
+| Provider/vault execution readiness | TASK-342 to TASK-344 | TASK-342 provider/vault adapter contract is complete. Remaining close-out is TASK-343 read-only readiness API and TASK-344 Integrations UI visibility; actual provider/vault mutation remains a later governed runtime track. |
 | Governed auth/login completion | TASK-345 to TASK-347 | Contract, guarded API boundary, and People and Access UI for login completion status/intent. |
 | Non-local launch verification | TASK-348 plus TASK-027 | Staging/production-like read-only verification and approved smoke/proof evidence. |
 
