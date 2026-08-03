@@ -115,6 +115,20 @@ SUPPORT_CASE_QUEUE_GUARDRAILS = [
     "CUSTOMER_SAFE_QUEUE_ITEMS",
     "NO_ASSIGNMENT_FROM_QUEUE",
 ]
+SUPPORT_CASE_REPAIR_REPLAY_READINESS_GUARDRAILS = [
+    *SUPPORT_CASE_GUARDRAILS,
+    "READINESS_ONLY",
+    "SUPPORT_CASE_LINK_REQUIRED",
+    "APPROVAL_REQUIRED_BEFORE_REPAIR_REPLAY",
+    "IDEMPOTENCY_REQUIRED_BEFORE_REPAIR_REPLAY",
+    "BEFORE_STATE_HASH_REQUIRED_BEFORE_REPAIR_REPLAY",
+    "NO_PROVIDER_DISPATCH",
+    "NO_CREDENTIAL_CHANGE",
+    "NO_AUTH_CLAIM_CHANGE",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_BILLING",
+    "NO_MONEY_MOVEMENT",
+]
 
 
 class ReferralSaasSupportCaseCommandError(Exception):
@@ -375,6 +389,39 @@ class ReferralSaasSupportQueueResult:
         }
 
 
+@dataclass(frozen=True)
+class ReferralSaasSupportCaseRepairReplayReadiness:
+    support_case: ReferralSaasSupportCase
+    overall_status: str
+    action_summary: str
+    allowed_actions: list[dict[str, Any]]
+    required_evidence: list[str]
+    owning_workflow: str
+    guardrails: list[str]
+    redactions: list[str]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "caseRef": self.support_case.case_ref,
+            "accountRef": self.support_case.account_ref,
+            "category": self.support_case.category,
+            "status": self.support_case.status,
+            "overallStatus": self.overall_status,
+            "actionSummary": self.action_summary,
+            "owningWorkflow": self.owning_workflow,
+            "allowedActions": self.allowed_actions,
+            "requiredEvidence": self.required_evidence,
+            "supportCase": self.support_case.to_safe_dict(),
+            "guardrails": self.guardrails,
+            "redactions": self.redactions,
+            "no_repair_replay_retry_confirmed": True,
+            "no_provider_dispatch_confirmed": True,
+            "no_credential_or_auth_claim_change_confirmed": True,
+            "no_campaign_activation_confirmed": True,
+            "no_billing_or_money_movement_confirmed": True,
+        }
+
+
 def _jsonb(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
@@ -567,6 +614,94 @@ def _support_queue_item_from_row(row: Any) -> ReferralSaasSupportQueueItem:
         ),
         next_action="Open customer support case",
     )
+
+
+def _repair_replay_owning_workflow(category: str) -> str:
+    return {
+        "VALIDATION_RECOVERY": "links_and_codes",
+        "PROGRESS_DIAGNOSTIC": "progress_status",
+        "ATTRIBUTION_REVIEW": "attribution_trace",
+        "READINESS_BLOCKER": "account_health",
+        "REPORTING_FRESHNESS": "reports",
+        "INTEGRATION_HEALTH": "integrations",
+        "ACCESS_SCOPE": "people_and_access",
+        "MANUAL_REVIEW_REQUIRED": "support_hub",
+    }.get(category, "support_hub")
+
+
+def _repair_replay_action_label(category: str, action: str) -> str:
+    if action == "GOVERNED_REPAIR":
+        return {
+            "VALIDATION_RECOVERY": "Repair validation evidence",
+            "ATTRIBUTION_REVIEW": "Repair attribution review evidence",
+            "REPORTING_FRESHNESS": "Repair report freshness evidence",
+            "ACCESS_SCOPE": "Route access fix",
+            "READINESS_BLOCKER": "Route setup blocker",
+        }.get(category, "Repair bounded support evidence")
+    return {
+        "PROGRESS_DIAGNOSTIC": "Replay stored progress evidence",
+        "REPORTING_FRESHNESS": "Replay eligible report export evidence",
+    }.get(category, "Replay stored support evidence")
+
+
+def _build_repair_replay_actions(
+    support_case: ReferralSaasSupportCase,
+) -> list[dict[str, Any]]:
+    evidence_count = len(support_case.evidence_links)
+    lifecycle_status = (
+        "AVAILABLE" if support_case.status not in {"RESOLVED", "CLOSED"} else "CLOSED"
+    )
+    actions: list[dict[str, Any]] = [
+        {
+            "action": "READ_ONLY_DIAGNOSTIC",
+            "status": lifecycle_status,
+            "label": "Review support evidence",
+            "reasonCode": (
+                "EVIDENCE_AVAILABLE" if evidence_count else "NO_EVIDENCE_LINKED"
+            ),
+        }
+    ]
+    repair_categories = {
+        "VALIDATION_RECOVERY",
+        "ATTRIBUTION_REVIEW",
+        "READINESS_BLOCKER",
+        "REPORTING_FRESHNESS",
+        "ACCESS_SCOPE",
+        "MANUAL_REVIEW_REQUIRED",
+    }
+    replay_categories = {"PROGRESS_DIAGNOSTIC", "REPORTING_FRESHNESS"}
+    if support_case.category in repair_categories:
+        actions.append(
+            {
+                "action": "GOVERNED_REPAIR",
+                "status": "BLOCKED",
+                "label": _repair_replay_action_label(
+                    support_case.category, "GOVERNED_REPAIR"
+                ),
+                "reasonCode": "FUTURE_GOVERNED_COMMAND_REQUIRED",
+            }
+        )
+    if support_case.category in replay_categories:
+        actions.append(
+            {
+                "action": "GOVERNED_REPLAY",
+                "status": "BLOCKED",
+                "label": _repair_replay_action_label(
+                    support_case.category, "GOVERNED_REPLAY"
+                ),
+                "reasonCode": "FUTURE_GOVERNED_COMMAND_REQUIRED",
+            }
+        )
+    if len(actions) == 1:
+        actions.append(
+            {
+                "action": "HARD_EXCLUDED",
+                "status": "BLOCKED",
+                "label": "No repair or replay action is available",
+                "reasonCode": "ACTION_NOT_SUPPORTED",
+            }
+        )
+    return actions
 
 
 def _evidence_link_from_row(row: Any) -> SupportCaseEvidenceLink:
@@ -1166,6 +1301,62 @@ async def get_referral_saas_support_case(
         [_evidence_link_from_row(row) for row in evidence_rows],
         [_note_from_row(row) for row in note_rows],
         [_status_event_from_row(row) for row in status_event_rows],
+    )
+
+
+async def get_referral_saas_support_case_repair_replay_readiness(
+    *,
+    account_id: str,
+    case_ref: str,
+) -> ReferralSaasSupportCaseRepairReplayReadiness:
+    support_case = await get_referral_saas_support_case(
+        account_id=account_id,
+        case_ref=case_ref,
+    )
+    allowed_actions = _build_repair_replay_actions(support_case)
+    has_future_action = any(
+        action["action"] in {"GOVERNED_REPAIR", "GOVERNED_REPLAY"}
+        for action in allowed_actions
+    )
+    overall_status = (
+        "ACTION_NOT_SUPPORTED"
+        if not has_future_action
+        else "REVIEW_REQUIRED"
+        if support_case.status not in {"RESOLVED", "CLOSED"}
+        else "CASE_CLOSED"
+    )
+    required_evidence = [
+        "support_case_link",
+        "actor",
+        "reason",
+        "correlation_id",
+        "idempotency_key",
+        "target_evidence",
+        "before_state_hash",
+    ]
+    redactions = sorted(
+        {
+            *SUPPORT_CASE_REDACTIONS,
+            *support_case.redactions,
+            *[
+                redaction
+                for evidence_link in support_case.evidence_links
+                for redaction in evidence_link.redactions
+            ],
+        }
+    )
+    return ReferralSaasSupportCaseRepairReplayReadiness(
+        support_case=support_case,
+        overall_status=overall_status,
+        action_summary=(
+            "Readiness only. This response explains whether a future governed "
+            "repair or replay can be considered; it does not execute one."
+        ),
+        allowed_actions=allowed_actions,
+        required_evidence=required_evidence,
+        owning_workflow=_repair_replay_owning_workflow(support_case.category),
+        guardrails=sorted(SUPPORT_CASE_REPAIR_REPLAY_READINESS_GUARDRAILS),
+        redactions=redactions,
     )
 
 

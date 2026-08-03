@@ -144,7 +144,7 @@ cadence, recipients, report/export readiness, signed URL/retention interaction,
 lifecycle states, safe errors, audit/idempotency, and no-provider/no-money
 boundaries are now specified before runtime work.
 
-Remaining campaign/frontend gaps are governed repair/replay readiness API/UI,
+Remaining campaign/frontend gaps are governed repair/replay readiness UI,
 governed auth/login completion, provider/vault execution, and
 progress/attribution mutation proof beyond campaign report/export preview.
 
@@ -329,7 +329,7 @@ Referral SaaS wedge. Remaining gaps are now mapped to explicit tasks:
 | Gap | Task path | Intended close-out |
 | --- | --- | --- |
 | Scheduled report delivery | TASK-335 | TASK-333 contract, TASK-334 guarded schedule API persistence/readiness, and TASK-335 selected-customer Reports UI controls are complete. Remaining close-out is governed provider execution and non-local proof. |
-| Repair/replay guardrails | TASK-336 to TASK-338 | TASK-336 contract is complete. Remaining close-out is TASK-337 read-only support-case readiness API and TASK-338 Support UI posture without unsafe mutation buttons. |
+| Repair/replay guardrails | TASK-336 to TASK-338 | TASK-336 contract and TASK-337 read-only support-case readiness API are complete. Remaining close-out is TASK-338 Support UI posture without unsafe mutation buttons. |
 | Progress/attribution mutation proof | TASK-339 to TASK-341 | Contract, repeatable proof runner, and recorded execution evidence. |
 | Provider/vault execution readiness | TASK-342 to TASK-344 | Shared provider/vault contract, read-only readiness API, and Integrations UI visibility. |
 | Governed auth/login completion | TASK-345 to TASK-347 | Contract, guarded API boundary, and People and Access UI for login completion status/intent. |

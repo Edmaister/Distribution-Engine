@@ -7589,7 +7589,7 @@ Definition of done: Referral SaaS has a reviewed repair/replay guardrail contrac
 
 ## TASK-337: Add support-case repair/replay readiness API
 
-Status: Planned.
+Status: Completed.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Reuses support-case persistence, diagnostics, inspection, trace, progress/status read models, repair/replay contract, audit posture, and redactions. Source duplication: No.
@@ -7610,6 +7610,7 @@ Blocked by: UI wiring and later command-specific repair/replay tasks.
 Risk level: Medium.
 Rollback notes: Revert service/router/tests/docs updates.
 Explicit non-goals: No actual repair/replay/retry command execution, no generic mutation console, no provider/webhook dispatch, no credential/auth changes, no campaign activation, no billing, no money, no DLaaS scope.
+Completed output: `services/referral_saas_support_case_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_support_case_repair_replay_readiness.py`; route smoke inventory; roadmap/gap/API-map/infographic updates. Adds a read-only selected-customer support-case repair/replay readiness route that classifies diagnostic, governed repair, governed replay, and hard-excluded posture; returns required evidence, owning workflow, redactions, blocked reasons, and no-side-effect confirmations; and preserves explicit no repair, replay, retry, provider dispatch, credential/auth, campaign activation, billing, money, or DLaaS action boundaries.
 Definition of done: Support cases expose safe repair/replay readiness as evidence, giving operators a production support posture without enabling dangerous mutations. Priority: P0.
 
 ## TASK-338: Wire support-case repair/replay readiness UI
