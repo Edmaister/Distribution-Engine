@@ -1933,6 +1933,25 @@ greenfield referral construction.
   because the runtime readiness API, Support UI visibility,
   progress/attribution mutation proof, governed provider execution, governed
   auth/login completion, and non-local proof repetition remain open.
+- TASK-337:
+  `services/referral_saas_support_case_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_support_case_repair_replay_readiness.py`;
+  route smoke inventory; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  read-only selected-customer support-case repair/replay readiness API. The
+  route classifies diagnostic, governed repair, governed replay, and
+  hard-excluded posture; returns required evidence, owning workflow, redactions,
+  blocked reasons, and safe next posture; and confirms no repair, replay, retry,
+  provider dispatch, credential/auth change, campaign activation, billing,
+  money movement, or DLaaS action is performed. Scores remain 9.99/10 for
+  Referral Management and 9.999/10 for Campaign Attribution because Support UI
+  visibility, progress/attribution mutation proof, governed provider execution,
+  governed auth/login completion, and non-local proof repetition remain open.
 
 ## Explicit Deferrals
 

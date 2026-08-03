@@ -6067,6 +6067,95 @@ async def test_referral_saas_account_admin_can_read_customer_scoped_support_case
     assert read_calls == [{"account_id": "acct-1", "case_ref": "case-1"}]
 
 
+async def test_referral_saas_account_admin_can_read_support_case_repair_replay_readiness(
+    monkeypatch,
+):
+    readiness_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    class FakeReadiness:
+        def to_safe_dict(self):
+            return {
+                "caseRef": "case-1",
+                "accountRef": "acct-1",
+                "category": "PROGRESS_DIAGNOSTIC",
+                "overallStatus": "REVIEW_REQUIRED",
+                "owningWorkflow": "progress_status",
+                "allowedActions": [
+                    {
+                        "action": "READ_ONLY_DIAGNOSTIC",
+                        "status": "AVAILABLE",
+                        "label": "Review support evidence",
+                    },
+                    {
+                        "action": "GOVERNED_REPLAY",
+                        "status": "BLOCKED",
+                        "reasonCode": "FUTURE_GOVERNED_COMMAND_REQUIRED",
+                        "label": "Replay stored progress evidence",
+                    },
+                ],
+                "requiredEvidence": [
+                    "support_case_link",
+                    "actor",
+                    "reason",
+                    "correlation_id",
+                    "idempotency_key",
+                    "target_evidence",
+                    "before_state_hash",
+                ],
+                "guardrails": ["READINESS_ONLY", "NO_PROVIDER_DISPATCH"],
+                "redactions": ["internal_tenant_identifier", "provider_payload"],
+                "no_repair_replay_retry_confirmed": True,
+                "no_provider_dispatch_confirmed": True,
+                "no_credential_or_auth_claim_change_confirmed": True,
+                "no_campaign_activation_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            }
+
+    async def fake_get_referral_saas_support_case_repair_replay_readiness(**kwargs):
+        readiness_calls.append(kwargs)
+        return FakeReadiness()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_support_case_repair_replay_readiness",
+        fake_get_referral_saas_support_case_repair_replay_readiness,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/support-cases/case-1/repair-replay-readiness",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    readiness = body["repairReplayReadiness"]
+    assert readiness["overallStatus"] == "REVIEW_REQUIRED"
+    assert readiness["allowedActions"][1]["action"] == "GOVERNED_REPLAY"
+    assert readiness["allowedActions"][1]["status"] == "BLOCKED"
+    assert "before_state_hash" in readiness["requiredEvidence"]
+    assert body["no_repair_replay_retry_confirmed"] is True
+    assert body["no_provider_dispatch_confirmed"] is True
+    assert body["no_credential_or_auth_claim_change_confirmed"] is True
+    assert body["no_campaign_activation_confirmed"] is True
+    assert body["no_billing_or_money_movement_confirmed"] is True
+    assert "repairCommand" not in body
+    assert "replayCommand" not in body
+    assert readiness_calls == [{"account_id": "acct-1", "case_ref": "case-1"}]
+
+
 async def test_referral_saas_account_admin_can_add_customer_scoped_support_case_note(
     monkeypatch,
 ):

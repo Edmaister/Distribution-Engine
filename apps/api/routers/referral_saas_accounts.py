@@ -148,6 +148,7 @@ from services.referral_saas_support_case_service import (
     add_referral_saas_support_case_note,
     change_referral_saas_support_case_status,
     create_referral_saas_support_case,
+    get_referral_saas_support_case_repair_replay_readiness,
     get_referral_saas_support_case,
     list_referral_saas_operator_support_queue,
     list_referral_saas_support_cases,
@@ -259,6 +260,17 @@ REPORT_DELIVERY_SCHEDULE_ROUTE_REDACTIONS = {
 }
 SUPPORT_CASE_ROUTE_GUARDRAILS = {
     *SUPPORT_CASE_GUARDRAILS,
+}
+SUPPORT_CASE_REPAIR_REPLAY_READINESS_ROUTE_GUARDRAILS = {
+    *SUPPORT_CASE_ROUTE_GUARDRAILS,
+    "READINESS_ONLY",
+    "NO_REPAIR_REPLAY_RETRY",
+    "NO_PROVIDER_DISPATCH",
+    "NO_CREDENTIAL_CHANGE",
+    "NO_AUTH_CLAIM_CHANGE",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_BILLING",
+    "NO_MONEY_MOVEMENT",
 }
 SUPPORT_QUEUE_ROUTE_GUARDRAILS = {
     *SUPPORT_CASE_QUEUE_GUARDRAILS,
@@ -5530,6 +5542,54 @@ async def list_referral_saas_operator_support_cases(
         "no_report_or_export_mutation_confirmed": True,
         "no_invite_delivery_confirmed": True,
         "no_credential_or_auth_claim_change_confirmed": True,
+        "no_tenant_code_exposure_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/support-cases/{case_ref}/repair-replay-readiness")
+async def read_referral_saas_account_support_case_repair_replay_readiness(
+    account_ref: str,
+    case_ref: str,
+    ref_type: Annotated[str, Query(min_length=1)],
+    external_ref: Annotated[str, Query(min_length=1)],
+    context: Annotated[str, Query()] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=_support_case_resolution_context(context),
+    )
+    _assert_account_path_scope(account_ref, account)
+    try:
+        readiness = await get_referral_saas_support_case_repair_replay_readiness(
+            account_id=account.account_id,
+            case_ref=case_ref,
+        )
+    except ReferralSaasSupportCaseCommandError as exc:
+        raise _support_case_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "repairReplayReadiness": readiness.to_safe_dict(),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "Read-only support-case repair/replay readiness. This endpoint "
+            "shows what may be considered later and what is blocked now. It "
+            "does not repair, replay, retry, dispatch providers, change "
+            "credentials or auth claims, activate campaigns, bill, move money, "
+            "or perform DLaaS actions."
+        ),
+        "guardrails": sorted(SUPPORT_CASE_REPAIR_REPLAY_READINESS_ROUTE_GUARDRAILS),
+        "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
+        "no_repair_replay_retry_confirmed": True,
+        "no_provider_dispatch_confirmed": True,
+        "no_credential_or_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
         "no_tenant_code_exposure_confirmed": True,
         "no_billing_or_money_movement_confirmed": True,
     }
