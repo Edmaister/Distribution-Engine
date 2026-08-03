@@ -31,10 +31,22 @@ STATUS_EXPORT_FILE_REPLAYED = "REPORT_EXPORT_FILE_REPLAYED"
 STATUS_EXPORT_FILE_METADATA_READ = "REPORT_EXPORT_FILE_METADATA_READ"
 STATUS_EXPORT_FILE_DOWNLOADED = "REPORT_EXPORT_FILE_DOWNLOADED"
 STATUS_EXPORT_FILE_EXPIRED = "REPORT_EXPORT_FILE_EXPIRED"
+STATUS_DELIVERY_SCHEDULE_RECORDED = "REPORT_DELIVERY_SCHEDULE_RECORDED"
+STATUS_DELIVERY_SCHEDULE_REPLAYED = "REPORT_DELIVERY_SCHEDULE_REPLAYED"
+STATUS_DELIVERY_SCHEDULE_UPDATED = "REPORT_DELIVERY_SCHEDULE_UPDATED"
+STATUS_DELIVERY_SCHEDULE_READ = "REPORT_DELIVERY_SCHEDULE_READ"
+STATUS_DELIVERY_SCHEDULE_DRAFT = "DRAFT"
+STATUS_DELIVERY_SCHEDULE_READY = "READY"
+STATUS_DELIVERY_SCHEDULE_BLOCKED = "BLOCKED"
+STATUS_DELIVERY_SCHEDULE_PAUSED = "PAUSED"
+STATUS_DELIVERY_SCHEDULE_CANCELLED = "CANCELLED"
 STORAGE_STATUS_NOT_STORED = "NOT_STORED"
 STORAGE_STATUS_STORED = "STORED"
 STORAGE_STATUS_EXPIRED = "EXPIRED"
 DELIVERY_STATUS_NOT_REQUESTED = "NOT_REQUESTED"
+DELIVERY_STATUS_PENDING = "PENDING"
+DELIVERY_STATUS_DELIVERED = "DELIVERED"
+DELIVERY_STATUS_FAILED = "FAILED"
 DOWNLOAD_STATUS_NOT_AVAILABLE = "NOT_AVAILABLE"
 DOWNLOAD_STATUS_AVAILABLE = "AVAILABLE"
 DOWNLOAD_STATUS_EXPIRED = "EXPIRED"
@@ -46,8 +58,13 @@ EXPORT_REDACTION_PROFILE_TENANT_SAFE = "tenant_safe"
 DEFAULT_EXPORT_ROW_LIMIT = 10000
 MAX_EXPORT_ROW_LIMIT = 50000
 EXPORT_REQUEST_EVENT = "REPORT_EXPORT_REQUEST_RECORDED"
+DELIVERY_SCHEDULE_EVENT = "REPORT_DELIVERY_SCHEDULE_RECORDED"
+DELIVERY_SCHEDULE_UPDATE_EVENT = "REPORT_DELIVERY_SCHEDULE_UPDATED"
 EXPORT_REQUEST_RECORDED = "RECORDED"
 EXPORT_REQUEST_REPLAYED = "REPLAYED"
+DELIVERY_SCHEDULE_RECORDED = "RECORDED"
+DELIVERY_SCHEDULE_REPLAYED = "REPLAYED"
+DELIVERY_SCHEDULE_UPDATED = "UPDATED"
 EXPORT_FILE_EVENT = "REPORT_EXPORT_FILE_STORED"
 EXPORT_FILE_DOWNLOAD_EVENT = "REPORT_EXPORT_FILE_DOWNLOAD_READ"
 EXPORT_REQUEST_GUARDRAILS = [
@@ -82,6 +99,36 @@ EXPORT_FILE_GUARDRAILS = [
     "NO_CAMPAIGN_ACTIVATION",
     "NO_BILLING_OR_MONEY_MOVEMENT",
 ]
+DELIVERY_SCHEDULE_GUARDRAILS = [
+    "NO_TENANT_CODE_EXPOSURE",
+    "NO_LIVE_DELIVERY_EXECUTED",
+    "NO_EMAIL_SENT",
+    "NO_WEBHOOK_DISPATCH",
+    "NO_CREDENTIAL_OR_AUTH_CHANGE",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_BILLING_OR_MONEY_MOVEMENT",
+]
+DELIVERY_SCHEDULE_REDACTIONS = [
+    "internal_tenant_identifier",
+    "internal_report_scope",
+    "idempotency_key_hash",
+    "payload_hash",
+    "raw_ucn",
+    "recipient_personal_data",
+    "provider_payload",
+    "credential",
+    "auth_claim",
+    "billing",
+    "wallet",
+]
+DELIVERY_SCHEDULE_CADENCES = {"DAILY", "WEEKLY", "MONTHLY"}
+DELIVERY_SCHEDULE_STATUSES = {
+    STATUS_DELIVERY_SCHEDULE_DRAFT,
+    STATUS_DELIVERY_SCHEDULE_READY,
+    STATUS_DELIVERY_SCHEDULE_BLOCKED,
+    STATUS_DELIVERY_SCHEDULE_PAUSED,
+    STATUS_DELIVERY_SCHEDULE_CANCELLED,
+}
 SOURCE_PROGRESS_EVENT_HEALTH = "referral_progress_event_health"
 SOURCE_ATTRIBUTION_QUALITY = "referral_attribution_quality"
 SOURCE_SAFE_STATUS_DISTRIBUTION = "referral_safe_status_distribution"
@@ -150,6 +197,26 @@ class ReportExportFileExpired(ReferralSaasReportExportCommandError):
     safe_code = "REPORT_EXPORT_FILE_EXPIRED"
 
 
+class ReferralSaasReportDeliveryScheduleCommandError(Exception):
+    safe_code = "REPORT_DELIVERY_SCHEDULE_COMMAND_ERROR"
+
+
+class ReportDeliveryScheduleValidationError(
+    ReferralSaasReportDeliveryScheduleCommandError
+):
+    safe_code = "REPORT_DELIVERY_SCHEDULE_INVALID"
+
+
+class ReportDeliveryScheduleIdempotencyConflict(
+    ReferralSaasReportDeliveryScheduleCommandError
+):
+    safe_code = "REPORT_DELIVERY_IDEMPOTENCY_CONFLICT"
+
+
+class ReportDeliveryScheduleNotFound(ReferralSaasReportDeliveryScheduleCommandError):
+    safe_code = "REPORT_DELIVERY_SCHEDULE_NOT_FOUND"
+
+
 @dataclass(frozen=True)
 class ReferralSaasReportExportRequestResult:
     command_status: str
@@ -196,6 +263,71 @@ class ReferralSaasReportExportRequestResult:
             ],
             "guardrails": list(EXPORT_REQUEST_GUARDRAILS),
             "redactions": list(EXPORT_REQUEST_REDACTIONS),
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasReportDeliveryScheduleResult:
+    command_status: str
+    account_id: str
+    report_type: str
+    schedule_id: str
+    cadence: str
+    timezone_name: str
+    export_format: str
+    redaction_profile: str
+    recipient_contact_refs: list[str]
+    retention_days: int
+    schedule_status: str
+    delivery_status: str
+    campaign_ref: str | None
+    next_run_at: str | None
+    last_run_at: str | None
+    blocked_reasons: list[str]
+    warnings: list[str]
+    idempotency_status: str | None
+    audit_event_id: str | None
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "accountRef": self.account_id,
+            "reportType": self.report_type,
+            "deliverySchedule": {
+                "scheduleId": self.schedule_id,
+                "cadence": self.cadence,
+                "timezone": self.timezone_name,
+                "format": self.export_format,
+                "redactionProfile": self.redaction_profile,
+                "recipientContactRefs": list(self.recipient_contact_refs),
+                "retentionDays": self.retention_days,
+                "scheduleStatus": self.schedule_status,
+                "deliveryStatus": self.delivery_status,
+                "campaignRef": self.campaign_ref,
+                "nextRunAt": self.next_run_at,
+                "lastRunAt": self.last_run_at,
+                "blockedReasons": list(self.blocked_reasons),
+                "warnings": list(self.warnings),
+            },
+            "readiness": {
+                "status": self.schedule_status,
+                "blockedReasons": list(self.blocked_reasons),
+                "warnings": list(self.warnings),
+            },
+            "idempotency": {"status": self.idempotency_status},
+            "audit": {"accountAuditEventId": self.audit_event_id},
+            "nextActions": _delivery_schedule_next_actions(
+                self.schedule_status,
+                self.blocked_reasons,
+            ),
+            "guardrails": list(DELIVERY_SCHEDULE_GUARDRAILS),
+            "redactions": list(DELIVERY_SCHEDULE_REDACTIONS),
+            "noLiveDeliveryExecutedConfirmed": True,
+            "noEmailSentConfirmed": True,
+            "noWebhookDispatchConfirmed": True,
+            "noCredentialOrAuthChangeConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noBillingOrMoneyMovementConfirmed": True,
         }
 
 
@@ -732,6 +864,149 @@ def _from_jsonb(value: Any, fallback: Any) -> Any:
         except json.JSONDecodeError:
             return fallback
     return value
+
+
+def _required_schedule_text(value: Any, field_name: str) -> str:
+    safe_value = str(value or "").strip()
+    if not safe_value:
+        raise ReportDeliveryScheduleValidationError(f"{field_name} is required.")
+    return safe_value
+
+
+def _normalise_schedule_cadence(cadence: str | None) -> str:
+    value = _required_schedule_text(cadence, "cadence").upper()
+    if value not in DELIVERY_SCHEDULE_CADENCES:
+        raise ReportDeliveryScheduleValidationError(
+            "cadence must be one of DAILY, WEEKLY, or MONTHLY."
+        )
+    return value
+
+
+def _normalise_schedule_timezone(timezone_name: str | None) -> str:
+    value = _required_schedule_text(timezone_name, "timezone")
+    if len(value) > 80 or any(char.isspace() for char in value):
+        raise ReportDeliveryScheduleValidationError(
+            "timezone must be a bounded IANA-style value such as Africa/Johannesburg."
+        )
+    return value
+
+
+def _normalise_schedule_status(value: str | None) -> str:
+    if value is None:
+        return STATUS_DELIVERY_SCHEDULE_READY
+    status = str(value or "").strip().upper()
+    if status not in DELIVERY_SCHEDULE_STATUSES:
+        raise ReportDeliveryScheduleValidationError(
+            "schedule_status must be DRAFT, READY, PAUSED, CANCELLED, or BLOCKED."
+        )
+    return status
+
+
+def _normalise_schedule_retention_days(value: int | None) -> int:
+    if value is None:
+        return 7
+    try:
+        days = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ReportDeliveryScheduleValidationError(
+            "retention_days must be an integer."
+        ) from exc
+    if days < 1 or days > 7:
+        raise ReportDeliveryScheduleValidationError(
+            "retention_days must be between 1 and 7 days."
+        )
+    return days
+
+
+def _normalise_recipient_contact_refs(values: list[str] | None) -> list[str]:
+    recipients: list[str] = []
+    for value in values or []:
+        ref = str(value or "").strip()
+        if not ref:
+            continue
+        lowered = ref.lower()
+        if "@" in ref or any(part in lowered for part in SENSITIVE_FILTER_PARTS):
+            raise ReportDeliveryScheduleValidationError(
+                "recipient_contact_refs must use opaque contact references, not raw email or sensitive values."
+            )
+        if ref not in recipients:
+            recipients.append(ref)
+    if len(recipients) > 20:
+        raise ReportDeliveryScheduleValidationError(
+            "recipient_contact_refs cannot contain more than 20 recipients."
+        )
+    return recipients
+
+
+def _delivery_schedule_readiness(
+    *,
+    recipient_contact_refs: list[str],
+    requested_status: str,
+) -> tuple[str, list[str], list[str]]:
+    blocked: list[str] = []
+    warnings = ["LIVE_DELIVERY_WORKER_NOT_ENABLED"]
+    if not recipient_contact_refs:
+        blocked.append("REPORT_DELIVERY_RECIPIENT_BLOCKED")
+    if requested_status in {
+        STATUS_DELIVERY_SCHEDULE_PAUSED,
+        STATUS_DELIVERY_SCHEDULE_CANCELLED,
+    }:
+        warnings.append(f"SCHEDULE_{requested_status}")
+        return requested_status, blocked, warnings
+    if requested_status == STATUS_DELIVERY_SCHEDULE_DRAFT:
+        warnings.append("SCHEDULE_DRAFT")
+        return requested_status, blocked, warnings
+    if blocked:
+        return STATUS_DELIVERY_SCHEDULE_BLOCKED, blocked, warnings
+    return STATUS_DELIVERY_SCHEDULE_READY, blocked, warnings
+
+
+def _delivery_schedule_next_actions(
+    schedule_status: str,
+    blocked_reasons: list[str],
+) -> list[str]:
+    if schedule_status == STATUS_DELIVERY_SCHEDULE_CANCELLED:
+        return ["Create a new schedule if this report should be delivered later"]
+    if schedule_status == STATUS_DELIVERY_SCHEDULE_PAUSED:
+        return ["Resume the schedule when delivery should be considered again"]
+    if "REPORT_DELIVERY_RECIPIENT_BLOCKED" in blocked_reasons:
+        return ["Add at least one approved recipient contact reference"]
+    return [
+        "Wire the selected-customer Reports UI in TASK-335",
+        "Keep live delivery worker/provider execution disabled until explicitly implemented",
+    ]
+
+
+def _delivery_schedule_result_from_row(
+    row: Any,
+    *,
+    command_status: str,
+    idempotency_status: str | None = None,
+    audit_event_id: str | None = None,
+) -> ReferralSaasReportDeliveryScheduleResult:
+    return ReferralSaasReportDeliveryScheduleResult(
+        command_status=command_status,
+        account_id=str(row["account_id"]),
+        report_type=str(row["report_type"]),
+        schedule_id=str(row["schedule_id"]),
+        cadence=str(row["cadence"]),
+        timezone_name=str(row["timezone"]),
+        export_format=str(row["export_format"]),
+        redaction_profile=str(row["redaction_profile"]),
+        recipient_contact_refs=list(
+            _from_jsonb(row.get("recipient_contact_refs"), [])
+        ),
+        retention_days=int(row["retention_days"]),
+        schedule_status=str(row["schedule_status"]),
+        delivery_status=str(row["last_delivery_status"]),
+        campaign_ref=_optional_export_text(row.get("campaign_ref")) or None,
+        next_run_at=_as_iso(row.get("next_run_at")),
+        last_run_at=_as_iso(row.get("last_run_at")),
+        blocked_reasons=list(_from_jsonb(row.get("blocked_reasons"), [])),
+        warnings=list(_from_jsonb(row.get("warnings"), [])),
+        idempotency_status=idempotency_status,
+        audit_event_id=audit_event_id,
+    )
 
 
 def _file_metadata_from_export_row(row: Any) -> dict[str, Any]:
@@ -1338,6 +1613,627 @@ async def create_referral_saas_report_export_request(
         audit_event_id=_optional_export_text(audit_event.get("account_audit_event_id"))
         or None,
     )
+
+
+async def create_referral_saas_report_delivery_schedule(
+    *,
+    account_id: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    tenant_code: str,
+    report_type: str,
+    cadence: str,
+    timezone_name: str,
+    recipient_contact_refs: list[str] | None,
+    export_format: str | None = None,
+    redaction_profile: str | None = None,
+    campaign_ref: str | None = None,
+    retention_days: int | None = None,
+    schedule_status: str | None = None,
+    reason_code: str | None = None,
+    correlation_id: str | None = None,
+    idempotency_key_hash: str = "",
+    request_payload_hash: str = "",
+    requested_by_ref: str = "",
+    requested_by_role: str | None = None,
+) -> ReferralSaasReportDeliveryScheduleResult:
+    safe_account_id = _required_schedule_text(account_id, "account_id")
+    safe_tenant_code = _normalise_tenant_code(tenant_code)
+    safe_report_type = _normalise_report_type(report_type)
+    safe_cadence = _normalise_schedule_cadence(cadence)
+    safe_timezone = _normalise_schedule_timezone(timezone_name)
+    safe_recipients = _normalise_recipient_contact_refs(recipient_contact_refs)
+    safe_format = _normalise_export_format(export_format)
+    safe_redaction_profile = _normalise_redaction_profile(redaction_profile)
+    safe_retention_days = _normalise_schedule_retention_days(retention_days)
+    requested_status = _normalise_schedule_status(schedule_status)
+    resolved_status, blocked_reasons, warnings = _delivery_schedule_readiness(
+        recipient_contact_refs=safe_recipients,
+        requested_status=requested_status,
+    )
+    safe_idempotency_hash = _required_schedule_text(
+        idempotency_key_hash,
+        "idempotency_key_hash",
+    )
+    safe_payload_hash = _required_schedule_text(
+        request_payload_hash,
+        "request_payload_hash",
+    )
+    safe_actor_ref = _required_schedule_text(requested_by_ref, "requested_by_ref")
+    safe_actor_role = _optional_export_text(requested_by_role) or None
+    safe_reason_code = (
+        _optional_export_text(reason_code)
+        or "CUSTOMER_PROFILE_REPORT_DELIVERY_SCHEDULE"
+    )
+    safe_correlation_id = _optional_export_text(correlation_id) or None
+    safe_campaign_ref = _optional_export_text(campaign_ref) or None
+
+    validate_referral_saas_report_export_request(
+        tenant_code=safe_tenant_code,
+        report_type=safe_report_type,
+        export_format=safe_format,
+        redaction_profile=safe_redaction_profile,
+        filters={"campaign_ref": safe_campaign_ref} if safe_campaign_ref else None,
+        row_limit=DEFAULT_EXPORT_ROW_LIMIT,
+    )
+
+    async with db_connection() as conn:
+        existing_schedule = await conn.fetchrow(
+            """
+            SELECT
+                schedule_id,
+                account_id,
+                report_type,
+                campaign_ref,
+                cadence,
+                timezone,
+                export_format,
+                redaction_profile,
+                recipient_contact_refs,
+                retention_days,
+                schedule_status,
+                last_delivery_status,
+                next_run_at,
+                last_run_at,
+                blocked_reasons,
+                warnings,
+                request_payload_hash
+            FROM referral_saas_report_delivery_schedules
+            WHERE account_id = $1
+              AND report_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_report_type,
+            safe_idempotency_hash,
+        )
+        if existing_schedule:
+            if (
+                _optional_export_text(existing_schedule.get("request_payload_hash"))
+                != safe_payload_hash
+            ):
+                raise ReportDeliveryScheduleIdempotencyConflict(
+                    "Idempotency key was reused with different delivery schedule payload."
+                )
+            return _delivery_schedule_result_from_row(
+                existing_schedule,
+                command_status=STATUS_DELIVERY_SCHEDULE_REPLAYED,
+                idempotency_status=DELIVERY_SCHEDULE_REPLAYED,
+            )
+
+        async with conn.transaction():
+            schedule_row = await conn.fetchrow(
+                """
+                INSERT INTO referral_saas_report_delivery_schedules (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    report_type,
+                    campaign_ref,
+                    cadence,
+                    timezone,
+                    export_format,
+                    redaction_profile,
+                    recipient_contact_refs,
+                    retention_days,
+                    schedule_status,
+                    last_delivery_status,
+                    blocked_reasons,
+                    warnings,
+                    guardrails,
+                    metadata,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    request_payload_hash,
+                    requested_by_ref,
+                    requested_by_role
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8,
+                    $9, $10, $11::jsonb, $12, $13, $14,
+                    $15::jsonb, $16::jsonb, $17::jsonb, $18::jsonb,
+                    $19, $20, $21, $22, $23, $24
+                )
+                RETURNING
+                    schedule_id,
+                    account_id,
+                    report_type,
+                    campaign_ref,
+                    cadence,
+                    timezone,
+                    export_format,
+                    redaction_profile,
+                    recipient_contact_refs,
+                    retention_days,
+                    schedule_status,
+                    last_delivery_status,
+                    next_run_at,
+                    last_run_at,
+                    blocked_reasons,
+                    warnings
+                """,
+                safe_account_id,
+                _optional_export_text(account_tenant_id) or None,
+                _optional_export_text(external_ref_id) or None,
+                safe_tenant_code,
+                safe_report_type,
+                safe_campaign_ref,
+                safe_cadence,
+                safe_timezone,
+                safe_format,
+                safe_redaction_profile,
+                _jsonb(safe_recipients),
+                safe_retention_days,
+                resolved_status,
+                DELIVERY_STATUS_NOT_REQUESTED,
+                _jsonb(blocked_reasons),
+                _jsonb(warnings),
+                _jsonb(DELIVERY_SCHEDULE_GUARDRAILS),
+                _jsonb(
+                    {
+                        "no_live_delivery_executed_confirmed": True,
+                        "no_email_sent_confirmed": True,
+                        "no_webhook_dispatch_confirmed": True,
+                        "no_credential_or_auth_change_confirmed": True,
+                        "no_campaign_activation_confirmed": True,
+                        "no_billing_or_money_movement_confirmed": True,
+                    }
+                ),
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                safe_payload_hash,
+                safe_actor_ref,
+                safe_actor_role,
+            )
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8,
+                    NULL, $9, $10, $11, $12, $13::jsonb, $14::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                _optional_export_text(account_tenant_id) or None,
+                _optional_export_text(external_ref_id) or None,
+                safe_tenant_code,
+                DELIVERY_SCHEDULE_EVENT,
+                DELIVERY_SCHEDULE_RECORDED,
+                safe_actor_ref,
+                safe_actor_role,
+                resolved_status,
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(
+                    {
+                        "schedule_id": str(schedule_row["schedule_id"]),
+                        "report_type": safe_report_type,
+                        "schedule_status": resolved_status,
+                        "delivery_status": DELIVERY_STATUS_NOT_REQUESTED,
+                        "blocked_reasons": blocked_reasons,
+                        "warnings": warnings,
+                        "request_payload_hash": safe_payload_hash,
+                        "no_live_delivery_executed_confirmed": True,
+                        "no_billing_or_money_movement_confirmed": True,
+                    }
+                ),
+                _jsonb(DELIVERY_SCHEDULE_REDACTIONS),
+            )
+
+    return _delivery_schedule_result_from_row(
+        schedule_row,
+        command_status=STATUS_DELIVERY_SCHEDULE_RECORDED,
+        idempotency_status=DELIVERY_SCHEDULE_RECORDED,
+        audit_event_id=_optional_export_text(audit_event.get("account_audit_event_id"))
+        or None,
+    )
+
+
+async def list_referral_saas_report_delivery_schedules(
+    *,
+    account_id: str,
+    report_type: str,
+) -> list[ReferralSaasReportDeliveryScheduleResult]:
+    safe_account_id = _required_schedule_text(account_id, "account_id")
+    safe_report_type = _normalise_report_type(report_type)
+    async with db_connection() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT
+                schedule_id,
+                account_id,
+                report_type,
+                campaign_ref,
+                cadence,
+                timezone,
+                export_format,
+                redaction_profile,
+                recipient_contact_refs,
+                retention_days,
+                schedule_status,
+                last_delivery_status,
+                next_run_at,
+                last_run_at,
+                blocked_reasons,
+                warnings
+            FROM referral_saas_report_delivery_schedules
+            WHERE account_id = $1
+              AND report_type = $2
+            ORDER BY created_at DESC
+            """,
+            safe_account_id,
+            safe_report_type,
+        )
+    return [
+        _delivery_schedule_result_from_row(
+            row,
+            command_status=STATUS_DELIVERY_SCHEDULE_READ,
+        )
+        for row in rows
+    ]
+
+
+async def get_referral_saas_report_delivery_schedule(
+    *,
+    account_id: str,
+    schedule_id: str,
+) -> ReferralSaasReportDeliveryScheduleResult:
+    safe_account_id = _required_schedule_text(account_id, "account_id")
+    safe_schedule_id = _required_schedule_text(schedule_id, "schedule_id")
+    async with db_connection() as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT
+                schedule_id,
+                account_id,
+                report_type,
+                campaign_ref,
+                cadence,
+                timezone,
+                export_format,
+                redaction_profile,
+                recipient_contact_refs,
+                retention_days,
+                schedule_status,
+                last_delivery_status,
+                next_run_at,
+                last_run_at,
+                blocked_reasons,
+                warnings
+            FROM referral_saas_report_delivery_schedules
+            WHERE account_id = $1
+              AND schedule_id = $2
+            """,
+            safe_account_id,
+            safe_schedule_id,
+        )
+    if not row:
+        raise ReportDeliveryScheduleNotFound(
+            "Report delivery schedule was not found for this customer account."
+        )
+    return _delivery_schedule_result_from_row(
+        row,
+        command_status=STATUS_DELIVERY_SCHEDULE_READ,
+    )
+
+
+async def update_referral_saas_report_delivery_schedule(
+    *,
+    account_id: str,
+    schedule_id: str,
+    cadence: str | None = None,
+    timezone_name: str | None = None,
+    recipient_contact_refs: list[str] | None = None,
+    export_format: str | None = None,
+    redaction_profile: str | None = None,
+    campaign_ref: str | None = None,
+    retention_days: int | None = None,
+    schedule_status: str | None = None,
+    reason_code: str | None = None,
+    correlation_id: str | None = None,
+    idempotency_key_hash: str = "",
+    request_payload_hash: str = "",
+    requested_by_ref: str = "",
+    requested_by_role: str | None = None,
+) -> ReferralSaasReportDeliveryScheduleResult:
+    safe_account_id = _required_schedule_text(account_id, "account_id")
+    safe_schedule_id = _required_schedule_text(schedule_id, "schedule_id")
+    safe_idempotency_hash = _required_schedule_text(
+        idempotency_key_hash,
+        "idempotency_key_hash",
+    )
+    safe_payload_hash = _required_schedule_text(
+        request_payload_hash,
+        "request_payload_hash",
+    )
+    safe_actor_ref = _required_schedule_text(requested_by_ref, "requested_by_ref")
+    safe_actor_role = _optional_export_text(requested_by_role) or None
+    safe_reason_code = (
+        _optional_export_text(reason_code)
+        or "CUSTOMER_PROFILE_REPORT_DELIVERY_SCHEDULE_UPDATE"
+    )
+    safe_correlation_id = _optional_export_text(correlation_id) or None
+
+    async with db_connection() as conn:
+        existing = await conn.fetchrow(
+            """
+            SELECT
+                schedule_id,
+                account_id,
+                tenant_code,
+                report_type,
+                campaign_ref,
+                cadence,
+                timezone,
+                export_format,
+                redaction_profile,
+                recipient_contact_refs,
+                retention_days,
+                schedule_status,
+                last_delivery_status,
+                next_run_at,
+                last_run_at,
+                blocked_reasons,
+                warnings,
+                request_payload_hash,
+                idempotency_key_hash,
+                account_tenant_id,
+                external_ref_id
+            FROM referral_saas_report_delivery_schedules
+            WHERE account_id = $1
+              AND schedule_id = $2
+            """,
+            safe_account_id,
+            safe_schedule_id,
+        )
+        if not existing:
+            raise ReportDeliveryScheduleNotFound(
+                "Report delivery schedule was not found for this customer account."
+            )
+        if (
+            _optional_export_text(existing.get("idempotency_key_hash"))
+            == safe_idempotency_hash
+        ):
+            if (
+                _optional_export_text(existing.get("request_payload_hash"))
+                != safe_payload_hash
+            ):
+                raise ReportDeliveryScheduleIdempotencyConflict(
+                    "Idempotency key was reused with different delivery schedule payload."
+                )
+            return _delivery_schedule_result_from_row(
+                existing,
+                command_status=STATUS_DELIVERY_SCHEDULE_REPLAYED,
+                idempotency_status=DELIVERY_SCHEDULE_REPLAYED,
+            )
+
+        safe_cadence = (
+            _normalise_schedule_cadence(cadence)
+            if cadence is not None
+            else str(existing["cadence"])
+        )
+        safe_timezone = (
+            _normalise_schedule_timezone(timezone_name)
+            if timezone_name is not None
+            else str(existing["timezone"])
+        )
+        safe_recipients = (
+            _normalise_recipient_contact_refs(recipient_contact_refs)
+            if recipient_contact_refs is not None
+            else list(_from_jsonb(existing.get("recipient_contact_refs"), []))
+        )
+        safe_format = (
+            _normalise_export_format(export_format)
+            if export_format is not None
+            else str(existing["export_format"])
+        )
+        safe_redaction_profile = (
+            _normalise_redaction_profile(redaction_profile)
+            if redaction_profile is not None
+            else str(existing["redaction_profile"])
+        )
+        safe_retention_days = (
+            _normalise_schedule_retention_days(retention_days)
+            if retention_days is not None
+            else int(existing["retention_days"])
+        )
+        requested_status = _normalise_schedule_status(
+            schedule_status or str(existing["schedule_status"])
+        )
+        resolved_status, blocked_reasons, warnings = _delivery_schedule_readiness(
+            recipient_contact_refs=safe_recipients,
+            requested_status=requested_status,
+        )
+        safe_campaign_ref = (
+            _optional_export_text(campaign_ref)
+            if campaign_ref is not None
+            else _optional_export_text(existing.get("campaign_ref"))
+        ) or None
+
+        async with conn.transaction():
+            updated_row = await conn.fetchrow(
+                """
+                UPDATE referral_saas_report_delivery_schedules
+                SET
+                    campaign_ref = $3,
+                    cadence = $4,
+                    timezone = $5,
+                    export_format = $6,
+                    redaction_profile = $7,
+                    recipient_contact_refs = $8::jsonb,
+                    retention_days = $9,
+                    schedule_status = $10,
+                    blocked_reasons = $11::jsonb,
+                    warnings = $12::jsonb,
+                    correlation_id = $13,
+                    idempotency_key_hash = $14,
+                    request_payload_hash = $15,
+                    requested_by_ref = $16,
+                    requested_by_role = $17,
+                    reason_code = $18,
+                    updated_at = NOW()
+                WHERE account_id = $1
+                  AND schedule_id = $2
+                RETURNING
+                    schedule_id,
+                    account_id,
+                    report_type,
+                    campaign_ref,
+                    cadence,
+                    timezone,
+                    export_format,
+                    redaction_profile,
+                    recipient_contact_refs,
+                    retention_days,
+                    schedule_status,
+                    last_delivery_status,
+                    next_run_at,
+                    last_run_at,
+                    blocked_reasons,
+                    warnings
+                """,
+                safe_account_id,
+                safe_schedule_id,
+                safe_campaign_ref,
+                safe_cadence,
+                safe_timezone,
+                safe_format,
+                safe_redaction_profile,
+                _jsonb(safe_recipients),
+                safe_retention_days,
+                resolved_status,
+                _jsonb(blocked_reasons),
+                _jsonb(warnings),
+                safe_correlation_id,
+                safe_idempotency_hash,
+                safe_payload_hash,
+                safe_actor_ref,
+                safe_actor_role,
+                safe_reason_code,
+            )
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8,
+                    $9, $10, $11, $12, $13, $14::jsonb, $15::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                _optional_export_text(existing.get("account_tenant_id")) or None,
+                _optional_export_text(existing.get("external_ref_id")) or None,
+                str(existing["tenant_code"]),
+                DELIVERY_SCHEDULE_UPDATE_EVENT,
+                DELIVERY_SCHEDULE_UPDATED,
+                safe_actor_ref,
+                safe_actor_role,
+                str(existing["schedule_status"]),
+                resolved_status,
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(
+                    {
+                        "schedule_id": safe_schedule_id,
+                        "schedule_status": resolved_status,
+                        "blocked_reasons": blocked_reasons,
+                        "warnings": warnings,
+                        "request_payload_hash": safe_payload_hash,
+                        "no_live_delivery_executed_confirmed": True,
+                        "no_billing_or_money_movement_confirmed": True,
+                    }
+                ),
+                _jsonb(DELIVERY_SCHEDULE_REDACTIONS),
+            )
+
+    return _delivery_schedule_result_from_row(
+        updated_row,
+        command_status=STATUS_DELIVERY_SCHEDULE_UPDATED,
+        idempotency_status=DELIVERY_SCHEDULE_UPDATED,
+        audit_event_id=_optional_export_text(audit_event.get("account_audit_event_id"))
+        or None,
+    )
+
+
+async def get_referral_saas_report_delivery_schedule_readiness(
+    *,
+    account_id: str,
+    schedule_id: str,
+) -> dict[str, Any]:
+    result = await get_referral_saas_report_delivery_schedule(
+        account_id=account_id,
+        schedule_id=schedule_id,
+    )
+    safe = result.to_safe_dict()
+    return {
+        "scheduleId": safe["deliverySchedule"]["scheduleId"],
+        "reportType": safe["reportType"],
+        "readiness": safe["readiness"],
+        "nextActions": safe["nextActions"],
+        "guardrails": safe["guardrails"],
+        "redactions": safe["redactions"],
+        "noLiveDeliveryExecutedConfirmed": True,
+    }
 
 
 async def create_referral_saas_report_export_file(

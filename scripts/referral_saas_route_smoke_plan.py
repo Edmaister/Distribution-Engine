@@ -415,6 +415,74 @@ READ_ONLY_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_account_report_delivery_schedule_list",
+        method="GET",
+        path="/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/delivery-schedules",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS account reader role",
+        environment_rule="local/staging/production read-only where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -H "Authorization: Bearer {admin_token}" '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/reports/campaign_performance/delivery-schedules?ref_type={ref_type}'
+            '&external_ref={external_ref}&context=setup"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_account_report_delivery_schedule_read",
+        method="GET",
+        path="/v1/referral-saas/accounts/{account_ref}/delivery-schedules/{schedule_id}",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS account reader role",
+        environment_rule="local/staging/production read-only where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "schedule_id",
+            "ref_type",
+            "external_ref",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -H "Authorization: Bearer {admin_token}" '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/delivery-schedules/{schedule_id}?ref_type={ref_type}'
+            '&external_ref={external_ref}&context=setup"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_account_report_delivery_schedule_readiness",
+        method="GET",
+        path="/v1/referral-saas/accounts/{account_ref}/delivery-schedules/{schedule_id}/readiness",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS account reader role",
+        environment_rule="local/staging/production read-only where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "schedule_id",
+            "ref_type",
+            "external_ref",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -H "Authorization: Bearer {admin_token}" '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/delivery-schedules/{schedule_id}/readiness?ref_type={ref_type}'
+            '&external_ref={external_ref}&context=setup"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_account_report_export_validate",
         method="POST",
         path="/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/validate",
@@ -1362,6 +1430,76 @@ SEEDED_WRITE_ROUTES = [
             '"correlationId":"{correlation_id}"}\' '
             '"{base_url}/v1/referral-saas/accounts/{account_ref}'
             '/reports/campaign_performance/exports"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_account_report_delivery_schedule_create",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/delivery-schedules",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account reader/operator role",
+        environment_rule="local/staging seeded customer only",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "recipient_contact_ref",
+            "idempotency_key",
+            "correlation_id",
+        ],
+        expected_state_change=(
+            "creates referral_saas_report_delivery_schedules and account audit "
+            "evidence; no live delivery, email, webhook dispatch, credential/auth "
+            "change, campaign activation, billing, or money movement"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"cadence":"weekly","timezone":"Africa/Johannesburg",'
+            '"format":"csv","redactionProfile":"tenant_safe",'
+            '"recipientContactRefs":["{recipient_contact_ref}"],'
+            '"retentionDays":7,"idempotencyKey":"{idempotency_key}",'
+            '"correlationId":"{correlation_id}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/reports/campaign_performance/delivery-schedules"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_account_report_delivery_schedule_update",
+        method="PATCH",
+        path="/v1/referral-saas/accounts/{account_ref}/delivery-schedules/{schedule_id}",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account reader/operator role",
+        environment_rule="local/staging seeded customer and schedule only",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "schedule_id",
+            "ref_type",
+            "external_ref",
+            "idempotency_key",
+            "correlation_id",
+        ],
+        expected_state_change=(
+            "updates or cancels referral_saas_report_delivery_schedules intent "
+            "and account audit evidence; no live delivery, email, webhook "
+            "dispatch, credential/auth change, campaign activation, billing, "
+            "or money movement"
+        ),
+        curl_template=(
+            'curl -sS -X PATCH -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"scheduleStatus":"paused","idempotencyKey":"{idempotency_key}",'
+            '"correlationId":"{correlation_id}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/delivery-schedules/{schedule_id}"'
         ),
     ),
     SmokeRoute(

@@ -3823,6 +3823,310 @@ async def test_referral_saas_account_report_export_request_rejects_unsafe_payloa
     assert body["detail"]["no_billing_or_money_movement_confirmed"] is True
 
 
+async def test_referral_saas_account_admin_can_create_report_delivery_schedule(
+    monkeypatch,
+):
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    class FakeDeliveryScheduleResult:
+        def to_safe_dict(self):
+            return {
+                "commandStatus": "REPORT_DELIVERY_SCHEDULE_RECORDED",
+                "accountRef": "acct-1",
+                "reportType": "campaign_performance",
+                "deliverySchedule": {
+                    "scheduleId": "schedule-1",
+                    "scheduleStatus": "READY",
+                    "cadence": "WEEKLY",
+                    "recipientContactRefs": ["contact-owner"],
+                },
+                "readiness": {
+                    "status": "READY",
+                    "blockedReasons": [],
+                    "warnings": ["LIVE_DELIVERY_WORKER_NOT_ENABLED"],
+                },
+                "idempotency": {"status": "RECORDED"},
+                "audit": {"accountAuditEventId": "audit-1"},
+                "guardrails": ["NO_LIVE_DELIVERY_EXECUTED"],
+                "redactions": ["internal_tenant_identifier"],
+                "noLiveDeliveryExecutedConfirmed": True,
+                "noEmailSentConfirmed": True,
+            }
+
+    async def fake_create_referral_saas_report_delivery_schedule(**kwargs):
+        command_calls.append(kwargs)
+        return FakeDeliveryScheduleResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "create_referral_saas_report_delivery_schedule",
+        fake_create_referral_saas_report_delivery_schedule,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/reports/campaign_performance/delivery-schedules",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "cadence": "weekly",
+                "timezone": "Africa/Johannesburg",
+                "format": "csv",
+                "redactionProfile": "tenant_safe",
+                "recipientContactRefs": ["contact-owner"],
+                "retentionDays": 7,
+                "idempotencyKey": "schedule-1",
+                "correlationId": "corr-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "accepted"
+    assert (
+        body["reportDeliverySchedule"]["commandStatus"]
+        == "REPORT_DELIVERY_SCHEDULE_RECORDED"
+    )
+    assert body["reportDeliverySchedule"]["deliverySchedule"]["scheduleStatus"] == "READY"
+    assert body["no_live_delivery_executed_confirmed"] is True
+    assert body["no_email_sent_confirmed"] is True
+    public_payload = {
+        "account": body["account"],
+        "account_scope": body["account_scope"],
+        "reportDeliverySchedule": body["reportDeliverySchedule"],
+        "redactions": body["redactions"],
+    }
+    assert "tenant_code" not in str(public_payload)
+    assert command_calls
+    assert command_calls[0]["tenant_code"] == "FNB"
+    assert command_calls[0]["account_id"] == "acct-1"
+    assert command_calls[0]["report_type"] == "campaign_performance"
+    assert command_calls[0]["correlation_id"] == "corr-1"
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["request_payload_hash"]
+
+
+async def test_referral_saas_account_report_delivery_schedule_requires_scope(
+    monkeypatch,
+):
+    async def fake_create_referral_saas_report_delivery_schedule(**kwargs):
+        raise AssertionError("schedule service should not be called")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "create_referral_saas_report_delivery_schedule",
+        fake_create_referral_saas_report_delivery_schedule,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/reports/campaign_performance/delivery-schedules",
+            json={
+                "cadence": "weekly",
+                "timezone": "Africa/Johannesburg",
+                "idempotencyKey": "schedule-1",
+                "correlationId": "corr-1",
+            },
+        )
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["detail"]["code"] == "validation_error"
+    assert body["detail"]["no_live_delivery_executed_confirmed"] is True
+
+
+async def test_referral_saas_account_report_delivery_schedule_conflict_is_safe(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    async def fake_create_referral_saas_report_delivery_schedule(**kwargs):
+        raise referral_saas_accounts.ReportDeliveryScheduleIdempotencyConflict(
+            "Idempotency key was reused with different schedule content."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "create_referral_saas_report_delivery_schedule",
+        fake_create_referral_saas_report_delivery_schedule,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/reports/campaign_performance/delivery-schedules",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "cadence": "weekly",
+                "timezone": "Africa/Johannesburg",
+                "recipientContactRefs": ["contact-owner"],
+                "idempotencyKey": "schedule-1",
+                "correlationId": "corr-1",
+            },
+        )
+
+    assert response.status_code == 409
+    body = response.json()
+    assert body["detail"]["code"] == "REPORT_DELIVERY_IDEMPOTENCY_CONFLICT"
+    assert body["detail"]["no_live_delivery_executed_confirmed"] is True
+
+
+async def test_referral_saas_account_admin_can_list_update_and_check_schedule(
+    monkeypatch,
+):
+    service_calls: list[tuple[str, dict]] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    class FakeDeliveryScheduleResult:
+        def __init__(self, command_status: str = "REPORT_DELIVERY_SCHEDULE_READ"):
+            self.command_status = command_status
+
+        def to_safe_dict(self):
+            return {
+                "commandStatus": self.command_status,
+                "accountRef": "acct-1",
+                "reportType": "campaign_performance",
+                "deliverySchedule": {
+                    "scheduleId": "schedule-1",
+                    "scheduleStatus": "READY",
+                    "cadence": "WEEKLY",
+                    "recipientContactRefs": ["contact-owner"],
+                },
+                "readiness": {
+                    "status": "READY",
+                    "blockedReasons": [],
+                    "warnings": ["LIVE_DELIVERY_WORKER_NOT_ENABLED"],
+                },
+                "guardrails": ["NO_LIVE_DELIVERY_EXECUTED"],
+                "redactions": ["internal_tenant_identifier"],
+            }
+
+    async def fake_list_referral_saas_report_delivery_schedules(**kwargs):
+        service_calls.append(("list", kwargs))
+        return [FakeDeliveryScheduleResult()]
+
+    async def fake_update_referral_saas_report_delivery_schedule(**kwargs):
+        service_calls.append(("update", kwargs))
+        return FakeDeliveryScheduleResult("REPORT_DELIVERY_SCHEDULE_UPDATED")
+
+    async def fake_get_referral_saas_report_delivery_schedule_readiness(**kwargs):
+        service_calls.append(("readiness", kwargs))
+        return {
+            "scheduleId": "schedule-1",
+            "readiness": {
+                "status": "READY",
+                "blockedReasons": [],
+                "warnings": ["LIVE_DELIVERY_WORKER_NOT_ENABLED"],
+            },
+            "guardrails": ["NO_LIVE_DELIVERY_EXECUTED"],
+            "redactions": ["internal_tenant_identifier"],
+        }
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_report_delivery_schedules",
+        fake_list_referral_saas_report_delivery_schedules,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "update_referral_saas_report_delivery_schedule",
+        fake_update_referral_saas_report_delivery_schedule,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_report_delivery_schedule_readiness",
+        fake_get_referral_saas_report_delivery_schedule_readiness,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        list_response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/reports/campaign_performance/delivery-schedules",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+        update_response = await client.patch(
+            "/v1/referral-saas/accounts/acct-1/delivery-schedules/schedule-1",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "scheduleStatus": "paused",
+                "idempotencyKey": "schedule-update-1",
+                "correlationId": "corr-2",
+            },
+        )
+        readiness_response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/delivery-schedules/schedule-1/readiness",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert list_response.status_code == 200
+    assert list_response.json()["deliverySchedules"][0]["deliverySchedule"][
+        "scheduleId"
+    ] == "schedule-1"
+    assert update_response.status_code == 200
+    assert (
+        update_response.json()["reportDeliverySchedule"]["commandStatus"]
+        == "REPORT_DELIVERY_SCHEDULE_UPDATED"
+    )
+    assert update_response.json()["no_live_delivery_executed_confirmed"] is True
+    assert readiness_response.status_code == 200
+    assert readiness_response.json()["reportDeliveryScheduleReadiness"]["readiness"][
+        "status"
+    ] == "READY"
+    assert [call[0] for call in service_calls] == ["list", "update", "readiness"]
+
+
 async def test_referral_saas_account_admin_can_create_report_export_file(
     monkeypatch,
 ):
