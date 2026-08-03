@@ -7719,7 +7719,7 @@ Definition of done: Referral SaaS has recorded progress/attribution mutation pro
 
 ## TASK-342: Define provider/vault runtime adapter contract
 
-Status: Planned.
+Status: Complete (2026-08-03).
 Product boundary: Shared Platform with Referral SaaS impact.
 Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Defines shared provider/vault adapter boundaries consumed by Referral SaaS Integrations and future DLaaS surfaces. Source duplication: No.
@@ -7740,6 +7740,7 @@ Blocked by: Runtime adapter readiness API and later provider-specific implementa
 Risk level: Low.
 Rollback notes: Revert Integrations/platform contract and roadmap/gap/task docs.
 Explicit non-goals: No provider calls, no credential storage/reveal/download, no vault integration, no frontend controls, no auth/session changes, no campaign activation, no billing, no money, no DLaaS implementation.
+Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_ADAPTER_CONTRACT.md`; `docs/sa/referral-saas/README.md`; roadmap/gap/infographic updates. Defines the shared provider/vault runtime adapter lifecycle from approved credential request to execution readiness, opaque vault/provider references, guarded execution inputs/outputs, approval gates, failure taxonomy, audit/idempotency, safe UI visibility, and explicit no raw secret, provider dispatch, invite/webhook/message delivery, auth, campaign, billing, money, DLaaS, or source-fork side effects. Runtime readiness remains TASK-343 and UI visibility remains TASK-344.
 Definition of done: Referral SaaS and shared platform have a reviewed provider/vault adapter contract for the next readiness and runtime implementation tasks. Priority: P0.
 
 ## TASK-343: Add provider/vault execution readiness API

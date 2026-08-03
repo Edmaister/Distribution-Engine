@@ -2014,6 +2014,38 @@ greenfield referral construction.
   Referral Management and 9.999/10 for Campaign Attribution because TASK-341
   execution evidence, governed provider execution, governed auth/login
   completion, and non-local proof repetition remain open.
+- TASK-341:
+  `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_EXECUTION_TASK_341.md`;
+  `scripts/referral_saas_progress_attribution_physical_check.py`;
+  `apps/api/routers/progress.py`;
+  `services/outcome_trace_service.py`;
+  focused tests; script README, proof-contract, roadmap, gap-matrix, and
+  infographic updates - Records passing local execution for selected-customer
+  campaign/link/code setup, referral validation, identity capture,
+  `/v1/progress` ingestion, dedupe replay, later milestone ingestion, progress
+  status readback, attribution trace readback, and campaign report readback.
+  The proof also fixes split admin/progress credentials, controlled progress
+  4xx handling, and trace UUID/text readback defects while confirming no
+  provider/webhook/invite/credential/auth/billing/money/DLaaS side effects.
+  Scores remain 9.99/10 for Referral Management and move Campaign Attribution
+  to 9.9995/10 because governed provider/vault execution, governed auth/login
+  completion, and non-local proof repetition remain open.
+- TASK-342:
+  `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_ADAPTER_CONTRACT.md`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the
+  shared provider/vault runtime adapter contract consumed first by Referral
+  SaaS Integrations. The contract covers approved credential request execution
+  readiness, opaque vault/provider references, adapter gates, failure taxonomy,
+  audit/idempotency, redactions, UI-safe visibility, and no raw secret,
+  provider dispatch, invite/webhook/message delivery, auth, campaign, billing,
+  money, DLaaS, or source-fork side effects. Scores remain 9.99/10 for
+  Referral Management and 9.9995/10 for Campaign Attribution because TASK-343
+  readiness API, TASK-344 UI visibility, governed auth/login completion, and
+  non-local proof repetition remain open.
 
 ## Explicit Deferrals
 
