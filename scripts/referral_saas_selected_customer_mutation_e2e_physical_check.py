@@ -93,6 +93,15 @@ def _extract_referral_code(payload: dict[str, Any]) -> str:
     return str(referral_code)
 
 
+def _extract_referral_track_id(payload: dict[str, Any]) -> str:
+    read_check.assert_no_internal_scope_leak(payload)
+    validation = payload.get("validation") if isinstance(payload.get("validation"), dict) else {}
+    referral_track_id = validation.get("referralTrackId")
+    if not referral_track_id:
+        raise RuntimeError("Referral validation response did not include a referralTrackId.")
+    return str(referral_track_id)
+
+
 def _load_selected_customer(args: argparse.Namespace) -> tuple[dict[str, Any], str, str, str]:
     registry_result = setup_check.get_json(
         base_url=args.base_url,
@@ -332,6 +341,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "no_campaign_activation_confirmed",
         "referral validation",
     )
+    referral_track_id = _extract_referral_track_id(validation_result.payload)
 
     report_result = setup_check.get_json(
         base_url=args.base_url,
@@ -377,6 +387,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "segment": campaign_segment,
         },
         "issued_referral_code": referral_code,
+        "referral_track_id": referral_track_id,
         "checks": {
             "campaign_create": create_result.status_code,
             "policy_settings": policy_result.status_code,

@@ -291,14 +291,32 @@ The TASK-341 evidence document is ready when it records:
 - no-adjacent-action confirmations
 - final pass/fail or controlled-blocked outcome
 
+## TASK-340 Implementation
+
+TASK-340 adds `scripts/referral_saas_progress_attribution_physical_check.py`.
+The runner reuses the existing selected-customer mutation proof for campaign
+setup, policy/review/activation posture, referral code issue, and referral
+validation. It then captures the validation `referralTrackId`, posts the first
+`UCN_CAPTURED` progress event, replays the same event expecting dedupe, posts a
+later `ACCOUNT_OPENED` milestone, reads operator progress status, reads
+attribution trace, and reads the selected customer's campaign-performance
+report.
+
+The runner remains a proof tool only. It does not add a Referral SaaS-specific
+progress route, schema, table, or fork. It fails on unsafe secret/adjacent
+payload fields, duplicate progress mutation instead of dedupe, missing referral
+track ID, unavailable trace state, and missing customer-scoped report readback.
+TASK-341 must still execute this runner against approved local/staging data and
+record sanitized evidence.
+
 ## Launch Rating Impact
 
-TASK-339 closes ambiguity in the progress/attribution proof design but does not
-yet close the runtime proof gap. Current rating remains:
+TASK-339 closes ambiguity in the progress/attribution proof design and TASK-340
+adds the repeatable runner. Current rating remains:
 
 - Referral Management: 9.99/10
 - Campaign Attribution: 9.999/10
 
-Campaign Attribution should only move to 10/10 after TASK-340 adds the runner
-and TASK-341 records successful execution evidence, subject to non-local proof
-and remaining provider/auth governance gates.
+Campaign Attribution should only move to 10/10 after TASK-341 records
+successful execution evidence, subject to non-local proof and remaining
+provider/auth governance gates.
