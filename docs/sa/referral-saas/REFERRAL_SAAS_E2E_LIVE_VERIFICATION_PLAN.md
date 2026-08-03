@@ -421,6 +421,23 @@ The next evidence steps are export file storage/download/retention proof,
 support-case persistence proof, and progress/attribution mutation proof beyond
 campaign report/export preview.
 
+## TASK-339 Progress And Attribution Mutation Proof Contract
+
+TASK-339 adds
+`docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_CONTRACT.md`
+as the contract for the remaining selected-customer mutation proof gap.
+
+The contract requires the next runner to prove the full customer-scoped path:
+resolve customer, prepare campaign/link/code evidence, issue or reuse a referral
+code, validate referral entry, record a progress event, replay the same event as
+deduped, record a later valid milestone where the environment allows it, read
+attribution trace evidence, read customer-scoped reports, and confirm no
+provider, webhook, credential, invite, auth, support repair/replay, export
+delivery, billing, money, DLaaS, or source-fork side effects occurred.
+
+TASK-339 is contract-only. TASK-340 must implement the runner and TASK-341 must
+record local or approved staging execution evidence.
+
 ## Explicit Non-Goals
 
 - no schema, migration, service, API, frontend, or test implementation in this

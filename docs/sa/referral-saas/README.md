@@ -38,6 +38,8 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   ingestion contract.
 - `REFERRAL_SAAS_ATTRIBUTION_TRACE_CONTRACT.md` - TASK-139 attribution trace
   contract.
+- `REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_CONTRACT.md` - TASK-339
+  selected-customer progress and attribution mutation proof contract.
 - `REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md` - TASK-147 E2E and live
   verification plan.
 - `REFERRAL_SAAS_OPERATOR_LINK_CODE_INVESTIGATION_CONTRACT.md` - TASK-140
