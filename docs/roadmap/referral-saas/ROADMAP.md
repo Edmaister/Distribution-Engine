@@ -1930,8 +1930,8 @@ greenfield referral construction.
   credentials/auth changes, campaign activation, billing, money movement,
   broad DLaaS actions, and generic DB mutation consoles. Scores remain
   9.99/10 for Referral Management and 9.999/10 for Campaign Attribution
-  because the runtime readiness API, Support UI visibility,
-  progress/attribution mutation proof, governed provider execution, governed
+  because the runtime readiness API, progress/attribution mutation proof,
+  governed provider execution, governed
   auth/login completion, and non-local proof repetition remain open.
 - TASK-337:
   `services/referral_saas_support_case_service.py`;
@@ -1948,10 +1948,25 @@ greenfield referral construction.
   hard-excluded posture; returns required evidence, owning workflow, redactions,
   blocked reasons, and safe next posture; and confirms no repair, replay, retry,
   provider dispatch, credential/auth change, campaign activation, billing,
-  money movement, or DLaaS action is performed. Scores remain 9.99/10 for
-  Referral Management and 9.999/10 for Campaign Attribution because Support UI
-  visibility, progress/attribution mutation proof, governed provider execution,
-  governed auth/login completion, and non-local proof repetition remain open.
+  money movement, or DLaaS action is performed.
+- TASK-338:
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Wires the
+  selected-customer Support UI to the read-only support-case repair/replay
+  readiness API. Operators can select a support case, see safe diagnostic
+  posture, blocked future governed repair/replay actions, required evidence
+  counts, owning workflow navigation, and safe evidence rows while the UI
+  exposes no repair/replay/retry/provider/auth/campaign/billing/money action.
+  Scores remain 9.99/10 for Referral Management and 9.999/10 for Campaign
+  Attribution because progress/attribution mutation proof, governed provider
+  execution, governed auth/login completion, and non-local proof repetition
+  remain open.
 
 ## Explicit Deferrals
 

@@ -7615,7 +7615,7 @@ Definition of done: Support cases expose safe repair/replay readiness as evidenc
 
 ## TASK-338: Wire support-case repair/replay readiness UI
 
-Status: Planned.
+Status: Completed.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Reuses selected-customer Support page, aggregate queue routing, diagnostics links, repair/replay readiness API, and frontend safe-action copy. Source duplication: No.
@@ -7636,6 +7636,7 @@ Blocked by: Future command-specific repair/replay execution tasks.
 Risk level: Medium.
 Rollback notes: Revert frontend API/page/test/docs updates.
 Explicit non-goals: No repair/replay/retry command execution, provider calls, credential/auth changes, campaign activation, billing, money, DLaaS, or source-code forks.
+Completed output: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; roadmap/gap/infographic updates. Adds the selected-customer Support readiness panel over the TASK-337 read-only API; shows case-level diagnostic posture, blocked governed repair/replay actions, required evidence counts, owning workflow navigation, safe evidence rows, and explicit no repair/replay/retry/provider/auth/campaign/billing/money side-effect language.
 Definition of done: Support UI explains repair/replay posture clearly and safely, closing the visible support-operations readiness gap while execution remains separately governed. Priority: P0.
 
 ## TASK-339: Define progress and attribution mutation proof contract

@@ -31,6 +31,7 @@ import {
   createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
   getReferralSaasAccountCampaignReadiness,
+  getReferralSaasAccountSupportCaseRepairReplayReadiness,
   getReferralSaasAccountMembershipPosture,
   getReferralSaasIntegrationConfiguration,
   getReferralSaasIntegrationExecutionReadiness,
@@ -99,6 +100,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   createReferralSaasAccountSupportCase: vi.fn(),
   createReferralSaasAccountCampaignSetup: vi.fn(),
   getReferralSaasAccountCampaignReadiness: vi.fn(),
+  getReferralSaasAccountSupportCaseRepairReplayReadiness: vi.fn(),
   getReferralSaasAccountMembershipPosture: vi.fn(),
   getReferralSaasIntegrationConfiguration: vi.fn(),
   getReferralSaasIntegrationExecutionReadiness: vi.fn(),
@@ -156,6 +158,9 @@ const mockedChangeReferralSaasAccountSupportCaseStatus = vi.mocked(changeReferra
 const mockedCreateReferralSaasAccountSupportCase = vi.mocked(createReferralSaasAccountSupportCase);
 const mockedCreateReferralSaasAccountCampaignSetup = vi.mocked(createReferralSaasAccountCampaignSetup);
 const mockedGetReferralSaasAccountCampaignReadiness = vi.mocked(getReferralSaasAccountCampaignReadiness);
+const mockedGetReferralSaasAccountSupportCaseRepairReplayReadiness = vi.mocked(
+  getReferralSaasAccountSupportCaseRepairReplayReadiness,
+);
 const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
 const mockedGetReferralSaasIntegrationConfiguration = vi.mocked(getReferralSaasIntegrationConfiguration);
 const mockedGetReferralSaasIntegrationExecutionReadiness = vi.mocked(getReferralSaasIntegrationExecutionReadiness);
@@ -1716,6 +1721,69 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       redactions: ["internal_tenant_identifier"],
       no_tenant_code_exposure_confirmed: true,
       no_product_state_mutation_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+    mockedGetReferralSaasAccountSupportCaseRepairReplayReadiness.mockResolvedValue({
+      status: "ok",
+      context: "support",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACCT_GABS",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+      },
+      repairReplayReadiness: {
+        caseRef: "case-support-1",
+        accountRef: "acct-gabs",
+        category: "VALIDATION_RECOVERY",
+        status: "OPEN",
+        overallStatus: "REVIEW_REQUIRED",
+        actionSummary: "Readiness only.",
+        owningWorkflow: "links_and_codes",
+        allowedActions: [
+          {
+            action: "READ_ONLY_DIAGNOSTIC",
+            status: "AVAILABLE",
+            label: "Review support evidence",
+            reasonCode: "EVIDENCE_AVAILABLE",
+          },
+          {
+            action: "GOVERNED_REPAIR",
+            status: "BLOCKED",
+            label: "Repair validation evidence",
+            reasonCode: "FUTURE_GOVERNED_COMMAND_REQUIRED",
+          },
+        ],
+        requiredEvidence: ["support_case_link", "before_state_hash"],
+        supportCase: {
+          caseRef: "case-support-1",
+          accountRef: "acct-gabs",
+          category: "VALIDATION_RECOVERY",
+          priority: "HIGH",
+          status: "OPEN",
+          title: "Referral code validation failed",
+          summary: "The branch pilot cannot validate a safe referral code.",
+          sourceSurface: "support_hub",
+          createdByRef: "operator",
+          evidenceLinks: [],
+          redactions: ["internal_tenant_identifier"],
+        },
+        guardrails: ["READ_ONLY_REPAIR_REPLAY_READINESS"],
+        redactions: ["internal_tenant_identifier"],
+        no_repair_replay_retry_confirmed: true,
+        no_provider_dispatch_confirmed: true,
+        no_credential_or_auth_claim_change_confirmed: true,
+        no_campaign_activation_confirmed: true,
+        no_billing_or_money_movement_confirmed: true,
+      },
+      guardrail: "Read-only support-case repair/replay readiness.",
+      guardrails: ["READ_ONLY_REPAIR_REPLAY_READINESS"],
+      redactions: ["internal_tenant_identifier"],
+      no_repair_replay_retry_confirmed: true,
+      no_provider_dispatch_confirmed: true,
+      no_credential_or_auth_claim_change_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_tenant_code_exposure_confirmed: true,
       no_billing_or_money_movement_confirmed: true,
     });
     mockedListReferralSaasAccountCampaigns.mockResolvedValue(mockCampaignList());
@@ -3491,6 +3559,143 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText(/No repair, replay, retry/i)).toBeInTheDocument();
     expect(JSON.stringify(mockedCreateReferralSaasAccountSupportCase.mock.calls)).not.toMatch(
       /tenant_code|credential|billing|money/i,
+    );
+  });
+
+  it("shows selected-customer support-case repair/replay readiness without unsafe action buttons", async () => {
+    mockedListReferralSaasAccountSupportCases.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACCT_GABS",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+      },
+      supportCases: [
+        {
+          caseRef: "case-support-1",
+          accountRef: "acct-gabs",
+          category: "PROGRESS_DIAGNOSTIC",
+          priority: "HIGH",
+          status: "OPEN",
+          title: "Progress event missing",
+          summary: "The customer cannot see progress.",
+          sourceSurface: "progress_status",
+          createdByRef: "operator",
+          evidenceLinks: [
+            {
+              evidenceType: "PROGRESS_STATUS",
+              evidenceRef: "progress-evidence-1",
+              safeStatus: "CUSTOMER_SCOPED",
+              redactions: ["internal_tenant_identifier"],
+            },
+          ],
+          redactions: ["internal_tenant_identifier"],
+        },
+      ],
+      guardrails: ["NO_REPAIR_REPLAY_RETRY"],
+      redactions: ["internal_tenant_identifier"],
+      no_tenant_code_exposure_confirmed: true,
+      no_product_state_mutation_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+    mockedGetReferralSaasAccountSupportCaseRepairReplayReadiness.mockResolvedValue({
+      status: "ok",
+      context: "support",
+      account: {
+        accountId: "acct-gabs",
+        accountCode: "ACCT_GABS",
+        accountName: "Gaborone Partners",
+        accountStatus: "ACTIVE",
+      },
+      repairReplayReadiness: {
+        caseRef: "case-support-1",
+        accountRef: "acct-gabs",
+        category: "PROGRESS_DIAGNOSTIC",
+        status: "OPEN",
+        overallStatus: "REVIEW_REQUIRED",
+        actionSummary: "Readiness only.",
+        owningWorkflow: "progress_status",
+        allowedActions: [
+          {
+            action: "READ_ONLY_DIAGNOSTIC",
+            status: "AVAILABLE",
+            label: "Review support evidence",
+            reasonCode: "EVIDENCE_AVAILABLE",
+          },
+          {
+            action: "GOVERNED_REPLAY",
+            status: "BLOCKED",
+            label: "Replay stored progress evidence",
+            reasonCode: "FUTURE_GOVERNED_COMMAND_REQUIRED",
+          },
+        ],
+        requiredEvidence: ["support_case_link", "before_state_hash"],
+        supportCase: {
+          caseRef: "case-support-1",
+          accountRef: "acct-gabs",
+          category: "PROGRESS_DIAGNOSTIC",
+          priority: "HIGH",
+          status: "OPEN",
+          title: "Progress event missing",
+          summary: "The customer cannot see progress.",
+          sourceSurface: "progress_status",
+          createdByRef: "operator",
+          evidenceLinks: [
+            {
+              evidenceType: "PROGRESS_STATUS",
+              evidenceRef: "progress-evidence-1",
+              safeStatus: "CUSTOMER_SCOPED",
+              redactions: ["internal_tenant_identifier"],
+            },
+          ],
+          redactions: ["internal_tenant_identifier"],
+        },
+        guardrails: ["READ_ONLY_REPAIR_REPLAY_READINESS"],
+        redactions: ["internal_tenant_identifier"],
+        no_repair_replay_retry_confirmed: true,
+        no_provider_dispatch_confirmed: true,
+        no_credential_or_auth_claim_change_confirmed: true,
+        no_campaign_activation_confirmed: true,
+        no_billing_or_money_movement_confirmed: true,
+      },
+      guardrail: "Read-only support-case repair/replay readiness.",
+      guardrails: ["READ_ONLY_REPAIR_REPLAY_READINESS"],
+      redactions: ["internal_tenant_identifier"],
+      no_repair_replay_retry_confirmed: true,
+      no_provider_dispatch_confirmed: true,
+      no_credential_or_auth_claim_change_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_tenant_code_exposure_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/support");
+
+    expect(await screen.findByRole("heading", { name: "Support cases" })).toBeInTheDocument();
+    expect(await screen.findByText("Repair/replay readiness")).toBeInTheDocument();
+    expect(screen.getByText("Review support evidence")).toBeInTheDocument();
+    expect(screen.getByText("Replay stored progress evidence")).toBeInTheDocument();
+    expect(screen.getByText("progress-evidence-1")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open evidence area" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs/progress?external_tenant_ref=gabs-platform&organisation_ref=gabs-org",
+    );
+    await waitFor(() =>
+      expect(mockedGetReferralSaasAccountSupportCaseRepairReplayReadiness).toHaveBeenCalledWith({
+        accountRef: "acct-gabs",
+        caseRef: "case-support-1",
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "support",
+      }),
+    );
+    expect(screen.queryByRole("button", { name: /^repair/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^replay/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^retry/i })).not.toBeInTheDocument();
+    expect(JSON.stringify(mockedGetReferralSaasAccountSupportCaseRepairReplayReadiness.mock.calls)).not.toMatch(
+      /provider_dispatch|credential|auth_claim|campaign_activation|billing|money/i,
     );
   });
 
