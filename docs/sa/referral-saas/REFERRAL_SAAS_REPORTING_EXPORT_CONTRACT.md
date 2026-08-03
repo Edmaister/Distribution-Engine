@@ -646,9 +646,11 @@ TASK-330 adds focused service tests for:
 
 TASK-333 defines the customer-scoped schedule boundary for recurring Referral
 SaaS reports. TASK-334 implements the guarded runtime API foundation for
-persisting and inspecting schedule intent. A schedule remains configuration
-intent only until the worker, provider/vault adapter, and selected-customer UI
-are implemented in later tasks. This contract must not be used to send email,
+persisting and inspecting schedule intent. TASK-335 adds the selected-customer
+Reports UI for creating schedule intent, listing schedules, checking readiness,
+and pausing/resuming or cancelling schedules. A schedule remains configuration
+intent only until the worker and provider/vault adapter are implemented in
+later governed tasks. This contract must not be used to send email,
 call a provider, create credentials, mutate login access, activate campaigns,
 repair/replay events, bill, move money, or expand into DLaaS marketplace
 behavior.
@@ -775,8 +777,8 @@ and final run state without exposing provider internals.
 ### Implementation Test Expectations
 
 TASK-334 adds backend/API tests for schedule persistence, readiness, route
-inventory, and smoke-plan coverage. TASK-335 must add selected-customer UI
-tests for:
+inventory, and smoke-plan coverage. TASK-335 adds selected-customer UI and
+API-client tests for:
 
 - customer-scope schedule list/create/update/cancel behavior in the Reports UI
 - schedule empty, loading, error, blocked, ready, paused, and cancelled states

@@ -1,14 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  createReferralSaasAccountReportDeliverySchedule,
   createReferralSaasAccountReportExportFile,
   createReferralSaasAccountReportExportRequest,
   downloadReferralSaasAccountReportExportFile,
+  getReferralSaasAccountReportDeliveryScheduleReadiness,
   getReferralSaasAccountReportExportFileMetadata,
   getReferralSaasAccountReport,
   getReferralSaasReport,
+  listReferralSaasAccountReportDeliverySchedules,
   previewReferralSaasAccountReportExport,
   previewReferralSaasReportExport,
+  updateReferralSaasAccountReportDeliverySchedule,
   validateReferralSaasAccountReportExport,
   validateReferralSaasReportExport,
 } from "./referralSaasReports";
@@ -309,5 +313,98 @@ describe("referral SaaS reports api", () => {
     expect(downloadUrl.pathname).toBe("/v1/referral-saas/accounts/acct-fnb/exports/export-1/download");
     expect(downloadUrl.searchParams.get("correlation_id")).toBe("report-export-download-acct-fnb");
     expect(downloadUrl.searchParams.get("tenant_code")).toBeNull();
+  });
+
+  it("creates, lists, updates, and checks selected-customer report delivery schedules", async () => {
+    localStorage.setItem("amplifi.apiBaseUrl", "https://api.example.test");
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ status: "ok", deliverySchedules: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const accountScope = {
+      refType: "external_tenant_ref" as const,
+      externalRef: "fnb-platform",
+      context: "setup" as const,
+    };
+
+    await createReferralSaasAccountReportDeliverySchedule({
+      accountRef: "acct-fnb",
+      accountScope,
+      reportType: "campaign_performance",
+      cadence: "weekly",
+      timezone: "Africa/Johannesburg",
+      format: "csv",
+      redactionProfile: "tenant_safe",
+      recipientContactRefs: ["contact-owner"],
+      retentionDays: 7,
+      campaignRef: "CAMP001",
+      scheduleStatus: "ready",
+      reasonCode: "CUSTOMER_PROFILE_REPORT_DELIVERY_SCHEDULE_UI",
+      correlationId: "schedule-corr",
+      idempotencyKey: "schedule-key",
+    });
+    await listReferralSaasAccountReportDeliverySchedules({
+      accountRef: "acct-fnb",
+      accountScope,
+      reportType: "campaign_performance",
+    });
+    await updateReferralSaasAccountReportDeliverySchedule({
+      accountRef: "acct-fnb",
+      accountScope,
+      scheduleId: "schedule-1",
+      scheduleStatus: "paused",
+      reasonCode: "CUSTOMER_PROFILE_REPORT_DELIVERY_SCHEDULE_PAUSED",
+      correlationId: "schedule-update-corr",
+      idempotencyKey: "schedule-update-key",
+    });
+    await getReferralSaasAccountReportDeliveryScheduleReadiness({
+      accountRef: "acct-fnb",
+      accountScope,
+      scheduleId: "schedule-1",
+    });
+
+    const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+    const createUrl = new URL(String(calls[0][0]));
+    const createBody = JSON.parse(String(calls[0][1].body));
+    const listUrl = new URL(String(calls[1][0]));
+    const updateUrl = new URL(String(calls[2][0]));
+    const updateBody = JSON.parse(String(calls[2][1].body));
+    const readinessUrl = new URL(String(calls[3][0]));
+
+    expect(createUrl.pathname).toBe(
+      "/v1/referral-saas/accounts/acct-fnb/reports/campaign_performance/delivery-schedules",
+    );
+    expect(calls[0][1].method).toBe("POST");
+    expect(createBody).toEqual({
+      accountScope,
+      cadence: "weekly",
+      timezone: "Africa/Johannesburg",
+      format: "csv",
+      redactionProfile: "tenant_safe",
+      recipientContactRefs: ["contact-owner"],
+      retentionDays: 7,
+      campaignRef: "CAMP001",
+      scheduleStatus: "ready",
+      reasonCode: "CUSTOMER_PROFILE_REPORT_DELIVERY_SCHEDULE_UI",
+      correlationId: "schedule-corr",
+      idempotencyKey: "schedule-key",
+    });
+    expect(listUrl.pathname).toBe(
+      "/v1/referral-saas/accounts/acct-fnb/reports/campaign_performance/delivery-schedules",
+    );
+    expect(listUrl.searchParams.get("external_ref")).toBe("fnb-platform");
+    expect(updateUrl.pathname).toBe("/v1/referral-saas/accounts/acct-fnb/delivery-schedules/schedule-1");
+    expect(calls[2][1].method).toBe("PATCH");
+    expect(updateBody.scheduleStatus).toBe("paused");
+    expect(readinessUrl.pathname).toBe(
+      "/v1/referral-saas/accounts/acct-fnb/delivery-schedules/schedule-1/readiness",
+    );
+    expect(readinessUrl.searchParams.get("ref_type")).toBe("external_tenant_ref");
+    expect(
+      JSON.stringify([createBody, updateBody, listUrl.search, readinessUrl.search]),
+    ).not.toMatch(/tenant_code|downloadUrl|emailSent|webhookDispatch|credential|campaignActivation|billing|money/i);
   });
 });
