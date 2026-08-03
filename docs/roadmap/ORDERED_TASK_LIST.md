@@ -7641,7 +7641,7 @@ Definition of done: Support UI explains repair/replay posture clearly and safely
 
 ## TASK-339: Define progress and attribution mutation proof contract
 
-Status: Planned.
+Status: Completed.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_EVENT_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_ATTRIBUTION_TRACE_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Reuses referral progress ingestion, dedupe, payload hashing, attribution trace, selected-customer campaign/link/report routes, E2E proof tooling, audit, and redaction standards. Source duplication: No.
@@ -7662,6 +7662,7 @@ Blocked by: Proof runner implementation and recorded execution.
 Risk level: Low.
 Rollback notes: Revert proof contract/roadmap/gap docs.
 Explicit non-goals: No runtime implementation, no provider calls, no auth changes, no campaign go-live beyond approved proof scope, no billing, no money, no DLaaS expansion.
+Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; roadmap/gap/infographic updates. Defines the selected-customer proof path from customer resolution through campaign/link/code setup, referral validation, progress event ingestion, dedupe replay, later milestone ingestion, attribution trace readback, customer-scoped report readback, failure taxonomy, rollback posture, sanitized evidence requirements, and explicit no provider/webhook/credential/invite/auth/repair/replay/export-delivery/billing/money/DLaaS/source-fork side-effect guardrails.
 Definition of done: Referral SaaS has a reviewed progress/attribution mutation proof contract that can drive the final proof runner and execution tasks. Priority: P0.
 
 ## TASK-340: Add progress and attribution mutation proof runner

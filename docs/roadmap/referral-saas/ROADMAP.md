@@ -1967,6 +1967,24 @@ greenfield referral construction.
   Attribution because progress/attribution mutation proof, governed provider
   execution, governed auth/login completion, and non-local proof repetition
   remain open.
+- TASK-339:
+  `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_CONTRACT.md`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the
+  selected-customer progress/attribution mutation proof contract. The contract
+  requires the next runner to resolve a selected customer, prepare campaign and
+  link/code evidence, validate referral entry, record progress events, prove
+  dedupe replay, read attribution trace and customer-scoped reports, classify
+  controlled failures, and confirm no provider/webhook/credential/invite/auth,
+  support repair/replay, export delivery, billing, money, DLaaS, or source-fork
+  side effects. Scores remain 9.99/10 for Referral Management and 9.999/10 for
+  Campaign Attribution because runner implementation, recorded execution,
+  governed provider execution, governed auth/login completion, and non-local
+  proof repetition remain open.
 
 ## Explicit Deferrals
 
