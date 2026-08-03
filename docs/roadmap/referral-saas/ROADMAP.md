@@ -1913,6 +1913,26 @@ greenfield referral construction.
   Management and 9.999/10 for Campaign Attribution because governed provider
   execution, repair/replay guardrails, progress/attribution mutation proof,
   governed auth/login completion, and non-local proof repetition remain open.
+- TASK-336:
+  `docs/sa/referral-saas/REFERRAL_SAAS_REPAIR_REPLAY_GUARDRAILS_CONTRACT.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the
+  governed repair/replay guardrails contract before any runtime command exists.
+  The contract classifies read-only diagnostics, readiness-only answers,
+  dry-run evidence, governed repair, governed replay, and hard-excluded
+  actions; requires support-case linkage, actor, reason, correlation,
+  idempotency, target evidence, before-state hash, redactions, audit, and
+  side-effect boundaries; and explicitly blocks provider dispatch,
+  credentials/auth changes, campaign activation, billing, money movement,
+  broad DLaaS actions, and generic DB mutation consoles. Scores remain
+  9.99/10 for Referral Management and 9.999/10 for Campaign Attribution
+  because the runtime readiness API, Support UI visibility,
+  progress/attribution mutation proof, governed provider execution, governed
+  auth/login completion, and non-local proof repetition remain open.
 
 ## Explicit Deferrals
 

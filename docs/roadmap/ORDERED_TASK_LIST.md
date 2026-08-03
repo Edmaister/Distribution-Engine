@@ -7563,9 +7563,9 @@ Definition of done: Scheduled report delivery becomes visible and manageable as 
 
 ## TASK-336: Define governed repair and replay guardrails contract
 
-Status: Planned.
+Status: Completed.
 Product boundary: Referral SaaS.
-Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_AUDIT_IDEMPOTENCY_POSTURE.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Reuses support cases, link/code inspection, progress/status diagnostics, attribution trace, audit/idempotency posture, and no-adjacent-action guardrails. Source duplication: No.
 Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
 Linked platform/product capability: Governed repair/replay contract.
@@ -7584,6 +7584,7 @@ Blocked by: Runtime repair/replay readiness API and UI.
 Risk level: Low.
 Rollback notes: Revert support workflow/API map/gap/task docs.
 Explicit non-goals: No backend commands, no frontend controls, no event replay, no data repair, no retry dispatch, no provider calls, no auth/session changes, no campaign activation, no billing, no money, no DLaaS expansion.
+Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_REPAIR_REPLAY_GUARDRAILS_CONTRACT.md`; support workflow/API map/gap/roadmap/infographic updates. The contract defines read-only, readiness-only, dry-run-evidence, governed-repair, governed-replay, and hard-excluded action classes; required support-case linkage, actor, reason, correlation, idempotency, audit, redaction, target, and side-effect boundary gates; future readiness response shape; UI posture; test expectations; and explicit exclusions for provider dispatch, credentials/auth, campaign activation, billing, money movement, broad DLaaS actions, and generic DB mutation consoles.
 Definition of done: Referral SaaS has a reviewed repair/replay guardrail contract so future operator actions are bounded, auditable, and separated from generic database or provider operations. Priority: P0.
 
 ## TASK-337: Add support-case repair/replay readiness API
