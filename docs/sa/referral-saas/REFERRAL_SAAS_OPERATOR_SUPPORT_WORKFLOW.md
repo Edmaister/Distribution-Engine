@@ -339,6 +339,16 @@ Current frontend facts:
   read-only Referral SaaS diagnostic surface, shows the required evidence
   order, and keeps support-case writes, repair/replay/retry, progress mutation,
   reward, money, webhook evidence, and DLaaS controls absent.
+- TASK-336 now defines the governed repair/replay guardrails contract for the
+  support workflow. Support can classify a case as read-only diagnostic,
+  readiness-only, dry-run evidence, governed repair, governed replay, or
+  hard-excluded, but no runtime repair, replay, retry, provider dispatch,
+  credential/auth change, campaign activation, billing, money movement, broad
+  DLaaS action, or generic DB mutation console is introduced by this workflow.
+  Future readiness and UI tasks must preserve support-case linkage, actor,
+  reason, correlation, idempotency, target evidence, before-state hash,
+  redactions, audit evidence, and side-effect boundary gates before any command
+  can be considered.
 
 Implementation should therefore add support UI as a focused workflow, not as a
 generic admin dashboard.
