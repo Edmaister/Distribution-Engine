@@ -39,7 +39,21 @@ def test_run_records_progress_replay_trace_and_report(monkeypatch):
 
     def fake_post_json(**kwargs):
         calls.append(("POST", kwargs["path"], kwargs["payload"]))
+        if kwargs["path"].endswith("/referee-ucn"):
+            assert kwargs["admin_key"] == "test-partner-key"
+            assert kwargs["payload"] == {"refereeUcn": "task340340001"}
+            return _ok(
+                {
+                    "status": "ok",
+                    "identityCapture": {
+                        "captureStatus": "CAPTURED",
+                        "referralTrackId": "11111111-1111-4111-8111-111111111111",
+                    },
+                },
+                status_code=200,
+            )
         if kwargs["path"] == "/v1/progress":
+            assert kwargs["admin_key"] == "test-partner-key"
             payload = kwargs["payload"]
             if payload["sourceEventId"] == "task-340-ucn-captured-340001":
                 count = sum(
@@ -107,6 +121,8 @@ def test_run_records_progress_replay_trace_and_report(monkeypatch):
                 "http://127.0.0.1:8000",
                 "--admin-key",
                 "test-admin-key",
+                "--progress-key",
+                "test-partner-key",
                 "--tenant-code",
                 "FNB",
                 "--external-tenant-ref",
@@ -123,6 +139,7 @@ def test_run_records_progress_replay_trace_and_report(monkeypatch):
     assert result["progress_events"]["first"]["deduped"] is False
     assert result["progress_events"]["replay"]["deduped"] is True
     assert result["progress_events"]["later"]["eventType"] == "ACCOUNT_OPENED"
+    assert result["identity_capture"]["captureStatus"] == "CAPTURED"
     assert result["readbacks"]["trace_status"] == "PARTIAL"
     assert result["no_billing_or_money_movement"] is True
 
@@ -132,6 +149,16 @@ def test_run_fails_when_progress_replay_is_not_deduped(monkeypatch):
         return _mutation_result()
 
     def fake_post_json(**kwargs):
+        if kwargs["path"].endswith("/referee-ucn"):
+            return _ok(
+                {
+                    "status": "ok",
+                    "identityCapture": {
+                        "captureStatus": "CAPTURED",
+                        "referralTrackId": "11111111-1111-4111-8111-111111111111",
+                    },
+                }
+            )
         return _ok(
             {
                 "status": "ok",

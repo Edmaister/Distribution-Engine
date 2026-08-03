@@ -502,7 +502,7 @@ async def get_outcome_trace(
                 r.mission_code,
                 r.created_at
             FROM rewards r
-            WHERE r.referral_track_id = $1
+            WHERE r.referral_track_id = $1::text
               AND ($2::text IS NULL OR r.tenant_code = $2)
             ORDER BY created_at DESC
             """,
@@ -549,7 +549,7 @@ async def get_outcome_trace(
                 UNION
                 SELECT id::text AS reward_id
                 FROM rewards
-                WHERE referral_track_id = $1
+                WHERE referral_track_id = $1::text
                   AND ($2::text IS NULL OR tenant_code = $2)
             )
             SELECT
@@ -568,7 +568,7 @@ async def get_outcome_trace(
                 fr.updated_at
             FROM funding_reservations fr
             WHERE fr.tenant_code = $2
-              AND (fr.reward_id IN (SELECT reward_id FROM reward_ids) OR fr.correlation_id = $1)
+              AND (fr.reward_id IN (SELECT reward_id FROM reward_ids) OR fr.correlation_id = $1::text)
             UNION ALL
             SELECT
                 'marketplace_funding_allocations' AS source,
@@ -586,7 +586,7 @@ async def get_outcome_trace(
                 mfa.updated_at
             FROM marketplace_funding_allocations mfa
             WHERE mfa.tenant_code = $2
-              AND (mfa.reward_id::text IN (SELECT reward_id FROM reward_ids) OR mfa.correlation_id = $1)
+              AND (mfa.reward_id::text IN (SELECT reward_id FROM reward_ids) OR mfa.correlation_id = $1::text)
             ORDER BY created_at DESC
             """,
             track_id,
@@ -602,7 +602,7 @@ async def get_outcome_trace(
                 UNION
                 SELECT id::text AS reward_id
                 FROM rewards
-                WHERE referral_track_id = $1
+                WHERE referral_track_id = $1::text
                   AND ($2::text IS NULL OR tenant_code = $2)
             )
             SELECT
@@ -632,8 +632,8 @@ async def get_outcome_trace(
             FROM fulfilment_audit
             WHERE tenant_code = $2
               AND (
-                referral_track_id = $1
-                OR correlation_id = $1
+                referral_track_id = $1::text
+                OR correlation_id = $1::text
                 OR correlation_id IN (SELECT reward_id FROM reward_ids)
               )
             ORDER BY created_at DESC

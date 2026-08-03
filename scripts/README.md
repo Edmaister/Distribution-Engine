@@ -75,7 +75,7 @@ python scripts/referral_saas_route_smoke_plan.py --include-seeded-writes
 python scripts/referral_saas_selected_customer_e2e_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref <customer-reference>
 python scripts/referral_saas_selected_customer_mutation_e2e_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref <customer-reference>
 python scripts/referral_saas_people_access_provisioning_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref <customer-reference> --database
-python scripts/referral_saas_progress_attribution_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --tenant-code FNB --external-tenant-ref <customer-reference>
+python scripts/referral_saas_progress_attribution_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --progress-key test-partner-key --tenant-code FNB --external-tenant-ref <customer-reference>
 ```
 
 ## Migration Replay Contract
