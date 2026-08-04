@@ -53,6 +53,9 @@ INTEGRATION_CREDENTIAL_REQUEST_REVIEW_EVENT = (
 INTEGRATION_CREDENTIAL_EXECUTION_CHECK_EVENT = (
     "INTEGRATION_CREDENTIAL_EXECUTION_CHECK_RECORDED"
 )
+INTEGRATION_PROVIDER_VAULT_EXECUTION_EVENT = (
+    "INTEGRATION_PROVIDER_VAULT_EXECUTION_RECORDED"
+)
 CREDENTIAL_REQUEST_RECORDED = "CREDENTIAL_REQUEST_RECORDED"
 CREDENTIAL_REQUEST_REPLAYED = "CREDENTIAL_REQUEST_REPLAYED"
 CREDENTIAL_REQUEST_READY_FOR_REVIEW = "CREDENTIAL_REQUEST_READY_FOR_REVIEW"
@@ -61,6 +64,9 @@ CREDENTIAL_REQUEST_REVIEW_REPLAYED = "CREDENTIAL_REQUEST_REVIEW_REPLAYED"
 CREDENTIAL_EXECUTION_CHECK_RECORDED = "CREDENTIAL_EXECUTION_CHECK_RECORDED"
 CREDENTIAL_EXECUTION_CHECK_REPLAYED = "CREDENTIAL_EXECUTION_CHECK_REPLAYED"
 PROVIDER_VAULT_EXECUTION_READY = "PROVIDER_VAULT_EXECUTION_READY"
+PROVIDER_VAULT_EXECUTION_BLOCKED = "PROVIDER_VAULT_EXECUTION_BLOCKED"
+PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED = "PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED"
+PROVIDER_VAULT_EXECUTION_REPLAYED = "PROVIDER_VAULT_EXECUTION_REPLAYED"
 PROVIDER_VAULT_BLOCKED_ACCOUNT_NOT_ACTIVE = (
     "PROVIDER_VAULT_BLOCKED_ACCOUNT_NOT_ACTIVE"
 )
@@ -75,6 +81,12 @@ PROVIDER_VAULT_BLOCKED_REQUEST_NOT_APPROVED = (
 )
 PROVIDER_VAULT_BLOCKED_REQUEST_VERSION_MISMATCH = (
     "PROVIDER_VAULT_BLOCKED_REQUEST_VERSION_MISMATCH"
+)
+PROVIDER_VAULT_BLOCKED_VAULT_NOT_CONFIGURED = (
+    "PROVIDER_VAULT_BLOCKED_VAULT_NOT_CONFIGURED"
+)
+PROVIDER_VAULT_BLOCKED_ADAPTER_NOT_CONFIGURED = (
+    "PROVIDER_VAULT_BLOCKED_ADAPTER_NOT_CONFIGURED"
 )
 
 INTEGRATION_CONFIGURATION_GUARDRAILS = [
@@ -176,6 +188,30 @@ PROVIDER_VAULT_READINESS_REDACTIONS = list(
             "opaque_vault_reference",
             "provider_runtime_reference",
             "provider_runtime_payload",
+        ]
+    )
+)
+PROVIDER_VAULT_EXECUTION_GUARDRAILS = list(
+    dict.fromkeys(
+        [
+            *PROVIDER_VAULT_READINESS_GUARDRAILS,
+            "CUSTOMER_SCOPED_PROVIDER_VAULT_EXECUTION_COMMAND",
+            "APPROVED_REQUEST_VERSION_REQUIRED",
+            "AUDIT_ONLY_UNTIL_PROVIDER_VAULT_ADAPTER_EXISTS",
+            "NO_RAW_SECRET_SUBMISSION",
+            "NO_SECRET_REVEAL",
+            "NO_PROVIDER_RUNTIME_DISPATCH_WITHOUT_ADAPTER",
+            "NO_VAULT_REFERENCE_RECORDING_WITHOUT_ADAPTER",
+        ]
+    )
+)
+PROVIDER_VAULT_EXECUTION_REDACTIONS = list(
+    dict.fromkeys(
+        [
+            *PROVIDER_VAULT_READINESS_REDACTIONS,
+            "provider_vault_execution_payload",
+            "vault_object_path",
+            "credential_fingerprint",
         ]
     )
 )
@@ -668,6 +704,57 @@ class ReferralSaasIntegrationCredentialExecutionCheckResult:
             "plainLanguageSummary": self.plain_language_summary,
             "guardrails": self.guardrails,
             "redactions": self.redactions,
+            "noSecretOrCredentialStorageConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noCredentialLifecycleExecutionConfirmed": True,
+            "noCredentialRevealOrDownloadConfirmed": True,
+            "noVaultWriteConfirmed": True,
+            "noProviderCallConfirmed": True,
+            "noWebhookDispatchConfirmed": True,
+            "noInviteDeliveryConfirmed": True,
+            "noMessageProviderDeliveryConfirmed": True,
+            "noMembershipActivationConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveActionConfirmed": True,
+            "noBillingOrMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasProviderVaultExecutionResult:
+    command_status: str
+    execution_ref: str | None
+    credential_request: ReferralSaasIntegrationCredentialRequest
+    provider_key: str
+    environment: str
+    capability: str
+    blocked_reason: str | None
+    next_action: str
+    idempotency_status: str
+    audit_event_id: str | None
+    plain_language_summary: str
+    guardrails: list[str]
+    redactions: list[str]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "executionRef": self.execution_ref,
+            "credentialRequest": self.credential_request.to_safe_dict(),
+            "providerKey": self.provider_key,
+            "environment": self.environment,
+            "capability": self.capability,
+            "blockedReason": self.blocked_reason,
+            "nextAction": self.next_action,
+            "idempotency": {"status": self.idempotency_status},
+            "audit": {"accountAuditEventId": self.audit_event_id},
+            "plainLanguageSummary": self.plain_language_summary,
+            "guardrails": self.guardrails,
+            "redactions": self.redactions,
+            "noRawSecretSubmittedConfirmed": True,
+            "noSecretRevealRequestedConfirmed": True,
             "noSecretOrCredentialStorageConfirmed": True,
             "noCredentialCreationConfirmed": True,
             "noCredentialLifecycleExecutionConfirmed": True,
@@ -2993,4 +3080,413 @@ async def record_referral_saas_integration_credential_execution_check(
         ),
         guardrails=CREDENTIAL_REQUEST_GUARDRAILS,
         redactions=CREDENTIAL_REQUEST_REDACTIONS,
+    )
+
+
+def _provider_vault_execution_result_from_audit(
+    *,
+    audit_event: Any,
+    credential_request: ReferralSaasIntegrationCredentialRequest,
+) -> ReferralSaasProviderVaultExecutionResult:
+    evidence = audit_event.get("evidence_summary") or {}
+    if isinstance(evidence, str):
+        evidence = json.loads(evidence)
+    command_status = (
+        _optional_text(evidence.get("command_status"))
+        or _optional_text(audit_event.get("next_status"))
+        or PROVIDER_VAULT_EXECUTION_REPLAYED
+    )
+    return ReferralSaasProviderVaultExecutionResult(
+        command_status=command_status,
+        execution_ref=str(audit_event["account_audit_event_id"]),
+        credential_request=credential_request,
+        provider_key=_optional_text(evidence.get("provider_key")) or "UNKNOWN_PROVIDER",
+        environment=_optional_text(evidence.get("environment")) or credential_request.environment,
+        capability=_optional_text(evidence.get("capability")) or credential_request.capability,
+        blocked_reason=_optional_text(evidence.get("blocked_reason")),
+        next_action=_optional_text(evidence.get("next_action"))
+        or "Review provider/vault execution status for this customer.",
+        idempotency_status=PROVIDER_VAULT_EXECUTION_REPLAYED,
+        audit_event_id=str(audit_event["account_audit_event_id"]),
+        plain_language_summary=_optional_text(evidence.get("plain_language_summary"))
+        or (
+            "Provider/vault execution command was replayed from the same "
+            "idempotency key and payload. No provider was called, no vault was "
+            "written, and no secret was exposed."
+        ),
+        guardrails=PROVIDER_VAULT_EXECUTION_GUARDRAILS,
+        redactions=PROVIDER_VAULT_EXECUTION_REDACTIONS,
+    )
+
+
+def _provider_vault_blocker(
+    *,
+    account_status: str | None,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+    configuration: ReferralSaasIntegrationConfiguration | None,
+    credential_request: ReferralSaasIntegrationCredentialRequest,
+    approved_request_version: str,
+    provider_key: str,
+    environment: str,
+    capability: str,
+) -> str | None:
+    if (
+        _clean_text(account_status).upper() != "ACTIVE"
+        or _clean_text(tenant_link_status).upper() != "ACTIVE"
+        or _clean_text(external_reference_status).upper() != "ACTIVE"
+    ):
+        return PROVIDER_VAULT_BLOCKED_ACCOUNT_NOT_ACTIVE
+    if credential_request.review_status != "REVIEW_APPROVED":
+        return PROVIDER_VAULT_BLOCKED_REQUEST_NOT_APPROVED
+
+    request_versions = {
+        item
+        for item in (
+            credential_request.credential_request_ref,
+            credential_request.created_at,
+            credential_request.updated_at,
+            _optional_text(credential_request.safe_request_posture.get("requestVersion")),
+            _optional_text(credential_request.safe_request_posture.get("version")),
+        )
+        if item
+    }
+    if approved_request_version not in request_versions:
+        return PROVIDER_VAULT_BLOCKED_REQUEST_VERSION_MISMATCH
+
+    if (
+        configuration is None
+        or configuration.configuration_status != INTEGRATION_CONFIGURATION_SAVED
+        or configuration.configuration_ref != credential_request.configuration_ref
+    ):
+        return PROVIDER_VAULT_BLOCKED_CONFIGURATION_MISSING
+
+    if credential_request.capability != capability or credential_request.environment != environment:
+        return PROVIDER_VAULT_BLOCKED_CONFIGURATION_MISSING
+
+    configured_providers = {
+        _clean_text(item)
+        for item in configuration.message_providers.get("providerRefs", [])
+        if _clean_text(item)
+    }
+    if provider_key not in configured_providers:
+        return PROVIDER_VAULT_BLOCKED_PROVIDER_NOT_APPROVED
+
+    return None
+
+
+async def record_referral_saas_provider_vault_execution(
+    *,
+    account_id: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    tenant_code: str,
+    account_status: str | None,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+    configuration: ReferralSaasIntegrationConfiguration | None,
+    credential_request_ref: str,
+    approved_request_version: str | None,
+    execution_intent: str | None,
+    execution_mode: str | None,
+    provider_key: str | None,
+    environment: str | None,
+    capability: str | None,
+    reason_code: str | None,
+    reason: str | None,
+    correlation_id: str | None,
+    idempotency_key_hash: str,
+    command_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None,
+) -> ReferralSaasProviderVaultExecutionResult:
+    safe_account_id = _require_bounded_text(
+        account_id, "account_id", min_length=1, max_length=80
+    )
+    safe_tenant_code = _require_bounded_text(
+        tenant_code, "tenant_code", min_length=1, max_length=120
+    )
+    safe_credential_request_ref = _require_bounded_text(
+        credential_request_ref,
+        "credential_request_ref",
+        min_length=1,
+        max_length=80,
+    )
+    safe_approved_request_version = _require_bounded_text(
+        approved_request_version,
+        "providerVaultExecution.approvedRequestVersion",
+        min_length=1,
+        max_length=120,
+    )
+    safe_execution_intent = _optional_text(execution_intent) or "CREATE_PROVIDER_VAULT_REFERENCE"
+    safe_execution_mode = _optional_text(execution_mode) or "SAFE_RUNTIME_EXECUTION"
+    safe_provider_key = _require_bounded_text(
+        provider_key, "providerVaultExecution.providerKey", min_length=1, max_length=120
+    )
+    safe_environment = _normalise_choice(
+        environment or "SANDBOX",
+        CREDENTIAL_REQUEST_ENVIRONMENTS,
+        "providerVaultExecution.environment",
+    )
+    safe_capability = _normalise_choice(
+        capability,
+        CREDENTIAL_REQUEST_CAPABILITIES,
+        "providerVaultExecution.capability",
+    )
+    safe_reason = _require_bounded_text(
+        reason,
+        "providerVaultExecution.reason",
+        min_length=3,
+        max_length=1000,
+    )
+    safe_reason_code = _optional_text(reason_code) or "PROVIDER_VAULT_RUNTIME_EXECUTION"
+    safe_correlation_id = _require_bounded_text(
+        correlation_id, "correlation_id", min_length=1, max_length=160
+    )
+    safe_idempotency_hash = _require_bounded_text(
+        idempotency_key_hash, "idempotency_key_hash", min_length=1, max_length=256
+    )
+    safe_payload_hash = _require_bounded_text(
+        command_payload_hash, "command_payload_hash", min_length=1, max_length=256
+    )
+    safe_actor_ref = _require_bounded_text(
+        actor_ref, "actor_ref", min_length=1, max_length=160
+    )
+    safe_actor_role = _optional_text(actor_role)
+
+    async with db_connection() as conn:
+        existing_audit = await conn.fetchrow(
+            """
+            SELECT account_audit_event_id, evidence_summary, next_status
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            INTEGRATION_PROVIDER_VAULT_EXECUTION_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_audit:
+            evidence = existing_audit.get("evidence_summary") or {}
+            if isinstance(evidence, str):
+                evidence = json.loads(evidence)
+            if _optional_text(evidence.get("command_payload_hash")) != safe_payload_hash:
+                raise IntegrationConfigurationIdempotencyConflict(
+                    "Idempotency key was reused with different provider/vault execution content."
+                )
+            replayed_request = await conn.fetchrow(
+                """
+                SELECT *
+                FROM referral_saas_integration_credential_requests
+                WHERE account_id = $1
+                  AND integration_credential_request_id = $2
+                  AND archived_at IS NULL
+                LIMIT 1
+                """,
+                safe_account_id,
+                _optional_text(evidence.get("credential_request_ref"))
+                or safe_credential_request_ref,
+            )
+            if not replayed_request:
+                raise IntegrationCredentialRequestNotFound(
+                    "Credential request was not found for the selected customer."
+                )
+            return _provider_vault_execution_result_from_audit(
+                audit_event=existing_audit,
+                credential_request=_credential_request_from_row(replayed_request),
+            )
+
+        current = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_integration_credential_requests
+            WHERE account_id = $1
+              AND integration_credential_request_id = $2
+              AND archived_at IS NULL
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_credential_request_ref,
+        )
+        if not current:
+            raise IntegrationCredentialRequestNotFound(
+                "Credential request was not found for the selected customer."
+            )
+        credential_request = _credential_request_from_row(current)
+        blocker = _provider_vault_blocker(
+            account_status=account_status,
+            tenant_link_status=tenant_link_status,
+            external_reference_status=external_reference_status,
+            configuration=configuration,
+            credential_request=credential_request,
+            approved_request_version=safe_approved_request_version,
+            provider_key=safe_provider_key,
+            environment=safe_environment,
+            capability=safe_capability,
+        )
+        if blocker:
+            command_status = PROVIDER_VAULT_EXECUTION_BLOCKED
+            next_status = blocker
+            next_action = "Resolve the listed provider/vault execution blocker before trying again."
+            summary = (
+                "Provider/vault execution was blocked for the selected customer. "
+                "No provider was called, no vault was written, and no secret was exposed."
+            )
+        else:
+            command_status = PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED
+            next_status = PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED
+            next_action = (
+                "Implement the approved provider adapter and vault adapter before "
+                "real runtime execution is enabled."
+            )
+            summary = (
+                "Provider/vault execution gates passed, but the runtime adapter is "
+                "not implemented yet. No provider was called, no vault was written, "
+                "and no secret was exposed."
+            )
+
+        audit_event = await conn.fetchrow(
+            """
+            INSERT INTO platform_account_audit_events (
+                account_id,
+                account_tenant_id,
+                external_ref_id,
+                tenant_code,
+                event_type,
+                event_status,
+                actor_ref,
+                actor_role,
+                previous_status,
+                next_status,
+                reason_code,
+                correlation_id,
+                idempotency_key_hash,
+                evidence_summary,
+                redactions
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8,
+                $9, $10, $11, $12, $13, $14::jsonb, $15::jsonb
+            )
+            RETURNING account_audit_event_id
+            """,
+            safe_account_id,
+            _optional_text(account_tenant_id),
+            _optional_text(external_ref_id),
+            safe_tenant_code,
+            INTEGRATION_PROVIDER_VAULT_EXECUTION_EVENT,
+            "BLOCKED" if blocker else "RECORDED",
+            safe_actor_ref,
+            safe_actor_role,
+            credential_request.review_status,
+            next_status,
+            safe_reason_code,
+            safe_correlation_id,
+            safe_idempotency_hash,
+            _jsonb(
+                {
+                    "credential_request_ref": safe_credential_request_ref,
+                    "approved_request_version": safe_approved_request_version,
+                    "execution_intent": safe_execution_intent,
+                    "execution_mode": safe_execution_mode,
+                    "provider_key": safe_provider_key,
+                    "environment": safe_environment,
+                    "capability": safe_capability,
+                    "command_status": command_status,
+                    "blocked_reason": blocker,
+                    "next_action": next_action,
+                    "plain_language_summary": summary,
+                    "command_payload_hash": safe_payload_hash,
+                    "reason_present": bool(safe_reason),
+                    "no_raw_secret_submitted_confirmed": True,
+                    "no_secret_reveal_requested_confirmed": True,
+                    "no_secret_or_credential_storage_confirmed": True,
+                    "no_credential_creation_confirmed": True,
+                    "no_credential_lifecycle_execution_confirmed": True,
+                    "no_credential_reveal_or_download_confirmed": True,
+                    "no_vault_write_confirmed": True,
+                    "no_provider_call_confirmed": True,
+                    "no_webhook_dispatch_confirmed": True,
+                    "no_invite_delivery_confirmed": True,
+                    "no_message_provider_delivery_confirmed": True,
+                    "no_auth_claim_change_confirmed": True,
+                    "no_campaign_activation_confirmed": True,
+                    "no_billing_or_money_movement_confirmed": True,
+                }
+            ),
+            _jsonb(PROVIDER_VAULT_EXECUTION_REDACTIONS),
+        )
+
+    execution_ref = str(audit_event["account_audit_event_id"]) if audit_event else None
+    return ReferralSaasProviderVaultExecutionResult(
+        command_status=command_status,
+        execution_ref=execution_ref,
+        credential_request=credential_request,
+        provider_key=safe_provider_key,
+        environment=safe_environment,
+        capability=safe_capability,
+        blocked_reason=blocker,
+        next_action=next_action,
+        idempotency_status=command_status,
+        audit_event_id=execution_ref,
+        plain_language_summary=summary,
+        guardrails=PROVIDER_VAULT_EXECUTION_GUARDRAILS,
+        redactions=PROVIDER_VAULT_EXECUTION_REDACTIONS,
+    )
+
+
+async def get_referral_saas_provider_vault_execution(
+    *,
+    account_id: str,
+    execution_ref: str,
+) -> ReferralSaasProviderVaultExecutionResult:
+    safe_account_id = _require_bounded_text(
+        account_id, "account_id", min_length=1, max_length=80
+    )
+    safe_execution_ref = _require_bounded_text(
+        execution_ref, "execution_ref", min_length=1, max_length=80
+    )
+    async with db_connection() as conn:
+        audit_event = await conn.fetchrow(
+            """
+            SELECT account_audit_event_id, evidence_summary, next_status
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND account_audit_event_id = $2
+              AND event_type = $3
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_execution_ref,
+            INTEGRATION_PROVIDER_VAULT_EXECUTION_EVENT,
+        )
+        if not audit_event:
+            raise IntegrationCredentialRequestNotFound(
+                "Provider/vault execution was not found for the selected customer."
+            )
+        evidence = audit_event.get("evidence_summary") or {}
+        if isinstance(evidence, str):
+            evidence = json.loads(evidence)
+        current = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_integration_credential_requests
+            WHERE account_id = $1
+              AND integration_credential_request_id = $2
+              AND archived_at IS NULL
+            LIMIT 1
+            """,
+            safe_account_id,
+            _optional_text(evidence.get("credential_request_ref")) or "",
+        )
+    if not current:
+        raise IntegrationCredentialRequestNotFound(
+            "Credential request was not found for the selected customer."
+        )
+    return _provider_vault_execution_result_from_audit(
+        audit_event=audit_event,
+        credential_request=_credential_request_from_row(current),
     )

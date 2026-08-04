@@ -44,6 +44,10 @@ def test_referral_saas_current_smoke_routes_are_mounted():
             "GET",
             "/v1/referral-saas/accounts/{account_ref}/integrations/credential-requests/{credential_request_ref}",
         ),
+        (
+            "GET",
+            "/v1/referral-saas/accounts/{account_ref}/integrations/provider-vault/executions/{execution_ref}",
+        ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/integrations/configuration/validate"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}"),
@@ -162,6 +166,10 @@ def test_referral_saas_current_smoke_routes_are_mounted():
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/integrations/credential-requests/{credential_request_ref}/execution-checks",
         ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/integrations/credential-requests/{credential_request_ref}/provider-vault-executions",
+        ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/activation-requests"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports"),
         (
@@ -210,6 +218,10 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         (
             "GET",
             "/v1/referral-saas/accounts/{account_ref}/integrations/credential-requests/{credential_request_ref}",
+        ),
+        (
+            "GET",
+            "/v1/referral-saas/accounts/{account_ref}/integrations/provider-vault/executions/{execution_ref}",
         ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/integrations/configuration/validate"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns"),
@@ -317,6 +329,10 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/integrations/credential-requests/{credential_request_ref}/execution-checks",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/integrations/credential-requests/{credential_request_ref}/provider-vault-executions",
         ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/activation-requests"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports"),

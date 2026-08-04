@@ -164,6 +164,8 @@ from services.referral_saas_integrations_configuration_service import (
     INTEGRATION_CONFIGURATION_REDACTIONS,
     INTEGRATION_EXECUTION_GUARDRAILS,
     INTEGRATION_EXECUTION_REDACTIONS,
+    PROVIDER_VAULT_EXECUTION_GUARDRAILS,
+    PROVIDER_VAULT_EXECUTION_REDACTIONS,
     PROVIDER_VAULT_READINESS_GUARDRAILS,
     PROVIDER_VAULT_READINESS_REDACTIONS,
     IntegrationCredentialRequestNotFound,
@@ -177,9 +179,11 @@ from services.referral_saas_integrations_configuration_service import (
     create_referral_saas_integration_credential_request,
     get_referral_saas_integration_credential_request,
     get_referral_saas_integration_configuration,
+    get_referral_saas_provider_vault_execution,
     list_referral_saas_integration_credential_requests,
     record_referral_saas_integration_credential_execution_check,
     record_referral_saas_integration_credential_review_decision,
+    record_referral_saas_provider_vault_execution,
     record_referral_saas_api_access_verification,
     record_referral_saas_message_provider_test,
     record_referral_saas_webhook_test_dispatch,
@@ -434,6 +438,14 @@ class ReferralSaasCredentialRequestReviewDecisionRequest(BaseModel):
 class ReferralSaasCredentialExecutionCheckRequest(BaseModel):
     accountScope: dict[str, Any] = Field(default_factory=dict)
     executionCheck: dict[str, Any] | None = Field(default=None)
+    reasonCode: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str | None = Field(default=None)
+
+
+class ReferralSaasProviderVaultExecutionRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    providerVaultExecution: dict[str, Any] | None = Field(default=None)
     reasonCode: str | None = Field(default=None)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str | None = Field(default=None)
@@ -4182,6 +4194,240 @@ async def check_referral_saas_account_integration_credential_execution(
         ),
         "guardrails": sorted(CREDENTIAL_REQUEST_GUARDRAILS),
         "redactions": sorted(CREDENTIAL_REQUEST_REDACTIONS),
+        "no_secret_or_credential_storage_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_credential_lifecycle_execution_confirmed": True,
+        "no_credential_reveal_or_download_confirmed": True,
+        "no_vault_write_confirmed": True,
+        "no_provider_call_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_message_provider_delivery_confirmed": True,
+        "no_membership_activation_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_action_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.post(
+    "/accounts/{account_ref}/integrations/credential-requests/{credential_request_ref}/provider-vault-executions"
+)
+async def execute_referral_saas_account_provider_vault_runtime(
+    account_ref: str,
+    credential_request_ref: str,
+    request: ReferralSaasProviderVaultExecutionRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        assert_safe_referral_saas_integration_execution_payload(request_payload)
+    except IntegrationConfigurationUnsafePayload as exc:
+        raise _integration_configuration_error(exc) from exc
+
+    account_scope = request.accountScope
+    provider_vault_execution = request.providerVaultExecution or {}
+    if not isinstance(account_scope, dict) or not isinstance(
+        provider_vault_execution, dict
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope and providerVaultExecution must be objects.",
+                "guardrails": sorted(PROVIDER_VAULT_EXECUTION_GUARDRAILS),
+                "redactions": sorted(PROVIDER_VAULT_EXECUTION_REDACTIONS),
+                "no_provider_vault_execution_recorded_confirmed": True,
+            },
+        )
+
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = _optional_text(account_scope.get("context")) or "setup"
+    approved_request_version = _optional_text(
+        provider_vault_execution.get("approvedRequestVersion")
+    )
+    provider_key = _optional_text(provider_vault_execution.get("providerKey"))
+    environment = _optional_text(provider_vault_execution.get("environment"))
+    capability = _optional_text(provider_vault_execution.get("capability"))
+    reason = _optional_text(provider_vault_execution.get("reason"))
+    idempotency_key = _optional_text(request.idempotencyKey)
+    correlation_id = _optional_text(request.correlationId)
+    if (
+        not ref_type
+        or not external_ref
+        or not approved_request_version
+        or not provider_key
+        or not environment
+        or not capability
+        or not reason
+        or not idempotency_key
+        or not correlation_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "providerVaultExecution.approvedRequestVersion, providerKey, "
+                    "environment, capability, reason, idempotencyKey, and "
+                    "correlationId are required."
+                ),
+                "guardrails": sorted(PROVIDER_VAULT_EXECUTION_GUARDRAILS),
+                "redactions": sorted(PROVIDER_VAULT_EXECUTION_REDACTIONS),
+                "no_provider_vault_execution_recorded_confirmed": True,
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    safe_account_ref = _assert_account_path_scope(account_ref, account)
+    configuration = await get_referral_saas_integration_configuration(
+        account_id=account.account_id,
+    )
+    command_payload = {
+        "accountScope": {
+            "accountRef": safe_account_ref,
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": normalised_context,
+        },
+        "credentialRequestRef": credential_request_ref,
+        "providerVaultExecution": {
+            "approvedRequestVersion": approved_request_version,
+            "executionIntent": provider_vault_execution.get("executionIntent"),
+            "executionMode": provider_vault_execution.get("executionMode"),
+            "providerKey": provider_key,
+            "environment": environment,
+            "capability": capability,
+            "reasonCode": request.reasonCode
+            or provider_vault_execution.get("reasonCode")
+            or "PROVIDER_VAULT_RUNTIME_EXECUTION",
+        },
+    }
+    try:
+        result = await record_referral_saas_provider_vault_execution(
+            account_id=account.account_id,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            tenant_code=account.tenant_code,
+            account_status=account.account_status,
+            tenant_link_status=account.tenant_link_status,
+            external_reference_status=account.reference_status,
+            configuration=configuration,
+            credential_request_ref=credential_request_ref,
+            approved_request_version=approved_request_version,
+            execution_intent=provider_vault_execution.get("executionIntent"),
+            execution_mode=provider_vault_execution.get("executionMode"),
+            provider_key=provider_key,
+            environment=environment,
+            capability=capability,
+            reason_code=request.reasonCode or provider_vault_execution.get("reasonCode"),
+            reason=reason,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_PROVIDER_VAULT_EXECUTION",
+                    "account_ref": safe_account_ref,
+                    "credential_request_ref": credential_request_ref,
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            command_payload_hash=hash_payload(command_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except ReferralSaasIntegrationConfigurationCommandError as exc:
+        raise _integration_configuration_error(exc) from exc
+
+    return {
+        "status": "accepted",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "providerVaultExecutionResult": result.to_safe_dict(),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "Provider/vault runtime command recorded for the selected customer. "
+            "This endpoint enforces scope, request approval, idempotency, audit, "
+            "and redaction before any real adapter is allowed to run."
+        ),
+        "guardrails": sorted(PROVIDER_VAULT_EXECUTION_GUARDRAILS),
+        "redactions": sorted(PROVIDER_VAULT_EXECUTION_REDACTIONS),
+        "no_raw_secret_submitted_confirmed": True,
+        "no_secret_reveal_requested_confirmed": True,
+        "no_secret_or_credential_storage_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_credential_lifecycle_execution_confirmed": True,
+        "no_credential_reveal_or_download_confirmed": True,
+        "no_vault_write_confirmed": True,
+        "no_provider_call_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_message_provider_delivery_confirmed": True,
+        "no_membership_activation_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_action_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/integrations/provider-vault/executions/{execution_ref}")
+async def read_referral_saas_account_provider_vault_runtime_execution(
+    account_ref: str,
+    execution_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[str, Query(description="Selected-customer context.")] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    try:
+        result = await get_referral_saas_provider_vault_execution(
+            account_id=account.account_id,
+            execution_ref=execution_ref,
+        )
+    except ReferralSaasIntegrationConfigurationCommandError as exc:
+        raise _integration_configuration_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "providerVaultExecutionResult": result.to_safe_dict(),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "Read-only selected-customer provider/vault execution evidence. "
+            "No secret material or adjacent live workflow is exposed or changed."
+        ),
+        "guardrails": sorted(PROVIDER_VAULT_EXECUTION_GUARDRAILS),
+        "redactions": sorted(PROVIDER_VAULT_EXECUTION_REDACTIONS),
         "no_secret_or_credential_storage_confirmed": True,
         "no_credential_creation_confirmed": True,
         "no_credential_lifecycle_execution_confirmed": True,

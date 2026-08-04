@@ -7924,6 +7924,32 @@ Explicit non-goals: No schema, backend route implementation, frontend controls, 
 Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_EXECUTION_COMMAND_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the governed provider/vault runtime execution command contract after approved credential requests and visible readiness. The contract covers selected-customer command routes, payload confirmations, safe response states, approved-request/version/provider/vault gates, failure taxonomy, audit/idempotency, UI-safe copy, and explicit no raw secret, provider dispatch, invite/webhook/message delivery, auth, campaign, billing, money, DLaaS, or source-fork side effects.
 Definition of done: Referral SaaS has the reviewed command contract needed for the next provider/vault runtime API foundation task. Current rating remains 9.99/10 for Referral Management and 9.9998/10 for Campaign Attribution because this is contract/design work while runtime provider/vault execution and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-350: Add provider/vault runtime execution API foundation
+
+Status: Completed.
+Product boundary: Shared Platform with Referral SaaS impact.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_EXECUTION_COMMAND_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses selected-customer Integrations setup/configuration, credential request/review, provider/vault readiness, account scope, active account/link/reference gates, provider approval, audit, idempotency, and redactions. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Governed provider/vault runtime execution API foundation.
+Objective: Add the first selected-customer provider/vault runtime execution API boundary so approved credential requests can produce safe execution evidence without exposing secrets or dispatching live providers.
+Why now: TASK-349 defined the command contract. The roadmap now needs the guarded backend API foundation before any real provider/vault adapter can be plugged in.
+Files likely involved: `apps/api/routers/referral_saas_accounts.py`; `services/referral_saas_integrations_configuration_service.py`; provider/vault execution API tests; route smoke inventory; roadmap/gap/infographic docs.
+Database/schema impact: Reuses `platform_account_audit_events` and existing credential request/configuration tables; no new migration.
+Backend impact: Adds selected-customer provider/vault execution create/read service logic with active account/link/reference gates, approved-request/version/provider/capability/environment checks, idempotency replay/conflict handling, audit evidence, safe blocked states, and no-live-adapter fallback.
+Frontend impact: None in this task.
+API impact: Adds guarded POST `/v1/referral-saas/accounts/{account_ref}/integrations/credential-requests/{credential_request_ref}/provider-vault-executions` and read-only GET `/v1/referral-saas/accounts/{account_ref}/integrations/provider-vault/executions/{execution_ref}`.
+Tests to add/update: Provider/vault execution API tests for success/not-implemented, missing command scope, unsafe payload rejection, idempotency conflict, readback, and route smoke inventory.
+Validation method: `git diff --check`; Python compile for edited backend files; focused API tests; Referral SaaS route smoke inventory.
+Acceptance criteria: The API records safe provider/vault execution evidence only after selected-customer, approved credential request, version, provider, environment, capability, audit, idempotency, and redaction gates pass; unsafe payloads and idempotency conflicts fail safely; no raw secret, provider dispatch, invite/webhook/message delivery, auth/session change, campaign activation, billing, money, DLaaS scope, or source fork is introduced.
+Dependencies: TASK-342; TASK-343; TASK-344; TASK-349.
+Blocked by: Real provider/vault adapter implementation and non-local execution proof.
+Risk level: Medium.
+Rollback notes: Revert provider/vault execution service/router/test additions and roadmap/gap/infographic updates.
+Explicit non-goals: No frontend action wiring, real provider call, vault write, credential capture/reveal/download, invite delivery, webhook dispatch, referral-message delivery, auth/session claim propagation, campaign activation, billing, money movement, DLaaS expansion, or source duplication.
+Completed output: `apps/api/routers/referral_saas_accounts.py`; `services/referral_saas_integrations_configuration_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; roadmap/gap/infographic updates - Adds the governed provider/vault runtime execution API foundation. The route can record/read selected-customer execution evidence, replay identical idempotent requests, reject changed payload reuse, and return blocked/not-implemented states until a real adapter is introduced.
+Definition of done: Referral SaaS has the backend provider/vault execution API foundation required before real adapter implementation. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.9999/10 because the runtime API boundary now exists while real provider/vault adapters and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
