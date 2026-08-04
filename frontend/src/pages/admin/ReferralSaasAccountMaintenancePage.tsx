@@ -83,6 +83,7 @@ import {
   updateReferralSaasAccountProfile,
   getReferralSaasIntegrationConfiguration,
   getReferralSaasIntegrationExecutionReadiness,
+  getReferralSaasProviderVaultReadiness,
   listReferralSaasIntegrationCredentialRequests,
   type ReferralSaasAccountCampaignSetupCreateResponse,
   type ReferralSaasSupportCase,
@@ -4304,6 +4305,23 @@ function CustomerTechnicalSetupPage({
     enabled: Boolean(account?.accountId && externalTenantRef),
     retry: false,
   });
+  const providerVaultReadinessQuery = useQuery({
+    queryKey: [
+      "referral-saas",
+      "provider-vault-readiness",
+      account?.accountId || "",
+      externalTenantRef,
+    ],
+    queryFn: () =>
+      getReferralSaasProviderVaultReadiness({
+        accountRef: account?.accountId || "",
+        refType: "external_tenant_ref",
+        externalRef: externalTenantRef,
+        context: "setup",
+      }),
+    enabled: Boolean(account?.accountId && externalTenantRef),
+    retry: false,
+  });
   const [configurationMessage, setConfigurationMessage] = useState<string | null>(null);
   const [activeIntegrationTab, setActiveIntegrationTab] = useState<"plan" | "verify">("plan");
   const validationMutation = useMutation({
@@ -4327,6 +4345,7 @@ function CustomerTechnicalSetupPage({
     onSuccess: async (response) => {
       await configurationQuery.refetch();
       await executionReadinessQuery.refetch();
+      await providerVaultReadinessQuery.refetch();
       setActiveIntegrationTab("verify");
       setConfigurationMessage(
         `${formatDisplay(response.integrationConfigurationResult.commandStatus)}. Connection plan saved. Run verification checks next. No credentials, webhook dispatch, invite delivery, campaign activation, billing, or money movement occurred.`,
@@ -4350,6 +4369,7 @@ function CustomerTechnicalSetupPage({
         `${formatDisplay(verification.verificationStatus)}. ${verification.plainLanguageSummary}`,
       );
       await executionReadinessQuery.refetch();
+      await providerVaultReadinessQuery.refetch();
     },
   });
   const webhookTestDispatchMutation = useMutation({
@@ -4369,6 +4389,7 @@ function CustomerTechnicalSetupPage({
         `${formatDisplay(webhookTest.dispatchStatus)}. ${webhookTest.plainLanguageSummary}`,
       );
       await executionReadinessQuery.refetch();
+      await providerVaultReadinessQuery.refetch();
     },
   });
   const messageProviderTestMutation = useMutation({
@@ -4388,6 +4409,7 @@ function CustomerTechnicalSetupPage({
         `${formatDisplay(providerTest.testStatus)}. ${providerTest.plainLanguageSummary}`,
       );
       await executionReadinessQuery.refetch();
+      await providerVaultReadinessQuery.refetch();
     },
   });
   const credentialRequestMutation = useMutation({
@@ -4409,6 +4431,7 @@ function CustomerTechnicalSetupPage({
       );
       await credentialRequestsQuery.refetch();
       await executionReadinessQuery.refetch();
+      await providerVaultReadinessQuery.refetch();
     },
   });
   const credentialReviewMutation = useMutation({
@@ -4434,6 +4457,7 @@ function CustomerTechnicalSetupPage({
       );
       await credentialRequestsQuery.refetch();
       await executionReadinessQuery.refetch();
+      await providerVaultReadinessQuery.refetch();
     },
   });
   const credentialExecutionCheckMutation = useMutation({
@@ -4452,11 +4476,13 @@ function CustomerTechnicalSetupPage({
       );
       await credentialRequestsQuery.refetch();
       await executionReadinessQuery.refetch();
+      await providerVaultReadinessQuery.refetch();
     },
   });
   const technicalReadiness = readiness?.technicalSetupReadiness;
   const savedConfiguration = configurationQuery.data?.integrationConfiguration || null;
   const executionReadiness = executionReadinessQuery.data?.integrationExecutionReadiness || null;
+  const providerVaultReadiness = providerVaultReadinessQuery.data?.providerVaultReadiness || null;
   const credentialRequests = credentialRequestsQuery.data?.credentialRequests || [];
   const capabilities = technicalReadiness?.capabilities || [];
   const missingCapabilities = capabilities.filter((capability) => capability.status !== "READY");
@@ -4518,12 +4544,16 @@ function CustomerTechnicalSetupPage({
         <StatusBadge label={stageLabel} tone={stageTone} />
       </div>
       <div className="panel-body route-list">
-        {isLoading || configurationQuery.isLoading || executionReadinessQuery.isLoading ? (
+        {isLoading ||
+        configurationQuery.isLoading ||
+        executionReadinessQuery.isLoading ||
+        providerVaultReadinessQuery.isLoading ? (
           <LoadingState label="Checking integration readiness" />
         ) : null}
         {error ? <ErrorPanel error={error} /> : null}
         {configurationQuery.error ? <ErrorPanel error={configurationQuery.error} /> : null}
         {executionReadinessQuery.error ? <ErrorPanel error={executionReadinessQuery.error} /> : null}
+        {providerVaultReadinessQuery.error ? <ErrorPanel error={providerVaultReadinessQuery.error} /> : null}
         {credentialRequestsQuery.error ? <ErrorPanel error={credentialRequestsQuery.error} /> : null}
         {validationMutation.error ? <ErrorPanel error={validationMutation.error} /> : null}
         {saveMutation.error ? <ErrorPanel error={saveMutation.error} /> : null}
@@ -4939,6 +4969,92 @@ function CustomerTechnicalSetupPage({
                     </div>
                   )}
                 </div>
+                {providerVaultReadiness ? (
+                  <div className="panel-lite integrations-step-card">
+                    <div className="settings-summary-header">
+                      <div>
+                        <h3 className="section-heading">Secure provider handoff</h3>
+                        <p>
+                          Shows whether approved credential requests are ready for a future governed provider/vault
+                          executor. This page does not run that executor.
+                        </p>
+                      </div>
+                      <StatusBadge
+                        label={formatDisplay(providerVaultReadiness.readinessStatus)}
+                        tone={statusTone(providerVaultReadiness.readinessStatus)}
+                      />
+                    </div>
+                    <div
+                      className={`wizard-summary-strip ${
+                        providerVaultReadiness.readyActions.length ? "success" : "warning"
+                      }`}
+                    >
+                      <div>
+                        <strong>In plain English:</strong> {providerVaultReadiness.plainLanguageSummary}
+                      </div>
+                      <StatusBadge
+                        label={`${providerVaultReadiness.readyActions.length} ready for handoff`}
+                        tone={providerVaultReadiness.readyActions.length ? "success" : "warning"}
+                      />
+                    </div>
+                    {providerVaultReadiness.blockers.length ? (
+                      <div className="route-list">
+                        {providerVaultReadiness.blockers.map((blocker) => (
+                          <div className="wizard-status-card" key={`${blocker.code}-${blocker.message}`}>
+                            <div>
+                              <strong>{formatDisplay(blocker.code)}</strong>
+                              <p>{blocker.message}</p>
+                            </div>
+                            <StatusBadge label="Fix first" tone="warning" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {providerVaultReadiness.credentialRequests.length ? (
+                      <div className="route-list">
+                        {providerVaultReadiness.credentialRequests.map((credentialRequest) => (
+                          <div className="integrations-check-row" key={credentialRequest.credentialRequestRef}>
+                            <div>
+                              <strong>
+                                {credentialRequestLabel(credentialRequest.requestType)} -{" "}
+                                {formatDisplay(credentialRequest.environment)}
+                              </strong>
+                              <p>{credentialRequest.plainLanguageSummary}</p>
+                              <span className="table-subtext">
+                                {credentialRequest.credentialRequestRef}
+                                {credentialRequest.configurationRef
+                                  ? ` - plan ${credentialRequest.configurationRef}`
+                                  : ""}
+                              </span>
+                            </div>
+                            <StatusBadge
+                              label={credentialRequest.readyForExecution ? "Ready for handoff" : "Blocked"}
+                              tone={credentialRequest.readyForExecution ? "success" : "warning"}
+                            />
+                            <span className="table-subtext">
+                              {credentialRequest.nextActions[0]?.nextStep || "Resolve blockers before handoff."}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="empty-panel">
+                        No credential request is approved for secure provider handoff yet.
+                      </div>
+                    )}
+                    <div className="integrations-footnote">
+                      <div>
+                        <strong>Provider/vault boundary</strong>
+                        <p>
+                          No secret is shown, no credential is created or downloaded, no vault entry is written, no
+                          provider is called, no webhook or message is dispatched, no auth changes, no campaign
+                          activation, no billing, and no money movement happens here.
+                        </p>
+                      </div>
+                      <StatusBadge label="Read-only readiness" tone="success" />
+                    </div>
+                  </div>
+                ) : null}
                 <div className="action-row integrations-handoff-row">
                   <Link className="button secondary" to={`${selectedCustomerPath}/people`}>
                     Open People & access

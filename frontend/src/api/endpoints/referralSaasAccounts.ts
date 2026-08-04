@@ -354,6 +354,89 @@ export type ReferralSaasIntegrationExecutionReadinessResponse = {
   no_billing_or_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasProviderVaultReadinessItem = {
+  credentialRequestRef: string;
+  capability: string;
+  requestType: string;
+  environment: string;
+  reviewStatus: string;
+  readinessStatus: string;
+  readyForExecution: boolean;
+  plainLanguageSummary: string;
+  blockers: ReferralSaasIntegrationExecutionBlocker[];
+  nextActions: ReferralSaasIntegrationExecutionAction[];
+  configurationRef?: string | null;
+  noSecretOrCredentialStorageConfirmed: boolean;
+  noCredentialCreationConfirmed: boolean;
+  noCredentialLifecycleExecutionConfirmed: boolean;
+  noCredentialRevealOrDownloadConfirmed: boolean;
+  noVaultWriteConfirmed: boolean;
+  noProviderCallConfirmed: boolean;
+  noWebhookDispatchConfirmed: boolean;
+  noInviteDeliveryConfirmed: boolean;
+  noMessageProviderDeliveryConfirmed: boolean;
+  noMembershipActivationConfirmed: boolean;
+  noSeatAssignmentConfirmed: boolean;
+  noAuthClaimChangeConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noGoLiveActionConfirmed: boolean;
+  noBillingOrMoneyMovementConfirmed: boolean;
+};
+
+export type ReferralSaasProviderVaultReadiness = {
+  readinessStatus: string;
+  plainLanguageSummary: string;
+  credentialRequests: ReferralSaasProviderVaultReadinessItem[];
+  blockers: ReferralSaasIntegrationExecutionBlocker[];
+  readyActions: ReferralSaasIntegrationExecutionAction[];
+  configurationRef?: string | null;
+  configurationStatus?: string | null;
+  guardrails: string[];
+  redactions: string[];
+  noSecretOrCredentialStorageConfirmed: boolean;
+  noCredentialCreationConfirmed: boolean;
+  noCredentialLifecycleExecutionConfirmed: boolean;
+  noCredentialRevealOrDownloadConfirmed: boolean;
+  noVaultWriteConfirmed: boolean;
+  noProviderCallConfirmed: boolean;
+  noWebhookDispatchConfirmed: boolean;
+  noInviteDeliveryConfirmed: boolean;
+  noMessageProviderDeliveryConfirmed: boolean;
+  noMembershipActivationConfirmed: boolean;
+  noSeatAssignmentConfirmed: boolean;
+  noAuthClaimChangeConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noGoLiveActionConfirmed: boolean;
+  noBillingOrMoneyMovementConfirmed: boolean;
+};
+
+export type ReferralSaasProviderVaultReadinessResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  providerVaultReadiness: ReferralSaasProviderVaultReadiness;
+  integrationConfiguration: ReferralSaasIntegrationConfiguration | null;
+  account_scope?: Record<string, unknown>;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  no_secret_or_credential_storage_confirmed: boolean;
+  no_credential_creation_confirmed: boolean;
+  no_credential_lifecycle_execution_confirmed: boolean;
+  no_credential_reveal_or_download_confirmed: boolean;
+  no_vault_write_confirmed: boolean;
+  no_provider_call_confirmed: boolean;
+  no_webhook_dispatch_confirmed: boolean;
+  no_invite_delivery_confirmed: boolean;
+  no_message_provider_delivery_confirmed: boolean;
+  no_membership_activation_confirmed: boolean;
+  no_seat_assignment_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_go_live_action_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasApiAccessVerificationPayload = {
   accountScope: {
     refType: "external_tenant_ref" | "organisation_ref";
@@ -2777,6 +2860,24 @@ export function getReferralSaasIntegrationExecutionReadiness({
 }: ReferralSaasIntegrationConfigurationReadRequest): Promise<ReferralSaasIntegrationExecutionReadinessResponse> {
   return apiRequest<ReferralSaasIntegrationExecutionReadinessResponse>(
     `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/integrations/execution-readiness`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+      },
+    },
+  );
+}
+
+export function getReferralSaasProviderVaultReadiness({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+}: ReferralSaasIntegrationConfigurationReadRequest): Promise<ReferralSaasProviderVaultReadinessResponse> {
+  return apiRequest<ReferralSaasProviderVaultReadinessResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/integrations/provider-vault/readiness`,
     {
       query: {
         ref_type: refType,
