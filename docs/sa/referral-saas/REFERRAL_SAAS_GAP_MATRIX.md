@@ -339,7 +339,7 @@ Referral SaaS wedge. Remaining gaps are now mapped to explicit tasks:
 | Repair/replay guardrails | TASK-336 to TASK-338 | TASK-336 contract, TASK-337 read-only support-case readiness API, and TASK-338 Support UI posture without unsafe mutation buttons are complete. Runtime repair/replay execution remains a future governed command track, not a launch UI gap. |
 | Progress/attribution mutation proof | TASK-339 to TASK-341 | TASK-339 contract, TASK-340 repeatable proof runner, and TASK-341 approved local execution evidence are complete. Remaining close-out is non-local staging/production-like proof repetition. |
 | Provider/vault execution readiness | TASK-342 to TASK-344 | TASK-342 provider/vault adapter contract, TASK-343 read-only readiness API, and TASK-344 selected-customer Integrations UI visibility are complete. Actual provider/vault mutation remains a later governed runtime track. |
-| Governed auth/login completion | TASK-345 to TASK-347 | TASK-345 contract is complete. Guarded API boundary and People and Access UI for login completion readiness/status/intent remain TASK-346 and TASK-347. |
+| Governed auth/login completion | TASK-345 to TASK-347 | TASK-345 contract and TASK-346 guarded API boundary are complete. People and Access UI wiring for login completion readiness/status/intent remains TASK-347. |
 | Non-local launch verification | TASK-348 plus TASK-027 | Staging/production-like read-only verification and approved smoke/proof evidence. |
 
 TASK-027 remains blocked by approved non-local credentials and access. It is a

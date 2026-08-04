@@ -23,6 +23,9 @@ MEMBERSHIP_ACTIVATION_EVENT: Final = (
 MEMBERSHIP_ACCESS_PROVISIONING_EVENT: Final = (
     "REFERRAL_SAAS_ACCESS_PROVISIONING_REQUEST"
 )
+MEMBERSHIP_LOGIN_COMPLETION_EVENT: Final = (
+    "REFERRAL_SAAS_LOGIN_COMPLETION_INTENT"
+)
 EVENT_RECORDED: Final = "RECORDED"
 EVENT_DUPLICATE: Final = "DUPLICATE"
 USER_ACTOR: Final = "USER"
@@ -40,6 +43,16 @@ ACCESS_PROVISIONING_ADMIN_ROLES: Final = frozenset({"ADMIN", "AMPLIFI_ADMIN"})
 ACCESS_PROVISIONING_SEAT_TYPES: Final = frozenset(
     {"ADMIN", "OPERATOR", "PARTNER", "PRODUCER", "DISTRIBUTOR", "CONSUMER", "SUPPORT"}
 )
+LOGIN_COMPLETION_ADMIN_ROLES: Final = frozenset({"ADMIN", "AMPLIFI_ADMIN"})
+LOGIN_COMPLETION_INTENTS: Final = frozenset(
+    {"PLATFORM_LOGIN_REQUIRED", "LOGIN_NOT_REQUIRED", "EXTERNAL_IDP_MANAGED"}
+)
+LOGIN_COMPLETION_PERMISSION_PROFILES: Final = {
+    "DISTRIBUTION_ADMIN": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+    "CAMPAIGN_MANAGER": "REFERRAL_SAAS_CAMPAIGN_MANAGER",
+    "SUPPORT": "REFERRAL_SAAS_SUPPORT",
+    "FINANCE_ADMIN": "REFERRAL_SAAS_ANALYST",
+}
 
 ROLE_FAMILIES: Final = frozenset(
     {
@@ -92,6 +105,32 @@ ACCESS_PROVISIONING_REDACTIONS: Final = INVITATION_REDACTIONS + (
     "seat_assignment_evidence_ref",
     "auth_provider_ref",
     "auth_claim_evidence_ref",
+    "provider_secret",
+    "raw_auth_claims",
+)
+
+LOGIN_COMPLETION_GUARDRAILS: Final = (
+    "ACTIVE_ACCOUNT_REQUIRED",
+    "ACTIVE_TENANT_LINK_REQUIRED",
+    "ACTIVE_EXTERNAL_REFERENCE_REQUIRED",
+    "ACTIVE_MEMBERSHIP_REQUIRED",
+    "GOVERNED_PERMISSION_PROFILE_REQUIRED",
+    "SEAT_REQUIRED_FOR_PLATFORM_LOGIN",
+    "AUTH_PROVIDER_EVIDENCE_REQUIRED",
+    "NO_RAW_CREDENTIAL_STORAGE",
+    "NO_TOKEN_EXPOSURE",
+    "NO_INVITE_DELIVERY",
+    "NO_AUTH_CLAIM_MUTATION",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_BILLING_OR_MONEY_MOVEMENT",
+    "NO_TENANT_CODE_EXPOSURE",
+)
+
+LOGIN_COMPLETION_REDACTIONS: Final = INVITATION_REDACTIONS + (
+    "identity_subject_ref",
+    "auth_provider_ref",
+    "seat_evidence_ref",
+    "provider_payload",
     "provider_secret",
     "raw_auth_claims",
 )
@@ -194,6 +233,34 @@ class AccessProvisioningSeatUnavailable(MembershipInvitationCommandError):
 
 class AccessProvisioningAuthProviderNotReady(MembershipInvitationCommandError):
     safe_code = "PROVISIONING_REJECTED_AUTH_PROVIDER_NOT_READY"
+
+
+class LoginCompletionAccountNotActive(MembershipInvitationCommandError):
+    safe_code = "LOGIN_COMPLETION_BLOCKED_ACCOUNT_NOT_ACTIVE"
+
+
+class LoginCompletionTenantLinkNotActive(MembershipInvitationCommandError):
+    safe_code = "LOGIN_COMPLETION_BLOCKED_TENANT_LINK_NOT_ACTIVE"
+
+
+class LoginCompletionExternalReferenceNotActive(MembershipInvitationCommandError):
+    safe_code = "LOGIN_COMPLETION_BLOCKED_EXTERNAL_REFERENCE_NOT_ACTIVE"
+
+
+class LoginCompletionMembershipNotActive(MembershipInvitationCommandError):
+    safe_code = "LOGIN_COMPLETION_BLOCKED_MEMBERSHIP_NOT_ACTIVE"
+
+
+class LoginCompletionSeatNotAssigned(MembershipInvitationCommandError):
+    safe_code = "LOGIN_COMPLETION_BLOCKED_SEAT_NOT_ASSIGNED"
+
+
+class LoginCompletionAuthProviderNotApproved(MembershipInvitationCommandError):
+    safe_code = "LOGIN_COMPLETION_BLOCKED_AUTH_PROVIDER_NOT_APPROVED"
+
+
+class LoginCompletionPermissionProfileMissing(MembershipInvitationCommandError):
+    safe_code = "LOGIN_COMPLETION_BLOCKED_PERMISSION_PROFILE_MISSING"
 
 
 @dataclass(frozen=True)
@@ -378,6 +445,103 @@ class AccessProvisioningRequestResult:
             "noInviteDeliveryConfirmed": True,
             "noAuthClaimChangeConfirmed": True,
             "noCredentialCreationConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveChangeConfirmed": True,
+            "noMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class LoginCompletionReadiness:
+    login_completion_status: str
+    account_id: str
+    membership_id: str
+    subject: str | None
+    display_name: str | None
+    role_family: str
+    permission_profile: str | None
+    membership_status: str
+    seat_assignment_status: str
+    identity_provider_status: str
+    auth_claim_status: str
+    blockers: tuple[str, ...]
+    next_actions: tuple[str, ...]
+    guardrails: tuple[str, ...] = LOGIN_COMPLETION_GUARDRAILS
+    redactions: tuple[str, ...] = LOGIN_COMPLETION_REDACTIONS
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "loginCompletionStatus": self.login_completion_status,
+            "accountRef": self.account_id,
+            "membershipRef": self.membership_id,
+            "person": {
+                "subject": self.subject,
+                "displayName": self.display_name,
+                "responsibilities": [self.role_family],
+            },
+            "seat": {
+                "seatAssignmentStatus": self.seat_assignment_status,
+            },
+            "identity": {
+                "identityProviderStatus": self.identity_provider_status,
+                "authClaimStatus": self.auth_claim_status,
+                "permissionProfile": self.permission_profile,
+            },
+            "blockers": list(self.blockers),
+            "nextActions": list(self.next_actions),
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noInviteDeliveryConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveChangeConfirmed": True,
+            "noMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class LoginCompletionIntentResult:
+    command_status: str
+    account_id: str
+    membership_id: str
+    role_family: str
+    permission_profile: str
+    intent: str
+    seat_assignment_status: str
+    identity_provider_status: str
+    auth_claim_status: str
+    login_next_action: str
+    idempotency_status: str
+    audit_event_id: str | None
+    guardrails: tuple[str, ...] = LOGIN_COMPLETION_GUARDRAILS
+    redactions: tuple[str, ...] = LOGIN_COMPLETION_REDACTIONS
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "loginCompletionStatus": self.command_status,
+            "membership": {
+                "membershipRef": self.membership_id,
+                "roleFamily": self.role_family,
+                "permissionProfile": self.permission_profile,
+            },
+            "loginCompletion": {
+                "intent": self.intent,
+                "seatAssignmentStatus": self.seat_assignment_status,
+                "identityProviderStatus": self.identity_provider_status,
+                "authClaimStatus": self.auth_claim_status,
+                "nextAction": self.login_next_action,
+            },
+            "idempotency": {
+                "status": self.idempotency_status,
+            },
+            "auditEventId": self.audit_event_id,
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noInviteDeliveryConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
             "noCampaignActivationConfirmed": True,
             "noGoLiveChangeConfirmed": True,
             "noMoneyMovementConfirmed": True,
@@ -2493,6 +2657,360 @@ async def request_referral_saas_access_provisioning(
     )
 
 
+async def get_referral_saas_login_completion_readiness(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_status: str,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+    membership_id: str,
+) -> LoginCompletionReadiness:
+    safe_account_id = _required_account_id(account_id)
+    safe_tenant_code = _required_text(tenant_code)
+    safe_membership_id = _required_text(membership_id)
+
+    async with db_connection() as conn:
+        membership = await conn.fetchrow(
+            """
+            SELECT
+                platform_memberships.membership_id,
+                platform_memberships.status,
+                platform_memberships.role_family,
+                platform_memberships.permission_set,
+                platform_memberships.seat_id,
+                platform_memberships.metadata,
+                actor_user.subject AS user_subject,
+                actor_user.display_name AS user_display_name
+            FROM platform_memberships
+            LEFT JOIN platform_users actor_user
+                ON actor_user.user_id = platform_memberships.user_id
+            WHERE platform_memberships.membership_id = $1
+              AND platform_memberships.account_id = $2
+              AND (platform_memberships.tenant_code = $3 OR platform_memberships.tenant_code IS NULL)
+              AND platform_memberships.status <> 'ARCHIVED'
+            LIMIT 1
+            """,
+            safe_membership_id,
+            safe_account_id,
+            safe_tenant_code,
+        )
+    if not membership:
+        raise MembershipInvitationUnsafeScope(
+            "Membership reference does not match the resolved account context."
+        )
+
+    return _build_login_completion_readiness(
+        account_id=safe_account_id,
+        membership=membership,
+        account_status=account_status,
+        tenant_link_status=tenant_link_status,
+        external_reference_status=external_reference_status,
+    )
+
+
+async def request_referral_saas_login_completion_intent(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    account_status: str,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+    membership_id: str,
+    intent: str,
+    identity_subject_ref: str | None,
+    auth_provider_ref: str | None,
+    seat_evidence_ref: str | None,
+    permission_profile: str | None,
+    operator_reason: str | None,
+    reason_code: str,
+    correlation_id: str,
+    idempotency_key_hash: str,
+    command_payload_hash: str,
+    command_payload: dict[str, Any] | None = None,
+    command_actor_ref: str | None = None,
+    command_actor_role: str | None = None,
+) -> LoginCompletionIntentResult:
+    safe_account_id = _required_account_id(account_id)
+    safe_tenant_code = _required_text(tenant_code)
+    safe_account_tenant_id = _optional_text(account_tenant_id) or None
+    safe_external_ref_id = _optional_text(external_ref_id) or None
+    safe_membership_id = _required_text(membership_id)
+    safe_intent = _required_choice(intent, LOGIN_COMPLETION_INTENTS)
+    safe_identity_subject_ref = _optional_text(identity_subject_ref)
+    safe_auth_provider_ref = _optional_text(auth_provider_ref)
+    safe_seat_evidence_ref = _optional_text(seat_evidence_ref)
+    safe_permission_profile = _optional_text(permission_profile)
+    safe_operator_reason = _optional_text(operator_reason)
+    safe_reason_code = _required_text(reason_code).upper()
+    safe_correlation_id = _required_text(correlation_id)
+    safe_idempotency_hash = _required_text(idempotency_key_hash)
+    safe_payload_hash = _required_text(command_payload_hash)
+    safe_command_payload = command_payload or {}
+    safe_command_actor_role = _optional_text(command_actor_role).upper()
+
+    _reject_unsafe_login_completion_payload(safe_command_payload)
+    if safe_command_actor_role not in LOGIN_COMPLETION_ADMIN_ROLES:
+        raise MembershipInvitationUnsafeScope(
+            "Login completion intent requires an Amplifi Admin actor."
+        )
+
+    async with db_connection() as conn:
+        existing_audit = await conn.fetchrow(
+            """
+            SELECT
+                account_audit_event_id,
+                membership_id,
+                next_status,
+                evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            MEMBERSHIP_LOGIN_COMPLETION_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_audit:
+            evidence = _as_mapping(existing_audit.get("evidence_summary"))
+            if _optional_text(evidence.get("command_payload_hash")) != safe_payload_hash:
+                raise MembershipInvitationIdempotencyConflict(
+                    "Idempotency key was reused with different login completion content."
+                )
+            replayed_status = (
+                _optional_text(evidence.get("login_completion_status"))
+                or _optional_text(existing_audit.get("next_status"))
+                or "LOGIN_COMPLETION_REPLAYED"
+            )
+            command_status = (
+                "LOGIN_COMPLETION_REPLAYED"
+                if replayed_status == "LOGIN_COMPLETION_RECORDED"
+                else replayed_status
+            )
+            return LoginCompletionIntentResult(
+                command_status=command_status,
+                account_id=safe_account_id,
+                membership_id=_optional_text(evidence.get("membership_id"))
+                or safe_membership_id,
+                role_family=_optional_text(evidence.get("role_family")) or "UNKNOWN",
+                permission_profile=_optional_text(evidence.get("permission_profile"))
+                or "UNKNOWN",
+                intent=_optional_text(evidence.get("intent")) or safe_intent,
+                seat_assignment_status=_optional_text(
+                    evidence.get("seat_assignment_status")
+                )
+                or "SEAT_NOT_ASSIGNED",
+                identity_provider_status=_optional_text(
+                    evidence.get("identity_provider_status")
+                )
+                or "NOT_RECORDED",
+                auth_claim_status=_optional_text(evidence.get("auth_claim_status"))
+                or "AUTH_CLAIMS_NOT_PROPAGATED",
+                login_next_action=(
+                    _optional_text(evidence.get("login_next_action"))
+                    or _login_completion_next_action(command_status)
+                ),
+                idempotency_status="REPLAYED",
+                audit_event_id=_optional_text(
+                    existing_audit.get("account_audit_event_id")
+                )
+                or None,
+            )
+
+        membership = await conn.fetchrow(
+            """
+            SELECT
+                membership_id,
+                status,
+                role_family,
+                permission_set,
+                seat_id,
+                metadata
+            FROM platform_memberships
+            WHERE membership_id = $1
+              AND account_id = $2
+              AND (tenant_code = $3 OR tenant_code IS NULL)
+              AND status <> 'ARCHIVED'
+            LIMIT 1
+            """,
+            safe_membership_id,
+            safe_account_id,
+            safe_tenant_code,
+        )
+        if not membership:
+            raise MembershipInvitationUnsafeScope(
+                "Membership reference does not match the resolved account context."
+            )
+
+        membership_status = _normalise_status(membership.get("status"))
+        role_family = _optional_text(membership.get("role_family")) or "UNKNOWN"
+        derived_permission_profile = LOGIN_COMPLETION_PERMISSION_PROFILES.get(
+            role_family
+        )
+        requested_permission_profile = (
+            safe_permission_profile or derived_permission_profile or ""
+        )
+        if (
+            derived_permission_profile
+            and requested_permission_profile != derived_permission_profile
+        ):
+            raise LoginCompletionPermissionProfileMissing(
+                "Login permission profile does not match the governed responsibility mapping."
+            )
+
+        seat_assignment_status = (
+            "SEAT_ASSIGNED"
+            if _optional_text(membership.get("seat_id"))
+            else "SEAT_NOT_ASSIGNED"
+        )
+        auth_claim_status = "AUTH_CLAIMS_NOT_PROPAGATED"
+        identity_provider_status = (
+            "APPROVED_EVIDENCE_RECORDED"
+            if safe_auth_provider_ref
+            else "NOT_RECORDED"
+        )
+        command_status = "LOGIN_COMPLETION_RECORDED"
+
+        if _optional_text(account_status).upper() != "ACTIVE":
+            command_status = "LOGIN_COMPLETION_BLOCKED_ACCOUNT_NOT_ACTIVE"
+        elif _optional_text(tenant_link_status).upper() != "ACTIVE":
+            command_status = "LOGIN_COMPLETION_BLOCKED_TENANT_LINK_NOT_ACTIVE"
+        elif _optional_text(external_reference_status).upper() != "ACTIVE":
+            command_status = "LOGIN_COMPLETION_BLOCKED_EXTERNAL_REFERENCE_NOT_ACTIVE"
+        elif membership_status != "ACTIVE":
+            command_status = "LOGIN_COMPLETION_BLOCKED_MEMBERSHIP_NOT_ACTIVE"
+        elif not derived_permission_profile:
+            command_status = "LOGIN_COMPLETION_BLOCKED_PERMISSION_PROFILE_MISSING"
+        elif safe_intent == "PLATFORM_LOGIN_REQUIRED" and not _optional_text(
+            membership.get("seat_id")
+        ):
+            command_status = "LOGIN_COMPLETION_BLOCKED_SEAT_NOT_ASSIGNED"
+        elif safe_intent in {"PLATFORM_LOGIN_REQUIRED", "EXTERNAL_IDP_MANAGED"} and not safe_auth_provider_ref:
+            command_status = "LOGIN_COMPLETION_BLOCKED_AUTH_PROVIDER_NOT_APPROVED"
+        elif safe_intent == "LOGIN_NOT_REQUIRED":
+            command_status = "LOGIN_COMPLETION_NOT_REQUIRED"
+
+        login_next_action = _login_completion_next_action(command_status)
+        audit_evidence = {
+            "membership_id": safe_membership_id,
+            "membership_status": membership_status,
+            "role_family": role_family,
+            "permission_profile": requested_permission_profile
+            or derived_permission_profile
+            or "UNKNOWN",
+            "intent": safe_intent,
+            "seat_assignment_status": seat_assignment_status,
+            "identity_provider_status": identity_provider_status,
+            "auth_claim_status": auth_claim_status,
+            "identity_subject_ref_present": bool(safe_identity_subject_ref),
+            "auth_provider_ref_present": bool(safe_auth_provider_ref),
+            "seat_evidence_ref_present": bool(safe_seat_evidence_ref),
+            "operator_reason_present": bool(safe_operator_reason),
+            "login_completion_status": command_status,
+            "login_next_action": login_next_action,
+            "command_payload_hash": safe_payload_hash,
+            "account_status_at_login_completion": _optional_text(
+                account_status
+            ).upper(),
+            "tenant_link_status_at_login_completion": _optional_text(
+                tenant_link_status
+            ).upper(),
+            "external_reference_status_at_login_completion": _optional_text(
+                external_reference_status
+            ).upper(),
+            "no_invite_delivery_confirmed": True,
+            "no_credential_creation_confirmed": True,
+            "no_auth_claim_change_confirmed": True,
+            "no_campaign_activation_confirmed": True,
+            "no_go_live_change_confirmed": True,
+            "no_money_movement_confirmed": True,
+        }
+
+        async with conn.transaction():
+            if command_status in {
+                "LOGIN_COMPLETION_RECORDED",
+                "LOGIN_COMPLETION_NOT_REQUIRED",
+            }:
+                await conn.execute(
+                    """
+                    UPDATE platform_memberships
+                    SET
+                        updated_at = NOW(),
+                        metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
+                            'login_completion_status', $3::text,
+                            'login_completion_intent', $4::text,
+                            'permission_profile', $5::text,
+                            'identity_provider_status', $6::text,
+                            'auth_claim_status', 'AUTH_CLAIMS_NOT_PROPAGATED',
+                            'no_invite_delivery_confirmed', true,
+                            'no_credential_creation_confirmed', true,
+                            'no_auth_claim_change_confirmed', true,
+                            'no_campaign_activation_confirmed', true,
+                            'no_go_live_change_confirmed', true,
+                            'no_money_movement_confirmed', true
+                        )
+                    WHERE membership_id = $1
+                      AND account_id = $2
+                    """,
+                    safe_membership_id,
+                    safe_account_id,
+                    command_status,
+                    safe_intent,
+                    requested_permission_profile
+                    or derived_permission_profile
+                    or "UNKNOWN",
+                    identity_provider_status,
+                )
+            audit_event = await _insert_login_completion_audit_event(
+                conn,
+                account_id=safe_account_id,
+                account_tenant_id=safe_account_tenant_id,
+                external_ref_id=safe_external_ref_id,
+                membership_id=safe_membership_id,
+                tenant_code=safe_tenant_code,
+                event_status=(
+                    EVENT_RECORDED
+                    if command_status
+                    in {"LOGIN_COMPLETION_RECORDED", "LOGIN_COMPLETION_NOT_REQUIRED"}
+                    else "BLOCKED"
+                ),
+                actor_ref=_optional_text(command_actor_ref)
+                or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                actor_role=safe_command_actor_role or "UNKNOWN",
+                previous_status=membership_status,
+                next_status=command_status,
+                reason_code=safe_reason_code,
+                correlation_id=safe_correlation_id,
+                idempotency_key_hash=safe_idempotency_hash,
+                audit_evidence=audit_evidence,
+                redactions=list(LOGIN_COMPLETION_REDACTIONS),
+            )
+
+    return LoginCompletionIntentResult(
+        command_status=command_status,
+        account_id=safe_account_id,
+        membership_id=safe_membership_id,
+        role_family=role_family,
+        permission_profile=requested_permission_profile
+        or derived_permission_profile
+        or "UNKNOWN",
+        intent=safe_intent,
+        seat_assignment_status=seat_assignment_status,
+        identity_provider_status=identity_provider_status,
+        auth_claim_status=auth_claim_status,
+        login_next_action=login_next_action,
+        idempotency_status=EVENT_RECORDED,
+        audit_event_id=(
+            str(audit_event["account_audit_event_id"]) if audit_event else None
+        ),
+    )
+
+
 def _current_actor_posture(rows: list[dict[str, Any]]) -> MembershipActorPosture:
     actor_rows = [row for row in rows if bool(row.get("is_current_actor"))]
     active = _first_with_status(actor_rows, "ACTIVE")
@@ -2794,6 +3312,105 @@ def _access_provisioning_next_action(provisioning_status: str) -> str:
     return "Resolve the provisioning blockers before continuing."
 
 
+def _build_login_completion_readiness(
+    *,
+    account_id: str,
+    membership: Any,
+    account_status: str,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+) -> LoginCompletionReadiness:
+    metadata = _as_mapping(membership.get("metadata"))
+    membership_status = _normalise_status(membership.get("status"))
+    role_family = _optional_text(membership.get("role_family")) or "UNKNOWN"
+    permission_profile = LOGIN_COMPLETION_PERMISSION_PROFILES.get(role_family)
+    seat_assignment_status = (
+        "SEAT_ASSIGNED"
+        if _optional_text(membership.get("seat_id"))
+        else "SEAT_NOT_ASSIGNED"
+    )
+    identity_provider_status = (
+        _optional_text(metadata.get("identity_provider_status")) or "NOT_RECORDED"
+    )
+    auth_claim_status = (
+        _optional_text(metadata.get("auth_claim_status"))
+        or "AUTH_CLAIMS_NOT_PROPAGATED"
+    )
+    recorded_status = _optional_text(metadata.get("login_completion_status"))
+
+    blockers: list[str] = []
+    if _optional_text(account_status).upper() != "ACTIVE":
+        blockers.append("LOGIN_COMPLETION_BLOCKED_ACCOUNT_NOT_ACTIVE")
+    if _optional_text(tenant_link_status).upper() != "ACTIVE":
+        blockers.append("LOGIN_COMPLETION_BLOCKED_TENANT_LINK_NOT_ACTIVE")
+    if _optional_text(external_reference_status).upper() != "ACTIVE":
+        blockers.append("LOGIN_COMPLETION_BLOCKED_EXTERNAL_REFERENCE_NOT_ACTIVE")
+    if membership_status != "ACTIVE":
+        blockers.append("LOGIN_COMPLETION_BLOCKED_MEMBERSHIP_NOT_ACTIVE")
+    if not permission_profile:
+        blockers.append("LOGIN_COMPLETION_BLOCKED_PERMISSION_PROFILE_MISSING")
+    if seat_assignment_status != "SEAT_ASSIGNED":
+        blockers.append("LOGIN_COMPLETION_BLOCKED_SEAT_NOT_ASSIGNED")
+
+    if recorded_status in {"LOGIN_COMPLETION_RECORDED", "LOGIN_COMPLETION_NOT_REQUIRED"}:
+        login_status = recorded_status
+    elif blockers:
+        login_status = blockers[0]
+    else:
+        login_status = "LOGIN_COMPLETION_READY"
+
+    next_actions = tuple(
+        _login_completion_next_action(blocker) for blocker in blockers[:2]
+    )
+    if not next_actions:
+        next_actions = (_login_completion_next_action(login_status),)
+
+    return LoginCompletionReadiness(
+        login_completion_status=login_status,
+        account_id=account_id,
+        membership_id=_optional_text(membership.get("membership_id")) or "",
+        subject=_optional_text(membership.get("user_subject")) or None,
+        display_name=_optional_text(membership.get("user_display_name")) or None,
+        role_family=role_family,
+        permission_profile=permission_profile,
+        membership_status=membership_status,
+        seat_assignment_status=seat_assignment_status,
+        identity_provider_status=identity_provider_status,
+        auth_claim_status=auth_claim_status,
+        blockers=tuple(blockers),
+        next_actions=next_actions,
+    )
+
+
+def _login_completion_next_action(login_status: str) -> str:
+    if login_status == "LOGIN_COMPLETION_RECORDED":
+        return (
+            "Login completion evidence is recorded. Real credentials and auth "
+            "claims remain in the governed identity-provider workflow."
+        )
+    if login_status == "LOGIN_COMPLETION_NOT_REQUIRED":
+        return "No platform login is required for this person right now."
+    if login_status == "LOGIN_COMPLETION_READY":
+        return "Record login completion intent or mark platform login as not required."
+    if login_status == "LOGIN_COMPLETION_BLOCKED_ACCOUNT_NOT_ACTIVE":
+        return "Activate the customer account foundation before login setup."
+    if login_status == "LOGIN_COMPLETION_BLOCKED_TENANT_LINK_NOT_ACTIVE":
+        return "Activate the customer workspace link before login setup."
+    if login_status == "LOGIN_COMPLETION_BLOCKED_EXTERNAL_REFERENCE_NOT_ACTIVE":
+        return "Activate the customer external reference before login setup."
+    if login_status == "LOGIN_COMPLETION_BLOCKED_MEMBERSHIP_NOT_ACTIVE":
+        return "Confirm customer access before login setup."
+    if login_status == "LOGIN_COMPLETION_BLOCKED_SEAT_NOT_ASSIGNED":
+        return "Assign a platform seat before recording platform login completion."
+    if login_status == "LOGIN_COMPLETION_BLOCKED_AUTH_PROVIDER_NOT_APPROVED":
+        return "Record approved identity-provider evidence before login completion."
+    if login_status == "LOGIN_COMPLETION_BLOCKED_PERMISSION_PROFILE_MISSING":
+        return "Map this responsibility to a governed login permission profile."
+    if login_status == "LOGIN_COMPLETION_REPLAYED":
+        return "The same login completion request was replayed safely."
+    return "Resolve login completion blockers before continuing."
+
+
 async def _insert_activation_audit_event(
     conn: Any,
     *,
@@ -2911,6 +3528,71 @@ async def _insert_access_provisioning_audit_event(
         membership_id,
         tenant_code,
         MEMBERSHIP_ACCESS_PROVISIONING_EVENT,
+        event_status,
+        actor_ref,
+        actor_role,
+        previous_status,
+        next_status,
+        reason_code,
+        correlation_id,
+        idempotency_key_hash,
+        _jsonb(audit_evidence),
+        _jsonb(redactions),
+    )
+
+
+async def _insert_login_completion_audit_event(
+    conn: Any,
+    *,
+    account_id: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    membership_id: str,
+    tenant_code: str,
+    event_status: str,
+    actor_ref: str,
+    actor_role: str,
+    previous_status: str,
+    next_status: str,
+    reason_code: str,
+    correlation_id: str,
+    idempotency_key_hash: str,
+    audit_evidence: dict[str, Any],
+    redactions: list[str],
+) -> Any:
+    return await conn.fetchrow(
+        """
+        INSERT INTO platform_account_audit_events (
+            account_id,
+            account_tenant_id,
+            external_ref_id,
+            membership_id,
+            tenant_code,
+            event_type,
+            event_status,
+            actor_ref,
+            actor_role,
+            previous_status,
+            next_status,
+            reason_code,
+            correlation_id,
+            idempotency_key_hash,
+            evidence_summary,
+            redactions
+        )
+        VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9,
+            $10, $11, $12, $13, $14,
+            $15::jsonb, $16::jsonb
+        )
+        RETURNING account_audit_event_id
+        """,
+        account_id,
+        account_tenant_id,
+        external_ref_id,
+        membership_id,
+        tenant_code,
+        MEMBERSHIP_LOGIN_COMPLETION_EVENT,
         event_status,
         actor_ref,
         actor_role,
@@ -3182,3 +3864,61 @@ def _reject_unsafe_access_provisioning_payload(value: Any) -> None:
     elif isinstance(value, list):
         for item in value:
             _reject_unsafe_access_provisioning_payload(item)
+
+
+UNSAFE_LOGIN_COMPLETION_PAYLOAD_KEYS: Final = frozenset(
+    {
+        "tenant_code",
+        "tenantCode",
+        "internal_tenant_code",
+        "internalTenantCode",
+        "email",
+        "raw_email",
+        "rawEmail",
+        "password",
+        "secret",
+        "token",
+        "credential",
+        "credentials",
+        "auth_claim",
+        "authClaims",
+        "claimMap",
+        "raw_claims",
+        "rawClaims",
+        "provider_payload",
+        "providerPayload",
+        "provider_secret",
+        "providerSecret",
+        "send_invite",
+        "sendInvite",
+        "delivery",
+        "go_live",
+        "goLive",
+        "campaign_activation",
+        "campaignActivation",
+        "webhook",
+        "reward",
+        "funding",
+        "fulfilment",
+        "settlement",
+        "commission",
+        "wallet",
+        "invoice",
+        "payout",
+        "sponsor_billing",
+        "sponsorBilling",
+    }
+)
+
+
+def _reject_unsafe_login_completion_payload(value: Any) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if str(key) in UNSAFE_LOGIN_COMPLETION_PAYLOAD_KEYS:
+                raise MembershipInvitationUnsafePayload(
+                    "Login completion payload includes unsafe live-action fields."
+                )
+            _reject_unsafe_login_completion_payload(child)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_unsafe_login_completion_payload(item)
