@@ -2084,6 +2084,24 @@ greenfield referral construction.
   9.9996/10 for Campaign Attribution because the visible provider/vault
   readiness gap is closed while governed provider/vault runtime execution,
   governed auth/login completion, and non-local proof repetition remain open.
+- TASK-345:
+  `docs/sa/referral-saas/REFERRAL_SAAS_AUTH_LOGIN_COMPLETION_CONTRACT.md`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the
+  governed auth/login completion boundary after named people, accepted customer
+  access, and optional seat assignment. The contract separates confirmed
+  customer work from actual platform sign-in readiness, defines candidate
+  readiness/intent routes, allowed payloads, permission-profile mapping,
+  account/membership/seat/provider gates, audit/idempotency, redactions, safe
+  UI language, and explicit no credential, invite, auth-claim, campaign,
+  billing, money, DLaaS, or source-fork side effects. Scores remain 9.99/10 for
+  Referral Management and 9.9996/10 for Campaign Attribution because the
+  contract gap is closed while the runtime API, UI wiring, governed
+  provider/vault runtime execution, and non-local proof repetition remain open.
 
 ## Explicit Deferrals
 

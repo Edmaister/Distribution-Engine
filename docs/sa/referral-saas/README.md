@@ -58,6 +58,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
 - `REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_ADAPTER_CONTRACT.md` - TASK-342
   shared provider/vault runtime adapter contract consumed first by Referral
   SaaS Integrations.
+- `REFERRAL_SAAS_AUTH_LOGIN_COMPLETION_CONTRACT.md` - TASK-345 governed
+  auth/login completion contract for the controlled path from confirmed
+  customer access and optional seat assignment to actual sign-in readiness.
 - `REFERRAL_SAAS_FRONTEND_IA_WORKFLOW_CONTRACT.md` - TASK-144 frontend IA and
   workflow contract.
 - `REFERRAL_SAAS_OPERATOR_SUPPORT_WORKFLOW.md` - TASK-145 operator support

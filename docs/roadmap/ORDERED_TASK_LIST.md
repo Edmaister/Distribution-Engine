@@ -7797,7 +7797,7 @@ Definition of done: The selected-customer Integrations UI exposes provider/vault
 
 ## TASK-345: Define governed auth/login completion contract
 
-Status: Planned.
+Status: Completed.
 Product boundary: Shared Platform with Referral SaaS impact.
 Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Reuses People and Access membership lifecycle, account-foundation activation, seat provisioning, auth/claim boundaries, audit, idempotency, and redactions. Source duplication: No.
@@ -7818,7 +7818,8 @@ Blocked by: Runtime auth/login API boundary and UI wiring.
 Risk level: Low.
 Rollback notes: Revert auth/login contract and roadmap/gap/task docs.
 Explicit non-goals: No identity-provider integration, no credential creation, no auth/session claim changes, no email invites, no provider calls, no campaign activation, no billing, no money, no DLaaS implementation.
-Definition of done: Referral SaaS has a reviewed governed auth/login completion contract that explains how People and Access moves from accepted/provisioned to actual sign-in readiness. Priority: P0.
+Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_AUTH_LOGIN_COMPLETION_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the governed auth/login completion boundary after named people, accepted customer access, and optional seat assignment. The contract separates confirmed customer work from actual sign-in readiness, defines candidate readiness/intent routes, allowed payloads, responsibility-to-permission profile mapping, account/membership/seat/provider gates, audit/idempotency, redactions, UI copy, and explicit no credential, invite, auth-claim, campaign, billing, money, DLaaS, or source-fork side effects.
+Definition of done: Referral SaaS has a reviewed governed auth/login completion contract that explains how People and Access moves from accepted/provisioned to actual sign-in readiness. Current rating remains 9.99/10 for Referral Management and 9.9996/10 for Campaign Attribution because the contract gap is closed while runtime API, UI wiring, governed provider/vault runtime execution, and non-local proof repetition remain separate gaps. Priority: P0.
 
 ## TASK-346: Add governed auth/login completion API boundary
 
