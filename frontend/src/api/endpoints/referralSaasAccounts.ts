@@ -169,6 +169,56 @@ export type ReferralSaasMembershipActivationReadinessResponse = {
   no_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasLoginCompletionReadiness = {
+  loginCompletionStatus: string;
+  accountRef: string;
+  membershipRef: string;
+  person: {
+    subject?: string | null;
+    displayName?: string | null;
+    responsibilities: string[];
+  };
+  seat: {
+    seatAssignmentStatus: string;
+  };
+  identity: {
+    identityProviderStatus: string;
+    authClaimStatus: string;
+    permissionProfile?: string | null;
+  };
+  blockers: string[];
+  nextActions: string[];
+  guardrails: string[];
+  redactions: string[];
+  noInviteDeliveryConfirmed: boolean;
+  noCredentialCreationConfirmed: boolean;
+  noAuthClaimChangeConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noGoLiveChangeConfirmed: boolean;
+  noMoneyMovementConfirmed: boolean;
+};
+
+export type ReferralSaasLoginCompletionReadinessRequest = ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+  membershipRef: string;
+};
+
+export type ReferralSaasLoginCompletionReadinessResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  loginCompletionReadiness: ReferralSaasLoginCompletionReadiness;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  no_invite_delivery_confirmed: boolean;
+  no_credential_creation_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_go_live_change_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasTechnicalSetupCapability = {
   code: string;
   label: string;
@@ -1730,6 +1780,27 @@ export type ReferralSaasAccessProvisioningRequest = {
   idempotencyKey: string;
 };
 
+export type ReferralSaasLoginCompletionIntentRequest = {
+  accountRef: string;
+  membershipRef: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  loginCompletion: {
+    intent: "PLATFORM_LOGIN_REQUIRED" | "LOGIN_NOT_REQUIRED";
+    identitySubjectRef?: string;
+    authProviderRef?: string;
+    seatEvidenceRef?: string;
+    permissionProfile?: string;
+    operatorReason?: string;
+  };
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
 export type ReferralSaasAccountFoundationActivationRequest = {
   accountRef: string;
   accountScope: {
@@ -1984,6 +2055,48 @@ export type ReferralSaasAccessProvisioningResponse = {
   no_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasLoginCompletionIntentResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  loginCompletionIntent: {
+    commandStatus: string;
+    loginCompletionStatus: string;
+    membership: {
+      membershipRef: string;
+      roleFamily: string;
+      permissionProfile?: string | null;
+    };
+    loginCompletion: {
+      intent: string;
+      seatAssignmentStatus: string;
+      identityProviderStatus: string;
+      authClaimStatus: string;
+      nextAction: string;
+    };
+    idempotency: {
+      status: string;
+    };
+    auditEventId?: string | null;
+    guardrails: string[];
+    redactions: string[];
+    noInviteDeliveryConfirmed: boolean;
+    noCredentialCreationConfirmed: boolean;
+    noAuthClaimChangeConfirmed: boolean;
+    noCampaignActivationConfirmed: boolean;
+    noGoLiveChangeConfirmed: boolean;
+    noMoneyMovementConfirmed: boolean;
+  };
+  guardrails: string[];
+  redactions: string[];
+  no_invite_delivery_confirmed: boolean;
+  no_credential_creation_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_go_live_change_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasAccountFoundationActivationResponse = {
   status: string;
   context: ReferralSaasAccountResolutionContext;
@@ -2106,6 +2219,27 @@ export function getReferralSaasMembershipActivationReadiness({
 }: ReferralSaasMembershipActivationReadinessRequest): Promise<ReferralSaasMembershipActivationReadinessResponse> {
   return apiRequest<ReferralSaasMembershipActivationReadinessResponse>(
     `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/membership-activation-readiness`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+      },
+    },
+  );
+}
+
+export function getReferralSaasLoginCompletionReadiness({
+  accountRef,
+  membershipRef,
+  refType,
+  externalRef,
+  context = "setup",
+}: ReferralSaasLoginCompletionReadinessRequest): Promise<ReferralSaasLoginCompletionReadinessResponse> {
+  return apiRequest<ReferralSaasLoginCompletionReadinessResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/memberships/${encodeURIComponent(
+      membershipRef.trim(),
+    )}/login-completion-readiness`,
     {
       query: {
         ref_type: refType,
@@ -2800,6 +2934,43 @@ export function requestReferralSaasAccessProvisioning({
           authProviderRef: provisioning.authProviderRef?.trim() || undefined,
           authClaimEvidenceRef: provisioning.authClaimEvidenceRef?.trim() || undefined,
           operatorNotes: provisioning.operatorNotes?.trim() || undefined,
+        },
+        reasonCode,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function requestReferralSaasLoginCompletionIntent({
+  accountRef,
+  membershipRef,
+  accountScope,
+  loginCompletion,
+  reasonCode = "CUSTOMER_PROFILE_LOGIN_COMPLETION_INTENT",
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasLoginCompletionIntentRequest): Promise<ReferralSaasLoginCompletionIntentResponse> {
+  return apiRequest<ReferralSaasLoginCompletionIntentResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/memberships/${encodeURIComponent(
+      membershipRef.trim(),
+    )}/login-completion-intents`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        loginCompletion: {
+          intent: loginCompletion.intent,
+          identitySubjectRef: loginCompletion.identitySubjectRef?.trim() || undefined,
+          authProviderRef: loginCompletion.authProviderRef?.trim() || undefined,
+          seatEvidenceRef: loginCompletion.seatEvidenceRef?.trim() || undefined,
+          permissionProfile: loginCompletion.permissionProfile?.trim() || undefined,
+          operatorReason: loginCompletion.operatorReason?.trim() || undefined,
         },
         reasonCode,
         correlationId,

@@ -12,6 +12,7 @@ import {
   getReferralSaasAccountMembershipPosture,
   getReferralSaasIntegrationExecutionReadiness,
   getReferralSaasProviderVaultReadiness,
+  getReferralSaasLoginCompletionReadiness,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccountSupportCases,
@@ -30,6 +31,7 @@ import {
   requestReferralSaasAccountFoundationActivation,
   requestReferralSaasAccountCampaignActivation,
   requestReferralSaasAccessProvisioning,
+  requestReferralSaasLoginCompletionIntent,
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
@@ -391,6 +393,84 @@ describe("referralSaasAccounts endpoint client", () => {
     );
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|wallet|settlement|money_movement/,
+    );
+  });
+
+  it("reads Referral SaaS login completion readiness for one membership", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+        accountName: "FNB Referral SaaS",
+      },
+      loginCompletionReadiness: {
+        loginCompletionStatus: "LOGIN_COMPLETION_READY",
+        accountRef: "acct-1",
+        membershipRef: "mbr-1",
+        person: {
+          subject: "owner@fnb.example",
+          displayName: "FNB Owner",
+          responsibilities: ["DISTRIBUTION_ADMIN"],
+        },
+        seat: {
+          seatAssignmentStatus: "SEAT_ASSIGNED",
+        },
+        identity: {
+          identityProviderStatus: "AUTH_PROVIDER_READY",
+          authClaimStatus: "AUTH_CLAIMS_NOT_PROPAGATED",
+          permissionProfile: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        },
+        blockers: [],
+        nextActions: ["Record governed login completion evidence if this person must sign in."],
+        guardrails: ["NO_CREDENTIAL_CREATION", "NO_AUTH_CLAIM_CHANGE"],
+        redactions: ["internal_tenant_identifier"],
+        noInviteDeliveryConfirmed: true,
+        noCredentialCreationConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noCampaignActivationConfirmed: true,
+        noGoLiveChangeConfirmed: true,
+        noMoneyMovementConfirmed: true,
+      },
+      guardrail: "Read-only Referral SaaS login completion readiness.",
+      guardrails: ["NO_CREDENTIAL_CREATION", "NO_AUTH_CLAIM_CHANGE"],
+      redactions: ["internal_tenant_identifier"],
+      no_invite_delivery_confirmed: true,
+      no_credential_creation_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_go_live_change_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      getReferralSaasLoginCompletionReadiness({
+        accountRef: " acct-1 ",
+        membershipRef: " mbr-1 ",
+        refType: "external_tenant_ref",
+        externalRef: " fnb-referrals ",
+        context: "setup",
+      }),
+    ).resolves.toMatchObject({
+      loginCompletionReadiness: {
+        loginCompletionStatus: "LOGIN_COMPLETION_READY",
+        noCredentialCreationConfirmed: true,
+      },
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acct-1/memberships/mbr-1/login-completion-readiness",
+      {
+        query: {
+          ref_type: "external_tenant_ref",
+          external_ref: "fnb-referrals",
+          context: "setup",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|password|raw_auth|sendinvite|campaignactivation|golive|wallet|settlement|money/,
     );
   });
 
@@ -2441,6 +2521,112 @@ describe("referralSaasAccounts endpoint client", () => {
           reasonCode: "CUSTOMER_PROFILE_ACCESS_PROVISIONING_REQUEST",
           correlationId: "customer-profile-access-provisioning-acc_fnb",
           idempotencyKey: "customer-profile-access-provisioning-acc_fnb-mbr_1-distribution_admin-admin",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|password|raw_auth|authclaims|sendinvite|campaignactivation|golive|wallet|settlement|money/,
+    );
+  });
+
+  it("records Referral SaaS login completion intent without credentials or auth claim mutation", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acc_fnb",
+        accountCode: "FNB_REFERRAL_SAAS",
+        accountStatus: "ACTIVE",
+      },
+      loginCompletionIntent: {
+        commandStatus: "LOGIN_COMPLETION_RECORDED",
+        loginCompletionStatus: "LOGIN_COMPLETION_RECORDED",
+        membership: {
+          membershipRef: "mbr_1",
+          roleFamily: "DISTRIBUTION_ADMIN",
+          permissionProfile: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        },
+        loginCompletion: {
+          intent: "PLATFORM_LOGIN_REQUIRED",
+          seatAssignmentStatus: "SEAT_ASSIGNED",
+          identityProviderStatus: "AUTH_PROVIDER_READY",
+          authClaimStatus: "AUTH_CLAIMS_NOT_PROPAGATED",
+          nextAction: "Login completion evidence is recorded; auth claims remain separately governed.",
+        },
+        idempotency: {
+          status: "NEW_REQUEST",
+        },
+        auditEventId: "audit-login-1",
+        guardrails: ["NO_CREDENTIAL_CREATION", "NO_AUTH_CLAIM_CHANGE"],
+        redactions: ["internal_tenant_identifier"],
+        noInviteDeliveryConfirmed: true,
+        noCredentialCreationConfirmed: true,
+        noAuthClaimChangeConfirmed: true,
+        noCampaignActivationConfirmed: true,
+        noGoLiveChangeConfirmed: true,
+        noMoneyMovementConfirmed: true,
+      },
+      guardrails: ["NO_CREDENTIAL_CREATION", "NO_AUTH_CLAIM_CHANGE"],
+      redactions: ["internal_tenant_identifier"],
+      no_invite_delivery_confirmed: true,
+      no_credential_creation_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_go_live_change_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    await expect(
+      requestReferralSaasLoginCompletionIntent({
+        accountRef: " acc_fnb ",
+        membershipRef: " mbr_1 ",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: " fnb-referrals ",
+          context: "setup",
+        },
+        loginCompletion: {
+          intent: "PLATFORM_LOGIN_REQUIRED",
+          identitySubjectRef: " identity-1 ",
+          authProviderRef: " auth-provider-1 ",
+          seatEvidenceRef: " seat-evidence-1 ",
+          permissionProfile: " REFERRAL_SAAS_ACCOUNT_ADMIN ",
+          operatorReason: " Login completion reviewed by Amplifi Admin. ",
+        },
+        correlationId: "customer-profile-login-completion-acc_fnb",
+        idempotencyKey: "customer-profile-login-completion-acc_fnb-mbr_1-distribution-admin-platform-login-required",
+      }),
+    ).resolves.toMatchObject({
+      loginCompletionIntent: {
+        commandStatus: "LOGIN_COMPLETION_RECORDED",
+        loginCompletionStatus: "LOGIN_COMPLETION_RECORDED",
+      },
+      no_credential_creation_confirmed: true,
+      no_auth_claim_change_confirmed: true,
+      no_money_movement_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acc_fnb/memberships/mbr_1/login-completion-intents",
+      {
+        method: "POST",
+        body: {
+          accountScope: {
+            refType: "external_tenant_ref",
+            externalRef: "fnb-referrals",
+            context: "setup",
+          },
+          loginCompletion: {
+            intent: "PLATFORM_LOGIN_REQUIRED",
+            identitySubjectRef: "identity-1",
+            authProviderRef: "auth-provider-1",
+            seatEvidenceRef: "seat-evidence-1",
+            permissionProfile: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+            operatorReason: "Login completion reviewed by Amplifi Admin.",
+          },
+          reasonCode: "CUSTOMER_PROFILE_LOGIN_COMPLETION_INTENT",
+          correlationId: "customer-profile-login-completion-acc_fnb",
+          idempotencyKey: "customer-profile-login-completion-acc_fnb-mbr_1-distribution-admin-platform-login-required",
         },
       },
     );

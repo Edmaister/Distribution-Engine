@@ -24,6 +24,7 @@ import {
   useReferralSaasAccountDraftSelector,
   useReferralSaasAccountMaintenanceState,
   useReferralSaasAccountMembershipPosture,
+  useReferralSaasLoginCompletionReadiness,
   useReferralSaasMembershipActivationReadiness,
   useReferralSaasAccountRegistry,
   useReferralSaasTechnicalSetupReadiness,
@@ -70,6 +71,7 @@ import {
   requestReferralSaasAccountCampaignActivation,
   requestReferralSaasAccountFoundationActivation,
   requestReferralSaasAccessProvisioning,
+  requestReferralSaasLoginCompletionIntent,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   saveReferralSaasIntegrationConfiguration,
@@ -527,6 +529,7 @@ export function ReferralSaasAccountMaintenancePage() {
   const [deliveryResult, setDeliveryResult] = useState<string | null>(null);
   const [activationResult, setActivationResult] = useState<string | null>(null);
   const [provisioningResult, setProvisioningResult] = useState<string | null>(null);
+  const [loginCompletionResult, setLoginCompletionResult] = useState<string | null>(null);
   const [accountActivationResult, setAccountActivationResult] =
     useState<ScopedAccountActivationResult | null>(null);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
@@ -637,6 +640,21 @@ export function ReferralSaasAccountMaintenancePage() {
     Boolean(accountId && selectedAccount && selectedExternalTenantRef),
     refreshKey,
   );
+  const loginReadinessMembershipRefs =
+    activationReadiness?.activationReadiness.items
+      .filter((item) => item.membershipStatus === "ACTIVE")
+      .map((item) => item.membershipRef)
+      .filter(Boolean) || [];
+  const {
+    data: loginCompletionReadiness,
+    refetch: refetchLoginCompletionReadiness,
+  } = useReferralSaasLoginCompletionReadiness(
+    selectedAccount?.accountId || "",
+    loginReadinessMembershipRefs,
+    selectedExternalTenantRef,
+    Boolean(accountId && selectedAccount && selectedExternalTenantRef && loginReadinessMembershipRefs.length),
+    refreshKey,
+  );
   const supportCasesQuery = useQuery({
     queryKey: [
       "referral-saas-account-support-cases",
@@ -685,7 +703,7 @@ export function ReferralSaasAccountMaintenancePage() {
     ),
   });
   const refreshPeopleAccessReadModels = async () => {
-    await Promise.all([refetchMembershipPosture(), refetchActivationReadiness()]);
+    await Promise.all([refetchMembershipPosture(), refetchActivationReadiness(), refetchLoginCompletionReadiness()]);
   };
   const accessMutation = useMutation({
     mutationFn: recordReferralSaasMembershipInvitationIntent,
@@ -760,9 +778,20 @@ export function ReferralSaasAccountMaintenancePage() {
       await refreshPeopleAccessReadModels();
       const seatStatus = response.accessProvisioning.seat.seatAssignmentStatus;
       const seatOutcome =
-        seatStatus === "SEAT_ASSIGNED" ? "Login seat assigned." : "Login setup not completed yet.";
+        seatStatus === "SEAT_ASSIGNED" ? "Platform seat assigned." : "Platform seat not assigned yet.";
       setProvisioningResult(
         `${formatDisplay(response.accessProvisioning.membership.roleFamily)}: ${seatOutcome} ${response.accessProvisioning.provisioning.nextAction} No invitation email was sent, no credential was created, no login permission changed, no campaign was activated, and no money moved.`,
+      );
+    },
+  });
+  const loginCompletionMutation = useMutation({
+    mutationFn: requestReferralSaasLoginCompletionIntent,
+    onSuccess: async (response) => {
+      await refreshPeopleAccessReadModels();
+      setLoginCompletionResult(
+        `${formatDisplay(response.loginCompletionIntent.membership.roleFamily)} login status returned ${formatDisplay(
+          response.loginCompletionIntent.loginCompletionStatus,
+        )}. ${response.loginCompletionIntent.loginCompletion.nextAction} No invitation email was sent, no credential was created, no auth claim changed, no campaign was activated, no go-live status changed, and no money moved.`,
       );
     },
   });
@@ -977,6 +1006,12 @@ export function ReferralSaasAccountMaintenancePage() {
   const loginSetupRows = activationReadiness?.activationReadiness.items.filter(
     (item) => item.provisioningReadiness === "READY_TO_PROVISION_SEAT" || item.provisioningReadiness === "SEAT_ASSIGNED",
   ) || [];
+  const loginCompletionReadinessByMembershipRef = new Map(
+    (loginCompletionReadiness || []).map((item) => [
+      item.loginCompletionReadiness.membershipRef,
+      item.loginCompletionReadiness,
+    ]),
+  );
 
   useEffect(() => {
     if (
@@ -1304,6 +1339,56 @@ export function ReferralSaasAccountMaintenancePage() {
         membershipRef,
         roleFamily,
         seatType,
+      ),
+    });
+  }
+
+  function requestLoginCompletion(
+    membershipRef: string,
+    roleFamily: string,
+    subject: string,
+    intent: "PLATFORM_LOGIN_REQUIRED" | "LOGIN_NOT_REQUIRED",
+  ) {
+    if (!selectedAccount || !selectedExternalTenantRef || !membershipRef) {
+      return;
+    }
+    const authProviderRef = intent === "PLATFORM_LOGIN_REQUIRED"
+      ? approvedAuthProviderRef(technicalSetupReadiness)
+      : "";
+    loginCompletionMutation.mutate({
+      accountRef: selectedAccount.accountId,
+      membershipRef,
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: selectedExternalTenantRef,
+        context: "setup",
+      },
+      loginCompletion: {
+        intent,
+        identitySubjectRef: subject
+          ? safeIdempotencyKey("customer-profile-login-identity", selectedAccount.accountId, membershipRef, subject)
+          : undefined,
+        authProviderRef: authProviderRef || undefined,
+        seatEvidenceRef: safeIdempotencyKey(
+          "customer-profile-login-seat-evidence",
+          selectedAccount.accountId,
+          membershipRef,
+          roleFamily,
+        ),
+        permissionProfile: permissionProfileForRoleFamily(roleFamily),
+        operatorReason:
+          intent === "PLATFORM_LOGIN_REQUIRED"
+            ? "Amplifi Admin recorded governed login completion evidence from the selected customer People and Access page."
+            : "Amplifi Admin recorded that this confirmed customer contact does not need platform login.",
+      },
+      reasonCode: "CUSTOMER_PROFILE_LOGIN_COMPLETION_INTENT",
+      correlationId: `customer-profile-login-completion-${selectedAccount.accountId}`,
+      idempotencyKey: safeIdempotencyKey(
+        "customer-profile-login-completion",
+        selectedAccount.accountId,
+        membershipRef,
+        roleFamily,
+        intent.toLowerCase(),
       ),
     });
   }
@@ -2444,18 +2529,17 @@ export function ReferralSaasAccountMaintenancePage() {
                   {activationReadiness ? (
                     <div className="people-access-boundary">
                       <div>
-                        <strong>Platform login setup</strong>
+                        <strong>Optional platform login</strong>
                         <p>
                           {missingAccessRoleCount
                             ? "Finish confirming the required customer responsibilities first. "
                             : "Referral work can continue because the required people are confirmed. "}
-                          Use platform login setup only when a confirmed person needs to sign in to Amplifi. This is
-                          separate from naming who manages the customer.
+                          Only continue here when a confirmed person must sign in to Amplifi.
                         </p>
                         <ul className="people-access-login-purpose" aria-label="Platform login setup purpose">
-                          <li>Use it for Amplifi sign-in access.</li>
-                          <li>Skip it when the person only owns the relationship outside the platform.</li>
-                          <li>Permissions and auth claims remain governed separately.</li>
+                          <li>First assign a platform seat for capacity and audit.</li>
+                          <li>Then record whether login is required or not required.</li>
+                          <li>Credentials and auth claims remain in the governed identity workflow.</li>
                         </ul>
                       </div>
                       <StatusBadge
@@ -2468,48 +2552,101 @@ export function ReferralSaasAccountMaintenancePage() {
                   {provisioningResult ? (
                     <div className="success-panel">
                       <strong>
-                        {provisioningResult.includes("Seat not assigned")
-                          ? "Login setup could not be completed."
-                          : "Login setup recorded."}
+                        {provisioningResult.toLowerCase().includes("not assigned")
+                          ? "Platform seat could not be assigned."
+                          : "Platform seat recorded."}
                       </strong>{" "}
                       {provisioningResult}
+                    </div>
+                  ) : null}
+                  {loginCompletionMutation.error ? <ErrorPanel error={loginCompletionMutation.error} /> : null}
+                  {loginCompletionResult ? (
+                    <div className="success-panel">
+                      <strong>Login decision recorded.</strong> {loginCompletionResult}
                     </div>
                   ) : null}
                   {loginSetupRows.length ? (
                     <div className="people-access-login-setup" aria-label="Optional platform login setup">
                       <div>
-                        <strong>Optional login setup</strong>
+                        <strong>Optional platform login steps</strong>
                         <p>
-                          These people are confirmed for customer work. Set up platform login only for people who need
-                          to use Amplifi directly.
+                          These people are confirmed for customer work. Assign a seat only when they need platform
+                          access, then record the governed login decision.
                         </p>
                       </div>
                       <div className="people-access-login-list">
                         {loginSetupRows.map((item) => {
                           const membershipRef = getValue(item, ["membershipRef"], "");
                           const roleFamily = getValue(item, ["roleFamily"], "");
+                          const subject = getValue(item, ["subject"], "");
                           const seatAssigned = item.provisioningReadiness === "SEAT_ASSIGNED";
+                          const loginReadiness = loginCompletionReadinessByMembershipRef.get(membershipRef);
+                          const loginStatus = loginReadiness?.loginCompletionStatus || "WAITING_FOR_SEAT";
+                          const providerRef = approvedAuthProviderRef(technicalSetupReadiness);
+                          const canRecordLoginCompletion = seatAssigned && Boolean(providerRef);
                           return (
                             <div className="people-access-login-row" key={`${membershipRef}-${roleFamily}`}>
                               <div>
                                 <strong>{formatDisplay(getValue(item, ["displayName"], "Named person"))}</strong>
                                 <span>
                                   {roleOptionForFamily(roleFamily).label} -{" "}
-                                  {seatAssigned ? "Platform login set up" : "Platform login not set up"}
+                                  {seatAssigned ? "Seat assigned" : "Seat not assigned"}
                                 </span>
+                                <p className="table-subtext">
+                                  Login status: {formatDisplay(loginStatus)}.{" "}
+                                  {seatAssigned
+                                    ? "Record login only if this person must sign in."
+                                    : "Assign the platform seat before any login decision."}
+                                </p>
                               </div>
-                              <button
-                                className="button secondary compact"
-                                disabled={seatAssigned || provisioningMutation.isPending}
-                                onClick={() => requestAccessProvisioning(membershipRef, roleFamily)}
-                                type="button"
-                              >
-                                {provisioningMutation.isPending
-                                  ? "Setting up"
-                                  : seatAssigned
-                                    ? "Platform login set up"
-                                    : "Set up platform login"}
-                              </button>
+                              <div className="action-cell horizontal">
+                                <button
+                                  className="button secondary compact"
+                                  disabled={seatAssigned || provisioningMutation.isPending}
+                                  onClick={() => requestAccessProvisioning(membershipRef, roleFamily)}
+                                  type="button"
+                                >
+                                  {provisioningMutation.isPending
+                                    ? "Assigning"
+                                    : seatAssigned
+                                      ? "Seat assigned"
+                                      : "Assign platform seat"}
+                                </button>
+                                {seatAssigned ? (
+                                  <>
+                                    <button
+                                      className="button secondary compact"
+                                      disabled={loginCompletionMutation.isPending}
+                                      onClick={() =>
+                                        requestLoginCompletion(membershipRef, roleFamily, subject, "LOGIN_NOT_REQUIRED")
+                                      }
+                                      type="button"
+                                    >
+                                      {loginCompletionMutation.isPending ? "Recording" : "Login not required"}
+                                    </button>
+                                    <button
+                                      className="button secondary compact"
+                                      disabled={!canRecordLoginCompletion || loginCompletionMutation.isPending}
+                                      onClick={() =>
+                                        requestLoginCompletion(
+                                          membershipRef,
+                                          roleFamily,
+                                          subject,
+                                          "PLATFORM_LOGIN_REQUIRED",
+                                        )
+                                      }
+                                      title={
+                                        providerRef
+                                          ? "Record governed login completion evidence."
+                                          : "Approve identity provider evidence in Integrations first."
+                                      }
+                                      type="button"
+                                    >
+                                      {providerRef ? "Record login completion" : "Needs provider evidence"}
+                                    </button>
+                                  </>
+                                ) : null}
+                              </div>
                             </div>
                           );
                         })}
@@ -6720,13 +6857,13 @@ function accessAcceptanceLabel(status: string) {
 
 function accessProvisioningLabel(status: string) {
   if (status === "PROVISIONING_BLOCKED" || status === "SEPARATE_WORKFLOW") {
-    return "Login setup separate";
+    return "Login separate";
   }
   if (status === "READY_TO_PROVISION_SEAT") {
-    return "Ready for login setup";
+    return "Ready for seat";
   }
   if (status === "SEAT_ASSIGNED") {
-    return "Login seat assigned";
+    return "Seat assigned";
   }
   if (status === "WAITING_FOR_MEMBERSHIP_ACTIVATION") {
     return "Waiting for confirmation";
@@ -6763,7 +6900,7 @@ function peopleAccessStage(row: Record<string, unknown>, readiness?: Record<stri
   const provisioningReadiness = getValue(readiness || {}, ["provisioningReadiness"], "");
   const seatStatus = getValue(readiness || {}, ["seatAssignmentStatus"], "");
   if (seatStatus === "SEAT_ASSIGNED" || provisioningReadiness === "SEAT_ASSIGNED") {
-    return { label: "Login seat assigned", tone: "success" as StatusTone };
+    return { label: "Seat assigned", tone: "success" as StatusTone };
   }
   if (membershipStatus === "ACTIVE") {
     return { label: "Confirmed", tone: "success" as StatusTone };
@@ -6789,10 +6926,10 @@ function peopleAccessNextAction(row: Record<string, unknown>, readiness?: Record
   const contactStatus = getValue(row, ["recipientContactStatus"], getValue(readiness || {}, ["recipientContactStatus"], ""));
 
   if (seatStatus === "SEAT_ASSIGNED" || provisioningReadiness === "SEAT_ASSIGNED") {
-    return "Login seat is assigned. Login permissions remain in the governed auth workflow.";
+    return "Seat is assigned. Record login completion only if this person must sign in.";
   }
   if (membershipStatus === "ACTIVE" && provisioningReadiness === "READY_TO_PROVISION_SEAT") {
-    return "Confirmed for customer work. Set up platform login later only if this person must sign in.";
+    return "Confirmed for customer work. Assign a platform seat only if this person must sign in.";
   }
   if (membershipStatus === "ACTIVE") {
     return "Confirmed for customer work. Platform login remains a separate optional setup step.";
@@ -6829,11 +6966,33 @@ function seatTypeForRoleFamily(roleFamily: string):
   return "OPERATOR";
 }
 
+function permissionProfileForRoleFamily(roleFamily: string) {
+  if (roleFamily === "DISTRIBUTION_ADMIN") {
+    return "REFERRAL_SAAS_ACCOUNT_ADMIN";
+  }
+  if (roleFamily === "CAMPAIGN_MANAGER") {
+    return "REFERRAL_SAAS_CAMPAIGN_MANAGER";
+  }
+  if (roleFamily === "SUPPORT") {
+    return "REFERRAL_SAAS_SUPPORT";
+  }
+  return "REFERRAL_SAAS_OPERATOR";
+}
+
 function inviteDeliveryProviderRef(readiness?: ReferralSaasTechnicalSetupReadinessResponse) {
   const inviteCapability = readiness?.technicalSetupReadiness.capabilities.find(
     (capability) => capability.code === "MEMBERSHIP_INVITE_DELIVERY",
   );
   return inviteCapability?.approvedProviderRefs[0] || "";
+}
+
+function approvedAuthProviderRef(readiness?: ReferralSaasTechnicalSetupReadinessResponse) {
+  const preferredCapability = readiness?.technicalSetupReadiness.capabilities.find(
+    (capability) =>
+      ["PLATFORM_LOGIN", "AUTH_PROVIDER", "MEMBERSHIP_INVITE_DELIVERY"].includes(capability.code) &&
+      capability.approvedProviderRefs.length,
+  );
+  return preferredCapability?.approvedProviderRefs[0] || "";
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
