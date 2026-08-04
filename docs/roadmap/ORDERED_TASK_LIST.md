@@ -7898,6 +7898,32 @@ Rollback notes: Evidence-only task; product fixes must be separate tasks.
 Explicit non-goals: No unapproved writes, no raw secret extraction, no repair/replay/retry, no provider dispatch, no credential/auth mutation, no campaign go-live beyond explicit proof scope, no billing, no money, no DLaaS expansion.
 Definition of done: Referral SaaS has recorded non-local launch verification evidence sufficient to remove the remaining environment-confidence blocker from the 10/10 gap matrix. Priority: P0.
 
+## TASK-349: Define provider/vault runtime execution command contract
+
+Status: Completed.
+Product boundary: Shared Platform with Referral SaaS impact.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CONFIGURATION_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_LIVE_EXECUTION_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_INTEGRATIONS_CREDENTIAL_LIFECYCLE_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_ADAPTER_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses selected-customer Integrations setup/configuration, credential request/review, provider/vault readiness, account scope, active account/link/reference gates, provider approval, audit, idempotency, and redactions. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Governed provider/vault runtime execution command.
+Objective: Define the first write-command boundary for turning an approved credential request into safe provider/vault execution evidence without exposing secrets or dispatching providers from setup screens.
+Why now: TASK-342 to TASK-344 made provider/vault readiness visible. The remaining internal launch-hardening gap needs a reviewed command contract before backend execution code can be added.
+Files likely involved: provider/vault runtime execution SA contract; SA index; roadmap/gap/infographic docs.
+Database/schema impact: None in this contract task.
+Backend impact: None.
+Frontend impact: None.
+API impact: Documents candidate selected-customer execution/read routes, payloads, states, failures, audit/idempotency, and no-adjacent-action guardrails.
+Tests to add/update: Docs-only readback.
+Validation method: `git diff --check`; contract/gap/roadmap readback.
+Acceptance criteria: Contract defines selected-customer provider/vault execution command inputs, approved-request/version/provider/vault gates, safe response states, failure taxonomy, idempotency/audit requirements, UI implications, and explicit boundaries against raw secret exposure, provider dispatch, invite/webhook/message delivery, auth/session changes, campaign activation, billing, money, DLaaS scope, or source forks.
+Dependencies: TASK-301; TASK-304; TASK-314; TASK-315; TASK-317; TASK-318; TASK-319; TASK-320; TASK-342; TASK-343; TASK-344.
+Blocked by: Runtime backend command implementation and provider/vault adapters.
+Risk level: Low.
+Rollback notes: Revert provider/vault runtime execution command contract and roadmap/gap/infographic/index updates.
+Explicit non-goals: No schema, backend route implementation, frontend controls, provider calls, vault writes, credential creation/capture/reveal/rotation/download, webhook dispatch, invite delivery, referral-message delivery, identity-provider integration, auth/session claim change, campaign activation, repair/replay/retry execution, export delivery execution, billing, money, DLaaS implementation, or source forks.
+Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_EXECUTION_COMMAND_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the governed provider/vault runtime execution command contract after approved credential requests and visible readiness. The contract covers selected-customer command routes, payload confirmations, safe response states, approved-request/version/provider/vault gates, failure taxonomy, audit/idempotency, UI-safe copy, and explicit no raw secret, provider dispatch, invite/webhook/message delivery, auth, campaign, billing, money, DLaaS, or source-fork side effects.
+Definition of done: Referral SaaS has the reviewed command contract needed for the next provider/vault runtime API foundation task. Current rating remains 9.99/10 for Referral Management and 9.9998/10 for Campaign Attribution because this is contract/design work while runtime provider/vault execution and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
