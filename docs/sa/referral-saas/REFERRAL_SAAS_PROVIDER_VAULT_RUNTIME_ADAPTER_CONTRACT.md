@@ -236,8 +236,8 @@ Provider/vault execution readiness may be `READY` only when:
 | `PROVIDER_VAULT_BLOCKED_CONFIGURATION_MISSING` | Saved Integrations evidence is absent or no longer matches the request. |
 | `PROVIDER_VAULT_BLOCKED_PROVIDER_NOT_APPROVED` | Provider is not approved for this customer/product/environment. |
 | `PROVIDER_VAULT_BLOCKED_VAULT_NOT_CONFIGURED` | Vault adapter is not configured for the environment. |
+| `PROVIDER_VAULT_BLOCKED_ADAPTER_NOT_CONFIGURED` | Provider adapter is not configured for this provider/environment/capability. |
 | `PROVIDER_VAULT_REJECTED_UNSAFE_PAYLOAD` | Payload attempted raw secret, provider payload, internal identifier, auth, campaign, billing, or money behavior. |
-| `PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED` | Readiness is visible but mutation adapter is not yet available. |
 | `PROVIDER_VAULT_PROVIDER_EXECUTION_BLOCKED` | Provider adapter could not safely record or validate the provider reference. |
 | `PROVIDER_VAULT_VAULT_WRITE_BLOCKED` | Vault adapter could not safely record the secret reference. |
 | `IDEMPOTENCY_CONFLICT` | Same idempotency key was reused with different content. |

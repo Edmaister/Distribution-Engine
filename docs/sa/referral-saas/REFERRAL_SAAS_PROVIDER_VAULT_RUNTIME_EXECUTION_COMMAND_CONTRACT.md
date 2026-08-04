@@ -69,10 +69,9 @@ The first command family should remain selected-customer scoped:
 | `/v1/referral-saas/accounts/{accountRef}/integrations/credential-requests/{requestRef}/provider-vault-executions` | `POST` | Record a governed provider/vault execution attempt for an approved credential request. |
 | `/v1/referral-saas/accounts/{accountRef}/integrations/provider-vault/executions/{executionRef}` | `GET` | Read safe execution metadata without exposing secrets or provider payloads. |
 
-The first runtime task may return a controlled `PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED`
-or `PROVIDER_VAULT_EXECUTION_BLOCKED` state while proving scope, gate, audit, and
-idempotency behavior. It must not pretend that provider or vault references
-exist unless an adapter actually created them.
+The runtime seam returns controlled adapter/vault blocked states while proving
+scope, gate, audit, and idempotency behavior. It must not pretend that provider
+or vault references exist unless an adapter actually created them.
 
 ## Allowed Request Shape
 
@@ -181,7 +180,8 @@ The command may execute only when:
 | --- | --- |
 | `PROVIDER_VAULT_EXECUTION_READY` | All gates pass and the adapter can proceed, but no provider/vault reference is implied. |
 | `PROVIDER_VAULT_EXECUTION_BLOCKED` | A prerequisite failed safely. |
-| `PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED` | The command boundary exists but no runtime adapter is available. |
+| `PROVIDER_VAULT_BLOCKED_ADAPTER_NOT_CONFIGURED` | The command boundary exists but no provider runtime adapter is configured for this provider/environment/capability. |
+| `PROVIDER_VAULT_BLOCKED_VAULT_NOT_CONFIGURED` | A provider runtime adapter is configured, but no approved vault adapter is configured for safe opaque secret reference storage. |
 | `VAULT_REFERENCE_RECORDED` | A vault adapter returned an opaque secret reference. |
 | `PROVIDER_REFERENCE_RECORDED` | A provider adapter returned an opaque connection reference. |
 | `PROVIDER_VAULT_EXECUTION_REPLAYED` | Same idempotency key and same payload returned the prior safe result. |
@@ -197,9 +197,8 @@ The command may execute only when:
 | `PROVIDER_VAULT_BLOCKED_CONFIGURATION_MISSING` | Saved Integrations evidence is missing or no longer matches the request. |
 | `PROVIDER_VAULT_BLOCKED_PROVIDER_NOT_APPROVED` | Provider is not approved for this customer/product/environment. |
 | `PROVIDER_VAULT_BLOCKED_VAULT_NOT_CONFIGURED` | Vault adapter is not configured for the environment. |
-| `PROVIDER_VAULT_BLOCKED_ADAPTER_NOT_CONFIGURED` | Provider adapter is not configured for the capability. |
+| `PROVIDER_VAULT_BLOCKED_ADAPTER_NOT_CONFIGURED` | Runtime adapter is not configured for this provider/environment/capability. |
 | `PROVIDER_VAULT_REJECTED_UNSAFE_PAYLOAD` | Payload attempted raw secret, provider payload, internal identifier, auth, campaign, billing, or money behavior. |
-| `PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED` | Runtime adapter is not yet available. |
 | `IDEMPOTENCY_CONFLICT` | Same idempotency key was reused with different content. |
 
 Failures must be safe to render. They must not include raw provider responses,

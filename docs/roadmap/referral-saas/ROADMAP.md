@@ -313,6 +313,8 @@ greenfield referral construction.
 205. TASK-347: Wire governed auth/login completion UI.
 206. TASK-348: Run non-local Referral SaaS launch verification.
 207. TASK-349: Define provider/vault runtime execution command contract.
+208. TASK-350: Add provider/vault runtime execution API foundation.
+209. TASK-351: Add provider/vault runtime adapter seam.
 
 - TASK-341: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_EXECUTION_TASK_341.md`;
   `scripts/referral_saas_progress_attribution_physical_check.py`;
@@ -2181,6 +2183,26 @@ greenfield referral construction.
   change, campaign activation, billing, money, DLaaS, or source-fork side
   effects. Current rating remains 9.99/10 for Referral Management and moves
   Campaign Attribution to 9.9999/10 because the runtime API boundary exists
+  while real provider/vault adapters and non-local proof repetition remain
+  separate gaps.
+- TASK-351:
+  `services/referral_saas_provider_vault_runtime.py`;
+  `services/referral_saas_integrations_configuration_service.py`;
+  `test/test_referral_saas_provider_vault_runtime.py`;
+  provider/vault execution API tests;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_SEAM.md`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  shared provider/vault runtime adapter seam behind the governed execution API.
+  The execution command now hands off to a registry that returns explicit
+  adapter-not-configured, vault-not-configured, or adapter-ready states while
+  preserving selected-customer scope, audit evidence, idempotency, redactions,
+  and no raw secret/provider/vault/auth/campaign/billing/money side effects.
+  Current rating remains 9.99/10 for Referral Management and moves Campaign
+  Attribution to 9.99992/10 because the adapter handoff architecture exists
   while real provider/vault adapters and non-local proof repetition remain
   separate gaps.
 
