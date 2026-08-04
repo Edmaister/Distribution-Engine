@@ -35,6 +35,7 @@ import {
   getReferralSaasAccountMembershipPosture,
   getReferralSaasIntegrationConfiguration,
   getReferralSaasIntegrationExecutionReadiness,
+  getReferralSaasProviderVaultReadiness,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasIntegrationCredentialRequests,
@@ -71,6 +72,7 @@ import {
   type ReferralSaasMembershipActivationReadinessResponse,
   type ReferralSaasIntegrationExecutionReadinessResponse,
   type ReferralSaasIntegrationCredentialRequestListResponse,
+  type ReferralSaasProviderVaultReadinessResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import { ReferralSaasAccountMaintenancePage } from "./ReferralSaasAccountMaintenancePage";
@@ -104,6 +106,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   getReferralSaasAccountMembershipPosture: vi.fn(),
   getReferralSaasIntegrationConfiguration: vi.fn(),
   getReferralSaasIntegrationExecutionReadiness: vi.fn(),
+  getReferralSaasProviderVaultReadiness: vi.fn(),
   getReferralSaasMembershipActivationReadiness: vi.fn(),
   getReferralSaasTechnicalSetupReadiness: vi.fn(),
   listReferralSaasIntegrationCredentialRequests: vi.fn(),
@@ -164,6 +167,7 @@ const mockedGetReferralSaasAccountSupportCaseRepairReplayReadiness = vi.mocked(
 const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasAccountMembershipPosture);
 const mockedGetReferralSaasIntegrationConfiguration = vi.mocked(getReferralSaasIntegrationConfiguration);
 const mockedGetReferralSaasIntegrationExecutionReadiness = vi.mocked(getReferralSaasIntegrationExecutionReadiness);
+const mockedGetReferralSaasProviderVaultReadiness = vi.mocked(getReferralSaasProviderVaultReadiness);
 const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferralSaasMembershipActivationReadiness);
 const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTechnicalSetupReadiness);
 const mockedListReferralSaasIntegrationCredentialRequests = vi.mocked(listReferralSaasIntegrationCredentialRequests);
@@ -1034,6 +1038,121 @@ function mockReadyMessageProviderIntegrationExecutionReadiness(): ReferralSaasIn
   };
 }
 
+function mockProviderVaultReadiness(
+  status = "PROVIDER_VAULT_BLOCKED_REQUEST_NOT_APPROVED",
+): ReferralSaasProviderVaultReadinessResponse {
+  const ready = status === "PROVIDER_VAULT_EXECUTION_READY";
+  return {
+    status: "ok",
+    context: "setup",
+    account: mockTechnicalSetupReadiness().account,
+    integrationConfiguration: mockIntegrationConfigurationSave().integrationConfigurationResult.configuration,
+    providerVaultReadiness: {
+      readinessStatus: status,
+      plainLanguageSummary: ready
+        ? "Approved credential request evidence is ready for a future governed provider/vault executor."
+        : "Provider/vault execution is blocked until the listed customer setup and credential request evidence is complete.",
+      credentialRequests: ready
+        ? [
+            {
+              credentialRequestRef: "credential-request-1",
+              capability: "MESSAGE_PROVIDER",
+              requestType: "PROVIDER_CREDENTIAL",
+              environment: "SANDBOX",
+              reviewStatus: "REVIEW_APPROVED",
+              readinessStatus: "PROVIDER_VAULT_EXECUTION_READY",
+              readyForExecution: true,
+              plainLanguageSummary:
+                "This approved request is ready for a future governed provider/vault executor. This read endpoint did not call a provider or write a vault.",
+              blockers: [],
+              nextActions: [
+                {
+                  actionRef: "PROVIDER_VAULT_EXECUTOR_HANDOFF",
+                  label: "Prepare provider/vault executor handoff",
+                  status: "READY",
+                  nextStep: "Use a governed executor workflow when provider/vault adapters exist.",
+                  reason: "Approved credential request and saved customer Integrations configuration are aligned.",
+                },
+              ],
+              configurationRef: "integration-config-1",
+              noSecretOrCredentialStorageConfirmed: true,
+              noCredentialCreationConfirmed: true,
+              noCredentialLifecycleExecutionConfirmed: true,
+              noCredentialRevealOrDownloadConfirmed: true,
+              noVaultWriteConfirmed: true,
+              noProviderCallConfirmed: true,
+              noWebhookDispatchConfirmed: true,
+              noInviteDeliveryConfirmed: true,
+              noMessageProviderDeliveryConfirmed: true,
+              noMembershipActivationConfirmed: true,
+              noSeatAssignmentConfirmed: true,
+              noAuthClaimChangeConfirmed: true,
+              noCampaignActivationConfirmed: true,
+              noGoLiveActionConfirmed: true,
+              noBillingOrMoneyMovementConfirmed: true,
+            },
+          ]
+        : [],
+      blockers: ready
+        ? []
+        : [
+            {
+              code: "CREDENTIAL_REQUEST_NOT_APPROVED",
+              message: "Approve at least one credential request before provider/vault execution readiness.",
+            },
+          ],
+      readyActions: ready
+        ? [
+            {
+              actionRef: "PROVIDER_VAULT_EXECUTOR_HANDOFF",
+              label: "Prepare provider/vault executor handoff",
+              status: "READY",
+              nextStep: "Use a governed executor workflow when provider/vault adapters exist.",
+              reason: "Approved credential request and saved configuration are aligned.",
+            },
+          ]
+        : [],
+      configurationRef: "integration-config-1",
+      configurationStatus: "INTEGRATION_CONFIGURATION_SAVED",
+      guardrails: ["READ_ONLY_PROVIDER_VAULT_READINESS"],
+      redactions: ["provider_secret", "vault_reference"],
+      noSecretOrCredentialStorageConfirmed: true,
+      noCredentialCreationConfirmed: true,
+      noCredentialLifecycleExecutionConfirmed: true,
+      noCredentialRevealOrDownloadConfirmed: true,
+      noVaultWriteConfirmed: true,
+      noProviderCallConfirmed: true,
+      noWebhookDispatchConfirmed: true,
+      noInviteDeliveryConfirmed: true,
+      noMessageProviderDeliveryConfirmed: true,
+      noMembershipActivationConfirmed: true,
+      noSeatAssignmentConfirmed: true,
+      noAuthClaimChangeConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noGoLiveActionConfirmed: true,
+      noBillingOrMoneyMovementConfirmed: true,
+    },
+    guardrail: "Read-only selected-customer provider/vault readiness.",
+    guardrails: ["READ_ONLY_PROVIDER_VAULT_READINESS"],
+    redactions: ["provider_secret", "vault_reference"],
+    no_secret_or_credential_storage_confirmed: true,
+    no_credential_creation_confirmed: true,
+    no_credential_lifecycle_execution_confirmed: true,
+    no_credential_reveal_or_download_confirmed: true,
+    no_vault_write_confirmed: true,
+    no_provider_call_confirmed: true,
+    no_webhook_dispatch_confirmed: true,
+    no_invite_delivery_confirmed: true,
+    no_message_provider_delivery_confirmed: true,
+    no_membership_activation_confirmed: true,
+    no_seat_assignment_confirmed: true,
+    no_auth_claim_change_confirmed: true,
+    no_campaign_activation_confirmed: true,
+    no_go_live_action_confirmed: true,
+    no_billing_or_money_movement_confirmed: true,
+  };
+}
+
 function mockApiAccessVerificationResponse() {
   return {
     status: "accepted",
@@ -1704,6 +1823,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockMembershipPosture());
     mockedGetReferralSaasIntegrationConfiguration.mockResolvedValue(mockIntegrationConfigurationRead());
     mockedGetReferralSaasIntegrationExecutionReadiness.mockResolvedValue(mockIntegrationExecutionReadiness());
+    mockedGetReferralSaasProviderVaultReadiness.mockResolvedValue(mockProviderVaultReadiness());
     mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockMembershipActivationReadiness());
     mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadiness());
     mockedListReferralSaasIntegrationCredentialRequests.mockResolvedValue(mockIntegrationCredentialRequestList([]));
@@ -3435,6 +3555,47 @@ describe("ReferralSaasAccountMaintenancePage", () => {
 
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Integrations" })).toBeInTheDocument();
+  });
+
+  it("shows provider vault handoff readiness from Integrations without live execution controls", async () => {
+    mockedGetReferralSaasIntegrationConfiguration.mockResolvedValue({
+      ...mockIntegrationConfigurationRead(),
+      integrationConfiguration: mockIntegrationConfigurationSave().integrationConfigurationResult.configuration,
+    });
+    mockedGetReferralSaasIntegrationExecutionReadiness.mockResolvedValue(mockReadyIntegrationExecutionReadiness());
+    mockedListReferralSaasIntegrationCredentialRequests.mockResolvedValue(
+      mockIntegrationCredentialRequestList([
+        {
+          ...mockIntegrationCredentialRequest(),
+          reviewStatus: "REVIEW_APPROVED",
+        },
+      ]),
+    );
+    mockedGetReferralSaasProviderVaultReadiness.mockResolvedValue(
+      mockProviderVaultReadiness("PROVIDER_VAULT_EXECUTION_READY"),
+    );
+
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/integrations");
+
+    expect(await screen.findByRole("heading", { name: "Integrations" })).toBeInTheDocument();
+    expect(await screen.findAllByText("Ready to verify")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("tab", { name: "Verify" }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Verify" })).toHaveAttribute("aria-selected", "true"));
+
+    expect(await screen.findByRole("heading", { name: "Secure provider handoff" })).toBeInTheDocument();
+    expect(screen.getByText(/Approved credential request evidence is ready/i)).toBeInTheDocument();
+    expect(screen.getAllByText("Ready for handoff").length).toBeGreaterThan(0);
+    expect(screen.getByText(/No secret is shown, no credential is created or downloaded/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Run governed provider/i })).not.toBeInTheDocument();
+    expect(mockedGetReferralSaasProviderVaultReadiness).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      refType: "external_tenant_ref",
+      externalRef: "gabs-platform",
+      context: "setup",
+    });
+    expect(JSON.stringify(mockedGetReferralSaasProviderVaultReadiness.mock.calls)).not.toMatch(
+      /tenantCode|tenant_code|clientSecret|credentialValue|apiKeyValue|webhookSecret|download|providerCall|money/i,
+    );
   });
 
   it("opens Campaigns as a customer-scoped readiness page without tenant code entry", async () => {

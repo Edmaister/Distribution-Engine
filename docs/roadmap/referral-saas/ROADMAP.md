@@ -2043,9 +2043,9 @@ greenfield referral construction.
   audit/idempotency, redactions, UI-safe visibility, and no raw secret,
   provider dispatch, invite/webhook/message delivery, auth, campaign, billing,
   money, DLaaS, or source-fork side effects. Scores remain 9.99/10 for
-  Referral Management and 9.9995/10 for Campaign Attribution because TASK-343
-  readiness API, TASK-344 UI visibility, governed auth/login completion, and
-  non-local proof repetition remain open.
+  Referral Management and 9.9995/10 for Campaign Attribution at the time of
+  completion because TASK-343 readiness API, TASK-344 UI visibility, governed
+  auth/login completion, and non-local proof repetition were still open.
 - TASK-343:
   `apps/api/routers/referral_saas_accounts.py`;
   `services/referral_saas_integrations_configuration_service.py`;
@@ -2064,10 +2064,26 @@ greenfield referral construction.
   credential lifecycle work, writing a vault, calling providers, dispatching
   webhooks/messages, sending invites, changing auth, activating campaigns,
   billing, moving money, adding DLaaS scope, or duplicating source code. Scores
-  remain 9.99/10 for Referral Management and 9.9995/10 for Campaign
-  Attribution because TASK-344 UI visibility, governed provider/vault runtime
-  execution, governed auth/login completion, and non-local proof repetition
-  remain open.
+  remained 9.99/10 for Referral Management and 9.9995/10 for Campaign
+  Attribution at the time of completion because TASK-344 UI visibility,
+  governed provider/vault runtime execution, governed auth/login completion,
+  and non-local proof repetition were still open.
+- TASK-344:
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Wires the
+  read-only provider/vault readiness model into the selected-customer
+  Integrations Verify tab with plain-language handoff status, blockers,
+  approved credential-request evidence, and explicit no-secret/no-live-action
+  boundary copy. Scores remain 9.99/10 for Referral Management and move to
+  9.9996/10 for Campaign Attribution because the visible provider/vault
+  readiness gap is closed while governed provider/vault runtime execution,
+  governed auth/login completion, and non-local proof repetition remain open.
 
 ## Explicit Deferrals
 

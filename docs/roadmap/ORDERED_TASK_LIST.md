@@ -7771,7 +7771,7 @@ Definition of done: Integrations has a provider/vault readiness API that makes t
 
 ## TASK-344: Wire provider/vault execution readiness UI
 
-Status: Planned.
+Status: Completed.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; Integrations SA contracts; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Reuses selected-customer Integrations page, provider/vault readiness API, credential request/review UI, frontend query keys, and no-secret/no-provider-dispatch copy patterns. Source duplication: No.
@@ -7792,7 +7792,8 @@ Blocked by: Provider-specific runtime adapters.
 Risk level: Medium.
 Rollback notes: Revert frontend API/page/test/docs updates.
 Explicit non-goals: No provider calls, no secret reveal, no credential creation/storage/download, no webhook/message dispatch, no auth changes, no campaign activation, no billing, no money, no DLaaS implementation.
-Definition of done: The selected-customer Integrations UI exposes provider/vault readiness clearly enough to guide operators and close the visible execution-readiness gap. Priority: P0.
+Completed output: Adds provider/vault readiness to the selected-customer Integrations Verify tab, including plain-language handoff status, blockers, approved credential-request evidence, read-only boundary copy, API-client wiring, and frontend tests. The UI consumes TASK-343 and confirms no secret exposure, credential creation/storage/download, vault write, provider call, webhook/message dispatch, invite delivery, auth/session change, campaign activation, billing, money movement, DLaaS scope, or source duplication.
+Definition of done: The selected-customer Integrations UI exposes provider/vault readiness clearly enough to guide operators and close the visible execution-readiness gap. Current rating remains 9.99/10 for Referral Management and moves to 9.9996/10 for Campaign Attribution because provider/vault readiness is now visible in the product UI while actual provider/vault runtime execution, governed auth/login completion, and non-local proof repetition remain separate gaps. Priority: P0.
 
 ## TASK-345: Define governed auth/login completion contract
 
