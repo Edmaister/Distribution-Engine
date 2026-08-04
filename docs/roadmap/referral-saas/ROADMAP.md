@@ -312,6 +312,7 @@ greenfield referral construction.
 204. TASK-346: Add governed auth/login completion API boundary.
 205. TASK-347: Wire governed auth/login completion UI.
 206. TASK-348: Run non-local Referral SaaS launch verification.
+207. TASK-349: Define provider/vault runtime execution command contract.
 
 - TASK-341: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_EXECUTION_TASK_341.md`;
   `scripts/referral_saas_progress_attribution_physical_check.py`;
@@ -2144,6 +2145,24 @@ greenfield referral construction.
   move Campaign Attribution to 9.9998/10 because the visible auth/login UI gap
   is closed while governed provider/vault runtime execution and non-local proof
   repetition remain open.
+- TASK-349:
+  `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_EXECUTION_COMMAND_CONTRACT.md`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the
+  governed provider/vault runtime execution command contract after approved
+  credential requests and visible readiness. The contract specifies
+  selected-customer execution/read routes, allowed request payloads,
+  no-adjacent-action confirmations, safe response states,
+  approved-request/version/provider/vault gates, failure taxonomy,
+  audit/idempotency, UI-safe copy, and explicit no raw secret, provider
+  dispatch, invite/webhook/message delivery, auth/session change, campaign
+  activation, billing, money, DLaaS, or source-fork side effects. Current rating
+  remains 9.99/10 for Referral Management and 9.9998/10 for Campaign
+  Attribution because this closes command-design ambiguity while runtime
+  provider/vault execution and non-local proof repetition remain separate gaps.
 
 ## Explicit Deferrals
 
