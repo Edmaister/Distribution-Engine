@@ -31,6 +31,10 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("GET", "/v1/referral-saas/accounts/resolve"),
         ("GET", "/v1/referral-saas/accounts/membership-posture"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/membership-activation-readiness"),
+        (
+            "GET",
+            "/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/login-completion-readiness",
+        ),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/technical-setup-readiness"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/integrations/configuration"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/integrations/execution-readiness"),
@@ -129,6 +133,10 @@ def test_referral_saas_current_smoke_routes_are_mounted():
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/access-provisioning",
         ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/login-completion-intents",
+        ),
         ("PUT", "/v1/referral-saas/accounts/{account_ref}/integrations/configuration"),
         (
             "POST",
@@ -190,6 +198,10 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("GET", "/v1/referral-saas/accounts/resolve"),
         ("GET", "/v1/referral-saas/accounts/membership-posture"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/membership-activation-readiness"),
+        (
+            "GET",
+            "/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/login-completion-readiness",
+        ),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/technical-setup-readiness"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/integrations/configuration"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/integrations/execution-readiness"),
@@ -276,6 +288,10 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/access-provisioning",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/memberships/{membership_ref}/login-completion-intents",
         ),
         ("PUT", "/v1/referral-saas/accounts/{account_ref}/integrations/configuration"),
         (

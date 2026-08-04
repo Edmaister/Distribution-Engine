@@ -7823,28 +7823,29 @@ Definition of done: Referral SaaS has a reviewed governed auth/login completion 
 
 ## TASK-346: Add governed auth/login completion API boundary
 
-Status: Planned.
+Status: Completed.
 Product boundary: Shared Platform with Referral SaaS impact.
 Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Reuses membership activation, seat provisioning, auth/login contract, account scope, admin actor checks, idempotency, audit, and redactions. Source duplication: No.
 Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
 Linked platform/product capability: Governed auth/login completion API.
 Objective: Add read-only readiness and guarded completion intent APIs for platform login setup without directly mutating identity-provider claims unless explicitly supported and approved.
-Why now: TASK-345 will define the boundary; runtime API support is needed before UI can show accurate next actions.
+Why now: TASK-345 defined the boundary; runtime API support is needed before UI can show accurate next actions.
 Files likely involved: account membership service/router/tests; route smoke inventory; auth/login contract; roadmap/gap docs.
 Database/schema impact: Prefer existing membership/provisioning audit state; add migration only if login completion intent needs durable state not already available.
 Backend impact: Adds readiness/intent APIs with admin actor gates, audit, idempotency, and safe blocked states.
 Frontend impact: None. UI remains TASK-347.
 API impact: Adds or wires governed login readiness/completion-intent routes.
-Tests to add/update: API tests for ready/blocked/completed states, idempotency, audit, redactions, and no identity-provider side effects.
+Tests to add/update: Completed with API tests for readiness, intent recording, path-scope mismatch, unsafe-payload rejection, and route smoke inventory coverage.
 Validation method: `git diff --check`; Python compile; focused pytest.
-Acceptance criteria: Operators can record and inspect governed login completion intent/readiness for accepted/provisioned people without silently creating credentials, changing auth claims, sending invites, activating campaigns, billing, moving money, or adding DLaaS scope.
+Acceptance criteria: Completed. Operators can record and inspect governed login completion intent/readiness for accepted/provisioned people without silently creating credentials, changing auth claims, sending invites, activating campaigns, billing, moving money, or adding DLaaS scope.
 Dependencies: TASK-345.
 Blocked by: UI wiring and optional future identity-provider adapter.
 Risk level: Medium.
 Rollback notes: Revert service/router/tests/migration/docs updates.
 Explicit non-goals: No identity-provider call, credential creation, invite delivery, auth/session claim mutation, provider call, campaign activation, billing, money, DLaaS, or source forks.
-Definition of done: Referral SaaS has a governed auth/login API boundary that makes login completion visible and auditable without unsafe identity-provider side effects. Priority: P0.
+Completed output: `services/referral_saas_account_membership_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; auth/login contract, public API map, roadmap, gap matrix, ordered task list, and infographic updates. Adds account-scoped login completion readiness and intent routes behind active account, active tenant link, active external reference, active membership, governed permission profile, seat, auth-provider, idempotency, audit, redaction, and no-side-effect guardrails. The API records login completion intent/evidence through safe membership metadata and platform account audit events only.
+Definition of done: Referral SaaS has a governed auth/login API boundary that makes login completion visible and auditable without unsafe identity-provider side effects. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.9997/10 because the backend API gap is closed while TASK-347 UI wiring, governed provider/vault runtime execution, and non-local proof repetition remain separate gaps. Priority: P0.
 
 ## TASK-347: Wire governed auth/login completion UI
 

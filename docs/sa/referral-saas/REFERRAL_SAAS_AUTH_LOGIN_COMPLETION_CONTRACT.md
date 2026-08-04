@@ -84,12 +84,19 @@ they have platform login.
 
 ## Candidate Product Routes
 
-TASK-346 should introduce an account-scoped and membership-scoped route family:
+TASK-346 introduces an account-scoped and membership-scoped route family:
 
 | Route | Method | Purpose |
 | --- | --- | --- |
 | `/v1/referral-saas/accounts/{accountRef}/memberships/{membershipRef}/login-completion-readiness` | `GET` | Read safe login completion posture for one accepted customer membership. |
 | `/v1/referral-saas/accounts/{accountRef}/memberships/{membershipRef}/login-completion-intents` | `POST` | Record governed login completion intent/evidence for one membership. |
+
+Implementation note: TASK-346 implements these routes as a safe API boundary.
+They inspect and record login completion intent/evidence through membership
+metadata and platform account audit events only. They do not create credentials,
+send invites, assign seats, mutate auth/session claims, activate campaigns,
+trigger go-live, bill, move money, expose tenant codes, add DLaaS behavior, or
+fork source code. TASK-347 remains the People and Access UI wiring.
 
 The route path is never sufficient authorization. The service must resolve the
 selected customer account, membership, actor role, account status, tenant link,

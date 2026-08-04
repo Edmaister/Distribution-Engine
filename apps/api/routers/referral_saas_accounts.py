@@ -44,6 +44,8 @@ from services.referral_saas_account_foundation_service import (
 from services.referral_saas_account_membership_service import (
     ACCESS_PROVISIONING_GUARDRAILS,
     ACCESS_PROVISIONING_REDACTIONS,
+    LOGIN_COMPLETION_GUARDRAILS,
+    LOGIN_COMPLETION_REDACTIONS,
     MembershipInvitationAccountNotReady,
     MembershipInvitationCommandError,
     MembershipInvitationDeliveryNotInvited,
@@ -57,9 +59,11 @@ from services.referral_saas_account_membership_service import (
     MembershipInvitationValidationError,
     cancel_referral_saas_membership_invitation_intent,
     get_referral_saas_account_membership_posture,
+    get_referral_saas_login_completion_readiness,
     get_referral_saas_membership_activation_readiness,
     record_referral_saas_membership_invitation_intent,
     request_referral_saas_access_provisioning,
+    request_referral_saas_login_completion_intent,
     request_referral_saas_membership_activation,
     request_referral_saas_membership_invitation_delivery,
     update_referral_saas_membership_invitation_intent,
@@ -1032,6 +1036,33 @@ def _access_provisioning_error(exc: MembershipInvitationCommandError) -> HTTPExc
             "no_invite_delivery_confirmed": True,
             "no_auth_claim_change_confirmed": True,
             "no_credential_creation_confirmed": True,
+            "no_campaign_activation_confirmed": True,
+            "no_go_live_change_confirmed": True,
+            "no_money_movement_confirmed": True,
+        },
+    )
+
+
+def _login_completion_error(exc: MembershipInvitationCommandError) -> HTTPException:
+    if isinstance(exc, MembershipInvitationValidationError):
+        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    elif isinstance(exc, (MembershipInvitationUnsafePayload, MembershipInvitationUnsafeScope)):
+        status_code = status.HTTP_400_BAD_REQUEST
+    elif isinstance(exc, MembershipInvitationIdempotencyConflict):
+        status_code = status.HTTP_409_CONFLICT
+    else:
+        status_code = status.HTTP_409_CONFLICT
+
+    return HTTPException(
+        status_code=status_code,
+        detail={
+            "code": exc.safe_code,
+            "message": str(exc),
+            "guardrails": _login_completion_guardrails(),
+            "redactions": _login_completion_redactions(),
+            "no_invite_delivery_confirmed": True,
+            "no_credential_creation_confirmed": True,
+            "no_auth_claim_change_confirmed": True,
             "no_campaign_activation_confirmed": True,
             "no_go_live_change_confirmed": True,
             "no_money_movement_confirmed": True,
@@ -2308,6 +2339,274 @@ async def request_referral_saas_access_provisioning_route(
         "no_invite_delivery_confirmed": True,
         "no_auth_claim_change_confirmed": True,
         "no_credential_creation_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_change_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.get(
+    "/accounts/{account_ref}/memberships/{membership_ref}/login-completion-readiness"
+)
+async def read_referral_saas_login_completion_readiness(
+    account_ref: str,
+    membership_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "runtime",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+
+    normalised_context = str(context or "").strip().lower()
+    if normalised_context not in REFERRAL_SAAS_ACCOUNT_CONTEXTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": "context must be runtime or setup.",
+            },
+        )
+
+    try:
+        if normalised_context == "setup":
+            account = await resolve_setup_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+        else:
+            account = await resolve_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+    except AccountFoundationResolutionError as exc:
+        raise _resolution_error(exc) from exc
+
+    safe_account_ref = _optional_text(account_ref)
+    if safe_account_ref not in {account.account_id, account.account_code}:
+        raise _login_completion_error(
+            MembershipInvitationUnsafeScope(
+                "Path account reference does not match resolved account context."
+            )
+        )
+
+    try:
+        readiness = await get_referral_saas_login_completion_readiness(
+            account_id=account.account_id,
+            tenant_code=account.tenant_code,
+            account_status=account.account_status,
+            tenant_link_status=account.tenant_link_status,
+            external_reference_status=account.reference_status,
+            membership_id=membership_ref,
+        )
+    except MembershipInvitationCommandError as exc:
+        raise _login_completion_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "loginCompletionReadiness": readiness.to_safe_dict(),
+        "guardrail": (
+            "Read-only Referral SaaS login completion readiness. This endpoint "
+            "does not create credentials, send invitations, assign seats, "
+            "modify auth claims, expose internal tenant codes, activate "
+            "campaigns, trigger go-live, bill, move money, or mutate DLaaS "
+            "marketplace records."
+        ),
+        "guardrails": _login_completion_guardrails(),
+        "redactions": _login_completion_redactions(),
+        "no_invite_delivery_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_change_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.post(
+    "/accounts/{account_ref}/memberships/{membership_ref}/login-completion-intents"
+)
+async def request_referral_saas_login_completion_intent_route(
+    account_ref: str,
+    membership_ref: str,
+    payload: dict[str, Any] = Body(default_factory=dict),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+
+    account_scope = payload.get("accountScope") or {}
+    login_completion = payload.get("loginCompletion") or {}
+    idempotency_key = _optional_text(payload.get("idempotencyKey"))
+    correlation_id = _optional_text(payload.get("correlationId"))
+    reason_code = (
+        _optional_text(payload.get("reasonCode"))
+        or "CUSTOMER_PROFILE_LOGIN_COMPLETION_INTENT"
+    )
+
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "runtime").lower()
+    intent = _optional_text(login_completion.get("intent"))
+    identity_subject_ref = _optional_text(
+        login_completion.get("identitySubjectRef")
+    )
+    auth_provider_ref = _optional_text(login_completion.get("authProviderRef"))
+    seat_evidence_ref = _optional_text(login_completion.get("seatEvidenceRef"))
+    permission_profile = _optional_text(login_completion.get("permissionProfile"))
+    operator_reason = _optional_text(login_completion.get("operatorReason"))
+
+    if (
+        not ref_type
+        or not external_ref
+        or not idempotency_key
+        or not correlation_id
+        or not intent
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "loginCompletion.intent, idempotencyKey, and correlationId "
+                    "are required."
+                ),
+                "guardrails": _login_completion_guardrails(),
+                "redactions": _login_completion_redactions(),
+                "no_invite_delivery_confirmed": True,
+                "no_credential_creation_confirmed": True,
+                "no_auth_claim_change_confirmed": True,
+                "no_campaign_activation_confirmed": True,
+                "no_go_live_change_confirmed": True,
+                "no_money_movement_confirmed": True,
+            },
+        )
+    if context not in REFERRAL_SAAS_ACCOUNT_CONTEXTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope.context must be runtime or setup.",
+            },
+        )
+
+    try:
+        if context == "setup":
+            account = await resolve_setup_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+        else:
+            account = await resolve_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+    except AccountFoundationResolutionError as exc:
+        raise _resolution_error(exc) from exc
+
+    safe_account_ref = _optional_text(account_ref)
+    if safe_account_ref not in {account.account_id, account.account_code}:
+        raise _login_completion_error(
+            MembershipInvitationUnsafeScope(
+                "Path account reference does not match resolved account context."
+            )
+        )
+
+    command_payload = {
+        "accountScope": {
+            "accountRef": safe_account_ref,
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": context,
+        },
+        "membershipRef": _optional_text(membership_ref),
+        "loginCompletion": {
+            "intent": intent,
+            "identitySubjectRefPresent": bool(identity_subject_ref),
+            "authProviderRefPresent": bool(auth_provider_ref),
+            "seatEvidenceRefPresent": bool(seat_evidence_ref),
+            "permissionProfile": permission_profile,
+            "operatorReasonPresent": bool(operator_reason),
+        },
+        "reasonCode": reason_code,
+    }
+
+    try:
+        result = await request_referral_saas_login_completion_intent(
+            account_id=account.account_id,
+            tenant_code=account.tenant_code,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            account_status=account.account_status,
+            tenant_link_status=account.tenant_link_status,
+            external_reference_status=account.reference_status,
+            membership_id=membership_ref,
+            intent=intent,
+            identity_subject_ref=identity_subject_ref or None,
+            auth_provider_ref=auth_provider_ref or None,
+            seat_evidence_ref=seat_evidence_ref or None,
+            permission_profile=permission_profile or None,
+            operator_reason=operator_reason or None,
+            reason_code=reason_code,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_LOGIN_COMPLETION_INTENT",
+                    "account_ref": safe_account_ref,
+                    "membership_ref": _optional_text(membership_ref),
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            command_payload_hash=hash_payload(command_payload),
+            command_payload=payload,
+            command_actor_ref=_actor_ref(admin_identity),
+            command_actor_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except MembershipInvitationCommandError as exc:
+        raise _login_completion_error(exc) from exc
+
+    response_status = (
+        "ok"
+        if result.command_status
+        in {
+            "LOGIN_COMPLETION_RECORDED",
+            "LOGIN_COMPLETION_REPLAYED",
+            "LOGIN_COMPLETION_NOT_REQUIRED",
+        }
+        else "blocked"
+    )
+    return {
+        "status": response_status,
+        "context": context,
+        "account": account.to_safe_dict(),
+        "loginCompletionIntent": result.to_safe_dict(),
+        "guardrails": _login_completion_guardrails(),
+        "redactions": _login_completion_redactions(),
+        "no_invite_delivery_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
         "no_campaign_activation_confirmed": True,
         "no_go_live_change_confirmed": True,
         "no_money_movement_confirmed": True,
@@ -6804,6 +7103,14 @@ def _access_provisioning_guardrails() -> list[str]:
 
 def _access_provisioning_redactions() -> list[str]:
     return list(ACCESS_PROVISIONING_REDACTIONS)
+
+
+def _login_completion_guardrails() -> list[str]:
+    return list(LOGIN_COMPLETION_GUARDRAILS)
+
+
+def _login_completion_redactions() -> list[str]:
+    return list(LOGIN_COMPLETION_REDACTIONS)
 
 
 def _profile_maintenance_guardrails() -> list[str]:

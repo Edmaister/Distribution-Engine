@@ -2102,6 +2102,28 @@ greenfield referral construction.
   Referral Management and 9.9996/10 for Campaign Attribution because the
   contract gap is closed while the runtime API, UI wiring, governed
   provider/vault runtime execution, and non-local proof repetition remain open.
+- TASK-346:
+  `services/referral_saas_account_membership_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_AUTH_LOGIN_COMPLETION_CONTRACT.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  governed auth/login completion API boundary. The readiness and intent routes
+  are account-scoped and membership-scoped, enforce active account/link/reference
+  and membership gates, require governed permission, seat, auth-provider,
+  idempotency, audit, and redaction evidence, and record only safe
+  login-completion intent/evidence in membership metadata and account audit
+  events. No credential, invite, auth-claim, campaign activation, billing,
+  money, DLaaS, or source-fork side effect is introduced. Scores remain
+  9.99/10 for Referral Management and move Campaign Attribution to 9.9997/10
+  because the backend auth/login API gap is closed while TASK-347 UI wiring,
+  governed provider/vault runtime execution, and non-local proof repetition
+  remain open.
 
 ## Explicit Deferrals
 

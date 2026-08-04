@@ -22,6 +22,8 @@ from services.referral_saas_account_foundation_service import (
 )
 from services.referral_saas_account_membership_service import (
     AccessProvisioningRequestResult,
+    LoginCompletionIntentResult,
+    LoginCompletionReadiness,
     MembershipActivationRequestResult,
     MembershipInvitationDeliveryRequestResult,
     MembershipInvitationDuplicate,
@@ -193,6 +195,48 @@ def _access_provisioning_result(**overrides) -> AccessProvisioningRequestResult:
     }
     values.update(overrides)
     return AccessProvisioningRequestResult(**values)
+
+
+def _login_completion_readiness(**overrides) -> LoginCompletionReadiness:
+    values = {
+        "login_completion_status": "LOGIN_COMPLETION_READY",
+        "account_id": "acct-1",
+        "membership_id": "membership-1",
+        "subject": "owner@example.test",
+        "display_name": "FNB Owner",
+        "role_family": "DISTRIBUTION_ADMIN",
+        "permission_profile": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        "membership_status": "ACTIVE",
+        "seat_assignment_status": "SEAT_ASSIGNED",
+        "identity_provider_status": "NOT_RECORDED",
+        "auth_claim_status": "AUTH_CLAIMS_NOT_PROPAGATED",
+        "blockers": (),
+        "next_actions": ("Record login completion intent.",),
+    }
+    values.update(overrides)
+    return LoginCompletionReadiness(**values)
+
+
+def _login_completion_result(**overrides) -> LoginCompletionIntentResult:
+    values = {
+        "command_status": "LOGIN_COMPLETION_RECORDED",
+        "account_id": "acct-1",
+        "membership_id": "membership-1",
+        "role_family": "DISTRIBUTION_ADMIN",
+        "permission_profile": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        "intent": "PLATFORM_LOGIN_REQUIRED",
+        "seat_assignment_status": "SEAT_ASSIGNED",
+        "identity_provider_status": "APPROVED_EVIDENCE_RECORDED",
+        "auth_claim_status": "AUTH_CLAIMS_NOT_PROPAGATED",
+        "login_next_action": (
+            "Login completion evidence is recorded. Real credentials and auth "
+            "claims remain in the governed identity-provider workflow."
+        ),
+        "idempotency_status": "RECORDED",
+        "audit_event_id": "audit-login-1",
+    }
+    values.update(overrides)
+    return LoginCompletionIntentResult(**values)
 
 
 def _account_activation_result(**overrides) -> AccountFoundationActivationResult:
@@ -1411,6 +1455,213 @@ async def test_referral_saas_access_provisioning_rejects_path_scope_mismatch(
     assert detail["no_invite_delivery_confirmed"] is True
     assert detail["no_auth_claim_change_confirmed"] is True
     assert detail["no_credential_creation_confirmed"] is True
+
+
+async def test_referral_saas_account_admin_can_read_login_completion_readiness(
+    monkeypatch,
+):
+    resolve_calls: list[dict] = []
+    readiness_calls: list[dict] = []
+
+    async def fake_resolve_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context()
+
+    async def fake_get_referral_saas_login_completion_readiness(**kwargs):
+        readiness_calls.append(kwargs)
+        return _login_completion_readiness()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_account_by_external_reference",
+        fake_resolve_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_login_completion_readiness",
+        fake_get_referral_saas_login_completion_readiness,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/memberships/membership-1/login-completion-readiness",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "runtime",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["loginCompletionReadiness"]["loginCompletionStatus"] == (
+        "LOGIN_COMPLETION_READY"
+    )
+    assert body["loginCompletionReadiness"]["membershipRef"] == "membership-1"
+    assert body["no_credential_creation_confirmed"] is True
+    assert body["no_auth_claim_change_confirmed"] is True
+    assert body["no_campaign_activation_confirmed"] is True
+    assert "NO_RAW_CREDENTIAL_STORAGE" in body["guardrails"]
+    assert "provider_secret" in body["redactions"]
+    assert "tenantCode" not in body["account"]
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert readiness_calls == [
+        {
+            "account_id": "acct-1",
+            "tenant_code": "FNB",
+            "account_status": "ACTIVE",
+            "tenant_link_status": "ACTIVE",
+            "external_reference_status": "ACTIVE",
+            "membership_id": "membership-1",
+        }
+    ]
+
+
+async def test_referral_saas_account_admin_can_record_login_completion_intent(
+    monkeypatch,
+):
+    resolve_calls: list[dict] = []
+    command_calls: list[dict] = []
+
+    async def fake_resolve_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context()
+
+    async def fake_request_referral_saas_login_completion_intent(**kwargs):
+        command_calls.append(kwargs)
+        return _login_completion_result()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_account_by_external_reference",
+        fake_resolve_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "request_referral_saas_login_completion_intent",
+        fake_request_referral_saas_login_completion_intent,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/memberships/membership-1/login-completion-intents",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "runtime",
+                },
+                "loginCompletion": {
+                    "intent": "PLATFORM_LOGIN_REQUIRED",
+                    "identitySubjectRef": "identity-subject-1",
+                    "authProviderRef": "approved-provider-1",
+                    "seatEvidenceRef": "seat-1",
+                    "permissionProfile": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                    "operatorReason": "Owner needs Amplifi platform login.",
+                },
+                "reasonCode": "CUSTOMER_PROFILE_LOGIN_COMPLETION_INTENT",
+                "correlationId": "corr-1",
+                "idempotencyKey": "login-completion-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["loginCompletionIntent"]["commandStatus"] == (
+        "LOGIN_COMPLETION_RECORDED"
+    )
+    assert body["loginCompletionIntent"]["loginCompletion"]["authClaimStatus"] == (
+        "AUTH_CLAIMS_NOT_PROPAGATED"
+    )
+    assert body["no_invite_delivery_confirmed"] is True
+    assert body["no_credential_creation_confirmed"] is True
+    assert body["no_auth_claim_change_confirmed"] is True
+    assert body["no_campaign_activation_confirmed"] is True
+    assert "NO_TOKEN_EXPOSURE" in body["guardrails"]
+    assert "raw_auth_claims" in body["redactions"]
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert command_calls[0]["account_id"] == "acct-1"
+    assert command_calls[0]["membership_id"] == "membership-1"
+    assert command_calls[0]["intent"] == "PLATFORM_LOGIN_REQUIRED"
+    assert command_calls[0]["auth_provider_ref"] == "approved-provider-1"
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["command_payload_hash"]
+
+
+async def test_referral_saas_login_completion_rejects_path_scope_mismatch(
+    monkeypatch,
+):
+    async def fake_resolve_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_account_by_external_reference",
+        fake_resolve_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-other/memberships/membership-1/login-completion-intents",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "loginCompletion": {"intent": "LOGIN_NOT_REQUIRED"},
+                "correlationId": "corr-1",
+                "idempotencyKey": "login-completion-1",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_SCOPE"
+    assert detail["no_credential_creation_confirmed"] is True
+    assert detail["no_auth_claim_change_confirmed"] is True
+    assert detail["no_campaign_activation_confirmed"] is True
+
+
+async def test_referral_saas_login_completion_rejects_unsafe_payload(
+    monkeypatch,
+):
+    async def fake_resolve_account_by_external_reference(**kwargs):
+        return _context()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_account_by_external_reference",
+        fake_resolve_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/memberships/membership-1/login-completion-intents",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "loginCompletion": {
+                    "intent": "PLATFORM_LOGIN_REQUIRED",
+                    "authClaims": {"role": "admin"},
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "login-completion-unsafe",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert detail["no_credential_creation_confirmed"] is True
+    assert detail["no_auth_claim_change_confirmed"] is True
 
 
 async def test_referral_saas_account_admin_can_read_technical_setup_readiness(
