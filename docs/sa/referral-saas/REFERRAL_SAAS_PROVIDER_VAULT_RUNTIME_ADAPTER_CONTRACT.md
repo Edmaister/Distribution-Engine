@@ -109,6 +109,27 @@ TASK-343 should implement the read-only readiness route first. The mutation
 route must remain unavailable until a separate provider/vault runtime task
 implements it with full audit and adapter tests.
 
+## TASK-343 Readiness API Implementation
+
+TASK-343 implements the first route in this family:
+
+`GET /v1/referral-saas/accounts/{account_ref}/integrations/provider-vault/readiness`
+
+The response returns `providerVaultReadiness` for the selected customer. It
+checks active account posture, saved Integrations configuration, provider
+approval, approved credential requests, and request/configuration version
+alignment. It can return ready, missing, unapproved, provider-blocked,
+configuration-blocked, stale-version, or inactive-account states.
+
+This route is a classifier only. It does not create credentials, store or
+reveal secrets, write vault references, call providers, dispatch webhooks or
+messages, send invites, activate memberships, assign seats, change auth claims,
+activate campaigns, bill, move money, add DLaaS scope, or fork source code.
+
+`PROVIDER_VAULT_EXECUTION_READY` means the visible customer setup evidence is
+aligned for a future governed executor. It does not mean a provider connection
+or vault secret exists yet.
+
 ## Candidate Execution Request
 
 ```json

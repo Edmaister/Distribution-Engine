@@ -1723,6 +1723,329 @@ async def test_referral_saas_account_execution_readiness_blocks_missing_configur
     assert body["no_message_provider_delivery_confirmed"] is True
 
 
+async def test_referral_saas_account_provider_vault_readiness_blocks_missing_request(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    class FakeIntegrationConfiguration:
+        configuration_ref = "config-1"
+        configuration_status = "INTEGRATION_CONFIGURATION_SAVED"
+        api_environment = {
+            "environment": "SANDBOX",
+            "authMethod": "API_KEY",
+            "useCases": ["CAMPAIGN_READ"],
+        }
+        webhook_intent = {}
+        message_providers = {"channels": ["EMAIL"], "providerRefs": ["provider-1"]}
+
+        def to_safe_dict(self):
+            return {"configurationRef": self.configuration_ref}
+
+    async def fake_get_referral_saas_integration_configuration(**kwargs):
+        return FakeIntegrationConfiguration()
+
+    async def fake_list_referral_saas_integration_credential_requests(**kwargs):
+        return []
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_configuration",
+        fake_get_referral_saas_integration_configuration,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_integration_credential_requests",
+        fake_list_referral_saas_integration_credential_requests,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/integrations/provider-vault/readiness",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    readiness = body["providerVaultReadiness"]
+    assert (
+        readiness["readinessStatus"]
+        == "PROVIDER_VAULT_BLOCKED_REQUEST_NOT_APPROVED"
+    )
+    assert readiness["credentialRequests"] == []
+    assert readiness["blockers"][0]["code"] == "CREDENTIAL_REQUEST_NOT_APPROVED"
+    assert body["no_vault_write_confirmed"] is True
+    assert body["no_provider_call_confirmed"] is True
+
+
+async def test_referral_saas_account_provider_vault_readiness_blocks_unapproved_request(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    configuration = SimpleNamespace(
+        configuration_ref="config-1",
+        configuration_status="INTEGRATION_CONFIGURATION_SAVED",
+        api_environment={
+            "environment": "SANDBOX",
+            "authMethod": "API_KEY",
+            "useCases": ["CAMPAIGN_READ"],
+        },
+        webhook_intent={},
+        message_providers={"channels": ["EMAIL"], "providerRefs": ["provider-1"]},
+        to_safe_dict=lambda: {"configurationRef": "config-1"},
+    )
+    credential_request = SimpleNamespace(
+        credential_request_ref="credreq-1",
+        configuration_ref="config-1",
+        review_status="READY_FOR_REVIEW",
+        request_type="API_KEY_CREATE",
+        capability="REFERRAL_SAAS_API_ACCESS",
+        environment="SANDBOX",
+    )
+
+    async def fake_get_referral_saas_integration_configuration(**kwargs):
+        return configuration
+
+    async def fake_list_referral_saas_integration_credential_requests(**kwargs):
+        return [credential_request]
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_configuration",
+        fake_get_referral_saas_integration_configuration,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_integration_credential_requests",
+        fake_list_referral_saas_integration_credential_requests,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/integrations/provider-vault/readiness",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    readiness = body["providerVaultReadiness"]
+    assert (
+        readiness["readinessStatus"]
+        == "PROVIDER_VAULT_BLOCKED_REQUEST_NOT_APPROVED"
+    )
+    item = readiness["credentialRequests"][0]
+    assert item["readyForExecution"] is False
+    assert item["blockers"][0]["code"] == "CREDENTIAL_REQUEST_NOT_APPROVED"
+    assert body["no_credential_creation_confirmed"] is True
+
+
+async def test_referral_saas_account_provider_vault_readiness_blocks_config_mismatch(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    configuration = SimpleNamespace(
+        configuration_ref="config-2",
+        configuration_status="INTEGRATION_CONFIGURATION_SAVED",
+        api_environment={
+            "environment": "SANDBOX",
+            "authMethod": "API_KEY",
+            "useCases": ["CAMPAIGN_READ"],
+        },
+        webhook_intent={},
+        message_providers={"channels": ["EMAIL"], "providerRefs": ["provider-1"]},
+        to_safe_dict=lambda: {"configurationRef": "config-2"},
+    )
+    credential_request = SimpleNamespace(
+        credential_request_ref="credreq-1",
+        configuration_ref="config-1",
+        review_status="REVIEW_APPROVED",
+        request_type="API_KEY_CREATE",
+        capability="REFERRAL_SAAS_API_ACCESS",
+        environment="SANDBOX",
+    )
+
+    async def fake_get_referral_saas_integration_configuration(**kwargs):
+        return configuration
+
+    async def fake_list_referral_saas_integration_credential_requests(**kwargs):
+        return [credential_request]
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_configuration",
+        fake_get_referral_saas_integration_configuration,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_integration_credential_requests",
+        fake_list_referral_saas_integration_credential_requests,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/integrations/provider-vault/readiness",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    readiness = body["providerVaultReadiness"]
+    assert (
+        readiness["readinessStatus"]
+        == "PROVIDER_VAULT_BLOCKED_REQUEST_VERSION_MISMATCH"
+    )
+    assert (
+        readiness["credentialRequests"][0]["blockers"][0]["code"]
+        == "CREDENTIAL_REQUEST_VERSION_MISMATCH"
+    )
+
+
+async def test_referral_saas_account_provider_vault_readiness_returns_ready_state(
+    monkeypatch,
+):
+    calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    configuration = SimpleNamespace(
+        configuration_ref="config-1",
+        configuration_status="INTEGRATION_CONFIGURATION_SAVED",
+        api_environment={
+            "environment": "SANDBOX",
+            "authMethod": "API_KEY",
+            "useCases": ["CAMPAIGN_READ"],
+        },
+        webhook_intent={
+            "callbackUrl": "https://example.com/referral-events",
+            "eventCategories": ["REFERRAL"],
+        },
+        message_providers={"channels": ["EMAIL"], "providerRefs": ["provider-1"]},
+        to_safe_dict=lambda: {"configurationRef": "config-1"},
+    )
+    credential_request = SimpleNamespace(
+        credential_request_ref="credreq-1",
+        configuration_ref="config-1",
+        review_status="REVIEW_APPROVED",
+        request_type="API_KEY_CREATE",
+        capability="REFERRAL_SAAS_API_ACCESS",
+        environment="SANDBOX",
+    )
+
+    async def fake_get_referral_saas_integration_configuration(**kwargs):
+        calls.append({"configuration": kwargs})
+        return configuration
+
+    async def fake_list_referral_saas_integration_credential_requests(**kwargs):
+        calls.append({"credential_requests": kwargs})
+        return [credential_request]
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_configuration",
+        fake_get_referral_saas_integration_configuration,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_integration_credential_requests",
+        fake_list_referral_saas_integration_credential_requests,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/integrations/provider-vault/readiness",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    readiness = body["providerVaultReadiness"]
+    assert readiness["readinessStatus"] == "PROVIDER_VAULT_EXECUTION_READY"
+    assert readiness["blockers"] == []
+    assert readiness["credentialRequests"][0]["readyForExecution"] is True
+    assert readiness["credentialRequests"][0]["readinessStatus"] == (
+        "PROVIDER_VAULT_EXECUTION_READY"
+    )
+    assert readiness["readyActions"][0]["actionRef"] == "PROVIDER_VAULT_EXECUTOR_HANDOFF"
+    assert "provider_secret" in body["redactions"]
+    assert "vault_reference" in body["redactions"]
+    assert body["no_vault_write_confirmed"] is True
+    assert body["no_provider_call_confirmed"] is True
+    assert calls == [
+        {"configuration": {"account_id": "acct-1"}},
+        {"credential_requests": {"account_id": "acct-1", "limit": 100}},
+    ]
+
+
 async def test_referral_saas_account_admin_can_validate_integration_configuration(
     monkeypatch,
 ):

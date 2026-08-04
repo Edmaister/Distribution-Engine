@@ -293,6 +293,28 @@ READ_ONLY_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_provider_vault_readiness",
+        method="GET",
+        path="/v1/referral-saas/accounts/{account_ref}/integrations/provider-vault/readiness",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS account reader role",
+        environment_rule="local/staging/production read-only where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -H "Authorization: Bearer {admin_token}" '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/integrations/provider-vault/readiness?ref_type={ref_type}'
+            '&external_ref={external_ref}&context=setup"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_integration_configuration_validate",
         method="POST",
         path="/v1/referral-saas/accounts/{account_ref}/integrations/configuration/validate",

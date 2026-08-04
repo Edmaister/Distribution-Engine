@@ -60,6 +60,22 @@ CREDENTIAL_REQUEST_REVIEW_RECORDED = "CREDENTIAL_REQUEST_REVIEW_RECORDED"
 CREDENTIAL_REQUEST_REVIEW_REPLAYED = "CREDENTIAL_REQUEST_REVIEW_REPLAYED"
 CREDENTIAL_EXECUTION_CHECK_RECORDED = "CREDENTIAL_EXECUTION_CHECK_RECORDED"
 CREDENTIAL_EXECUTION_CHECK_REPLAYED = "CREDENTIAL_EXECUTION_CHECK_REPLAYED"
+PROVIDER_VAULT_EXECUTION_READY = "PROVIDER_VAULT_EXECUTION_READY"
+PROVIDER_VAULT_BLOCKED_ACCOUNT_NOT_ACTIVE = (
+    "PROVIDER_VAULT_BLOCKED_ACCOUNT_NOT_ACTIVE"
+)
+PROVIDER_VAULT_BLOCKED_CONFIGURATION_MISSING = (
+    "PROVIDER_VAULT_BLOCKED_CONFIGURATION_MISSING"
+)
+PROVIDER_VAULT_BLOCKED_PROVIDER_NOT_APPROVED = (
+    "PROVIDER_VAULT_BLOCKED_PROVIDER_NOT_APPROVED"
+)
+PROVIDER_VAULT_BLOCKED_REQUEST_NOT_APPROVED = (
+    "PROVIDER_VAULT_BLOCKED_REQUEST_NOT_APPROVED"
+)
+PROVIDER_VAULT_BLOCKED_REQUEST_VERSION_MISMATCH = (
+    "PROVIDER_VAULT_BLOCKED_REQUEST_VERSION_MISMATCH"
+)
 
 INTEGRATION_CONFIGURATION_GUARDRAILS = [
     "CUSTOMER_SCOPED_INTEGRATIONS_CONFIGURATION",
@@ -137,6 +153,29 @@ CREDENTIAL_REQUEST_REDACTIONS = list(
             "vault_reference",
             "api_key_value",
             "signing_key_value",
+        ]
+    )
+)
+PROVIDER_VAULT_READINESS_GUARDRAILS = list(
+    dict.fromkeys(
+        [
+            *CREDENTIAL_REQUEST_GUARDRAILS,
+            "CUSTOMER_SCOPED_PROVIDER_VAULT_READINESS",
+            "APPROVED_CREDENTIAL_REQUEST_REQUIRED",
+            "READ_ONLY_PROVIDER_VAULT_CLASSIFICATION",
+            "NO_PROVIDER_DISPATCH",
+            "NO_PROVIDER_RUNTIME_EXECUTION",
+            "NO_VAULT_WRITE_EXECUTION",
+        ]
+    )
+)
+PROVIDER_VAULT_READINESS_REDACTIONS = list(
+    dict.fromkeys(
+        [
+            *CREDENTIAL_REQUEST_REDACTIONS,
+            "opaque_vault_reference",
+            "provider_runtime_reference",
+            "provider_runtime_payload",
         ]
     )
 )
@@ -627,6 +666,94 @@ class ReferralSaasIntegrationCredentialExecutionCheckResult:
             "idempotency": {"status": self.idempotency_status},
             "audit": {"accountAuditEventId": self.audit_event_id},
             "plainLanguageSummary": self.plain_language_summary,
+            "guardrails": self.guardrails,
+            "redactions": self.redactions,
+            "noSecretOrCredentialStorageConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noCredentialLifecycleExecutionConfirmed": True,
+            "noCredentialRevealOrDownloadConfirmed": True,
+            "noVaultWriteConfirmed": True,
+            "noProviderCallConfirmed": True,
+            "noWebhookDispatchConfirmed": True,
+            "noInviteDeliveryConfirmed": True,
+            "noMessageProviderDeliveryConfirmed": True,
+            "noMembershipActivationConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveActionConfirmed": True,
+            "noBillingOrMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasProviderVaultReadinessItem:
+    credential_request_ref: str
+    capability: str
+    request_type: str
+    environment: str
+    review_status: str
+    readiness_status: str
+    ready_for_execution: bool
+    plain_language_summary: str
+    blockers: list[dict[str, Any]]
+    next_actions: list[dict[str, Any]]
+    configuration_ref: str | None = None
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "credentialRequestRef": self.credential_request_ref,
+            "capability": self.capability,
+            "requestType": self.request_type,
+            "environment": self.environment,
+            "reviewStatus": self.review_status,
+            "readinessStatus": self.readiness_status,
+            "readyForExecution": self.ready_for_execution,
+            "plainLanguageSummary": self.plain_language_summary,
+            "blockers": self.blockers,
+            "nextActions": self.next_actions,
+            "configurationRef": self.configuration_ref,
+            "noSecretOrCredentialStorageConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noCredentialLifecycleExecutionConfirmed": True,
+            "noCredentialRevealOrDownloadConfirmed": True,
+            "noVaultWriteConfirmed": True,
+            "noProviderCallConfirmed": True,
+            "noWebhookDispatchConfirmed": True,
+            "noInviteDeliveryConfirmed": True,
+            "noMessageProviderDeliveryConfirmed": True,
+            "noMembershipActivationConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveActionConfirmed": True,
+            "noBillingOrMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasProviderVaultReadiness:
+    readiness_status: str
+    plain_language_summary: str
+    credential_requests: list[ReferralSaasProviderVaultReadinessItem]
+    blockers: list[dict[str, Any]]
+    ready_actions: list[dict[str, Any]]
+    guardrails: list[str]
+    redactions: list[str]
+    configuration_ref: str | None = None
+    configuration_status: str | None = None
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "readinessStatus": self.readiness_status,
+            "plainLanguageSummary": self.plain_language_summary,
+            "credentialRequests": [
+                item.to_safe_dict() for item in self.credential_requests
+            ],
+            "blockers": self.blockers,
+            "readyActions": self.ready_actions,
+            "configurationRef": self.configuration_ref,
+            "configurationStatus": self.configuration_status,
             "guardrails": self.guardrails,
             "redactions": self.redactions,
             "noSecretOrCredentialStorageConfirmed": True,
@@ -1325,6 +1452,177 @@ async def upsert_referral_saas_integration_configuration(
         validation=validation,
         idempotency_status=safe_status,
         audit_event_id=str(audit_event["account_audit_event_id"]) if audit_event else None,
+    )
+
+
+def build_referral_saas_provider_vault_readiness(
+    *,
+    account_status: str | None,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+    configuration: ReferralSaasIntegrationConfiguration | None,
+    credential_requests: list[ReferralSaasIntegrationCredentialRequest],
+) -> ReferralSaasProviderVaultReadiness:
+    integration_readiness = build_referral_saas_integration_execution_readiness(
+        account_status=account_status,
+        tenant_link_status=tenant_link_status,
+        external_reference_status=external_reference_status,
+        configuration=configuration,
+    )
+    blockers: list[dict[str, Any]] = list(integration_readiness.blockers)
+
+    if integration_readiness.execution_status == INTEGRATION_EXECUTION_READY:
+        account_blocked = False
+    else:
+        account_blocked = any(
+            str(item.get("code", "")).endswith("NOT_ACTIVE")
+            for item in integration_readiness.blockers
+            if isinstance(item, dict)
+        )
+
+    if not credential_requests:
+        blockers.append(
+            _execution_blocker(
+                "CREDENTIAL_REQUEST_NOT_APPROVED",
+                "Approve at least one credential request before provider/vault execution readiness.",
+            )
+        )
+
+    request_items: list[ReferralSaasProviderVaultReadinessItem] = []
+    for credential_request in credential_requests:
+        item_blockers: list[dict[str, Any]] = []
+        if credential_request.review_status != "REVIEW_APPROVED":
+            item_blockers.append(
+                _execution_blocker(
+                    "CREDENTIAL_REQUEST_NOT_APPROVED",
+                    "Review and approve this credential request before execution.",
+                )
+            )
+        if (
+            configuration is not None
+            and credential_request.configuration_ref
+            and credential_request.configuration_ref != configuration.configuration_ref
+        ):
+            item_blockers.append(
+                _execution_blocker(
+                    "CREDENTIAL_REQUEST_VERSION_MISMATCH",
+                    "Re-review this request against the current Integrations configuration.",
+                )
+            )
+        if integration_readiness.execution_status != INTEGRATION_EXECUTION_READY:
+            item_blockers.extend(integration_readiness.blockers)
+
+        ready = not item_blockers
+        item_status = (
+            PROVIDER_VAULT_EXECUTION_READY
+            if ready
+            else (
+                PROVIDER_VAULT_BLOCKED_ACCOUNT_NOT_ACTIVE
+                if account_blocked
+                else PROVIDER_VAULT_BLOCKED_CONFIGURATION_MISSING
+                if configuration is None
+                or integration_readiness.execution_status
+                == INTEGRATION_EXECUTION_BLOCKED_CONFIGURATION_MISSING
+                else PROVIDER_VAULT_BLOCKED_PROVIDER_NOT_APPROVED
+                if integration_readiness.execution_status
+                == INTEGRATION_EXECUTION_BLOCKED_PROVIDER_NOT_APPROVED
+                else PROVIDER_VAULT_BLOCKED_REQUEST_VERSION_MISMATCH
+                if any(
+                    item.get("code") == "CREDENTIAL_REQUEST_VERSION_MISMATCH"
+                    for item in item_blockers
+                    if isinstance(item, dict)
+                )
+                else PROVIDER_VAULT_BLOCKED_REQUEST_NOT_APPROVED
+            )
+        )
+        request_items.append(
+            ReferralSaasProviderVaultReadinessItem(
+                credential_request_ref=credential_request.credential_request_ref,
+                capability=credential_request.capability,
+                request_type=credential_request.request_type,
+                environment=credential_request.environment,
+                review_status=credential_request.review_status,
+                readiness_status=item_status,
+                ready_for_execution=ready,
+                configuration_ref=credential_request.configuration_ref,
+                plain_language_summary=(
+                    "This approved request is ready for a future governed "
+                    "provider/vault executor. This read endpoint did not call "
+                    "a provider or write a vault."
+                    if ready
+                    else "This request is not ready for provider/vault execution yet."
+                ),
+                blockers=item_blockers,
+                next_actions=[
+                    _execution_action(
+                        action_ref="PROVIDER_VAULT_EXECUTOR_HANDOFF",
+                        label="Prepare provider/vault executor handoff",
+                        status="READY" if ready else "BLOCKED",
+                        next_step=(
+                            "Use a governed executor workflow to create or rotate "
+                            "credentials when provider/vault adapters exist."
+                        ),
+                        reason=(
+                            "Approved credential request and saved customer "
+                            "Integrations configuration are aligned."
+                            if ready
+                            else "Resolve blockers before executor handoff."
+                        ),
+                    )
+                ],
+            )
+        )
+        blockers.extend(item_blockers)
+
+    deduped_blockers: list[dict[str, Any]] = []
+    seen_blockers: set[tuple[str, str]] = set()
+    for blocker in blockers:
+        key = (str(blocker.get("code")), str(blocker.get("message")))
+        if key not in seen_blockers:
+            seen_blockers.add(key)
+            deduped_blockers.append(blocker)
+
+    ready_items = [item for item in request_items if item.ready_for_execution]
+    if integration_readiness.execution_status != INTEGRATION_EXECUTION_READY:
+        readiness_status = (
+            PROVIDER_VAULT_BLOCKED_ACCOUNT_NOT_ACTIVE
+            if account_blocked
+            else PROVIDER_VAULT_BLOCKED_PROVIDER_NOT_APPROVED
+            if integration_readiness.execution_status
+            == INTEGRATION_EXECUTION_BLOCKED_PROVIDER_NOT_APPROVED
+            else PROVIDER_VAULT_BLOCKED_CONFIGURATION_MISSING
+        )
+    elif not ready_items:
+        readiness_status = (
+            PROVIDER_VAULT_BLOCKED_REQUEST_VERSION_MISMATCH
+            if any(
+                item.readiness_status == PROVIDER_VAULT_BLOCKED_REQUEST_VERSION_MISMATCH
+                for item in request_items
+            )
+            else PROVIDER_VAULT_BLOCKED_REQUEST_NOT_APPROVED
+        )
+    else:
+        readiness_status = PROVIDER_VAULT_EXECUTION_READY
+
+    return ReferralSaasProviderVaultReadiness(
+        readiness_status=readiness_status,
+        plain_language_summary=(
+            "Approved credential request evidence is ready for a future governed "
+            "provider/vault executor. This endpoint is read-only and did not "
+            "write a vault, create credentials, reveal secrets, or call a provider."
+            if readiness_status == PROVIDER_VAULT_EXECUTION_READY
+            else "Provider/vault execution is blocked until the listed customer "
+            "setup and credential request evidence is complete."
+        ),
+        credential_requests=request_items,
+        blockers=deduped_blockers,
+        ready_actions=[
+            item.next_actions[0] for item in ready_items if item.next_actions
+        ],
+        configuration_ref=configuration.configuration_ref if configuration else None,
+        configuration_status=configuration.configuration_status if configuration else None,
+        guardrails=PROVIDER_VAULT_READINESS_GUARDRAILS,
+        redactions=PROVIDER_VAULT_READINESS_REDACTIONS,
     )
 
 

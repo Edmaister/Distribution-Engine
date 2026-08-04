@@ -34,6 +34,7 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("GET", "/v1/referral-saas/accounts/{account_ref}/technical-setup-readiness"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/integrations/configuration"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/integrations/execution-readiness"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/integrations/provider-vault/readiness"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/integrations/credential-requests"),
         (
             "GET",
@@ -192,6 +193,7 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("GET", "/v1/referral-saas/accounts/{account_ref}/technical-setup-readiness"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/integrations/configuration"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/integrations/execution-readiness"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/integrations/provider-vault/readiness"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/integrations/credential-requests"),
         (
             "GET",

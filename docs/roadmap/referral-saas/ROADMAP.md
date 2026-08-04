@@ -2046,6 +2046,28 @@ greenfield referral construction.
   Referral Management and 9.9995/10 for Campaign Attribution because TASK-343
   readiness API, TASK-344 UI visibility, governed auth/login completion, and
   non-local proof repetition remain open.
+- TASK-343:
+  `apps/api/routers/referral_saas_accounts.py`;
+  `services/referral_saas_integrations_configuration_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_ADAPTER_CONTRACT.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  read-only selected-customer provider/vault readiness API for Integrations.
+  The API classifies active account posture, saved Integrations configuration,
+  provider approval, approved credential requests, stale request versions, and
+  missing/unapproved request blockers without exposing secrets, executing
+  credential lifecycle work, writing a vault, calling providers, dispatching
+  webhooks/messages, sending invites, changing auth, activating campaigns,
+  billing, moving money, adding DLaaS scope, or duplicating source code. Scores
+  remain 9.99/10 for Referral Management and 9.9995/10 for Campaign
+  Attribution because TASK-344 UI visibility, governed provider/vault runtime
+  execution, governed auth/login completion, and non-local proof repetition
+  remain open.
 
 ## Explicit Deferrals
 

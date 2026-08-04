@@ -7745,7 +7745,7 @@ Definition of done: Referral SaaS and shared platform have a reviewed provider/v
 
 ## TASK-343: Add provider/vault execution readiness API
 
-Status: Planned.
+Status: Completed.
 Product boundary: Shared Platform with Referral SaaS impact.
 Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Reuses Integrations configuration, credential requests/review, execution-check readiness, provider/vault contract, account scope, audit, and redactions. Source duplication: No.
@@ -7766,6 +7766,7 @@ Blocked by: UI wiring and provider-specific runtime adapters.
 Risk level: Medium.
 Rollback notes: Revert service/router/tests/docs updates.
 Explicit non-goals: No vault integration, no provider calls, no credential storage/reveal/download, no live webhook/message dispatch, no auth/session changes, no campaign activation, no billing, no money, no DLaaS implementation.
+Completed output: Adds read-only `/v1/referral-saas/accounts/{account_ref}/integrations/provider-vault/readiness`; service-level provider/vault readiness classification for active account posture, saved Integrations configuration, approved credential request, provider approval, stale-version blocks, and missing-request blocks; route smoke inventory/plan coverage; focused API tests for missing, unapproved, mismatched, and ready states; provider/vault contract, roadmap, gap matrix, and infographic updates. The route exposes safe readiness only and confirms no secret exposure, credential lifecycle execution, vault write, provider call, webhook/message dispatch, invite delivery, auth/session change, campaign activation, billing, money movement, DLaaS scope, or source duplication.
 Definition of done: Integrations has a provider/vault readiness API that makes the remaining execution gap visible and testable without unsafe side effects. Priority: P0.
 
 ## TASK-344: Wire provider/vault execution readiness UI

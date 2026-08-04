@@ -160,6 +160,8 @@ from services.referral_saas_integrations_configuration_service import (
     INTEGRATION_CONFIGURATION_REDACTIONS,
     INTEGRATION_EXECUTION_GUARDRAILS,
     INTEGRATION_EXECUTION_REDACTIONS,
+    PROVIDER_VAULT_READINESS_GUARDRAILS,
+    PROVIDER_VAULT_READINESS_REDACTIONS,
     IntegrationCredentialRequestNotFound,
     IntegrationConfigurationIdempotencyConflict,
     IntegrationConfigurationUnsafePayload,
@@ -167,6 +169,7 @@ from services.referral_saas_integrations_configuration_service import (
     ReferralSaasIntegrationConfigurationCommandError,
     assert_safe_referral_saas_integration_execution_payload,
     build_referral_saas_integration_execution_readiness,
+    build_referral_saas_provider_vault_readiness,
     create_referral_saas_integration_credential_request,
     get_referral_saas_integration_credential_request,
     get_referral_saas_integration_configuration,
@@ -289,6 +292,12 @@ INTEGRATION_EXECUTION_ROUTE_GUARDRAILS = {
 }
 INTEGRATION_EXECUTION_ROUTE_REDACTIONS = {
     *INTEGRATION_EXECUTION_REDACTIONS,
+}
+PROVIDER_VAULT_READINESS_ROUTE_GUARDRAILS = {
+    *PROVIDER_VAULT_READINESS_GUARDRAILS,
+}
+PROVIDER_VAULT_READINESS_ROUTE_REDACTIONS = {
+    *PROVIDER_VAULT_READINESS_REDACTIONS,
 }
 
 
@@ -2862,6 +2871,99 @@ async def read_referral_saas_integration_execution_readiness(
         "no_secret_or_credential_storage_confirmed": True,
         "no_credential_creation_confirmed": True,
         "no_credential_lifecycle_confirmed": True,
+        "no_webhook_dispatch_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_message_provider_delivery_confirmed": True,
+        "no_membership_activation_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_action_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/integrations/provider-vault/readiness")
+async def read_referral_saas_provider_vault_readiness(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    try:
+        configuration = await get_referral_saas_integration_configuration(
+            account_id=account.account_id,
+        )
+        credential_requests = await list_referral_saas_integration_credential_requests(
+            account_id=account.account_id,
+            limit=100,
+        )
+    except ReferralSaasIntegrationConfigurationCommandError as exc:
+        raise _integration_configuration_error(exc) from exc
+
+    readiness = build_referral_saas_provider_vault_readiness(
+        account_status=account.account_status,
+        tenant_link_status=account.tenant_link_status,
+        external_reference_status=account.reference_status,
+        configuration=configuration,
+        credential_requests=credential_requests,
+    )
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "providerVaultReadiness": readiness.to_safe_dict(),
+        "integrationConfiguration": (
+            configuration.to_safe_dict() if configuration else None
+        ),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "Read-only selected-customer provider/vault readiness. It shows "
+            "whether approved credential request evidence is ready for a later "
+            "governed executor; it does not create, reveal, store, rotate, "
+            "revoke, download, or send credentials; it does not write a vault, "
+            "call a provider, dispatch webhooks, send invites or messages, "
+            "activate memberships, assign seats, change auth claims, activate "
+            "campaigns, trigger go-live, bill, or move money."
+        ),
+        "guardrails": sorted(PROVIDER_VAULT_READINESS_ROUTE_GUARDRAILS),
+        "redactions": sorted(PROVIDER_VAULT_READINESS_ROUTE_REDACTIONS),
+        "no_secret_or_credential_storage_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_credential_lifecycle_execution_confirmed": True,
+        "no_credential_reveal_or_download_confirmed": True,
+        "no_vault_write_confirmed": True,
+        "no_provider_call_confirmed": True,
         "no_webhook_dispatch_confirmed": True,
         "no_invite_delivery_confirmed": True,
         "no_message_provider_delivery_confirmed": True,
