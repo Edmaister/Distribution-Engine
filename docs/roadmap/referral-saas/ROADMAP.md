@@ -2163,6 +2163,26 @@ greenfield referral construction.
   remains 9.99/10 for Referral Management and 9.9998/10 for Campaign
   Attribution because this closes command-design ambiguity while runtime
   provider/vault execution and non-local proof repetition remain separate gaps.
+- TASK-350:
+  `apps/api/routers/referral_saas_accounts.py`;
+  `services/referral_saas_integrations_configuration_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  governed provider/vault runtime execution API foundation after the TASK-349
+  contract. The selected-customer routes record and read safe execution
+  evidence, enforce approved credential request/version/provider/environment/
+  capability gates, replay identical idempotent requests, reject changed
+  payload reuse, and return blocked/not-implemented states without raw secret,
+  provider dispatch, vault write, invite/webhook/message delivery, auth/session
+  change, campaign activation, billing, money, DLaaS, or source-fork side
+  effects. Current rating remains 9.99/10 for Referral Management and moves
+  Campaign Attribution to 9.9999/10 because the runtime API boundary exists
+  while real provider/vault adapters and non-local proof repetition remain
+  separate gaps.
 
 ## Explicit Deferrals
 

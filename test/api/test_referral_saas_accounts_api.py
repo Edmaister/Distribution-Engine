@@ -3811,6 +3811,282 @@ async def test_referral_saas_account_credential_execution_check_idempotency_conf
     assert detail["no_vault_write_confirmed"] is True
 
 
+async def test_referral_saas_account_admin_can_record_provider_vault_execution(
+    monkeypatch,
+):
+    execution_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    async def fake_get_referral_saas_integration_configuration(**kwargs):
+        return SimpleNamespace(configuration_ref="config-1")
+
+    class FakeProviderVaultExecutionResult:
+        def to_safe_dict(self):
+            return {
+                "commandStatus": "PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED",
+                "executionRef": "audit-1",
+                "credentialRequest": {
+                    "credentialRequestRef": "credreq-1",
+                    "requestType": "PROVIDER_CREDENTIAL_REFERENCE_CREATE",
+                    "capability": "REFERRAL_SAAS_PROVIDER_REFERENCE",
+                    "reviewStatus": "REVIEW_APPROVED",
+                },
+                "providerKey": "sendgrid",
+                "environment": "SANDBOX",
+                "capability": "REFERRAL_SAAS_PROVIDER_REFERENCE",
+                "blockedReason": "PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED",
+                "idempotency": {"status": "PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED"},
+                "audit": {"accountAuditEventId": "audit-1"},
+                "noCredentialCreationConfirmed": True,
+                "noVaultWriteConfirmed": True,
+                "noProviderCallConfirmed": True,
+            }
+
+    async def fake_record_referral_saas_provider_vault_execution(**kwargs):
+        execution_calls.append(kwargs)
+        return FakeProviderVaultExecutionResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_configuration",
+        fake_get_referral_saas_integration_configuration,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "record_referral_saas_provider_vault_execution",
+        fake_record_referral_saas_provider_vault_execution,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/credential-requests/credreq-1/provider-vault-executions",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "providerVaultExecution": {
+                    "approvedRequestVersion": "credreq-1",
+                    "executionIntent": "CREATE_PROVIDER_VAULT_REFERENCE",
+                    "executionMode": "SAFE_RUNTIME_EXECUTION",
+                    "providerKey": "sendgrid",
+                    "environment": "SANDBOX",
+                    "capability": "REFERRAL_SAAS_PROVIDER_REFERENCE",
+                    "reason": "Approved provider credential request is ready for runtime execution.",
+                },
+                "reasonCode": "PROVIDER_VAULT_RUNTIME_EXECUTION",
+                "correlationId": "corr-1",
+                "idempotencyKey": "provider-vault-execution-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "accepted"
+    assert (
+        body["providerVaultExecutionResult"]["commandStatus"]
+        == "PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED"
+    )
+    assert body["no_credential_creation_confirmed"] is True
+    assert body["no_vault_write_confirmed"] is True
+    assert body["no_provider_call_confirmed"] is True
+    assert execution_calls[0]["account_id"] == "acct-1"
+    assert execution_calls[0]["credential_request_ref"] == "credreq-1"
+    assert execution_calls[0]["actor_role"] == "ADMIN"
+
+
+async def test_referral_saas_account_provider_vault_execution_requires_command_scope(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        raise AssertionError("account should not resolve without command scope")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/credential-requests/credreq-1/provider-vault-executions",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "providerVaultExecution": {},
+                "correlationId": "corr-1",
+            },
+        )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "validation_error"
+    assert detail["no_provider_vault_execution_recorded_confirmed"] is True
+
+
+async def test_referral_saas_account_provider_vault_execution_rejects_unsafe_payload(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        raise AssertionError("unsafe payload should fail before account lookup")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/credential-requests/credreq-1/provider-vault-executions",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "providerVaultExecution": {
+                    "approvedRequestVersion": "credreq-1",
+                    "providerKey": "sendgrid",
+                    "environment": "SANDBOX",
+                    "capability": "REFERRAL_SAAS_PROVIDER_REFERENCE",
+                    "reason": "Execute approved request.",
+                    "apiKey": "secret",
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "provider-vault-execution-1",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert detail["no_credential_creation_confirmed"] is True
+    assert detail["no_provider_call_confirmed"] is True
+
+
+async def test_referral_saas_account_provider_vault_execution_idempotency_conflict(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    async def fake_get_referral_saas_integration_configuration(**kwargs):
+        return SimpleNamespace(configuration_ref="config-1")
+
+    async def fake_record_referral_saas_provider_vault_execution(**kwargs):
+        raise IntegrationConfigurationIdempotencyConflict(
+            "Idempotency key was reused with different provider/vault execution content."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_configuration",
+        fake_get_referral_saas_integration_configuration,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "record_referral_saas_provider_vault_execution",
+        fake_record_referral_saas_provider_vault_execution,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/integrations/credential-requests/credreq-1/provider-vault-executions",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "providerVaultExecution": {
+                    "approvedRequestVersion": "credreq-1",
+                    "providerKey": "sendgrid",
+                    "environment": "SANDBOX",
+                    "capability": "REFERRAL_SAAS_PROVIDER_REFERENCE",
+                    "reason": "Execute approved request.",
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "provider-vault-execution-1",
+            },
+        )
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["code"] == "IDEMPOTENCY_CONFLICT"
+    assert detail["no_credential_creation_confirmed"] is True
+    assert detail["no_vault_write_confirmed"] is True
+
+
+async def test_referral_saas_account_admin_can_read_provider_vault_execution(
+    monkeypatch,
+):
+    read_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    class FakeProviderVaultExecutionResult:
+        def to_safe_dict(self):
+            return {
+                "commandStatus": "PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED",
+                "executionRef": "audit-1",
+                "credentialRequest": {"credentialRequestRef": "credreq-1"},
+                "noCredentialCreationConfirmed": True,
+                "noVaultWriteConfirmed": True,
+                "noProviderCallConfirmed": True,
+            }
+
+    async def fake_get_referral_saas_provider_vault_execution(**kwargs):
+        read_calls.append(kwargs)
+        return FakeProviderVaultExecutionResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_provider_vault_execution",
+        fake_get_referral_saas_provider_vault_execution,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/integrations/provider-vault/executions/audit-1",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["providerVaultExecutionResult"]["executionRef"] == "audit-1"
+    assert body["no_credential_creation_confirmed"] is True
+    assert body["no_vault_write_confirmed"] is True
+    assert read_calls[0]["account_id"] == "acct-1"
+    assert read_calls[0]["execution_ref"] == "audit-1"
+
+
 async def test_referral_saas_account_admin_can_list_integration_credential_requests(
     monkeypatch,
 ):
