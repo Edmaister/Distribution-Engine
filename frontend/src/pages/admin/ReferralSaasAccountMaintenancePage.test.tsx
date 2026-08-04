@@ -36,6 +36,7 @@ import {
   getReferralSaasIntegrationConfiguration,
   getReferralSaasIntegrationExecutionReadiness,
   getReferralSaasProviderVaultReadiness,
+  getReferralSaasLoginCompletionReadiness,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasIntegrationCredentialRequests,
@@ -53,6 +54,7 @@ import {
   requestReferralSaasAccountCampaignActivation,
   requestReferralSaasAccountFoundationActivation,
   requestReferralSaasAccessProvisioning,
+  requestReferralSaasLoginCompletionIntent,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   saveReferralSaasIntegrationConfiguration,
@@ -70,6 +72,7 @@ import {
   type ReferralSaasAccountRegistryResponse,
   type ReferralSaasAccountCampaignReadinessResponse,
   type ReferralSaasMembershipActivationReadinessResponse,
+  type ReferralSaasLoginCompletionReadinessResponse,
   type ReferralSaasIntegrationExecutionReadinessResponse,
   type ReferralSaasIntegrationCredentialRequestListResponse,
   type ReferralSaasProviderVaultReadinessResponse,
@@ -107,6 +110,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   getReferralSaasIntegrationConfiguration: vi.fn(),
   getReferralSaasIntegrationExecutionReadiness: vi.fn(),
   getReferralSaasProviderVaultReadiness: vi.fn(),
+  getReferralSaasLoginCompletionReadiness: vi.fn(),
   getReferralSaasMembershipActivationReadiness: vi.fn(),
   getReferralSaasTechnicalSetupReadiness: vi.fn(),
   listReferralSaasIntegrationCredentialRequests: vi.fn(),
@@ -124,6 +128,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   requestReferralSaasAccountCampaignActivation: vi.fn(),
   requestReferralSaasAccountFoundationActivation: vi.fn(),
   requestReferralSaasAccessProvisioning: vi.fn(),
+  requestReferralSaasLoginCompletionIntent: vi.fn(),
   requestReferralSaasMembershipInvitationDelivery: vi.fn(),
   requestReferralSaasMembershipActivation: vi.fn(),
   saveReferralSaasIntegrationConfiguration: vi.fn(),
@@ -168,6 +173,7 @@ const mockedGetReferralSaasAccountMembershipPosture = vi.mocked(getReferralSaasA
 const mockedGetReferralSaasIntegrationConfiguration = vi.mocked(getReferralSaasIntegrationConfiguration);
 const mockedGetReferralSaasIntegrationExecutionReadiness = vi.mocked(getReferralSaasIntegrationExecutionReadiness);
 const mockedGetReferralSaasProviderVaultReadiness = vi.mocked(getReferralSaasProviderVaultReadiness);
+const mockedGetReferralSaasLoginCompletionReadiness = vi.mocked(getReferralSaasLoginCompletionReadiness);
 const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferralSaasMembershipActivationReadiness);
 const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTechnicalSetupReadiness);
 const mockedListReferralSaasIntegrationCredentialRequests = vi.mocked(listReferralSaasIntegrationCredentialRequests);
@@ -189,6 +195,7 @@ const mockedRecordReferralSaasMembershipInvitationIntent = vi.mocked(recordRefer
 const mockedRequestReferralSaasAccountCampaignActivation = vi.mocked(requestReferralSaasAccountCampaignActivation);
 const mockedRequestReferralSaasAccountFoundationActivation = vi.mocked(requestReferralSaasAccountFoundationActivation);
 const mockedRequestReferralSaasAccessProvisioning = vi.mocked(requestReferralSaasAccessProvisioning);
+const mockedRequestReferralSaasLoginCompletionIntent = vi.mocked(requestReferralSaasLoginCompletionIntent);
 const mockedRequestReferralSaasMembershipInvitationDelivery = vi.mocked(requestReferralSaasMembershipInvitationDelivery);
 const mockedRequestReferralSaasMembershipActivation = vi.mocked(requestReferralSaasMembershipActivation);
 const mockedSaveReferralSaasIntegrationConfiguration = vi.mocked(saveReferralSaasIntegrationConfiguration);
@@ -656,6 +663,106 @@ function mockSeatProvisionedMembershipActivationReadiness(): ReferralSaasMembers
         },
       ],
     },
+  };
+}
+
+function mockLoginCompletionReadiness(
+  status = "LOGIN_COMPLETION_BLOCKED_SEAT_NOT_ASSIGNED",
+): ReferralSaasLoginCompletionReadinessResponse {
+  return {
+    status: "ok",
+    context: "setup",
+    account: {
+      accountId: "acct-gabs",
+      accountCode: "ACC-2201",
+      accountName: "Gaborone Partners",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "APPROVED",
+    },
+    loginCompletionReadiness: {
+      loginCompletionStatus: status,
+      accountRef: "acct-gabs",
+      membershipRef: "membership-1",
+      person: {
+        subject: "owner@gabs.example",
+        displayName: "Gaborone owner",
+        responsibilities: ["DISTRIBUTION_ADMIN"],
+      },
+      seat: {
+        seatAssignmentStatus: status === "LOGIN_COMPLETION_READY" ? "SEAT_ASSIGNED" : "SEAT_NOT_ASSIGNED",
+      },
+      identity: {
+        identityProviderStatus: status === "LOGIN_COMPLETION_READY" ? "AUTH_PROVIDER_READY" : "AUTH_PROVIDER_PENDING",
+        authClaimStatus: "AUTH_CLAIMS_NOT_PROPAGATED",
+        permissionProfile: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+      },
+      blockers: status === "LOGIN_COMPLETION_READY" ? [] : ["SEAT_NOT_ASSIGNED"],
+      nextActions:
+        status === "LOGIN_COMPLETION_READY"
+          ? ["Record governed login completion evidence if this person must sign in."]
+          : ["Assign the platform seat before login completion."],
+      guardrails: ["NO_CREDENTIAL_CREATION", "NO_AUTH_CLAIM_CHANGE"],
+      redactions: ["internal_tenant_identifier"],
+      noInviteDeliveryConfirmed: true,
+      noCredentialCreationConfirmed: true,
+      noAuthClaimChangeConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noGoLiveChangeConfirmed: true,
+      noMoneyMovementConfirmed: true,
+    },
+    guardrail: "Read-only Referral SaaS login completion readiness.",
+    guardrails: ["NO_CREDENTIAL_CREATION", "NO_AUTH_CLAIM_CHANGE"],
+    redactions: ["internal_tenant_identifier"],
+    no_invite_delivery_confirmed: true,
+    no_credential_creation_confirmed: true,
+    no_auth_claim_change_confirmed: true,
+    no_campaign_activation_confirmed: true,
+    no_go_live_change_confirmed: true,
+    no_money_movement_confirmed: true,
+  };
+}
+
+function mockLoginCompletionIntent(status = "LOGIN_COMPLETION_RECORDED") {
+  return {
+    status: "ok",
+    context: "setup" as const,
+    account: mockLoginCompletionReadiness().account,
+    loginCompletionIntent: {
+      commandStatus: "SUCCESS",
+      loginCompletionStatus: status,
+      membership: {
+        membershipRef: "membership-1",
+        roleFamily: "DISTRIBUTION_ADMIN",
+        permissionProfile: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+      },
+      loginCompletion: {
+        intent: "PLATFORM_LOGIN_REQUIRED",
+        seatAssignmentStatus: "SEAT_ASSIGNED",
+        identityProviderStatus: "AUTH_PROVIDER_READY",
+        authClaimStatus: "AUTH_CLAIMS_NOT_PROPAGATED",
+        nextAction: "Login completion evidence is recorded; auth claims remain separately governed.",
+      },
+      idempotency: {
+        status: "NEW_REQUEST",
+      },
+      auditEventId: "audit-login-1",
+      guardrails: ["NO_CREDENTIAL_CREATION", "NO_AUTH_CLAIM_CHANGE"],
+      redactions: ["internal_tenant_identifier"],
+      noInviteDeliveryConfirmed: true,
+      noCredentialCreationConfirmed: true,
+      noAuthClaimChangeConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noGoLiveChangeConfirmed: true,
+      noMoneyMovementConfirmed: true,
+    },
+    guardrails: ["NO_CREDENTIAL_CREATION", "NO_AUTH_CLAIM_CHANGE"],
+    redactions: ["internal_tenant_identifier"],
+    no_invite_delivery_confirmed: true,
+    no_credential_creation_confirmed: true,
+    no_auth_claim_change_confirmed: true,
+    no_campaign_activation_confirmed: true,
+    no_go_live_change_confirmed: true,
+    no_money_movement_confirmed: true,
   };
 }
 
@@ -1825,6 +1932,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedGetReferralSaasIntegrationExecutionReadiness.mockResolvedValue(mockIntegrationExecutionReadiness());
     mockedGetReferralSaasProviderVaultReadiness.mockResolvedValue(mockProviderVaultReadiness());
     mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockMembershipActivationReadiness());
+    mockedGetReferralSaasLoginCompletionReadiness.mockResolvedValue(mockLoginCompletionReadiness());
     mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadiness());
     mockedListReferralSaasIntegrationCredentialRequests.mockResolvedValue(mockIntegrationCredentialRequestList([]));
     mockedListReferralSaasAccountSupportCases.mockResolvedValue({
@@ -2862,9 +2970,9 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByText("People setup needs attention")).toBeInTheDocument();
     expect(screen.getByText("Still need Campaign manager.")).toBeInTheDocument();
-    expect(screen.getByText("Platform login setup")).toBeInTheDocument();
+    expect(screen.getByText("Optional platform login")).toBeInTheDocument();
     expect(container.textContent).toContain("Finish confirming the required customer responsibilities first.");
-    expect(container.textContent).toContain("Use platform login setup only when a confirmed person needs to sign in to Amplifi.");
+    expect(container.textContent).toContain("Only continue here when a confirmed person must sign in to Amplifi.");
     expect(container.textContent).toContain("Next: Add the person who owns this responsibility.");
     fireEvent.click(screen.getByRole("button", { name: "Show access diagnostics" }));
     expect(await screen.findByText("Readiness")).toBeInTheDocument();
@@ -3033,16 +3141,16 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
     expect(screen.getAllByText("Confirmed").length).toBeGreaterThan(0);
     expect(screen.getByText("Still need Campaign manager.")).toBeInTheDocument();
-    expect(container.textContent).toContain("Next: Confirmed for customer work. Set up platform login later only if this person must sign in.");
-    expect(screen.getByText("Platform login setup")).toBeInTheDocument();
+    expect(container.textContent).toContain("Next: Confirmed for customer work. Assign a platform seat only if this person must sign in.");
+    expect(screen.getByText("Optional platform login")).toBeInTheDocument();
     expect(container.textContent).toContain("Finish confirming the required customer responsibilities first.");
-    expect(screen.getByText("Use it for Amplifi sign-in access.")).toBeInTheDocument();
-    expect(screen.getByText("Skip it when the person only owns the relationship outside the platform.")).toBeInTheDocument();
-    expect(screen.getByText("Optional login setup")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Set up platform login" })).toBeEnabled();
+    expect(screen.getByText("First assign a platform seat for capacity and audit.")).toBeInTheDocument();
+    expect(screen.getByText("Then record whether login is required or not required.")).toBeInTheDocument();
+    expect(screen.getByText("Optional platform login steps")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Assign platform seat" })).toBeEnabled();
   });
 
-  it("requests optional platform login setup after access has been confirmed", async () => {
+  it("requests optional platform seat assignment after access has been confirmed", async () => {
     mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockActiveMembershipPosture());
     mockedGetReferralSaasMembershipActivationReadiness
       .mockResolvedValueOnce(mockActiveMembershipActivationReadiness())
@@ -3053,7 +3161,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
-    const provisioningButton = await screen.findByRole("button", { name: "Set up platform login" });
+    const provisioningButton = await screen.findByRole("button", { name: "Assign platform seat" });
     expect(provisioningButton).toBeEnabled();
 
     fireEvent.click(provisioningButton);
@@ -3077,10 +3185,54 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       correlationId: "customer-profile-access-provisioning-acct-gabs",
       idempotencyKey: "customer-profile-access-provisioning-acct-gabs-membership-1-distribution-admin-admin",
     });
-    expect(await screen.findByText("Login setup recorded.")).toBeInTheDocument();
-    expect(container.textContent).toContain("Platform login set up");
+    expect(await screen.findByText("Platform seat recorded.")).toBeInTheDocument();
+    expect(container.textContent).toContain("Seat assigned");
     expect(JSON.stringify(mockedRequestReferralSaasAccessProvisioning.mock.calls)).not.toMatch(
       /tenantCode|sendInvite|credential|authClaims|goLive|wallet|settlement|money/i,
+    );
+  });
+
+  it("records governed login completion after a platform seat and provider evidence are ready", async () => {
+    mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockActiveMembershipPosture());
+    mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockSeatProvisionedMembershipActivationReadiness());
+    mockedGetReferralSaasLoginCompletionReadiness.mockResolvedValue(mockLoginCompletionReadiness("LOGIN_COMPLETION_READY"));
+    mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadinessWithInviteProvider());
+    mockedRequestReferralSaasLoginCompletionIntent.mockResolvedValue(mockLoginCompletionIntent());
+
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/people");
+
+    expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
+    const loginCompletionButton = await screen.findByRole("button", { name: "Record login completion" });
+    expect(loginCompletionButton).toBeEnabled();
+
+    fireEvent.click(loginCompletionButton);
+
+    await waitFor(() => expect(mockedRequestReferralSaasLoginCompletionIntent).toHaveBeenCalledTimes(1));
+    expect(mockedRequestReferralSaasLoginCompletionIntent.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      membershipRef: "membership-1",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      loginCompletion: {
+        intent: "PLATFORM_LOGIN_REQUIRED",
+        identitySubjectRef: "customer-profile-login-identity-acct-gabs-membership-1-owner-gabs-example",
+        authProviderRef: "mail-provider-1",
+        seatEvidenceRef: "customer-profile-login-seat-evidence-acct-gabs-membership-1-distribution-admin",
+        permissionProfile: "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        operatorReason:
+          "Amplifi Admin recorded governed login completion evidence from the selected customer People and Access page.",
+      },
+      reasonCode: "CUSTOMER_PROFILE_LOGIN_COMPLETION_INTENT",
+      correlationId: "customer-profile-login-completion-acct-gabs",
+      idempotencyKey: "customer-profile-login-completion-acct-gabs-membership-1-distribution-admin-platform-login-required",
+    });
+    expect(await screen.findByText("Login decision recorded.")).toBeInTheDocument();
+    expect(screen.getByText(/No invitation email was sent, no credential was created, no auth claim changed/i)).toBeInTheDocument();
+    expect(JSON.stringify(mockedRequestReferralSaasLoginCompletionIntent.mock.calls)).not.toMatch(
+      /tenantCode|sendInvite|credentialValue|authClaims|goLive|wallet|settlement|money/i,
     );
   });
 

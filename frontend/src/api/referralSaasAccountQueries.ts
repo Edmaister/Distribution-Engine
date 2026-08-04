@@ -4,6 +4,7 @@ import { getAdminOnboardingDrafts, getAdminOnboardingState } from "./endpoints/a
 import {
   listReferralSaasAccountCampaigns,
   getReferralSaasAccountCampaignReadiness,
+  getReferralSaasLoginCompletionReadiness,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasAccountMembershipPosture,
   getReferralSaasTechnicalSetupReadiness,
@@ -210,6 +211,43 @@ export function useReferralSaasMembershipActivationReadiness(
         context: "setup",
       }),
     enabled: Boolean(enabled && cleanedAccountRef && cleanedExternalTenantRef),
+    retry: false,
+  });
+}
+
+export function useReferralSaasLoginCompletionReadiness(
+  accountRef: string,
+  membershipRefs: string[],
+  externalTenantRef: string,
+  enabled: boolean,
+  refreshKey = 0,
+) {
+  const cleanedAccountRef = accountRef.trim();
+  const cleanedExternalTenantRef = externalTenantRef.trim();
+  const cleanedMembershipRefs = membershipRefs.map((membershipRef) => membershipRef.trim()).filter(Boolean);
+
+  return useQuery({
+    queryKey: queryKeys.referralSaasLoginCompletionReadiness(
+      cleanedAccountRef,
+      cleanedMembershipRefs.join("|"),
+      "external_tenant_ref",
+      cleanedExternalTenantRef,
+      "setup",
+      refreshKey,
+    ),
+    queryFn: () =>
+      Promise.all(
+        cleanedMembershipRefs.map((membershipRef) =>
+          getReferralSaasLoginCompletionReadiness({
+            accountRef: cleanedAccountRef,
+            membershipRef,
+            refType: "external_tenant_ref",
+            externalRef: cleanedExternalTenantRef,
+            context: "setup",
+          }),
+        ),
+      ),
+    enabled: Boolean(enabled && cleanedAccountRef && cleanedExternalTenantRef && cleanedMembershipRefs.length),
     retry: false,
   });
 }

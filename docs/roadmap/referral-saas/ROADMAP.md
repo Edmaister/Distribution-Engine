@@ -2124,6 +2124,26 @@ greenfield referral construction.
   because the backend auth/login API gap is closed while TASK-347 UI wiring,
   governed provider/vault runtime execution, and non-local proof repetition
   remain open.
+- TASK-347:
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/endpoints/referralSaasAccounts.test.ts`;
+  `frontend/src/api/queryKeys.ts`;
+  `frontend/src/api/referralSaasAccountQueries.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Wires the
+  selected-customer People and Access UI to the governed auth/login completion
+  readiness and intent API. Operators can see per-person login-completion
+  posture after customer access and seat assignment, record login completion or
+  login-not-required intent, see provider-evidence gating, and keep credentials,
+  auth claims, invite delivery, campaign activation, billing, money, DLaaS, and
+  source forks out of scope. Scores remain 9.99/10 for Referral Management and
+  move Campaign Attribution to 9.9998/10 because the visible auth/login UI gap
+  is closed while governed provider/vault runtime execution and non-local proof
+  repetition remain open.
 
 ## Explicit Deferrals
 

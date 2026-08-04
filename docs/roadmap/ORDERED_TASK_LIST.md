@@ -7849,7 +7849,7 @@ Definition of done: Referral SaaS has a governed auth/login API boundary that ma
 
 ## TASK-347: Wire governed auth/login completion UI
 
-Status: Planned.
+Status: Completed.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; People and Access/auth-login contracts; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Reuses People and Access person-first lifecycle UI, login setup section, auth/login API boundary, frontend query keys, and no-side-effect copy. Source duplication: No.
@@ -7862,15 +7862,16 @@ Database/schema impact: None.
 Backend impact: None. Consumes TASK-346.
 Frontend impact: Adds login readiness/completion section, person-level next action, status feedback, and boundary copy.
 API impact: Consumes TASK-346 routes.
-Tests to add/update: Frontend People and Access tests for login readiness, completion feedback, and no hidden auth side effects.
-Validation method: `git diff --check`; frontend focused tests; lint/build.
-Acceptance criteria: Operators can see and record governed login completion intent/status from People and Access, with plain-language separation between customer access, seat provisioning, login credentials, and auth claims.
+Tests to add/update: Completed with frontend endpoint/client tests and selected-customer People and Access tests for login readiness, completion feedback, provider evidence gating, and no hidden auth side effects.
+Validation method: `git diff --check`; `npm.cmd run test -- ReferralSaasAccountMaintenancePage.test.tsx referralSaasAccounts.test.ts`; `npm.cmd run build`.
+Acceptance criteria: Completed. Operators can see and record governed login completion intent/status from People and Access, with plain-language separation between customer access, seat provisioning, login credentials, and auth claims.
 Dependencies: TASK-345; TASK-346.
-Blocked by: Optional future identity-provider adapter and non-local proof.
+Blocked by: Optional future identity-provider adapter/runtime execution and non-local proof.
 Risk level: Medium.
 Rollback notes: Revert frontend API/page/test/docs updates.
 Explicit non-goals: No identity-provider call, credential creation, invite delivery, auth/session claim mutation, campaign activation, billing, money, DLaaS, or source-code forks.
-Definition of done: People and Access has a clear governed login completion UX, closing the visible auth/login completion gap while real identity-provider execution remains separately governed. Priority: P0.
+Completed output: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/api/queryKeys.ts`; `frontend/src/api/referralSaasAccountQueries.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; roadmap, gap-matrix, and infographic updates. Wires selected-customer People and Access to the governed login-completion readiness and intent API, adds person-level login-completion next actions after seat assignment, shows provider-evidence gating, and keeps customer access, platform seat assignment, login completion, credentials, auth claims, campaign activation, billing, and money clearly separated.
+Definition of done: People and Access has a clear governed login completion UX, closing the visible auth/login completion gap while real identity-provider execution remains separately governed. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.9998/10 because the governed auth/login UI gap is closed while governed provider/vault runtime execution and non-local proof repetition remain separate gaps. Priority: P0.
 
 ## TASK-348: Run non-local Referral SaaS launch verification
 
