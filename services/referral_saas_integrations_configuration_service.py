@@ -5,6 +5,10 @@ import json
 from typing import Any
 from urllib.parse import urlparse
 
+from services.referral_saas_provider_vault_runtime import (
+    ProviderVaultRuntimeRequest,
+    execute_provider_vault_runtime,
+)
 from utils.db import db_connection
 
 
@@ -737,6 +741,10 @@ class ReferralSaasProviderVaultExecutionResult:
     plain_language_summary: str
     guardrails: list[str]
     redactions: list[str]
+    provider_runtime_reference: str | None = None
+    opaque_vault_reference: str | None = None
+    adapter_ref: str | None = None
+    vault_adapter_ref: str | None = None
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
@@ -750,6 +758,12 @@ class ReferralSaasProviderVaultExecutionResult:
             "nextAction": self.next_action,
             "idempotency": {"status": self.idempotency_status},
             "audit": {"accountAuditEventId": self.audit_event_id},
+            "providerRuntimeReference": self.provider_runtime_reference,
+            "opaqueVaultReference": self.opaque_vault_reference,
+            "adapter": {
+                "adapterRef": self.adapter_ref,
+                "vaultAdapterRef": self.vault_adapter_ref,
+            },
             "plainLanguageSummary": self.plain_language_summary,
             "guardrails": self.guardrails,
             "redactions": self.redactions,
@@ -3116,6 +3130,12 @@ def _provider_vault_execution_result_from_audit(
         ),
         guardrails=PROVIDER_VAULT_EXECUTION_GUARDRAILS,
         redactions=PROVIDER_VAULT_EXECUTION_REDACTIONS,
+        provider_runtime_reference=_optional_text(
+            evidence.get("provider_runtime_reference")
+        ),
+        opaque_vault_reference=_optional_text(evidence.get("opaque_vault_reference")),
+        adapter_ref=_optional_text(evidence.get("adapter_ref")),
+        vault_adapter_ref=_optional_text(evidence.get("vault_adapter_ref")),
     )
 
 
@@ -3316,6 +3336,7 @@ async def record_referral_saas_provider_vault_execution(
                 "Credential request was not found for the selected customer."
             )
         credential_request = _credential_request_from_row(current)
+        runtime_result = None
         blocker = _provider_vault_blocker(
             account_status=account_status,
             tenant_link_status=tenant_link_status,
@@ -3336,17 +3357,28 @@ async def record_referral_saas_provider_vault_execution(
                 "No provider was called, no vault was written, and no secret was exposed."
             )
         else:
-            command_status = PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED
-            next_status = PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED
-            next_action = (
-                "Implement the approved provider adapter and vault adapter before "
-                "real runtime execution is enabled."
+            runtime_result = await execute_provider_vault_runtime(
+                ProviderVaultRuntimeRequest(
+                    account_id=safe_account_id,
+                    tenant_code=safe_tenant_code,
+                    credential_request_ref=safe_credential_request_ref,
+                    approved_request_version=safe_approved_request_version,
+                    execution_intent=safe_execution_intent,
+                    execution_mode=safe_execution_mode,
+                    provider_key=safe_provider_key,
+                    environment=safe_environment,
+                    capability=safe_capability,
+                    reason_code=safe_reason_code,
+                    command_payload_hash=safe_payload_hash,
+                    actor_ref=safe_actor_ref,
+                    actor_role=safe_actor_role,
+                )
             )
-            summary = (
-                "Provider/vault execution gates passed, but the runtime adapter is "
-                "not implemented yet. No provider was called, no vault was written, "
-                "and no secret was exposed."
-            )
+            command_status = runtime_result.command_status
+            next_status = runtime_result.command_status
+            next_action = runtime_result.next_action
+            summary = runtime_result.plain_language_summary
+            blocker = runtime_result.blocked_reason
 
         audit_event = await conn.fetchrow(
             """
@@ -3398,6 +3430,26 @@ async def record_referral_saas_provider_vault_execution(
                     "command_status": command_status,
                     "blocked_reason": blocker,
                     "next_action": next_action,
+                    "provider_runtime_reference": (
+                        runtime_result.provider_runtime_reference
+                        if runtime_result and not blocker
+                        else None
+                    ),
+                    "opaque_vault_reference": (
+                        runtime_result.opaque_vault_reference
+                        if runtime_result and not blocker
+                        else None
+                    ),
+                    "adapter_ref": (
+                        runtime_result.adapter_ref
+                        if runtime_result and not blocker
+                        else None
+                    ),
+                    "vault_adapter_ref": (
+                        runtime_result.vault_adapter_ref
+                        if runtime_result and not blocker
+                        else None
+                    ),
                     "plain_language_summary": summary,
                     "command_payload_hash": safe_payload_hash,
                     "reason_present": bool(safe_reason),
@@ -3435,6 +3487,22 @@ async def record_referral_saas_provider_vault_execution(
         plain_language_summary=summary,
         guardrails=PROVIDER_VAULT_EXECUTION_GUARDRAILS,
         redactions=PROVIDER_VAULT_EXECUTION_REDACTIONS,
+        provider_runtime_reference=(
+            runtime_result.provider_runtime_reference
+            if runtime_result and not blocker
+            else None
+        ),
+        opaque_vault_reference=(
+            runtime_result.opaque_vault_reference
+            if runtime_result and not blocker
+            else None
+        ),
+        adapter_ref=runtime_result.adapter_ref if runtime_result and not blocker else None,
+        vault_adapter_ref=(
+            runtime_result.vault_adapter_ref
+            if runtime_result and not blocker
+            else None
+        ),
     )
 
 

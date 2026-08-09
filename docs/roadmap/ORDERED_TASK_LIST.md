@@ -7950,6 +7950,32 @@ Explicit non-goals: No frontend action wiring, real provider call, vault write, 
 Completed output: `apps/api/routers/referral_saas_accounts.py`; `services/referral_saas_integrations_configuration_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; roadmap/gap/infographic updates - Adds the governed provider/vault runtime execution API foundation. The route can record/read selected-customer execution evidence, replay identical idempotent requests, reject changed payload reuse, and return blocked/not-implemented states until a real adapter is introduced.
 Definition of done: Referral SaaS has the backend provider/vault execution API foundation required before real adapter implementation. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.9999/10 because the runtime API boundary now exists while real provider/vault adapters and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-351: Add provider/vault runtime adapter seam
+
+Status: Completed.
+Product boundary: Shared Platform with Referral SaaS impact.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_ADAPTER_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_EXECUTION_COMMAND_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds a single provider/vault runtime registry and executor seam that future provider-specific and vault-specific adapters can reuse. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Governed provider/vault runtime adapter execution seam.
+Objective: Replace the generic TASK-350 not-implemented fallback with an explicit runtime adapter handoff that can return safe adapter-not-configured, vault-not-configured, or adapter-ready states.
+Why now: TASK-350 proved the selected-customer execution API. The next production-hardening step is a real adapter boundary before any provider or vault implementation is plugged in.
+Files likely involved: `services/referral_saas_provider_vault_runtime.py`; `services/referral_saas_integrations_configuration_service.py`; provider/vault runtime tests; provider/vault execution API tests; roadmap/gap/infographic docs.
+Database/schema impact: None. Reuses existing credential request/configuration/audit evidence.
+Backend impact: Adds a shared runtime adapter registry/executor and wires provider/vault execution to that seam.
+Frontend impact: None.
+API impact: Existing TASK-350 execution route now returns explicit adapter/vault blocked states rather than a generic not-implemented state when all prior gates pass.
+Tests to add/update: Runtime seam tests for missing provider adapter, missing vault adapter, and registered adapter handoff; provider/vault execution API expectation update.
+Validation method: `git diff --check`; Python compile for edited backend files; focused runtime/API tests; route smoke inventory.
+Acceptance criteria: Provider/vault execution can hand off to a shared runtime seam, fail safely when adapters are not configured, expose only opaque references from registered adapters, and preserve selected-customer, idempotency, audit, redaction, no-secret, no-provider-dispatch-without-adapter, no-vault-write-without-adapter, no-auth, no-campaign, no-billing, no-money, no-DLaaS, and no-source-fork guardrails.
+Dependencies: TASK-342; TASK-343; TASK-344; TASK-349; TASK-350.
+Blocked by: Real provider-specific adapters, approved vault adapter configuration, and non-local execution proof.
+Risk level: Medium.
+Rollback notes: Revert runtime seam service, execution-service wiring, tests, and docs updates.
+Explicit non-goals: No frontend changes, real provider calls, live vault writes, credential capture/reveal/download, invite delivery, webhook dispatch, referral-message delivery, identity-provider integration, auth/session claim propagation, campaign activation, repair/replay/retry execution, billing, money movement, DLaaS expansion, or source duplication.
+Completed output: `services/referral_saas_provider_vault_runtime.py`; `services/referral_saas_integrations_configuration_service.py`; `test/test_referral_saas_provider_vault_runtime.py`; `test/api/test_referral_saas_accounts_api.py`; `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_SEAM.md`; SA index, roadmap, gap-matrix, ordered task list, and infographic updates. Adds the shared provider/vault runtime adapter seam and makes the governed execution API return explicit adapter/vault blocked states until real adapters are configured.
+Definition of done: Referral SaaS has a real provider/vault adapter handoff architecture behind the execution API. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.99992/10 because the adapter seam exists while real provider/vault adapters and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

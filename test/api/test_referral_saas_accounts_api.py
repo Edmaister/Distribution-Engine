@@ -3825,7 +3825,7 @@ async def test_referral_saas_account_admin_can_record_provider_vault_execution(
     class FakeProviderVaultExecutionResult:
         def to_safe_dict(self):
             return {
-                "commandStatus": "PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED",
+                "commandStatus": "PROVIDER_VAULT_BLOCKED_ADAPTER_NOT_CONFIGURED",
                 "executionRef": "audit-1",
                 "credentialRequest": {
                     "credentialRequestRef": "credreq-1",
@@ -3836,8 +3836,8 @@ async def test_referral_saas_account_admin_can_record_provider_vault_execution(
                 "providerKey": "sendgrid",
                 "environment": "SANDBOX",
                 "capability": "REFERRAL_SAAS_PROVIDER_REFERENCE",
-                "blockedReason": "PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED",
-                "idempotency": {"status": "PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED"},
+                "blockedReason": "PROVIDER_VAULT_BLOCKED_ADAPTER_NOT_CONFIGURED",
+                "idempotency": {"status": "PROVIDER_VAULT_BLOCKED_ADAPTER_NOT_CONFIGURED"},
                 "audit": {"accountAuditEventId": "audit-1"},
                 "noCredentialCreationConfirmed": True,
                 "noVaultWriteConfirmed": True,
@@ -3893,7 +3893,7 @@ async def test_referral_saas_account_admin_can_record_provider_vault_execution(
     assert body["status"] == "accepted"
     assert (
         body["providerVaultExecutionResult"]["commandStatus"]
-        == "PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED"
+        == "PROVIDER_VAULT_BLOCKED_ADAPTER_NOT_CONFIGURED"
     )
     assert body["no_credential_creation_confirmed"] is True
     assert body["no_vault_write_confirmed"] is True
@@ -4045,7 +4045,7 @@ async def test_referral_saas_account_admin_can_read_provider_vault_execution(
     class FakeProviderVaultExecutionResult:
         def to_safe_dict(self):
             return {
-                "commandStatus": "PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED",
+                "commandStatus": "PROVIDER_VAULT_BLOCKED_ADAPTER_NOT_CONFIGURED",
                 "executionRef": "audit-1",
                 "credentialRequest": {"credentialRequestRef": "credreq-1"},
                 "noCredentialCreationConfirmed": True,
