@@ -315,6 +315,7 @@ greenfield referral construction.
 207. TASK-349: Define provider/vault runtime execution command contract.
 208. TASK-350: Add provider/vault runtime execution API foundation.
 209. TASK-351: Add provider/vault runtime adapter seam.
+210. TASK-352: Define provider/vault adapter implementation plan.
 
 - TASK-341: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_EXECUTION_TASK_341.md`;
   `scripts/referral_saas_progress_attribution_physical_check.py`;
@@ -2205,6 +2206,22 @@ greenfield referral construction.
   Attribution to 9.99992/10 because the adapter handoff architecture exists
   while real provider/vault adapters and non-local proof repetition remain
   separate gaps.
+- TASK-352:
+  `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_ADAPTER_IMPLEMENTATION_PLAN.md`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the
+  provider/vault adapter implementation sequence after the TASK-351 seam. The
+  plan selects a first `PLATFORM_REFERENCE` provider adapter and
+  `PLATFORM_VAULT_REFERENCE` vault/reference adapter so the next code task can
+  return real opaque references without browser-held secrets, vendor dispatch,
+  invite/webhook/message delivery, auth/session changes, campaign activation,
+  billing, money, DLaaS, or source-fork side effects. Current rating remains
+  9.99/10 for Referral Management and moves Campaign Attribution to 9.99993/10
+  because the implementation target is now bounded while runtime adapters and
+  non-local proof repetition remain open.
 
 ## Explicit Deferrals
 
