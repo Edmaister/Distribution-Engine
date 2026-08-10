@@ -8108,7 +8108,7 @@ Definition of done: Referral SaaS now has a journey-aligned backlog from account
 
 ## TASK-357: Lock Referral SaaS H1 release scope and journey gates
 
-Status: Pending.
+Status: Completed.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; Amplifi experience-design production-readiness matrix.
 Shared primitive impact: Establishes release gate rules used by later customer, partner, campaign, reporting, support, and proof tasks. Source duplication: No.
@@ -8119,6 +8119,7 @@ Tests to add/update: Docs readback and route-capability inventory.
 Acceptance criteria: Scope lock states what is promised, what is deferred, what is disabled, and which gates block launch.
 Dependencies: TASK-356.
 Priority: P0.
+Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_H1_RELEASE_SCOPE_AND_JOURNEY_GATES.md` now locks the H1 Referral SaaS promise, disabled/deferred DLaaS and money boundaries, role posture, plain-language UX rule, and release gates for scope, account/jurisdiction, entitlement, people/access, integrations, campaign control, referral/attribution correctness, reporting/support, and deployed-state proof.
 
 ## TASK-358: Enforce account capability and jurisdiction boundaries
 

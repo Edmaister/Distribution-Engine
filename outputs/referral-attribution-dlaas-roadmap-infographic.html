@@ -615,7 +615,7 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-356 for Referral SaaS, with
+            Updated after TASK-134 through TASK-357 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
@@ -637,8 +637,8 @@
             <span>TASK-155 projects current referral statuses into product-safe status without changing shared backend state names.</span>
           </div>
           <div class="status-pill">
-            <b>Customer journey route to 10/10 is now explicit</b>
-            <span>TASK-356 aligns the roadmap to the Amplifi experience-design pack. TASK-357 through TASK-380 now cover H1 scope lock, account and jurisdiction enforcement, partner workspace context, entitlement, invitation and login, integrations execution evidence, campaign controls, referral operations, campaign attribution, referral/referrer attribution, HVE reporting, reports/exports, and support/recovery. TASK-381 keeps commercial-finance mapping separately scoped so billing, settlement, funding, payout, invoices, and money movement do not leak into the H1 Referral SaaS promise.</span>
+            <b>H1 release gates are now locked</b>
+            <span>TASK-356 aligns the roadmap to the Amplifi experience-design pack. TASK-357 now locks the H1 Referral SaaS promise, disabled DLaaS and money boundaries, role posture, plain-language UX rule, and release gates for account/jurisdiction, entitlement, people/access, integrations, campaign control, referral/attribution correctness, reporting/support, and deployed-state proof. TASK-358 through TASK-380 now enforce those gates across runtime, UI, and proof. TASK-381 keeps commercial-finance mapping separately scoped so billing, settlement, funding, payout, invoices, and money movement do not leak into the H1 Referral SaaS promise.</span>
           </div>
           <div class="status-pill">
             <b>Hardening still missing</b>
@@ -1280,8 +1280,8 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">SaaS workflow implementation</div>
-            <div class="matrix-cell">Selected-customer account/profile, people/access add/edit/remove intent with disabled-intent filtering and missing-role Add prompts, Integrations readiness over the existing technical setup read model, TASK-301 Integrations configuration contract, TASK-302 persisted Integrations configuration schema/API foundation, TASK-303 selected-customer Integrations configuration UI controls, TASK-304 live Integrations execution contract, TASK-305 read-only Integrations execution-readiness API, TASK-306 selected-customer Integrations execution-readiness UI, TASK-307 governed API-access verification command, TASK-308 selected-customer API-verification UI action, TASK-309 governed webhook test-dispatch command, TASK-310 selected-customer webhook evidence UI action, TASK-311 Plan-Save-Verify Integrations CX alignment, TASK-312 governed message-provider test-check command, TASK-313 selected-customer message-provider check UI action, TASK-314 credential lifecycle request contract, TASK-315 runtime credential request API foundation, TASK-316 selected-customer credential request UI, TASK-317 credential request review-decision API foundation, TASK-318 selected-customer credential review UI, TASK-319 credential execution-check API foundation, TASK-320 selected-customer credential execution-check UI, customer-scoped campaign readiness, campaign list/read, create, policy/settings, guarded submit/review API proof, review UX, activation/go-live contract/API, activation UI, active-campaign Links and Codes, customer-scoped Reports with export preview and download UI, passing read-spine physical proof, mutation-path proof tooling, passing mutation execution evidence, persisted export request/audit evidence, export object-store/signed URL hardening contract, support-case persistence contract, runtime support-case create/list/read schema/API, selected-customer support-case list/create UI, backend support-case notes/status lifecycle APIs, selected-customer support-case lifecycle UI wiring, aggregate support queue contract, runtime aggregate support queue API, live aggregate support queue UI, governed repair/replay guardrails, read-only support-case repair/replay readiness API, and selected-customer Support readiness UI now exist, but credential provider-vault commands, runtime live provider behavior, governed repair/replay execution commands, and lifecycle hardening still need cohesive product workflows.</div>
-            <div class="matrix-cell">Implement credential/runtime provider commands, the progress/attribution proof runner and execution evidence, and future governed repair/replay execution as separate customer-scoped modules with tests and no source duplication.</div>
+            <div class="matrix-cell">Selected-customer account/profile, people/access, Integrations, campaign, links/codes, reports, support, export, provider/vault, auth/login, and proof foundations now exist. TASK-357 adds the H1 scope and release-gate contract that decides which journeys can be promised, which are disabled, and which must fail closed. Runtime enforcement still needs account/jurisdiction, capability, entitlement, partner workspace, invitation/login, integrations execution, campaign control, referral operations, attribution, reporting, support, and non-local proof hardening.</div>
+            <div class="matrix-cell">Start TASK-358 to enforce account capability and jurisdiction boundaries against the TASK-357 H1 gates.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Live DB/state verification</div>

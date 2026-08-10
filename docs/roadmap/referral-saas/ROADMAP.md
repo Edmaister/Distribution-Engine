@@ -139,6 +139,17 @@ This keeps the Referral SaaS product boundary intact. It does not pull in
 DLaaS distributor marketplace depth, settlement, funding, fulfilment, sponsor
 billing, or broad white-label/embed work.
 
+TASK-357 locks the H1 release scope in
+`docs/sa/referral-saas/REFERRAL_SAAS_H1_RELEASE_SCOPE_AND_JOURNEY_GATES.md`.
+The release promise is now explicit: account/customer context, people/access,
+integrations, campaign setup/activation, links/codes, referral progress,
+attribution, reporting/export, and support are H1 Referral SaaS journeys. Broad
+DLaaS marketplace, fulfilment, settlement, funding, sponsor billing,
+white-label/embed, raw secrets, unmanaged provider dispatch, generic replay,
+and money movement remain disabled or separately contracted. Later tasks must
+enforce the same release gates server-side and keep the UI honest when a
+journey is deferred, blocked, or controlled.
+
 ## Recommended Ordered Task Sequence
 
 1. TASK-134: Define Referral SaaS account setup contract.
