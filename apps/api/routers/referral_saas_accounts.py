@@ -38,6 +38,7 @@ from services.referral_saas_account_foundation_service import (
     PartnerWorkspaceAccountContextItem,
     TenantLinkNotResolvable,
     activate_referral_saas_account_foundation,
+    build_referral_saas_commercial_entitlement_projection,
     build_referral_saas_workspace_overview_projection,
     build_referral_saas_partner_workspace_account_context,
     list_referral_saas_accounts,
@@ -3471,6 +3472,76 @@ async def read_referral_saas_technical_setup_readiness(
         "no_seat_assignment_confirmed": True,
         "no_campaign_activation_confirmed": True,
         "no_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/commercial-entitlement")
+async def read_referral_saas_commercial_entitlement(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    reader_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=reader_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
+
+    safe_account_ref = _optional_text(account_ref)
+    if safe_account_ref not in {account.account_id, account.account_code}:
+        raise _membership_invitation_error(
+            MembershipInvitationUnsafeScope(
+                "Path account reference does not match resolved account context."
+            )
+        )
+
+    entitlement = build_referral_saas_commercial_entitlement_projection(
+        account_context=account,
+    ).to_safe_dict()
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "commercialEntitlement": entitlement,
+        "guardrail": (
+            "Read-only Referral SaaS commercial entitlement and plan posture. "
+            "This endpoint exposes whether production-capable Referral SaaS "
+            "actions have a configured launch entitlement source. It does not "
+            "create subscriptions, billing records, invoices, payments, seats, "
+            "credentials, auth claims, campaigns, go-live actions, DLaaS finance "
+            "scope, or money movement."
+        ),
+        "redactions": entitlement["redactions"],
+        "no_billing_record_created_confirmed": True,
+        "no_invoice_created_confirmed": True,
+        "no_payment_or_money_movement_confirmed": True,
+        "no_dlaas_finance_scope_confirmed": True,
     }
 
 

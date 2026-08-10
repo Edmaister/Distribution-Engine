@@ -191,6 +191,29 @@ async def test_suspended_account_can_be_read_for_setup_context(monkeypatch):
     assert context.tenant_link_status == "SUSPENDED"
 
 
+async def test_commercial_entitlement_projection_blocks_launch_without_entitlement_source():
+    context = svc.AccountFoundationContext(
+        **_row(operating_jurisdiction_code="ZA")
+    )
+
+    projection = svc.build_referral_saas_commercial_entitlement_projection(
+        account_context=context,
+    ).to_safe_dict()
+
+    assert projection["overallStatus"] == "COMMERCIAL_SETUP_REQUIRED"
+    assert projection["commercialStatus"] == "REFERENCE_POSTURE_ONLY"
+    assert projection["launchAllowed"] is False
+    assert projection["productionActivationBlocked"] is True
+    assert projection["plan"]["planCode"] == "REFERRAL_SAAS_H1_REFERENCE"
+    assert projection["plan"]["contractSource"] == "NOT_CONFIGURED"
+    assert "COMMERCIAL_ENTITLEMENT_SOURCE_NOT_CONFIGURED" in projection["disabledReasons"]
+    assert projection["limits"]["source"] == "REFERENCE_POSTURE_NOT_BILLING"
+    assert projection["noBillingRecordCreatedConfirmed"] is True
+    assert projection["noInvoiceCreatedConfirmed"] is True
+    assert projection["noPaymentOrMoneyMovementConfirmed"] is True
+    assert projection["noDlaasFinanceScopeConfirmed"] is True
+
+
 async def test_missing_tenant_link_is_rejected(monkeypatch):
     patch_db(
         monkeypatch,

@@ -2064,6 +2064,82 @@ async def test_referral_saas_technical_setup_readiness_rejects_path_scope_mismat
     assert detail["code"] == "REJECTED_UNSAFE_SCOPE"
 
 
+async def test_referral_saas_account_reader_can_read_commercial_entitlement(
+    monkeypatch,
+):
+    resolve_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/commercial-entitlement",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    entitlement = body["commercialEntitlement"]
+    assert body["status"] == "ok"
+    assert body["account"]["accountCode"] == "ACCT_FNB"
+    assert "tenantCode" not in body["account"]
+    assert "tenant_code" not in str(body["account"])
+    assert entitlement["overallStatus"] == "COMMERCIAL_SETUP_REQUIRED"
+    assert entitlement["launchAllowed"] is False
+    assert entitlement["productionActivationBlocked"] is True
+    assert entitlement["plan"]["contractSource"] == "NOT_CONFIGURED"
+    assert entitlement["noBillingRecordCreatedConfirmed"] is True
+    assert entitlement["noInvoiceCreatedConfirmed"] is True
+    assert entitlement["noPaymentOrMoneyMovementConfirmed"] is True
+    assert entitlement["noDlaasFinanceScopeConfirmed"] is True
+    assert body["no_billing_record_created_confirmed"] is True
+    assert body["no_invoice_created_confirmed"] is True
+    assert body["no_payment_or_money_movement_confirmed"] is True
+    assert body["no_dlaas_finance_scope_confirmed"] is True
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+
+
+async def test_referral_saas_commercial_entitlement_rejects_path_scope_mismatch(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-other/commercial-entitlement",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "REJECTED_UNSAFE_SCOPE"
+
+
 async def test_referral_saas_account_admin_can_read_integration_configuration(
     monkeypatch,
 ):

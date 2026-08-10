@@ -27,6 +27,7 @@ import {
   useReferralSaasLoginCompletionReadiness,
   useReferralSaasMembershipActivationReadiness,
   useReferralSaasAccountRegistry,
+  useReferralSaasCommercialEntitlement,
   useReferralSaasTechnicalSetupReadiness,
 } from "../../api/referralSaasAccountQueries";
 import {
@@ -94,6 +95,7 @@ import {
   type ReferralSaasSupportCaseRepairReplayAction,
   type ReferralSaasSupportCaseRepairReplayReadiness,
   type ReferralSaasSupportCaseRepairReplayReadinessResponse,
+  type ReferralSaasCommercialEntitlementResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import type { CampaignReadinessOperation } from "../../api/endpoints/adminCampaignReadiness";
@@ -123,6 +125,7 @@ type CustomerModule =
   | "health"
   | "settings"
   | "people"
+  | "commercial"
   | "integrations"
   | "technical"
   | "campaigns"
@@ -248,6 +251,15 @@ const customerFunctions = [
     letsYou: "Keep profile work inside this customer context.",
     route: "settings",
     icon: Building2,
+    status: "Needs attention",
+    tone: "warning" as StatusTone,
+  },
+  {
+    title: "Plan and entitlement",
+    copy: "Review whether this customer is allowed for production Referral SaaS use.",
+    letsYou: "Keep setup, launch approval, billing, and money boundaries clear.",
+    route: "commercial",
+    icon: SlidersHorizontal,
     status: "Needs attention",
     tone: "warning" as StatusTone,
   },
@@ -640,6 +652,16 @@ export function ReferralSaasAccountMaintenancePage() {
     Boolean(accountId && selectedAccount && selectedExternalTenantRef),
     refreshKey,
   );
+  const {
+    data: commercialEntitlement,
+    error: commercialEntitlementError,
+    isLoading: isCommercialEntitlementLoading,
+  } = useReferralSaasCommercialEntitlement(
+    selectedAccount?.accountId || "",
+    selectedExternalTenantRef,
+    Boolean(accountId && selectedAccount && selectedExternalTenantRef),
+    refreshKey,
+  );
   const loginReadinessMembershipRefs =
     activationReadiness?.activationReadiness.items
       .filter((item) => item.membershipStatus === "ACTIVE")
@@ -989,6 +1011,7 @@ export function ReferralSaasAccountMaintenancePage() {
     blockedCount: effectiveBlockedCount,
     missingEvidenceCount: effectiveMissingEvidenceCount,
     hasAcceptedRequiredAccess,
+    commercialBlocked: Boolean(commercialEntitlement?.commercialEntitlement.productionActivationBlocked),
     hasSeatProvisioningWork: Boolean(
       activationReadiness?.activationReadiness.items.some(
         (item) => item.provisioningReadiness === "READY_TO_PROVISION_SEAT",
@@ -2813,6 +2836,15 @@ export function ReferralSaasAccountMaintenancePage() {
                 />
               ) : null}
 
+              {selectedModule === "commercial" ? (
+                <CustomerCommercialEntitlementPage
+                  entitlement={commercialEntitlement}
+                  error={commercialEntitlementError}
+                  isLoading={isCommercialEntitlementLoading}
+                  selectedCustomerPath={selectedCustomerPath}
+                />
+              ) : null}
+
               {selectedModule === "health" ? (
               <section className="panel">
                 <div className="panel-header">
@@ -4353,6 +4385,175 @@ function CustomerLinksAndCodesPage({
             Customer home
           </Link>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function CustomerCommercialEntitlementPage({
+  entitlement,
+  error,
+  isLoading,
+  selectedCustomerPath,
+}: {
+  entitlement?: ReferralSaasCommercialEntitlementResponse;
+  error: unknown;
+  isLoading: boolean;
+  selectedCustomerPath: string;
+}) {
+  const commercial = entitlement?.commercialEntitlement;
+  const featureRows = commercial?.features || [];
+  const nextActionRows = commercial?.nextActions || [];
+  const limitRows = Object.entries(commercial?.limits || {}).map(([key, value]) => ({
+    key,
+    value: String(value),
+  }));
+
+  return (
+    <section className="panel customer-module-page" id="commercial-entitlement">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; Plan and entitlement</div>
+          <h2 className="panel-title">Plan and entitlement</h2>
+          <div className="panel-subtitle">
+            Check whether this customer can move from safe setup into production Referral SaaS use.
+          </div>
+        </div>
+        <StatusBadge
+          label={commercial?.productionActivationBlocked ? "Launch blocked" : "Launch allowed"}
+          tone={commercial?.productionActivationBlocked ? "warning" : "success"}
+        />
+      </div>
+      <div className="panel-body route-list">
+        {isLoading ? <LoadingState label="Checking plan and entitlement posture" /> : null}
+        {error ? <ErrorPanel error={error} /> : null}
+        {commercial ? (
+          <>
+            <div className="wizard-status-card">
+              <div>
+                <strong>In plain English</strong>
+                <p>{commercial.plainLanguageSummary}</p>
+              </div>
+              <StatusBadge label={formatDisplay(commercial.overallStatus)} tone="warning" />
+            </div>
+            <div className="grid-3">
+              <KpiCard
+                label="Plan posture"
+                value={commercial.plan.planName}
+                footnote={formatDisplay(commercial.plan.planCode)}
+                icon={SlidersHorizontal}
+              />
+              <KpiCard
+                label="Launch allowed"
+                value={commercial.launchAllowed ? "Yes" : "No"}
+                footnote={
+                  commercial.productionActivationBlocked
+                    ? "Commercial entitlement source is still required"
+                    : "Commercial launch gate is clear"
+                }
+                icon={ShieldCheck}
+              />
+              <KpiCard
+                label="Contract source"
+                value={formatDisplay(commercial.plan.contractSource)}
+                footnote="Reference only, not billing"
+                icon={FileJson}
+              />
+            </div>
+            <div className="route-card">
+              <div>
+                <strong>What this page will not do</strong>
+                <p>
+                  It does not create subscriptions, billing records, invoices, payments, seats, credentials, campaigns,
+                  go-live actions, DLaaS finance scope, or money movement.
+                </p>
+              </div>
+              <StatusBadge label="No billing or money" tone="success" />
+            </div>
+            <DataTable
+              rows={featureRows}
+              emptyText="No entitlement features returned."
+              columns={[
+                {
+                  key: "feature",
+                  header: "Feature",
+                  render: (row) => <strong>{formatDisplay(getValue(row, ["label"], "Feature"))}</strong>,
+                },
+                {
+                  key: "status",
+                  header: "Status",
+                  render: (row) => (
+                    <StatusBadge
+                      label={formatDisplay(getValue(row, ["status"], ""))}
+                      tone={statusTone(getValue(row, ["status"], ""))}
+                    />
+                  ),
+                },
+                {
+                  key: "reason",
+                  header: "What it means",
+                  render: (row) => getValue(row, ["reason"], ""),
+                },
+                {
+                  key: "route",
+                  header: "Next page",
+                  render: (row) => {
+                    const routeHint = getValue(row, ["routeHint"], "");
+                    if (!routeHint || routeHint === "commercial") {
+                      return <span className="table-subtext">Stay here</span>;
+                    }
+                    return (
+                      <Link className="button secondary compact" to={buildCustomerModuleRoute(selectedCustomerPath, routeHint, "")}>
+                        Open {formatDisplay(routeHint)}
+                      </Link>
+                    );
+                  },
+                },
+              ]}
+            />
+            <div className="grid-2">
+              <section className="route-card">
+                <div>
+                  <strong>Next actions</strong>
+                  <p>These actions show what an operator should resolve before production activation.</p>
+                </div>
+                <div className="route-list compact">
+                  {nextActionRows.map((action) => (
+                    <div className="route-card" key={action.actionRef}>
+                      <div>
+                        <strong>{action.label}</strong>
+                        <p>{action.reason}</p>
+                      </div>
+                      <StatusBadge label={formatDisplay(action.status)} tone={statusTone(action.status)} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+              <section className="route-card">
+                <div>
+                  <strong>Plan limits</strong>
+                  <p>These are reference limits for H1 setup posture. They are not invoice terms.</p>
+                </div>
+                <DataTable
+                  rows={limitRows}
+                  emptyText="No plan limits returned."
+                  columns={[
+                    {
+                      key: "limit",
+                      header: "Limit",
+                      render: (row) => <strong>{formatDisplay(row.key)}</strong>,
+                    },
+                    {
+                      key: "value",
+                      header: "Current value",
+                      render: (row) => row.value,
+                    },
+                  ]}
+                />
+              </section>
+            </div>
+          </>
+        ) : null}
       </div>
     </section>
   );
@@ -6716,11 +6917,13 @@ function getCustomerNextActions({
   blockedCount,
   missingEvidenceCount,
   hasAcceptedRequiredAccess,
+  commercialBlocked,
   hasSeatProvisioningWork,
 }: {
   blockedCount: number;
   missingEvidenceCount: number;
   hasAcceptedRequiredAccess: boolean;
+  commercialBlocked: boolean;
   hasSeatProvisioningWork: boolean;
 }) {
   if (!hasAcceptedRequiredAccess) {
@@ -6769,6 +6972,31 @@ function getCustomerNextActions({
         copy: "Account setup is far enough to set up or review a campaign.",
         priority: "Later",
         route: "campaigns",
+        tone: "neutral" as StatusTone,
+      },
+    ];
+  }
+  if (commercialBlocked) {
+    return [
+      {
+        title: "Review plan and entitlement",
+        copy: "Production launch needs an explicit commercial entitlement source.",
+        priority: "First",
+        route: "commercial",
+        tone: "warning" as StatusTone,
+      },
+      {
+        title: "Open Campaigns",
+        copy: "Safe setup and campaign drafting can continue before production launch.",
+        priority: "Next",
+        route: "campaigns",
+        tone: "info" as StatusTone,
+      },
+      {
+        title: "Check integrations",
+        copy: "Confirm API, webhook, invite delivery, and referral message readiness.",
+        priority: "Later",
+        route: "integrations",
         tone: "neutral" as StatusTone,
       },
     ];
@@ -7384,6 +7612,7 @@ function isCustomerModule(value: string | undefined): value is CustomerModule {
     "health",
       "settings",
       "people",
+      "commercial",
       "integrations",
       "technical",
       "campaigns",

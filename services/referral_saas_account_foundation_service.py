@@ -79,6 +79,22 @@ ALLOWED_PROFILE_JURISDICTIONS = frozenset({"ZA", "BW", "NA", "ZM", "OTHER"})
 ALLOWED_CUSTOMER_TYPES = frozenset(
     {"DIRECT_CUSTOMER", "ENTERPRISE_CUSTOMER", "PARTNER_MANAGED_CUSTOMER"}
 )
+COMMERCIAL_ENTITLEMENT_GUARDRAILS = [
+    "REFERRAL_SAAS_H1_ENTITLEMENT_POSTURE",
+    "READ_ONLY_COMMERCIAL_POSTURE",
+    "PLAN_LIMIT_REFERENCE_ONLY",
+    "NO_BILLING_RECORD_CREATED",
+    "NO_INVOICE_CREATED",
+    "NO_PAYMENT_OR_MONEY_MOVEMENT",
+    "NO_DLAAS_FINANCE_SCOPE",
+]
+COMMERCIAL_ENTITLEMENT_REDACTIONS = [
+    "internal_tenant_identifier",
+    "billing_account_identifier",
+    "invoice_identifier",
+    "payment_method",
+    "contract_document",
+]
 ALLOWED_INDUSTRIES = frozenset(
     {
         "BANKING_FINANCIAL_SERVICES",
@@ -402,6 +418,74 @@ class WorkspaceOverviewProjection:
             "noAuthClaimChangeConfirmed": True,
             "noCampaignActivationConfirmed": True,
             "noMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class CommercialEntitlementFeature:
+    feature_ref: str
+    label: str
+    status: str
+    reason: str
+    route_hint: str
+
+    def to_safe_dict(self) -> dict[str, str]:
+        return {
+            "featureRef": self.feature_ref,
+            "label": self.label,
+            "status": self.status,
+            "reason": self.reason,
+            "routeHint": self.route_hint,
+        }
+
+
+@dataclass(frozen=True)
+class CommercialEntitlementProjection:
+    account_id: str
+    account_code: str
+    account_name: str
+    overall_status: str
+    commercial_status: str
+    environment_status: str
+    plan_code: str
+    plan_name: str
+    contract_source: str
+    launch_allowed: bool
+    production_activation_blocked: bool
+    limits: dict[str, Any]
+    features: tuple[CommercialEntitlementFeature, ...]
+    disabled_reasons: tuple[str, ...]
+    next_actions: tuple[WorkspaceOverviewAction, ...]
+    plain_language_summary: str
+    guardrails: tuple[str, ...]
+    redactions: tuple[str, ...]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "accountId": self.account_id,
+            "accountCode": self.account_code,
+            "accountName": self.account_name,
+            "overallStatus": self.overall_status,
+            "commercialStatus": self.commercial_status,
+            "environmentStatus": self.environment_status,
+            "plan": {
+                "planCode": self.plan_code,
+                "planName": self.plan_name,
+                "contractSource": self.contract_source,
+            },
+            "launchAllowed": self.launch_allowed,
+            "productionActivationBlocked": self.production_activation_blocked,
+            "limits": self.limits,
+            "features": [feature.to_safe_dict() for feature in self.features],
+            "disabledReasons": list(self.disabled_reasons),
+            "nextActions": [action.to_safe_dict() for action in self.next_actions],
+            "plainLanguageSummary": self.plain_language_summary,
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noBillingRecordCreatedConfirmed": True,
+            "noInvoiceCreatedConfirmed": True,
+            "noPaymentOrMoneyMovementConfirmed": True,
+            "noDlaasFinanceScopeConfirmed": True,
         }
 
 
@@ -1189,6 +1273,138 @@ def build_referral_saas_workspace_overview_projection(
                 }
             )
         ),
+    )
+
+
+def build_referral_saas_commercial_entitlement_projection(
+    *,
+    account_context: AccountFoundationContext,
+) -> CommercialEntitlementProjection:
+    account_status = _safe_text(account_context.account_status).upper()
+    tenant_link_status = _safe_text(account_context.tenant_link_status).upper()
+    reference_status = _safe_text(account_context.reference_status).upper()
+    account_active = account_status == "ACTIVE"
+    tenant_link_active = tenant_link_status == "ACTIVE"
+    reference_active = reference_status == "ACTIVE"
+    production_foundation_ready = account_active and tenant_link_active and reference_active
+
+    disabled_reasons: list[str] = []
+    if not account_active:
+        disabled_reasons.append("ACCOUNT_FOUNDATION_NOT_ACTIVE")
+    if not tenant_link_active:
+        disabled_reasons.append("TENANT_LINK_NOT_ACTIVE")
+    if not reference_active:
+        disabled_reasons.append("CUSTOMER_REFERENCE_NOT_ACTIVE")
+
+    # H1 has entitlement posture, not a billing/subscription system. Keep this
+    # visible so production activation cannot imply an invoice or payment exists.
+    disabled_reasons.append("COMMERCIAL_ENTITLEMENT_SOURCE_NOT_CONFIGURED")
+
+    launch_allowed = False
+    overall_status = "COMMERCIAL_SETUP_REQUIRED"
+    commercial_status = "REFERENCE_POSTURE_ONLY"
+    environment_status = (
+        "CUSTOMER_FOUNDATION_READY"
+        if production_foundation_ready
+        else "CUSTOMER_FOUNDATION_NOT_READY"
+    )
+
+    feature_status = "AVAILABLE_FOR_SETUP" if production_foundation_ready else "WAIT_FOR_ACCOUNT_FOUNDATION"
+    features = (
+        CommercialEntitlementFeature(
+            feature_ref="ACCOUNT_SETUP",
+            label="Account setup",
+            status="READY",
+            reason="Customer foundation work is inside the Referral SaaS H1 scope.",
+            route_hint="settings",
+        ),
+        CommercialEntitlementFeature(
+            feature_ref="PEOPLE_ACCESS",
+            label="People and access",
+            status=feature_status,
+            reason="Customer responsibilities can be managed before platform login is completed.",
+            route_hint="people",
+        ),
+        CommercialEntitlementFeature(
+            feature_ref="INTEGRATIONS_SETUP",
+            label="Integrations setup",
+            status=feature_status,
+            reason="Non-secret integration evidence can be planned and verified in customer context.",
+            route_hint="integrations",
+        ),
+        CommercialEntitlementFeature(
+            feature_ref="CAMPAIGN_SETUP",
+            label="Campaign setup",
+            status=feature_status,
+            reason="Campaign drafts and review can proceed when customer setup gates allow it.",
+            route_hint="campaigns",
+        ),
+        CommercialEntitlementFeature(
+            feature_ref="PRODUCTION_ACTIVATION",
+            label="Production activation",
+            status="BLOCKED",
+            reason="A contracted plan or launch entitlement source has not been configured.",
+            route_hint="commercial",
+        ),
+        CommercialEntitlementFeature(
+            feature_ref="BILLING_AND_MONEY",
+            label="Billing and money",
+            status="OUT_OF_SCOPE",
+            reason="Billing, invoices, payments, payouts, funding, and settlement are outside H1.",
+            route_hint="commercial",
+        ),
+    )
+    next_actions = (
+        WorkspaceOverviewAction(
+            action_ref="record_commercial_entitlement_source",
+            label="Record the commercial entitlement source",
+            status="BLOCKED",
+            priority="FIRST",
+            route_hint="commercial",
+            reason="Production-capable actions need an explicit plan or entitlement source before launch.",
+            required_capability="REFERRAL_SAAS_ACCOUNT_ADMIN",
+        ),
+        WorkspaceOverviewAction(
+            action_ref="keep_setup_in_reference_mode",
+            label="Keep this customer in setup mode",
+            status="READY",
+            priority="NEXT",
+            route_hint="health",
+            reason="Safe setup and testing can continue without billing or money movement.",
+            required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+        ),
+    )
+    plain_summary = (
+        f"{account_context.account_name} can stay in safe setup mode, but production activation is blocked until a "
+        "commercial entitlement source is configured. No billing, invoice, payment, or money movement exists here."
+    )
+
+    return CommercialEntitlementProjection(
+        account_id=account_context.account_id,
+        account_code=account_context.account_code,
+        account_name=account_context.account_name,
+        overall_status=overall_status,
+        commercial_status=commercial_status,
+        environment_status=environment_status,
+        plan_code="REFERRAL_SAAS_H1_REFERENCE",
+        plan_name="Referral SaaS H1 reference posture",
+        contract_source="NOT_CONFIGURED",
+        launch_allowed=launch_allowed,
+        production_activation_blocked=True,
+        limits={
+            "source": "REFERENCE_POSTURE_NOT_BILLING",
+            "operatingJurisdictionCode": account_context.operating_jurisdiction_code,
+            "campaignsPerCustomer": "REVIEW_REQUIRED",
+            "monthlyReferralEvents": "REVIEW_REQUIRED",
+            "reportExportRows": 50000,
+            "messageChannels": "CONFIGURED_IN_INTEGRATIONS",
+        },
+        features=features,
+        disabled_reasons=tuple(disabled_reasons),
+        next_actions=next_actions,
+        plain_language_summary=plain_summary,
+        guardrails=tuple(COMMERCIAL_ENTITLEMENT_GUARDRAILS),
+        redactions=tuple(COMMERCIAL_ENTITLEMENT_REDACTIONS),
     )
 
 
