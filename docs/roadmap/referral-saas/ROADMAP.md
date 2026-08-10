@@ -173,10 +173,17 @@ selected customer now has a read-only `/commercial-entitlement` route and a
 customer-scoped Plan and entitlement page that explains H1 plan posture,
 reference limits, feature availability, production launch blockers, and the
 no-billing/no-money boundary before activation work begins.
+TASK-362 adds the production activation decision gate. Activation now depends
+on server-side account foundation, people/access, integrations, campaign
+readiness, commercial entitlement, and evidence freshness evidence. Campaign
+activation commands fail closed when that production decision is missing or
+blocked, and the customer-scoped UI shows the blocked gates without taking
+go-live, billing, campaign activation, credential, auth-claim, seat, or money
+actions.
 
-Production activation enforcement, invitation/login execution, integration
-execution, campaign control, referral operations, attribution, reporting,
-support, and non-local proof gates remain on TASK-362 through TASK-380.
+Invitation/login execution, integration execution, campaign control, referral
+operations, attribution, reporting, support, and non-local proof gates remain
+on TASK-363 through TASK-380.
 
 ## Recommended Ordered Task Sequence
 

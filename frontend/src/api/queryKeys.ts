@@ -165,6 +165,22 @@ export const queryKeys = {
       context,
       refreshKey,
     ] as const,
+  referralSaasProductionActivation: (
+    accountRef: string,
+    refType: string,
+    externalRef: string,
+    context: string,
+    refreshKey = 0,
+  ) =>
+    [
+      "referral-saas",
+      "production-activation",
+      accountRef,
+      refType,
+      externalRef,
+      context,
+      refreshKey,
+    ] as const,
   referralSaasAccountCampaignList: (
     accountRef: string,
     refType: string,

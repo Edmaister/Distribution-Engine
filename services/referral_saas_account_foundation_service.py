@@ -95,6 +95,27 @@ COMMERCIAL_ENTITLEMENT_REDACTIONS = [
     "payment_method",
     "contract_document",
 ]
+PRODUCTION_ACTIVATION_GUARDRAILS = [
+    "BACKEND_PRODUCTION_ACTIVATION_DECISION_REQUIRED",
+    "ACCOUNT_FOUNDATION_GATE_REQUIRED",
+    "PEOPLE_ACCESS_GATE_REQUIRED",
+    "INTEGRATIONS_GATE_REQUIRED",
+    "CAMPAIGN_GATE_REQUIRED",
+    "COMMERCIAL_ENTITLEMENT_GATE_REQUIRED",
+    "EVIDENCE_FRESHNESS_GATE_REQUIRED",
+    "NO_UI_ONLY_ACTIVATION",
+    "NO_BILLING_OR_MONEY_MOVEMENT",
+]
+PRODUCTION_ACTIVATION_REDACTIONS = [
+    "internal_tenant_identifier",
+    "billing_account_identifier",
+    "invoice_identifier",
+    "payment_method",
+    "contract_document",
+    "raw_secret",
+    "auth_claim",
+    "credential",
+]
 ALLOWED_INDUSTRIES = frozenset(
     {
         "BANKING_FINANCIAL_SERVICES",
@@ -486,6 +507,64 @@ class CommercialEntitlementProjection:
             "noInvoiceCreatedConfirmed": True,
             "noPaymentOrMoneyMovementConfirmed": True,
             "noDlaasFinanceScopeConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class ProductionActivationGate:
+    gate_ref: str
+    label: str
+    status: str
+    reason: str
+    next_action: str
+    route_hint: str
+
+    def to_safe_dict(self) -> dict[str, str]:
+        return {
+            "gateRef": self.gate_ref,
+            "label": self.label,
+            "status": self.status,
+            "reason": self.reason,
+            "nextAction": self.next_action,
+            "routeHint": self.route_hint,
+        }
+
+
+@dataclass(frozen=True)
+class ProductionActivationDecision:
+    account_id: str
+    account_code: str
+    account_name: str
+    decision_status: str
+    launch_allowed: bool
+    blocked_gate_count: int
+    stale_evidence_count: int
+    gates: tuple[ProductionActivationGate, ...]
+    disabled_reasons: tuple[str, ...]
+    next_action: WorkspaceOverviewAction
+    plain_language_summary: str
+    guardrails: tuple[str, ...]
+    redactions: tuple[str, ...]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "accountId": self.account_id,
+            "accountCode": self.account_code,
+            "accountName": self.account_name,
+            "decisionStatus": self.decision_status,
+            "launchAllowed": self.launch_allowed,
+            "blockedGateCount": self.blocked_gate_count,
+            "staleEvidenceCount": self.stale_evidence_count,
+            "gates": [gate.to_safe_dict() for gate in self.gates],
+            "disabledReasons": list(self.disabled_reasons),
+            "nextAction": self.next_action.to_safe_dict(),
+            "plainLanguageSummary": self.plain_language_summary,
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noUiOnlyActivationConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveActionConfirmed": True,
+            "noBillingOrMoneyMovementConfirmed": True,
         }
 
 
@@ -1405,6 +1484,158 @@ def build_referral_saas_commercial_entitlement_projection(
         plain_language_summary=plain_summary,
         guardrails=tuple(COMMERCIAL_ENTITLEMENT_GUARDRAILS),
         redactions=tuple(COMMERCIAL_ENTITLEMENT_REDACTIONS),
+    )
+
+
+def build_referral_saas_production_activation_decision(
+    *,
+    account_context: AccountFoundationContext,
+    commercial_entitlement: CommercialEntitlementProjection | None = None,
+    people_access_status: str | None = None,
+    integrations_status: str | None = None,
+    campaign_status: str | None = None,
+    evidence_freshness_status: str | None = None,
+) -> ProductionActivationDecision:
+    commercial = commercial_entitlement or build_referral_saas_commercial_entitlement_projection(
+        account_context=account_context,
+    )
+    account_ready = (
+        _safe_text(account_context.account_status).upper() == "ACTIVE"
+        and _safe_text(account_context.tenant_link_status).upper() == "ACTIVE"
+        and _safe_text(account_context.reference_status).upper() == "ACTIVE"
+    )
+    people_ready = _safe_text(people_access_status).upper() == "ACCESS_READY"
+    integrations_ready = _safe_text(integrations_status).upper() == "READY"
+    campaign_ready = _safe_text(campaign_status).upper() == "READY_TO_ACTIVATE"
+    commercial_ready = commercial.launch_allowed and not commercial.production_activation_blocked
+    evidence_ready = _safe_text(evidence_freshness_status).upper() == "FRESH"
+
+    gates = (
+        ProductionActivationGate(
+            gate_ref="ACCOUNT_FOUNDATION",
+            label="Customer foundation",
+            status="PASS" if account_ready else "BLOCKED",
+            reason=(
+                "Account, tenant link, and customer reference are active."
+                if account_ready
+                else "Activate the customer account foundation before production launch."
+            ),
+            next_action="Open Account health",
+            route_hint="health",
+        ),
+        ProductionActivationGate(
+            gate_ref="PEOPLE_ACCESS",
+            label="People who manage this customer",
+            status="PASS" if people_ready else "BLOCKED",
+            reason=(
+                "Required customer access responsibilities are accepted."
+                if people_ready
+                else "Confirm the account owner and campaign manager before production launch."
+            ),
+            next_action="Open People and access",
+            route_hint="people",
+        ),
+        ProductionActivationGate(
+            gate_ref="INTEGRATIONS",
+            label="Integrations",
+            status="PASS" if integrations_ready else "BLOCKED",
+            reason=(
+                "Required integration providers are ready."
+                if integrations_ready
+                else "Complete provider and execution readiness before production launch."
+            ),
+            next_action="Open Integrations",
+            route_hint="integrations",
+        ),
+        ProductionActivationGate(
+            gate_ref="CAMPAIGN_READINESS",
+            label="Campaign readiness",
+            status="PASS" if campaign_ready else "BLOCKED",
+            reason=(
+                "Campaign readiness has been checked for activation."
+                if campaign_ready
+                else "Select a reviewed campaign and run the campaign activation checklist."
+            ),
+            next_action="Open Campaigns",
+            route_hint="campaigns",
+        ),
+        ProductionActivationGate(
+            gate_ref="COMMERCIAL_ENTITLEMENT",
+            label="Plan and entitlement",
+            status="PASS" if commercial_ready else "BLOCKED",
+            reason=(
+                "A production launch entitlement source is configured."
+                if commercial_ready
+                else "Record a commercial entitlement source before production launch."
+            ),
+            next_action="Open Plan and entitlement",
+            route_hint="commercial",
+        ),
+        ProductionActivationGate(
+            gate_ref="EVIDENCE_FRESHNESS",
+            label="Evidence freshness",
+            status="PASS" if evidence_ready else "STALE",
+            reason=(
+                "The production decision is based on current evidence."
+                if evidence_ready
+                else "Refresh readiness evidence before production launch."
+            ),
+            next_action="Refresh customer readiness",
+            route_hint="health",
+        ),
+    )
+    blocked = tuple(gate for gate in gates if gate.status == "BLOCKED")
+    stale = tuple(gate for gate in gates if gate.status == "STALE")
+    launch_allowed = not blocked and not stale
+    decision_status = "PRODUCTION_ACTIVATION_ALLOWED" if launch_allowed else "PRODUCTION_ACTIVATION_BLOCKED"
+    disabled_reasons = tuple(
+        gate.gate_ref for gate in gates if gate.status in {"BLOCKED", "STALE"}
+    )
+    next_gate = blocked[0] if blocked else stale[0] if stale else None
+    next_action = WorkspaceOverviewAction(
+        action_ref=(
+            "production_activation_ready"
+            if next_gate is None
+            else f"resolve_{next_gate.gate_ref.lower()}"
+        ),
+        label=(
+            "Production activation can proceed"
+            if next_gate is None
+            else next_gate.next_action
+        ),
+        status="READY" if launch_allowed else "BLOCKED",
+        priority="FIRST",
+        route_hint="campaigns" if next_gate is None else next_gate.route_hint,
+        reason=(
+            "All production activation gates passed."
+            if next_gate is None
+            else next_gate.reason
+        ),
+        required_capability="REFERRAL_SAAS_ACCOUNT_ADMIN",
+    )
+    summary = (
+        f"{account_context.account_name} is clear for production activation."
+        if launch_allowed
+        else (
+            f"{account_context.account_name} cannot be production activated yet. "
+            f"{len(blocked)} gate(s) are blocked and {len(stale)} evidence check(s) need refresh."
+        )
+    )
+
+    return ProductionActivationDecision(
+        account_id=account_context.account_id,
+        account_code=account_context.account_code,
+        account_name=account_context.account_name,
+        decision_status=decision_status,
+        launch_allowed=launch_allowed,
+        blocked_gate_count=len(blocked),
+        stale_evidence_count=len(stale),
+        gates=gates,
+        disabled_reasons=disabled_reasons,
+        next_action=next_action,
+        plain_language_summary=summary,
+        guardrails=tuple(PRODUCTION_ACTIVATION_GUARDRAILS),
+        redactions=tuple(PRODUCTION_ACTIVATION_REDACTIONS),
     )
 
 

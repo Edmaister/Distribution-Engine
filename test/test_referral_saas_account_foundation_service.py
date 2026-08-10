@@ -214,6 +214,74 @@ async def test_commercial_entitlement_projection_blocks_launch_without_entitleme
     assert projection["noDlaasFinanceScopeConfirmed"] is True
 
 
+async def test_production_activation_decision_blocks_incomplete_gates():
+    context = svc.AccountFoundationContext(
+        **_row(operating_jurisdiction_code="ZA")
+    )
+
+    decision = svc.build_referral_saas_production_activation_decision(
+        account_context=context,
+        people_access_status="ACCESS_READY",
+        integrations_status="READY",
+        campaign_status="READY_TO_ACTIVATE",
+        evidence_freshness_status="STALE",
+    ).to_safe_dict()
+
+    assert decision["decisionStatus"] == "PRODUCTION_ACTIVATION_BLOCKED"
+    assert decision["launchAllowed"] is False
+    assert decision["blockedGateCount"] == 1
+    assert decision["staleEvidenceCount"] == 1
+    assert "COMMERCIAL_ENTITLEMENT" in decision["disabledReasons"]
+    assert "EVIDENCE_FRESHNESS" in decision["disabledReasons"]
+    assert decision["nextAction"]["routeHint"] == "commercial"
+    assert decision["noUiOnlyActivationConfirmed"] is True
+    assert decision["noCampaignActivationConfirmed"] is True
+    assert decision["noGoLiveActionConfirmed"] is True
+    assert decision["noBillingOrMoneyMovementConfirmed"] is True
+
+
+async def test_production_activation_decision_allows_only_when_all_gates_pass():
+    context = svc.AccountFoundationContext(
+        **_row(operating_jurisdiction_code="ZA")
+    )
+    commercial = svc.CommercialEntitlementProjection(
+        account_id=context.account_id,
+        account_code=context.account_code,
+        account_name=context.account_name,
+        overall_status="COMMERCIAL_READY",
+        commercial_status="ENTITLEMENT_APPROVED",
+        environment_status="REFERENCE_POSTURE_ONLY",
+        plan_code="REFERRAL_SAAS_ENTERPRISE",
+        plan_name="Referral SaaS Enterprise",
+        contract_source="APPROVED_CONTRACT",
+        launch_allowed=True,
+        production_activation_blocked=False,
+        limits={},
+        features=(),
+        disabled_reasons=(),
+        next_actions=(),
+        plain_language_summary="Commercial entitlement is approved.",
+        guardrails=("NO_BILLING_RECORD_CREATED",),
+        redactions=("tenant_code",),
+    )
+
+    decision = svc.build_referral_saas_production_activation_decision(
+        account_context=context,
+        commercial_entitlement=commercial,
+        people_access_status="ACCESS_READY",
+        integrations_status="READY",
+        campaign_status="READY_TO_ACTIVATE",
+        evidence_freshness_status="FRESH",
+    ).to_safe_dict()
+
+    assert decision["decisionStatus"] == "PRODUCTION_ACTIVATION_ALLOWED"
+    assert decision["launchAllowed"] is True
+    assert decision["blockedGateCount"] == 0
+    assert decision["staleEvidenceCount"] == 0
+    assert decision["disabledReasons"] == []
+    assert decision["nextAction"]["routeHint"] == "campaigns"
+
+
 async def test_missing_tenant_link_is_rejected(monkeypatch):
     patch_db(
         monkeypatch,

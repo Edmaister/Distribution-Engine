@@ -1570,6 +1570,7 @@ async def request_referral_saas_account_campaign_activation(
     command_payload_hash: str = "",
     command_actor_ref: str | None = None,
     command_actor_role: str | None = None,
+    production_activation_decision: dict[str, Any] | None = None,
 ) -> ReferralSaasCampaignActivationResult:
     safe_account_id = _required_activation_text(account_id, "account_id")
     safe_tenant_code = _required_activation_text(tenant_code, "tenant_code")
@@ -1611,6 +1612,17 @@ async def request_referral_saas_account_campaign_activation(
     ):
         raise CampaignActivationValidationError(
             "activationRequest.activationWindow.endsAt must be after startsAt."
+        )
+    if not production_activation_decision:
+        raise CampaignActivationNotReady(
+            "Production activation decision evidence is required before campaign activation."
+        )
+    if production_activation_decision.get("launchAllowed") is not True:
+        blocked_gates = production_activation_decision.get("disabledReasons") or []
+        readable_gates = ", ".join(str(gate) for gate in blocked_gates) or "UNKNOWN"
+        raise CampaignActivationNotReady(
+            "Production activation is blocked by backend readiness gates: "
+            f"{readable_gates}."
         )
 
     async with db_connection() as conn:

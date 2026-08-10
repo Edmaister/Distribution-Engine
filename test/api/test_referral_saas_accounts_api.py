@@ -2140,6 +2140,74 @@ async def test_referral_saas_commercial_entitlement_rejects_path_scope_mismatch(
     assert detail["code"] == "REJECTED_UNSAFE_SCOPE"
 
 
+async def test_referral_saas_account_reader_can_read_production_activation(
+    monkeypatch,
+):
+    resolve_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    async def fake_get_referral_saas_membership_activation_readiness(**kwargs):
+        return SimpleNamespace(overall_status="ACCESS_READY")
+
+    def fake_build_referral_saas_technical_setup_readiness(**kwargs):
+        return SimpleNamespace(overall_status="READY")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_membership_activation_readiness",
+        fake_get_referral_saas_membership_activation_readiness,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "build_referral_saas_technical_setup_readiness",
+        fake_build_referral_saas_technical_setup_readiness,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/production-activation",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    activation = body["productionActivation"]
+    assert body["status"] == "ok"
+    assert body["account"]["accountCode"] == "ACCT_FNB"
+    assert activation["launchAllowed"] is False
+    assert activation["decisionStatus"] == "PRODUCTION_ACTIVATION_BLOCKED"
+    assert "CAMPAIGN_READINESS" in activation["disabledReasons"]
+    assert "COMMERCIAL_ENTITLEMENT" in activation["disabledReasons"]
+    assert "EVIDENCE_FRESHNESS" in activation["disabledReasons"]
+    assert body["no_ui_only_activation_confirmed"] is True
+    assert body["no_campaign_activation_confirmed"] is True
+    assert body["no_go_live_action_confirmed"] is True
+    assert body["no_billing_or_money_movement_confirmed"] is True
+    assert "tenantCode" not in body["account"]
+    assert "tenant_code" not in str(body["account"])
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+
+
 async def test_referral_saas_account_admin_can_read_integration_configuration(
     monkeypatch,
 ):
@@ -5968,10 +6036,45 @@ async def test_referral_saas_account_admin_can_request_campaign_activation(
         command_calls.append(kwargs)
         return _campaign_activation_result()
 
+    async def fake_get_referral_saas_membership_activation_readiness(**kwargs):
+        return SimpleNamespace(overall_status="ACCESS_READY")
+
+    def fake_build_referral_saas_technical_setup_readiness(**kwargs):
+        return SimpleNamespace(overall_status="READY")
+
+    class FakeProductionActivationDecision:
+        def to_safe_dict(self):
+            return {
+                "decisionStatus": "PRODUCTION_ACTIVATION_ALLOWED",
+                "launchAllowed": True,
+                "disabledReasons": [],
+                "plainLanguageSummary": "Production activation is allowed.",
+                "guardrails": ["BACKEND_PRODUCTION_ACTIVATION_DECISION_REQUIRED"],
+                "redactions": ["internal_tenant_identifier"],
+            }
+
+    def fake_build_referral_saas_production_activation_decision(**kwargs):
+        return FakeProductionActivationDecision()
+
     monkeypatch.setattr(
         referral_saas_accounts,
         "resolve_setup_account_by_external_reference",
         fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_membership_activation_readiness",
+        fake_get_referral_saas_membership_activation_readiness,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "build_referral_saas_technical_setup_readiness",
+        fake_build_referral_saas_technical_setup_readiness,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "build_referral_saas_production_activation_decision",
+        fake_build_referral_saas_production_activation_decision,
     )
     monkeypatch.setattr(
         referral_saas_accounts,
@@ -6022,6 +6125,103 @@ async def test_referral_saas_account_admin_can_request_campaign_activation(
     assert command_calls[0]["review_status"] == "REVIEW_APPROVED"
     assert command_calls[0]["idempotency_key_hash"]
     assert command_calls[0]["command_payload_hash"]
+    assert command_calls[0]["production_activation_decision"]["launchAllowed"] is True
+
+
+async def test_referral_saas_account_campaign_activation_requires_production_gate(
+    monkeypatch,
+):
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    async def fake_get_referral_saas_membership_activation_readiness(**kwargs):
+        return SimpleNamespace(overall_status="ACCESS_READY")
+
+    def fake_build_referral_saas_technical_setup_readiness(**kwargs):
+        return SimpleNamespace(overall_status="READY")
+
+    class FakeProductionActivationDecision:
+        def to_safe_dict(self):
+            return {
+                "decisionStatus": "PRODUCTION_ACTIVATION_BLOCKED",
+                "launchAllowed": False,
+                "disabledReasons": ["COMMERCIAL_ENTITLEMENT"],
+                "plainLanguageSummary": "Production activation is blocked.",
+                "guardrails": ["BACKEND_PRODUCTION_ACTIVATION_DECISION_REQUIRED"],
+                "redactions": ["internal_tenant_identifier"],
+            }
+
+    def fake_build_referral_saas_production_activation_decision(**kwargs):
+        return FakeProductionActivationDecision()
+
+    async def fake_request_activation(**kwargs):
+        command_calls.append(kwargs)
+        return _campaign_activation_result()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_membership_activation_readiness",
+        fake_get_referral_saas_membership_activation_readiness,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "build_referral_saas_technical_setup_readiness",
+        fake_build_referral_saas_technical_setup_readiness,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "build_referral_saas_production_activation_decision",
+        fake_build_referral_saas_production_activation_decision,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "request_referral_saas_account_campaign_activation",
+        fake_request_activation,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/activation-requests",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "campaign_activation",
+                },
+                "activationRequest": {
+                    "requestedLifecycleStatus": "ACTIVE",
+                    "reviewStatus": "REVIEW_APPROVED",
+                    "goLiveReason": "Approved for first referral campaign test.",
+                },
+                "correlationId": "corr-1",
+                "idempotencyKey": "campaign-activation-1",
+            },
+        )
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["code"] == "PRODUCTION_ACTIVATION_BLOCKED"
+    assert detail["productionActivation"]["launchAllowed"] is False
+    assert detail["productionActivation"]["disabledReasons"] == [
+        "COMMERCIAL_ENTITLEMENT"
+    ]
+    assert detail["no_campaign_activation_confirmed"] is True
+    assert detail["no_billing_or_money_movement_confirmed"] is True
+    assert command_calls == []
 
 
 async def test_referral_saas_account_campaign_activation_rejects_unsafe_payload():

@@ -406,6 +406,52 @@ export type ReferralSaasCommercialEntitlementResponse = {
   no_dlaas_finance_scope_confirmed: boolean;
 };
 
+export type ReferralSaasProductionActivationGate = {
+  gateRef: string;
+  label: string;
+  status: string;
+  reason: string;
+  nextAction: string;
+  routeHint: string;
+};
+
+export type ReferralSaasProductionActivation = {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  decisionStatus: string;
+  launchAllowed: boolean;
+  blockedGateCount: number;
+  staleEvidenceCount: number;
+  gates: ReferralSaasProductionActivationGate[];
+  disabledReasons: string[];
+  nextAction: ReferralSaasWorkspaceOverviewAction;
+  plainLanguageSummary: string;
+  guardrails: string[];
+  redactions: string[];
+  noUiOnlyActivationConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noGoLiveActionConfirmed: boolean;
+  noBillingOrMoneyMovementConfirmed: boolean;
+};
+
+export type ReferralSaasProductionActivationRequest = ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+};
+
+export type ReferralSaasProductionActivationResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  productionActivation: ReferralSaasProductionActivation;
+  guardrail: string;
+  redactions: string[];
+  no_ui_only_activation_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_go_live_action_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasIntegrationConfiguration = {
   configurationRef: string;
   accountRef: string;
@@ -2423,6 +2469,24 @@ export function getReferralSaasCommercialEntitlement({
 }: ReferralSaasCommercialEntitlementRequest): Promise<ReferralSaasCommercialEntitlementResponse> {
   return apiRequest<ReferralSaasCommercialEntitlementResponse>(
     `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/commercial-entitlement`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+      },
+    },
+  );
+}
+
+export function getReferralSaasProductionActivation({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+}: ReferralSaasProductionActivationRequest): Promise<ReferralSaasProductionActivationResponse> {
+  return apiRequest<ReferralSaasProductionActivationResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/production-activation`,
     {
       query: {
         ref_type: refType,

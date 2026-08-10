@@ -28,6 +28,7 @@ import {
   useReferralSaasMembershipActivationReadiness,
   useReferralSaasAccountRegistry,
   useReferralSaasCommercialEntitlement,
+  useReferralSaasProductionActivation,
   useReferralSaasTechnicalSetupReadiness,
 } from "../../api/referralSaasAccountQueries";
 import {
@@ -96,6 +97,7 @@ import {
   type ReferralSaasSupportCaseRepairReplayReadiness,
   type ReferralSaasSupportCaseRepairReplayReadinessResponse,
   type ReferralSaasCommercialEntitlementResponse,
+  type ReferralSaasProductionActivationResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import type { CampaignReadinessOperation } from "../../api/endpoints/adminCampaignReadiness";
@@ -657,6 +659,16 @@ export function ReferralSaasAccountMaintenancePage() {
     error: commercialEntitlementError,
     isLoading: isCommercialEntitlementLoading,
   } = useReferralSaasCommercialEntitlement(
+    selectedAccount?.accountId || "",
+    selectedExternalTenantRef,
+    Boolean(accountId && selectedAccount && selectedExternalTenantRef),
+    refreshKey,
+  );
+  const {
+    data: productionActivation,
+    error: productionActivationError,
+    isLoading: isProductionActivationLoading,
+  } = useReferralSaasProductionActivation(
     selectedAccount?.accountId || "",
     selectedExternalTenantRef,
     Boolean(accountId && selectedAccount && selectedExternalTenantRef),
@@ -2841,6 +2853,9 @@ export function ReferralSaasAccountMaintenancePage() {
                   entitlement={commercialEntitlement}
                   error={commercialEntitlementError}
                   isLoading={isCommercialEntitlementLoading}
+                  productionActivation={productionActivation}
+                  productionActivationError={productionActivationError}
+                  isProductionActivationLoading={isProductionActivationLoading}
                   selectedCustomerPath={selectedCustomerPath}
                 />
               ) : null}
@@ -4394,16 +4409,24 @@ function CustomerCommercialEntitlementPage({
   entitlement,
   error,
   isLoading,
+  productionActivation,
+  productionActivationError,
+  isProductionActivationLoading,
   selectedCustomerPath,
 }: {
   entitlement?: ReferralSaasCommercialEntitlementResponse;
   error: unknown;
   isLoading: boolean;
+  productionActivation?: ReferralSaasProductionActivationResponse;
+  productionActivationError: unknown;
+  isProductionActivationLoading: boolean;
   selectedCustomerPath: string;
 }) {
   const commercial = entitlement?.commercialEntitlement;
+  const activation = productionActivation?.productionActivation;
   const featureRows = commercial?.features || [];
   const nextActionRows = commercial?.nextActions || [];
+  const activationGateRows = activation?.gates || [];
   const limitRows = Object.entries(commercial?.limits || {}).map(([key, value]) => ({
     key,
     value: String(value),
@@ -4470,6 +4493,78 @@ function CustomerCommercialEntitlementPage({
               </div>
               <StatusBadge label="No billing or money" tone="success" />
             </div>
+            <section className="route-card">
+              <div>
+                <strong>Production activation decision</strong>
+                <p>
+                  This is the backend launch decision. The UI cannot override it; campaign activation stays blocked
+                  until every required gate passes with current evidence.
+                </p>
+              </div>
+              {isProductionActivationLoading ? (
+                <LoadingState label="Checking production activation gates" />
+              ) : null}
+              {productionActivationError ? <ErrorPanel error={productionActivationError} /> : null}
+              {activation ? (
+                <>
+                  <div className="wizard-status-card">
+                    <div>
+                      <strong>{activation.launchAllowed ? "Ready for production launch" : "Production launch is blocked"}</strong>
+                      <p>{activation.plainLanguageSummary}</p>
+                    </div>
+                    <StatusBadge
+                      label={formatDisplay(activation.decisionStatus)}
+                      tone={activation.launchAllowed ? "success" : "warning"}
+                    />
+                  </div>
+                  <DataTable
+                    rows={activationGateRows}
+                    emptyText="No production activation gates returned."
+                    columns={[
+                      {
+                        key: "gate",
+                        header: "Gate",
+                        render: (row) => <strong>{formatDisplay(getValue(row, ["label"], "Gate"))}</strong>,
+                      },
+                      {
+                        key: "status",
+                        header: "Status",
+                        render: (row) => (
+                          <StatusBadge
+                            label={formatDisplay(getValue(row, ["status"], ""))}
+                            tone={statusTone(getValue(row, ["status"], ""))}
+                          />
+                        ),
+                      },
+                      {
+                        key: "reason",
+                        header: "What it means",
+                        render: (row) => getValue(row, ["reason"], ""),
+                      },
+                      {
+                        key: "next",
+                        header: "Next action",
+                        render: (row) => {
+                          const routeHint = getValue(row, ["routeHint"], "");
+                          const nextAction = getValue(row, ["nextAction"], "Open page");
+                          if (!routeHint || routeHint === "commercial") {
+                            return <span className="table-subtext">{nextAction}</span>;
+                          }
+                          return (
+                            <Link
+                              className="button secondary compact"
+                              to={buildCustomerModuleRoute(selectedCustomerPath, routeHint, "")}
+                            >
+                              {nextAction}
+                            </Link>
+                          );
+                        },
+                      },
+                    ]}
+                  />
+                </>
+              ) : null}
+            </section>
             <DataTable
               rows={featureRows}
               emptyText="No entitlement features returned."
