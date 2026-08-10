@@ -162,10 +162,16 @@ tenant-link, explicit account-claim, and safe external-reference claim context.
 The response is read-only, jurisdiction-aware, redacts internal tenant
 identifiers, and confirms no unscoped account enumeration, membership write,
 invite delivery, auth-claim change, or money movement.
+TASK-360 adds the shared workspace overview projection on top of that account
+context. `/v1/referral-saas/workspace/overview` now returns the selected account,
+plain-language readiness, one primary next action, a short capability-aware
+worklist, safe-to-leave posture, guardrails, and redactions for admin-selected
+customer context and partner/customer actors without exposing internal tenant
+identifiers or taking live actions.
 
-Entitlement, workspace overview, invitation/login, integration execution,
-campaign control, referral operations, attribution, reporting, support, and
-non-local proof gates remain on TASK-360 through TASK-380.
+Entitlement, invitation/login, integration execution, campaign control, referral
+operations, attribution, reporting, support, and non-local proof gates remain on
+TASK-361 through TASK-380.
 
 ## Recommended Ordered Task Sequence
 

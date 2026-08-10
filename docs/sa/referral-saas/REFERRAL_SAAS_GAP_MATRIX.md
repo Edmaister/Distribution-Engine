@@ -88,7 +88,7 @@ customer-journey tasks add more runtime behavior. The controlling artifact is
 | Deferred or disabled | DLaaS marketplace, fulfilment, settlement, funding, sponsor billing, broad white-label/embed, unmanaged provider dispatch, raw browser secrets, generic replay/DB mutation, identity-provider auth claims until proven, and money movement. |
 | Release gates | Scope lock, account/jurisdiction, entitlement/environment, people/access, integrations, campaign control, referral/attribution correctness, reporting/support, and deployed-state proof. |
 | UX rule | Every customer page must make the selected customer, readiness state, one next action, reason, and non-action boundary obvious in plain language. |
-| Downstream enforcement | TASK-358 now enforces core selected-customer account, jurisdiction, and account-read capability gates; TASK-359 adds the partner/customer workspace account-context resolver with no unscoped enumeration or internal tenant identifier exposure; TASK-360 through TASK-381 must continue those gates for overview projection, entitlement, activation, route capability inventory, UI labels, and proof. |
+| Downstream enforcement | TASK-358 now enforces core selected-customer account, jurisdiction, and account-read capability gates; TASK-359 adds the partner/customer workspace account-context resolver with no unscoped enumeration or internal tenant identifier exposure; TASK-360 adds the shared workspace overview projection with selected-account, readiness, primary-action, safe-to-leave, capability-aware worklist, redaction, and no-live-action guardrails; TASK-361 through TASK-381 must continue those gates for entitlement, activation, route capability inventory, UI labels, and proof. |
 
 The ratings remain unchanged because this task is a scope and control document:
 Referral Management remains 9.99/10 and Campaign Attribution remains
@@ -115,12 +115,23 @@ claim, and safe external-reference claim sources. Operating-jurisdiction claims
 filter the returned account list. The response does not expose internal tenant
 identifiers or tenant codes and confirms no unscoped account enumeration,
 membership write, invite delivery, auth-claim change, or money movement. This
-closes the partner workspace entry gap before TASK-360 adds the shared
-customer/partner overview projection.
+closes the partner workspace entry gap.
+
+## TASK-360 Customer And Partner Workspace Overview Projection
+
+TASK-360 adds the shared customer/partner workspace overview projection on top
+of selected customer context. The new route returns a selected account summary,
+plain-language readiness, one primary next action, a short capability-aware
+worklist, safe-to-leave posture, guardrails, and redactions for admin-selected
+customer context and partner/customer actors. The projection is read-only: it
+does not expose internal tenant identifiers or take membership writes, invite
+delivery, seat provisioning, auth-claim changes, campaign activation, or money
+movement.
 
 Open enforcement now moves to the remaining account/workspace gates: partner
-workspace context, entitlement/environment posture, production activation, and
-the downstream journey-specific command/read guards.
+entitlement/environment posture, production activation, route capability
+inventory, UI labels, proof, and the downstream journey-specific command/read
+guards.
 
 ## Gap Matrix
 

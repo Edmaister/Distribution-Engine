@@ -767,6 +767,130 @@ async def test_referral_saas_partner_workspace_account_context_rejects_missing_c
     assert "SERVER_SIDE_ACCOUNT_CAPABILITY_ENFORCEMENT" in detail["guardrails"]
 
 
+async def test_referral_saas_workspace_overview_requires_selected_admin_account():
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get("/v1/referral-saas/workspace/overview")
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["code"] == "selected_account_required"
+    assert "NO_UNSCOPED_ACCOUNT_ENUMERATION" in detail["guardrails"]
+
+
+async def test_referral_saas_workspace_overview_returns_admin_selected_summary(
+    monkeypatch,
+):
+    async def fake_list_referral_saas_accounts(**kwargs):
+        assert kwargs == {"limit": 50}
+        return [
+            AccountFoundationListItem(
+                account_id="acct-1",
+                account_code="ACCT_FNB",
+                account_name="FNB Referral SaaS",
+                account_type="ORGANISATION",
+                account_status="ACTIVE",
+                onboarding_status="APPROVED",
+                operating_jurisdiction_code="ZA",
+                primary_external_tenant_ref="fnb-referrals",
+                external_references=(
+                    {
+                        "refType": "external_tenant_ref",
+                        "externalRef": "fnb-referrals",
+                        "referenceStatus": "ACTIVE",
+                    },
+                ),
+                created_at="2026-01-01T00:00:00+00:00",
+                updated_at="2026-01-01T00:00:00+00:00",
+            ),
+        ]
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_accounts",
+        fake_list_referral_saas_accounts,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/workspace/overview",
+            params={"selected_account_ref": "ACCT_FNB"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    overview = body["workspaceOverview"]
+    assert overview["selectedAccount"]["accountCode"] == "ACCT_FNB"
+    assert overview["primaryAction"]["label"] == "Review people and access"
+    assert overview["safeToLeave"]["canLeaveSafely"] is True
+    assert "tenantCode" not in overview["selectedAccount"]
+    assert "tenant_code" not in str(overview["selectedAccount"])
+    assert body["no_membership_write_confirmed"] is True
+    assert body["no_invite_delivery_confirmed"] is True
+    assert body["no_money_movement_confirmed"] is True
+
+
+async def test_referral_saas_workspace_overview_uses_partner_account_context(
+    monkeypatch,
+):
+    calls: list[dict] = []
+
+    async def fake_build_referral_saas_partner_workspace_account_context(**kwargs):
+        calls.append(kwargs)
+        return PartnerWorkspaceAccountContext(
+            actor_role="PARTNER",
+            accounts=(
+                PartnerWorkspaceAccountContextItem(
+                    account_id="acct-1",
+                    account_code="ACCT_FNB",
+                    account_name="FNB Referral SaaS",
+                    account_type="ORGANISATION",
+                    account_status="ACTIVE",
+                    onboarding_status="APPROVED",
+                    operating_jurisdiction_code="ZA",
+                    primary_external_tenant_ref="fnb-referrals",
+                    external_references=(
+                        {
+                            "refType": "external_tenant_ref",
+                            "externalRef": "fnb-referrals",
+                            "referenceStatus": "ACTIVE",
+                        },
+                    ),
+                    role_families=("CAMPAIGN_MANAGER",),
+                    permission_sets=("REFERRAL_SAAS_CAMPAIGN_MANAGER",),
+                    membership_statuses=("ACTIVE",),
+                    source="membership",
+                ),
+            ),
+            guardrails=("PARTNER_WORKSPACE_ACCOUNT_CONTEXT",),
+            redactions=("internal_tenant_identifier", "tenant_code"),
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "build_referral_saas_partner_workspace_account_context",
+        fake_build_referral_saas_partner_workspace_account_context,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=PARTNER_HEADERS
+    ) as client:
+        response = await client.get("/v1/referral-saas/workspace/overview")
+
+    assert response.status_code == 200
+    body = response.json()
+    overview = body["workspaceOverview"]
+    assert overview["actor"] == {"role": "PARTNER", "visibleAccountCount": 1}
+    assert overview["readiness"]["red"] == 0
+    assert overview["primaryAction"]["actionRef"] == "check_integrations"
+    assert [action["actionRef"] for action in overview["worklist"]] == [
+        "check_integrations",
+        "open_campaigns",
+    ]
+    assert "tenantCode" not in overview["selectedAccount"]
+    assert "tenant_code" not in str(overview["selectedAccount"])
+    assert calls[0]["actor_role"] == "PARTNER"
+
+
 async def test_referral_saas_account_admin_can_activate_account_foundation(monkeypatch):
     resolve_calls: list[dict] = []
     command_calls: list[dict] = []

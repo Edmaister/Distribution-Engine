@@ -60,6 +60,84 @@ export type ReferralSaasAccountResolutionResponse = {
   guardrail: string;
 };
 
+export type ReferralSaasWorkspaceOverviewAction = {
+  actionRef: string;
+  label: string;
+  status: string;
+  priority: string;
+  routeHint: string;
+  reason: string;
+  requiredCapability: string;
+};
+
+export type ReferralSaasWorkspaceAccountSummary = {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  accountType: string;
+  accountStatus: string;
+  onboardingStatus: string;
+  operatingJurisdictionCode: string;
+  primaryExternalTenantRef?: string | null;
+  externalReferences: {
+    refType: string;
+    externalRef: string;
+    referenceStatus: string;
+  }[];
+  actorAccess?: {
+    roleFamilies: string[];
+    permissionSets: string[];
+    membershipStatuses: string[];
+    source: string;
+  };
+};
+
+export type ReferralSaasWorkspaceOverview = {
+  actor: {
+    role: string;
+    visibleAccountCount: number;
+  };
+  selectedAccount: ReferralSaasWorkspaceAccountSummary | null;
+  readiness: {
+    green: number;
+    red: number;
+    amber: number;
+    status: string;
+  };
+  primaryAction: ReferralSaasWorkspaceOverviewAction | null;
+  worklist: ReferralSaasWorkspaceOverviewAction[];
+  plainLanguageSummary: string;
+  safeToLeave: {
+    canLeaveSafely: boolean;
+    reason: string;
+  };
+  guardrails: string[];
+  redactions: string[];
+  noInternalTenantIdentifierExposureConfirmed: boolean;
+  noUnscopedAccountEnumerationConfirmed: boolean;
+  noMembershipWriteConfirmed: boolean;
+  noInviteDeliveryConfirmed: boolean;
+  noSeatAssignmentConfirmed: boolean;
+  noAuthClaimChangeConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noMoneyMovementConfirmed: boolean;
+};
+
+export type ReferralSaasWorkspaceOverviewResponse = {
+  status: string;
+  workspaceOverview: ReferralSaasWorkspaceOverview;
+  guardrail: string;
+  redactions: string[];
+  no_internal_tenant_identifier_exposure_confirmed: boolean;
+  no_unscoped_account_enumeration_confirmed: boolean;
+  no_membership_write_confirmed: boolean;
+  no_invite_delivery_confirmed: boolean;
+  no_seat_assignment_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasMembershipActorPosture = {
   status: string;
   roleFamily?: string | null;
@@ -2160,6 +2238,23 @@ export function resolveReferralSaasAccount({
 export function listReferralSaasAccounts(limit = 50): Promise<ReferralSaasAccountRegistryResponse> {
   return apiRequest<ReferralSaasAccountRegistryResponse>("v1/referral-saas/accounts", {
     query: {
+      limit,
+    },
+  });
+}
+
+export function getReferralSaasWorkspaceOverview({
+  selectedAccountRef,
+  limit = 50,
+}: {
+  selectedAccountRef?: string;
+  limit?: number;
+} = {}): Promise<ReferralSaasWorkspaceOverviewResponse> {
+  return apiRequest<ReferralSaasWorkspaceOverviewResponse>("v1/referral-saas/workspace/overview", {
+    query: {
+      ...(selectedAccountRef?.trim()
+        ? { selected_account_ref: selectedAccountRef.trim() }
+        : {}),
       limit,
     },
   });

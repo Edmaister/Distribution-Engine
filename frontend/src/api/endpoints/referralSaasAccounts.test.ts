@@ -15,6 +15,7 @@ import {
   getReferralSaasLoginCompletionReadiness,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
+  getReferralSaasWorkspaceOverview,
   listReferralSaasAccountSupportCases,
   getReferralSaasAccountSupportCaseRepairReplayReadiness,
   listReferralSaasOperatorSupportQueue,
@@ -124,6 +125,61 @@ describe("referralSaasAccounts endpoint client", () => {
     expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/accounts", {
       query: {
         limit: 25,
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement/,
+    );
+  });
+
+  it("reads the customer and partner workspace overview projection", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      workspaceOverview: {
+        actor: { role: "PARTNER", visibleAccountCount: 1 },
+        selectedAccount: {
+          accountId: "acct-1",
+          accountCode: "ACCT_FNB",
+          accountName: "FNB Referral SaaS",
+          accountStatus: "ACTIVE",
+          operatingJurisdictionCode: "ZA",
+        },
+        readiness: { green: 2, red: 0, amber: 1, status: "READY" },
+        primaryAction: {
+          actionRef: "open_campaigns",
+          label: "Open campaigns",
+          status: "READY",
+          priority: "NEXT",
+        },
+        worklist: [],
+        plainLanguageSummary: "FNB Referral SaaS is ready for customer work.",
+        safeToLeave: {
+          canLeaveSafely: true,
+          reason: "This overview is read-only.",
+        },
+        redactions: ["internal_tenant_identifier"],
+      },
+      guardrail: "Read-only Referral SaaS customer and partner workspace overview.",
+      redactions: ["internal_tenant_identifier"],
+    });
+
+    await expect(
+      getReferralSaasWorkspaceOverview({
+        selectedAccountRef: " ACCT_FNB ",
+        limit: 10,
+      }),
+    ).resolves.toMatchObject({
+      workspaceOverview: {
+        selectedAccount: { accountCode: "ACCT_FNB" },
+        primaryAction: { label: "Open campaigns" },
+        safeToLeave: { canLeaveSafely: true },
+      },
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith("v1/referral-saas/workspace/overview", {
+      query: {
+        selected_account_ref: "ACCT_FNB",
+        limit: 10,
       },
     });
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
