@@ -2464,6 +2464,22 @@ on TASK-366 through TASK-380.
   Campaign Attribution until credential/vault proof, campaign/runtime controls,
   referral operations, attribution, reporting/support, and non-local proof are
   complete.
+- TASK-367:
+  `services/referral_saas_integrations_configuration_service.py`;
+  `test/test_referral_saas_integrations_configuration_service.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  safe credential/vault lifecycle proof block to provider/vault execution
+  responses and audit-backed readback. The proof captures approved request
+  version matching, runtime/vault/adapter reference presence, blocked
+  stale-request state, audit evidence, redactions, and no raw secret,
+  unsupported provider dispatch, credential reveal, or vault-write-without-
+  adapter side effects. Ratings remain 9.99/10 for Referral Management and
+  9.99996/10 for Campaign Attribution until API/webhook/invite/referral-message
+  provider execution evidence, campaign/runtime controls, referral operations,
+  attribution, reporting/support, and non-local proof are complete.
 
 ## Explicit Deferrals
 

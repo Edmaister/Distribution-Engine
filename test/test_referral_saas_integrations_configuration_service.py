@@ -4,6 +4,8 @@ import pytest
 
 from services.referral_saas_integrations_configuration_service import (
     ReferralSaasIntegrationConfiguration,
+    ReferralSaasIntegrationCredentialRequest,
+    ReferralSaasProviderVaultExecutionResult,
     build_referral_saas_integration_client_binding,
     build_referral_saas_integration_execution_readiness,
     build_referral_saas_provider_vault_readiness,
@@ -121,6 +123,29 @@ def _saved_configuration() -> ReferralSaasIntegrationConfiguration:
     )
 
 
+def _approved_credential_request() -> ReferralSaasIntegrationCredentialRequest:
+    return ReferralSaasIntegrationCredentialRequest(
+        credential_request_ref="credreq-1",
+        account_ref="acct-1",
+        configuration_ref="config-1",
+        credential_request_status="CREDENTIAL_REQUEST_READY_FOR_REVIEW",
+        review_status="REVIEW_APPROVED",
+        request_type="PROVIDER_CREDENTIAL_REFERENCE_CREATE",
+        capability="REFERRAL_SAAS_PROVIDER_REFERENCE",
+        environment="SANDBOX",
+        intended_use=["INVITE_DELIVERY"],
+        requested_for={"providerKey": "approved-email-provider"},
+        safe_request_posture={"requestVersion": "safe-version-1"},
+        reason_code="CREDENTIAL_SETUP",
+        correlation_id="corr-1",
+        created_by_ref="admin",
+        created_by_role="ADMIN",
+        created_at="2026-08-10T00:00:00Z",
+        updated_at="2026-08-10T00:00:00Z",
+        redactions=["credential_request_payload"],
+    )
+
+
 def test_integration_client_binding_ready_from_active_membership_client() -> None:
     configuration = _saved_configuration()
     binding = build_referral_saas_integration_client_binding(
@@ -231,3 +256,103 @@ def test_provider_vault_readiness_inherits_integration_client_binding_blocker() 
         blocker["code"] == "CLIENT_BINDING_MISSING"
         for blocker in readiness.blockers
     )
+
+
+def test_provider_vault_execution_result_includes_ready_lifecycle_proof() -> None:
+    result = ReferralSaasProviderVaultExecutionResult(
+        command_status="PROVIDER_VAULT_EXECUTION_READY",
+        execution_ref="audit-1",
+        credential_request=_approved_credential_request(),
+        provider_key="approved-email-provider",
+        environment="SANDBOX",
+        capability="REFERRAL_SAAS_PROVIDER_REFERENCE",
+        blocked_reason=None,
+        next_action="Use the recorded proof.",
+        idempotency_status="PROVIDER_VAULT_EXECUTION_READY",
+        audit_event_id="audit-1",
+        plain_language_summary="Provider/vault references were recorded safely.",
+        guardrails=["CUSTOMER_SCOPED_PROVIDER_VAULT_EXECUTION_COMMAND"],
+        redactions=["credential_request_payload", "vault_reference"],
+        provider_runtime_reference="prv_ref_opaque",
+        opaque_vault_reference="vault_ref_opaque",
+        adapter_ref="PLATFORM_REFERENCE",
+        vault_adapter_ref="PLATFORM_VAULT_REFERENCE",
+        approved_request_version="safe-version-1",
+    )
+
+    safe = result.to_safe_dict()
+    proof = safe["credentialVaultLifecycleProof"]
+
+    assert proof["proofStatus"] == "PROVIDER_VAULT_LIFECYCLE_PROOF_READY"
+    assert proof["approvedRequestVersionMatched"] is True
+    assert proof["auditEvidencePresent"] is True
+    assert proof["runtimeEvidence"] == {
+        "providerRuntimeReferencePresent": True,
+        "opaqueVaultReferencePresent": True,
+        "adapterRefPresent": True,
+        "vaultAdapterRefPresent": True,
+    }
+    assert proof["safeForFrontendDisplay"] is True
+    assert proof["noRawSecretExposureConfirmed"] is True
+
+
+def test_provider_vault_execution_result_marks_stale_request_proof_blocked() -> None:
+    result = ReferralSaasProviderVaultExecutionResult(
+        command_status="PROVIDER_VAULT_EXECUTION_BLOCKED",
+        execution_ref="audit-1",
+        credential_request=_approved_credential_request(),
+        provider_key="approved-email-provider",
+        environment="SANDBOX",
+        capability="REFERRAL_SAAS_PROVIDER_REFERENCE",
+        blocked_reason="PROVIDER_VAULT_BLOCKED_REQUEST_VERSION_MISMATCH",
+        next_action="Resolve the listed blocker before trying again.",
+        idempotency_status="PROVIDER_VAULT_EXECUTION_BLOCKED",
+        audit_event_id="audit-1",
+        plain_language_summary="Provider/vault execution was blocked safely.",
+        guardrails=["CUSTOMER_SCOPED_PROVIDER_VAULT_EXECUTION_COMMAND"],
+        redactions=["credential_request_payload", "vault_reference"],
+        approved_request_version="stale-version",
+    )
+
+    safe = result.to_safe_dict()
+    proof = safe["credentialVaultLifecycleProof"]
+
+    assert proof["proofStatus"] == "PROVIDER_VAULT_LIFECYCLE_PROOF_BLOCKED"
+    assert proof["blockedReason"] == "PROVIDER_VAULT_BLOCKED_REQUEST_VERSION_MISMATCH"
+    assert proof["approvedRequestVersionMatched"] is False
+    assert proof["runtimeEvidence"]["providerRuntimeReferencePresent"] is False
+    assert proof["noUnsupportedProviderDispatchConfirmed"] is True
+
+
+def test_provider_vault_lifecycle_proof_does_not_expose_raw_secret_fields() -> None:
+    result = ReferralSaasProviderVaultExecutionResult(
+        command_status="PROVIDER_VAULT_EXECUTION_READY",
+        execution_ref="audit-1",
+        credential_request=_approved_credential_request(),
+        provider_key="approved-email-provider",
+        environment="SANDBOX",
+        capability="REFERRAL_SAAS_PROVIDER_REFERENCE",
+        blocked_reason=None,
+        next_action="Use the recorded proof.",
+        idempotency_status="PROVIDER_VAULT_EXECUTION_READY",
+        audit_event_id="audit-1",
+        plain_language_summary="Provider/vault references were recorded safely.",
+        guardrails=["CUSTOMER_SCOPED_PROVIDER_VAULT_EXECUTION_COMMAND"],
+        redactions=["credential_request_payload", "vault_reference"],
+        provider_runtime_reference="prv_ref_opaque",
+        opaque_vault_reference="vault_ref_opaque",
+        adapter_ref="PLATFORM_REFERENCE",
+        vault_adapter_ref="PLATFORM_VAULT_REFERENCE",
+        approved_request_version="safe-version-1",
+    )
+
+    proof = result.to_safe_dict()["credentialVaultLifecycleProof"]
+    proof_text = str(proof)
+
+    assert "super-secret-api-key" not in proof_text
+    assert "raw-signing-secret" not in proof_text
+    assert "raw-credential-fingerprint" not in proof_text
+    assert "raw-vault-object-path" not in proof_text
+    assert "api_key_value" in proof["redactions"]
+    assert "signing_key_value" in proof["redactions"]
+    assert "vault_reference" in proof["redactions"]

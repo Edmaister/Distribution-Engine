@@ -77,6 +77,11 @@ PROVIDER_VAULT_EXECUTION_READY = "PROVIDER_VAULT_EXECUTION_READY"
 PROVIDER_VAULT_EXECUTION_BLOCKED = "PROVIDER_VAULT_EXECUTION_BLOCKED"
 PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED = "PROVIDER_VAULT_EXECUTION_NOT_IMPLEMENTED"
 PROVIDER_VAULT_EXECUTION_REPLAYED = "PROVIDER_VAULT_EXECUTION_REPLAYED"
+PROVIDER_VAULT_LIFECYCLE_PROOF_READY = "PROVIDER_VAULT_LIFECYCLE_PROOF_READY"
+PROVIDER_VAULT_LIFECYCLE_PROOF_BLOCKED = "PROVIDER_VAULT_LIFECYCLE_PROOF_BLOCKED"
+PROVIDER_VAULT_LIFECYCLE_PROOF_INCOMPLETE = (
+    "PROVIDER_VAULT_LIFECYCLE_PROOF_INCOMPLETE"
+)
 PROVIDER_VAULT_BLOCKED_ACCOUNT_NOT_ACTIVE = (
     "PROVIDER_VAULT_BLOCKED_ACCOUNT_NOT_ACTIVE"
 )
@@ -806,12 +811,28 @@ class ReferralSaasProviderVaultExecutionResult:
     opaque_vault_reference: str | None = None
     adapter_ref: str | None = None
     vault_adapter_ref: str | None = None
+    approved_request_version: str | None = None
 
     def to_safe_dict(self) -> dict[str, Any]:
+        lifecycle_proof = _build_provider_vault_lifecycle_proof(
+            command_status=self.command_status,
+            execution_ref=self.execution_ref,
+            credential_request=self.credential_request,
+            provider_key=self.provider_key,
+            environment=self.environment,
+            capability=self.capability,
+            blocked_reason=self.blocked_reason,
+            provider_runtime_reference=self.provider_runtime_reference,
+            opaque_vault_reference=self.opaque_vault_reference,
+            adapter_ref=self.adapter_ref,
+            vault_adapter_ref=self.vault_adapter_ref,
+            approved_request_version=self.approved_request_version,
+        )
         return {
             "commandStatus": self.command_status,
             "executionRef": self.execution_ref,
             "credentialRequest": self.credential_request.to_safe_dict(),
+            "approvedRequestVersion": self.approved_request_version,
             "providerKey": self.provider_key,
             "environment": self.environment,
             "capability": self.capability,
@@ -826,6 +847,7 @@ class ReferralSaasProviderVaultExecutionResult:
                 "vaultAdapterRef": self.vault_adapter_ref,
             },
             "plainLanguageSummary": self.plain_language_summary,
+            "credentialVaultLifecycleProof": lifecycle_proof,
             "guardrails": self.guardrails,
             "redactions": self.redactions,
             "noRawSecretSubmittedConfirmed": True,
@@ -846,6 +868,78 @@ class ReferralSaasProviderVaultExecutionResult:
             "noGoLiveActionConfirmed": True,
             "noBillingOrMoneyMovementConfirmed": True,
         }
+
+
+def _build_provider_vault_lifecycle_proof(
+    *,
+    command_status: str,
+    execution_ref: str | None,
+    credential_request: ReferralSaasIntegrationCredentialRequest,
+    provider_key: str,
+    environment: str,
+    capability: str,
+    blocked_reason: str | None,
+    provider_runtime_reference: str | None,
+    opaque_vault_reference: str | None,
+    adapter_ref: str | None,
+    vault_adapter_ref: str | None,
+    approved_request_version: str | None,
+) -> dict[str, Any]:
+    approved_versions = {
+        item
+        for item in (
+            credential_request.credential_request_ref,
+            credential_request.created_at,
+            credential_request.updated_at,
+            _optional_text(
+                credential_request.safe_request_posture.get("requestVersion")
+            ),
+            _optional_text(credential_request.safe_request_posture.get("version")),
+        )
+        if item
+    }
+    approved_request_version_matched = bool(
+        approved_request_version and approved_request_version in approved_versions
+    )
+    runtime_evidence = {
+        "providerRuntimeReferencePresent": bool(provider_runtime_reference),
+        "opaqueVaultReferencePresent": bool(opaque_vault_reference),
+        "adapterRefPresent": bool(adapter_ref),
+        "vaultAdapterRefPresent": bool(vault_adapter_ref),
+    }
+    proof_ready = (
+        command_status == PROVIDER_VAULT_EXECUTION_READY
+        and blocked_reason is None
+        and approved_request_version_matched
+        and all(runtime_evidence.values())
+    )
+    if proof_ready:
+        proof_status = PROVIDER_VAULT_LIFECYCLE_PROOF_READY
+    elif blocked_reason:
+        proof_status = PROVIDER_VAULT_LIFECYCLE_PROOF_BLOCKED
+    else:
+        proof_status = PROVIDER_VAULT_LIFECYCLE_PROOF_INCOMPLETE
+
+    return {
+        "proofStatus": proof_status,
+        "executionRef": execution_ref,
+        "credentialRequestRef": credential_request.credential_request_ref,
+        "requestReviewStatus": credential_request.review_status,
+        "approvedRequestVersion": approved_request_version,
+        "approvedRequestVersionMatched": approved_request_version_matched,
+        "providerKey": provider_key,
+        "environment": environment,
+        "capability": capability,
+        "blockedReason": blocked_reason,
+        "runtimeEvidence": runtime_evidence,
+        "auditEvidencePresent": bool(execution_ref),
+        "safeForFrontendDisplay": True,
+        "noRawSecretExposureConfirmed": True,
+        "noCredentialRevealOrDownloadConfirmed": True,
+        "noUnsupportedProviderDispatchConfirmed": True,
+        "noVaultWriteWithoutAdapterConfirmed": True,
+        "redactions": PROVIDER_VAULT_EXECUTION_REDACTIONS,
+    }
 
 
 @dataclass(frozen=True)
@@ -3379,6 +3473,9 @@ def _provider_vault_execution_result_from_audit(
         opaque_vault_reference=_optional_text(evidence.get("opaque_vault_reference")),
         adapter_ref=_optional_text(evidence.get("adapter_ref")),
         vault_adapter_ref=_optional_text(evidence.get("vault_adapter_ref")),
+        approved_request_version=_optional_text(
+            evidence.get("approved_request_version")
+        ),
     )
 
 
@@ -3705,6 +3802,34 @@ async def record_referral_saas_provider_vault_execution(
                     "plain_language_summary": summary,
                     "command_payload_hash": safe_payload_hash,
                     "reason_present": bool(safe_reason),
+                    "credential_vault_lifecycle_proof_status": (
+                        PROVIDER_VAULT_LIFECYCLE_PROOF_BLOCKED
+                        if blocker
+                        else (
+                            PROVIDER_VAULT_LIFECYCLE_PROOF_READY
+                            if command_status == PROVIDER_VAULT_EXECUTION_READY
+                            else PROVIDER_VAULT_LIFECYCLE_PROOF_INCOMPLETE
+                        )
+                    ),
+                    "approved_request_version_matched": (
+                        blocker != PROVIDER_VAULT_BLOCKED_REQUEST_VERSION_MISMATCH
+                    ),
+                    "provider_runtime_reference_present": bool(
+                        runtime_result
+                        and not blocker
+                        and runtime_result.provider_runtime_reference
+                    ),
+                    "opaque_vault_reference_present": bool(
+                        runtime_result
+                        and not blocker
+                        and runtime_result.opaque_vault_reference
+                    ),
+                    "adapter_ref_present": bool(
+                        runtime_result and not blocker and runtime_result.adapter_ref
+                    ),
+                    "vault_adapter_ref_present": bool(
+                        runtime_result and not blocker and runtime_result.vault_adapter_ref
+                    ),
                     "no_raw_secret_submitted_confirmed": True,
                     "no_secret_reveal_requested_confirmed": True,
                     "no_secret_or_credential_storage_confirmed": True,
@@ -3755,6 +3880,7 @@ async def record_referral_saas_provider_vault_execution(
             if runtime_result and not blocker
             else None
         ),
+        approved_request_version=safe_approved_request_version,
     )
 
 

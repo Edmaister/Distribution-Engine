@@ -8250,7 +8250,7 @@ Completed output: `services/referral_saas_integrations_configuration_service.py`
 
 ## TASK-367: Add credential and vault lifecycle execution proof
 
-Status: Pending.
+Status: Completed.
 Product boundary: Shared Platform with Referral SaaS impact.
 Shared primitive impact: Proves credential/vault execution beyond reference-only adapters. Source duplication: No.
 Objective: Add controlled proof for credential lifecycle execution using approved request, provider/vault adapter, audit, idempotency, and redaction gates.
@@ -8260,6 +8260,7 @@ Tests to add/update: Provider/vault proof, no-secret, stale request, idempotency
 Acceptance criteria: Credential execution evidence exists without raw secret exposure or unsupported provider dispatch.
 Dependencies: TASK-366.
 Priority: P0.
+Completed output: `services/referral_saas_integrations_configuration_service.py`; `test/test_referral_saas_integrations_configuration_service.py`; roadmap/gap/infographic updates. Adds a safe `credentialVaultLifecycleProof` block to provider/vault execution responses and audit-backed readback, covering approved request version matching, runtime/vault/adapter reference presence, blocked stale-request proof, audit evidence, redactions, and no raw secret/provider dispatch/vault-write side effects.
 
 ## TASK-368: Add integration test execution evidence adapters
 
