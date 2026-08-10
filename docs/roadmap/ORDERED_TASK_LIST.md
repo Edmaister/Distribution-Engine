@@ -8080,6 +8080,359 @@ Explicit non-goals: No frontend controls, schema migration, raw secret capture/s
 Completed output: `services/referral_saas_provider_vault_runtime.py`; `test/test_referral_saas_provider_vault_runtime.py`; `docs/sa/referral-saas/REFERRAL_SAAS_VENDOR_MANAGED_PROVIDER_VAULT_ADAPTERS.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the first built-in vendor/managed provider-vault runtime adapter path with explicit provider allowlist, managed-vault adapter configuration, deterministic opaque vendor/provider and managed-vault references, focused runtime tests, and no raw secret/provider dispatch/auth/campaign/billing/money side effects.
 Definition of done: Referral SaaS has vendor/managed provider-vault runtime adapter code behind the governed execution API. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.99996/10 because the vendor/managed runtime implementation gap is closed while repair/replay command execution and non-local proof repetition remain open. Priority: P0.
 
+## TASK-356: Align Referral SaaS customer journeys with Amplifi experience design pack
+
+Status: Completed.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `C:\Users\Carla\OneDrive\Documents\Referral Management and campaign attribution a-a-S\docs\amplifi-experience-design\customer-journey-architecture-and-maturity.md`; `C:\Users\Carla\OneDrive\Documents\Referral Management and campaign attribution a-a-S\docs\amplifi-experience-design\production-readiness-matrix.md`; `C:\Users\Carla\OneDrive\Documents\Referral Management and campaign attribution a-a-S\docs\amplifi-experience-design\service-coverage-map.md`; `C:\Users\Carla\OneDrive\Documents\Referral Management and campaign attribution a-a-S\docs\amplifi-experience-design\simplified-experience-architecture.md`.
+Shared primitive impact: Converts the external customer-journey architecture into the Referral SaaS backlog without forking source or mixing DLaaS work into the focused SaaS wedge. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Customer journey architecture, production-readiness gates, partner/customer workspace maturity.
+Objective: Reconcile the current roadmap and gap matrix with the Amplifi experience-design pack and create the remaining customer-journey tasks needed for production-grade Referral Management and Campaign Attribution SaaS.
+Why now: TASK-355 closes the vendor/managed provider-vault runtime adapter implementation path, but the external experience-design pack exposes broader customer-journey gaps across account setup, partner workspace, integrations, campaign attribution, referral attribution, reporting, support, and commercial readiness that must be ordered before claiming 10/10.
+Files likely involved: `docs/roadmap/ORDERED_TASK_LIST.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None in this task. Defines future backend tasks for account context, entitlement, invitations, integrations, campaign/referral attribution, reporting, support, and governed proof.
+Frontend impact: None in this task. Defines future customer/partner workspace tasks and plain-language journey requirements.
+API impact: None in this task.
+Tests to add/update: Docs-only readback.
+Validation method: `git diff --check`; roadmap/gap/infographic readback.
+Acceptance criteria: The roadmap identifies the journey-aligned task sequence, separates core Referral SaaS blockers from separately contracted finance work, keeps DLaaS expansion deferred, and preserves no source duplication.
+Dependencies: TASK-355.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert TASK-356 documentation updates only.
+Explicit non-goals: No runtime code, schema migration, frontend UI change, provider dispatch, invite delivery, webhook/message delivery, auth/session claim change, campaign activation, repair/replay execution, billing, money movement, DLaaS expansion, or source forks.
+Completed output: Roadmap, gap-matrix, ordered-task-list, and infographic alignment from the Amplifi experience-design pack. Creates the next 24 core Referral SaaS journey tasks plus one separately scoped commercial-finance placeholder.
+Definition of done: Referral SaaS now has a journey-aligned backlog from account establishment through reporting/support, with commercial finance isolated as a separately contracted capability. Current rating remains 9.99/10 for Referral Management and 9.99996/10 for Campaign Attribution because implementation evidence is unchanged, but the route to 10/10 is now clearer and broader than the previous provider/vault-only tail. Priority: P0.
+
+## TASK-357: Lock Referral SaaS H1 release scope and journey gates
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; Amplifi experience-design production-readiness matrix.
+Shared primitive impact: Establishes release gate rules used by later customer, partner, campaign, reporting, support, and proof tasks. Source duplication: No.
+Objective: Define the H1 launch cohort, enabled journeys, disabled/deferred journeys, non-negotiable blockers, evidence requirements, and plain-language release gates.
+Frontend impact: Future UI must hide or clearly disable deferred journeys.
+Backend impact: Future APIs must enforce the same release-gate decisions server-side.
+Tests to add/update: Docs readback and route-capability inventory.
+Acceptance criteria: Scope lock states what is promised, what is deferred, what is disabled, and which gates block launch.
+Dependencies: TASK-356.
+Priority: P0.
+
+## TASK-358: Enforce account capability and jurisdiction boundaries
+
+Status: Pending.
+Product boundary: Shared Platform with Referral SaaS impact.
+Required boundary docs checked: Referral SaaS product brief, roadmap, gap matrix, customer-journey architecture.
+Shared primitive impact: Hardens selected-customer account context, operating jurisdiction, account capability, and sensitive command boundaries. Source duplication: No.
+Objective: Make operating jurisdiction and account capabilities authoritative on the backend for selected-customer APIs and partner/customer workspaces.
+Frontend impact: Customer selectors and headers should display jurisdiction/capability in plain language.
+Backend impact: Add or harden server-side enforcement for jurisdiction, account capability, and sensitive command eligibility.
+Tests to add/update: Tenant/account isolation, jurisdiction filtering, forbidden cross-jurisdiction command tests.
+Acceptance criteria: UI selection cannot bypass backend jurisdiction or account-capability gates.
+Dependencies: TASK-357.
+Priority: P0.
+
+## TASK-359: Add partner workspace account-context resolver
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Reuses selected-customer account primitives for partner-facing workspace context. Source duplication: No.
+Objective: Resolve the signed-in partner/customer actor to allowed Referral SaaS accounts without exposing internal tenant identifiers.
+Frontend impact: Partner workspace starts inside the correct account context rather than a generic admin console.
+Backend impact: Add read-only resolver and permission tests for partner/customer actors.
+Tests to add/update: Partner account resolution, no-internal-leak, denied-account, multi-account selector tests.
+Acceptance criteria: A partner actor sees only permitted accounts and all workspace routes inherit that context.
+Dependencies: TASK-358.
+Priority: P0.
+
+## TASK-360: Add customer and partner workspace overview projection
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Provides one customer-context summary consumed by admin and partner surfaces. Source duplication: No.
+Objective: Build the five-second workspace overview: where am I, what is ready, what is stopping me, what do I do next, and can I leave safely.
+Frontend impact: Customer/partner home pages use one dominant next action, short worklist, and restrained outcome summary.
+Backend impact: Add or harden overview projection with safe redactions and capability-aware actions.
+Tests to add/update: Overview projection tests, redaction tests, role-specific action tests.
+Acceptance criteria: Admin and partner workspace homes are plain-language, account-scoped, and capability-safe.
+Dependencies: TASK-359.
+Priority: P0.
+
+## TASK-361: Define commercial entitlement and plan posture
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Adds launch entitlement and plan/limit posture without implementing billing or money movement. Source duplication: No.
+Objective: Model whether a customer is commercially allowed to use Referral SaaS features and which plan/limits apply.
+Frontend impact: Customer profile can show plan/entitlement status and explain blockers.
+Backend impact: Add contract/read model for entitlement, plan, limits, and disabled feature reasons.
+Tests to add/update: Entitlement gate tests and no-billing/no-money boundary tests.
+Acceptance criteria: Commercial readiness can block activation without pretending billing exists.
+Dependencies: TASK-357.
+Priority: P0.
+
+## TASK-362: Add production activation decision enforcement
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Turns readiness evidence into a governed production activation decision. Source duplication: No.
+Objective: Enforce production activation only after account, people/access, integrations, campaign, entitlement, and evidence gates pass.
+Frontend impact: Activation UI shows the exact missing gates and next action.
+Backend impact: Harden activation commands against incomplete gates and stale evidence.
+Tests to add/update: Activation block/pass tests, stale-evidence tests, audit/idempotency tests.
+Acceptance criteria: No production campaign/customer posture can be activated from UI-only readiness.
+Dependencies: TASK-358; TASK-361.
+Priority: P0.
+
+## TASK-363: Add live invitation delivery provider execution
+
+Status: Pending.
+Product boundary: Shared Platform with Referral SaaS impact.
+Shared primitive impact: Uses provider/vault primitives for controlled invite delivery. Source duplication: No.
+Objective: Move from invitation intent and readiness checks to governed live invite delivery when provider, template, recipient, idempotency, audit, and redaction gates pass.
+Frontend impact: People and Access can request invite delivery only when safe.
+Backend impact: Add provider-backed delivery command and failure states without credential or auth side effects.
+Tests to add/update: Delivery success/block/retry/idempotency/provider-failure tests.
+Acceptance criteria: Invite delivery is auditable, retry-safe, provider-backed, and never creates login claims or seats silently.
+Dependencies: TASK-353; TASK-355; TASK-362.
+Priority: P0.
+
+## TASK-364: Add expiring invitation acceptance path
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Adds safe invite-token lifecycle and acceptance evidence. Source duplication: No.
+Objective: Create an expiring acceptance-link flow that records acceptance without silently provisioning seats, credentials, auth claims, campaigns, billing, or money.
+Frontend impact: Acceptance page uses plain language and safe status states.
+Backend impact: Token issue/validate/expire/accept APIs with audit and replay protection.
+Tests to add/update: Token expiry, replay, invalid token, accepted-access, redaction tests.
+Acceptance criteria: Invite acceptance is user-driven, time-bound, auditable, and separated from login provisioning.
+Dependencies: TASK-363.
+Priority: P0.
+
+## TASK-365: Add identity and login provisioning reconciliation
+
+Status: Pending.
+Product boundary: Shared Platform with Referral SaaS impact.
+Shared primitive impact: Separates account responsibility, seat assignment, identity provider state, and auth claims. Source duplication: No.
+Objective: Define and implement the governed identity/login reconciliation path after accepted access and optional seat assignment.
+Frontend impact: People and Access shows login status per person in plain language.
+Backend impact: Add reconciliation contract/API for identity provider evidence, revocation posture, and auth-claim propagation readiness.
+Tests to add/update: Provision, revoke, stale provider evidence, claim mismatch, no-silent-auth tests.
+Acceptance criteria: Login setup is visible and auditable without confusing it with customer access responsibility.
+Dependencies: TASK-364.
+Priority: P0.
+
+## TASK-366: Add account-to-integration-client binding
+
+Status: Pending.
+Product boundary: Shared Platform with Referral SaaS impact.
+Shared primitive impact: Connects selected customer accounts to integration/client credentials safely. Source duplication: No.
+Objective: Bind account, partner client, credential request, provider, and environment so integrations can execute in the right customer context.
+Frontend impact: Integrations page can explain which client/provider context is being configured.
+Backend impact: Add binding read/write contract and enforcement for execution commands.
+Tests to add/update: Binding uniqueness, account mismatch, provider mismatch, redaction tests.
+Acceptance criteria: No integration command can run against an unbound or wrong customer/client context.
+Dependencies: TASK-358; TASK-355.
+Priority: P0.
+
+## TASK-367: Add credential and vault lifecycle execution proof
+
+Status: Pending.
+Product boundary: Shared Platform with Referral SaaS impact.
+Shared primitive impact: Proves credential/vault execution beyond reference-only adapters. Source duplication: No.
+Objective: Add controlled proof for credential lifecycle execution using approved request, provider/vault adapter, audit, idempotency, and redaction gates.
+Frontend impact: Integrations can show execution proof without revealing secrets.
+Backend impact: Add safe execution proof command/readback for credential and vault lifecycle.
+Tests to add/update: Provider/vault proof, no-secret, stale request, idempotency, audit tests.
+Acceptance criteria: Credential execution evidence exists without raw secret exposure or unsupported provider dispatch.
+Dependencies: TASK-366.
+Priority: P0.
+
+## TASK-368: Add integration test execution evidence adapters
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Uses integration bindings and provider/vault references for safe test evidence. Source duplication: No.
+Objective: Implement live or managed test evidence for API verification, webhook test dispatch, invite-provider check, and referral-message provider check.
+Frontend impact: Integrations page moves from setup/readiness to test-result evidence.
+Backend impact: Add adapter-backed test commands with safe failure taxonomy.
+Tests to add/update: API/webhook/message/invite test evidence, provider failure, idempotency tests.
+Acceptance criteria: Operators can see real integration proof without sending production messages or exposing secrets.
+Dependencies: TASK-367.
+Priority: P0.
+
+## TASK-369: Enforce partner-safe campaign workspace capabilities
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Applies account capability and partner permission context to campaign APIs/UI. Source duplication: No.
+Objective: Allow partner/customer users to create or manage campaigns only when account, role, capability, and entitlement gates allow it.
+Frontend impact: Partner campaign workspace shows only allowed actions.
+Backend impact: Campaign list/create/policy/review/activate wrappers enforce actor capabilities.
+Tests to add/update: Partner/admin permission matrix, denied action, SoD, entitlement tests.
+Acceptance criteria: Campaign operations are partner-safe and cannot be unlocked by UI navigation alone.
+Dependencies: TASK-359; TASK-361.
+Priority: P0.
+
+## TASK-370: Add campaign pre-activation decision and separation-of-duties proof
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Formalizes campaign approval, review, and activation ownership. Source duplication: No.
+Objective: Prove that campaign review, approval, and activation cannot be performed by the same unauthorized actor or stale evidence path.
+Frontend impact: Campaign review shows who can do what and why activation is blocked.
+Backend impact: Add or harden SoD checks, review-decision audit, and stale-evidence blocking.
+Tests to add/update: SoD, stale policy, stale review, audit and idempotency tests.
+Acceptance criteria: Campaign activation is governed by server-side review and SoD proof.
+Dependencies: TASK-369.
+Priority: P0.
+
+## TASK-371: Add campaign lifecycle controls
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Adds lifecycle state commands reusable by reports, links, and support. Source duplication: No.
+Objective: Add governed pause, resume, end, archive, and lifecycle-read commands for selected-customer campaigns.
+Frontend impact: Campaign workspace shows lifecycle controls and safe consequences.
+Backend impact: Add lifecycle APIs with audit/idempotency and no adjacent money/provider side effects.
+Tests to add/update: Lifecycle transition, invalid transition, link/report impact, audit tests.
+Acceptance criteria: Campaigns can be safely maintained after launch without DB or manual state changes.
+Dependencies: TASK-370.
+Priority: P0.
+
+## TASK-372: Add account-scoped referral registry and detail projection
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Creates account-safe referral views consumed by operations, support, attribution, and reporting. Source duplication: No.
+Objective: Add selected-customer referral list/detail projections with safe identifiers, statuses, timeline anchors, and missing-evidence signals.
+Frontend impact: Customer workspace gets a dedicated Referrals page.
+Backend impact: Add account-scoped referral registry/detail read APIs with redactions.
+Tests to add/update: Tenant/account filtering, no-raw-identity, status and timeline tests.
+Acceptance criteria: Operators and partner users can inspect referrals without unsafe internal identifiers.
+Dependencies: TASK-358.
+Priority: P0.
+
+## TASK-373: Add safe referrer identity directory and dimensions
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Provides privacy-safe referrer/customer dimensions for attribution and reporting. Source duplication: No.
+Objective: Create safe referrer identity/dimension projections that support reporting and attribution without exposing raw UCN, secrets, or cross-tenant identity.
+Frontend impact: Referrer and attribution pages can show understandable labels and masked identifiers.
+Backend impact: Add directory read model, redaction, and permission checks.
+Tests to add/update: Privacy/no-leak, masked identifier, cross-tenant, role-scope tests.
+Acceptance criteria: Attribution/reporting can group and explain referrers safely.
+Dependencies: TASK-372.
+Priority: P0.
+
+## TASK-374: Harden referral timeline, event idempotency, and source evidence
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Strengthens event ingestion evidence consumed by support, attribution, and reporting. Source duplication: No.
+Objective: Ensure referral progress timelines expose complete safe evidence, dedupe/idempotency posture, and source-system provenance.
+Frontend impact: Progress/status page shows a clear timeline and recovery posture.
+Backend impact: Harden progress/referral read models and event evidence.
+Tests to add/update: Dedupe replay, conflicting payload, missing source, timeline ordering tests.
+Acceptance criteria: Referral progress can be explained from source evidence without unsafe raw payloads.
+Dependencies: TASK-372.
+Priority: P0.
+
+## TASK-375: Add governed referral correction, replay, and reassignment execution
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Implements repair/replay as governed commands instead of generic DB mutation. Source duplication: No.
+Objective: Add safe correction/replay/reassignment command execution after approval, impact preview, idempotency, audit, and redaction gates.
+Frontend impact: Support shows eligible repair actions only after readiness passes.
+Backend impact: Add command execution APIs and audit evidence for bounded referral repairs.
+Tests to add/update: Repair approval, replay, reassignment, conflict, rollback/compensation, audit tests.
+Acceptance criteria: Support can repair referral evidence safely without broad mutation consoles.
+Dependencies: TASK-374.
+Priority: P0.
+
+## TASK-376: Add dedicated Campaign Attribution projection and page
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Separates campaign-level attribution from referral/referrer attribution. Source duplication: No.
+Objective: Create a selected-customer Campaign Attribution page with campaign/source/channel evidence, confidence, gaps, and explainability.
+Frontend impact: Customer workspace gets a dedicated Campaign Attribution surface.
+Backend impact: Add campaign-attribution projection with permissions, aggregation, and redaction.
+Tests to add/update: Campaign attribution aggregation, missing evidence, conflict, tenant-scope tests.
+Acceptance criteria: Users can understand campaign performance attribution without reading raw events.
+Dependencies: TASK-369; TASK-374.
+Priority: P0.
+
+## TASK-377: Add dedicated Referral and Referrer Attribution projection
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Creates privacy-safe referrer outcome views. Source duplication: No.
+Objective: Build referral/referrer attribution reports with confidence, safe dimensions, identity privacy, and explanation paths.
+Frontend impact: Customer workspace gets referrer/referral attribution insights separate from campaign attribution.
+Backend impact: Add referral/referrer attribution projections and safe filters.
+Tests to add/update: Referrer performance, privacy, confidence, aggregation, no-leak tests.
+Acceptance criteria: Operators can answer who got credit and why without exposing unsafe personal or internal data.
+Dependencies: TASK-373; TASK-374.
+Priority: P0.
+
+## TASK-378: Add HVE funnel and journey performance reporting
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Provides customer-scoped journey analytics reusable by reports and dashboards. Source duplication: No.
+Objective: Add high-value event funnel and journey-performance projections for campaign/referral progress.
+Frontend impact: Reports/Insights can show plain-language funnel drop-offs and next actions.
+Backend impact: Add HVE/funnel projection and freshness/permission metadata.
+Tests to add/update: Funnel correctness, freshness, tenant-scope, export parity tests.
+Acceptance criteria: Customer can see conversion journey performance beyond raw counts.
+Dependencies: TASK-376; TASK-377.
+Priority: P0.
+
+## TASK-379: Harden saved reports, signed exports, schedules, delivery, and deletion proof
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Completes export and reporting lifecycle evidence. Source duplication: No.
+Objective: Close report/export gaps around saved report definitions, signed downloads, scheduled delivery, provider execution, expiry, deletion, and audit proof.
+Frontend impact: Reports page shows saved reports, export status, schedule status, and deletion/expiry evidence.
+Backend impact: Harden report/export commands, signed URLs, provider delivery, retention, deletion, and audit.
+Tests to add/update: Export storage/download, signed URL, schedule delivery, deletion, expiry, no-leak tests.
+Acceptance criteria: Reporting outputs are tenant-safe, traceable, expiring, deliverable, and deletable.
+Dependencies: TASK-378; TASK-368.
+Priority: P0.
+
+## TASK-380: Add partner-safe support, audit, assignment, and recovery workspace
+
+Status: Pending.
+Product boundary: Referral SaaS.
+Shared primitive impact: Unifies support cases, evidence, assignment, notes, audit, and governed recovery posture. Source duplication: No.
+Objective: Complete selected-customer and partner-safe support workspace with assignment, audit trail, evidence links, status control, and governed recovery actions.
+Frontend impact: Support page becomes a complete case workspace with next actions and safe evidence.
+Backend impact: Add assignment/read models, audit consolidation, case permissions, and recovery eligibility.
+Tests to add/update: Support assignment, audit, permission, evidence-link, status, recovery-readiness tests.
+Acceptance criteria: Support can resolve customer problems without DB access or unsafe repair buttons.
+Dependencies: TASK-375; TASK-379.
+Priority: P0.
+
+## TASK-381: Define separately contracted commercial-finance mapping placeholder
+
+Status: Pending.
+Product boundary: Referral SaaS with separately scoped commercial finance.
+Shared primitive impact: Keeps plan, billing, invoices, settlement, funding, and money movement outside H1 unless explicitly contracted. Source duplication: No.
+Objective: Document which commercial-finance capabilities are deferred, which minimal entitlement fields H1 needs, and where DLaaS finance work begins.
+Frontend impact: H1 UI must not expose finance workflows as available product actions.
+Backend impact: H1 APIs must enforce no billing, settlement, funding, payout, invoice, or money movement side effects.
+Tests to add/update: No-money/no-billing route tests and entitlement-placeholder readback.
+Acceptance criteria: Commercial-finance scope is visible, isolated, and cannot accidentally become part of the Referral SaaS launch promise.
+Dependencies: TASK-361.
+Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

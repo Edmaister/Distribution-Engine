@@ -50,6 +50,32 @@ The remaining work is mainly SaaS packaging, contract hardening, attribution
 trace unification, safe reporting, operator workflow, frontend coherence, E2E
 coverage, and live DB/state verification.
 
+## TASK-356 Customer Journey Alignment
+
+TASK-356 reviews the external Amplifi experience-design pack against this gap
+matrix and keeps the focused SaaS boundary intact. The key finding is that the
+post-TASK-355 backlog must not be reduced to only provider/vault execution,
+repair/replay execution, and non-local proof. Those remain blockers, but the
+experience-design pack also identifies customer-journey blockers that must be
+made explicit before calling the product 10/10.
+
+| Work package | External journey gaps represented | Ordered tasks |
+| --- | --- | --- |
+| Scope, account, jurisdiction, workspace, entitlement, and activation | H1 scope lock, operating jurisdiction, account capabilities, partner workspace context, plan posture, production activation gates | TASK-357 to TASK-362 |
+| Invitation, acceptance, identity, and login | Live invite delivery, expiring acceptance links, identity-provider/login reconciliation, separation between responsibility, seat, login, and auth claims | TASK-363 to TASK-365 |
+| Integrations | Account-to-client binding, credential/vault lifecycle proof, API/webhook/invite/referral-message provider execution evidence | TASK-366 to TASK-368 |
+| Campaign management | Partner-safe campaign workspace access, capability enforcement, separation of duties, pre-activation decision proof, lifecycle controls | TASK-369 to TASK-371 |
+| Referral operations | Account-scoped referral registry/detail, safe referrer identity dimensions, complete progress timeline evidence, governed correction/replay/reassignment | TASK-372 to TASK-375 |
+| Attribution | Dedicated Campaign Attribution and Referral/Referrer Attribution projections with privacy, confidence, conflict, and explainability controls | TASK-376 to TASK-377 |
+| Reporting and exports | HVE funnel, journey performance, saved reports, signed exports, scheduled delivery execution, expiry, deletion, and audit proof | TASK-378 to TASK-379 |
+| Support and recovery | Partner/customer-safe support workspace, assignment, consolidated audit, evidence links, and governed recovery actions | TASK-380 |
+| Separately contracted finance | Billing, invoices, settlement, funding, payout, and money movement stay outside the H1 Referral SaaS promise unless separately contracted | TASK-381 |
+
+Current rating is unchanged by this alignment because no runtime capability is
+added here: Referral Management remains 9.99/10 and Campaign Attribution remains
+9.99996/10. The confidence in the route to 10/10 improves because every
+customer journey gap now has an ordered task family.
+
 ## Gap Matrix
 
 | Area | Current code capability | 10/10 SaaS requirement | Gap | Priority | Next task candidate | Tests/validation |

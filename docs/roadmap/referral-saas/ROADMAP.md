@@ -104,6 +104,41 @@ The current focused gap matrix is:
 It classifies the remaining work as SaaS packaging and hardening, not
 greenfield referral construction.
 
+## Amplifi Experience Design Alignment
+
+TASK-356 reconciles the current roadmap with the external Amplifi experience
+design pack, including:
+
+- `customer-journey-architecture-and-maturity.md`
+- `production-readiness-matrix.md`
+- `service-coverage-map.md`
+- `simplified-experience-architecture.md`
+
+The important change is that the path to 10/10 is no longer only the final
+provider/vault, repair/replay, and non-local proof tail. Those remain real
+technical blockers, but the customer-journey architecture also requires a
+clearer production-grade sequence across account establishment, partner
+workspace entry, integrations, campaign attribution, referral attribution,
+reporting, and support.
+
+The post-TASK-356 sequence is:
+
+| Task range | Work package | What it closes |
+| --- | --- | --- |
+| TASK-357 to TASK-362 | Scope, account, jurisdiction, workspace, entitlement, and activation gates | The customer/partner journey can be promised only inside explicit H1 scope, account context, jurisdiction, capability, and production activation rules. |
+| TASK-363 to TASK-365 | Invitation, acceptance, identity, and login | People and access becomes a complete governed journey from named person to invite, acceptance, seat/login posture, and auth reconciliation. |
+| TASK-366 to TASK-368 | Integrations | Customer-scoped API, webhook, invite-provider, and referral-message provider setup moves from saved evidence/readiness into bound execution evidence. |
+| TASK-369 to TASK-371 | Campaign management | Partner-safe campaign workspace actions, pre-activation review, separation of duties, and lifecycle controls become server-enforced. |
+| TASK-372 to TASK-375 | Referral operations | Account-scoped referral registry/detail, safe identity dimensions, timeline evidence, and governed correction/replay/reassignment close the referral operations gap. |
+| TASK-376 to TASK-377 | Attribution | Dedicated Campaign Attribution and Referral/Referrer Attribution surfaces separate campaign performance from who-got-credit explanations. |
+| TASK-378 to TASK-379 | Reporting and exports | HVE funnel, journey performance, saved reports, signed exports, scheduled delivery, expiry, deletion, and provider delivery proof become complete. |
+| TASK-380 | Support and recovery | Customer/partner-safe support, audit, assignment, evidence, and governed recovery become operationally complete. |
+| TASK-381 | Separately contracted finance | Commercial-finance capability is isolated from the H1 SaaS promise while minimum entitlement posture remains visible. |
+
+This keeps the Referral SaaS product boundary intact. It does not pull in
+DLaaS distributor marketplace depth, settlement, funding, fulfilment, sponsor
+billing, or broad white-label/embed work.
+
 ## Recommended Ordered Task Sequence
 
 1. TASK-134: Define Referral SaaS account setup contract.
