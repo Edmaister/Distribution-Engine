@@ -8236,7 +8236,7 @@ Completed output: `services/referral_saas_account_membership_service.py`; `apps/
 
 ## TASK-366: Add account-to-integration-client binding
 
-Status: Pending.
+Status: Complete.
 Product boundary: Shared Platform with Referral SaaS impact.
 Shared primitive impact: Connects selected customer accounts to integration/client credentials safely. Source duplication: No.
 Objective: Bind account, partner client, credential request, provider, and environment so integrations can execute in the right customer context.
@@ -8246,6 +8246,7 @@ Tests to add/update: Binding uniqueness, account mismatch, provider mismatch, re
 Acceptance criteria: No integration command can run against an unbound or wrong customer/client context.
 Dependencies: TASK-358; TASK-355.
 Priority: P0.
+Completed output: `services/referral_saas_integrations_configuration_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/test_referral_saas_integrations_configuration_service.py`; `test/api/test_referral_saas_accounts_api.py`; roadmap/gap/infographic updates. Adds the safe account-to-integration-client binding projection from active account memberships and partner clients, exposes redacted binding status on customer-scoped Integrations APIs, and blocks integration execution/provider-vault readiness when no active bound client exists or when the client belongs to the wrong tenant context. Confirms no raw client id, client secret, credential creation, provider call, webhook dispatch, invite delivery, money movement, DLaaS expansion, or source fork occurs.
 
 ## TASK-367: Add credential and vault lifecycle execution proof
 

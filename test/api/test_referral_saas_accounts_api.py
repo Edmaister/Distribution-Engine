@@ -65,6 +65,41 @@ ADMIN_HEADERS = {"x-api-key": "test-admin-key"}
 PARTNER_HEADERS = {"x-api-key": "test-partner-key"}
 
 
+class _FakeIntegrationClientBinding:
+    binding_status = "CLIENT_BINDING_READY"
+    blockers: list[dict] = []
+
+    @property
+    def is_ready(self):
+        return True
+
+    def to_safe_dict(self):
+        return {
+            "bindingStatus": "CLIENT_BINDING_READY",
+            "accountRef": "acct-1",
+            "clientRefPresent": True,
+            "activeClientCount": 1,
+            "boundRoleFamilies": ["DISTRIBUTION_ADMIN"],
+            "providerRefsCount": 1,
+            "environment": "SANDBOX",
+            "blockers": [],
+            "guardrails": ["ACCOUNT_INTEGRATION_CLIENT_BINDING_REQUIRED"],
+            "redactions": ["client_id", "client_secret_hash", "tenant_code"],
+        }
+
+
+@pytest.fixture(autouse=True)
+def _default_integration_client_binding(monkeypatch):
+    async def fake_get_referral_saas_integration_client_binding(**kwargs):
+        return _FakeIntegrationClientBinding()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_integration_client_binding",
+        fake_get_referral_saas_integration_client_binding,
+    )
+
+
 def _context(**overrides) -> AccountFoundationContext:
     values = {
         "account_id": "acct-1",
