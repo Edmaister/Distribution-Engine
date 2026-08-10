@@ -2981,7 +2981,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText("Configure an approved invitation delivery provider before sending invites.")).toBeInTheDocument();
     expect(screen.getAllByText("Gaborone owner").length).toBeGreaterThan(0);
     expect(screen.getAllByText("owner@gabs.example").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Check invite delivery" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Send invite email" })).toBeDisabled();
     expect(screen.getByText("Provider not approved")).toBeInTheDocument();
     expect(mockedGetReferralSaasMembershipActivationReadiness).toHaveBeenCalledWith({
       accountRef: "acct-gabs",
@@ -3065,7 +3065,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
 
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Show access diagnostics" }));
-    const deliveryButton = await screen.findByRole("button", { name: "Check invite delivery" });
+    const deliveryButton = await screen.findByRole("button", { name: "Send invite email" });
     expect(deliveryButton).toBeEnabled();
 
     fireEvent.click(deliveryButton);
@@ -3088,8 +3088,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       correlationId: "customer-profile-invite-delivery-acct-gabs",
       idempotencyKey: "customer-profile-invite-delivery-acct-gabs-membership-1-distribution-admin",
     });
-    expect(await screen.findByText("Invite delivery checked.")).toBeInTheDocument();
-    expect(screen.getByText(/No email was sent, no login was activated, no seat was assigned/i)).toBeInTheDocument();
+    expect(await screen.findByText("Invite delivery updated.")).toBeInTheDocument();
+    expect(screen.getByText(/No login was activated, no seat was assigned, no permission claims changed/i)).toBeInTheDocument();
     expect(JSON.stringify(mockedRequestReferralSaasMembershipInvitationDelivery.mock.calls)).not.toMatch(
       /recipientHash|tenantCode|sendInvite|activate|seat|money/i,
     );
