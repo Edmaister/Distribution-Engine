@@ -24,6 +24,8 @@ from services.referral_saas_account_foundation_service import (
 )
 from services.referral_saas_account_membership_service import (
     AccessProvisioningRequestResult,
+    IdentityLoginReconciliation,
+    IdentityLoginReconciliationPerson,
     LoginCompletionIntentResult,
     LoginCompletionReadiness,
     MembershipAcceptanceTokenAcceptResult,
@@ -296,6 +298,61 @@ def _login_completion_result(**overrides) -> LoginCompletionIntentResult:
     }
     values.update(overrides)
     return LoginCompletionIntentResult(**values)
+
+
+def _identity_login_reconciliation(**overrides) -> IdentityLoginReconciliation:
+    person = IdentityLoginReconciliationPerson(
+        membership_id="membership-1",
+        subject="owner@example.test",
+        display_name="FNB Owner",
+        role_family="DISTRIBUTION_ADMIN",
+        permission_profile="REFERRAL_SAAS_ACCOUNT_ADMIN",
+        access_status="CUSTOMER_ACCESS_ACCEPTED",
+        login_status="WAITING_FOR_IDENTITY_PROVIDER_EVIDENCE",
+        seat_assignment_status="SEAT_ASSIGNED",
+        identity_provider_status="NOT_RECORDED",
+        auth_claim_status="AUTH_CLAIMS_NOT_PROPAGATED",
+        revocation_status="NOT_REVOKED",
+        blockers=(),
+        warnings=(),
+        next_action=(
+            "Record approved identity provider evidence in Integrations before "
+            "login permissions are trusted."
+        ),
+        steps=(
+            {
+                "label": "Customer access",
+                "status": "DONE",
+                "description": "Person is confirmed for this customer.",
+            },
+            {
+                "label": "Platform login seat",
+                "status": "DONE",
+                "description": "Needed only when this person signs in to Amplifi.",
+            },
+            {
+                "label": "Identity provider",
+                "status": "WAITING",
+                "description": "Evidence comes from the governed identity workflow.",
+            },
+        ),
+    )
+    values = {
+        "account_id": "acct-1",
+        "reconciliation_status": "LOGIN_RECONCILIATION_ACTION_REQUIRED",
+        "people": (person,),
+        "accepted_count": 1,
+        "named_count": 1,
+        "seat_assigned_count": 1,
+        "provider_evidence_count": 0,
+        "auth_claim_ready_count": 0,
+        "revoked_count": 0,
+        "action_required_count": 1,
+        "claim_mismatch_count": 0,
+        "stale_provider_evidence_count": 0,
+    }
+    values.update(overrides)
+    return IdentityLoginReconciliation(**values)
 
 
 def _account_activation_result(**overrides) -> AccountFoundationActivationResult:
@@ -1978,6 +2035,69 @@ async def test_referral_saas_account_admin_can_read_login_completion_readiness(
             "tenant_link_status": "ACTIVE",
             "external_reference_status": "ACTIVE",
             "membership_id": "membership-1",
+        }
+    ]
+
+
+async def test_referral_saas_account_admin_can_read_identity_login_reconciliation(
+    monkeypatch,
+):
+    resolve_calls: list[dict] = []
+    reconciliation_calls: list[dict] = []
+
+    async def fake_resolve_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context()
+
+    async def fake_get_referral_saas_identity_login_reconciliation(**kwargs):
+        reconciliation_calls.append(kwargs)
+        return _identity_login_reconciliation()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_account_by_external_reference",
+        fake_resolve_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_identity_login_reconciliation",
+        fake_get_referral_saas_identity_login_reconciliation,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/identity-login-reconciliation",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "runtime",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["identityLoginReconciliation"]["reconciliationStatus"] == (
+        "LOGIN_RECONCILIATION_ACTION_REQUIRED"
+    )
+    assert body["identityLoginReconciliation"]["summary"]["actionRequiredCount"] == 1
+    assert body["identityLoginReconciliation"]["people"][0]["steps"][1]["status"] == "DONE"
+    assert body["no_credential_creation_confirmed"] is True
+    assert body["no_auth_claim_change_confirmed"] is True
+    assert body["no_seat_assignment_confirmed"] is True
+    assert "READ_ONLY_RECONCILIATION" in body["guardrails"]
+    assert "identity_provider_evidence" in body["redactions"]
+    assert "tenantCode" not in body["account"]
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert reconciliation_calls == [
+        {
+            "account_id": "acct-1",
+            "tenant_code": "FNB",
+            "account_status": "ACTIVE",
+            "tenant_link_status": "ACTIVE",
+            "external_reference_status": "ACTIVE",
         }
     ]
 

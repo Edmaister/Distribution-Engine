@@ -431,6 +431,142 @@ async def test_membership_activation_readiness_marks_active_roles_ready():
     assert all(item["activationReadiness"] == "ACTIVE" for item in safe_payload["items"])
 
 
+def _identity_membership_row(**overrides):
+    row = {
+        "membership_id": "membership-1",
+        "status": "ACTIVE",
+        "role_family": "CAMPAIGN_MANAGER",
+        "permission_set": "REFERRAL_SAAS_CAMPAIGN_MANAGER",
+        "seat_id": None,
+        "metadata": {},
+        "user_subject": "carla@example.test",
+        "user_display_name": "Carla",
+    }
+    row.update(overrides)
+    return row
+
+
+async def test_identity_login_reconciliation_waits_for_provider_evidence_after_seat():
+    reconciliation = svc.build_identity_login_reconciliation(
+        account_id="acct-1",
+        memberships=(_identity_membership_row(seat_id="seat-1"),),
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+    )
+
+    safe_payload = reconciliation.to_safe_dict()
+    person = safe_payload["people"][0]
+
+    assert safe_payload["reconciliationStatus"] == "LOGIN_RECONCILIATION_ACTION_REQUIRED"
+    assert safe_payload["summary"]["seatAssignedCount"] == 1
+    assert safe_payload["summary"]["actionRequiredCount"] == 1
+    assert person["loginStatus"] == "WAITING_FOR_IDENTITY_PROVIDER_EVIDENCE"
+    assert person["seatAssignmentStatus"] == "SEAT_ASSIGNED"
+    assert person["steps"][1]["status"] == "DONE"
+    assert safe_payload["noCredentialCreationConfirmed"] is True
+    assert safe_payload["noAuthClaimChangeConfirmed"] is True
+    assert safe_payload["noSeatAssignmentConfirmed"] is True
+    assert "READ_ONLY_RECONCILIATION" in safe_payload["guardrails"]
+    assert "NO_AUTH_CLAIM_MUTATION" in safe_payload["guardrails"]
+    assert "tenantCode" not in safe_payload
+
+
+async def test_identity_login_reconciliation_reports_revoked_access():
+    reconciliation = svc.build_identity_login_reconciliation(
+        account_id="acct-1",
+        memberships=(
+            _identity_membership_row(
+                metadata={"identity_revocation_status": "REVOKED"},
+            ),
+        ),
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+    )
+
+    safe_payload = reconciliation.to_safe_dict()
+
+    assert safe_payload["reconciliationStatus"] == "LOGIN_RECONCILED"
+    assert safe_payload["summary"]["revokedCount"] == 1
+    assert safe_payload["people"][0]["loginStatus"] == "ACCESS_REVOKED"
+    assert safe_payload["people"][0]["revocationStatus"] == "REVOKED"
+
+
+async def test_identity_login_reconciliation_flags_stale_provider_evidence():
+    reconciliation = svc.build_identity_login_reconciliation(
+        account_id="acct-1",
+        memberships=(
+            _identity_membership_row(
+                seat_id="seat-1",
+                metadata={"identity_provider_status": "PROVIDER_EVIDENCE_STALE"},
+            ),
+        ),
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+    )
+
+    safe_payload = reconciliation.to_safe_dict()
+    person = safe_payload["people"][0]
+
+    assert safe_payload["reconciliationStatus"] == "LOGIN_RECONCILIATION_ACTION_REQUIRED"
+    assert safe_payload["summary"]["staleProviderEvidenceCount"] == 1
+    assert person["loginStatus"] == "PROVIDER_EVIDENCE_STALE"
+    assert "PROVIDER_EVIDENCE_STALE" in person["warnings"]
+
+
+async def test_identity_login_reconciliation_flags_claim_mismatch_without_mutation():
+    reconciliation = svc.build_identity_login_reconciliation(
+        account_id="acct-1",
+        memberships=(
+            _identity_membership_row(
+                seat_id="seat-1",
+                metadata={
+                    "identity_provider_status": "APPROVED_EVIDENCE_RECORDED",
+                    "auth_claim_status": "AUTH_CLAIM_MISMATCH",
+                },
+            ),
+        ),
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+    )
+
+    safe_payload = reconciliation.to_safe_dict()
+    person = safe_payload["people"][0]
+
+    assert safe_payload["summary"]["claimMismatchCount"] == 1
+    assert safe_payload["noAuthClaimChangeConfirmed"] is True
+    assert person["loginStatus"] == "AUTH_CLAIM_REVIEW_REQUIRED"
+    assert "AUTH_CLAIM_MISMATCH" in person["blockers"]
+
+
+async def test_identity_login_reconciliation_allows_login_not_required():
+    reconciliation = svc.build_identity_login_reconciliation(
+        account_id="acct-1",
+        memberships=(
+            _identity_membership_row(
+                metadata={
+                    "login_completion_intent": "LOGIN_NOT_REQUIRED",
+                    "login_completion_status": "LOGIN_COMPLETION_NOT_REQUIRED",
+                },
+            ),
+        ),
+        account_status="ACTIVE",
+        tenant_link_status="ACTIVE",
+        external_reference_status="ACTIVE",
+    )
+
+    safe_payload = reconciliation.to_safe_dict()
+    person = safe_payload["people"][0]
+
+    assert safe_payload["reconciliationStatus"] == "LOGIN_RECONCILED"
+    assert person["loginStatus"] == "PLATFORM_LOGIN_NOT_REQUIRED"
+    assert person["steps"][1]["status"] == "SKIPPED"
+    assert person["steps"][2]["status"] == "SKIPPED"
+
+
 async def test_membership_invitation_intent_records_user_membership_and_audit(
     monkeypatch,
 ):

@@ -8222,7 +8222,7 @@ Completed output: `dp/migrations/091_referral_saas_membership_acceptance_tokens.
 
 ## TASK-365: Add identity and login provisioning reconciliation
 
-Status: Pending.
+Status: Complete.
 Product boundary: Shared Platform with Referral SaaS impact.
 Shared primitive impact: Separates account responsibility, seat assignment, identity provider state, and auth claims. Source duplication: No.
 Objective: Define and implement the governed identity/login reconciliation path after accepted access and optional seat assignment.
@@ -8232,6 +8232,7 @@ Tests to add/update: Provision, revoke, stale provider evidence, claim mismatch,
 Acceptance criteria: Login setup is visible and auditable without confusing it with customer access responsibility.
 Dependencies: TASK-364.
 Priority: P0.
+Completed output: `services/referral_saas_account_membership_service.py`; `apps/api/routers/referral_saas_accounts.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/queryKeys.ts`; `frontend/src/api/referralSaasAccountQueries.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/styles/base.css`; `test/test_referral_saas_account_membership_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; roadmap/gap/contract/infographic updates. Adds a read-only identity/login reconciliation projection after accepted access and optional seat assignment, with per-person progress for customer access, platform seat, identity-provider evidence, and auth-claim reconciliation. It explicitly confirms no invite delivery, credential creation, seat assignment, auth-claim mutation, campaign activation, go-live, billing, money movement, DLaaS expansion, or source fork occurs.
 
 ## TASK-366: Add account-to-integration-client binding
 

@@ -181,9 +181,9 @@ blocked, and the customer-scoped UI shows the blocked gates without taking
 go-live, billing, campaign activation, credential, auth-claim, seat, or money
 actions.
 
-Invitation/login execution, integration execution, campaign control, referral
+Integration execution, campaign control, referral
 operations, attribution, reporting, support, and non-local proof gates remain
-on TASK-365 through TASK-380.
+on TASK-366 through TASK-380.
 
 ## Recommended Ordered Task Sequence
 
@@ -2415,7 +2415,34 @@ on TASK-365 through TASK-380.
   boundary that no seat, credential, auth claim, campaign activation, billing,
   money movement, DLaaS expansion, or source fork is created. Ratings remain
   9.99/10 for Referral Management and 9.99996/10 for Campaign Attribution until
-  identity/login reconciliation and non-local proof are complete.
+  integration execution, campaign/runtime controls, and non-local proof are
+  complete.
+- TASK-365:
+  `services/referral_saas_account_membership_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/api/queryKeys.ts`;
+  `frontend/src/api/referralSaasAccountQueries.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/styles/base.css`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PUBLIC_API_CONTRACT_MAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_AUTH_LOGIN_COMPLETION_CONTRACT.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  read-only identity and login reconciliation path after accepted access and
+  optional seat assignment. People and Access now has per-person login setup
+  progress for customer access, platform seat, identity-provider evidence, and
+  auth-claim reconciliation while keeping invite delivery, credentials, seat
+  assignment, auth-claim mutation, campaign activation, go-live, billing, money
+  movement, DLaaS expansion, and source forks excluded. Ratings remain 9.99/10
+  for Referral Management and 9.99996/10 for Campaign Attribution until
+  integration execution, campaign/runtime controls, and non-local proof are
+  complete.
 
 ## Explicit Deferrals
 

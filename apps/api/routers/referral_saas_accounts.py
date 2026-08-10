@@ -50,6 +50,8 @@ from services.referral_saas_account_foundation_service import (
 from services.referral_saas_account_membership_service import (
     ACCESS_PROVISIONING_GUARDRAILS,
     ACCESS_PROVISIONING_REDACTIONS,
+    IDENTITY_LOGIN_RECONCILIATION_GUARDRAILS,
+    IDENTITY_LOGIN_RECONCILIATION_REDACTIONS,
     LOGIN_COMPLETION_GUARDRAILS,
     LOGIN_COMPLETION_REDACTIONS,
     MembershipInvitationAccountNotReady,
@@ -69,6 +71,7 @@ from services.referral_saas_account_membership_service import (
     accept_referral_saas_membership_acceptance_token,
     cancel_referral_saas_membership_invitation_intent,
     get_referral_saas_account_membership_posture,
+    get_referral_saas_identity_login_reconciliation,
     get_referral_saas_login_completion_readiness,
     get_referral_saas_membership_activation_readiness,
     issue_referral_saas_membership_acceptance_token,
@@ -2945,6 +2948,85 @@ async def read_referral_saas_login_completion_readiness(
         "no_invite_delivery_confirmed": True,
         "no_credential_creation_confirmed": True,
         "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_change_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/identity-login-reconciliation")
+async def read_referral_saas_identity_login_reconciliation(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    reader_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=reader_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
+
+    safe_account_ref = _optional_text(account_ref)
+    if safe_account_ref not in {account.account_id, account.account_code}:
+        raise _login_completion_error(
+            MembershipInvitationUnsafeScope(
+                "Path account reference does not match resolved account context."
+            )
+        )
+
+    reconciliation = await get_referral_saas_identity_login_reconciliation(
+        account_id=account.account_id,
+        tenant_code=account.tenant_code,
+        account_status=account.account_status,
+        tenant_link_status=account.tenant_link_status,
+        external_reference_status=account.reference_status,
+    )
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "identityLoginReconciliation": reconciliation.to_safe_dict(),
+        "guardrail": (
+            "Read-only Referral SaaS identity and login reconciliation. This "
+            "endpoint explains customer access, optional platform login seats, "
+            "identity-provider evidence, revocation posture, and auth-claim "
+            "readiness without sending invites, creating credentials, assigning "
+            "seats, changing permissions, activating campaigns, triggering "
+            "go-live, billing, moving money, exposing internal tenant codes, or "
+            "mutating DLaaS marketplace records."
+        ),
+        "guardrails": _identity_login_reconciliation_guardrails(),
+        "redactions": _identity_login_reconciliation_redactions(),
+        "no_invite_delivery_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_seat_assignment_confirmed": True,
         "no_campaign_activation_confirmed": True,
         "no_go_live_change_confirmed": True,
         "no_money_movement_confirmed": True,
@@ -8281,6 +8363,14 @@ def _login_completion_guardrails() -> list[str]:
 
 def _login_completion_redactions() -> list[str]:
     return list(LOGIN_COMPLETION_REDACTIONS)
+
+
+def _identity_login_reconciliation_guardrails() -> list[str]:
+    return list(IDENTITY_LOGIN_RECONCILIATION_GUARDRAILS)
+
+
+def _identity_login_reconciliation_redactions() -> list[str]:
+    return list(IDENTITY_LOGIN_RECONCILIATION_REDACTIONS)
 
 
 def _profile_maintenance_guardrails() -> list[str]:

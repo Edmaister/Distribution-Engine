@@ -149,6 +149,18 @@ LOGIN_COMPLETION_REDACTIONS: Final = INVITATION_REDACTIONS + (
     "raw_auth_claims",
 )
 
+IDENTITY_LOGIN_RECONCILIATION_GUARDRAILS: Final = LOGIN_COMPLETION_GUARDRAILS + (
+    "READ_ONLY_RECONCILIATION",
+    "NO_IDENTITY_PROVIDER_MUTATION",
+    "NO_SEAT_ASSIGNMENT",
+)
+
+IDENTITY_LOGIN_RECONCILIATION_REDACTIONS: Final = LOGIN_COMPLETION_REDACTIONS + (
+    "identity_provider_evidence",
+    "auth_claim_evidence",
+    "revocation_evidence",
+)
+
 
 class MembershipInvitationCommandError(Exception):
     safe_code = "MEMBERSHIP_INVITATION_FAILED"
@@ -524,6 +536,91 @@ class LoginCompletionReadiness:
             "noInviteDeliveryConfirmed": True,
             "noCredentialCreationConfirmed": True,
             "noAuthClaimChangeConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noGoLiveChangeConfirmed": True,
+            "noMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class IdentityLoginReconciliationPerson:
+    membership_id: str
+    subject: str | None
+    display_name: str | None
+    role_family: str
+    permission_profile: str | None
+    access_status: str
+    login_status: str
+    seat_assignment_status: str
+    identity_provider_status: str
+    auth_claim_status: str
+    revocation_status: str
+    blockers: tuple[str, ...]
+    warnings: tuple[str, ...]
+    next_action: str
+    steps: tuple[dict[str, str], ...]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "membershipRef": self.membership_id,
+            "person": {
+                "subject": self.subject,
+                "displayName": self.display_name,
+                "responsibilities": [self.role_family],
+            },
+            "permissionProfile": self.permission_profile,
+            "accessStatus": self.access_status,
+            "loginStatus": self.login_status,
+            "seatAssignmentStatus": self.seat_assignment_status,
+            "identityProviderStatus": self.identity_provider_status,
+            "authClaimStatus": self.auth_claim_status,
+            "revocationStatus": self.revocation_status,
+            "blockers": list(self.blockers),
+            "warnings": list(self.warnings),
+            "nextAction": self.next_action,
+            "steps": list(self.steps),
+        }
+
+
+@dataclass(frozen=True)
+class IdentityLoginReconciliation:
+    account_id: str
+    reconciliation_status: str
+    people: tuple[IdentityLoginReconciliationPerson, ...]
+    accepted_count: int
+    named_count: int
+    seat_assigned_count: int
+    provider_evidence_count: int
+    auth_claim_ready_count: int
+    revoked_count: int
+    action_required_count: int
+    claim_mismatch_count: int
+    stale_provider_evidence_count: int
+    guardrails: tuple[str, ...] = IDENTITY_LOGIN_RECONCILIATION_GUARDRAILS
+    redactions: tuple[str, ...] = IDENTITY_LOGIN_RECONCILIATION_REDACTIONS
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "accountRef": self.account_id,
+            "reconciliationStatus": self.reconciliation_status,
+            "summary": {
+                "acceptedCount": self.accepted_count,
+                "namedCount": self.named_count,
+                "seatAssignedCount": self.seat_assigned_count,
+                "providerEvidenceCount": self.provider_evidence_count,
+                "authClaimReadyCount": self.auth_claim_ready_count,
+                "revokedCount": self.revoked_count,
+                "actionRequiredCount": self.action_required_count,
+                "claimMismatchCount": self.claim_mismatch_count,
+                "staleProviderEvidenceCount": self.stale_provider_evidence_count,
+            },
+            "people": [person.to_safe_dict() for person in self.people],
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noInviteDeliveryConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
             "noCampaignActivationConfirmed": True,
             "noGoLiveChangeConfirmed": True,
             "noMoneyMovementConfirmed": True,
@@ -3492,6 +3589,209 @@ async def get_referral_saas_login_completion_readiness(
     )
 
 
+async def get_referral_saas_identity_login_reconciliation(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_status: str,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+) -> IdentityLoginReconciliation:
+    safe_account_id = _required_account_id(account_id)
+    safe_tenant_code = _required_text(tenant_code)
+
+    async with db_connection() as conn:
+        memberships = await conn.fetch(
+            """
+            SELECT
+                platform_memberships.membership_id,
+                platform_memberships.status,
+                platform_memberships.role_family,
+                platform_memberships.permission_set,
+                platform_memberships.seat_id,
+                platform_memberships.metadata,
+                actor_user.subject AS user_subject,
+                actor_user.display_name AS user_display_name
+            FROM platform_memberships
+            LEFT JOIN platform_users actor_user
+                ON actor_user.user_id = platform_memberships.user_id
+            WHERE platform_memberships.account_id = $1
+              AND (platform_memberships.tenant_code = $2 OR platform_memberships.tenant_code IS NULL)
+              AND platform_memberships.status <> 'ARCHIVED'
+            ORDER BY
+                CASE platform_memberships.role_family
+                    WHEN 'DISTRIBUTION_ADMIN' THEN 1
+                    WHEN 'CAMPAIGN_MANAGER' THEN 2
+                    ELSE 10
+                END,
+                platform_memberships.created_at ASC
+            """,
+            safe_account_id,
+            safe_tenant_code,
+        )
+
+    return build_identity_login_reconciliation(
+        account_id=safe_account_id,
+        memberships=tuple(memberships),
+        account_status=account_status,
+        tenant_link_status=tenant_link_status,
+        external_reference_status=external_reference_status,
+    )
+
+
+def build_identity_login_reconciliation(
+    *,
+    account_id: str,
+    memberships: tuple[Any, ...],
+    account_status: str,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+) -> IdentityLoginReconciliation:
+    people = tuple(
+        _build_identity_login_reconciliation_person(
+            account_status=account_status,
+            tenant_link_status=tenant_link_status,
+            external_reference_status=external_reference_status,
+            membership=membership,
+        )
+        for membership in memberships
+    )
+    accepted_count = sum(1 for person in people if person.access_status == "CUSTOMER_ACCESS_ACCEPTED")
+    named_count = sum(1 for person in people if person.access_status in {"CUSTOMER_ACCESS_NAMED", "CUSTOMER_ACCESS_ACCEPTED"})
+    seat_assigned_count = sum(1 for person in people if person.seat_assignment_status == "SEAT_ASSIGNED")
+    provider_evidence_count = sum(
+        1 for person in people if person.identity_provider_status == "APPROVED_EVIDENCE_RECORDED"
+    )
+    auth_claim_ready_count = sum(
+        1 for person in people if person.auth_claim_status in {"AUTH_CLAIMS_PROPAGATED", "AUTH_CLAIMS_VERIFIED"}
+    )
+    revoked_count = sum(1 for person in people if person.revocation_status in {"REVOKED", "REVOCATION_RECORDED"})
+    claim_mismatch_count = sum(1 for person in people if "AUTH_CLAIM_MISMATCH" in person.blockers)
+    stale_provider_evidence_count = sum(1 for person in people if "PROVIDER_EVIDENCE_STALE" in person.warnings)
+    action_required_count = sum(
+        1
+        for person in people
+        if person.login_status
+        not in {"LOGIN_RECONCILED", "PLATFORM_LOGIN_NOT_REQUIRED", "ACCESS_REVOKED"}
+    )
+
+    if not people:
+        reconciliation_status = "NO_PEOPLE_RECORDED"
+    elif action_required_count:
+        reconciliation_status = "LOGIN_RECONCILIATION_ACTION_REQUIRED"
+    else:
+        reconciliation_status = "LOGIN_RECONCILED"
+
+    return IdentityLoginReconciliation(
+        account_id=account_id,
+        reconciliation_status=reconciliation_status,
+        people=people,
+        accepted_count=accepted_count,
+        named_count=named_count,
+        seat_assigned_count=seat_assigned_count,
+        provider_evidence_count=provider_evidence_count,
+        auth_claim_ready_count=auth_claim_ready_count,
+        revoked_count=revoked_count,
+        action_required_count=action_required_count,
+        claim_mismatch_count=claim_mismatch_count,
+        stale_provider_evidence_count=stale_provider_evidence_count,
+    )
+
+
+def _build_identity_login_reconciliation_person(
+    *,
+    account_status: str,
+    tenant_link_status: str | None,
+    external_reference_status: str | None,
+    membership: Any,
+) -> IdentityLoginReconciliationPerson:
+    metadata = _as_mapping(membership.get("metadata"))
+    membership_status = _normalise_status(membership.get("status"))
+    role_family = _optional_text(membership.get("role_family")) or "UNKNOWN"
+    permission_profile = (
+        _optional_text(metadata.get("permission_profile"))
+        or LOGIN_COMPLETION_PERMISSION_PROFILES.get(role_family)
+    )
+    login_completion_status = _optional_text(metadata.get("login_completion_status"))
+    login_intent = (
+        _optional_text(metadata.get("login_completion_intent"))
+        or "PLATFORM_LOGIN_REQUIRED"
+    )
+    metadata_seat_status = _optional_text(metadata.get("seat_assignment_status"))
+    seat_assignment_status = (
+        "SEAT_ASSIGNED"
+        if _optional_text(membership.get("seat_id")) or metadata_seat_status == "SEAT_ASSIGNED"
+        else metadata_seat_status or "SEAT_NOT_ASSIGNED"
+    )
+    identity_provider_status = (
+        _optional_text(metadata.get("identity_provider_status")) or "NOT_RECORDED"
+    )
+    auth_claim_status = (
+        _optional_text(metadata.get("auth_claim_status"))
+        or "AUTH_CLAIMS_NOT_PROPAGATED"
+    )
+    revocation_status = (
+        _optional_text(metadata.get("identity_revocation_status"))
+        or _optional_text(metadata.get("revocation_status"))
+        or "NO_REVOCATION_REQUESTED"
+    )
+    access_status = _identity_access_status(membership_status)
+
+    blockers: list[str] = []
+    warnings: list[str] = []
+    if _optional_text(account_status).upper() != "ACTIVE":
+        blockers.append("ACCOUNT_NOT_ACTIVE")
+    if _optional_text(tenant_link_status).upper() != "ACTIVE":
+        blockers.append("TENANT_LINK_NOT_ACTIVE")
+    if _optional_text(external_reference_status).upper() != "ACTIVE":
+        blockers.append("EXTERNAL_REFERENCE_NOT_ACTIVE")
+    if access_status != "CUSTOMER_ACCESS_ACCEPTED":
+        blockers.append("CUSTOMER_ACCESS_NOT_ACCEPTED")
+    if login_intent != "LOGIN_NOT_REQUIRED" and seat_assignment_status != "SEAT_ASSIGNED":
+        blockers.append("PLATFORM_SEAT_NOT_ASSIGNED")
+    if identity_provider_status in {"PROVIDER_EVIDENCE_STALE", "STALE_PROVIDER_EVIDENCE"}:
+        warnings.append("PROVIDER_EVIDENCE_STALE")
+    if auth_claim_status in {"AUTH_CLAIM_MISMATCH", "CLAIM_MISMATCH"}:
+        blockers.append("AUTH_CLAIM_MISMATCH")
+
+    login_status = _identity_login_status(
+        access_status=access_status,
+        login_completion_status=login_completion_status,
+        login_intent=login_intent,
+        seat_assignment_status=seat_assignment_status,
+        identity_provider_status=identity_provider_status,
+        auth_claim_status=auth_claim_status,
+        revocation_status=revocation_status,
+        blockers=blockers,
+    )
+    next_action = _identity_login_next_action(login_status)
+    steps = _identity_login_steps(
+        access_status=access_status,
+        login_status=login_status,
+        seat_assignment_status=seat_assignment_status,
+        identity_provider_status=identity_provider_status,
+        auth_claim_status=auth_claim_status,
+    )
+
+    return IdentityLoginReconciliationPerson(
+        membership_id=_optional_text(membership.get("membership_id")) or "",
+        subject=_optional_text(membership.get("user_subject")) or None,
+        display_name=_optional_text(membership.get("user_display_name")) or None,
+        role_family=role_family,
+        permission_profile=permission_profile,
+        access_status=access_status,
+        login_status=login_status,
+        seat_assignment_status=seat_assignment_status,
+        identity_provider_status=identity_provider_status,
+        auth_claim_status=auth_claim_status,
+        revocation_status=revocation_status,
+        blockers=tuple(dict.fromkeys(blockers)),
+        warnings=tuple(dict.fromkeys(warnings)),
+        next_action=next_action,
+        steps=steps,
+    )
+
+
 async def request_referral_saas_login_completion_intent(
     *,
     account_id: str,
@@ -4192,6 +4492,107 @@ def _login_completion_next_action(login_status: str) -> str:
     if login_status == "LOGIN_COMPLETION_REPLAYED":
         return "The same login completion request was replayed safely."
     return "Resolve login completion blockers before continuing."
+
+
+def _identity_access_status(membership_status: str) -> str:
+    if membership_status == "ACTIVE":
+        return "CUSTOMER_ACCESS_ACCEPTED"
+    if membership_status == "INVITED":
+        return "CUSTOMER_ACCESS_NAMED"
+    if membership_status == "DISABLED":
+        return "CUSTOMER_ACCESS_DISABLED"
+    if membership_status == "SUSPENDED":
+        return "CUSTOMER_ACCESS_SUSPENDED"
+    return "CUSTOMER_ACCESS_NOT_READY"
+
+
+def _identity_login_status(
+    *,
+    access_status: str,
+    login_completion_status: str | None,
+    login_intent: str,
+    seat_assignment_status: str,
+    identity_provider_status: str,
+    auth_claim_status: str,
+    revocation_status: str,
+    blockers: list[str],
+) -> str:
+    if revocation_status in {"REVOKED", "REVOCATION_RECORDED"}:
+        return "ACCESS_REVOKED"
+    if access_status != "CUSTOMER_ACCESS_ACCEPTED":
+        return "WAITING_FOR_CUSTOMER_ACCESS"
+    if login_intent == "LOGIN_NOT_REQUIRED" or login_completion_status == "LOGIN_COMPLETION_NOT_REQUIRED":
+        return "PLATFORM_LOGIN_NOT_REQUIRED"
+    if "ACCOUNT_NOT_ACTIVE" in blockers:
+        return "WAITING_FOR_ACTIVE_CUSTOMER"
+    if "TENANT_LINK_NOT_ACTIVE" in blockers or "EXTERNAL_REFERENCE_NOT_ACTIVE" in blockers:
+        return "WAITING_FOR_ACTIVE_CUSTOMER_SCOPE"
+    if seat_assignment_status != "SEAT_ASSIGNED":
+        return "WAITING_FOR_PLATFORM_SEAT"
+    if identity_provider_status in {"PROVIDER_EVIDENCE_STALE", "STALE_PROVIDER_EVIDENCE"}:
+        return "PROVIDER_EVIDENCE_STALE"
+    if auth_claim_status in {"AUTH_CLAIM_MISMATCH", "CLAIM_MISMATCH"}:
+        return "AUTH_CLAIM_REVIEW_REQUIRED"
+    if identity_provider_status not in {"APPROVED_EVIDENCE_RECORDED", "EXTERNAL_IDP_MANAGED"}:
+        return "WAITING_FOR_IDENTITY_PROVIDER_EVIDENCE"
+    if auth_claim_status in {"AUTH_CLAIMS_PROPAGATED", "AUTH_CLAIMS_VERIFIED"}:
+        return "LOGIN_RECONCILED"
+    return "READY_FOR_AUTH_CLAIM_RECONCILIATION"
+
+
+def _identity_login_next_action(login_status: str) -> str:
+    actions = {
+        "ACCESS_REVOKED": "This person's customer access has been revoked. Add a new person if access is needed again.",
+        "WAITING_FOR_CUSTOMER_ACCESS": "Review and accept this person's customer access before thinking about login.",
+        "PLATFORM_LOGIN_NOT_REQUIRED": "No platform login is needed. Keep this person confirmed for customer work.",
+        "WAITING_FOR_ACTIVE_CUSTOMER": "Activate the customer account foundation before login setup.",
+        "WAITING_FOR_ACTIVE_CUSTOMER_SCOPE": "Activate the customer workspace link and external reference before login setup.",
+        "WAITING_FOR_PLATFORM_SEAT": "Only assign a platform login seat if this person must sign in to Amplifi.",
+        "PROVIDER_EVIDENCE_STALE": "Review the identity provider evidence in Integrations before login permissions are trusted.",
+        "AUTH_CLAIM_REVIEW_REQUIRED": "Review the permission mapping because the identity provider claim does not match this responsibility.",
+        "WAITING_FOR_IDENTITY_PROVIDER_EVIDENCE": "Record approved identity provider evidence in Integrations before login permissions are trusted.",
+        "LOGIN_RECONCILED": "Login evidence is reconciled. Keep credentials and auth claims governed outside People and Access.",
+        "READY_FOR_AUTH_CLAIM_RECONCILIATION": "Review auth-claim propagation evidence in the governed identity workflow.",
+    }
+    return actions.get(login_status, "Review the person's login setup evidence before continuing.")
+
+
+def _identity_login_steps(
+    *,
+    access_status: str,
+    login_status: str,
+    seat_assignment_status: str,
+    identity_provider_status: str,
+    auth_claim_status: str,
+) -> tuple[dict[str, str], ...]:
+    access_done = access_status == "CUSTOMER_ACCESS_ACCEPTED"
+    login_not_required = login_status == "PLATFORM_LOGIN_NOT_REQUIRED"
+    seat_done = seat_assignment_status == "SEAT_ASSIGNED" or login_not_required
+    provider_done = identity_provider_status in {"APPROVED_EVIDENCE_RECORDED", "EXTERNAL_IDP_MANAGED"} or login_not_required
+    claims_done = auth_claim_status in {"AUTH_CLAIMS_PROPAGATED", "AUTH_CLAIMS_VERIFIED"} or login_not_required
+
+    return (
+        {
+            "label": "Customer access",
+            "status": "DONE" if access_done else "WAITING",
+            "description": "Person is confirmed for this customer." if access_done else "Confirm the person first.",
+        },
+        {
+            "label": "Platform login seat",
+            "status": "SKIPPED" if login_not_required else ("DONE" if seat_done else "OPTIONAL"),
+            "description": "Needed only when this person signs in to Amplifi.",
+        },
+        {
+            "label": "Identity provider",
+            "status": "SKIPPED" if login_not_required else ("DONE" if provider_done else "WAITING"),
+            "description": "Evidence comes from the governed Integrations/identity workflow.",
+        },
+        {
+            "label": "Login permissions",
+            "status": "SKIPPED" if login_not_required else ("DONE" if claims_done else "WAITING"),
+            "description": "Auth claims stay outside People and Access.",
+        },
+    )
 
 
 async def _insert_activation_audit_event(

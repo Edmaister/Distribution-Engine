@@ -297,6 +297,79 @@ export type ReferralSaasLoginCompletionReadinessResponse = {
   no_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasIdentityLoginReconciliationStep = {
+  label: string;
+  status: string;
+  description: string;
+};
+
+export type ReferralSaasIdentityLoginReconciliationPerson = {
+  membershipRef: string;
+  person: {
+    subject?: string | null;
+    displayName?: string | null;
+    responsibilities: string[];
+  };
+  permissionProfile?: string | null;
+  accessStatus: string;
+  loginStatus: string;
+  seatAssignmentStatus: string;
+  identityProviderStatus: string;
+  authClaimStatus: string;
+  revocationStatus: string;
+  blockers: string[];
+  warnings: string[];
+  nextAction: string;
+  steps: ReferralSaasIdentityLoginReconciliationStep[];
+};
+
+export type ReferralSaasIdentityLoginReconciliation = {
+  accountRef: string;
+  reconciliationStatus: string;
+  summary: {
+    acceptedCount: number;
+    namedCount: number;
+    seatAssignedCount: number;
+    providerEvidenceCount: number;
+    authClaimReadyCount: number;
+    revokedCount: number;
+    actionRequiredCount: number;
+    claimMismatchCount: number;
+    staleProviderEvidenceCount: number;
+  };
+  people: ReferralSaasIdentityLoginReconciliationPerson[];
+  guardrails: string[];
+  redactions: string[];
+  noInviteDeliveryConfirmed: boolean;
+  noCredentialCreationConfirmed: boolean;
+  noAuthClaimChangeConfirmed: boolean;
+  noSeatAssignmentConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noGoLiveChangeConfirmed: boolean;
+  noMoneyMovementConfirmed: boolean;
+};
+
+export type ReferralSaasIdentityLoginReconciliationRequest = ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+};
+
+export type ReferralSaasIdentityLoginReconciliationResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  identityLoginReconciliation: ReferralSaasIdentityLoginReconciliation;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  no_invite_delivery_confirmed: boolean;
+  no_credential_creation_confirmed: boolean;
+  no_auth_claim_change_confirmed: boolean;
+  no_seat_assignment_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_go_live_change_confirmed: boolean;
+  no_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasTechnicalSetupCapability = {
   code: string;
   label: string;
@@ -1993,7 +2066,7 @@ export type ReferralSaasLoginCompletionIntentRequest = {
     context?: ReferralSaasAccountResolutionContext;
   };
   loginCompletion: {
-    intent: "PLATFORM_LOGIN_REQUIRED" | "LOGIN_NOT_REQUIRED";
+    intent: "PLATFORM_LOGIN_REQUIRED" | "LOGIN_NOT_REQUIRED" | "EXTERNAL_IDP_MANAGED";
     identitySubjectRef?: string;
     authProviderRef?: string;
     seatEvidenceRef?: string;
@@ -2514,6 +2587,24 @@ export function getReferralSaasLoginCompletionReadiness({
     `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/memberships/${encodeURIComponent(
       membershipRef.trim(),
     )}/login-completion-readiness`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+      },
+    },
+  );
+}
+
+export function getReferralSaasIdentityLoginReconciliation({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+}: ReferralSaasIdentityLoginReconciliationRequest): Promise<ReferralSaasIdentityLoginReconciliationResponse> {
+  return apiRequest<ReferralSaasIdentityLoginReconciliationResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/identity-login-reconciliation`,
     {
       query: {
         ref_type: refType,
