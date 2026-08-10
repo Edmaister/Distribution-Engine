@@ -8123,7 +8123,7 @@ Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_H1_RELEASE_SCOPE_AND_JOUR
 
 ## TASK-358: Enforce account capability and jurisdiction boundaries
 
-Status: Pending.
+Status: Completed.
 Product boundary: Shared Platform with Referral SaaS impact.
 Required boundary docs checked: Referral SaaS product brief, roadmap, gap matrix, customer-journey architecture.
 Shared primitive impact: Hardens selected-customer account context, operating jurisdiction, account capability, and sensitive command boundaries. Source duplication: No.
@@ -8134,6 +8134,7 @@ Tests to add/update: Tenant/account isolation, jurisdiction filtering, forbidden
 Acceptance criteria: UI selection cannot bypass backend jurisdiction or account-capability gates.
 Dependencies: TASK-357.
 Priority: P0.
+Completed output: `services/referral_saas_account_foundation_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/api/test_referral_saas_accounts_api.py`; roadmap/gap/infographic updates. Adds selected-customer account, operating-jurisdiction, and `REFERRAL_SAAS_ACCOUNT_READ` capability enforcement to core account resolver, membership posture, and membership activation readiness routes; carries operating jurisdiction in safe resolved account context; and adds negative coverage for cross-account, cross-jurisdiction, and missing-capability access.
 
 ## TASK-359: Add partner workspace account-context resolver
 

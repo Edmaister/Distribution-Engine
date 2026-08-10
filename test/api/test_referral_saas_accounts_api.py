@@ -66,6 +66,7 @@ def _context(**overrides) -> AccountFoundationContext:
         "account_type": "ORGANISATION",
         "account_status": "ACTIVE",
         "onboarding_status": "APPROVED",
+        "operating_jurisdiction_code": "ZA",
         "external_ref_id": "ref-1",
         "ref_type": "external_tenant_ref",
         "external_ref": "fnb-referrals",
@@ -6202,12 +6203,129 @@ async def test_referral_saas_account_reader_can_resolve_setup_context(monkeypatc
     body = response.json()
     assert body["context"] == "setup"
     assert body["account"]["accountStatus"] == "SUSPENDED"
+    assert body["account"]["operatingJurisdictionCode"] == "ZA"
     assert calls == [
         {
             "ref_type": "external_tenant_ref",
             "external_ref": "fnb-referrals",
         }
     ]
+
+
+async def test_referral_saas_account_resolver_rejects_cross_account_identity(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "_require_referral_saas_account_reader",
+        lambda identity: {
+            "role": "DISTRIBUTION_ADMIN",
+            "account_ref": "acct-other",
+            "scopes": ["REFERRAL_SAAS_ACCOUNT_READ"],
+        },
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/resolve",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 403
+    detail = response.json()["detail"]
+    assert detail["code"] == "account_boundary_forbidden"
+    assert "SERVER_SIDE_ACCOUNT_CONTEXT_ENFORCEMENT" in detail["guardrails"]
+    assert detail["no_cross_account_access_confirmed"] is True
+
+
+async def test_referral_saas_account_resolver_rejects_cross_jurisdiction_identity(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(operating_jurisdiction_code="ZA")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "_require_referral_saas_account_reader",
+        lambda identity: {
+            "role": "DISTRIBUTION_ADMIN",
+            "allowed_jurisdictions": ["BW"],
+            "scopes": ["REFERRAL_SAAS_ACCOUNT_READ"],
+        },
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/resolve",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 403
+    detail = response.json()["detail"]
+    assert detail["code"] == "account_boundary_forbidden"
+    assert "SERVER_SIDE_ACCOUNT_JURISDICTION_ENFORCEMENT" in detail["guardrails"]
+    assert detail["no_cross_jurisdiction_access_confirmed"] is True
+    assert "tenantCode" not in str(detail)
+
+
+async def test_referral_saas_membership_posture_rejects_missing_account_capability(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "_require_referral_saas_account_reader",
+        lambda identity: {
+            "role": "DISTRIBUTION_ADMIN",
+            "account_ref": "acct-1",
+            "allowed_jurisdictions": ["ZA"],
+            "scopes": ["REFERRAL_SAAS_REPORT_READ"],
+        },
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/membership-posture",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 403
+    detail = response.json()["detail"]
+    assert detail["code"] == "account_boundary_forbidden"
+    assert "SERVER_SIDE_ACCOUNT_CAPABILITY_ENFORCEMENT" in detail["guardrails"]
+    assert detail["no_capability_bypass_confirmed"] is True
 
 
 async def test_referral_saas_account_reader_can_read_membership_posture(monkeypatch):

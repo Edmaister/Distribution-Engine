@@ -209,6 +209,7 @@ class AccountFoundationContext:
     account_type: str
     account_status: str
     onboarding_status: str
+    operating_jurisdiction_code: str
     external_ref_id: str
     ref_type: str
     external_ref: str
@@ -228,6 +229,7 @@ class AccountFoundationContext:
             "accountType": self.account_type,
             "accountStatus": self.account_status,
             "onboardingStatus": self.onboarding_status,
+            "operatingJurisdictionCode": self.operating_jurisdiction_code,
             "externalRefId": self.external_ref_id,
             "refType": self.ref_type,
             "externalRef": self.external_ref,
@@ -383,6 +385,9 @@ def _as_context(row: dict[str, Any]) -> AccountFoundationContext:
         account_type=str(row["account_type"]),
         account_status=str(row["account_status"]),
         onboarding_status=str(row["onboarding_status"]),
+        operating_jurisdiction_code=str(
+            row.get("operating_jurisdiction_code") or "ZA"
+        ),
         external_ref_id=str(row["external_ref_id"]),
         ref_type=str(row["ref_type"]),
         external_ref=str(row["external_ref"]),
@@ -425,6 +430,7 @@ async def resolve_account_by_external_reference(
                 account.account_type,
                 account.status AS account_status,
                 account.onboarding_status,
+                COALESCE(account.operating_jurisdiction_code, 'ZA') AS operating_jurisdiction_code,
                 external_ref.external_ref_id,
                 external_ref.ref_type,
                 external_ref.external_ref,

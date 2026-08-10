@@ -88,12 +88,27 @@ customer-journey tasks add more runtime behavior. The controlling artifact is
 | Deferred or disabled | DLaaS marketplace, fulfilment, settlement, funding, sponsor billing, broad white-label/embed, unmanaged provider dispatch, raw browser secrets, generic replay/DB mutation, identity-provider auth claims until proven, and money movement. |
 | Release gates | Scope lock, account/jurisdiction, entitlement/environment, people/access, integrations, campaign control, referral/attribution correctness, reporting/support, and deployed-state proof. |
 | UX rule | Every customer page must make the selected customer, readiness state, one next action, reason, and non-action boundary obvious in plain language. |
-| Downstream enforcement | TASK-358 through TASK-381 must use these gates for backend enforcement, route capability inventory, UI labels, and proof. |
+| Downstream enforcement | TASK-358 now enforces core selected-customer account, jurisdiction, and account-read capability gates; TASK-359 through TASK-381 must continue those gates for partner workspace, entitlement, activation, route capability inventory, UI labels, and proof. |
 
 The ratings remain unchanged because this task is a scope and control document:
 Referral Management remains 9.99/10 and Campaign Attribution remains
 9.99996/10. Confidence improves because the remaining work now has a single H1
 release-gate contract.
+
+## TASK-358 Account Capability And Jurisdiction Enforcement
+
+TASK-358 converts the first H1 account/jurisdiction release gate into runtime
+enforcement. The core selected-customer account resolver, membership posture,
+and membership activation readiness routes now carry operating jurisdiction in
+their safe account context and reject callers scoped to a different account,
+different operating jurisdiction, or missing `REFERRAL_SAAS_ACCOUNT_READ`
+capability. The boundary response redacts internal tenant identifiers, tenant
+codes, and auth-claim detail while confirming no cross-account,
+cross-jurisdiction, or capability-bypass access.
+
+Open enforcement now moves to the remaining account/workspace gates: partner
+workspace context, entitlement/environment posture, production activation, and
+the downstream journey-specific command/read guards.
 
 ## Gap Matrix
 
