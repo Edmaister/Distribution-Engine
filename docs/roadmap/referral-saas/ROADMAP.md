@@ -183,7 +183,7 @@ actions.
 
 Invitation/login execution, integration execution, campaign control, referral
 operations, attribution, reporting, support, and non-local proof gates remain
-on TASK-363 through TASK-380.
+on TASK-364 through TASK-380.
 
 ## Recommended Ordered Task Sequence
 
@@ -2374,6 +2374,27 @@ on TASK-363 through TASK-380.
   cross-jurisdiction, or missing-capability callers receive forbidden boundary
   responses without exposing tenant codes, auth claims, or internal tenant
   identifiers.
+- TASK-363:
+  `services/referral_saas_account_membership_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds governed
+  live invitation delivery provider execution for People and Access. The
+  backend now sends Email invitations through the approved shared channel
+  provider only when recipient contact, provider approval, template,
+  idempotency, audit, and redaction gates pass. Sent and failed provider
+  outcomes are persisted on membership metadata and account audit evidence, and
+  the selected-customer UI now presents the action as `Send invite email` with
+  plain-language sent/failed/blocked feedback. Seats, credentials, auth claims,
+  campaign activation, billing, money movement, DLaaS expansion, and source
+  forks remain excluded. Ratings remain 9.99/10 for Referral Management and
+  9.99996/10 for Campaign Attribution until expiring acceptance, identity/login
+  reconciliation, and non-local proof are complete.
 
 ## Explicit Deferrals
 

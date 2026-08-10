@@ -760,11 +760,13 @@ async def test_membership_invitation_delivery_request_records_blocked_audit(
     assert safe_payload["membership"]["status"] == "INVITED"
     assert safe_payload["delivery"] == {
         "status": "DELIVERY_PROVIDER_NOT_CONFIGURED",
-        "nextAction": "Configure approved invitation delivery provider before sending email invites.",
+        "nextAction": "Configure Email provider URL and signing secret before sending invite emails.",
         "recipientContactStatus": "CONTACT_REFERENCE_PRESENT",
         "providerRef": "mail-provider-1",
         "channel": "EMAIL",
         "templateRef": "referral-saas-account-invite-v1",
+        "providerDeliveryRef": None,
+        "providerStatus": None,
     }
     assert safe_payload["idempotency"]["status"] == "RECORDED"
     assert safe_payload["noInviteDeliveryConfirmed"] is True
@@ -779,6 +781,173 @@ async def test_membership_invitation_delivery_request_records_blocked_audit(
     assert "INSERT INTO platform_account_audit_events" in joined_queries
     assert "UPDATE platform_memberships" not in joined_queries
     assert "platform_seats" not in joined_queries
+
+
+async def test_membership_invitation_delivery_request_sends_with_approved_provider(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "membership_id": "membership-1",
+                "status": "INVITED",
+                "role_family": "DISTRIBUTION_ADMIN",
+                "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                "delivery_status": "DELIVERY_NOT_CONFIGURED",
+                "recipient_contact_status": "CONTACT_REFERENCE_PRESENT",
+                "recipient_subject": "owner@example.test",
+            },
+            {"membership_id": "membership-1"},
+            {"account_audit_event_id": "audit-delivery-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+    monkeypatch.setattr(
+        svc,
+        "get_channel_readiness",
+        lambda: {
+            "items": [
+                {
+                    "channel_code": "EMAIL",
+                    "provider_configured": True,
+                    "provider_ref": "mail-provider-1",
+                    "provider_approved": True,
+                    "approved_for_referral_saas": True,
+                }
+            ]
+        },
+    )
+
+    async def fake_dispatch_channel_message(**kwargs):
+        assert kwargs["channel_code"] == "EMAIL"
+        assert kwargs["tenant_code"] == "FNB"
+        assert kwargs["recipient"] == "owner@example.test"
+        assert kwargs["context"]["event_type"] == "MEMBERSHIP_INVITATION"
+        assert kwargs["context"]["no_auth_claim_change_confirmed"] is True
+        assert kwargs["context"]["no_seat_assignment_confirmed"] is True
+        return {
+            "status": "SENT",
+            "delivery_id": "CHD-123",
+            "provider_status": 202,
+        }
+
+    monkeypatch.setattr(
+        svc,
+        "dispatch_channel_message",
+        fake_dispatch_channel_message,
+    )
+
+    result = await svc.request_referral_saas_membership_invitation_delivery(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        membership_id="membership-1",
+        provider_ref="mail-provider-1",
+        channel="EMAIL",
+        template_ref="referral-saas-account-invite-v1",
+        recipient_hash="recipient-hash",
+        reason_code="CUSTOMER_PROFILE_INVITE_DELIVERY_REQUEST",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+        command_payload={
+            "delivery": {
+                "providerRef": "mail-provider-1",
+                "channel": "EMAIL",
+                "templateRef": "referral-saas-account-invite-v1",
+                "recipientHash": "recipient-hash",
+            }
+        },
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "INVITATION_DELIVERY_SENT"
+    assert safe_payload["delivery"]["providerDeliveryRef"] == "CHD-123"
+    assert safe_payload["delivery"]["providerStatus"] == 202
+    assert safe_payload["noInviteDeliveryConfirmed"] is False
+
+    joined_queries = "\n".join(call[0] for call in conn.fetchrow_calls)
+    assert "UPDATE platform_memberships" in joined_queries
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+    assert "platform_seats" not in joined_queries
+    assert conn.fetchrow_calls[-1][1][6] == "RECORDED"
+
+
+async def test_membership_invitation_delivery_request_records_provider_failure(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "membership_id": "membership-1",
+                "status": "INVITED",
+                "role_family": "CAMPAIGN_MANAGER",
+                "permission_set": "REFERRAL_SAAS_CAMPAIGN_MANAGER",
+                "delivery_status": "DELIVERY_NOT_CONFIGURED",
+                "recipient_contact_status": "CONTACT_REFERENCE_PRESENT",
+                "recipient_subject": "campaign@example.test",
+            },
+            {"membership_id": "membership-1"},
+            {"account_audit_event_id": "audit-delivery-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+    monkeypatch.setattr(
+        svc,
+        "get_channel_readiness",
+        lambda: {
+            "items": [
+                {
+                    "channel_code": "EMAIL",
+                    "provider_configured": True,
+                    "provider_ref": "mail-provider-1",
+                    "provider_approved": True,
+                    "approved_for_referral_saas": True,
+                }
+            ]
+        },
+    )
+
+    async def fake_dispatch_channel_message(**kwargs):
+        return {
+            "status": "FAILED",
+            "delivery_id": "CHD-failed",
+            "provider_status": 503,
+        }
+
+    monkeypatch.setattr(
+        svc,
+        "dispatch_channel_message",
+        fake_dispatch_channel_message,
+    )
+
+    result = await svc.request_referral_saas_membership_invitation_delivery(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        membership_id="membership-1",
+        provider_ref="mail-provider-1",
+        channel="EMAIL",
+        template_ref="referral-saas-account-invite-v1",
+        recipient_hash="recipient-hash",
+        reason_code="CUSTOMER_PROFILE_INVITE_DELIVERY_REQUEST",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "INVITATION_DELIVERY_FAILED"
+    assert safe_payload["delivery"]["providerDeliveryRef"] == "CHD-failed"
+    assert safe_payload["delivery"]["providerStatus"] == 503
+    assert safe_payload["noInviteDeliveryConfirmed"] is False
+    assert conn.fetchrow_calls[-1][1][6] == "FAILED"
 
 
 async def test_membership_invitation_delivery_request_blocks_missing_recipient_contact(
@@ -832,7 +1001,7 @@ async def test_membership_invitation_delivery_request_blocks_missing_recipient_c
         safe_payload["delivery"]["nextAction"]
         == "Add a safe work email contact reference before invite delivery can be requested."
     )
-    assert conn.fetchrow_calls[-1][1][9] == "DELIVERY_RECIPIENT_CONTACT_MISSING"
+    assert conn.fetchrow_calls[-1][1][10] == "DELIVERY_RECIPIENT_CONTACT_MISSING"
 
 
 async def test_membership_invitation_delivery_request_replays_matching_idempotency(

@@ -8194,7 +8194,7 @@ Completed output: `services/referral_saas_account_foundation_service.py`; `servi
 
 ## TASK-363: Add live invitation delivery provider execution
 
-Status: Pending.
+Status: Completed.
 Product boundary: Shared Platform with Referral SaaS impact.
 Shared primitive impact: Uses provider/vault primitives for controlled invite delivery. Source duplication: No.
 Objective: Move from invitation intent and readiness checks to governed live invite delivery when provider, template, recipient, idempotency, audit, and redaction gates pass.
@@ -8204,6 +8204,7 @@ Tests to add/update: Delivery success/block/retry/idempotency/provider-failure t
 Acceptance criteria: Invite delivery is auditable, retry-safe, provider-backed, and never creates login claims or seats silently.
 Dependencies: TASK-353; TASK-355; TASK-362.
 Priority: P0.
+Completed output: `services/referral_saas_account_membership_service.py`; `apps/api/routers/referral_saas_accounts.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `test/test_referral_saas_account_membership_service.py`; roadmap/gap/infographic updates. Adds governed live Email invite delivery through the approved shared channel provider when recipient contact, provider approval, template, idempotency, audit, and redaction gates pass. Delivery success/failure is stored on membership metadata and account audit evidence while seats, credentials, auth claims, campaign activation, billing, money movement, and DLaaS expansion remain excluded.
 
 ## TASK-364: Add expiring invitation acceptance path
 
