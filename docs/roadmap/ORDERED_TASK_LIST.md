@@ -7976,6 +7976,32 @@ Explicit non-goals: No frontend changes, real provider calls, live vault writes,
 Completed output: `services/referral_saas_provider_vault_runtime.py`; `services/referral_saas_integrations_configuration_service.py`; `test/test_referral_saas_provider_vault_runtime.py`; `test/api/test_referral_saas_accounts_api.py`; `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_SEAM.md`; SA index, roadmap, gap-matrix, ordered task list, and infographic updates. Adds the shared provider/vault runtime adapter seam and makes the governed execution API return explicit adapter/vault blocked states until real adapters are configured.
 Definition of done: Referral SaaS has a real provider/vault adapter handoff architecture behind the execution API. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.99992/10 because the adapter seam exists while real provider/vault adapters and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-352: Define provider/vault adapter implementation plan
+
+Status: Completed.
+Product boundary: Shared Platform with Referral SaaS impact.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_ADAPTER_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_EXECUTION_COMMAND_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_SEAM.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Defines the first safe implementation target behind the shared provider/vault runtime seam. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Provider/vault adapter implementation sequence.
+Objective: Define the concrete first provider/vault adapter target after TASK-351 so the next code task can implement real opaque reference execution without guessing a vendor or accepting raw secrets from Referral SaaS screens.
+Why now: The runtime seam exists, but the gap matrix still has real provider/vault adapters open. The next code task needs a bounded implementation plan before it changes runtime behavior.
+Files likely involved: Provider/vault adapter implementation SA plan; SA index; roadmap/gap/infographic docs.
+Database/schema impact: None.
+Backend impact: None in this task. Defines the next backend implementation target.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: Docs-only readback.
+Validation method: `git diff --check`; contract/gap/roadmap readback.
+Acceptance criteria: The plan identifies the first safe `PLATFORM_REFERENCE` provider adapter and `PLATFORM_VAULT_REFERENCE` vault/reference adapter target, runtime configuration boundaries, allowed/blocked configuration inputs, safe states, next code-task shape, and explicit no-secret/no-provider-dispatch/no-auth/no-campaign/no-billing/no-money/no-DLaaS guardrails.
+Dependencies: TASK-342; TASK-349; TASK-350; TASK-351.
+Blocked by: Runtime adapter implementation and non-local execution proof.
+Risk level: Low.
+Rollback notes: Revert adapter implementation plan and roadmap/gap/infographic/index updates.
+Explicit non-goals: No runtime code, schema migration, frontend controls, vendor adapter, raw secret capture/storage/reveal/rotation/download, live provider dispatch, invite delivery, webhook dispatch, referral-message delivery, auth/session claim change, campaign activation, repair/replay/retry execution, export delivery execution, billing, money, DLaaS implementation, or source forks.
+Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_ADAPTER_IMPLEMENTATION_PLAN.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the first safe provider/vault adapter implementation sequence after the TASK-351 seam. The next code task should add `PLATFORM_REFERENCE` and `PLATFORM_VAULT_REFERENCE` adapters so approved credential requests can return real opaque references without raw secret handling or vendor dispatch.
+Definition of done: Referral SaaS has a bounded provider/vault adapter implementation target ready for the next code task. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.99993/10 because the adapter implementation ambiguity is closed while runtime adapters and non-local proof repetition remain separate gaps. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

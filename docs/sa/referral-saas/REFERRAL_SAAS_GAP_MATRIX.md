@@ -144,8 +144,8 @@ cadence, recipients, report/export readiness, signed URL/retention interaction,
 lifecycle states, safe errors, audit/idempotency, and no-provider/no-money
 boundaries are now specified before runtime work.
 
-Remaining campaign/frontend gaps are real provider/vault adapter implementation and
-non-local proof repetition. Governed auth/login completion is now visible in
+Remaining campaign/frontend gaps are runtime provider/vault adapter
+implementation and non-local proof repetition. Governed auth/login completion is now visible in
 People and Access through TASK-345 to TASK-347. TASK-349 defines the
 provider/vault runtime execution command contract and TASK-350 adds the guarded
 API foundation without changing the product boundary or dispatching live
@@ -153,6 +153,11 @@ providers.
 TASK-351 adds the shared runtime adapter seam so the API now returns explicit
 adapter-not-configured or vault-not-configured execution evidence until
 approved adapters are installed.
+TASK-352 defines the first safe adapter implementation sequence:
+`PLATFORM_REFERENCE` plus `PLATFORM_VAULT_REFERENCE`, giving the next code task
+a bounded runtime target without browser-held secrets, vendor dispatch,
+credential reveal, auth/session mutation, campaign activation, billing, money,
+DLaaS, or source-fork side effects.
 Repair/replay execution remains a future governed command track, not a visible
 readiness UI gap.
 
@@ -311,7 +316,7 @@ control.
 7. TASK-147: Define Referral SaaS E2E and live verification plan.
 8. TASK-140: Add Referral SaaS operator link/code investigation contract.
 9. TASK-141: Define Referral SaaS safe status contract.
-10. TASK-333 through TASK-351 now map the remaining launch-hardening gaps:
+10. TASK-333 through TASK-352 now map the remaining launch-hardening gaps:
     scheduled report delivery, governed repair/replay posture, progress and
     attribution mutation proof, provider/vault execution readiness, command
     design, API foundation, governed auth/login completion, and non-local
@@ -346,7 +351,7 @@ Referral SaaS wedge. Remaining gaps are now mapped to explicit tasks:
 | Scheduled report delivery | TASK-335 | TASK-333 contract, TASK-334 guarded schedule API persistence/readiness, and TASK-335 selected-customer Reports UI controls are complete. Remaining close-out is governed provider execution and non-local proof. |
 | Repair/replay guardrails | TASK-336 to TASK-338 | TASK-336 contract, TASK-337 read-only support-case readiness API, and TASK-338 Support UI posture without unsafe mutation buttons are complete. Runtime repair/replay execution remains a future governed command track, not a launch UI gap. |
 | Progress/attribution mutation proof | TASK-339 to TASK-341 | TASK-339 contract, TASK-340 repeatable proof runner, and TASK-341 approved local execution evidence are complete. Remaining close-out is non-local staging/production-like proof repetition. |
-| Provider/vault execution readiness and command design | TASK-342 to TASK-344; TASK-349 to TASK-351 | TASK-342 provider/vault adapter contract, TASK-343 read-only readiness API, TASK-344 selected-customer Integrations UI visibility, TASK-349 provider/vault runtime execution command contract, TASK-350 guarded runtime execution API foundation, and TASK-351 shared runtime adapter seam are complete. Real provider/vault adapter implementation and non-local proof remain the final governed implementation track. |
+| Provider/vault execution readiness, command design, and adapter implementation plan | TASK-342 to TASK-344; TASK-349 to TASK-352 | TASK-342 provider/vault adapter contract, TASK-343 read-only readiness API, TASK-344 selected-customer Integrations UI visibility, TASK-349 provider/vault runtime execution command contract, TASK-350 guarded runtime execution API foundation, TASK-351 shared runtime adapter seam, and TASK-352 first safe adapter implementation plan are complete. Runtime provider/vault adapter code and non-local proof remain the final governed implementation track. |
 | Governed auth/login completion | TASK-345 to TASK-347 | TASK-345 contract, TASK-346 guarded API boundary, and TASK-347 People and Access UI wiring are complete. Operators can see login-completion readiness/status/intent after accepted customer access and seat assignment while credentials, auth claims, invite delivery, campaign activation, billing, money, DLaaS, and source forks remain excluded. |
 | Non-local launch verification | TASK-348 plus TASK-027 | Staging/production-like read-only verification and approved smoke/proof evidence. |
 
