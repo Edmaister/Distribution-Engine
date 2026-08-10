@@ -155,9 +155,17 @@ resolver, membership posture, and membership activation readiness routes now
 carry operating jurisdiction in the safe account context and fail closed when
 the caller identity is scoped to a different account, a different operating
 jurisdiction, or lacks the required Referral SaaS account-read capability.
-Partner workspace, entitlement, invitation/login, integration execution,
+TASK-359 extends that enforcement path to the partner/customer workspace entry
+point. `/v1/referral-saas/workspace/account-context` now resolves the signed-in
+partner/customer actor to permitted accounts only, using active membership,
+tenant-link, explicit account-claim, and safe external-reference claim context.
+The response is read-only, jurisdiction-aware, redacts internal tenant
+identifiers, and confirms no unscoped account enumeration, membership write,
+invite delivery, auth-claim change, or money movement.
+
+Entitlement, workspace overview, invitation/login, integration execution,
 campaign control, referral operations, attribution, reporting, support, and
-non-local proof gates remain on TASK-359 through TASK-380.
+non-local proof gates remain on TASK-360 through TASK-380.
 
 ## Recommended Ordered Task Sequence
 

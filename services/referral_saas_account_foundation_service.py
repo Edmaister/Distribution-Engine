@@ -276,6 +276,68 @@ class AccountFoundationListItem:
 
 
 @dataclass(frozen=True)
+class PartnerWorkspaceAccountContextItem:
+    account_id: str
+    account_code: str
+    account_name: str
+    account_type: str
+    account_status: str
+    onboarding_status: str
+    operating_jurisdiction_code: str
+    primary_external_tenant_ref: str | None
+    external_references: tuple[dict[str, str], ...]
+    role_families: tuple[str, ...]
+    permission_sets: tuple[str, ...]
+    membership_statuses: tuple[str, ...]
+    source: str
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "accountId": self.account_id,
+            "accountCode": self.account_code,
+            "accountName": self.account_name,
+            "accountType": self.account_type,
+            "accountStatus": self.account_status,
+            "onboardingStatus": self.onboarding_status,
+            "operatingJurisdictionCode": self.operating_jurisdiction_code,
+            "primaryExternalTenantRef": self.primary_external_tenant_ref,
+            "externalReferences": list(self.external_references),
+            "actorAccess": {
+                "roleFamilies": list(self.role_families),
+                "permissionSets": list(self.permission_sets),
+                "membershipStatuses": list(self.membership_statuses),
+                "source": self.source,
+            },
+        }
+
+
+@dataclass(frozen=True)
+class PartnerWorkspaceAccountContext:
+    actor_role: str
+    accounts: tuple[PartnerWorkspaceAccountContextItem, ...]
+    guardrails: tuple[str, ...]
+    redactions: tuple[str, ...]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "actor": {
+                "role": self.actor_role,
+                "accountCount": len(self.accounts),
+            },
+            "accounts": [account.to_safe_dict() for account in self.accounts],
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noInternalTenantIdentifierExposureConfirmed": True,
+            "noCrossAccountAccessConfirmed": True,
+            "noCrossJurisdictionAccessConfirmed": True,
+            "noMembershipWriteConfirmed": True,
+            "noInviteDeliveryConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
 class AccountProfileMaintenanceResult:
     account_id: str
     account_code: str
@@ -590,6 +652,277 @@ async def list_referral_saas_accounts(*, limit: int = 50) -> list[AccountFoundat
             )
         )
     return accounts
+
+
+async def build_referral_saas_partner_workspace_account_context(
+    *,
+    actor_role: str,
+    actor_tenant_code: str | None = None,
+    actor_subjects: Iterable[str] = (),
+    actor_client_ids: Iterable[str] = (),
+    account_refs: Iterable[str] = (),
+    external_tenant_refs: Iterable[str] = (),
+    organisation_refs: Iterable[str] = (),
+    operating_jurisdictions: Iterable[str] = (),
+    limit: int = 50,
+) -> PartnerWorkspaceAccountContext:
+    safe_role = _safe_text(actor_role).upper()
+    safe_tenant_code = _safe_text(actor_tenant_code).upper()
+    safe_limit = max(1, min(int(limit or 50), 100))
+    subjects = sorted({_safe_text(value) for value in actor_subjects if _safe_text(value)})
+    client_ids = sorted({_safe_text(value) for value in actor_client_ids if _safe_text(value)})
+    safe_account_refs = sorted({_safe_text(value) for value in account_refs if _safe_text(value)})
+    external_refs = sorted(
+        {_safe_text(value) for value in external_tenant_refs if _safe_text(value)}
+    )
+    organisation_reference_values = sorted(
+        {_safe_text(value) for value in organisation_refs if _safe_text(value)}
+    )
+    jurisdictions = sorted(
+        {_safe_text(value).upper() for value in operating_jurisdictions if _safe_text(value)}
+    )
+
+    if not any(
+        [
+            safe_tenant_code,
+            subjects,
+            client_ids,
+            safe_account_refs,
+            external_refs,
+            organisation_reference_values,
+        ]
+    ):
+        return PartnerWorkspaceAccountContext(
+            actor_role=safe_role,
+            accounts=(),
+            guardrails=(
+                "PARTNER_WORKSPACE_ACCOUNT_CONTEXT",
+                "NO_UNSCOPED_ACCOUNT_ENUMERATION",
+                "NO_INTERNAL_TENANT_IDENTIFIER_EXPOSURE",
+            ),
+            redactions=("internal_tenant_identifier", "tenant_code", "auth_claims"),
+        )
+
+    async with db_connection() as conn:
+        rows = await conn.fetch(
+            """
+            WITH actor_memberships AS (
+                SELECT
+                    membership.account_id,
+                    array_agg(DISTINCT membership.role_family) AS role_families,
+                    array_agg(DISTINCT membership.permission_set) AS permission_sets,
+                    array_agg(DISTINCT membership.status) AS membership_statuses,
+                    'membership'::text AS source
+                FROM platform_memberships membership
+                LEFT JOIN platform_users actor_user
+                    ON actor_user.user_id = membership.user_id
+                WHERE membership.status = 'ACTIVE'
+                  AND membership.archived_at IS NULL
+                  AND (
+                    membership.client_id = ANY($1::text[])
+                    OR actor_user.subject = ANY($2::text[])
+                  )
+                GROUP BY membership.account_id
+            ),
+            tenant_link_accounts AS (
+                SELECT
+                    account_tenant.account_id,
+                    ARRAY[]::text[] AS role_families,
+                    ARRAY[]::text[] AS permission_sets,
+                    ARRAY['TENANT_LINK']::text[] AS membership_statuses,
+                    'tenant_link'::text AS source
+                FROM platform_account_tenants account_tenant
+                WHERE account_tenant.tenant_code = $3
+                  AND account_tenant.status IN ('ACTIVE', 'SUSPENDED')
+                  AND account_tenant.archived_at IS NULL
+                  AND $3 <> ''
+            ),
+            account_claims AS (
+                SELECT
+                    account.account_id,
+                    ARRAY[]::text[] AS role_families,
+                    ARRAY[]::text[] AS permission_sets,
+                    ARRAY['CLAIMED']::text[] AS membership_statuses,
+                    'account_claim'::text AS source
+                FROM platform_accounts account
+                WHERE account.account_id::text = ANY($4::text[])
+                   OR account.account_code = ANY($4::text[])
+            ),
+            external_ref_claims AS (
+                SELECT
+                    external_ref.account_id,
+                    ARRAY[]::text[] AS role_families,
+                    ARRAY[]::text[] AS permission_sets,
+                    ARRAY['CLAIMED']::text[] AS membership_statuses,
+                    'external_reference_claim'::text AS source
+                FROM platform_external_tenant_refs external_ref
+                WHERE external_ref.status = 'ACTIVE'
+                  AND (
+                    (
+                        external_ref.ref_type = 'external_tenant_ref'
+                        AND external_ref.external_ref = ANY($5::text[])
+                    )
+                    OR (
+                        external_ref.ref_type = 'organisation_ref'
+                        AND external_ref.external_ref = ANY($6::text[])
+                    )
+                  )
+            ),
+            permitted_accounts AS (
+                SELECT * FROM actor_memberships
+                UNION ALL SELECT * FROM tenant_link_accounts
+                UNION ALL SELECT * FROM account_claims
+                UNION ALL SELECT * FROM external_ref_claims
+            ),
+            collapsed_permissions AS (
+                SELECT
+                    permitted.account_id,
+                    COALESCE(
+                        array_agg(DISTINCT role_family.role_family) FILTER (
+                            WHERE role_family.role_family IS NOT NULL
+                              AND role_family.role_family <> ''
+                        ),
+                        ARRAY[]::text[]
+                    ) AS role_families,
+                    COALESCE(
+                        array_agg(DISTINCT permission_set.permission_set) FILTER (
+                            WHERE permission_set.permission_set IS NOT NULL
+                              AND permission_set.permission_set <> ''
+                        ),
+                        ARRAY[]::text[]
+                    ) AS permission_sets,
+                    COALESCE(
+                        array_agg(DISTINCT membership_status.membership_status) FILTER (
+                            WHERE membership_status.membership_status IS NOT NULL
+                              AND membership_status.membership_status <> ''
+                        ),
+                        ARRAY[]::text[]
+                    ) AS membership_statuses,
+                    string_agg(DISTINCT permitted.source, ',') AS source
+                FROM permitted_accounts permitted
+                LEFT JOIN LATERAL unnest(permitted.role_families) AS role_family(role_family)
+                    ON TRUE
+                LEFT JOIN LATERAL unnest(permitted.permission_sets) AS permission_set(permission_set)
+                    ON TRUE
+                LEFT JOIN LATERAL unnest(permitted.membership_statuses) AS membership_status(membership_status)
+                    ON TRUE
+                GROUP BY permitted.account_id
+            )
+            SELECT
+                account.account_id,
+                account.account_code,
+                account.account_name,
+                account.account_type,
+                account.status AS account_status,
+                account.onboarding_status,
+                COALESCE(account.operating_jurisdiction_code, 'ZA') AS operating_jurisdiction_code,
+                account.primary_external_tenant_ref,
+                COALESCE(collapsed_permissions.role_families, ARRAY[]::text[]) AS role_families,
+                COALESCE(collapsed_permissions.permission_sets, ARRAY[]::text[]) AS permission_sets,
+                COALESCE(collapsed_permissions.membership_statuses, ARRAY[]::text[]) AS membership_statuses,
+                COALESCE(collapsed_permissions.source, 'unknown') AS source,
+                COALESCE(
+                    jsonb_agg(
+                        jsonb_build_object(
+                            'refType', external_ref.ref_type,
+                            'externalRef', external_ref.external_ref,
+                            'referenceStatus', external_ref.status
+                        )
+                        ORDER BY
+                            CASE external_ref.ref_type
+                                WHEN 'external_tenant_ref' THEN 0
+                                WHEN 'organisation_ref' THEN 1
+                                ELSE 2
+                            END,
+                            external_ref.updated_at DESC
+                    ) FILTER (WHERE external_ref.external_ref_id IS NOT NULL),
+                    '[]'::jsonb
+                ) AS external_references
+            FROM collapsed_permissions
+            JOIN platform_accounts account
+                ON account.account_id = collapsed_permissions.account_id
+            LEFT JOIN platform_external_tenant_refs external_ref
+                ON external_ref.account_id = account.account_id
+               AND external_ref.status = 'ACTIVE'
+            WHERE account.status IN ('ACTIVE', 'SUSPENDED')
+              AND account.archived_at IS NULL
+              AND (
+                cardinality($7::text[]) = 0
+                OR COALESCE(account.operating_jurisdiction_code, 'ZA') = ANY($7::text[])
+              )
+            GROUP BY
+                account.account_id,
+                collapsed_permissions.role_families,
+                collapsed_permissions.permission_sets,
+                collapsed_permissions.membership_statuses,
+                collapsed_permissions.source
+            ORDER BY account.updated_at DESC, account.created_at DESC
+            LIMIT $8
+            """,
+            client_ids,
+            subjects,
+            safe_tenant_code,
+            safe_account_refs,
+            external_refs,
+            organisation_reference_values,
+            jurisdictions,
+            safe_limit,
+        )
+
+    accounts: list[PartnerWorkspaceAccountContextItem] = []
+    for raw_row in rows:
+        row = dict(raw_row)
+        external_references = _normalise_external_reference_rows(
+            row["external_references"]
+        )
+        accounts.append(
+            PartnerWorkspaceAccountContextItem(
+                account_id=str(row["account_id"]),
+                account_code=str(row["account_code"]),
+                account_name=str(row["account_name"]),
+                account_type=str(row["account_type"]),
+                account_status=str(row["account_status"]),
+                onboarding_status=str(row["onboarding_status"]),
+                operating_jurisdiction_code=str(
+                    row.get("operating_jurisdiction_code") or "ZA"
+                ),
+                primary_external_tenant_ref=(
+                    str(row["primary_external_tenant_ref"])
+                    if row.get("primary_external_tenant_ref")
+                    else None
+                ),
+                external_references=tuple(
+                    {
+                        "refType": str(ref.get("refType") or ""),
+                        "externalRef": str(ref.get("externalRef") or ""),
+                        "referenceStatus": str(ref.get("referenceStatus") or ""),
+                    }
+                    for ref in external_references
+                    if ref.get("refType") and ref.get("externalRef")
+                ),
+                role_families=tuple(sorted(row.get("role_families") or [])),
+                permission_sets=tuple(sorted(row.get("permission_sets") or [])),
+                membership_statuses=tuple(
+                    sorted(row.get("membership_statuses") or [])
+                ),
+                source=str(row.get("source") or "unknown"),
+            )
+        )
+
+    return PartnerWorkspaceAccountContext(
+        actor_role=safe_role,
+        accounts=tuple(accounts),
+        guardrails=(
+            "PARTNER_WORKSPACE_ACCOUNT_CONTEXT",
+            "SELECTED_CUSTOMER_ACCOUNT_PRIMITIVES_REUSED",
+            "SERVER_SIDE_ACCOUNT_CONTEXT_ENFORCEMENT",
+            "SERVER_SIDE_ACCOUNT_JURISDICTION_ENFORCEMENT",
+            "NO_UNSCOPED_ACCOUNT_ENUMERATION",
+            "NO_INTERNAL_TENANT_IDENTIFIER_EXPOSURE",
+            "NO_MEMBERSHIP_WRITE",
+        ),
+        redactions=("internal_tenant_identifier", "tenant_code", "auth_claims"),
+    )
 
 
 async def update_referral_saas_account_profile(

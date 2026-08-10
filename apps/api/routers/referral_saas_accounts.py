@@ -36,6 +36,7 @@ from services.referral_saas_account_foundation_service import (
     InvalidExternalReferenceType,
     TenantLinkNotResolvable,
     activate_referral_saas_account_foundation,
+    build_referral_saas_partner_workspace_account_context,
     list_referral_saas_accounts,
     resolve_account_by_external_reference,
     resolve_setup_account_by_external_reference,
@@ -208,6 +209,19 @@ REFERRAL_SAAS_ACCOUNT_READER_ROLES = {
     "SYSTEM_ADMIN",
     "DISTRIBUTION_ADMIN",
     "PLATFORM_ADMIN",
+}
+
+REFERRAL_SAAS_WORKSPACE_CONTEXT_ROLES = {
+    "PARTNER",
+    "PRODUCER",
+    "DISTRIBUTOR",
+    "CONSUMER",
+}
+
+REFERRAL_SAAS_WORKSPACE_CONTEXT_CAPABILITIES = {
+    "*",
+    "REFERRAL_SAAS_ACCOUNT_READ",
+    "REFERRAL_SAAS_WORKSPACE_READ",
 }
 
 REFERRAL_SAAS_ACCOUNT_CONTEXTS = {"runtime", "setup"}
@@ -459,6 +473,50 @@ def _require_referral_saas_account_reader(identity: dict[str, Any]) -> dict[str,
             detail={
                 "code": "permission_denied",
                 "message": "API key is not authorised for Referral SaaS accounts.",
+            },
+        )
+    return identity
+
+
+def _require_referral_saas_workspace_actor(
+    identity: dict[str, Any],
+) -> dict[str, Any]:
+    role = str(identity.get("role") or "").upper()
+    if role not in REFERRAL_SAAS_WORKSPACE_CONTEXT_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "permission_denied",
+                "message": (
+                    "API key is not authorised for Referral SaaS workspace "
+                    "account context."
+                ),
+                "guardrails": [
+                    "PARTNER_WORKSPACE_ACCOUNT_CONTEXT",
+                    "NO_ADMIN_REGISTRY_REUSE",
+                ],
+                "redactions": ["internal_tenant_identifier", "tenant_code"],
+            },
+        )
+
+    capability_claims = _identity_capability_values(identity)
+    if capability_claims and not capability_claims.intersection(
+        REFERRAL_SAAS_WORKSPACE_CONTEXT_CAPABILITIES
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "permission_denied",
+                "message": (
+                    "Caller does not have the capability required for Referral "
+                    "SaaS workspace account context."
+                ),
+                "guardrails": [
+                    "PARTNER_WORKSPACE_ACCOUNT_CONTEXT",
+                    "SERVER_SIDE_ACCOUNT_CAPABILITY_ENFORCEMENT",
+                    "NO_UI_CAPABILITY_BYPASS",
+                ],
+                "redactions": ["internal_tenant_identifier", "tenant_code"],
             },
         )
     return identity
@@ -2835,6 +2893,98 @@ async def update_referral_saas_account_profile_route(
         "no_account_activation_confirmed": True,
         "no_membership_write_confirmed": True,
         "no_invite_delivery_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.get("/workspace/account-context")
+async def read_referral_saas_workspace_account_context(
+    limit: Annotated[
+        int,
+        Query(
+            ge=1,
+            le=MAX_ACCOUNT_LIST_LIMIT,
+            description=(
+                "Maximum number of account contexts visible to the signed-in "
+                "partner/customer actor."
+            ),
+        ),
+    ] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    workspace_identity = _require_referral_saas_workspace_actor(identity)
+    context = await build_referral_saas_partner_workspace_account_context(
+        actor_role=str(workspace_identity.get("role") or "").upper(),
+        actor_tenant_code=_optional_text(
+            workspace_identity.get("tenant_code") or workspace_identity.get("tenant")
+        )
+        or None,
+        actor_subjects=_identity_claim_values(
+            workspace_identity,
+            "subject",
+            "sub",
+            "user_id",
+            "userId",
+        ),
+        actor_client_ids=_identity_claim_values(
+            workspace_identity,
+            "client_id",
+            "clientId",
+        ),
+        account_refs=_identity_claim_values(
+            workspace_identity,
+            "account_ref",
+            "accountRef",
+            "account_id",
+            "accountId",
+            "account_code",
+            "accountCode",
+        ),
+        external_tenant_refs=_identity_claim_values(
+            workspace_identity,
+            "external_tenant_ref",
+            "externalTenantRef",
+            "customer_ref",
+            "customerRef",
+        ),
+        organisation_refs=_identity_claim_values(
+            workspace_identity,
+            "organisation_ref",
+            "organisationRef",
+        ),
+        operating_jurisdictions=_identity_claim_values(
+            workspace_identity,
+            "jurisdiction",
+            "jurisdiction_code",
+            "jurisdictionCode",
+            "operating_jurisdiction_code",
+            "operatingJurisdictionCode",
+            "jurisdictions",
+            "allowed_jurisdictions",
+            "allowedJurisdictions",
+        ),
+        limit=limit,
+    )
+
+    safe_context = context.to_safe_dict()
+    return {
+        "status": "ok",
+        "count": len(safe_context["accounts"]),
+        "workspaceContext": safe_context,
+        "guardrail": (
+            "Read-only Referral SaaS partner/customer workspace account context. "
+            "This endpoint resolves only accounts permitted by the caller's "
+            "tenant link, membership, account claim, or external reference claim. "
+            "It does not expose internal tenant identifiers, enumerate all "
+            "accounts, write memberships, send invites, assign seats, change auth "
+            "claims, activate campaigns, trigger go-live, or move money."
+        ),
+        "redactions": safe_context["redactions"],
+        "no_internal_tenant_identifier_exposure_confirmed": True,
+        "no_unscoped_account_enumeration_confirmed": True,
+        "no_membership_write_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
         "no_money_movement_confirmed": True,
     }
 
