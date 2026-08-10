@@ -318,6 +318,7 @@ greenfield referral construction.
 210. TASK-352: Define provider/vault adapter implementation plan.
 211. TASK-353: Add platform-reference provider/vault adapters.
 212. TASK-354: Define vendor/managed provider-vault adapter contract.
+213. TASK-355: Add vendor/managed provider-vault runtime adapters.
 
 - TASK-341: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_EXECUTION_TASK_341.md`;
   `scripts/referral_saas_progress_attribution_physical_check.py`;
@@ -2259,6 +2260,24 @@ greenfield referral construction.
   Attribution to 9.99995/10 because vendor/managed adapter ambiguity is closed
   while runtime implementation, repair/replay execution, and non-local proof
   repetition remain open.
+- TASK-355:
+  `services/referral_saas_provider_vault_runtime.py`;
+  `test/test_referral_saas_provider_vault_runtime.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_VENDOR_MANAGED_PROVIDER_VAULT_ADAPTERS.md`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  first built-in vendor/managed provider-vault runtime adapter path behind the
+  shared execution seam. The adapter requires an explicit provider allowlist and
+  managed-vault adapter configuration, returns opaque vendor/provider and
+  managed-vault references, and preserves no raw secret, no vendor dispatch, no
+  invite/message/webhook delivery, no auth, no campaign, no billing, no money,
+  no DLaaS, and no source-fork side effects. Current rating remains 9.99/10 for
+  Referral Management and moves Campaign Attribution to 9.99996/10 because the
+  vendor/managed runtime implementation gap is closed while repair/replay
+  command execution and non-local proof repetition remain open.
 
 ## Explicit Deferrals
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
@@ -11,6 +11,16 @@ PLATFORM_REFERENCE_ADAPTER_REF = "PLATFORM_REFERENCE"
 PLATFORM_VAULT_REFERENCE_ADAPTER_REF = "PLATFORM_VAULT_REFERENCE"
 PLATFORM_REFERENCE_CAPABILITY = "REFERRAL_SAAS_PROVIDER_REFERENCE"
 PLATFORM_REFERENCE_ENVIRONMENTS = frozenset({"SANDBOX", "STAGING", "PRODUCTION"})
+VENDOR_MANAGED_PROVIDER_ADAPTER_REF = "VENDOR_MANAGED_PROVIDER_REFERENCE"
+MANAGED_VAULT_REFERENCE_ADAPTER_REF = "MANAGED_VAULT_REFERENCE"
+VENDOR_MANAGED_PROVIDER_VAULT_CAPABILITIES = frozenset(
+    {
+        "REFERRAL_SAAS_API_ACCESS",
+        "REFERRAL_SAAS_WEBHOOK_SIGNING",
+        "REFERRAL_SAAS_PROVIDER_REFERENCE",
+    }
+)
+VENDOR_MANAGED_PROVIDER_VAULT_ENVIRONMENTS = PLATFORM_REFERENCE_ENVIRONMENTS
 
 PROVIDER_VAULT_EXECUTION_READY = "PROVIDER_VAULT_EXECUTION_READY"
 PROVIDER_VAULT_BLOCKED_VAULT_NOT_CONFIGURED = (
@@ -56,6 +66,7 @@ ProviderVaultRuntimeAdapter = Callable[
 
 _ADAPTERS: dict[tuple[str, str, str], ProviderVaultRuntimeAdapter] = {}
 _VAULT_ADAPTER_REF: str | None = None
+_VENDOR_MANAGED_PROVIDER_KEYS: set[str] = set()
 
 
 def _opaque_reference(prefix: str, request: ProviderVaultRuntimeRequest) -> str:
@@ -101,6 +112,33 @@ async def _platform_reference_adapter(
     )
 
 
+async def _vendor_managed_provider_adapter(
+    request: ProviderVaultRuntimeRequest,
+) -> ProviderVaultRuntimeResult:
+    provider_reference = _opaque_reference("vendor_prv_ref", request)
+    vault_reference = _opaque_reference("managed_vault_ref", request)
+    return ProviderVaultRuntimeResult(
+        command_status=PROVIDER_VAULT_EXECUTION_READY,
+        blocked_reason=None,
+        next_action=(
+            "Use the opaque vendor/managed references as setup evidence. "
+            "Live provider dispatch, invite delivery, webhook dispatch, "
+            "message delivery, and auth work remain separately gated."
+        ),
+        plain_language_summary=(
+            "Vendor-managed provider/vault references were recorded as "
+            "opaque setup evidence. No raw secret was accepted, no vendor "
+            "provider was called, and no vault secret was revealed."
+        ),
+        provider_runtime_reference=provider_reference,
+        opaque_vault_reference=vault_reference,
+        adapter_ref=(
+            f"{VENDOR_MANAGED_PROVIDER_ADAPTER_REF}:"
+            f"{request.provider_key.strip().upper()}"
+        ),
+    )
+
+
 def _builtin_adapter_for(
     *,
     provider_key: str,
@@ -118,6 +156,12 @@ def _builtin_adapter_for(
         and runtime_capability == PLATFORM_REFERENCE_CAPABILITY
     ):
         return _platform_reference_adapter
+    if (
+        provider in _VENDOR_MANAGED_PROVIDER_KEYS
+        and runtime_environment in VENDOR_MANAGED_PROVIDER_VAULT_ENVIRONMENTS
+        and runtime_capability in VENDOR_MANAGED_PROVIDER_VAULT_CAPABILITIES
+    ):
+        return _vendor_managed_provider_adapter
     return None
 
 
@@ -136,6 +180,21 @@ def configure_provider_vault_runtime(
 ) -> None:
     global _VAULT_ADAPTER_REF
     _VAULT_ADAPTER_REF = vault_adapter_ref.strip() if vault_adapter_ref else None
+
+
+def configure_vendor_managed_provider_vault_runtime(
+    *,
+    provider_keys: Iterable[str] | None = None,
+    vault_adapter_ref: str | None = None,
+) -> None:
+    global _VENDOR_MANAGED_PROVIDER_KEYS
+    _VENDOR_MANAGED_PROVIDER_KEYS = {
+        item.strip().lower()
+        for item in (provider_keys or [])
+        if item and item.strip()
+    }
+    if vault_adapter_ref is not None:
+        configure_provider_vault_runtime(vault_adapter_ref=vault_adapter_ref)
 
 
 def register_provider_vault_runtime_adapter(
@@ -157,6 +216,7 @@ def register_provider_vault_runtime_adapter(
 def clear_provider_vault_runtime_adapters() -> None:
     _ADAPTERS.clear()
     configure_provider_vault_runtime(vault_adapter_ref=None)
+    configure_vendor_managed_provider_vault_runtime(provider_keys=())
 
 
 async def execute_provider_vault_runtime(
@@ -228,13 +288,18 @@ __all__ = [
     "PLATFORM_REFERENCE_ENVIRONMENTS",
     "PLATFORM_REFERENCE_PROVIDER_KEY",
     "PLATFORM_VAULT_REFERENCE_ADAPTER_REF",
+    "MANAGED_VAULT_REFERENCE_ADAPTER_REF",
     "PROVIDER_VAULT_BLOCKED_ADAPTER_NOT_CONFIGURED",
     "PROVIDER_VAULT_BLOCKED_VAULT_NOT_CONFIGURED",
     "PROVIDER_VAULT_EXECUTION_READY",
     "ProviderVaultRuntimeRequest",
     "ProviderVaultRuntimeResult",
+    "VENDOR_MANAGED_PROVIDER_ADAPTER_REF",
+    "VENDOR_MANAGED_PROVIDER_VAULT_CAPABILITIES",
+    "VENDOR_MANAGED_PROVIDER_VAULT_ENVIRONMENTS",
     "clear_provider_vault_runtime_adapters",
     "configure_provider_vault_runtime",
+    "configure_vendor_managed_provider_vault_runtime",
     "execute_provider_vault_runtime",
     "register_provider_vault_runtime_adapter",
 ]
