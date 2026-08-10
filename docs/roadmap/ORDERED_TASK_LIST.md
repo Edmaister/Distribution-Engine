@@ -8054,6 +8054,32 @@ Explicit non-goals: No runtime code, schema migration, frontend controls, vendor
 Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_VENDOR_MANAGED_PROVIDER_VAULT_ADAPTER_CONTRACT.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the vendor/managed provider-vault adapter contract after the platform-reference runtime adapter. It separates vendor provider references, managed vault references, runtime execution states, required gates, failure taxonomy, audit/idempotency, and redactions from raw secret handling, live provider dispatch, invite/message/webhook delivery, auth, campaign activation, billing, money, DLaaS, or source forks.
 Definition of done: Referral SaaS has a reviewed vendor/managed provider-vault adapter contract ready to drive the next runtime implementation task. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.99995/10 because vendor/managed adapter ambiguity is closed while runtime implementation, repair/replay execution, and non-local proof repetition remain open. Priority: P0.
 
+## TASK-355: Add vendor/managed provider-vault runtime adapters
+
+Status: Completed.
+Product boundary: Shared Platform with Referral SaaS impact.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_ADAPTER_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_EXECUTION_COMMAND_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_RUNTIME_SEAM.md`; `docs/sa/referral-saas/REFERRAL_SAAS_VENDOR_MANAGED_PROVIDER_VAULT_ADAPTER_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds the first built-in vendor/managed provider-vault runtime adapter path behind the shared execution seam without duplicating Referral SaaS-specific provider behavior. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Vendor/managed provider-vault runtime adapter implementation.
+Objective: Implement the safe vendor/managed adapter path that can return opaque provider and managed-vault references after the existing selected-customer provider/vault execution gates pass.
+Why now: TASK-354 defined the governed vendor/managed adapter contract. The runtime now needs a concrete built-in implementation so approved execution no longer ends at adapter-not-configured when the platform has explicitly allowlisted a provider and configured a managed vault adapter.
+Files likely involved: `services/referral_saas_provider_vault_runtime.py`; focused runtime tests; vendor/managed provider-vault adapter SA note; SA index; roadmap/gap/infographic docs.
+Database/schema impact: None.
+Backend impact: Adds configurable vendor/managed runtime adapter allowlist support, managed-vault adapter configuration usage, opaque reference generation, safe success states, and blocked-state tests.
+Frontend impact: None.
+API impact: Existing provider/vault runtime execution API can now receive safe vendor/managed runtime results through the shared seam when the provider and vault are configured.
+Tests to add/update: Provider/vault runtime tests for vendor allowlist, missing allowlist, missing managed vault, unsupported capability, opaque reference redaction, and no-dispatch summary language.
+Validation method: `git diff --check`; focused provider/vault runtime pytest; Python compile for edited service.
+Acceptance criteria: Runtime blocks unallowlisted vendors, blocks allowlisted vendors without a managed vault adapter, returns opaque vendor/provider and managed-vault references when explicitly configured, rejects unsupported capabilities, preserves safe summary/next-action language, and confirms no raw secret, vendor dispatch, invite/message/webhook delivery, auth, campaign, billing, money, DLaaS, or source-fork side effects.
+Dependencies: TASK-342; TASK-349; TASK-350; TASK-351; TASK-352; TASK-353; TASK-354.
+Blocked by: Non-local execution proof and any future real provider/managed vault secret lifecycle permission.
+Risk level: Medium.
+Rollback notes: Revert runtime adapter/test changes and TASK-355 roadmap/gap/infographic/index updates.
+Explicit non-goals: No frontend controls, schema migration, raw secret capture/storage/reveal/rotation/download, live provider dispatch, live vault write, invite delivery, webhook dispatch, referral-message delivery, identity-provider integration, auth/session claim change, campaign activation, repair/replay/retry execution, export delivery execution, billing, money, DLaaS implementation, or source forks.
+Completed output: `services/referral_saas_provider_vault_runtime.py`; `test/test_referral_saas_provider_vault_runtime.py`; `docs/sa/referral-saas/REFERRAL_SAAS_VENDOR_MANAGED_PROVIDER_VAULT_ADAPTERS.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the first built-in vendor/managed provider-vault runtime adapter path with explicit provider allowlist, managed-vault adapter configuration, deterministic opaque vendor/provider and managed-vault references, focused runtime tests, and no raw secret/provider dispatch/auth/campaign/billing/money side effects.
+Definition of done: Referral SaaS has vendor/managed provider-vault runtime adapter code behind the governed execution API. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.99996/10 because the vendor/managed runtime implementation gap is closed while repair/replay command execution and non-local proof repetition remain open. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
