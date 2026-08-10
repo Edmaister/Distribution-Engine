@@ -18,6 +18,8 @@ from services.referral_saas_account_foundation_service import (
     ExternalReferenceNotActive,
     ExternalReferenceNotFound,
     InvalidExternalReferenceType,
+    PartnerWorkspaceAccountContext,
+    PartnerWorkspaceAccountContextItem,
     TenantLinkNotResolvable,
 )
 from services.referral_saas_account_membership_service import (
@@ -591,6 +593,178 @@ async def test_referral_saas_account_reader_can_list_safe_account_registry(monke
     assert body["redactions"] == ["internal_tenant_identifier"]
     assert "tenantCode" not in str(body)
     assert calls == [{"limit": 20}]
+
+
+async def test_referral_saas_partner_workspace_account_context_is_account_scoped(
+    monkeypatch,
+):
+    calls: list[dict] = []
+
+    async def fake_build_referral_saas_partner_workspace_account_context(**kwargs):
+        calls.append(kwargs)
+        return PartnerWorkspaceAccountContext(
+            actor_role="PARTNER",
+            accounts=(
+                PartnerWorkspaceAccountContextItem(
+                    account_id="acct-1",
+                    account_code="ACCT_FNB",
+                    account_name="FNB Referral SaaS",
+                    account_type="ORGANISATION",
+                    account_status="ACTIVE",
+                    onboarding_status="APPROVED",
+                    operating_jurisdiction_code="ZA",
+                    primary_external_tenant_ref="fnb-referrals",
+                    external_references=(
+                        {
+                            "refType": "external_tenant_ref",
+                            "externalRef": "fnb-referrals",
+                            "referenceStatus": "ACTIVE",
+                        },
+                    ),
+                    role_families=("DISTRIBUTION_ADMIN",),
+                    permission_sets=("REFERRAL_SAAS_ACCOUNT_ADMIN",),
+                    membership_statuses=("ACTIVE",),
+                    source="membership",
+                ),
+            ),
+            guardrails=("PARTNER_WORKSPACE_ACCOUNT_CONTEXT",),
+            redactions=("internal_tenant_identifier", "tenant_code"),
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "build_referral_saas_partner_workspace_account_context",
+        fake_build_referral_saas_partner_workspace_account_context,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=PARTNER_HEADERS
+    ) as client:
+        response = await client.get(
+            "/v1/referral-saas/workspace/account-context",
+            params={"limit": 10},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["count"] == 1
+    assert body["workspaceContext"]["actor"] == {
+        "role": "PARTNER",
+        "accountCount": 1,
+    }
+    assert body["workspaceContext"]["accounts"][0]["accountCode"] == "ACCT_FNB"
+    assert "tenantCode" not in body["workspaceContext"]["accounts"][0]
+    assert "tenant_code" not in str(body["workspaceContext"]["accounts"])
+    assert body["no_internal_tenant_identifier_exposure_confirmed"] is True
+    assert body["no_unscoped_account_enumeration_confirmed"] is True
+    assert calls == [
+        {
+            "actor_role": "PARTNER",
+            "actor_tenant_code": "FNB",
+            "actor_subjects": set(),
+            "actor_client_ids": set(),
+            "account_refs": set(),
+            "external_tenant_refs": set(),
+            "organisation_refs": set(),
+            "operating_jurisdictions": set(),
+            "limit": 10,
+        }
+    ]
+
+
+async def test_referral_saas_partner_workspace_account_context_forwards_jwt_claims(
+    monkeypatch,
+):
+    calls: list[dict] = []
+
+    async def fake_build_referral_saas_partner_workspace_account_context(**kwargs):
+        calls.append(kwargs)
+        return PartnerWorkspaceAccountContext(
+            actor_role="DISTRIBUTOR",
+            accounts=(),
+            guardrails=("PARTNER_WORKSPACE_ACCOUNT_CONTEXT",),
+            redactions=("internal_tenant_identifier", "tenant_code"),
+        )
+
+    def fake_require_referral_saas_workspace_actor(identity):
+        return {
+            "role": "DISTRIBUTOR",
+            "tenant_code": "FNB",
+            "subject": "operator@example.test",
+            "client_id": "client-1",
+            "account_ref": "ACCT_FNB",
+            "external_tenant_ref": "fnb-referrals",
+            "organisation_ref": "fnb-org",
+            "operating_jurisdiction_code": "ZA",
+            "capabilities": ["REFERRAL_SAAS_WORKSPACE_READ"],
+        }
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "build_referral_saas_partner_workspace_account_context",
+        fake_build_referral_saas_partner_workspace_account_context,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "_require_referral_saas_workspace_actor",
+        fake_require_referral_saas_workspace_actor,
+    )
+
+    async with AsyncClient(
+        app=app, base_url="http://test", headers=PARTNER_HEADERS
+    ) as client:
+        response = await client.get("/v1/referral-saas/workspace/account-context")
+
+    assert response.status_code == 200
+    assert calls == [
+        {
+            "actor_role": "DISTRIBUTOR",
+            "actor_tenant_code": "FNB",
+            "actor_subjects": {"operator@example.test"},
+            "actor_client_ids": {"client-1"},
+            "account_refs": {"ACCT_FNB"},
+            "external_tenant_refs": {"fnb-referrals"},
+            "organisation_refs": {"fnb-org"},
+            "operating_jurisdictions": {"ZA"},
+            "limit": 50,
+        }
+    ]
+
+
+async def test_referral_saas_partner_workspace_account_context_rejects_admin_registry_role():
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get("/v1/referral-saas/workspace/account-context")
+
+    assert response.status_code == 403
+    detail = response.json()["detail"]
+    assert detail["code"] == "permission_denied"
+    assert "NO_ADMIN_REGISTRY_REUSE" in detail["guardrails"]
+
+
+async def test_referral_saas_partner_workspace_account_context_rejects_missing_capability(
+    monkeypatch,
+):
+    def fake_require_session_key():
+        return {
+            "role": "PARTNER",
+            "tenant_code": "FNB",
+            "capabilities": ["CAMPAIGN_WRITE"],
+        }
+
+    app.dependency_overrides[referral_saas_accounts.require_session_key] = (
+        fake_require_session_key
+    )
+    try:
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await client.get("/v1/referral-saas/workspace/account-context")
+    finally:
+        app.dependency_overrides.pop(referral_saas_accounts.require_session_key, None)
+
+    assert response.status_code == 403
+    detail = response.json()["detail"]
+    assert detail["code"] == "permission_denied"
+    assert "SERVER_SIDE_ACCOUNT_CAPABILITY_ENFORCEMENT" in detail["guardrails"]
 
 
 async def test_referral_saas_account_admin_can_activate_account_foundation(monkeypatch):

@@ -8138,7 +8138,7 @@ Completed output: `services/referral_saas_account_foundation_service.py`; `apps/
 
 ## TASK-359: Add partner workspace account-context resolver
 
-Status: Pending.
+Status: Completed.
 Product boundary: Referral SaaS.
 Shared primitive impact: Reuses selected-customer account primitives for partner-facing workspace context. Source duplication: No.
 Objective: Resolve the signed-in partner/customer actor to allowed Referral SaaS accounts without exposing internal tenant identifiers.
@@ -8148,6 +8148,7 @@ Tests to add/update: Partner account resolution, no-internal-leak, denied-accoun
 Acceptance criteria: A partner actor sees only permitted accounts and all workspace routes inherit that context.
 Dependencies: TASK-358.
 Priority: P0.
+Completed output: `services/referral_saas_account_foundation_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; roadmap/gap/infographic updates. Adds a read-only `/v1/referral-saas/workspace/account-context` resolver for partner/customer actors, resolves permitted accounts from active membership, tenant link, explicit account claim, and safe external-reference claim context, filters by operating jurisdiction when supplied, and confirms no internal tenant identifier exposure, no unscoped account enumeration, no membership write, no invite delivery, no auth-claim change, and no money movement.
 
 ## TASK-360: Add customer and partner workspace overview projection
 
