@@ -39,6 +39,7 @@ from services.referral_saas_account_foundation_service import (
     TenantLinkNotResolvable,
     activate_referral_saas_account_foundation,
     build_referral_saas_commercial_entitlement_projection,
+    build_referral_saas_production_activation_decision,
     build_referral_saas_workspace_overview_projection,
     build_referral_saas_partner_workspace_account_context,
     list_referral_saas_accounts,
@@ -3542,6 +3543,88 @@ async def read_referral_saas_commercial_entitlement(
         "no_invoice_created_confirmed": True,
         "no_payment_or_money_movement_confirmed": True,
         "no_dlaas_finance_scope_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/production-activation")
+async def read_referral_saas_production_activation_decision(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    reader_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=reader_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    membership_readiness = await get_referral_saas_membership_activation_readiness(
+        account_id=account.account_id,
+        tenant_code=account.tenant_code,
+        account_status=account.account_status,
+        tenant_link_status=account.tenant_link_status,
+        external_reference_status=account.reference_status,
+    )
+    technical_readiness = build_referral_saas_technical_setup_readiness(
+        account_id=account.account_id,
+        account_status=account.account_status,
+        tenant_link_status=account.tenant_link_status,
+        external_reference_status=account.reference_status,
+    )
+    commercial = build_referral_saas_commercial_entitlement_projection(
+        account_context=account,
+    )
+    decision = build_referral_saas_production_activation_decision(
+        account_context=account,
+        commercial_entitlement=commercial,
+        people_access_status=membership_readiness.overall_status,
+        integrations_status=technical_readiness.overall_status,
+        campaign_status="CAMPAIGN_REQUIRED",
+        evidence_freshness_status="STALE",
+    ).to_safe_dict()
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "productionActivation": decision,
+        "guardrail": (
+            "Read-only Referral SaaS production activation decision. This endpoint "
+            "combines backend account, people/access, integrations, campaign, "
+            "commercial entitlement, and evidence gates so UI readiness alone "
+            "cannot activate a customer or campaign."
+        ),
+        "redactions": decision["redactions"],
+        "no_ui_only_activation_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_go_live_action_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
     }
 
 
@@ -7644,6 +7727,50 @@ async def request_referral_saas_account_campaign_activation_route(
         },
     }
 
+    membership_readiness = await get_referral_saas_membership_activation_readiness(
+        account_id=account.account_id,
+        tenant_code=account.tenant_code,
+        account_status=account.account_status,
+        tenant_link_status=account.tenant_link_status,
+        external_reference_status=account.reference_status,
+    )
+    technical_readiness = build_referral_saas_technical_setup_readiness(
+        account_id=account.account_id,
+        account_status=account.account_status,
+        tenant_link_status=account.tenant_link_status,
+        external_reference_status=account.reference_status,
+    )
+    production_decision = build_referral_saas_production_activation_decision(
+        account_context=account,
+        commercial_entitlement=build_referral_saas_commercial_entitlement_projection(
+            account_context=account,
+        ),
+        people_access_status=membership_readiness.overall_status,
+        integrations_status=technical_readiness.overall_status,
+        campaign_status="READY_TO_ACTIVATE",
+        evidence_freshness_status="STALE",
+    ).to_safe_dict()
+    if production_decision["launchAllowed"] is not True:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "PRODUCTION_ACTIVATION_BLOCKED",
+                "message": production_decision["plainLanguageSummary"],
+                "productionActivation": production_decision,
+                "guardrails": list(CAMPAIGN_ACTIVATION_GUARDRAILS),
+                "redactions": list(CAMPAIGN_ACTIVATION_REDACTIONS),
+                "no_ui_only_activation_confirmed": True,
+                "no_campaign_activation_confirmed": True,
+                "no_go_live_action_confirmed": True,
+                "no_link_generation_confirmed": True,
+                "no_validation_track_created_confirmed": True,
+                "no_webhook_delivery_confirmed": True,
+                "no_invite_or_seat_change_confirmed": True,
+                "no_credential_creation_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        )
+
     try:
         result = await request_referral_saas_account_campaign_activation(
             account_id=account.account_id,
@@ -7671,6 +7798,7 @@ async def request_referral_saas_account_campaign_activation_route(
             command_payload_hash=hash_payload(command_payload),
             command_actor_ref=_actor_ref(admin_identity),
             command_actor_role=str(admin_identity.get("role") or "").upper(),
+            production_activation_decision=production_decision,
         )
     except ReferralSaasCampaignCommandError as exc:
         raise _campaign_activation_error(exc) from exc

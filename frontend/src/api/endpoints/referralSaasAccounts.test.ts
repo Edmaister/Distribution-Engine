@@ -14,6 +14,7 @@ import {
   getReferralSaasProviderVaultReadiness,
   getReferralSaasLoginCompletionReadiness,
   getReferralSaasMembershipActivationReadiness,
+  getReferralSaasProductionActivation,
   getReferralSaasTechnicalSetupReadiness,
   getReferralSaasWorkspaceOverview,
   listReferralSaasAccountSupportCases,
@@ -517,6 +518,76 @@ describe("referralSaasAccounts endpoint client", () => {
 
     expect(mockedApiRequest).toHaveBeenCalledWith(
       "v1/referral-saas/accounts/acct-1/memberships/mbr-1/login-completion-readiness",
+      {
+        query: {
+          ref_type: "external_tenant_ref",
+          external_ref: "fnb-referrals",
+          context: "setup",
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|password|raw_auth|sendinvite|campaignactivation|golive|wallet|settlement|money/,
+    );
+  });
+
+  it("reads Referral SaaS production activation gates without activating anything", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+        accountName: "FNB Referral SaaS",
+      },
+      productionActivation: {
+        decisionStatus: "PRODUCTION_ACTIVATION_BLOCKED",
+        accountId: "acct-1",
+        accountName: "FNB Referral SaaS",
+        launchAllowed: false,
+        disabledReasons: ["COMMERCIAL_ENTITLEMENT"],
+        gates: [
+          {
+            gate: "COMMERCIAL_ENTITLEMENT",
+            label: "Commercial entitlement",
+            status: "BLOCKED",
+            passed: false,
+            evidence: "No launch entitlement is configured.",
+            nextAction: "Confirm plan and contract before launch.",
+            routeHint: "commercial",
+          },
+        ],
+        plainLanguageSummary: "FNB Referral SaaS is blocked before production activation.",
+        guardrails: ["BACKEND_PRODUCTION_ACTIVATION_DECISION_REQUIRED"],
+        redactions: ["internal_tenant_identifier"],
+        noUiOnlyActivationConfirmed: true,
+        noCampaignActivationConfirmed: true,
+        noGoLiveActionConfirmed: true,
+        noBillingOrMoneyMovementConfirmed: true,
+      },
+      no_ui_only_activation_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_go_live_action_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+    });
+
+    await expect(
+      getReferralSaasProductionActivation({
+        accountRef: " acct-1 ",
+        refType: "external_tenant_ref",
+        externalRef: " fnb-referrals ",
+        context: "setup",
+      }),
+    ).resolves.toMatchObject({
+      productionActivation: {
+        launchAllowed: false,
+        disabledReasons: ["COMMERCIAL_ENTITLEMENT"],
+        noCampaignActivationConfirmed: true,
+      },
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acct-1/production-activation",
       {
         query: {
           ref_type: "external_tenant_ref",

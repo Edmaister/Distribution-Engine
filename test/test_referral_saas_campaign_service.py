@@ -41,6 +41,19 @@ def patch_db(monkeypatch, connection):
     monkeypatch.setattr(svc, "db_connection", fake_db_connection)
 
 
+def _allowed_production_activation_decision():
+    return {
+        "decisionStatus": "PRODUCTION_ACTIVATION_ALLOWED",
+        "launchAllowed": True,
+        "disabledReasons": [],
+        "guardrails": ["BACKEND_PRODUCTION_ACTIVATION_DECISION_REQUIRED"],
+        "noUiOnlyActivationConfirmed": True,
+        "noCampaignActivationConfirmed": True,
+        "noGoLiveActionConfirmed": True,
+        "noBillingOrMoneyMovementConfirmed": True,
+    }
+
+
 async def test_campaign_setup_create_records_inactive_campaign_and_audit(monkeypatch):
     conn = FakeCommandConnection(
         [
@@ -667,6 +680,7 @@ async def test_campaign_activation_request_activates_only_campaign_posture(
         command_payload_hash="payload-hash",
         command_actor_ref="operator-1",
         command_actor_role="ADMIN",
+        production_activation_decision=_allowed_production_activation_decision(),
     )
 
     safe_payload = result.to_safe_dict()
@@ -683,6 +697,60 @@ async def test_campaign_activation_request_activates_only_campaign_posture(
     assert "UPDATE marketing_campaigns" in joined_queries
     assert "SET is_active = TRUE" in joined_queries
     assert "INSERT INTO platform_account_audit_events" in joined_queries
+
+
+async def test_campaign_activation_requires_production_activation_decision(monkeypatch):
+    conn = FakeCommandConnection([])
+    patch_db(monkeypatch, conn)
+
+    with pytest.raises(svc.CampaignActivationNotReady) as exc_info:
+        await svc.request_referral_saas_account_campaign_activation(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            requested_lifecycle_status="ACTIVE",
+            review_status="REVIEW_APPROVED",
+            go_live_reason="Approved for referral campaign testing.",
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_ACTIVATION",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="payload-hash",
+        )
+
+    assert "Production activation decision evidence is required" in str(exc_info.value)
+    assert conn.fetchrow_calls == []
+
+
+async def test_campaign_activation_blocks_failed_production_activation_decision(monkeypatch):
+    conn = FakeCommandConnection([])
+    patch_db(monkeypatch, conn)
+
+    with pytest.raises(svc.CampaignActivationNotReady) as exc_info:
+        await svc.request_referral_saas_account_campaign_activation(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            requested_lifecycle_status="ACTIVE",
+            review_status="REVIEW_APPROVED",
+            go_live_reason="Approved for referral campaign testing.",
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_ACTIVATION",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="payload-hash",
+            production_activation_decision={
+                "decisionStatus": "PRODUCTION_ACTIVATION_BLOCKED",
+                "launchAllowed": False,
+                "disabledReasons": ["COMMERCIAL_ENTITLEMENT", "EVIDENCE_FRESHNESS"],
+            },
+        )
+
+    assert "COMMERCIAL_ENTITLEMENT" in str(exc_info.value)
+    assert "EVIDENCE_FRESHNESS" in str(exc_info.value)
+    assert conn.fetchrow_calls == []
 
 
 async def test_campaign_activation_requires_review_approval(monkeypatch):
@@ -761,6 +829,7 @@ async def test_campaign_activation_replays_matching_idempotency(monkeypatch):
         correlation_id="corr-1",
         idempotency_key_hash="idem-hash",
         command_payload_hash="payload-hash",
+        production_activation_decision=_allowed_production_activation_decision(),
     )
 
     assert result.command_status == "CAMPAIGN_ACTIVATION_REPLAYED"
@@ -800,6 +869,7 @@ async def test_campaign_activation_conflicts_on_idempotency_payload_mismatch(
             correlation_id="corr-1",
             idempotency_key_hash="idem-hash",
             command_payload_hash="new-hash",
+            production_activation_decision=_allowed_production_activation_decision(),
         )
 
 
@@ -834,5 +904,6 @@ async def test_campaign_activation_rejects_already_active(monkeypatch):
             correlation_id="corr-1",
             idempotency_key_hash="idem-hash",
             command_payload_hash="payload-hash",
+            production_activation_decision=_allowed_production_activation_decision(),
         )
 

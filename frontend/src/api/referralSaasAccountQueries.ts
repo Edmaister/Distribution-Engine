@@ -5,6 +5,7 @@ import {
   listReferralSaasAccountCampaigns,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasCommercialEntitlement,
+  getReferralSaasProductionActivation,
   getReferralSaasLoginCompletionReadiness,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasAccountMembershipPosture,
@@ -301,6 +302,35 @@ export function useReferralSaasCommercialEntitlement(
     ),
     queryFn: () =>
       getReferralSaasCommercialEntitlement({
+        accountRef: cleanedAccountRef,
+        refType: "external_tenant_ref",
+        externalRef: cleanedExternalTenantRef,
+        context: "setup",
+      }),
+    enabled: Boolean(enabled && cleanedAccountRef && cleanedExternalTenantRef),
+    retry: false,
+  });
+}
+
+export function useReferralSaasProductionActivation(
+  accountRef: string,
+  externalTenantRef: string,
+  enabled: boolean,
+  refreshKey = 0,
+) {
+  const cleanedAccountRef = accountRef.trim();
+  const cleanedExternalTenantRef = externalTenantRef.trim();
+
+  return useQuery({
+    queryKey: queryKeys.referralSaasProductionActivation(
+      cleanedAccountRef,
+      "external_tenant_ref",
+      cleanedExternalTenantRef,
+      "setup",
+      refreshKey,
+    ),
+    queryFn: () =>
+      getReferralSaasProductionActivation({
         accountRef: cleanedAccountRef,
         refType: "external_tenant_ref",
         externalRef: cleanedExternalTenantRef,

@@ -8180,7 +8180,7 @@ Completed output: `services/referral_saas_account_foundation_service.py`; `apps/
 
 ## TASK-362: Add production activation decision enforcement
 
-Status: Pending.
+Status: Completed.
 Product boundary: Referral SaaS.
 Shared primitive impact: Turns readiness evidence into a governed production activation decision. Source duplication: No.
 Objective: Enforce production activation only after account, people/access, integrations, campaign, entitlement, and evidence gates pass.
@@ -8190,6 +8190,7 @@ Tests to add/update: Activation block/pass tests, stale-evidence tests, audit/id
 Acceptance criteria: No production campaign/customer posture can be activated from UI-only readiness.
 Dependencies: TASK-358; TASK-361.
 Priority: P0.
+Completed output: `services/referral_saas_account_foundation_service.py`; `services/referral_saas_campaign_service.py`; `apps/api/routers/referral_saas_accounts.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/referralSaasAccountQueries.ts`; `frontend/src/api/queryKeys.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `test/test_referral_saas_account_foundation_service.py`; `test/test_referral_saas_campaign_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; roadmap/gap/infographic updates. Adds a tenant-safe production activation decision projection and enforces that campaign activation commands require passing account foundation, people/access, integrations, campaign readiness, commercial entitlement, and evidence freshness gates. Blocked decisions return auditable plain-language gate evidence and confirm no UI-only activation, campaign activation, go-live action, billing, or money movement.
 
 ## TASK-363: Add live invitation delivery provider execution
 

@@ -88,7 +88,7 @@ customer-journey tasks add more runtime behavior. The controlling artifact is
 | Deferred or disabled | DLaaS marketplace, fulfilment, settlement, funding, sponsor billing, broad white-label/embed, unmanaged provider dispatch, raw browser secrets, generic replay/DB mutation, identity-provider auth claims until proven, and money movement. |
 | Release gates | Scope lock, account/jurisdiction, entitlement/environment, people/access, integrations, campaign control, referral/attribution correctness, reporting/support, and deployed-state proof. |
 | UX rule | Every customer page must make the selected customer, readiness state, one next action, reason, and non-action boundary obvious in plain language. |
-| Downstream enforcement | TASK-358 now enforces core selected-customer account, jurisdiction, and account-read capability gates; TASK-359 adds the partner/customer workspace account-context resolver with no unscoped enumeration or internal tenant identifier exposure; TASK-360 adds the shared workspace overview projection with selected-account, readiness, primary-action, safe-to-leave, capability-aware worklist, redaction, and no-live-action guardrails; TASK-361 adds the read-only commercial entitlement and plan posture gate with no-billing/no-money boundaries; TASK-362 through TASK-381 must continue those gates for production activation, route capability inventory, UI labels, and proof. |
+| Downstream enforcement | TASK-358 now enforces core selected-customer account, jurisdiction, and account-read capability gates; TASK-359 adds the partner/customer workspace account-context resolver with no unscoped enumeration or internal tenant identifier exposure; TASK-360 adds the shared workspace overview projection with selected-account, readiness, primary-action, safe-to-leave, capability-aware worklist, redaction, and no-live-action guardrails; TASK-361 adds the read-only commercial entitlement and plan posture gate with no-billing/no-money boundaries; TASK-362 adds the backend production activation decision gate and blocks activation when account foundation, people/access, integrations, campaign readiness, commercial entitlement, or evidence freshness is incomplete; TASK-363 through TASK-381 must continue those gates for invitation/login, integration execution, route capability inventory, UI labels, and proof. |
 
 The ratings remain unchanged because this task is a scope and control document:
 Referral Management remains 9.99/10 and Campaign Attribution remains
@@ -128,10 +128,9 @@ does not expose internal tenant identifiers or take membership writes, invite
 delivery, seat provisioning, auth-claim changes, campaign activation, or money
 movement.
 
-Open enforcement now moves to the remaining account/workspace gates: partner
-entitlement/environment posture, production activation, route capability
-inventory, UI labels, proof, and the downstream journey-specific command/read
-guards.
+Open enforcement now moves to the remaining account/workspace gates:
+invitation/login execution, integration execution, route capability inventory,
+UI labels, proof, and the downstream journey-specific command/read guards.
 
 ## Gap Matrix
 
