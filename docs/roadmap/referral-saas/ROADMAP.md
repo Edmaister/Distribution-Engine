@@ -168,10 +168,15 @@ plain-language readiness, one primary next action, a short capability-aware
 worklist, safe-to-leave posture, guardrails, and redactions for admin-selected
 customer context and partner/customer actors without exposing internal tenant
 identifiers or taking live actions.
+TASK-361 adds the commercial entitlement and plan posture projection. The
+selected customer now has a read-only `/commercial-entitlement` route and a
+customer-scoped Plan and entitlement page that explains H1 plan posture,
+reference limits, feature availability, production launch blockers, and the
+no-billing/no-money boundary before activation work begins.
 
-Entitlement, invitation/login, integration execution, campaign control, referral
-operations, attribution, reporting, support, and non-local proof gates remain on
-TASK-361 through TASK-380.
+Production activation enforcement, invitation/login execution, integration
+execution, campaign control, referral operations, attribution, reporting,
+support, and non-local proof gates remain on TASK-362 through TASK-380.
 
 ## Recommended Ordered Task Sequence
 

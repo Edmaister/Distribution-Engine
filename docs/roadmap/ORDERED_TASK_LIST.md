@@ -8166,7 +8166,7 @@ Completed output: `services/referral_saas_account_foundation_service.py`; `apps/
 
 ## TASK-361: Define commercial entitlement and plan posture
 
-Status: Pending.
+Status: Completed.
 Product boundary: Referral SaaS.
 Shared primitive impact: Adds launch entitlement and plan/limit posture without implementing billing or money movement. Source duplication: No.
 Objective: Model whether a customer is commercially allowed to use Referral SaaS features and which plan/limits apply.
@@ -8176,6 +8176,7 @@ Tests to add/update: Entitlement gate tests and no-billing/no-money boundary tes
 Acceptance criteria: Commercial readiness can block activation without pretending billing exists.
 Dependencies: TASK-357.
 Priority: P0.
+Completed output: `services/referral_saas_account_foundation_service.py`; `apps/api/routers/referral_saas_accounts.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/referralSaasAccountQueries.ts`; `frontend/src/api/queryKeys.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `test/test_referral_saas_account_foundation_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; roadmap/gap/infographic updates. Adds a read-only `/v1/referral-saas/accounts/{account_ref}/commercial-entitlement` projection and customer-scoped Plan and entitlement page that exposes H1 plan posture, feature posture, reference limits, commercial launch blockers, and no-billing/no-money guardrails without creating subscriptions, invoices, payments, seats, credentials, auth claims, campaigns, go-live actions, DLaaS finance scope, or money movement.
 
 ## TASK-362: Add production activation decision enforcement
 

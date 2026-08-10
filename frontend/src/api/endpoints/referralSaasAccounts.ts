@@ -354,6 +354,58 @@ export type ReferralSaasTechnicalSetupReadinessResponse = {
   no_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasCommercialEntitlementFeature = {
+  featureRef: string;
+  label: string;
+  status: string;
+  reason: string;
+  routeHint: string;
+};
+
+export type ReferralSaasCommercialEntitlement = {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  overallStatus: string;
+  commercialStatus: string;
+  environmentStatus: string;
+  plan: {
+    planCode: string;
+    planName: string;
+    contractSource: string;
+  };
+  launchAllowed: boolean;
+  productionActivationBlocked: boolean;
+  limits: Record<string, unknown>;
+  features: ReferralSaasCommercialEntitlementFeature[];
+  disabledReasons: string[];
+  nextActions: ReferralSaasWorkspaceOverviewAction[];
+  plainLanguageSummary: string;
+  guardrails: string[];
+  redactions: string[];
+  noBillingRecordCreatedConfirmed: boolean;
+  noInvoiceCreatedConfirmed: boolean;
+  noPaymentOrMoneyMovementConfirmed: boolean;
+  noDlaasFinanceScopeConfirmed: boolean;
+};
+
+export type ReferralSaasCommercialEntitlementRequest = ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+};
+
+export type ReferralSaasCommercialEntitlementResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  commercialEntitlement: ReferralSaasCommercialEntitlement;
+  guardrail: string;
+  redactions: string[];
+  no_billing_record_created_confirmed: boolean;
+  no_invoice_created_confirmed: boolean;
+  no_payment_or_money_movement_confirmed: boolean;
+  no_dlaas_finance_scope_confirmed: boolean;
+};
+
 export type ReferralSaasIntegrationConfiguration = {
   configurationRef: string;
   accountRef: string;
@@ -2353,6 +2405,24 @@ export function getReferralSaasTechnicalSetupReadiness({
 }: ReferralSaasTechnicalSetupReadinessRequest): Promise<ReferralSaasTechnicalSetupReadinessResponse> {
   return apiRequest<ReferralSaasTechnicalSetupReadinessResponse>(
     `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/technical-setup-readiness`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+      },
+    },
+  );
+}
+
+export function getReferralSaasCommercialEntitlement({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+}: ReferralSaasCommercialEntitlementRequest): Promise<ReferralSaasCommercialEntitlementResponse> {
+  return apiRequest<ReferralSaasCommercialEntitlementResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/commercial-entitlement`,
     {
       query: {
         ref_type: refType,
