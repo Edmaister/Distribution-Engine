@@ -5,6 +5,7 @@ import {
   listReferralSaasAccountCampaigns,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasCommercialEntitlement,
+  getReferralSaasIdentityLoginReconciliation,
   getReferralSaasProductionActivation,
   getReferralSaasLoginCompletionReadiness,
   getReferralSaasMembershipActivationReadiness,
@@ -250,6 +251,35 @@ export function useReferralSaasLoginCompletionReadiness(
         ),
       ),
     enabled: Boolean(enabled && cleanedAccountRef && cleanedExternalTenantRef && cleanedMembershipRefs.length),
+    retry: false,
+  });
+}
+
+export function useReferralSaasIdentityLoginReconciliation(
+  accountRef: string,
+  externalTenantRef: string,
+  enabled: boolean,
+  refreshKey = 0,
+) {
+  const cleanedAccountRef = accountRef.trim();
+  const cleanedExternalTenantRef = externalTenantRef.trim();
+
+  return useQuery({
+    queryKey: queryKeys.referralSaasIdentityLoginReconciliation(
+      cleanedAccountRef,
+      "external_tenant_ref",
+      cleanedExternalTenantRef,
+      "setup",
+      refreshKey,
+    ),
+    queryFn: () =>
+      getReferralSaasIdentityLoginReconciliation({
+        accountRef: cleanedAccountRef,
+        refType: "external_tenant_ref",
+        externalRef: cleanedExternalTenantRef,
+        context: "setup",
+      }),
+    enabled: Boolean(enabled && cleanedAccountRef && cleanedExternalTenantRef),
     retry: false,
   });
 }

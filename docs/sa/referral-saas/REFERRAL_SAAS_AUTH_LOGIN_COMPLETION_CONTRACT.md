@@ -4,10 +4,12 @@ TASK ID: TASK-345
 
 Product boundary: Shared Platform with Referral SaaS impact.
 
-Status: Contract only. No runtime API, service write, schema migration,
-frontend control, identity-provider call, credential creation, invite delivery,
-seat assignment, auth/session claim mutation, campaign activation, go-live,
-billing, money movement, DLaaS expansion, or source fork is made by this task.
+Status: Contract plus implemented safe API boundaries. TASK-346 implements
+membership-level login completion readiness/intent recording. TASK-365 adds a
+read-only account-level identity/login reconciliation projection. Neither task
+performs identity-provider calls, credential creation, invite delivery, seat
+assignment from reconciliation, auth/session claim mutation, campaign
+activation, go-live, billing, money movement, DLaaS expansion, or source fork.
 
 ## Boundary
 
@@ -90,6 +92,7 @@ TASK-346 introduces an account-scoped and membership-scoped route family:
 | --- | --- | --- |
 | `/v1/referral-saas/accounts/{accountRef}/memberships/{membershipRef}/login-completion-readiness` | `GET` | Read safe login completion posture for one accepted customer membership. |
 | `/v1/referral-saas/accounts/{accountRef}/memberships/{membershipRef}/login-completion-intents` | `POST` | Record governed login completion intent/evidence for one membership. |
+| `/v1/referral-saas/accounts/{accountRef}/identity-login-reconciliation` | `GET` | Read account-level reconciliation across customer access, platform seat, identity-provider evidence, revocation posture, and auth-claim readiness. |
 
 Implementation note: TASK-346 implements these routes as a safe API boundary.
 They inspect and record login completion intent/evidence through membership

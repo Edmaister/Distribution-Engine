@@ -24,6 +24,7 @@ import {
   useReferralSaasAccountDraftSelector,
   useReferralSaasAccountMaintenanceState,
   useReferralSaasAccountMembershipPosture,
+  useReferralSaasIdentityLoginReconciliation,
   useReferralSaasLoginCompletionReadiness,
   useReferralSaasMembershipActivationReadiness,
   useReferralSaasAccountRegistry,
@@ -645,6 +646,15 @@ export function ReferralSaasAccountMaintenancePage() {
     refreshKey,
   );
   const {
+    data: identityLoginReconciliation,
+    refetch: refetchIdentityLoginReconciliation,
+  } = useReferralSaasIdentityLoginReconciliation(
+    selectedAccount?.accountId || "",
+    selectedExternalTenantRef,
+    Boolean(accountId && selectedAccount && selectedExternalTenantRef),
+    refreshKey,
+  );
+  const {
     data: technicalSetupReadiness,
     error: technicalSetupError,
     isLoading: isTechnicalSetupLoading,
@@ -737,7 +747,12 @@ export function ReferralSaasAccountMaintenancePage() {
     ),
   });
   const refreshPeopleAccessReadModels = async () => {
-    await Promise.all([refetchMembershipPosture(), refetchActivationReadiness(), refetchLoginCompletionReadiness()]);
+    await Promise.all([
+      refetchMembershipPosture(),
+      refetchActivationReadiness(),
+      refetchLoginCompletionReadiness(),
+      refetchIdentityLoginReconciliation(),
+    ]);
   };
   const accessMutation = useMutation({
     mutationFn: recordReferralSaasMembershipInvitationIntent,
@@ -1058,6 +1073,12 @@ export function ReferralSaasAccountMaintenancePage() {
     (loginCompletionReadiness || []).map((item) => [
       item.loginCompletionReadiness.membershipRef,
       item.loginCompletionReadiness,
+    ]),
+  );
+  const identityLoginReconciliationByMembershipRef = new Map(
+    (identityLoginReconciliation?.identityLoginReconciliation.people || []).map((person) => [
+      person.membershipRef,
+      person,
     ]),
   );
 
@@ -2629,6 +2650,7 @@ export function ReferralSaasAccountMaintenancePage() {
                           const subject = getValue(item, ["subject"], "");
                           const seatAssigned = item.provisioningReadiness === "SEAT_ASSIGNED";
                           const loginReadiness = loginCompletionReadinessByMembershipRef.get(membershipRef);
+                          const reconciliation = identityLoginReconciliationByMembershipRef.get(membershipRef);
                           const loginStatus = loginReadiness?.loginCompletionStatus || "WAITING_FOR_SEAT";
                           const providerRef = approvedAuthProviderRef(technicalSetupReadiness);
                           const canRecordLoginCompletion = seatAssigned && Boolean(providerRef);
@@ -2640,11 +2662,30 @@ export function ReferralSaasAccountMaintenancePage() {
                                   {roleOptionForFamily(roleFamily).label} -{" "}
                                   {seatAssigned ? "Seat assigned" : "Seat not assigned"}
                                 </span>
+                                {reconciliation?.steps.length ? (
+                                  <div
+                                    aria-label={`${formatDisplay(
+                                      getValue(item, ["displayName"], "Named person"),
+                                    )} login setup progress`}
+                                    className="people-access-login-steps"
+                                  >
+                                    {reconciliation.steps.map((step) => (
+                                      <span
+                                        className={`people-access-login-step people-access-login-step-${step.status.toLowerCase()}`}
+                                        key={`${membershipRef}-${step.label}`}
+                                        title={step.description}
+                                      >
+                                        {step.label}: {formatDisplay(step.status)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : null}
                                 <p className="table-subtext">
-                                  Login status: {formatDisplay(loginStatus)}.{" "}
-                                  {seatAssigned
-                                    ? "Record login only if this person must sign in."
-                                    : "Assign the platform seat before any login decision."}
+                                  Login status: {formatDisplay(reconciliation?.loginStatus || loginStatus)}.{" "}
+                                  {reconciliation?.nextAction ||
+                                    (seatAssigned
+                                      ? "Record login only if this person must sign in."
+                                      : "Assign the platform seat before any login decision.")}
                                 </p>
                               </div>
                               <div className="action-cell horizontal">

@@ -133,6 +133,22 @@ export const queryKeys = {
       context,
       refreshKey,
     ] as const,
+  referralSaasIdentityLoginReconciliation: (
+    accountRef: string,
+    refType: string,
+    externalRef: string,
+    context: string,
+    refreshKey = 0,
+  ) =>
+    [
+      "referral-saas",
+      "identity-login-reconciliation",
+      accountRef,
+      refType,
+      externalRef,
+      context,
+      refreshKey,
+    ] as const,
   referralSaasTechnicalSetupReadiness: (
     accountRef: string,
     refType: string,

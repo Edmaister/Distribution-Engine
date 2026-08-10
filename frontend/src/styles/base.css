@@ -1236,6 +1236,37 @@ a {
   gap: 2px;
 }
 
+.people-access-login-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.people-access-login-step {
+  border: 1px solid var(--color-rule);
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
+.people-access-login-step-done,
+.people-access-login-step-skipped {
+  background: rgb(236 253 245);
+  border-color: rgb(167 243 208);
+  color: rgb(4 120 87);
+}
+
+.people-access-login-step-optional,
+.people-access-login-step-waiting {
+  background: rgb(255 247 237);
+  border-color: rgb(254 215 170);
+  color: rgb(194 65 12);
+}
+
 .people-access-drawer-stage {
   align-items: flex-start;
   background: var(--color-background);
