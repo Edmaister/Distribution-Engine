@@ -338,6 +338,74 @@ class PartnerWorkspaceAccountContext:
 
 
 @dataclass(frozen=True)
+class WorkspaceOverviewAction:
+    action_ref: str
+    label: str
+    status: str
+    priority: str
+    route_hint: str
+    reason: str
+    required_capability: str
+
+    def to_safe_dict(self) -> dict[str, str]:
+        return {
+            "actionRef": self.action_ref,
+            "label": self.label,
+            "status": self.status,
+            "priority": self.priority,
+            "routeHint": self.route_hint,
+            "reason": self.reason,
+            "requiredCapability": self.required_capability,
+        }
+
+
+@dataclass(frozen=True)
+class WorkspaceOverviewProjection:
+    actor_role: str
+    selected_account: PartnerWorkspaceAccountContextItem | None
+    visible_account_count: int
+    readiness: dict[str, Any]
+    primary_action: WorkspaceOverviewAction | None
+    worklist: tuple[WorkspaceOverviewAction, ...]
+    plain_language_summary: str
+    safe_to_leave: dict[str, Any]
+    guardrails: tuple[str, ...]
+    redactions: tuple[str, ...]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "actor": {
+                "role": self.actor_role,
+                "visibleAccountCount": self.visible_account_count,
+            },
+            "selectedAccount": (
+                self.selected_account.to_safe_dict()
+                if self.selected_account is not None
+                else None
+            ),
+            "readiness": self.readiness,
+            "primaryAction": (
+                self.primary_action.to_safe_dict()
+                if self.primary_action is not None
+                else None
+            ),
+            "worklist": [action.to_safe_dict() for action in self.worklist],
+            "plainLanguageSummary": self.plain_language_summary,
+            "safeToLeave": self.safe_to_leave,
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noInternalTenantIdentifierExposureConfirmed": True,
+            "noUnscopedAccountEnumerationConfirmed": True,
+            "noMembershipWriteConfirmed": True,
+            "noInviteDeliveryConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
 class AccountProfileMaintenanceResult:
     account_id: str
     account_code: str
@@ -923,6 +991,228 @@ async def build_referral_saas_partner_workspace_account_context(
         ),
         redactions=("internal_tenant_identifier", "tenant_code", "auth_claims"),
     )
+
+
+def build_referral_saas_workspace_overview_projection(
+    *,
+    account_context: PartnerWorkspaceAccountContext,
+    selected_account_ref: str | None = None,
+) -> WorkspaceOverviewProjection:
+    safe_selected_ref = _safe_text(selected_account_ref)
+    selected_account = _select_workspace_overview_account(
+        account_context.accounts,
+        safe_selected_ref,
+    )
+    role = _safe_text(account_context.actor_role).upper()
+
+    if selected_account is None:
+        primary = WorkspaceOverviewAction(
+            action_ref="request_customer_access",
+            label="Ask for access to a customer",
+            status="BLOCKED",
+            priority="FIRST",
+            route_hint="/admin/referral-saas/account-maintenance",
+            reason="No customer workspace is visible to this session.",
+            required_capability="REFERRAL_SAAS_WORKSPACE_READ",
+        )
+        return WorkspaceOverviewProjection(
+            actor_role=role,
+            selected_account=None,
+            visible_account_count=len(account_context.accounts),
+            readiness={"green": 0, "red": 1, "amber": 0, "status": "NO_CUSTOMER"},
+            primary_action=primary,
+            worklist=(primary,),
+            plain_language_summary=(
+                "No customer workspace is available for this session. Ask an "
+                "Amplifi admin to add this user to a customer before working."
+            ),
+            safe_to_leave={
+                "canLeaveSafely": True,
+                "reason": "This page has not performed any setup or live action.",
+            },
+            guardrails=(
+                "CUSTOMER_PARTNER_WORKSPACE_OVERVIEW",
+                "NO_UNSCOPED_ACCOUNT_ENUMERATION",
+                "NO_INTERNAL_TENANT_IDENTIFIER_EXPOSURE",
+                "NO_LIVE_ACTION",
+            ),
+            redactions=account_context.redactions,
+        )
+
+    account_status = selected_account.account_status.upper()
+    membership_statuses = {status.upper() for status in selected_account.membership_statuses}
+    permission_sets = {value.upper() for value in selected_account.permission_sets}
+    role_families = {value.upper() for value in selected_account.role_families}
+    account_ready = account_status == "ACTIVE"
+    access_ready = "ACTIVE" in membership_statuses or role in {
+        "ADMIN",
+        "SYSTEM_ADMIN",
+        "DISTRIBUTION_ADMIN",
+        "PLATFORM_ADMIN",
+    }
+    can_manage_access = bool(
+        permission_sets.intersection(
+            {
+                "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                "REFERRAL_SAAS_ADMIN",
+                "REFERRAL_SAAS_OWNER",
+            }
+        )
+        or role_families.intersection(
+            {"DISTRIBUTION_ADMIN", "PLATFORM_ADMIN", "ADMIN", "SYSTEM_ADMIN"}
+        )
+        or role
+        in {"ADMIN", "SYSTEM_ADMIN", "DISTRIBUTION_ADMIN", "PLATFORM_ADMIN"}
+    )
+    can_manage_campaigns = bool(
+        can_manage_access
+        or permission_sets.intersection(
+            {"REFERRAL_SAAS_CAMPAIGN_MANAGER", "REFERRAL_SAAS_ACCOUNT_ADMIN"}
+        )
+        or role_families.intersection({"CAMPAIGN_MANAGER", "DISTRIBUTION_ADMIN"})
+    )
+
+    actions: list[WorkspaceOverviewAction] = []
+    if not account_ready:
+        actions.append(
+            WorkspaceOverviewAction(
+                action_ref="activate_customer_foundation",
+                label="Activate the customer foundation",
+                status="BLOCKED",
+                priority="FIRST",
+                route_hint="account-health",
+                reason="The selected customer is not active yet.",
+                required_capability="REFERRAL_SAAS_ACCOUNT_ADMIN",
+            )
+        )
+    if not access_ready:
+        actions.append(
+            WorkspaceOverviewAction(
+                action_ref="confirm_people_access",
+                label="Confirm who can manage this customer",
+                status="BLOCKED",
+                priority="FIRST",
+                route_hint="people",
+                reason="This session does not have active customer access evidence.",
+                required_capability="REFERRAL_SAAS_WORKSPACE_READ",
+            )
+        )
+    if can_manage_access:
+        actions.append(
+            WorkspaceOverviewAction(
+                action_ref="review_people_access",
+                label="Review people and access",
+                status="READY" if access_ready else "NEEDS_ATTENTION",
+                priority="NEXT",
+                route_hint="people",
+                reason="Keep the required owner and campaign manager clear.",
+                required_capability="REFERRAL_SAAS_ACCOUNT_ADMIN",
+            )
+        )
+    actions.append(
+        WorkspaceOverviewAction(
+            action_ref="check_integrations",
+            label="Check integrations",
+            status="NEEDS_ATTENTION",
+            priority="NEXT" if access_ready else "LATER",
+            route_hint="integrations",
+            reason="Invite delivery and referral-message providers need readiness evidence.",
+            required_capability="REFERRAL_SAAS_WORKSPACE_READ",
+        )
+    )
+    if can_manage_campaigns:
+        actions.append(
+            WorkspaceOverviewAction(
+                action_ref="open_campaigns",
+                label="Open campaigns",
+                status="READY" if account_ready and access_ready else "WAIT",
+                priority="NEXT" if account_ready and access_ready else "LATER",
+                route_hint="campaigns",
+                reason="Set up or review referral campaigns for this customer.",
+                required_capability="REFERRAL_SAAS_CAMPAIGN_READ",
+            )
+        )
+
+    red = sum(1 for action in actions if action.status == "BLOCKED")
+    amber = sum(1 for action in actions if action.status in {"NEEDS_ATTENTION", "WAIT"})
+    green = sum(1 for action in actions if action.status == "READY")
+    primary = next(
+        (action for action in actions if action.priority == "FIRST"),
+        actions[0] if actions else None,
+    )
+    summary_status = "READY" if red == 0 else "NEEDS_ATTENTION"
+    summary = (
+        f"{selected_account.account_name} is ready for customer work. "
+        f"{amber} item{'s' if amber != 1 else ''} can wait."
+        if red == 0
+        else (
+            f"{selected_account.account_name} needs {red} item"
+            f"{'s' if red != 1 else ''} fixed before safe referral work."
+        )
+    )
+
+    return WorkspaceOverviewProjection(
+        actor_role=role,
+        selected_account=selected_account,
+        visible_account_count=len(account_context.accounts),
+        readiness={
+            "green": green,
+            "red": red,
+            "amber": amber,
+            "status": summary_status,
+        },
+        primary_action=primary,
+        worklist=tuple(actions[:5]),
+        plain_language_summary=summary,
+        safe_to_leave={
+            "canLeaveSafely": True,
+            "reason": (
+                "This overview is read-only. It did not change people, "
+                "integrations, campaigns, go-live, billing, or money."
+            ),
+        },
+        guardrails=(
+            "CUSTOMER_PARTNER_WORKSPACE_OVERVIEW",
+            "ACCOUNT_SCOPED_SUMMARY",
+            "CAPABILITY_AWARE_ACTIONS",
+            "NO_UNSCOPED_ACCOUNT_ENUMERATION",
+            "NO_INTERNAL_TENANT_IDENTIFIER_EXPOSURE",
+            "NO_LIVE_ACTION",
+        ),
+        redactions=tuple(
+            sorted(
+                {
+                    *account_context.redactions,
+                    "internal_tenant_identifier",
+                    "tenant_code",
+                    "auth_claims",
+                }
+            )
+        ),
+    )
+
+
+def _select_workspace_overview_account(
+    accounts: tuple[PartnerWorkspaceAccountContextItem, ...],
+    selected_account_ref: str,
+) -> PartnerWorkspaceAccountContextItem | None:
+    if not accounts:
+        return None
+    if not selected_account_ref:
+        return accounts[0]
+    for account in accounts:
+        refs = {
+            account.account_id,
+            account.account_code,
+            account.primary_external_tenant_ref or "",
+            *(
+                str(ref.get("externalRef") or "")
+                for ref in account.external_references
+            ),
+        }
+        if selected_account_ref in refs:
+            return account
+    return None
 
 
 async def update_referral_saas_account_profile(

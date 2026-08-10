@@ -34,8 +34,11 @@ from services.referral_saas_account_foundation_service import (
     ExternalReferenceNotActive,
     ExternalReferenceNotFound,
     InvalidExternalReferenceType,
+    PartnerWorkspaceAccountContext,
+    PartnerWorkspaceAccountContextItem,
     TenantLinkNotResolvable,
     activate_referral_saas_account_foundation,
+    build_referral_saas_workspace_overview_projection,
     build_referral_saas_partner_workspace_account_context,
     list_referral_saas_accounts,
     resolve_account_by_external_reference,
@@ -520,6 +523,15 @@ def _require_referral_saas_workspace_actor(
             },
         )
     return identity
+
+
+def _require_referral_saas_workspace_overview_actor(
+    identity: dict[str, Any],
+) -> dict[str, Any]:
+    role = str(identity.get("role") or "").upper()
+    if role in REFERRAL_SAAS_ACCOUNT_READER_ROLES:
+        return identity
+    return _require_referral_saas_workspace_actor(identity)
 
 
 def _normalise_identity_values(value: Any) -> set[str]:
@@ -2893,6 +2905,198 @@ async def update_referral_saas_account_profile_route(
         "no_account_activation_confirmed": True,
         "no_membership_write_confirmed": True,
         "no_invite_delivery_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.get("/workspace/overview")
+async def read_referral_saas_workspace_overview(
+    selected_account_ref: Annotated[
+        str | None,
+        Query(
+            description=(
+                "Optional selected customer account reference. Admin callers "
+                "must pass a selected account reference so the overview stays "
+                "customer-scoped."
+            ),
+        ),
+    ] = None,
+    limit: Annotated[
+        int,
+        Query(
+            ge=1,
+            le=MAX_ACCOUNT_LIST_LIMIT,
+            description=(
+                "Maximum number of account contexts considered for the "
+                "workspace overview."
+            ),
+        ),
+    ] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    workspace_identity = _require_referral_saas_workspace_overview_actor(identity)
+    role = str(workspace_identity.get("role") or "").upper()
+
+    if role in REFERRAL_SAAS_ACCOUNT_READER_ROLES:
+        safe_selected_ref = _optional_text(selected_account_ref)
+        if not safe_selected_ref:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "selected_account_required",
+                    "message": (
+                        "Admin workspace overview requires a selected customer "
+                        "account reference."
+                    ),
+                    "guardrails": [
+                        "CUSTOMER_PARTNER_WORKSPACE_OVERVIEW",
+                        "ACCOUNT_SCOPED_SUMMARY",
+                        "NO_UNSCOPED_ACCOUNT_ENUMERATION",
+                    ],
+                    "redactions": ["internal_tenant_identifier", "tenant_code"],
+                },
+            )
+
+        registry_accounts = await list_referral_saas_accounts(limit=limit)
+        selected_registry_account = next(
+            (
+                account
+                for account in registry_accounts
+                if safe_selected_ref
+                in {
+                    account.account_id,
+                    account.account_code,
+                    account.primary_external_tenant_ref or "",
+                    *(
+                        str(ref.get("externalRef") or "")
+                        for ref in account.external_references
+                    ),
+                }
+            ),
+            None,
+        )
+        if selected_registry_account is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "code": "selected_account_not_found",
+                    "message": "Selected customer account was not found.",
+                    "guardrails": [
+                        "CUSTOMER_PARTNER_WORKSPACE_OVERVIEW",
+                        "ACCOUNT_SCOPED_SUMMARY",
+                    ],
+                    "redactions": ["internal_tenant_identifier", "tenant_code"],
+                },
+            )
+        account_context = PartnerWorkspaceAccountContext(
+            actor_role=role,
+            accounts=(
+                PartnerWorkspaceAccountContextItem(
+                    account_id=selected_registry_account.account_id,
+                    account_code=selected_registry_account.account_code,
+                    account_name=selected_registry_account.account_name,
+                    account_type=selected_registry_account.account_type,
+                    account_status=selected_registry_account.account_status,
+                    onboarding_status=selected_registry_account.onboarding_status,
+                    operating_jurisdiction_code=(
+                        selected_registry_account.operating_jurisdiction_code
+                    ),
+                    primary_external_tenant_ref=(
+                        selected_registry_account.primary_external_tenant_ref
+                    ),
+                    external_references=selected_registry_account.external_references,
+                    role_families=(role,),
+                    permission_sets=("REFERRAL_SAAS_ACCOUNT_ADMIN",),
+                    membership_statuses=("ACTIVE",),
+                    source="admin_selected_customer",
+                ),
+            ),
+            guardrails=(
+                "CUSTOMER_PARTNER_WORKSPACE_OVERVIEW",
+                "ADMIN_SELECTED_CUSTOMER_CONTEXT",
+                "NO_UNSCOPED_ACCOUNT_ENUMERATION",
+            ),
+            redactions=("internal_tenant_identifier", "tenant_code", "auth_claims"),
+        )
+    else:
+        account_context = await build_referral_saas_partner_workspace_account_context(
+            actor_role=role,
+            actor_tenant_code=_optional_text(
+                workspace_identity.get("tenant_code")
+                or workspace_identity.get("tenant")
+            )
+            or None,
+            actor_subjects=_identity_claim_values(
+                workspace_identity,
+                "subject",
+                "sub",
+                "user_id",
+                "userId",
+            ),
+            actor_client_ids=_identity_claim_values(
+                workspace_identity,
+                "client_id",
+                "clientId",
+            ),
+            account_refs=_identity_claim_values(
+                workspace_identity,
+                "account_ref",
+                "accountRef",
+                "account_id",
+                "accountId",
+                "account_code",
+                "accountCode",
+            ),
+            external_tenant_refs=_identity_claim_values(
+                workspace_identity,
+                "external_tenant_ref",
+                "externalTenantRef",
+                "customer_ref",
+                "customerRef",
+            ),
+            organisation_refs=_identity_claim_values(
+                workspace_identity,
+                "organisation_ref",
+                "organisationRef",
+            ),
+            operating_jurisdictions=_identity_claim_values(
+                workspace_identity,
+                "jurisdiction",
+                "jurisdiction_code",
+                "jurisdictionCode",
+                "operating_jurisdiction_code",
+                "operatingJurisdictionCode",
+                "jurisdictions",
+                "allowed_jurisdictions",
+                "allowedJurisdictions",
+            ),
+            limit=limit,
+        )
+
+    overview = build_referral_saas_workspace_overview_projection(
+        account_context=account_context,
+        selected_account_ref=selected_account_ref,
+    ).to_safe_dict()
+
+    return {
+        "status": "ok",
+        "workspaceOverview": overview,
+        "guardrail": (
+            "Read-only Referral SaaS customer and partner workspace overview. "
+            "This endpoint returns a plain-language selected-customer summary, "
+            "capability-aware next actions, and safe-leave status without "
+            "writing memberships, sending invites, assigning seats, changing "
+            "auth claims, activating campaigns, triggering go-live, or moving "
+            "money."
+        ),
+        "redactions": overview["redactions"],
+        "no_internal_tenant_identifier_exposure_confirmed": True,
+        "no_unscoped_account_enumeration_confirmed": True,
+        "no_membership_write_confirmed": True,
+        "no_invite_delivery_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
         "no_money_movement_confirmed": True,
     }
 

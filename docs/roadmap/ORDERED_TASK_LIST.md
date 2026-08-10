@@ -8152,7 +8152,7 @@ Completed output: `services/referral_saas_account_foundation_service.py`; `apps/
 
 ## TASK-360: Add customer and partner workspace overview projection
 
-Status: Pending.
+Status: Completed.
 Product boundary: Referral SaaS.
 Shared primitive impact: Provides one customer-context summary consumed by admin and partner surfaces. Source duplication: No.
 Objective: Build the five-second workspace overview: where am I, what is ready, what is stopping me, what do I do next, and can I leave safely.
@@ -8162,6 +8162,7 @@ Tests to add/update: Overview projection tests, redaction tests, role-specific a
 Acceptance criteria: Admin and partner workspace homes are plain-language, account-scoped, and capability-safe.
 Dependencies: TASK-359.
 Priority: P0.
+Completed output: `services/referral_saas_account_foundation_service.py`; `apps/api/routers/referral_saas_accounts.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; roadmap/gap/infographic updates. Adds a read-only `/v1/referral-saas/workspace/overview` projection for selected admin customer context and partner/customer account context, returning plain-language readiness, one primary action, a short capability-aware worklist, safe-to-leave posture, guardrails, and redactions without exposing internal tenant identifiers or triggering membership writes, invites, seats, auth claims, campaign activation, money movement, or unscoped account enumeration. Current rating remains 9.99/10 for Referral Management and 9.99996/10 for Campaign Attribution because entitlement, production activation enforcement, invitation/login execution, campaign control, repair/replay, and non-local proof remain separate gaps. Priority: P0.
 
 ## TASK-361: Define commercial entitlement and plan posture
 
