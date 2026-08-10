@@ -67,6 +67,10 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
 - `REFERRAL_SAAS_PROVIDER_VAULT_ADAPTER_IMPLEMENTATION_PLAN.md` - TASK-352
   provider/vault adapter implementation sequence and first safe
   platform-reference adapter target.
+- `REFERRAL_SAAS_PLATFORM_REFERENCE_PROVIDER_VAULT_ADAPTERS.md` - TASK-353
+  first safe runtime `PLATFORM_REFERENCE` and `PLATFORM_VAULT_REFERENCE`
+  adapters that return opaque execution references without raw secrets or
+  vendor dispatch.
 - `REFERRAL_SAAS_AUTH_LOGIN_COMPLETION_CONTRACT.md` - TASK-345 governed
   auth/login completion contract for the controlled path from confirmed
   customer access and optional seat assignment to actual sign-in readiness.

@@ -8002,6 +8002,32 @@ Explicit non-goals: No runtime code, schema migration, frontend controls, vendor
 Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_ADAPTER_IMPLEMENTATION_PLAN.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the first safe provider/vault adapter implementation sequence after the TASK-351 seam. The next code task should add `PLATFORM_REFERENCE` and `PLATFORM_VAULT_REFERENCE` adapters so approved credential requests can return real opaque references without raw secret handling or vendor dispatch.
 Definition of done: Referral SaaS has a bounded provider/vault adapter implementation target ready for the next code task. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.99993/10 because the adapter implementation ambiguity is closed while runtime adapters and non-local proof repetition remain separate gaps. Priority: P0.
 
+## TASK-353: Add platform-reference provider/vault adapters
+
+Status: Completed.
+Product boundary: Shared Platform with Referral SaaS impact.
+Required boundary docs checked: `AGENTS.md`; `docs/product/README.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROVIDER_VAULT_ADAPTER_IMPLEMENTATION_PLAN.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds the first built-in provider/vault reference adapters behind the shared runtime seam. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS first-wedge productization.
+Linked platform/product capability: Platform-reference provider/vault runtime adapters.
+Objective: Implement the first safe provider/vault runtime adapters so approved credential requests can return opaque provider/vault references without raw secret handling or vendor dispatch.
+Why now: TASK-352 defined `PLATFORM_REFERENCE` and `PLATFORM_VAULT_REFERENCE` as the bounded first implementation target. The runtime seam needs a safe adapter implementation before vendor-specific work or non-local proof can begin.
+Files likely involved: `services/referral_saas_provider_vault_runtime.py`; provider/vault runtime tests; SA index; roadmap/gap/infographic docs.
+Database/schema impact: None.
+Backend impact: Adds built-in platform-reference provider/vault adapters that return deterministic opaque references for approved `PLATFORM_REFERENCE` execution requests in supported environments.
+Frontend impact: None.
+API impact: Existing provider/vault execution API can now receive adapter-ready runtime results when the approved provider key/capability/environment target the platform-reference adapters.
+Tests to add/update: Runtime adapter tests for opaque reference success and unsupported environment/capability blocked states.
+Validation method: `git diff --check`; Python compile for edited runtime module; focused provider/vault runtime pytest.
+Acceptance criteria: Runtime execution returns `PROVIDER_VAULT_EXECUTION_READY` with opaque provider/vault references for `PLATFORM_REFERENCE` plus `PLATFORM_VAULT_REFERENCE`; unsupported provider/capability/environment remains blocked; references do not expose tenant/account/request identifiers; no raw secret, provider dispatch, vault secret write, invite/webhook/message delivery, auth/session change, campaign activation, billing, money, DLaaS, or source fork is introduced.
+Dependencies: TASK-342; TASK-349; TASK-350; TASK-351; TASK-352.
+Blocked by: Vendor provider adapters, managed vault secret lifecycle, repair/replay execution, and non-local execution proof.
+Risk level: Medium.
+Rollback notes: Revert platform-reference runtime adapter additions, focused tests, and docs updates.
+Explicit non-goals: No frontend controls, schema migration, vendor adapter, managed vault write, raw secret capture/storage/reveal/rotation/download, live provider dispatch, invite delivery, webhook dispatch, referral-message delivery, auth/session claim change, campaign activation, repair/replay/retry execution, export delivery execution, billing, money, DLaaS implementation, or source forks.
+Completed output: `services/referral_saas_provider_vault_runtime.py`; `test/test_referral_saas_provider_vault_runtime.py`; `docs/sa/referral-saas/REFERRAL_SAAS_PLATFORM_REFERENCE_PROVIDER_VAULT_ADAPTERS.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the first safe runtime provider/vault adapters behind the existing seam. Approved platform-reference execution can now return opaque provider and vault references while unsupported provider/capability/environment combinations continue to fail closed.
+Definition of done: Referral SaaS has the first safe provider/vault runtime adapter code path behind the governed execution API. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.99994/10 because platform-reference adapters now exist while vendor/managed adapters, repair/replay execution, and non-local proof repetition remain open. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

@@ -316,6 +316,7 @@ greenfield referral construction.
 208. TASK-350: Add provider/vault runtime execution API foundation.
 209. TASK-351: Add provider/vault runtime adapter seam.
 210. TASK-352: Define provider/vault adapter implementation plan.
+211. TASK-353: Add platform-reference provider/vault adapters.
 
 - TASK-341: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_EXECUTION_TASK_341.md`;
   `scripts/referral_saas_progress_attribution_physical_check.py`;
@@ -2222,6 +2223,25 @@ greenfield referral construction.
   9.99/10 for Referral Management and moves Campaign Attribution to 9.99993/10
   because the implementation target is now bounded while runtime adapters and
   non-local proof repetition remain open.
+- TASK-353:
+  `services/referral_saas_provider_vault_runtime.py`;
+  `test/test_referral_saas_provider_vault_runtime.py`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_PLATFORM_REFERENCE_PROVIDER_VAULT_ADAPTERS.md`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  first safe runtime provider/vault adapters behind the TASK-351 seam. Approved
+  `PLATFORM_REFERENCE` execution can now return opaque provider and vault
+  references for supported environments without exposing tenant/account/request
+  identifiers, accepting raw secrets, calling vendors, writing live vault
+  secrets, delivering invites/messages/webhooks, changing auth, activating
+  campaigns, billing, moving money, expanding DLaaS, or forking source. Current
+  rating remains 9.99/10 for Referral Management and moves Campaign Attribution
+  to 9.99994/10 because platform-reference adapter code exists while vendor/
+  managed adapters, repair/replay execution, and non-local proof repetition
+  remain open.
 
 ## Explicit Deferrals
 
