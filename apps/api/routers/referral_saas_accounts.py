@@ -2273,8 +2273,21 @@ async def request_referral_saas_membership_invitation_delivery_route(
     except MembershipInvitationCommandError as exc:
         raise _membership_invitation_error(exc) from exc
 
+    delivery_status = str(result.delivery_status or "").upper()
+    route_status = (
+        "sent"
+        if delivery_status == "INVITATION_DELIVERY_SENT"
+        else "failed"
+        if delivery_status == "INVITATION_DELIVERY_FAILED"
+        else "blocked"
+    )
+    no_invite_delivery_confirmed = delivery_status not in {
+        "INVITATION_DELIVERY_SENT",
+        "INVITATION_DELIVERY_FAILED",
+    }
+
     return {
-        "status": "blocked",
+        "status": route_status,
         "context": context,
         "account": account.to_safe_dict(),
         "deliveryRequest": result.to_safe_dict(),
@@ -2282,7 +2295,7 @@ async def request_referral_saas_membership_invitation_delivery_route(
         + ["NO_PROVIDER_SECRET_EXPOSURE"],
         "redactions": _membership_invitation_redactions()
         + ["recipient_hash", "provider_secret"],
-        "no_invite_delivery_confirmed": True,
+        "no_invite_delivery_confirmed": no_invite_delivery_confirmed,
         "no_membership_activation_confirmed": True,
         "no_auth_claim_change_confirmed": True,
         "no_seat_assignment_confirmed": True,

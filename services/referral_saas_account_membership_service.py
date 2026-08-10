@@ -4,6 +4,12 @@ import json
 from dataclasses import dataclass
 from typing import Any, Final
 
+from fastapi import HTTPException
+
+from services.channel_readiness_service import (
+    dispatch_channel_message,
+    get_channel_readiness,
+)
 from utils.db import db_connection
 
 MEMBERSHIP_STATUSES = ("INVITED", "ACTIVE", "SUSPENDED", "DISABLED", "ARCHIVED")
@@ -185,6 +191,10 @@ class MembershipInvitationDeliveryProviderNotConfigured(
     MembershipInvitationCommandError
 ):
     safe_code = "DELIVERY_PROVIDER_NOT_CONFIGURED"
+
+
+class MembershipInvitationDeliveryProviderFailed(MembershipInvitationCommandError):
+    safe_code = "DELIVERY_PROVIDER_FAILED"
 
 
 class MembershipActivationNotInvited(MembershipInvitationCommandError):
@@ -564,6 +574,8 @@ class MembershipInvitationDeliveryRequestResult:
     template_ref: str
     idempotency_status: str
     audit_event_id: str | None
+    provider_delivery_ref: str | None = None
+    provider_status: int | None = None
     guardrails: tuple[str, ...] = INVITATION_GUARDRAILS + (
         "NO_PROVIDER_SECRET_EXPOSURE",
     )
@@ -588,6 +600,8 @@ class MembershipInvitationDeliveryRequestResult:
                 "providerRef": self.provider_ref,
                 "channel": self.channel,
                 "templateRef": self.template_ref,
+                "providerDeliveryRef": self.provider_delivery_ref,
+                "providerStatus": self.provider_status,
             },
             "idempotency": {
                 "status": self.idempotency_status,
@@ -595,7 +609,8 @@ class MembershipInvitationDeliveryRequestResult:
             "auditEventId": self.audit_event_id,
             "guardrails": list(self.guardrails),
             "redactions": list(self.redactions),
-            "noInviteDeliveryConfirmed": True,
+            "noInviteDeliveryConfirmed": self.delivery_status
+            not in {"INVITATION_DELIVERY_SENT", "INVITATION_DELIVERY_FAILED"},
             "noMembershipActivationConfirmed": True,
             "noAuthClaimChangeConfirmed": True,
             "noSeatAssignmentConfirmed": True,
@@ -1344,6 +1359,15 @@ async def request_referral_saas_membership_invitation_delivery(
                     existing_audit.get("account_audit_event_id")
                 )
                 or None,
+                provider_delivery_ref=_optional_text(
+                    evidence.get("provider_delivery_ref")
+                )
+                or None,
+                provider_status=(
+                    int(evidence["provider_status"])
+                    if evidence.get("provider_status") is not None
+                    else None
+                ),
             )
 
         membership = await conn.fetchrow(
@@ -1362,7 +1386,8 @@ async def request_referral_saas_membership_invitation_delivery(
                     WHEN platform_memberships.client_id IS NOT NULL
                     THEN 'CLIENT_CONTACT_REFERENCE_NOT_REQUIRED'
                     ELSE 'CONTACT_REFERENCE_MISSING'
-                END AS recipient_contact_status
+                END AS recipient_contact_status,
+                actor_user.subject AS recipient_subject
             FROM platform_memberships
             LEFT JOIN platform_users actor_user
                 ON actor_user.user_id = platform_memberships.user_id
@@ -1401,10 +1426,72 @@ async def request_referral_saas_membership_invitation_delivery(
                 "Add a safe work email contact reference before invite delivery can be requested."
             )
         else:
-            delivery_command_status = "DELIVERY_PROVIDER_NOT_CONFIGURED"
-            delivery_next_action = (
-                "Configure approved invitation delivery provider before sending email invites."
+            provider_gate = _approved_invitation_delivery_provider(
+                channel=safe_channel,
+                provider_ref=safe_provider_ref,
             )
+            if not provider_gate["ready"]:
+                delivery_command_status = "DELIVERY_PROVIDER_NOT_CONFIGURED"
+                delivery_next_action = provider_gate["next_action"]
+            else:
+                recipient = _optional_text(membership.get("recipient_subject"))
+                if not recipient:
+                    delivery_command_status = "DELIVERY_RECIPIENT_CONTACT_MISSING"
+                    delivery_next_action = (
+                        "Add a safe work email contact reference before invite delivery can be requested."
+                    )
+                else:
+                    try:
+                        provider_result = await dispatch_channel_message(
+                            channel_code=safe_channel,
+                            tenant_code=safe_tenant_code,
+                            recipient=recipient,
+                            message=_membership_invitation_message(
+                                template_ref=safe_template_ref,
+                                role_family=_optional_text(
+                                    membership.get("role_family")
+                                )
+                                or "UNKNOWN",
+                            ),
+                            context={
+                                "event_type": "MEMBERSHIP_INVITATION",
+                                "consent_verified": True,
+                                "account_id": safe_account_id,
+                                "membership_id": safe_membership_id,
+                                "provider_ref": safe_provider_ref,
+                                "template_ref": safe_template_ref,
+                                "no_membership_activation_confirmed": True,
+                                "no_auth_claim_change_confirmed": True,
+                                "no_seat_assignment_confirmed": True,
+                                "no_money_movement_confirmed": True,
+                            },
+                        )
+                    except HTTPException as exc:
+                        provider_result = {
+                            "status": "FAILED",
+                            "delivery_id": None,
+                            "provider_status": exc.status_code,
+                            "provider_response": str(exc.detail),
+                        }
+                    dispatch_status = str(provider_result.get("status") or "").upper()
+                    provider_status = (
+                        int(provider_result["provider_status"])
+                        if provider_result.get("provider_status") is not None
+                        else None
+                    )
+                    provider_delivery_ref = _optional_text(
+                        provider_result.get("delivery_id")
+                    )
+                    if dispatch_status == "SENT":
+                        delivery_command_status = "INVITATION_DELIVERY_SENT"
+                        delivery_next_action = (
+                            "Invite email was sent by the approved provider. Wait for the recipient acceptance path before activating access."
+                        )
+                    else:
+                        delivery_command_status = "INVITATION_DELIVERY_FAILED"
+                        delivery_next_action = (
+                            "Provider delivery failed or was dead-lettered. Review the provider status and retry with the same safe delivery command."
+                        )
 
         audit_evidence = {
             "membership_id": safe_membership_id,
@@ -1418,63 +1505,111 @@ async def request_referral_saas_membership_invitation_delivery(
             "recipient_contact_status": recipient_contact_status,
             "recipient_hash_present": recipient_hash_present,
             "command_payload_hash": safe_payload_hash,
-            "provider_configured": False,
-            "no_email_delivery_confirmed": True,
+            "provider_configured": delivery_command_status
+            in {"INVITATION_DELIVERY_SENT", "INVITATION_DELIVERY_FAILED"},
+            "provider_delivery_ref": locals().get("provider_delivery_ref"),
+            "provider_status": locals().get("provider_status"),
+            "no_email_delivery_confirmed": delivery_command_status
+            not in {"INVITATION_DELIVERY_SENT", "INVITATION_DELIVERY_FAILED"},
             "no_membership_activation_confirmed": True,
             "no_auth_claim_change_confirmed": True,
             "no_seat_assignment_confirmed": True,
             "no_money_movement_confirmed": True,
         }
-        audit_event = await conn.fetchrow(
-            """
-            INSERT INTO platform_account_audit_events (
-                account_id,
-                account_tenant_id,
-                external_ref_id,
-                membership_id,
-                tenant_code,
-                event_type,
-                event_status,
-                actor_ref,
-                actor_role,
-                previous_status,
-                next_status,
-                reason_code,
-                correlation_id,
-                idempotency_key_hash,
-                evidence_summary,
-                redactions
-            )
-            VALUES (
-                $1, $2, $3, $4, $5, $6, 'BLOCKED', $7, $8,
-                $9, $10, $11, $12, $13,
-                $14::jsonb, $15::jsonb
-            )
-            RETURNING account_audit_event_id
-            """,
-            safe_account_id,
-            safe_account_tenant_id,
-            safe_external_ref_id,
-            safe_membership_id,
-            safe_tenant_code,
-            MEMBERSHIP_INVITATION_DELIVERY_EVENT,
-            _optional_text(command_actor_ref)
-            or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
-            _optional_text(command_actor_role) or "UNKNOWN",
-            _optional_text(membership.get("delivery_status"))
-            or "DELIVERY_NOT_CONFIGURED",
-            delivery_command_status,
-            safe_reason_code,
-            safe_correlation_id,
-            safe_idempotency_hash,
-            _jsonb(audit_evidence),
-            _jsonb(
-                list(
-                    INVITATION_REDACTIONS
-                    + ("recipient_hash", "provider_secret")
+        async with conn.transaction():
+            if delivery_command_status in {
+                "INVITATION_DELIVERY_SENT",
+                "INVITATION_DELIVERY_FAILED",
+            }:
+                await conn.fetchrow(
+                    """
+                    UPDATE platform_memberships
+                    SET
+                        metadata = COALESCE(metadata, '{}'::jsonb) || $4::jsonb,
+                        updated_at = NOW()
+                    WHERE membership_id = $1
+                      AND account_id = $2
+                      AND (tenant_code = $3 OR tenant_code IS NULL)
+                    RETURNING membership_id
+                    """,
+                    safe_membership_id,
+                    safe_account_id,
+                    safe_tenant_code,
+                    _jsonb(
+                        {
+                            "delivery_status": delivery_command_status,
+                            "delivery_channel": safe_channel,
+                            "delivery_provider_ref": safe_provider_ref,
+                            "delivery_template_ref": safe_template_ref,
+                            "provider_delivery_ref": locals().get(
+                                "provider_delivery_ref"
+                            ),
+                            "provider_status": locals().get("provider_status"),
+                            "no_membership_activation_confirmed": True,
+                            "no_auth_claim_change_confirmed": True,
+                            "no_seat_assignment_confirmed": True,
+                            "no_money_movement_confirmed": True,
+                        }
+                    ),
                 )
-            ),
-        )
+
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    membership_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9,
+                    $10, $11, $12, $13, $14,
+                    $15::jsonb, $16::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                safe_account_tenant_id,
+                safe_external_ref_id,
+                safe_membership_id,
+                safe_tenant_code,
+                MEMBERSHIP_INVITATION_DELIVERY_EVENT,
+                (
+                    "RECORDED"
+                    if delivery_command_status == "INVITATION_DELIVERY_SENT"
+                    else "FAILED"
+                    if delivery_command_status == "INVITATION_DELIVERY_FAILED"
+                    else "BLOCKED"
+                ),
+                _optional_text(command_actor_ref)
+                or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                _optional_text(command_actor_role) or "UNKNOWN",
+                _optional_text(membership.get("delivery_status"))
+                or "DELIVERY_NOT_CONFIGURED",
+                delivery_command_status,
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(audit_evidence),
+                _jsonb(
+                    list(
+                        INVITATION_REDACTIONS
+                        + ("recipient_hash", "provider_secret")
+                    )
+                ),
+            )
 
     return MembershipInvitationDeliveryRequestResult(
         command_status=delivery_command_status,
@@ -1493,6 +1628,8 @@ async def request_referral_saas_membership_invitation_delivery(
         audit_event_id=(
             str(audit_event["account_audit_event_id"]) if audit_event else None
         ),
+        provider_delivery_ref=locals().get("provider_delivery_ref"),
+        provider_status=locals().get("provider_status"),
     )
 
 
@@ -3640,6 +3777,74 @@ def _required_choice(value: Any, allowed: set[str] | frozenset[str]) -> str:
 
 def _jsonb(value: Any) -> str:
     return json.dumps(value, sort_keys=True)
+
+
+def _approved_invitation_delivery_provider(
+    *,
+    channel: str,
+    provider_ref: str,
+) -> dict[str, Any]:
+    channel_code = _required_choice(channel, {"EMAIL"})
+    requested_provider_ref = _required_text(provider_ref)
+    readiness = get_channel_readiness()
+    item = next(
+        (
+            item
+            for item in readiness.get("items", [])
+            if isinstance(item, dict)
+            and _optional_text(item.get("channel_code")).upper() == channel_code
+        ),
+        None,
+    )
+    if not item:
+        return {
+            "ready": False,
+            "next_action": (
+                f"Configure {channel_code} as an approved Referral SaaS invite "
+                "provider before sending invites."
+            ),
+        }
+
+    configured_ref = _optional_text(item.get("provider_ref"))
+    if not item.get("provider_configured"):
+        return {
+            "ready": False,
+            "next_action": (
+                "Configure Email provider URL and signing secret before sending "
+                "invite emails."
+            ),
+        }
+    if configured_ref and configured_ref != requested_provider_ref:
+        return {
+            "ready": False,
+            "next_action": (
+                "Use the approved Email provider reference configured for this "
+                "customer before sending invites."
+            ),
+        }
+    if not item.get("provider_approved") or not item.get(
+        "approved_for_referral_saas"
+    ):
+        return {
+            "ready": False,
+            "next_action": (
+                "Approve the Email provider for Referral SaaS invite delivery "
+                "before sending invites."
+            ),
+        }
+    return {
+        "ready": True,
+        "next_action": "Approved Email provider is ready for invitation delivery.",
+    }
+
+
+def _membership_invitation_message(*, template_ref: str, role_family: str) -> str:
+    safe_template_ref = _required_text(template_ref)
+    safe_role_family = _required_text(role_family).replace("_", " ").title()
+    return (
+        "You have been invited to manage Referral SaaS "
+        f"{safe_role_family} access. Template: {safe_template_ref}."
+    )
 
 
 def _as_mapping(value: Any) -> dict[str, Any]:

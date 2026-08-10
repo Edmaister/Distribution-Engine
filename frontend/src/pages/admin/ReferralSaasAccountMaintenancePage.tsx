@@ -787,10 +787,23 @@ export function ReferralSaasAccountMaintenancePage() {
     mutationFn: requestReferralSaasMembershipInvitationDelivery,
     onSuccess: async (response) => {
       await refreshPeopleAccessReadModels();
+      const role = formatDisplay(response.deliveryRequest.membership.roleFamily);
+      const deliveryStatus = response.deliveryRequest.delivery.status;
+      const providerRef = response.deliveryRequest.delivery.providerDeliveryRef;
+      const providerStatus = response.deliveryRequest.delivery.providerStatus;
+      const providerDetail = providerRef
+        ? ` Provider delivery reference: ${providerRef}.`
+        : providerStatus
+          ? ` Provider status: ${providerStatus}.`
+          : "";
+      const deliveryCopy =
+        deliveryStatus === "INVITATION_DELIVERY_SENT"
+          ? `${role} invite email was sent by the approved provider.${providerDetail} Wait for the person to accept access. No login was activated, no seat was assigned, no permission claims changed, and no money moved.`
+          : deliveryStatus === "INVITATION_DELIVERY_FAILED"
+            ? `${role} invite email could not be sent.${providerDetail} ${response.deliveryRequest.delivery.nextAction} No login was activated, no seat was assigned, no permission claims changed, and no money moved.`
+            : `${role} invite email was not sent. ${response.deliveryRequest.delivery.nextAction} No login was activated, no seat was assigned, no permission claims changed, and no money moved.`;
       setDeliveryResult(
-        `${formatDisplay(response.deliveryRequest.membership.roleFamily)} delivery check returned ${formatDisplay(
-          response.deliveryRequest.delivery.status,
-        )}. ${response.deliveryRequest.delivery.nextAction} No email was sent, no login was activated, no seat was assigned, and no permissions changed.`,
+        deliveryCopy,
       );
     },
   });
@@ -2456,7 +2469,7 @@ export function ReferralSaasAccountMaintenancePage() {
                   {deliveryMutation.error ? <ErrorPanel error={deliveryMutation.error} /> : null}
                   {deliveryResult ? (
                     <div className="wizard-summary-strip success">
-                      <strong>Invite delivery checked.</strong> {deliveryResult}
+                      <strong>Invite delivery updated.</strong> {deliveryResult}
                     </div>
                   ) : null}
                   {activationMutation.error ? <ErrorPanel error={activationMutation.error} /> : null}
@@ -2764,7 +2777,7 @@ export function ReferralSaasAccountMaintenancePage() {
                         },
                         {
                           key: "deliveryCheck",
-                          header: "Delivery check",
+                          header: "Invite email",
                           render: (row) => {
                             const membershipRef = getValue(row, ["membershipRef"], "");
                             const roleFamily = getValue(row, ["roleFamily"], "UNKNOWN");
@@ -2787,7 +2800,7 @@ export function ReferralSaasAccountMaintenancePage() {
                                   onClick={() => requestInviteDeliveryCheck(membershipRef, roleFamily)}
                                   type="button"
                                 >
-                                  {deliveryMutation.isPending ? "Checking" : "Check invite delivery"}
+                                  {deliveryMutation.isPending ? "Sending" : "Send invite email"}
                                 </button>
                                 <span className="table-subtext">{blocker}</span>
                               </div>

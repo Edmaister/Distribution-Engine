@@ -2085,6 +2085,8 @@ export type ReferralSaasMembershipInvitationDeliveryResponse = {
       providerRef: string;
       channel: string;
       templateRef: string;
+      providerDeliveryRef?: string | null;
+      providerStatus?: number | null;
     };
     idempotency: {
       status: string;
