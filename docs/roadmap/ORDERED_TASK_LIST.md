@@ -8264,7 +8264,7 @@ Completed output: `services/referral_saas_integrations_configuration_service.py`
 
 ## TASK-368: Add integration test execution evidence adapters
 
-Status: Pending.
+Status: Completed.
 Product boundary: Referral SaaS.
 Shared primitive impact: Uses integration bindings and provider/vault references for safe test evidence. Source duplication: No.
 Objective: Implement live or managed test evidence for API verification, webhook test dispatch, invite-provider check, and referral-message provider check.
@@ -8274,6 +8274,7 @@ Tests to add/update: API/webhook/message/invite test evidence, provider failure,
 Acceptance criteria: Operators can see real integration proof without sending production messages or exposing secrets.
 Dependencies: TASK-367.
 Priority: P0.
+Completed output: `services/referral_saas_integration_test_runtime.py`; `services/referral_saas_integrations_configuration_service.py`; `test/test_referral_saas_integrations_configuration_service.py`; roadmap/gap/infographic updates. Adds adapter-backed safe test execution evidence for API-access verification, webhook test dispatch, invite-provider evidence, and referral-message provider checks. Integration command responses and audit summaries now expose `testExecutionEvidence` with adapter references, runtime evidence flags, safe blocked states, idempotency replay support, redactions, and no production provider call, webhook dispatch, invite delivery, referral-message delivery, credential action, auth change, campaign activation, billing, or money movement.
 
 ## TASK-369: Enforce partner-safe campaign workspace capabilities
 

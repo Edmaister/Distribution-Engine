@@ -3,8 +3,11 @@ from __future__ import annotations
 import pytest
 
 from services.referral_saas_integrations_configuration_service import (
+    ReferralSaasApiAccessVerificationResult,
+    ReferralSaasWebhookTestDispatchResult,
     ReferralSaasIntegrationConfiguration,
     ReferralSaasIntegrationCredentialRequest,
+    ReferralSaasMessageProviderTestResult,
     ReferralSaasProviderVaultExecutionResult,
     build_referral_saas_integration_client_binding,
     build_referral_saas_integration_execution_readiness,
@@ -12,6 +15,12 @@ from services.referral_saas_integrations_configuration_service import (
     IntegrationConfigurationUnsafePayload,
     IntegrationConfigurationValidationError,
     validate_referral_saas_integration_configuration,
+)
+from services.referral_saas_integration_test_runtime import (
+    INTEGRATION_TEST_EXECUTION_PROOF_BLOCKED,
+    INTEGRATION_TEST_EXECUTION_PROOF_READY,
+    IntegrationTestRuntimeRequest,
+    execute_integration_test_runtime,
 )
 
 
@@ -356,3 +365,137 @@ def test_provider_vault_lifecycle_proof_does_not_expose_raw_secret_fields() -> N
     assert "api_key_value" in proof["redactions"]
     assert "signing_key_value" in proof["redactions"]
     assert "vault_reference" in proof["redactions"]
+
+
+@pytest.mark.asyncio
+async def test_api_access_test_runtime_returns_safe_execution_proof() -> None:
+    result = await execute_integration_test_runtime(
+        IntegrationTestRuntimeRequest(
+            test_type="API_ACCESS_VERIFICATION",
+            account_id="acct-1",
+            tenant_code="FNB",
+            configuration_ref="config-1",
+            request_payload_hash="payload-hash",
+            environment="SANDBOX",
+            verified_use_cases=["CAMPAIGN_READ"],
+        )
+    )
+
+    safe = result.to_safe_dict()
+    assert safe["proofStatus"] == INTEGRATION_TEST_EXECUTION_PROOF_READY
+    assert safe["adapterRef"] == "API_ACCESS_TEST_EVIDENCE_ADAPTER"
+    assert safe["runtimeEvidence"]["apiAccessEvidencePresent"] is True
+    assert safe["noProviderCallConfirmed"] is True
+    assert safe["noCredentialCreationConfirmed"] is True
+
+
+@pytest.mark.asyncio
+async def test_message_provider_runtime_tracks_invite_and_referral_message_evidence() -> None:
+    result = await execute_integration_test_runtime(
+        IntegrationTestRuntimeRequest(
+            test_type="MESSAGE_PROVIDER_TEST",
+            account_id="acct-1",
+            tenant_code="FNB",
+            configuration_ref="config-1",
+            request_payload_hash="payload-hash",
+            channels=["EMAIL", "SMS"],
+            provider_refs_count=1,
+        )
+    )
+
+    safe = result.to_safe_dict()
+    assert safe["proofStatus"] == INTEGRATION_TEST_EXECUTION_PROOF_READY
+    assert safe["adapterRef"] == "MESSAGE_PROVIDER_TEST_EVIDENCE_ADAPTER"
+    assert safe["runtimeEvidence"]["inviteProviderEvidencePresent"] is True
+    assert safe["runtimeEvidence"]["referralMessageProviderEvidencePresent"] is True
+    assert safe["noInviteDeliveryConfirmed"] is True
+    assert safe["noMessageProviderDeliveryConfirmed"] is True
+
+
+@pytest.mark.asyncio
+async def test_webhook_test_runtime_blocks_incomplete_evidence_without_dispatch() -> None:
+    result = await execute_integration_test_runtime(
+        IntegrationTestRuntimeRequest(
+            test_type="WEBHOOK_TEST_DISPATCH",
+            account_id="acct-1",
+            tenant_code="FNB",
+            configuration_ref="config-1",
+            request_payload_hash="payload-hash",
+            callback_url_present=True,
+            event_categories=[],
+        )
+    )
+
+    safe = result.to_safe_dict()
+    assert safe["proofStatus"] == INTEGRATION_TEST_EXECUTION_PROOF_BLOCKED
+    assert safe["blockedReason"] == "WEBHOOK_TEST_EVIDENCE_MISSING"
+    assert safe["runtimeEvidence"]["webhookTestEvidencePresent"] is False
+    assert safe["noWebhookDispatchConfirmed"] is True
+
+
+def test_integration_command_results_include_test_execution_evidence() -> None:
+    proof = {
+        "proofStatus": "INTEGRATION_TEST_EXECUTION_PROOF_READY",
+        "adapterRef": "API_ACCESS_TEST_EVIDENCE_ADAPTER",
+        "runtimeEvidence": {"apiAccessEvidencePresent": True},
+        "safeForFrontendDisplay": True,
+    }
+
+    api_result = ReferralSaasApiAccessVerificationResult(
+        verification_status="API_ACCESS_VERIFICATION_RECORDED",
+        configuration_ref="config-1",
+        account_ref="acct-1",
+        api_environment="SANDBOX",
+        verified_use_cases=["CAMPAIGN_READ"],
+        idempotency_status="API_ACCESS_VERIFICATION_RECORDED",
+        audit_event_id="audit-1",
+        plain_language_summary="API evidence recorded.",
+        guardrails=["NO_LIVE_PROVIDER_EXECUTION"],
+        redactions=["provider_runtime_payload"],
+        test_execution_evidence=proof,
+    )
+    webhook_result = ReferralSaasWebhookTestDispatchResult(
+        dispatch_status="WEBHOOK_TEST_DISPATCH_RECORDED",
+        configuration_ref="config-1",
+        account_ref="acct-1",
+        callback_url_present=True,
+        event_categories=["REFERRAL"],
+        idempotency_status="WEBHOOK_TEST_DISPATCH_RECORDED",
+        audit_event_id="audit-2",
+        plain_language_summary="Webhook evidence recorded.",
+        guardrails=["NO_WEBHOOK_TEST_DISPATCH"],
+        redactions=["webhook_signing_material"],
+        test_execution_evidence={**proof, "adapterRef": "WEBHOOK_TEST_EVIDENCE_ADAPTER"},
+    )
+    message_result = ReferralSaasMessageProviderTestResult(
+        test_status="MESSAGE_PROVIDER_TEST_RECORDED",
+        configuration_ref="config-1",
+        account_ref="acct-1",
+        channels=["EMAIL"],
+        provider_refs=["approved-email-provider"],
+        idempotency_status="MESSAGE_PROVIDER_TEST_RECORDED",
+        audit_event_id="audit-3",
+        plain_language_summary="Message provider evidence recorded.",
+        guardrails=["NO_MESSAGE_PROVIDER_DELIVERY"],
+        redactions=["provider_runtime_payload"],
+        test_execution_evidence={
+            **proof,
+            "adapterRef": "MESSAGE_PROVIDER_TEST_EVIDENCE_ADAPTER",
+            "runtimeEvidence": {
+                "inviteProviderEvidencePresent": True,
+                "referralMessageProviderEvidencePresent": True,
+            },
+        },
+    )
+
+    assert (
+        api_result.to_safe_dict()["testExecutionEvidence"]["adapterRef"]
+        == "API_ACCESS_TEST_EVIDENCE_ADAPTER"
+    )
+    assert (
+        webhook_result.to_safe_dict()["testExecutionEvidence"]["adapterRef"]
+        == "WEBHOOK_TEST_EVIDENCE_ADAPTER"
+    )
+    message_proof = message_result.to_safe_dict()["testExecutionEvidence"]
+    assert message_proof["runtimeEvidence"]["inviteProviderEvidencePresent"] is True
+    assert message_result.to_safe_dict()["noMessageProviderDeliveryConfirmed"] is True

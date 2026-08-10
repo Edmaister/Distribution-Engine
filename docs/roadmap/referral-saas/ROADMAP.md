@@ -2477,9 +2477,27 @@ on TASK-366 through TASK-380.
   stale-request state, audit evidence, redactions, and no raw secret,
   unsupported provider dispatch, credential reveal, or vault-write-without-
   adapter side effects. Ratings remain 9.99/10 for Referral Management and
-  9.99996/10 for Campaign Attribution until API/webhook/invite/referral-message
-  provider execution evidence, campaign/runtime controls, referral operations,
-  attribution, reporting/support, and non-local proof are complete.
+  9.99996/10 for Campaign Attribution until integration test execution
+  evidence, campaign/runtime controls, referral operations, attribution,
+  reporting/support, and non-local proof are complete.
+- TASK-368:
+  `services/referral_saas_integration_test_runtime.py`;
+  `services/referral_saas_integrations_configuration_service.py`;
+  `test/test_referral_saas_integrations_configuration_service.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds
+  adapter-backed safe test execution evidence for API-access verification,
+  webhook test dispatch, invite-provider evidence, and referral-message
+  provider checks. Command responses and audit summaries now include
+  `testExecutionEvidence` with adapter references, runtime evidence flags,
+  safe blocked states, redactions, idempotency replay support, and explicit
+  no-live-provider, no-webhook-dispatch, no-invite-delivery,
+  no-referral-message-delivery, no-credential, no-auth, no-campaign, no-billing,
+  and no-money guardrails. Ratings remain 9.99/10 for Referral Management and
+  9.99996/10 for Campaign Attribution until campaign/runtime controls, referral
+  operations, attribution, reporting/support, and non-local proof are complete.
 
 ## Explicit Deferrals
 
