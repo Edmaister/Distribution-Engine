@@ -8208,7 +8208,7 @@ Completed output: `services/referral_saas_account_membership_service.py`; `apps/
 
 ## TASK-364: Add expiring invitation acceptance path
 
-Status: Pending.
+Status: Completed.
 Product boundary: Referral SaaS.
 Shared primitive impact: Adds safe invite-token lifecycle and acceptance evidence. Source duplication: No.
 Objective: Create an expiring acceptance-link flow that records acceptance without silently provisioning seats, credentials, auth claims, campaigns, billing, or money.
@@ -8218,6 +8218,7 @@ Tests to add/update: Token expiry, replay, invalid token, accepted-access, redac
 Acceptance criteria: Invite acceptance is user-driven, time-bound, auditable, and separated from login provisioning.
 Dependencies: TASK-363.
 Priority: P0.
+Completed output: `dp/migrations/091_referral_saas_membership_acceptance_tokens.sql`; `services/referral_saas_account_membership_service.py`; `apps/api/routers/referral_saas_accounts.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/app/App.tsx`; `frontend/src/pages/referral-saas/ReferralSaasMembershipAcceptancePage.tsx`; `frontend/src/styles/base.css`; `test/test_referral_saas_account_membership_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; roadmap/gap/infographic updates. Adds expiring, hashed membership acceptance tokens, public validate/accept routes, replay/expiry/invalid-token protections, audit evidence, and a plain-language invitee acceptance page. Acceptance records customer access only and keeps seats, credentials, auth claims, campaign activation, billing, money movement, DLaaS expansion, and source forks excluded.
 
 ## TASK-365: Add identity and login provisioning reconciliation
 
