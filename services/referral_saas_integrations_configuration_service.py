@@ -5,6 +5,10 @@ import json
 from typing import Any
 from urllib.parse import urlparse
 
+from services.referral_saas_integration_test_runtime import (
+    IntegrationTestRuntimeRequest,
+    execute_integration_test_runtime,
+)
 from services.referral_saas_provider_vault_runtime import (
     ProviderVaultRuntimeRequest,
     execute_provider_vault_runtime,
@@ -510,6 +514,7 @@ class ReferralSaasApiAccessVerificationResult:
     plain_language_summary: str
     guardrails: list[str]
     redactions: list[str]
+    test_execution_evidence: dict[str, Any] | None = None
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
@@ -521,6 +526,7 @@ class ReferralSaasApiAccessVerificationResult:
             "idempotency": {"status": self.idempotency_status},
             "audit": {"accountAuditEventId": self.audit_event_id},
             "plainLanguageSummary": self.plain_language_summary,
+            "testExecutionEvidence": _safe_json_dict(self.test_execution_evidence),
             "guardrails": self.guardrails,
             "redactions": self.redactions,
             "noSecretOrCredentialStorageConfirmed": True,
@@ -550,6 +556,7 @@ class ReferralSaasWebhookTestDispatchResult:
     plain_language_summary: str
     guardrails: list[str]
     redactions: list[str]
+    test_execution_evidence: dict[str, Any] | None = None
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
@@ -561,6 +568,7 @@ class ReferralSaasWebhookTestDispatchResult:
             "idempotency": {"status": self.idempotency_status},
             "audit": {"accountAuditEventId": self.audit_event_id},
             "plainLanguageSummary": self.plain_language_summary,
+            "testExecutionEvidence": _safe_json_dict(self.test_execution_evidence),
             "guardrails": self.guardrails,
             "redactions": self.redactions,
             "noSecretOrCredentialStorageConfirmed": True,
@@ -590,6 +598,7 @@ class ReferralSaasMessageProviderTestResult:
     plain_language_summary: str
     guardrails: list[str]
     redactions: list[str]
+    test_execution_evidence: dict[str, Any] | None = None
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
@@ -601,6 +610,7 @@ class ReferralSaasMessageProviderTestResult:
             "idempotency": {"status": self.idempotency_status},
             "audit": {"accountAuditEventId": self.audit_event_id},
             "plainLanguageSummary": self.plain_language_summary,
+            "testExecutionEvidence": _safe_json_dict(self.test_execution_evidence),
             "guardrails": self.guardrails,
             "redactions": self.redactions,
             "noSecretOrCredentialStorageConfirmed": True,
@@ -2134,11 +2144,25 @@ async def record_referral_saas_api_access_verification(
         for item in (api_environment.get("useCases") or [])
         if str(item).strip()
     ]
+    test_execution_evidence = (
+        await execute_integration_test_runtime(
+            IntegrationTestRuntimeRequest(
+                test_type="API_ACCESS_VERIFICATION",
+                account_id=safe_account_id,
+                tenant_code=safe_tenant_code,
+                configuration_ref=configuration.configuration_ref,
+                request_payload_hash=safe_payload_hash,
+                environment=environment,
+                verified_use_cases=verified_use_cases,
+            )
+        )
+    ).to_safe_dict()
     evidence_summary = {
         "integration_configuration_id": configuration.configuration_ref,
         "verification_status": API_ACCESS_VERIFICATION_RECORDED,
         "api_environment": environment,
         "verified_use_cases": verified_use_cases,
+        "test_execution_evidence": test_execution_evidence,
         "request_payload_hash": safe_payload_hash,
         "no_secret_or_credential_storage_confirmed": True,
         "no_credential_creation_confirmed": True,
@@ -2175,6 +2199,9 @@ async def record_referral_saas_api_access_verification(
                 raise IntegrationConfigurationIdempotencyConflict(
                     "Idempotency key was reused with different API-access verification content."
                 )
+            replayed_evidence = _safe_json_dict(
+                existing_evidence.get("test_execution_evidence")
+            ) or test_execution_evidence
             return ReferralSaasApiAccessVerificationResult(
                 verification_status=API_ACCESS_VERIFICATION_REPLAYED,
                 configuration_ref=configuration.configuration_ref,
@@ -2190,6 +2217,7 @@ async def record_referral_saas_api_access_verification(
                 ),
                 guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
                 redactions=INTEGRATION_EXECUTION_REDACTIONS,
+                test_execution_evidence=replayed_evidence,
             )
 
         audit_event = await conn.fetchrow(
@@ -2249,6 +2277,7 @@ async def record_referral_saas_api_access_verification(
         ),
         guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
         redactions=INTEGRATION_EXECUTION_REDACTIONS,
+        test_execution_evidence=test_execution_evidence,
     )
 
 
@@ -2330,11 +2359,25 @@ async def record_referral_saas_webhook_test_dispatch(
         for item in (webhook_intent.get("eventCategories") or [])
         if str(item).strip()
     ]
+    test_execution_evidence = (
+        await execute_integration_test_runtime(
+            IntegrationTestRuntimeRequest(
+                test_type="WEBHOOK_TEST_DISPATCH",
+                account_id=safe_account_id,
+                tenant_code=safe_tenant_code,
+                configuration_ref=configuration.configuration_ref,
+                request_payload_hash=safe_payload_hash,
+                callback_url_present=bool(webhook_intent.get("callbackUrl")),
+                event_categories=event_categories,
+            )
+        )
+    ).to_safe_dict()
     evidence_summary = {
         "integration_configuration_id": configuration.configuration_ref,
         "dispatch_status": WEBHOOK_TEST_DISPATCH_RECORDED,
         "callback_url_present": bool(webhook_intent.get("callbackUrl")),
         "event_categories": event_categories,
+        "test_execution_evidence": test_execution_evidence,
         "request_payload_hash": safe_payload_hash,
         "no_secret_or_credential_storage_confirmed": True,
         "no_credential_creation_confirmed": True,
@@ -2371,6 +2414,9 @@ async def record_referral_saas_webhook_test_dispatch(
                 raise IntegrationConfigurationIdempotencyConflict(
                     "Idempotency key was reused with different webhook test-dispatch content."
                 )
+            replayed_evidence = _safe_json_dict(
+                existing_evidence.get("test_execution_evidence")
+            ) or test_execution_evidence
             return ReferralSaasWebhookTestDispatchResult(
                 dispatch_status=WEBHOOK_TEST_DISPATCH_REPLAYED,
                 configuration_ref=configuration.configuration_ref,
@@ -2386,6 +2432,7 @@ async def record_referral_saas_webhook_test_dispatch(
                 ),
                 guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
                 redactions=INTEGRATION_EXECUTION_REDACTIONS,
+                test_execution_evidence=replayed_evidence,
             )
 
         audit_event = await conn.fetchrow(
@@ -2445,6 +2492,7 @@ async def record_referral_saas_webhook_test_dispatch(
         ),
         guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
         redactions=INTEGRATION_EXECUTION_REDACTIONS,
+        test_execution_evidence=test_execution_evidence,
     )
 
 
@@ -2531,11 +2579,25 @@ async def record_referral_saas_message_provider_test(
         for item in (message_providers.get("providerRefs") or [])
         if str(item).strip()
     ]
+    test_execution_evidence = (
+        await execute_integration_test_runtime(
+            IntegrationTestRuntimeRequest(
+                test_type="MESSAGE_PROVIDER_TEST",
+                account_id=safe_account_id,
+                tenant_code=safe_tenant_code,
+                configuration_ref=configuration.configuration_ref,
+                request_payload_hash=safe_payload_hash,
+                channels=channels,
+                provider_refs_count=len(provider_refs),
+            )
+        )
+    ).to_safe_dict()
     evidence_summary = {
         "integration_configuration_id": configuration.configuration_ref,
         "test_status": MESSAGE_PROVIDER_TEST_RECORDED,
         "channels": channels,
         "provider_refs_count": len(provider_refs),
+        "test_execution_evidence": test_execution_evidence,
         "request_payload_hash": safe_payload_hash,
         "no_secret_or_credential_storage_confirmed": True,
         "no_credential_creation_confirmed": True,
@@ -2572,6 +2634,9 @@ async def record_referral_saas_message_provider_test(
                 raise IntegrationConfigurationIdempotencyConflict(
                     "Idempotency key was reused with different message-provider test content."
                 )
+            replayed_evidence = _safe_json_dict(
+                existing_evidence.get("test_execution_evidence")
+            ) or test_execution_evidence
             return ReferralSaasMessageProviderTestResult(
                 test_status=MESSAGE_PROVIDER_TEST_REPLAYED,
                 configuration_ref=configuration.configuration_ref,
@@ -2587,6 +2652,7 @@ async def record_referral_saas_message_provider_test(
                 ),
                 guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
                 redactions=INTEGRATION_EXECUTION_REDACTIONS,
+                test_execution_evidence=replayed_evidence,
             )
 
         audit_event = await conn.fetchrow(
@@ -2646,6 +2712,7 @@ async def record_referral_saas_message_provider_test(
         ),
         guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
         redactions=INTEGRATION_EXECUTION_REDACTIONS,
+        test_execution_evidence=test_execution_evidence,
     )
 
 
