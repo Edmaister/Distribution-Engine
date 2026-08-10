@@ -638,7 +638,7 @@
           </div>
           <div class="status-pill">
             <b>H1 release gates are now locked</b>
-            <span>TASK-356 aligns the roadmap to the Amplifi experience-design pack. TASK-357 now locks the H1 Referral SaaS promise, disabled DLaaS and money boundaries, role posture, plain-language UX rule, and release gates for account/jurisdiction, entitlement, people/access, integrations, campaign control, referral/attribution correctness, reporting/support, and deployed-state proof. TASK-358 through TASK-380 now enforce those gates across runtime, UI, and proof. TASK-381 keeps commercial-finance mapping separately scoped so billing, settlement, funding, payout, invoices, and money movement do not leak into the H1 Referral SaaS promise.</span>
+            <span>TASK-356 aligns the roadmap to the Amplifi experience-design pack. TASK-357 now locks the H1 Referral SaaS promise, disabled DLaaS and money boundaries, role posture, plain-language UX rule, and release gates for account/jurisdiction, entitlement, people/access, integrations, campaign control, referral/attribution correctness, reporting/support, and deployed-state proof. TASK-358 now enforces selected-customer account, operating-jurisdiction, and account-read capability gates on the core account resolver, membership posture, and membership readiness routes. TASK-359 through TASK-380 continue those gates across partner workspace, entitlement, runtime, UI, and proof. TASK-381 keeps commercial-finance mapping separately scoped so billing, settlement, funding, payout, invoices, and money movement do not leak into the H1 Referral SaaS promise.</span>
           </div>
           <div class="status-pill">
             <b>Hardening still missing</b>
@@ -1280,8 +1280,8 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">SaaS workflow implementation</div>
-            <div class="matrix-cell">Selected-customer account/profile, people/access, Integrations, campaign, links/codes, reports, support, export, provider/vault, auth/login, and proof foundations now exist. TASK-357 adds the H1 scope and release-gate contract that decides which journeys can be promised, which are disabled, and which must fail closed. Runtime enforcement still needs account/jurisdiction, capability, entitlement, partner workspace, invitation/login, integrations execution, campaign control, referral operations, attribution, reporting, support, and non-local proof hardening.</div>
-            <div class="matrix-cell">Start TASK-358 to enforce account capability and jurisdiction boundaries against the TASK-357 H1 gates.</div>
+            <div class="matrix-cell">Selected-customer account/profile, people/access, Integrations, campaign, links/codes, reports, support, export, provider/vault, auth/login, and proof foundations now exist. TASK-357 adds the H1 scope and release-gate contract that decides which journeys can be promised, which are disabled, and which must fail closed. TASK-358 now enforces account, jurisdiction, and account-read capability gates on the core selected-customer account resolver/readiness routes. Runtime enforcement still needs entitlement, partner workspace, invitation/login, integrations execution, campaign control, referral operations, attribution, reporting, support, and non-local proof hardening.</div>
+            <div class="matrix-cell">Continue TASK-359 to add the partner workspace account-context resolver against the TASK-357/TASK-358 gates.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Live DB/state verification</div>

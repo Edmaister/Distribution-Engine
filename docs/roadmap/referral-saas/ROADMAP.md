@@ -150,6 +150,15 @@ and money movement remain disabled or separately contracted. Later tasks must
 enforce the same release gates server-side and keep the UI honest when a
 journey is deferred, blocked, or controlled.
 
+TASK-358 starts that runtime enforcement path. The selected-customer account
+resolver, membership posture, and membership activation readiness routes now
+carry operating jurisdiction in the safe account context and fail closed when
+the caller identity is scoped to a different account, a different operating
+jurisdiction, or lacks the required Referral SaaS account-read capability.
+Partner workspace, entitlement, invitation/login, integration execution,
+campaign control, referral operations, attribution, reporting, support, and
+non-local proof gates remain on TASK-359 through TASK-380.
+
 ## Recommended Ordered Task Sequence
 
 1. TASK-134: Define Referral SaaS account setup contract.
@@ -2324,6 +2333,21 @@ journey is deferred, blocked, or controlled.
   Referral Management and moves Campaign Attribution to 9.99996/10 because the
   vendor/managed runtime implementation gap is closed while repair/replay
   command execution and non-local proof repetition remain open.
+- TASK-358:
+  `services/referral_saas_account_foundation_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Enforces
+  selected-customer account, operating-jurisdiction, and account-read
+  capability gates on the core Referral SaaS account resolver, membership
+  posture, and membership activation readiness routes. Resolved account context
+  now exposes operating jurisdiction safely, and cross-account,
+  cross-jurisdiction, or missing-capability callers receive forbidden boundary
+  responses without exposing tenant codes, auth claims, or internal tenant
+  identifiers.
 
 ## Explicit Deferrals
 

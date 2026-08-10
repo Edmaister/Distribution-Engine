@@ -464,6 +464,155 @@ def _require_referral_saas_account_reader(identity: dict[str, Any]) -> dict[str,
     return identity
 
 
+def _normalise_identity_values(value: Any) -> set[str]:
+    if value is None:
+        return set()
+    if isinstance(value, str):
+        return {
+            item.strip()
+            for chunk in value.split(",")
+            for item in chunk.split()
+            if item.strip()
+        }
+    if isinstance(value, (list, tuple, set, frozenset)):
+        values: set[str] = set()
+        for item in value:
+            values.update(_normalise_identity_values(item))
+        return values
+    return {str(value).strip()} if str(value).strip() else set()
+
+
+def _identity_claim_values(identity: dict[str, Any], *keys: str) -> set[str]:
+    values: set[str] = set()
+    for key in keys:
+        values.update(_normalise_identity_values(identity.get(key)))
+    return values
+
+
+def _identity_capability_values(identity: dict[str, Any]) -> set[str]:
+    values = _identity_claim_values(
+        identity,
+        "scope",
+        "scopes",
+        "capability",
+        "capabilities",
+        "permission",
+        "permissions",
+    )
+    return {value.upper() for value in values}
+
+
+def _raise_account_boundary_forbidden(message: str, guardrails: list[str]) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            "code": "account_boundary_forbidden",
+            "message": message,
+            "guardrails": guardrails,
+            "redactions": [
+                "internal_tenant_identifier",
+                "tenant_code",
+                "auth_claims",
+            ],
+            "no_cross_account_access_confirmed": True,
+            "no_cross_jurisdiction_access_confirmed": True,
+            "no_capability_bypass_confirmed": True,
+        },
+    )
+
+
+def _enforce_referral_saas_account_boundary(
+    *,
+    identity: dict[str, Any] | None,
+    account: Any,
+    required_capability: str | None = None,
+) -> None:
+    if not identity:
+        return
+
+    account_claims = _identity_claim_values(
+        identity,
+        "account_ref",
+        "accountRef",
+        "account_id",
+        "accountId",
+        "account_code",
+        "accountCode",
+    )
+    if account_claims and not account_claims.intersection(
+        {str(account.account_id), str(account.account_code)}
+    ):
+        _raise_account_boundary_forbidden(
+            "The selected customer account is outside the caller's account scope.",
+            [
+                "SERVER_SIDE_ACCOUNT_CONTEXT_ENFORCEMENT",
+                "NO_UI_SCOPE_BYPASS",
+            ],
+        )
+
+    ref_type = str(getattr(account, "ref_type", "") or "").strip().lower()
+    if ref_type == "organisation_ref":
+        external_ref_claims = _identity_claim_values(
+            identity,
+            "organisation_ref",
+            "organisationRef",
+        )
+    else:
+        external_ref_claims = _identity_claim_values(
+            identity,
+            "external_tenant_ref",
+            "externalTenantRef",
+            "customer_ref",
+            "customerRef",
+        )
+    if external_ref_claims and str(account.external_ref) not in external_ref_claims:
+        _raise_account_boundary_forbidden(
+            "The selected customer reference is outside the caller's customer scope.",
+            [
+                "SERVER_SIDE_CUSTOMER_REFERENCE_ENFORCEMENT",
+                "NO_UI_SCOPE_BYPASS",
+            ],
+        )
+
+    jurisdiction_claims = {
+        value.upper()
+        for value in _identity_claim_values(
+            identity,
+            "jurisdiction",
+            "jurisdiction_code",
+            "jurisdictionCode",
+            "operating_jurisdiction_code",
+            "operatingJurisdictionCode",
+            "jurisdictions",
+            "allowed_jurisdictions",
+            "allowedJurisdictions",
+        )
+    }
+    account_jurisdiction = str(
+        getattr(account, "operating_jurisdiction_code", "") or ""
+    ).upper()
+    if jurisdiction_claims and account_jurisdiction not in jurisdiction_claims:
+        _raise_account_boundary_forbidden(
+            "The selected customer is outside the caller's operating jurisdiction.",
+            [
+                "SERVER_SIDE_ACCOUNT_JURISDICTION_ENFORCEMENT",
+                "NO_UI_JURISDICTION_FILTER_BYPASS",
+            ],
+        )
+
+    capability_claims = _identity_capability_values(identity)
+    if required_capability and capability_claims:
+        required = required_capability.upper()
+        if required not in capability_claims and "*" not in capability_claims:
+            _raise_account_boundary_forbidden(
+                "The caller does not have the capability required for this customer action.",
+                [
+                    "SERVER_SIDE_ACCOUNT_CAPABILITY_ENFORCEMENT",
+                    "NO_UI_CAPABILITY_BYPASS",
+                ],
+            )
+
+
 def _has_readiness_blocker(readiness: dict[str, Any], codes: set[str]) -> bool:
     return any(
         str(blocker.get("code") or "").upper() in codes
@@ -785,6 +934,8 @@ async def _resolve_referral_saas_account_context(
     ref_type: str,
     external_ref: str,
     context: str,
+    identity: dict[str, Any] | None = None,
+    required_capability: str | None = None,
 ) -> tuple[str, Any]:
     normalised_context = str(context or "").strip().lower()
     if normalised_context not in REFERRAL_SAAS_ACCOUNT_CONTEXTS:
@@ -810,6 +961,11 @@ async def _resolve_referral_saas_account_context(
     except AccountFoundationResolutionError as exc:
         raise _resolution_error(exc) from exc
 
+    _enforce_referral_saas_account_boundary(
+        identity=identity,
+        account=account,
+        required_capability=required_capability,
+    )
     return normalised_context, account
 
 
@@ -2388,31 +2544,14 @@ async def read_referral_saas_login_completion_readiness(
     ] = "runtime",
     identity: dict = Depends(require_session_key),
 ) -> dict[str, Any]:
-    _require_referral_saas_account_reader(identity)
-
-    normalised_context = str(context or "").strip().lower()
-    if normalised_context not in REFERRAL_SAAS_ACCOUNT_CONTEXTS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "validation_error",
-                "message": "context must be runtime or setup.",
-            },
-        )
-
-    try:
-        if normalised_context == "setup":
-            account = await resolve_setup_account_by_external_reference(
-                ref_type=ref_type,
-                external_ref=external_ref,
-            )
-        else:
-            account = await resolve_account_by_external_reference(
-                ref_type=ref_type,
-                external_ref=external_ref,
-            )
-    except AccountFoundationResolutionError as exc:
-        raise _resolution_error(exc) from exc
+    reader_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=reader_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
 
     safe_account_ref = _optional_text(account_ref)
     if safe_account_ref not in {account.account_id, account.account_code}:
@@ -2731,31 +2870,14 @@ async def resolve_referral_saas_account(
     ] = "runtime",
     identity: dict = Depends(require_session_key),
 ) -> dict[str, Any]:
-    _require_referral_saas_account_reader(identity)
-
-    normalised_context = str(context or "").strip().lower()
-    if normalised_context not in REFERRAL_SAAS_ACCOUNT_CONTEXTS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "validation_error",
-                "message": "context must be runtime or setup.",
-            },
-        )
-
-    try:
-        if normalised_context == "setup":
-            account = await resolve_setup_account_by_external_reference(
-                ref_type=ref_type,
-                external_ref=external_ref,
-            )
-        else:
-            account = await resolve_account_by_external_reference(
-                ref_type=ref_type,
-                external_ref=external_ref,
-            )
-    except AccountFoundationResolutionError as exc:
-        raise _resolution_error(exc) from exc
+    reader_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=reader_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
 
     return {
         "status": "ok",
@@ -2800,30 +2922,13 @@ async def read_referral_saas_account_membership_posture(
     identity: dict = Depends(require_session_key),
 ) -> dict[str, Any]:
     reader_identity = _require_referral_saas_account_reader(identity)
-
-    normalised_context = str(context or "").strip().lower()
-    if normalised_context not in REFERRAL_SAAS_ACCOUNT_CONTEXTS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "validation_error",
-                "message": "context must be runtime or setup.",
-            },
-        )
-
-    try:
-        if normalised_context == "setup":
-            account = await resolve_setup_account_by_external_reference(
-                ref_type=ref_type,
-                external_ref=external_ref,
-            )
-        else:
-            account = await resolve_account_by_external_reference(
-                ref_type=ref_type,
-                external_ref=external_ref,
-            )
-    except AccountFoundationResolutionError as exc:
-        raise _resolution_error(exc) from exc
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=reader_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
 
     posture = await get_referral_saas_account_membership_posture(
         account_id=account.account_id,
@@ -2877,31 +2982,14 @@ async def read_referral_saas_membership_activation_readiness(
     ] = "setup",
     identity: dict = Depends(require_session_key),
 ) -> dict[str, Any]:
-    _require_referral_saas_account_reader(identity)
-
-    normalised_context = str(context or "").strip().lower()
-    if normalised_context not in REFERRAL_SAAS_ACCOUNT_CONTEXTS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "validation_error",
-                "message": "context must be runtime or setup.",
-            },
-        )
-
-    try:
-        if normalised_context == "setup":
-            account = await resolve_setup_account_by_external_reference(
-                ref_type=ref_type,
-                external_ref=external_ref,
-            )
-        else:
-            account = await resolve_account_by_external_reference(
-                ref_type=ref_type,
-                external_ref=external_ref,
-            )
-    except AccountFoundationResolutionError as exc:
-        raise _resolution_error(exc) from exc
+    reader_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=reader_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
 
     safe_account_ref = _optional_text(account_ref)
     if safe_account_ref not in {account.account_id, account.account_code}:
