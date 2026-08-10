@@ -325,3 +325,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
   link, external reference, idempotency, permission, and audit gates, and keeps
   seats, auth claims, campaign activation, go-live, money, and DLaaS behavior
   out of scope.
+- `REFERRAL_SAAS_VENDOR_MANAGED_PROVIDER_VAULT_ADAPTER_CONTRACT.md` defines
+  the TASK-354 vendor/managed provider-vault adapter contract after the
+  platform-reference adapter. It separates approved provider runtime references,
+  managed vault references, audit/idempotency, and redaction gates from raw
+  secret handling, vendor dispatch, invite/message/webhook delivery, auth,
+  campaign activation, billing, money, DLaaS, and source forks.

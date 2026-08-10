@@ -317,6 +317,7 @@ greenfield referral construction.
 209. TASK-351: Add provider/vault runtime adapter seam.
 210. TASK-352: Define provider/vault adapter implementation plan.
 211. TASK-353: Add platform-reference provider/vault adapters.
+212. TASK-354: Define vendor/managed provider-vault adapter contract.
 
 - TASK-341: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_EXECUTION_TASK_341.md`;
   `scripts/referral_saas_progress_attribution_physical_check.py`;
@@ -2242,6 +2243,22 @@ greenfield referral construction.
   to 9.99994/10 because platform-reference adapter code exists while vendor/
   managed adapters, repair/replay execution, and non-local proof repetition
   remain open.
+- TASK-354:
+  `docs/sa/referral-saas/REFERRAL_SAAS_VENDOR_MANAGED_PROVIDER_VAULT_ADAPTER_CONTRACT.md`;
+  `docs/sa/referral-saas/README.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines the
+  vendor/managed provider-vault adapter contract after the platform-reference
+  runtime adapter. The contract separates vendor provider adapters, managed
+  vault adapters, runtime execution states, required account/request/provider/
+  vault/idempotency/audit/redaction gates, safe failure states, and no raw
+  secret/provider dispatch/auth/campaign/billing/money side-effect boundaries.
+  Current rating remains 9.99/10 for Referral Management and moves Campaign
+  Attribution to 9.99995/10 because vendor/managed adapter ambiguity is closed
+  while runtime implementation, repair/replay execution, and non-local proof
+  repetition remain open.
 
 ## Explicit Deferrals
 
