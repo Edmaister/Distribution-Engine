@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import secrets
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import Any, Final
 
 from fastapi import HTTPException
@@ -13,6 +16,7 @@ from services.channel_readiness_service import (
 from utils.db import db_connection
 
 MEMBERSHIP_STATUSES = ("INVITED", "ACTIVE", "SUSPENDED", "DISABLED", "ARCHIVED")
+MEMBERSHIP_ACCEPTANCE_TOKEN_STATUSES = ("ISSUED", "ACCEPTED", "EXPIRED", "REVOKED")
 MEMBERSHIP_INVITATION_EVENT: Final = "REFERRAL_SAAS_MEMBERSHIP_INVITATION_INTENT"
 MEMBERSHIP_INVITATION_UPDATE_EVENT: Final = (
     "REFERRAL_SAAS_MEMBERSHIP_INVITATION_INTENT_UPDATE"
@@ -23,6 +27,10 @@ MEMBERSHIP_INVITATION_CANCEL_EVENT: Final = (
 MEMBERSHIP_INVITATION_DELIVERY_EVENT: Final = (
     "REFERRAL_SAAS_MEMBERSHIP_INVITATION_DELIVERY_REQUEST"
 )
+MEMBERSHIP_INVITATION_ACCEPTANCE_TOKEN_EVENT: Final = (
+    "REFERRAL_SAAS_MEMBERSHIP_INVITATION_ACCEPTANCE_TOKEN"
+)
+MEMBERSHIP_INVITATION_ACCEPTANCE_TOKEN_TTL_HOURS: Final = 72
 MEMBERSHIP_ACTIVATION_EVENT: Final = (
     "REFERRAL_SAAS_MEMBERSHIP_ACTIVATION_REQUEST"
 )
@@ -195,6 +203,18 @@ class MembershipInvitationDeliveryProviderNotConfigured(
 
 class MembershipInvitationDeliveryProviderFailed(MembershipInvitationCommandError):
     safe_code = "DELIVERY_PROVIDER_FAILED"
+
+
+class MembershipInvitationAcceptanceTokenInvalid(MembershipInvitationCommandError):
+    safe_code = "ACCEPTANCE_TOKEN_INVALID"
+
+
+class MembershipInvitationAcceptanceTokenExpired(MembershipInvitationCommandError):
+    safe_code = "ACCEPTANCE_TOKEN_EXPIRED"
+
+
+class MembershipInvitationAcceptanceTokenReplay(MembershipInvitationCommandError):
+    safe_code = "ACCEPTANCE_TOKEN_REPLAYED"
 
 
 class MembershipActivationNotInvited(MembershipInvitationCommandError):
@@ -614,6 +634,156 @@ class MembershipInvitationDeliveryRequestResult:
             "noMembershipActivationConfirmed": True,
             "noAuthClaimChangeConfirmed": True,
             "noSeatAssignmentConfirmed": True,
+            "noMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class MembershipAcceptanceTokenIssueResult:
+    command_status: str
+    account_id: str
+    membership_id: str
+    role_family: str
+    permission_set: str
+    acceptance_token: str
+    token_hint: str
+    expires_at: str
+    idempotency_status: str
+    audit_event_id: str | None
+    guardrails: tuple[str, ...] = INVITATION_GUARDRAILS + (
+        "EXPIRING_ACCEPTANCE_TOKEN",
+        "TOKEN_HASH_AT_REST",
+        "NO_MEMBERSHIP_ACTIVATION",
+        "NO_LOGIN_PROVISIONING",
+    )
+    redactions: tuple[str, ...] = INVITATION_REDACTIONS + (
+        "acceptance_token",
+        "acceptance_token_hash",
+        "accepted_subject",
+    )
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "membership": {
+                "membershipRef": self.membership_id,
+                "roleFamily": self.role_family,
+                "permissionSet": self.permission_set,
+            },
+            "acceptanceToken": {
+                "token": self.acceptance_token,
+                "hint": self.token_hint,
+                "expiresAt": self.expires_at,
+                "status": self.command_status,
+            },
+            "idempotency": {"status": self.idempotency_status},
+            "auditEventId": self.audit_event_id,
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noInviteDeliveryConfirmed": True,
+            "noMembershipActivationConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class MembershipAcceptanceTokenValidationResult:
+    token_status: str
+    account_id: str | None
+    membership_id: str | None
+    role_family: str | None
+    permission_set: str | None
+    account_name: str | None
+    display_name: str | None
+    expires_at: str | None
+    next_action: str
+    guardrails: tuple[str, ...] = INVITATION_GUARDRAILS + (
+        "TOKEN_HASH_LOOKUP_ONLY",
+        "NO_MEMBERSHIP_ACTIVATION",
+        "NO_LOGIN_PROVISIONING",
+    )
+    redactions: tuple[str, ...] = INVITATION_REDACTIONS + (
+        "acceptance_token",
+        "acceptance_token_hash",
+        "accepted_subject",
+    )
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "tokenStatus": self.token_status,
+            "account": {
+                "accountRef": self.account_id,
+                "accountName": self.account_name,
+            },
+            "membership": {
+                "membershipRef": self.membership_id,
+                "roleFamily": self.role_family,
+                "permissionSet": self.permission_set,
+            },
+            "person": {
+                "displayName": self.display_name,
+            },
+            "expiresAt": self.expires_at,
+            "nextAction": self.next_action,
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noMembershipActivationConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class MembershipAcceptanceTokenAcceptResult:
+    command_status: str
+    token_status: str
+    account_id: str
+    membership_id: str
+    role_family: str
+    permission_set: str
+    activation_status: str
+    idempotency_status: str
+    audit_event_id: str | None
+    guardrails: tuple[str, ...] = INVITATION_GUARDRAILS + (
+        "EXPIRING_ACCEPTANCE_TOKEN",
+        "TOKEN_REPLAY_PROTECTION",
+        "NO_LOGIN_PROVISIONING",
+    )
+    redactions: tuple[str, ...] = INVITATION_REDACTIONS + (
+        "acceptance_token",
+        "acceptance_token_hash",
+        "accepted_subject",
+        "acceptance_evidence_ref",
+    )
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "tokenStatus": self.token_status,
+            "membership": {
+                "membershipRef": self.membership_id,
+                "roleFamily": self.role_family,
+                "permissionSet": self.permission_set,
+            },
+            "activation": {
+                "status": self.activation_status,
+            },
+            "idempotency": {"status": self.idempotency_status},
+            "auditEventId": self.audit_event_id,
+            "guardrails": list(self.guardrails),
+            "redactions": list(self.redactions),
+            "noInviteDeliveryConfirmed": True,
+            "noAuthClaimChangeConfirmed": True,
+            "noSeatAssignmentConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noCampaignActivationConfirmed": True,
             "noMoneyMovementConfirmed": True,
         }
 
@@ -1630,6 +1800,482 @@ async def request_referral_saas_membership_invitation_delivery(
         ),
         provider_delivery_ref=locals().get("provider_delivery_ref"),
         provider_status=locals().get("provider_status"),
+    )
+
+
+async def issue_referral_saas_membership_acceptance_token(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    membership_id: str,
+    accepted_subject: str,
+    ttl_hours: int | None = None,
+    reason_code: str,
+    correlation_id: str,
+    idempotency_key_hash: str,
+    command_payload_hash: str,
+    command_payload: dict[str, Any] | None = None,
+    command_actor_ref: str | None = None,
+    command_actor_role: str | None = None,
+) -> MembershipAcceptanceTokenIssueResult:
+    safe_account_id = _required_account_id(account_id)
+    safe_tenant_code = _required_text(tenant_code)
+    safe_account_tenant_id = _optional_text(account_tenant_id) or None
+    safe_external_ref_id = _optional_text(external_ref_id) or None
+    safe_membership_id = _required_text(membership_id)
+    safe_accepted_subject = _required_text(accepted_subject)
+    safe_reason_code = _required_text(reason_code).upper()
+    safe_correlation_id = _required_text(correlation_id)
+    safe_idempotency_hash = _required_text(idempotency_key_hash)
+    safe_payload_hash = _required_text(command_payload_hash)
+    safe_command_payload = command_payload or {}
+    safe_ttl_hours = int(ttl_hours or MEMBERSHIP_INVITATION_ACCEPTANCE_TOKEN_TTL_HOURS)
+    if safe_ttl_hours < 1 or safe_ttl_hours > 168:
+        raise MembershipInvitationValidationError(
+            "Acceptance token TTL must be between 1 and 168 hours."
+        )
+    _reject_unsafe_activation_payload(safe_command_payload)
+
+    async with db_connection() as conn:
+        existing_audit = await conn.fetchrow(
+            """
+            SELECT account_audit_event_id, evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            MEMBERSHIP_INVITATION_ACCEPTANCE_TOKEN_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_audit:
+            evidence = _as_mapping(existing_audit.get("evidence_summary"))
+            if _optional_text(evidence.get("command_payload_hash")) != safe_payload_hash:
+                raise MembershipInvitationIdempotencyConflict(
+                    "Idempotency key was reused with different acceptance-token content."
+                )
+            return MembershipAcceptanceTokenIssueResult(
+                command_status="ACCEPTANCE_TOKEN_REPLAYED",
+                account_id=safe_account_id,
+                membership_id=_optional_text(evidence.get("membership_id"))
+                or safe_membership_id,
+                role_family=_optional_text(evidence.get("role_family")) or "UNKNOWN",
+                permission_set=_optional_text(evidence.get("permission_set"))
+                or "UNKNOWN",
+                acceptance_token="",
+                token_hint=_optional_text(evidence.get("token_hint")) or "",
+                expires_at=_optional_text(evidence.get("expires_at")) or "",
+                idempotency_status="REPLAYED",
+                audit_event_id=_optional_text(existing_audit.get("account_audit_event_id"))
+                or None,
+            )
+
+        membership = await conn.fetchrow(
+            """
+            SELECT
+                platform_memberships.membership_id,
+                platform_memberships.status,
+                platform_memberships.role_family,
+                platform_memberships.permission_set,
+                COALESCE(platform_memberships.metadata->>'delivery_status', 'DELIVERY_NOT_CONFIGURED')
+                    AS delivery_status,
+                actor_user.subject AS user_subject,
+                platform_memberships.client_id
+            FROM platform_memberships
+            LEFT JOIN platform_users actor_user
+                ON actor_user.user_id = platform_memberships.user_id
+            WHERE platform_memberships.membership_id = $1
+              AND platform_memberships.account_id = $2
+              AND (platform_memberships.tenant_code = $3 OR platform_memberships.tenant_code IS NULL)
+              AND platform_memberships.status <> 'ARCHIVED'
+            LIMIT 1
+            """,
+            safe_membership_id,
+            safe_account_id,
+            safe_tenant_code,
+        )
+        if not membership:
+            raise MembershipInvitationUnsafeScope(
+                "Membership reference does not match the resolved account context."
+            )
+        if _normalise_status(membership.get("status")) != "INVITED":
+            raise MembershipInvitationDeliveryNotInvited(
+                "Acceptance tokens can only be issued for invited memberships."
+            )
+        invited_subject = _optional_text(membership.get("user_subject")) or _optional_text(
+            membership.get("client_id")
+        )
+        if safe_accepted_subject != invited_subject:
+            raise MembershipInvitationValidationError(
+                "Acceptance subject must match the invited person or client reference."
+            )
+        delivery_status = _optional_text(membership.get("delivery_status")) or ""
+        if delivery_status != "INVITATION_DELIVERY_SENT":
+            raise MembershipInvitationDeliveryNotInvited(
+                "Issue an acceptance link only after the invite delivery path is sent."
+            )
+
+        acceptance_token = secrets.token_urlsafe(32)
+        token_hash = _hash_acceptance_token(acceptance_token)
+        token_hint = acceptance_token[-6:]
+        now = datetime.now(UTC)
+        expires_at = now + timedelta(hours=safe_ttl_hours)
+        audit_evidence = {
+            "membership_id": safe_membership_id,
+            "role_family": _optional_text(membership.get("role_family")),
+            "permission_set": _optional_text(membership.get("permission_set")),
+            "token_hint": token_hint,
+            "expires_at": expires_at.isoformat(),
+            "command_payload_hash": safe_payload_hash,
+            "token_hash_stored_confirmed": True,
+            "no_raw_token_storage_confirmed": True,
+            "no_membership_activation_confirmed": True,
+            "no_invite_delivery_confirmed": True,
+            "no_auth_claim_change_confirmed": True,
+            "no_seat_assignment_confirmed": True,
+            "no_money_movement_confirmed": True,
+        }
+        async with conn.transaction():
+            token_row = await conn.fetchrow(
+                """
+                INSERT INTO referral_saas_membership_acceptance_tokens (
+                    account_id,
+                    membership_id,
+                    tenant_code,
+                    token_hash,
+                    token_hint,
+                    accepted_subject_ref,
+                    status,
+                    expires_at,
+                    metadata
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, 'ISSUED', $7, $8::jsonb)
+                RETURNING acceptance_token_id
+                """,
+                safe_account_id,
+                safe_membership_id,
+                safe_tenant_code,
+                token_hash,
+                token_hint,
+                safe_accepted_subject,
+                expires_at,
+                _jsonb(
+                    {
+                        "source": "TASK-364",
+                        "no_raw_token_storage_confirmed": True,
+                        "no_membership_activation_confirmed": True,
+                    }
+                ),
+            )
+            await conn.fetchrow(
+                """
+                UPDATE platform_memberships
+                SET
+                    metadata = COALESCE(metadata, '{}'::jsonb) || $4::jsonb,
+                    updated_at = NOW()
+                WHERE membership_id = $1
+                  AND account_id = $2
+                  AND (tenant_code = $3 OR tenant_code IS NULL)
+                RETURNING membership_id
+                """,
+                safe_membership_id,
+                safe_account_id,
+                safe_tenant_code,
+                _jsonb(
+                    {
+                        "acceptance_token_status": "ISSUED",
+                        "acceptance_token_hint": token_hint,
+                        "acceptance_token_expires_at": expires_at.isoformat(),
+                    }
+                ),
+            )
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    membership_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, 'RECORDED', $7, $8,
+                    NULL, 'ACCEPTANCE_TOKEN_ISSUED', $9, $10, $11,
+                    $12::jsonb, $13::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                safe_account_tenant_id,
+                safe_external_ref_id,
+                safe_membership_id,
+                safe_tenant_code,
+                MEMBERSHIP_INVITATION_ACCEPTANCE_TOKEN_EVENT,
+                _optional_text(command_actor_ref) or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                _optional_text(command_actor_role) or "UNKNOWN",
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(audit_evidence),
+                _jsonb(
+                    list(
+                        INVITATION_REDACTIONS
+                        + ("acceptance_token", "acceptance_token_hash", "accepted_subject")
+                    )
+                ),
+            )
+
+    return MembershipAcceptanceTokenIssueResult(
+        command_status="ACCEPTANCE_TOKEN_ISSUED",
+        account_id=safe_account_id,
+        membership_id=safe_membership_id,
+        role_family=_optional_text(membership.get("role_family")) or "UNKNOWN",
+        permission_set=_optional_text(membership.get("permission_set")) or "UNKNOWN",
+        acceptance_token=acceptance_token,
+        token_hint=token_hint,
+        expires_at=expires_at.isoformat(),
+        idempotency_status=EVENT_RECORDED,
+        audit_event_id=(str(audit_event["account_audit_event_id"]) if audit_event else None),
+    )
+
+
+async def validate_referral_saas_membership_acceptance_token(
+    *,
+    acceptance_token: str,
+) -> MembershipAcceptanceTokenValidationResult:
+    token_hash = _hash_acceptance_token(acceptance_token)
+    async with db_connection() as conn:
+        token_row = await conn.fetchrow(
+            """
+            SELECT
+                tokens.acceptance_token_id,
+                tokens.account_id,
+                tokens.membership_id,
+                tokens.status,
+                tokens.expires_at,
+                platform_accounts.account_name,
+                platform_memberships.role_family,
+                platform_memberships.permission_set,
+                actor_user.display_name
+            FROM referral_saas_membership_acceptance_tokens tokens
+            JOIN platform_accounts
+                ON platform_accounts.account_id = tokens.account_id
+            JOIN platform_memberships
+                ON platform_memberships.membership_id = tokens.membership_id
+            LEFT JOIN platform_users actor_user
+                ON actor_user.user_id = platform_memberships.user_id
+            WHERE tokens.token_hash = $1
+            LIMIT 1
+            """,
+            token_hash,
+        )
+        if not token_row:
+            return MembershipAcceptanceTokenValidationResult(
+                token_status="INVALID",
+                account_id=None,
+                membership_id=None,
+                role_family=None,
+                permission_set=None,
+                account_name=None,
+                display_name=None,
+                expires_at=None,
+                next_action="Ask the sender for a fresh access link.",
+            )
+
+        token_status = _normalise_acceptance_token_status(token_row.get("status"))
+        expires_at_value = token_row.get("expires_at")
+        now = datetime.now(UTC)
+        if (
+            token_status == "ISSUED"
+            and isinstance(expires_at_value, datetime)
+            and expires_at_value <= now
+        ):
+            await conn.fetchrow(
+                """
+                UPDATE referral_saas_membership_acceptance_tokens
+                SET status = 'EXPIRED', expired_at = NOW(), updated_at = NOW()
+                WHERE acceptance_token_id = $1
+                RETURNING acceptance_token_id
+                """,
+                token_row["acceptance_token_id"],
+            )
+            token_status = "EXPIRED"
+        next_action = {
+            "ISSUED": "Review and accept access before the link expires.",
+            "ACCEPTED": "Access has already been accepted for this customer.",
+            "EXPIRED": "Ask the sender for a fresh access link.",
+            "REVOKED": "Ask the sender for a fresh access link.",
+        }.get(token_status, "Ask the sender for a fresh access link.")
+        return MembershipAcceptanceTokenValidationResult(
+            token_status=token_status,
+            account_id=str(token_row["account_id"]),
+            membership_id=str(token_row["membership_id"]),
+            role_family=_optional_text(token_row.get("role_family")),
+            permission_set=_optional_text(token_row.get("permission_set")),
+            account_name=_optional_text(token_row.get("account_name")),
+            display_name=_optional_text(token_row.get("display_name")),
+            expires_at=(
+                expires_at_value.isoformat()
+                if isinstance(expires_at_value, datetime)
+                else _optional_text(expires_at_value)
+            ),
+            next_action=next_action,
+        )
+
+
+async def accept_referral_saas_membership_acceptance_token(
+    *,
+    acceptance_token: str,
+    acceptance_evidence_ref: str | None,
+    correlation_id: str,
+    idempotency_key_hash: str,
+    command_payload_hash: str,
+) -> MembershipAcceptanceTokenAcceptResult:
+    token_hash = _hash_acceptance_token(acceptance_token)
+    safe_acceptance_evidence_ref = _optional_text(acceptance_evidence_ref)
+    safe_correlation_id = _required_text(correlation_id)
+    safe_idempotency_hash = _required_text(idempotency_key_hash)
+    safe_payload_hash = _required_text(command_payload_hash)
+    async with db_connection() as conn:
+        token_row = await conn.fetchrow(
+            """
+            SELECT
+                tokens.acceptance_token_id,
+                tokens.account_id,
+                tokens.membership_id,
+                tokens.tenant_code,
+                tokens.accepted_subject_ref,
+                tokens.status AS token_status,
+                tokens.expires_at,
+                platform_accounts.status AS account_status,
+                platform_memberships.role_family,
+                platform_memberships.permission_set,
+                COALESCE(account_tenants.account_tenant_id::text, '') AS account_tenant_id,
+                COALESCE(account_tenants.status, 'MISSING') AS tenant_link_status,
+                COALESCE(external_refs.external_ref_id::text, '') AS external_ref_id,
+                COALESCE(external_refs.status, 'MISSING') AS external_reference_status
+            FROM referral_saas_membership_acceptance_tokens tokens
+            JOIN platform_accounts
+                ON platform_accounts.account_id = tokens.account_id
+            JOIN platform_memberships
+                ON platform_memberships.membership_id = tokens.membership_id
+            LEFT JOIN platform_account_tenants account_tenants
+                ON account_tenants.account_id = tokens.account_id
+               AND account_tenants.tenant_code = tokens.tenant_code
+               AND account_tenants.archived_at IS NULL
+            LEFT JOIN platform_external_tenant_refs external_refs
+                ON external_refs.account_id = tokens.account_id
+               AND external_refs.ref_type = 'external_tenant_ref'
+               AND external_refs.status = 'ACTIVE'
+               AND external_refs.archived_at IS NULL
+            WHERE tokens.token_hash = $1
+            ORDER BY external_refs.created_at DESC NULLS LAST
+            LIMIT 1
+            """,
+            token_hash,
+        )
+    if not token_row:
+        raise MembershipInvitationAcceptanceTokenInvalid(
+            "Acceptance token is invalid or was not found."
+        )
+    token_status = _normalise_acceptance_token_status(token_row.get("token_status"))
+    expires_at_value = token_row.get("expires_at")
+    if token_status == "ACCEPTED":
+        raise MembershipInvitationAcceptanceTokenReplay(
+            "Acceptance token has already been used."
+        )
+    if token_status != "ISSUED":
+        raise MembershipInvitationAcceptanceTokenInvalid(
+            "Acceptance token is not in an issued state."
+        )
+    if isinstance(expires_at_value, datetime) and expires_at_value <= datetime.now(UTC):
+        async with db_connection() as conn:
+            await conn.fetchrow(
+                """
+                UPDATE referral_saas_membership_acceptance_tokens
+                SET status = 'EXPIRED', expired_at = NOW(), updated_at = NOW()
+                WHERE acceptance_token_id = $1
+                RETURNING acceptance_token_id
+                """,
+                token_row["acceptance_token_id"],
+            )
+        raise MembershipInvitationAcceptanceTokenExpired(
+            "Acceptance token has expired. Ask the sender for a fresh access link."
+        )
+
+    activation_payload = {
+        "acceptanceToken": {
+            "tokenRef": str(token_row["acceptance_token_id"]),
+            "hashPresent": True,
+        },
+        "reasonCode": "EXPIRING_INVITE_ACCEPTANCE",
+        "noInviteDeliveryConfirmed": True,
+        "noSeatAssignmentConfirmed": True,
+        "noAuthClaimChangeConfirmed": True,
+    }
+    activation = await request_referral_saas_membership_activation(
+        account_id=str(token_row["account_id"]),
+        tenant_code=_optional_text(token_row.get("tenant_code")) or "",
+        account_tenant_id=_optional_text(token_row.get("account_tenant_id")) or None,
+        external_ref_id=_optional_text(token_row.get("external_ref_id")) or None,
+        account_status=_optional_text(token_row.get("account_status")) or "UNKNOWN",
+        tenant_link_status=_optional_text(token_row.get("tenant_link_status")) or "MISSING",
+        external_reference_status=_optional_text(token_row.get("external_reference_status"))
+        or "MISSING",
+        membership_id=str(token_row["membership_id"]),
+        accepted_subject=_optional_text(token_row.get("accepted_subject_ref")),
+        acceptance_evidence_ref=safe_acceptance_evidence_ref
+        or f"acceptance-token:{token_row['acceptance_token_id']}",
+        reason_code="EXPIRING_INVITE_ACCEPTANCE",
+        correlation_id=safe_correlation_id,
+        idempotency_key_hash=safe_idempotency_hash,
+        command_payload_hash=safe_payload_hash,
+        command_payload=activation_payload,
+        command_actor_ref="REFERRAL_SAAS_INVITED_PERSON",
+        command_actor_role="INVITED_PERSON",
+    )
+    if activation.command_status == "MEMBERSHIP_ACTIVATED":
+        async with db_connection() as conn:
+            await conn.fetchrow(
+                """
+                UPDATE referral_saas_membership_acceptance_tokens
+                SET status = 'ACCEPTED', accepted_at = NOW(), updated_at = NOW()
+                WHERE acceptance_token_id = $1
+                  AND status = 'ISSUED'
+                RETURNING acceptance_token_id
+                """,
+                token_row["acceptance_token_id"],
+            )
+    return MembershipAcceptanceTokenAcceptResult(
+        command_status=activation.command_status,
+        token_status=(
+            "ACCEPTED"
+            if activation.command_status == "MEMBERSHIP_ACTIVATED"
+            else "ISSUED"
+        ),
+        account_id=str(token_row["account_id"]),
+        membership_id=str(token_row["membership_id"]),
+        role_family=_optional_text(token_row.get("role_family")) or "UNKNOWN",
+        permission_set=_optional_text(token_row.get("permission_set")) or "UNKNOWN",
+        activation_status=activation.command_status,
+        idempotency_status=activation.idempotency_status,
+        audit_event_id=activation.audit_event_id,
     )
 
 
@@ -3845,6 +4491,16 @@ def _membership_invitation_message(*, template_ref: str, role_family: str) -> st
         "You have been invited to manage Referral SaaS "
         f"{safe_role_family} access. Template: {safe_template_ref}."
     )
+
+
+def _hash_acceptance_token(token: str) -> str:
+    safe_token = _required_text(token)
+    return hashlib.sha256(safe_token.encode("utf-8")).hexdigest()
+
+
+def _normalise_acceptance_token_status(value: Any) -> str:
+    status = _optional_text(value).upper()
+    return status if status in MEMBERSHIP_ACCEPTANCE_TOKEN_STATUSES else "REVOKED"
 
 
 def _as_mapping(value: Any) -> dict[str, Any]:

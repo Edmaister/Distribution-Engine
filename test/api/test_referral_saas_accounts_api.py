@@ -26,6 +26,9 @@ from services.referral_saas_account_membership_service import (
     AccessProvisioningRequestResult,
     LoginCompletionIntentResult,
     LoginCompletionReadiness,
+    MembershipAcceptanceTokenAcceptResult,
+    MembershipAcceptanceTokenIssueResult,
+    MembershipAcceptanceTokenValidationResult,
     MembershipActivationRequestResult,
     MembershipInvitationDeliveryRequestResult,
     MembershipInvitationDuplicate,
@@ -156,6 +159,59 @@ def _delivery_request_result(**overrides) -> MembershipInvitationDeliveryRequest
     }
     values.update(overrides)
     return MembershipInvitationDeliveryRequestResult(**values)
+
+
+def _acceptance_token_issue_result(**overrides) -> MembershipAcceptanceTokenIssueResult:
+    values = {
+        "command_status": "ACCEPTANCE_TOKEN_ISSUED",
+        "account_id": "acct-1",
+        "membership_id": "membership-1",
+        "role_family": "DISTRIBUTION_ADMIN",
+        "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        "acceptance_token": "accept-token-123456",
+        "token_hint": "123456",
+        "expires_at": "2026-08-13T10:00:00+00:00",
+        "idempotency_status": "RECORDED",
+        "audit_event_id": "audit-acceptance-token-1",
+    }
+    values.update(overrides)
+    return MembershipAcceptanceTokenIssueResult(**values)
+
+
+def _acceptance_token_validation_result(
+    **overrides,
+) -> MembershipAcceptanceTokenValidationResult:
+    values = {
+        "token_status": "ISSUED",
+        "account_id": "acct-1",
+        "membership_id": "membership-1",
+        "role_family": "DISTRIBUTION_ADMIN",
+        "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        "account_name": "FNB Referral SaaS",
+        "display_name": "FNB Owner",
+        "expires_at": "2026-08-13T10:00:00+00:00",
+        "next_action": "Review and accept access before the link expires.",
+    }
+    values.update(overrides)
+    return MembershipAcceptanceTokenValidationResult(**values)
+
+
+def _acceptance_token_accept_result(
+    **overrides,
+) -> MembershipAcceptanceTokenAcceptResult:
+    values = {
+        "command_status": "MEMBERSHIP_ACTIVATED",
+        "token_status": "ACCEPTED",
+        "account_id": "acct-1",
+        "membership_id": "membership-1",
+        "role_family": "DISTRIBUTION_ADMIN",
+        "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+        "activation_status": "MEMBERSHIP_ACTIVATED",
+        "idempotency_status": "RECORDED",
+        "audit_event_id": "audit-activation-1",
+    }
+    values.update(overrides)
+    return MembershipAcceptanceTokenAcceptResult(**values)
 
 
 def _activation_request_result(**overrides) -> MembershipActivationRequestResult:
@@ -1529,6 +1585,113 @@ async def test_referral_saas_invitation_delivery_rejects_path_scope_mismatch(
     assert detail["code"] == "REJECTED_UNSAFE_SCOPE"
     assert detail["no_invite_delivery_confirmed"] is True
     assert detail["no_auth_claim_change_confirmed"] is True
+
+
+async def test_referral_saas_account_admin_can_issue_acceptance_token(monkeypatch):
+    command_calls = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context()
+
+    async def fake_issue_referral_saas_membership_acceptance_token(**kwargs):
+        command_calls.append(kwargs)
+        return _acceptance_token_issue_result()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "issue_referral_saas_membership_acceptance_token",
+        fake_issue_referral_saas_membership_acceptance_token,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/membership-invitations/membership-1/acceptance-token",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "acceptance": {"acceptedSubject": "owner@example.test"},
+                "ttlHours": 48,
+                "correlationId": "corr-token-1",
+                "idempotencyKey": "token-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "issued"
+    assert body["acceptanceToken"]["acceptanceToken"]["token"] == "accept-token-123456"
+    assert body["acceptanceToken"]["acceptanceToken"]["hint"] == "123456"
+    assert body["no_membership_activation_confirmed"] is True
+    assert body["no_credential_creation_confirmed"] is True
+    assert command_calls[0]["membership_id"] == "membership-1"
+    assert command_calls[0]["accepted_subject"] == "owner@example.test"
+
+
+async def test_referral_saas_acceptance_token_validate_is_public(monkeypatch):
+    command_calls = []
+
+    async def fake_validate_referral_saas_membership_acceptance_token(**kwargs):
+        command_calls.append(kwargs)
+        return _acceptance_token_validation_result()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "validate_referral_saas_membership_acceptance_token",
+        fake_validate_referral_saas_membership_acceptance_token,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.post(
+            "/v1/referral-saas/membership-acceptance/validate",
+            json={"token": "accept-token-123456"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["acceptance"]["tokenStatus"] == "ISSUED"
+    assert body["acceptance"]["noMembershipActivationConfirmed"] is True
+    assert command_calls[0]["acceptance_token"] == "accept-token-123456"
+
+
+async def test_referral_saas_acceptance_token_accept_is_public_and_safe(monkeypatch):
+    command_calls = []
+
+    async def fake_accept_referral_saas_membership_acceptance_token(**kwargs):
+        command_calls.append(kwargs)
+        return _acceptance_token_accept_result()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "accept_referral_saas_membership_acceptance_token",
+        fake_accept_referral_saas_membership_acceptance_token,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.post(
+            "/v1/referral-saas/membership-acceptance/accept",
+            json={
+                "token": "accept-token-123456",
+                "acceptanceEvidenceRef": "member-clicked-link",
+                "correlationId": "corr-accept-1",
+                "idempotencyKey": "accept-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "accepted"
+    assert body["acceptance"]["tokenStatus"] == "ACCEPTED"
+    assert body["acceptance"]["noSeatAssignmentConfirmed"] is True
+    assert body["acceptance"]["noCredentialCreationConfirmed"] is True
+    assert command_calls[0]["acceptance_token"] == "accept-token-123456"
 
 
 async def test_referral_saas_account_admin_can_request_membership_activation_boundary(

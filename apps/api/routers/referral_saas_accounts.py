@@ -58,21 +58,27 @@ from services.referral_saas_account_membership_service import (
     MembershipInvitationDeliveryProviderNotConfigured,
     MembershipInvitationDuplicate,
     MembershipInvitationIdempotencyConflict,
+    MembershipInvitationAcceptanceTokenExpired,
+    MembershipInvitationAcceptanceTokenInvalid,
+    MembershipInvitationAcceptanceTokenReplay,
     MembershipInvitationNotEditable,
     MembershipInvitationNotFound,
     MembershipInvitationUnsafePayload,
     MembershipInvitationUnsafeScope,
     MembershipInvitationValidationError,
+    accept_referral_saas_membership_acceptance_token,
     cancel_referral_saas_membership_invitation_intent,
     get_referral_saas_account_membership_posture,
     get_referral_saas_login_completion_readiness,
     get_referral_saas_membership_activation_readiness,
+    issue_referral_saas_membership_acceptance_token,
     record_referral_saas_membership_invitation_intent,
     request_referral_saas_access_provisioning,
     request_referral_saas_login_completion_intent,
     request_referral_saas_membership_activation,
     request_referral_saas_membership_invitation_delivery,
     update_referral_saas_membership_invitation_intent,
+    validate_referral_saas_membership_acceptance_token,
 )
 from services.referral_saas_account_setup_service import (
     AccountSetupCommandError,
@@ -357,6 +363,26 @@ class ReferralSaasAccountFoundationActivationRequest(BaseModel):
     accountScope: dict[str, Any] = Field(default_factory=dict)
     activation: dict[str, Any] | None = Field(default=None)
     reasonCode: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str | None = Field(default=None)
+
+
+class ReferralSaasMembershipAcceptanceTokenIssueRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    acceptance: dict[str, Any] | None = Field(default=None)
+    ttlHours: int | None = Field(default=None)
+    reasonCode: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str | None = Field(default=None)
+
+
+class ReferralSaasMembershipAcceptanceTokenValidateRequest(BaseModel):
+    token: str | None = Field(default=None)
+
+
+class ReferralSaasMembershipAcceptanceTokenAcceptRequest(BaseModel):
+    token: str | None = Field(default=None)
+    acceptanceEvidenceRef: str | None = Field(default=None)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str | None = Field(default=None)
 
@@ -1251,6 +1277,48 @@ def _membership_activation_error(exc: MembershipInvitationCommandError) -> HTTPE
             "no_invite_delivery_confirmed": True,
             "no_auth_claim_change_confirmed": True,
             "no_seat_assignment_confirmed": True,
+            "no_money_movement_confirmed": True,
+        },
+    )
+
+
+def _membership_acceptance_token_error(
+    exc: MembershipInvitationCommandError,
+) -> HTTPException:
+    if isinstance(exc, MembershipInvitationAcceptanceTokenInvalid):
+        status_code = status.HTTP_404_NOT_FOUND
+    elif isinstance(exc, MembershipInvitationAcceptanceTokenExpired):
+        status_code = status.HTTP_410_GONE
+    elif isinstance(
+        exc,
+        (
+            MembershipInvitationAcceptanceTokenReplay,
+            MembershipInvitationIdempotencyConflict,
+            MembershipInvitationDeliveryNotInvited,
+        ),
+    ):
+        status_code = status.HTTP_409_CONFLICT
+    elif isinstance(exc, MembershipInvitationValidationError):
+        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    elif isinstance(exc, (MembershipInvitationUnsafePayload, MembershipInvitationUnsafeScope)):
+        status_code = status.HTTP_400_BAD_REQUEST
+    else:
+        status_code = status.HTTP_409_CONFLICT
+
+    return HTTPException(
+        status_code=status_code,
+        detail={
+            "code": exc.safe_code,
+            "message": str(exc),
+            "guardrails": _membership_activation_guardrails()
+            + ["EXPIRING_ACCEPTANCE_TOKEN", "TOKEN_HASH_AT_REST"],
+            "redactions": _membership_activation_redactions()
+            + ["acceptance_token", "acceptance_token_hash"],
+            "no_invite_delivery_confirmed": True,
+            "no_auth_claim_change_confirmed": True,
+            "no_seat_assignment_confirmed": True,
+            "no_credential_creation_confirmed": True,
+            "no_campaign_activation_confirmed": True,
             "no_money_movement_confirmed": True,
         },
     )
@@ -2300,6 +2368,208 @@ async def request_referral_saas_membership_invitation_delivery_route(
         "no_auth_claim_change_confirmed": True,
         "no_seat_assignment_confirmed": True,
         "no_money_movement_confirmed": True,
+    }
+
+
+@router.post(
+    "/accounts/{account_ref}/membership-invitations/{membership_ref}/acceptance-token"
+)
+async def issue_referral_saas_membership_acceptance_token_route(
+    account_ref: str,
+    membership_ref: str,
+    request: ReferralSaasMembershipAcceptanceTokenIssueRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    payload = request.model_dump(exclude_none=True)
+    account_scope = request.accountScope or {}
+    acceptance = request.acceptance or {}
+    idempotency_key = _optional_text(request.idempotencyKey)
+    correlation_id = _optional_text(request.correlationId)
+    reason_code = (
+        _optional_text(request.reasonCode)
+        or "CUSTOMER_PROFILE_ACCEPTANCE_TOKEN_REQUEST"
+    )
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    accepted_subject = _optional_text(acceptance.get("acceptedSubject"))
+    if (
+        not ref_type
+        or not external_ref
+        or not accepted_subject
+        or not idempotency_key
+        or not correlation_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "acceptance.acceptedSubject, idempotencyKey, and "
+                    "correlationId are required."
+                ),
+                "guardrails": _membership_activation_guardrails()
+                + ["EXPIRING_ACCEPTANCE_TOKEN"],
+                "redactions": _membership_activation_redactions()
+                + ["acceptance_token", "acceptance_token_hash"],
+                "no_membership_activation_confirmed": True,
+                "no_auth_claim_change_confirmed": True,
+                "no_seat_assignment_confirmed": True,
+                "no_money_movement_confirmed": True,
+            },
+        )
+    if context not in REFERRAL_SAAS_ACCOUNT_CONTEXTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope.context must be runtime or setup.",
+            },
+        )
+    try:
+        account = (
+            await resolve_setup_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+            if context == "setup"
+            else await resolve_account_by_external_reference(
+                ref_type=ref_type,
+                external_ref=external_ref,
+            )
+        )
+    except AccountFoundationResolutionError as exc:
+        raise _resolution_error(exc) from exc
+    safe_account_ref = _optional_text(account_ref)
+    if safe_account_ref not in {account.account_id, account.account_code}:
+        raise _membership_acceptance_token_error(
+            MembershipInvitationUnsafeScope(
+                "Path account reference does not match resolved account context."
+            )
+        )
+    command_payload = {
+        "accountScope": {
+            "accountRef": safe_account_ref,
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": context,
+        },
+        "membershipRef": _optional_text(membership_ref),
+        "acceptance": {"acceptedSubjectPresent": True},
+        "ttlHours": request.ttlHours,
+        "reasonCode": reason_code,
+    }
+    try:
+        result = await issue_referral_saas_membership_acceptance_token(
+            account_id=account.account_id,
+            tenant_code=account.tenant_code,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            membership_id=membership_ref,
+            accepted_subject=accepted_subject,
+            ttl_hours=request.ttlHours,
+            reason_code=reason_code,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_MEMBERSHIP_ACCEPTANCE_TOKEN",
+                    "account_ref": safe_account_ref,
+                    "membership_ref": _optional_text(membership_ref),
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            command_payload_hash=hash_payload(command_payload),
+            command_payload=command_payload,
+            command_actor_ref=_actor_ref(admin_identity),
+            command_actor_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except MembershipInvitationCommandError as exc:
+        raise _membership_acceptance_token_error(exc) from exc
+    return {
+        "status": "issued" if result.command_status == "ACCEPTANCE_TOKEN_ISSUED" else "replayed",
+        "context": context,
+        "account": account.to_safe_dict(),
+        "acceptanceToken": result.to_safe_dict(),
+        "guardrails": _membership_activation_guardrails()
+        + ["EXPIRING_ACCEPTANCE_TOKEN", "TOKEN_HASH_AT_REST"],
+        "redactions": _membership_activation_redactions()
+        + ["acceptance_token_hash", "accepted_subject"],
+        "no_membership_activation_confirmed": True,
+        "no_auth_claim_change_confirmed": True,
+        "no_seat_assignment_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_money_movement_confirmed": True,
+    }
+
+
+@router.post("/membership-acceptance/validate")
+async def validate_referral_saas_membership_acceptance_token_route(
+    request: ReferralSaasMembershipAcceptanceTokenValidateRequest,
+) -> dict[str, Any]:
+    token = _optional_text(request.token)
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "token is required.",
+                "redactions": ["acceptance_token"],
+            },
+        )
+    result = await validate_referral_saas_membership_acceptance_token(
+        acceptance_token=token,
+    )
+    return {"status": "ok", "acceptance": result.to_safe_dict()}
+
+
+@router.post("/membership-acceptance/accept")
+async def accept_referral_saas_membership_acceptance_token_route(
+    request: ReferralSaasMembershipAcceptanceTokenAcceptRequest,
+) -> dict[str, Any]:
+    token = _optional_text(request.token)
+    idempotency_key = _optional_text(request.idempotencyKey)
+    correlation_id = _optional_text(request.correlationId)
+    if not token or not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "token, idempotencyKey, and correlationId are required.",
+                "redactions": ["acceptance_token"],
+            },
+        )
+    command_payload = {
+        "tokenPresent": True,
+        "acceptanceEvidenceRefPresent": bool(
+            _optional_text(request.acceptanceEvidenceRef)
+        ),
+    }
+    try:
+        result = await accept_referral_saas_membership_acceptance_token(
+            acceptance_token=token,
+            acceptance_evidence_ref=request.acceptanceEvidenceRef,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_MEMBERSHIP_ACCEPTANCE",
+                    "token_hint": token[-6:],
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            command_payload_hash=hash_payload(command_payload),
+        )
+    except MembershipInvitationCommandError as exc:
+        raise _membership_acceptance_token_error(exc) from exc
+    return {
+        "status": (
+            "accepted"
+            if result.token_status == "ACCEPTED"
+            else "blocked"
+        ),
+        "acceptance": result.to_safe_dict(),
     }
 
 

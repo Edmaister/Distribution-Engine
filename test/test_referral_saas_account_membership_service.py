@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -1083,6 +1084,213 @@ async def test_membership_invitation_delivery_request_rejects_active_membership(
             idempotency_key_hash="idem-hash",
             command_payload_hash="payload-hash",
         )
+
+
+async def test_membership_acceptance_token_issue_stores_hash_and_audits(monkeypatch):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "membership_id": "membership-1",
+                "status": "INVITED",
+                "role_family": "DISTRIBUTION_ADMIN",
+                "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                "delivery_status": "INVITATION_DELIVERY_SENT",
+                "user_subject": "owner@example.test",
+                "client_id": None,
+            },
+            {"acceptance_token_id": "token-row-1"},
+            {"membership_id": "membership-1"},
+            {"account_audit_event_id": "audit-token-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+    monkeypatch.setattr(
+        svc.secrets,
+        "token_urlsafe",
+        lambda length: "acceptance-token-value-123456",
+    )
+
+    result = await svc.issue_referral_saas_membership_acceptance_token(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        membership_id="membership-1",
+        accepted_subject="owner@example.test",
+        ttl_hours=24,
+        reason_code="CUSTOMER_PROFILE_ACCEPTANCE_TOKEN_REQUEST",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+        command_payload={"acceptance": {"acceptedSubjectPresent": True}},
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "ACCEPTANCE_TOKEN_ISSUED"
+    assert safe_payload["acceptanceToken"]["token"] == "acceptance-token-value-123456"
+    assert safe_payload["acceptanceToken"]["hint"] == "123456"
+    assert safe_payload["noMembershipActivationConfirmed"] is True
+    assert safe_payload["noCredentialCreationConfirmed"] is True
+    assert safe_payload["noMoneyMovementConfirmed"] is True
+    assert "acceptance_token_hash" in safe_payload["redactions"]
+
+    insert_args = conn.fetchrow_calls[2][1]
+    assert insert_args[3] == svc._hash_acceptance_token(
+        "acceptance-token-value-123456"
+    )
+    assert "acceptance-token-value-123456" not in repr(insert_args)
+    joined_queries = "\n".join(call[0] for call in conn.fetchrow_calls)
+    assert "referral_saas_membership_acceptance_tokens" in joined_queries
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+    assert "platform_seats" not in joined_queries
+
+
+async def test_membership_acceptance_token_validate_invalid_returns_safe_state(
+    monkeypatch,
+):
+    patch_db(monkeypatch, FakeCommandConnection([None]))
+
+    result = await svc.validate_referral_saas_membership_acceptance_token(
+        acceptance_token="missing-token",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["tokenStatus"] == "INVALID"
+    assert safe_payload["account"]["accountRef"] is None
+    assert safe_payload["noMembershipActivationConfirmed"] is True
+    assert "acceptance_token" in safe_payload["redactions"]
+
+
+async def test_membership_acceptance_token_validate_expires_issued_token(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            {
+                "acceptance_token_id": "token-row-1",
+                "account_id": "acct-1",
+                "membership_id": "membership-1",
+                "status": "ISSUED",
+                "expires_at": datetime.now(UTC) - timedelta(minutes=1),
+                "account_name": "FNB Referral SaaS",
+                "role_family": "CAMPAIGN_MANAGER",
+                "permission_set": "REFERRAL_SAAS_CAMPAIGN_MANAGER",
+                "display_name": "Campaign Owner",
+            },
+            {"acceptance_token_id": "token-row-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.validate_referral_saas_membership_acceptance_token(
+        acceptance_token="expired-token",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["tokenStatus"] == "EXPIRED"
+    assert safe_payload["nextAction"] == "Ask the sender for a fresh access link."
+    assert "SET status = 'EXPIRED'" in conn.fetchrow_calls[1][0]
+
+
+async def test_membership_acceptance_token_accept_blocks_replay(monkeypatch):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                {
+                    "acceptance_token_id": "token-row-1",
+                    "account_id": "acct-1",
+                    "membership_id": "membership-1",
+                    "tenant_code": "FNB",
+                    "accepted_subject_ref": "owner@example.test",
+                    "token_status": "ACCEPTED",
+                    "expires_at": datetime.now(UTC) + timedelta(hours=1),
+                    "account_status": "ACTIVE",
+                    "role_family": "DISTRIBUTION_ADMIN",
+                    "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                    "account_tenant_id": "acct-tenant-1",
+                    "tenant_link_status": "ACTIVE",
+                    "external_ref_id": "external-ref-1",
+                    "external_reference_status": "ACTIVE",
+                }
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.MembershipInvitationAcceptanceTokenReplay):
+        await svc.accept_referral_saas_membership_acceptance_token(
+            acceptance_token="used-token",
+            acceptance_evidence_ref="clicked-link",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="payload-hash",
+        )
+
+
+async def test_membership_acceptance_token_accept_activates_without_provisioning(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            {
+                "acceptance_token_id": "token-row-1",
+                "account_id": "acct-1",
+                "membership_id": "membership-1",
+                "tenant_code": "FNB",
+                "accepted_subject_ref": "owner@example.test",
+                "token_status": "ISSUED",
+                "expires_at": datetime.now(UTC) + timedelta(hours=1),
+                "account_status": "ACTIVE",
+                "role_family": "DISTRIBUTION_ADMIN",
+                "permission_set": "REFERRAL_SAAS_ACCOUNT_ADMIN",
+                "account_tenant_id": "acct-tenant-1",
+                "tenant_link_status": "ACTIVE",
+                "external_ref_id": "external-ref-1",
+                "external_reference_status": "ACTIVE",
+            },
+            {"acceptance_token_id": "token-row-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+    activation_calls = []
+
+    async def fake_activation(**kwargs):
+        activation_calls.append(kwargs)
+        return svc.MembershipActivationRequestResult(
+            command_status="MEMBERSHIP_ACTIVATED",
+            account_id="acct-1",
+            membership_id="membership-1",
+            previous_membership_status="INVITED",
+            membership_status="ACTIVE",
+            role_family="DISTRIBUTION_ADMIN",
+            permission_set="REFERRAL_SAAS_ACCOUNT_ADMIN",
+            accepted_subject_status="ACCEPTED_SUBJECT_MATCHED",
+            activation_next_action="Membership is active.",
+            idempotency_status="RECORDED",
+            audit_event_id="audit-activation-1",
+        )
+
+    monkeypatch.setattr(svc, "request_referral_saas_membership_activation", fake_activation)
+
+    result = await svc.accept_referral_saas_membership_acceptance_token(
+        acceptance_token="issued-token",
+        acceptance_evidence_ref="clicked-link",
+        correlation_id="corr-1",
+        idempotency_key_hash="idem-hash",
+        command_payload_hash="payload-hash",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "MEMBERSHIP_ACTIVATED"
+    assert safe_payload["tokenStatus"] == "ACCEPTED"
+    assert safe_payload["noSeatAssignmentConfirmed"] is True
+    assert safe_payload["noCredentialCreationConfirmed"] is True
+    assert activation_calls[0]["command_actor_role"] == "INVITED_PERSON"
+    assert activation_calls[0]["accepted_subject"] == "owner@example.test"
+    assert "SET status = 'ACCEPTED'" in conn.fetchrow_calls[1][0]
 
 
 async def test_membership_activation_request_blocks_missing_identity_acceptance(

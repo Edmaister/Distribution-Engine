@@ -1929,6 +1929,34 @@ export type ReferralSaasMembershipActivationRequest = {
   idempotencyKey: string;
 };
 
+export type ReferralSaasMembershipAcceptanceTokenIssueRequest = {
+  accountRef: string;
+  membershipRef: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  acceptance: {
+    acceptedSubject: string;
+  };
+  ttlHours?: number;
+  reasonCode?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
+export type ReferralSaasMembershipAcceptanceTokenValidateRequest = {
+  token: string;
+};
+
+export type ReferralSaasMembershipAcceptanceTokenAcceptRequest = {
+  token: string;
+  acceptanceEvidenceRef?: string;
+  correlationId: string;
+  idempotencyKey: string;
+};
+
 export type ReferralSaasAccessProvisioningRequest = {
   accountRef: string;
   membershipRef: string;
@@ -2107,6 +2135,57 @@ export type ReferralSaasMembershipInvitationDeliveryResponse = {
   no_auth_claim_change_confirmed: boolean;
   no_seat_assignment_confirmed: boolean;
   no_money_movement_confirmed: boolean;
+};
+
+export type ReferralSaasMembershipAcceptanceTokenResponse = {
+  status: string;
+  acceptance?: {
+    tokenStatus?: string;
+    commandStatus?: string;
+    account?: {
+      accountRef?: string | null;
+      accountName?: string | null;
+    };
+    membership?: {
+      membershipRef?: string | null;
+      roleFamily?: string | null;
+      permissionSet?: string | null;
+    };
+    person?: {
+      displayName?: string | null;
+    };
+    acceptanceToken?: {
+      token?: string;
+      hint?: string;
+      expiresAt?: string;
+      status?: string;
+    };
+    activation?: {
+      status?: string;
+    };
+    expiresAt?: string | null;
+    nextAction?: string;
+    guardrails?: string[];
+    redactions?: string[];
+    noMembershipActivationConfirmed?: boolean;
+    noAuthClaimChangeConfirmed?: boolean;
+    noSeatAssignmentConfirmed?: boolean;
+    noCredentialCreationConfirmed?: boolean;
+    noCampaignActivationConfirmed?: boolean;
+    noMoneyMovementConfirmed?: boolean;
+  };
+  acceptanceToken?: {
+    commandStatus: string;
+    acceptanceToken: {
+      token: string;
+      hint: string;
+      expiresAt: string;
+      status: string;
+    };
+  };
+  account?: ReferralSaasAccountSummary;
+  guardrails?: string[];
+  redactions?: string[];
 };
 
 export type ReferralSaasMembershipInvitationLifecycleResponse = {
@@ -3037,6 +3116,66 @@ export function requestReferralSaasMembershipInvitationDelivery({
       },
     },
   );
+}
+
+export function issueReferralSaasMembershipAcceptanceToken({
+  accountRef,
+  membershipRef,
+  accountScope,
+  acceptance,
+  ttlHours = 72,
+  reasonCode = "CUSTOMER_PROFILE_ACCEPTANCE_TOKEN_REQUEST",
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasMembershipAcceptanceTokenIssueRequest): Promise<ReferralSaasMembershipAcceptanceTokenResponse> {
+  return apiRequest<ReferralSaasMembershipAcceptanceTokenResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/membership-invitations/${encodeURIComponent(
+      membershipRef.trim(),
+    )}/acceptance-token`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType: accountScope.refType,
+          externalRef: accountScope.externalRef.trim(),
+          context: accountScope.context || "setup",
+        },
+        acceptance: {
+          acceptedSubject: acceptance.acceptedSubject.trim(),
+        },
+        ttlHours,
+        reasonCode,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function validateReferralSaasMembershipAcceptanceToken({
+  token,
+}: ReferralSaasMembershipAcceptanceTokenValidateRequest): Promise<ReferralSaasMembershipAcceptanceTokenResponse> {
+  return apiRequest<ReferralSaasMembershipAcceptanceTokenResponse>("v1/referral-saas/membership-acceptance/validate", {
+    method: "POST",
+    body: { token: token.trim() },
+  });
+}
+
+export function acceptReferralSaasMembershipAcceptanceToken({
+  token,
+  acceptanceEvidenceRef,
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasMembershipAcceptanceTokenAcceptRequest): Promise<ReferralSaasMembershipAcceptanceTokenResponse> {
+  return apiRequest<ReferralSaasMembershipAcceptanceTokenResponse>("v1/referral-saas/membership-acceptance/accept", {
+    method: "POST",
+    body: {
+      token: token.trim(),
+      acceptanceEvidenceRef: acceptanceEvidenceRef?.trim() || undefined,
+      correlationId,
+      idempotencyKey,
+    },
+  });
 }
 
 export function updateReferralSaasMembershipInvitationIntent({

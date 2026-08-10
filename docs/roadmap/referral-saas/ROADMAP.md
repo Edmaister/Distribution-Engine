@@ -183,7 +183,7 @@ actions.
 
 Invitation/login execution, integration execution, campaign control, referral
 operations, attribution, reporting, support, and non-local proof gates remain
-on TASK-364 through TASK-380.
+on TASK-365 through TASK-380.
 
 ## Recommended Ordered Task Sequence
 
@@ -2392,9 +2392,30 @@ on TASK-364 through TASK-380.
   the selected-customer UI now presents the action as `Send invite email` with
   plain-language sent/failed/blocked feedback. Seats, credentials, auth claims,
   campaign activation, billing, money movement, DLaaS expansion, and source
-  forks remain excluded. Ratings remain 9.99/10 for Referral Management and
-  9.99996/10 for Campaign Attribution until expiring acceptance, identity/login
-  reconciliation, and non-local proof are complete.
+  forks remain excluded.
+- TASK-364:
+  `dp/migrations/091_referral_saas_membership_acceptance_tokens.sql`;
+  `services/referral_saas_account_membership_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/app/App.tsx`;
+  `frontend/src/pages/referral-saas/ReferralSaasMembershipAcceptancePage.tsx`;
+  `frontend/src/styles/base.css`;
+  `test/test_referral_saas_account_membership_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  expiring invitation acceptance path for Referral SaaS People and Access.
+  Acceptance tokens are stored as hashes with bounded TTL, safe validation,
+  expiry, replay protection, and audit evidence. The public acceptance page lets
+  an invitee accept customer access in plain language while preserving the hard
+  boundary that no seat, credential, auth claim, campaign activation, billing,
+  money movement, DLaaS expansion, or source fork is created. Ratings remain
+  9.99/10 for Referral Management and 9.99996/10 for Campaign Attribution until
+  identity/login reconciliation and non-local proof are complete.
 
 ## Explicit Deferrals
 
