@@ -193,6 +193,7 @@ from services.referral_saas_integrations_configuration_service import (
     build_referral_saas_provider_vault_readiness,
     create_referral_saas_integration_credential_request,
     get_referral_saas_integration_credential_request,
+    get_referral_saas_integration_client_binding,
     get_referral_saas_integration_configuration,
     get_referral_saas_provider_vault_execution,
     list_referral_saas_integration_credential_requests,
@@ -1654,6 +1655,20 @@ def _integration_configuration_error(
             "no_billing_or_money_movement_confirmed": True,
         },
     )
+
+
+async def _get_integration_configuration_and_client_binding(
+    account: Any,
+) -> tuple[Any, Any]:
+    configuration = await get_referral_saas_integration_configuration(
+        account_id=account.account_id,
+    )
+    client_binding = await get_referral_saas_integration_client_binding(
+        account_id=account.account_id,
+        tenant_code=account.tenant_code,
+        configuration=configuration,
+    )
+    return configuration, client_binding
 
 
 @router.post("/accounts/from-draft")
@@ -4036,8 +4051,8 @@ async def read_referral_saas_integration_configuration(
         external_reference_status=account.reference_status,
     )
     try:
-        configuration = await get_referral_saas_integration_configuration(
-            account_id=account.account_id,
+        configuration, client_binding = (
+            await _get_integration_configuration_and_client_binding(account)
         )
     except ReferralSaasIntegrationConfigurationCommandError as exc:
         raise _integration_configuration_error(exc) from exc
@@ -4049,6 +4064,7 @@ async def read_referral_saas_integration_configuration(
         "integrationConfiguration": (
             configuration.to_safe_dict() if configuration else None
         ),
+        "integrationClientBinding": client_binding.to_safe_dict(),
         "technicalSetupReadiness": readiness.to_safe_dict(),
         "guardrail": (
             "Read-only selected-customer Integrations configuration view. "
@@ -4109,8 +4125,8 @@ async def read_referral_saas_integration_execution_readiness(
     _assert_account_path_scope(account_ref, account)
 
     try:
-        configuration = await get_referral_saas_integration_configuration(
-            account_id=account.account_id,
+        configuration, client_binding = (
+            await _get_integration_configuration_and_client_binding(account)
         )
     except ReferralSaasIntegrationConfigurationCommandError as exc:
         raise _integration_configuration_error(exc) from exc
@@ -4120,6 +4136,7 @@ async def read_referral_saas_integration_execution_readiness(
         tenant_link_status=account.tenant_link_status,
         external_reference_status=account.reference_status,
         configuration=configuration,
+        client_binding=client_binding,
     )
 
     return {
@@ -4130,6 +4147,7 @@ async def read_referral_saas_integration_execution_readiness(
         "integrationConfiguration": (
             configuration.to_safe_dict() if configuration else None
         ),
+        "integrationClientBinding": client_binding.to_safe_dict(),
         "guardrail": (
             "Read-only selected-customer Integrations execution readiness. "
             "It shows whether saved setup evidence can move into governed API, "
@@ -4192,8 +4210,8 @@ async def read_referral_saas_provider_vault_readiness(
     _assert_account_path_scope(account_ref, account)
 
     try:
-        configuration = await get_referral_saas_integration_configuration(
-            account_id=account.account_id,
+        configuration, client_binding = (
+            await _get_integration_configuration_and_client_binding(account)
         )
         credential_requests = await list_referral_saas_integration_credential_requests(
             account_id=account.account_id,
@@ -4207,6 +4225,7 @@ async def read_referral_saas_provider_vault_readiness(
         tenant_link_status=account.tenant_link_status,
         external_reference_status=account.reference_status,
         configuration=configuration,
+        client_binding=client_binding,
         credential_requests=credential_requests,
     )
 
@@ -4218,6 +4237,7 @@ async def read_referral_saas_provider_vault_readiness(
         "integrationConfiguration": (
             configuration.to_safe_dict() if configuration else None
         ),
+        "integrationClientBinding": client_binding.to_safe_dict(),
         "account_scope": _customer_report_account_scope(account),
         "guardrail": (
             "Read-only selected-customer provider/vault readiness. It shows "
@@ -4300,8 +4320,8 @@ async def record_referral_saas_account_api_access_verification(
     )
     safe_account_ref = _assert_account_path_scope(account_ref, account)
     try:
-        configuration = await get_referral_saas_integration_configuration(
-            account_id=account.account_id,
+        configuration, client_binding = (
+            await _get_integration_configuration_and_client_binding(account)
         )
         command_payload = {
             "accountScope": {
@@ -4322,6 +4342,7 @@ async def record_referral_saas_account_api_access_verification(
             tenant_link_status=account.tenant_link_status,
             external_reference_status=account.reference_status,
             configuration=configuration,
+            client_binding=client_binding,
             reason_code=request.reasonCode,
             correlation_id=correlation_id,
             idempotency_key_hash=hash_payload(
@@ -4343,6 +4364,7 @@ async def record_referral_saas_account_api_access_verification(
         "context": normalised_context,
         "account": account.to_safe_dict(),
         "integrationApiAccessVerification": result.to_safe_dict(),
+        "integrationClientBinding": client_binding.to_safe_dict(),
         "account_scope": _customer_report_account_scope(account),
         "guardrail": (
             "API-access verification evidence recorded for the selected "
@@ -4421,8 +4443,8 @@ async def record_referral_saas_account_webhook_test_dispatch(
     )
     safe_account_ref = _assert_account_path_scope(account_ref, account)
     try:
-        configuration = await get_referral_saas_integration_configuration(
-            account_id=account.account_id,
+        configuration, client_binding = (
+            await _get_integration_configuration_and_client_binding(account)
         )
         command_payload = {
             "accountScope": {
@@ -4443,6 +4465,7 @@ async def record_referral_saas_account_webhook_test_dispatch(
             tenant_link_status=account.tenant_link_status,
             external_reference_status=account.reference_status,
             configuration=configuration,
+            client_binding=client_binding,
             reason_code=request.reasonCode,
             correlation_id=correlation_id,
             idempotency_key_hash=hash_payload(
@@ -4464,6 +4487,7 @@ async def record_referral_saas_account_webhook_test_dispatch(
         "context": normalised_context,
         "account": account.to_safe_dict(),
         "integrationWebhookTestDispatch": result.to_safe_dict(),
+        "integrationClientBinding": client_binding.to_safe_dict(),
         "account_scope": _customer_report_account_scope(account),
         "guardrail": (
             "Webhook test-dispatch evidence recorded for the selected customer "
@@ -4541,8 +4565,8 @@ async def record_referral_saas_account_message_provider_test(
     )
     safe_account_ref = _assert_account_path_scope(account_ref, account)
     try:
-        configuration = await get_referral_saas_integration_configuration(
-            account_id=account.account_id,
+        configuration, client_binding = (
+            await _get_integration_configuration_and_client_binding(account)
         )
         command_payload = {
             "accountScope": {
@@ -4563,6 +4587,7 @@ async def record_referral_saas_account_message_provider_test(
             tenant_link_status=account.tenant_link_status,
             external_reference_status=account.reference_status,
             configuration=configuration,
+            client_binding=client_binding,
             reason_code=request.reasonCode,
             correlation_id=correlation_id,
             idempotency_key_hash=hash_payload(
@@ -4584,6 +4609,7 @@ async def record_referral_saas_account_message_provider_test(
         "context": normalised_context,
         "account": account.to_safe_dict(),
         "integrationMessageProviderTest": result.to_safe_dict(),
+        "integrationClientBinding": client_binding.to_safe_dict(),
         "account_scope": _customer_report_account_scope(account),
         "guardrail": (
             "Message-provider test evidence recorded for the selected customer "
@@ -4672,8 +4698,8 @@ async def create_referral_saas_account_integration_credential_request(
     )
     safe_account_ref = _assert_account_path_scope(account_ref, account)
     try:
-        configuration = await get_referral_saas_integration_configuration(
-            account_id=account.account_id,
+        configuration, client_binding = (
+            await _get_integration_configuration_and_client_binding(account)
         )
         command_payload = {
             "accountScope": {
@@ -4694,6 +4720,7 @@ async def create_referral_saas_account_integration_credential_request(
             tenant_link_status=account.tenant_link_status,
             external_reference_status=account.reference_status,
             configuration=configuration,
+            client_binding=client_binding,
             request_type=request_type,
             capability=capability,
             environment=_optional_text(credential_request.get("environment")),
@@ -4720,6 +4747,7 @@ async def create_referral_saas_account_integration_credential_request(
         "context": normalised_context,
         "account": account.to_safe_dict(),
         "integrationCredentialRequestResult": result.to_safe_dict(),
+        "integrationClientBinding": client_binding.to_safe_dict(),
         "account_scope": _customer_report_account_scope(account),
         "guardrail": (
             "Credential request recorded for the selected customer only. This "
@@ -5250,30 +5278,30 @@ async def execute_referral_saas_account_provider_vault_runtime(
         context=context,
     )
     safe_account_ref = _assert_account_path_scope(account_ref, account)
-    configuration = await get_referral_saas_integration_configuration(
-        account_id=account.account_id,
-    )
-    command_payload = {
-        "accountScope": {
-            "accountRef": safe_account_ref,
-            "refType": ref_type,
-            "externalRef": external_ref,
-            "context": normalised_context,
-        },
-        "credentialRequestRef": credential_request_ref,
-        "providerVaultExecution": {
-            "approvedRequestVersion": approved_request_version,
-            "executionIntent": provider_vault_execution.get("executionIntent"),
-            "executionMode": provider_vault_execution.get("executionMode"),
-            "providerKey": provider_key,
-            "environment": environment,
-            "capability": capability,
-            "reasonCode": request.reasonCode
-            or provider_vault_execution.get("reasonCode")
-            or "PROVIDER_VAULT_RUNTIME_EXECUTION",
-        },
-    }
     try:
+        configuration, client_binding = (
+            await _get_integration_configuration_and_client_binding(account)
+        )
+        command_payload = {
+            "accountScope": {
+                "accountRef": safe_account_ref,
+                "refType": ref_type,
+                "externalRef": external_ref,
+                "context": normalised_context,
+            },
+            "credentialRequestRef": credential_request_ref,
+            "providerVaultExecution": {
+                "approvedRequestVersion": approved_request_version,
+                "executionIntent": provider_vault_execution.get("executionIntent"),
+                "executionMode": provider_vault_execution.get("executionMode"),
+                "providerKey": provider_key,
+                "environment": environment,
+                "capability": capability,
+                "reasonCode": request.reasonCode
+                or provider_vault_execution.get("reasonCode")
+                or "PROVIDER_VAULT_RUNTIME_EXECUTION",
+            },
+        }
         result = await record_referral_saas_provider_vault_execution(
             account_id=account.account_id,
             account_tenant_id=account.account_tenant_id,
@@ -5283,6 +5311,7 @@ async def execute_referral_saas_account_provider_vault_runtime(
             tenant_link_status=account.tenant_link_status,
             external_reference_status=account.reference_status,
             configuration=configuration,
+            client_binding=client_binding,
             credential_request_ref=credential_request_ref,
             approved_request_version=approved_request_version,
             execution_intent=provider_vault_execution.get("executionIntent"),
@@ -5313,6 +5342,7 @@ async def execute_referral_saas_account_provider_vault_runtime(
         "context": normalised_context,
         "account": account.to_safe_dict(),
         "providerVaultExecutionResult": result.to_safe_dict(),
+        "integrationClientBinding": client_binding.to_safe_dict(),
         "account_scope": _customer_report_account_scope(account),
         "guardrail": (
             "Provider/vault runtime command recorded for the selected customer. "

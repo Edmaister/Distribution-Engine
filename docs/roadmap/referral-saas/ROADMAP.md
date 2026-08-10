@@ -2443,6 +2443,27 @@ on TASK-366 through TASK-380.
   for Referral Management and 9.99996/10 for Campaign Attribution until
   integration execution, campaign/runtime controls, and non-local proof are
   complete.
+- TASK-366:
+  `services/referral_saas_integrations_configuration_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `test/test_referral_saas_integrations_configuration_service.py`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds the
+  account-to-integration-client binding gate for customer-scoped Integrations.
+  Integration configuration, execution readiness, API verification, webhook
+  test dispatch, message-provider checks, credential requests, and
+  provider/vault readiness now include a redacted binding projection and block
+  execution when the selected account has no active bound partner client or the
+  client is tied to the wrong tenant context. Raw client identifiers, client
+  secrets, credential creation, provider calls, webhook dispatch, invite
+  delivery, billing, money movement, DLaaS expansion, and source forks remain
+  excluded. Ratings remain 9.99/10 for Referral Management and 9.99996/10 for
+  Campaign Attribution until credential/vault proof, campaign/runtime controls,
+  referral operations, attribution, reporting/support, and non-local proof are
+  complete.
 
 ## Explicit Deferrals
 

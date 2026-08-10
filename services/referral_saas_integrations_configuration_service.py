@@ -36,6 +36,12 @@ INTEGRATION_EXECUTION_BLOCKED_CONFIGURATION_MISSING = (
 INTEGRATION_EXECUTION_BLOCKED_PROVIDER_NOT_APPROVED = (
     "INTEGRATION_EXECUTION_BLOCKED_PROVIDER_NOT_APPROVED"
 )
+INTEGRATION_EXECUTION_BLOCKED_CLIENT_BINDING_MISSING = (
+    "INTEGRATION_EXECUTION_BLOCKED_CLIENT_BINDING_MISSING"
+)
+INTEGRATION_EXECUTION_BLOCKED_CLIENT_BINDING_MISMATCH = (
+    "INTEGRATION_EXECUTION_BLOCKED_CLIENT_BINDING_MISMATCH"
+)
 INTEGRATION_API_ACCESS_VERIFICATION_EVENT = (
     "INTEGRATION_API_ACCESS_VERIFICATION_RECORDED"
 )
@@ -79,6 +85,12 @@ PROVIDER_VAULT_BLOCKED_CONFIGURATION_MISSING = (
 )
 PROVIDER_VAULT_BLOCKED_PROVIDER_NOT_APPROVED = (
     "PROVIDER_VAULT_BLOCKED_PROVIDER_NOT_APPROVED"
+)
+PROVIDER_VAULT_BLOCKED_CLIENT_BINDING_MISSING = (
+    "PROVIDER_VAULT_BLOCKED_CLIENT_BINDING_MISSING"
+)
+PROVIDER_VAULT_BLOCKED_CLIENT_BINDING_MISMATCH = (
+    "PROVIDER_VAULT_BLOCKED_CLIENT_BINDING_MISMATCH"
 )
 PROVIDER_VAULT_BLOCKED_REQUEST_NOT_APPROVED = (
     "PROVIDER_VAULT_BLOCKED_REQUEST_NOT_APPROVED"
@@ -129,10 +141,13 @@ INTEGRATION_EXECUTION_GUARDRAILS = list(
             "CUSTOMER_SCOPED_INTEGRATIONS_EXECUTION_READINESS",
             "SAVED_CONFIGURATION_REQUIRED",
             "ACTIVE_ACCOUNT_LINK_REFERENCE_REQUIRED",
+            "ACCOUNT_INTEGRATION_CLIENT_BINDING_REQUIRED",
+            "ACTIVE_PARTNER_CLIENT_BINDING_REQUIRED",
             "NO_LIVE_PROVIDER_EXECUTION",
             "NO_WEBHOOK_TEST_DISPATCH",
             "NO_MESSAGE_PROVIDER_DELIVERY",
             "NO_CREDENTIAL_LIFECYCLE",
+            "NO_RAW_CLIENT_SECRET_EXPOSURE",
         ]
     )
 )
@@ -143,6 +158,9 @@ INTEGRATION_EXECUTION_REDACTIONS = list(
             "webhook_signing_material",
             "credential_material",
             "provider_runtime_payload",
+            "client_id",
+            "client_secret_hash",
+            "partner_client_identifier",
         ]
     )
 )
@@ -375,6 +393,45 @@ class ReferralSaasIntegrationConfiguration:
 
 
 @dataclass(frozen=True)
+class ReferralSaasIntegrationClientBinding:
+    binding_status: str
+    account_ref: str
+    client_ref_present: bool
+    active_client_count: int
+    bound_role_families: list[str]
+    provider_refs_count: int
+    environment: str | None
+    blockers: list[dict[str, str]]
+    guardrails: list[str]
+    redactions: list[str]
+
+    @property
+    def is_ready(self) -> bool:
+        return self.binding_status == "CLIENT_BINDING_READY"
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "bindingStatus": self.binding_status,
+            "accountRef": self.account_ref,
+            "clientRefPresent": self.client_ref_present,
+            "activeClientCount": self.active_client_count,
+            "boundRoleFamilies": self.bound_role_families,
+            "providerRefsCount": self.provider_refs_count,
+            "environment": self.environment,
+            "blockers": self.blockers,
+            "guardrails": self.guardrails,
+            "redactions": self.redactions,
+            "noTenantCodeExposureConfirmed": True,
+            "noClientSecretExposureConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noProviderCallConfirmed": True,
+            "noWebhookDispatchConfirmed": True,
+            "noInviteDeliveryConfirmed": True,
+            "noMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
 class ReferralSaasIntegrationExecutionReadiness:
     execution_status: str
     plain_language_summary: str
@@ -385,6 +442,7 @@ class ReferralSaasIntegrationExecutionReadiness:
     redactions: list[str]
     configuration_ref: str | None = None
     configuration_status: str | None = None
+    client_binding: ReferralSaasIntegrationClientBinding | None = None
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
@@ -395,6 +453,9 @@ class ReferralSaasIntegrationExecutionReadiness:
             "executionActions": self.execution_actions,
             "configurationRef": self.configuration_ref,
             "configurationStatus": self.configuration_status,
+            "integrationClientBinding": (
+                self.client_binding.to_safe_dict() if self.client_binding else None
+            ),
             "guardrails": self.guardrails,
             "redactions": self.redactions,
             "noSecretOrCredentialStorageConfirmed": True,
@@ -1166,12 +1227,110 @@ def _execution_action(
     }
 
 
+def build_referral_saas_integration_client_binding(
+    *,
+    account_id: str,
+    tenant_code: str | None,
+    partner_client_rows: list[dict[str, Any]],
+    configuration: ReferralSaasIntegrationConfiguration | None,
+) -> ReferralSaasIntegrationClientBinding:
+    safe_account_ref = _clean_text(account_id) or "UNKNOWN"
+    safe_tenant_code = _clean_text(tenant_code).upper()
+    blockers: list[dict[str, str]] = []
+    rows = [row for row in partner_client_rows if isinstance(row, dict)]
+
+    client_ref_present = any(_clean_text(row.get("client_id")) for row in rows)
+    mismatched_rows = [
+        row
+        for row in rows
+        if _clean_text(row.get("client_tenant_code")).upper() != safe_tenant_code
+    ]
+    active_rows = [
+        row
+        for row in rows
+        if _clean_text(row.get("client_tenant_code")).upper() == safe_tenant_code
+        and _clean_text(row.get("client_status")).upper() == "ACTIVE"
+        and _clean_text(row.get("membership_status")).upper() == "ACTIVE"
+        and _clean_text(row.get("client_id"))
+    ]
+
+    if not client_ref_present:
+        blockers.append(
+            _execution_blocker(
+                "CLIENT_BINDING_MISSING",
+                "Bind this customer to an active integration client before execution checks.",
+            )
+        )
+    elif mismatched_rows:
+        blockers.append(
+            _execution_blocker(
+                "CLIENT_BINDING_TENANT_MISMATCH",
+                "The bound integration client does not match the selected customer tenant context.",
+            )
+        )
+    elif not active_rows:
+        blockers.append(
+            _execution_blocker(
+                "CLIENT_BINDING_NOT_ACTIVE",
+                "Activate the customer integration client binding before execution checks.",
+            )
+        )
+
+    message_providers = configuration.message_providers if configuration else {}
+    provider_refs = [
+        _clean_text(item)
+        for item in message_providers.get("providerRefs", [])
+        if _clean_text(item)
+    ]
+    api_environment = configuration.api_environment if configuration else {}
+    environment = _clean_text(api_environment.get("environment")) or None
+    role_families = sorted(
+        {
+            _clean_text(row.get("role_family")).upper()
+            for row in active_rows
+            if _clean_text(row.get("role_family"))
+        }
+    )
+
+    if not blockers:
+        binding_status = "CLIENT_BINDING_READY"
+    elif any(item["code"] == "CLIENT_BINDING_TENANT_MISMATCH" for item in blockers):
+        binding_status = "CLIENT_BINDING_MISMATCH"
+    else:
+        binding_status = "CLIENT_BINDING_MISSING"
+
+    return ReferralSaasIntegrationClientBinding(
+        binding_status=binding_status,
+        account_ref=safe_account_ref,
+        client_ref_present=client_ref_present,
+        active_client_count=len(active_rows),
+        bound_role_families=role_families,
+        provider_refs_count=len(provider_refs),
+        environment=environment,
+        blockers=blockers,
+        guardrails=[
+            "CUSTOMER_SCOPED_INTEGRATION_CLIENT_BINDING",
+            "ACCOUNT_INTEGRATION_CLIENT_BINDING_REQUIRED",
+            "ACTIVE_PARTNER_CLIENT_BINDING_REQUIRED",
+            "NO_TENANT_CODE_EXPOSURE",
+            "NO_RAW_CLIENT_SECRET_EXPOSURE",
+        ],
+        redactions=[
+            "tenant_code",
+            "client_id",
+            "client_secret_hash",
+            "partner_client_identifier",
+        ],
+    )
+
+
 def build_referral_saas_integration_execution_readiness(
     *,
     account_status: str | None,
     tenant_link_status: str | None,
     external_reference_status: str | None,
     configuration: ReferralSaasIntegrationConfiguration | None,
+    client_binding: ReferralSaasIntegrationClientBinding | None = None,
 ) -> ReferralSaasIntegrationExecutionReadiness:
     blockers: list[dict[str, str]] = []
     account_posture = {
@@ -1201,6 +1360,15 @@ def build_referral_saas_integration_execution_readiness(
                 "Activate the selected customer reference before live verification.",
             )
         )
+    if client_binding is None:
+        blockers.append(
+            _execution_blocker(
+                "CLIENT_BINDING_MISSING",
+                "Bind this customer to an active integration client before execution checks.",
+            )
+        )
+    else:
+        blockers.extend(client_binding.blockers)
 
     if configuration is None:
         blockers.append(
@@ -1232,6 +1400,7 @@ def build_referral_saas_integration_execution_readiness(
             ],
             guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
             redactions=INTEGRATION_EXECUTION_REDACTIONS,
+            client_binding=client_binding,
         )
 
     if configuration.configuration_status != INTEGRATION_CONFIGURATION_SAVED:
@@ -1321,6 +1490,20 @@ def build_referral_saas_integration_execution_readiness(
         plain_language_summary = (
             "Save Integrations setup evidence before live verification can start."
         )
+    elif any(
+        item["code"] == "CLIENT_BINDING_TENANT_MISMATCH" for item in blockers
+    ):
+        execution_status = INTEGRATION_EXECUTION_BLOCKED_CLIENT_BINDING_MISMATCH
+        plain_language_summary = (
+            "The selected customer's integration client binding does not match "
+            "the customer tenant context."
+        )
+    elif any(item["code"].startswith("CLIENT_BINDING") for item in blockers):
+        execution_status = INTEGRATION_EXECUTION_BLOCKED_CLIENT_BINDING_MISSING
+        plain_language_summary = (
+            "Bind this customer to an active integration client before API, "
+            "webhook, message-provider, or credential checks can run."
+        )
     elif any(item["code"] == "PROVIDER_NOT_APPROVED" for item in blockers):
         execution_status = INTEGRATION_EXECUTION_BLOCKED_PROVIDER_NOT_APPROVED
         plain_language_summary = (
@@ -1343,6 +1526,7 @@ def build_referral_saas_integration_execution_readiness(
         configuration_status=configuration.configuration_status,
         guardrails=INTEGRATION_EXECUTION_GUARDRAILS,
         redactions=INTEGRATION_EXECUTION_REDACTIONS,
+        client_binding=client_binding,
     )
 
 
@@ -1366,6 +1550,43 @@ async def get_referral_saas_integration_configuration(
             safe_account_id,
         )
     return _configuration_from_row(row) if row else None
+
+
+async def get_referral_saas_integration_client_binding(
+    *,
+    account_id: str,
+    tenant_code: str | None,
+    configuration: ReferralSaasIntegrationConfiguration | None,
+) -> ReferralSaasIntegrationClientBinding:
+    safe_account_id = _require_bounded_text(
+        account_id, "account_id", min_length=1, max_length=80
+    )
+    safe_tenant_code = _optional_text(tenant_code)
+    async with db_connection() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT
+                membership.client_id,
+                membership.role_family,
+                membership.status AS membership_status,
+                client.tenant_code AS client_tenant_code,
+                client.status AS client_status
+            FROM platform_memberships membership
+            LEFT JOIN partner_clients client
+                ON client.client_id = membership.client_id
+            WHERE membership.account_id = $1::uuid
+              AND membership.client_id IS NOT NULL
+              AND membership.status <> 'ARCHIVED'
+            ORDER BY membership.updated_at DESC, membership.created_at DESC
+            """,
+            safe_account_id,
+        )
+    return build_referral_saas_integration_client_binding(
+        account_id=safe_account_id,
+        tenant_code=safe_tenant_code,
+        partner_client_rows=[dict(row) for row in rows],
+        configuration=configuration,
+    )
 
 
 async def upsert_referral_saas_integration_configuration(
@@ -1562,6 +1783,7 @@ def build_referral_saas_provider_vault_readiness(
     tenant_link_status: str | None,
     external_reference_status: str | None,
     configuration: ReferralSaasIntegrationConfiguration | None,
+    client_binding: ReferralSaasIntegrationClientBinding | None,
     credential_requests: list[ReferralSaasIntegrationCredentialRequest],
 ) -> ReferralSaasProviderVaultReadiness:
     integration_readiness = build_referral_saas_integration_execution_readiness(
@@ -1569,6 +1791,7 @@ def build_referral_saas_provider_vault_readiness(
         tenant_link_status=tenant_link_status,
         external_reference_status=external_reference_status,
         configuration=configuration,
+        client_binding=client_binding,
     )
     blockers: list[dict[str, Any]] = list(integration_readiness.blockers)
 
@@ -1620,6 +1843,12 @@ def build_referral_saas_provider_vault_readiness(
             else (
                 PROVIDER_VAULT_BLOCKED_ACCOUNT_NOT_ACTIVE
                 if account_blocked
+                else PROVIDER_VAULT_BLOCKED_CLIENT_BINDING_MISMATCH
+                if integration_readiness.execution_status
+                == INTEGRATION_EXECUTION_BLOCKED_CLIENT_BINDING_MISMATCH
+                else PROVIDER_VAULT_BLOCKED_CLIENT_BINDING_MISSING
+                if integration_readiness.execution_status
+                == INTEGRATION_EXECUTION_BLOCKED_CLIENT_BINDING_MISSING
                 else PROVIDER_VAULT_BLOCKED_CONFIGURATION_MISSING
                 if configuration is None
                 or integration_readiness.execution_status
@@ -1688,6 +1917,12 @@ def build_referral_saas_provider_vault_readiness(
         readiness_status = (
             PROVIDER_VAULT_BLOCKED_ACCOUNT_NOT_ACTIVE
             if account_blocked
+            else PROVIDER_VAULT_BLOCKED_CLIENT_BINDING_MISMATCH
+            if integration_readiness.execution_status
+            == INTEGRATION_EXECUTION_BLOCKED_CLIENT_BINDING_MISMATCH
+            else PROVIDER_VAULT_BLOCKED_CLIENT_BINDING_MISSING
+            if integration_readiness.execution_status
+            == INTEGRATION_EXECUTION_BLOCKED_CLIENT_BINDING_MISSING
             else PROVIDER_VAULT_BLOCKED_PROVIDER_NOT_APPROVED
             if integration_readiness.execution_status
             == INTEGRATION_EXECUTION_BLOCKED_PROVIDER_NOT_APPROVED
@@ -1737,6 +1972,7 @@ async def record_referral_saas_api_access_verification(
     tenant_link_status: str | None,
     external_reference_status: str | None,
     configuration: ReferralSaasIntegrationConfiguration | None,
+    client_binding: ReferralSaasIntegrationClientBinding | None,
     reason_code: str | None,
     correlation_id: str | None,
     idempotency_key_hash: str,
@@ -1768,6 +2004,7 @@ async def record_referral_saas_api_access_verification(
         tenant_link_status=tenant_link_status,
         external_reference_status=external_reference_status,
         configuration=configuration,
+        client_binding=client_binding,
     )
     api_action = next(
         (
@@ -1931,6 +2168,7 @@ async def record_referral_saas_webhook_test_dispatch(
     tenant_link_status: str | None,
     external_reference_status: str | None,
     configuration: ReferralSaasIntegrationConfiguration | None,
+    client_binding: ReferralSaasIntegrationClientBinding | None,
     reason_code: str | None,
     correlation_id: str | None,
     idempotency_key_hash: str,
@@ -1962,6 +2200,7 @@ async def record_referral_saas_webhook_test_dispatch(
         tenant_link_status=tenant_link_status,
         external_reference_status=external_reference_status,
         configuration=configuration,
+        client_binding=client_binding,
     )
     webhook_action = next(
         (
@@ -2125,6 +2364,7 @@ async def record_referral_saas_message_provider_test(
     tenant_link_status: str | None,
     external_reference_status: str | None,
     configuration: ReferralSaasIntegrationConfiguration | None,
+    client_binding: ReferralSaasIntegrationClientBinding | None,
     reason_code: str | None,
     correlation_id: str | None,
     idempotency_key_hash: str,
@@ -2156,6 +2396,7 @@ async def record_referral_saas_message_provider_test(
         tenant_link_status=tenant_link_status,
         external_reference_status=external_reference_status,
         configuration=configuration,
+        client_binding=client_binding,
     )
     message_action = next(
         (
@@ -2324,6 +2565,7 @@ async def create_referral_saas_integration_credential_request(
     tenant_link_status: str | None,
     external_reference_status: str | None,
     configuration: ReferralSaasIntegrationConfiguration | None,
+    client_binding: ReferralSaasIntegrationClientBinding | None,
     request_type: str | None,
     capability: str | None,
     environment: str | None,
@@ -2375,6 +2617,7 @@ async def create_referral_saas_integration_credential_request(
         tenant_link_status=tenant_link_status,
         external_reference_status=external_reference_status,
         configuration=configuration,
+        client_binding=client_binding,
     )
     if (
         readiness.execution_status != INTEGRATION_EXECUTION_READY
@@ -3145,6 +3388,7 @@ def _provider_vault_blocker(
     tenant_link_status: str | None,
     external_reference_status: str | None,
     configuration: ReferralSaasIntegrationConfiguration | None,
+    client_binding: ReferralSaasIntegrationClientBinding | None,
     credential_request: ReferralSaasIntegrationCredentialRequest,
     approved_request_version: str,
     provider_key: str,
@@ -3157,6 +3401,12 @@ def _provider_vault_blocker(
         or _clean_text(external_reference_status).upper() != "ACTIVE"
     ):
         return PROVIDER_VAULT_BLOCKED_ACCOUNT_NOT_ACTIVE
+    if client_binding is None:
+        return PROVIDER_VAULT_BLOCKED_CLIENT_BINDING_MISSING
+    if client_binding.binding_status == "CLIENT_BINDING_MISMATCH":
+        return PROVIDER_VAULT_BLOCKED_CLIENT_BINDING_MISMATCH
+    if not client_binding.is_ready:
+        return PROVIDER_VAULT_BLOCKED_CLIENT_BINDING_MISSING
     if credential_request.review_status != "REVIEW_APPROVED":
         return PROVIDER_VAULT_BLOCKED_REQUEST_NOT_APPROVED
 
@@ -3205,6 +3455,7 @@ async def record_referral_saas_provider_vault_execution(
     tenant_link_status: str | None,
     external_reference_status: str | None,
     configuration: ReferralSaasIntegrationConfiguration | None,
+    client_binding: ReferralSaasIntegrationClientBinding | None,
     credential_request_ref: str,
     approved_request_version: str | None,
     execution_intent: str | None,
@@ -3342,6 +3593,7 @@ async def record_referral_saas_provider_vault_execution(
             tenant_link_status=tenant_link_status,
             external_reference_status=external_reference_status,
             configuration=configuration,
+            client_binding=client_binding,
             credential_request=credential_request,
             approved_request_version=safe_approved_request_version,
             provider_key=safe_provider_key,
