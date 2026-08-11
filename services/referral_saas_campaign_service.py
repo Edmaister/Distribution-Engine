@@ -78,6 +78,11 @@ CAMPAIGN_ACTIVATION_REDACTIONS = [
     "idempotency_key_hash",
     "payload_hash",
 ]
+CAMPAIGN_REVIEW_SOD_PENDING = "PENDING_REVIEW_DECISION"
+CAMPAIGN_REVIEW_SOD_CONFIRMED = "SEPARATION_OF_DUTIES_CONFIRMED"
+CAMPAIGN_REVIEW_SOD_BLOCKED = "SEPARATION_OF_DUTIES_BLOCKED"
+CAMPAIGN_POLICY_EVIDENCE_CURRENT = "CURRENT_AT_REVIEW"
+CAMPAIGN_POLICY_EVIDENCE_STALE = "STALE_AFTER_REVIEW"
 
 
 class ReferralSaasCampaignCommandError(Exception):
@@ -284,6 +289,7 @@ class ReferralSaasCampaignReviewResult:
     reviewer_action: str
     idempotency_status: str
     audit_event_id: str | None
+    pre_activation_decision: dict[str, Any] | None = None
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
@@ -297,6 +303,7 @@ class ReferralSaasCampaignReviewResult:
                 "activationEligibility": self.activation_eligibility,
                 "activationStatus": self.activation_status,
                 "reviewerAction": self.reviewer_action,
+                "preActivationDecision": self.pre_activation_decision,
             },
             "idempotency": {"status": self.idempotency_status},
             "audit": {"accountAuditEventId": self.audit_event_id},
@@ -331,6 +338,7 @@ class ReferralSaasCampaignActivationResult:
     readiness_status: str
     idempotency_status: str
     audit_event_id: str | None
+    pre_activation_decision: dict[str, Any] | None = None
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
@@ -344,6 +352,7 @@ class ReferralSaasCampaignActivationResult:
                 "activationEligibility": self.activation_eligibility,
                 "activationStatus": self.activation_status,
                 "readinessStatus": self.readiness_status,
+                "preActivationDecision": self.pre_activation_decision,
             },
             "idempotency": {"status": self.idempotency_status},
             "audit": {"accountAuditEventId": self.audit_event_id},
@@ -371,6 +380,23 @@ def _as_aware_utc(value: Any) -> datetime | None:
             return value.replace(tzinfo=timezone.utc)
         return value.astimezone(timezone.utc)
     return None
+
+
+def _iso_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _parse_iso_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return _as_aware_utc(value)
+    safe_value = _optional_text(value)
+    if not safe_value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(safe_value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return _as_aware_utc(parsed)
 
 
 def _campaign_lifecycle(*, is_active: bool, starts_at: Any, ends_at: Any) -> str:
@@ -1156,7 +1182,9 @@ async def submit_referral_saas_account_campaign_review(
 
         policy = await conn.fetchrow(
             """
-            SELECT COUNT(*) AS active_policy_count
+            SELECT
+                COUNT(*) AS active_policy_count,
+                MAX(updated_at) AS latest_policy_updated_at
             FROM marketing_campaign_policies
             WHERE UPPER(tenant_code) = UPPER($1)
               AND UPPER(campaign_code) = UPPER($2)
@@ -1169,6 +1197,12 @@ async def submit_referral_saas_account_campaign_review(
             raise CampaignReviewNotReady(
                 "Campaign policy/settings evidence must exist before review submission."
             )
+        latest_policy_updated_at = _as_iso(policy.get("latest_policy_updated_at"))
+        submitted_at = _iso_now()
+        submitted_by_ref = (
+            _optional_text(command_actor_ref) or "REFERRAL_SAAS_ACCOUNT_OPERATOR"
+        )
+        submitted_by_role = (_optional_text(command_actor_role) or "UNKNOWN").upper()
 
         attributes = campaign.get("attributes") or {}
         if isinstance(attributes, str):
@@ -1193,6 +1227,13 @@ async def submit_referral_saas_account_campaign_review(
             "activation_status": "NOT_ACTIVATED",
             "source": "TASK-262",
             "command_payload_hash": safe_payload_hash,
+            "review_submission_payload_hash": safe_payload_hash,
+            "submitted_by_ref": submitted_by_ref,
+            "submitted_by_role": submitted_by_role,
+            "submitted_at": submitted_at,
+            "sod_status": CAMPAIGN_REVIEW_SOD_PENDING,
+            "policy_evidence_status": CAMPAIGN_POLICY_EVIDENCE_CURRENT,
+            "policy_evidence_updated_at": latest_policy_updated_at,
             "no_campaign_activation_confirmed": True,
             "no_link_generation_confirmed": True,
             "no_validation_track_created_confirmed": True,
@@ -1222,6 +1263,12 @@ async def submit_referral_saas_account_campaign_review(
                 "setup_status": "POLICY_SETTINGS_RECORDED",
                 "readiness_status": "NEEDS_REVIEW",
                 "command_payload_hash": safe_payload_hash,
+                "submitted_by_ref_present": bool(submitted_by_ref),
+                "submitted_by_role": submitted_by_role,
+                "submitted_at": submitted_at,
+                "sod_status": CAMPAIGN_REVIEW_SOD_PENDING,
+                "policy_evidence_status": CAMPAIGN_POLICY_EVIDENCE_CURRENT,
+                "policy_evidence_updated_at": latest_policy_updated_at,
                 "campaign_is_active": bool(updated_campaign.get("is_active")),
                 "no_tenant_code_exposure_confirmed": True,
                 "no_campaign_activation_confirmed": True,
@@ -1262,9 +1309,8 @@ async def submit_referral_saas_account_campaign_review(
                 safe_tenant_code,
                 CAMPAIGN_REVIEW_SUBMIT_EVENT,
                 CAMPAIGN_REVIEW_SUBMITTED,
-                _optional_text(command_actor_ref)
-                or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
-                _optional_text(command_actor_role) or "UNKNOWN",
+                submitted_by_ref,
+                submitted_by_role,
                 previous_status,
                 safe_reason_code,
                 safe_correlation_id,
@@ -1363,6 +1409,15 @@ async def record_referral_saas_account_campaign_review_decision(
             review_status = _optional_text(evidence.get("review_status")) or (
                 "REVIEW_APPROVED" if safe_decision == "APPROVED" else "REVIEW_BLOCKED"
             )
+            pre_activation_decision = {
+                "sodStatus": _optional_text(evidence.get("sod_status")) or None,
+                "policyEvidenceStatus": _optional_text(
+                    evidence.get("policy_evidence_status")
+                )
+                or None,
+                "reviewDecisionFresh": bool(evidence.get("review_decision_fresh")),
+                "activationRequiresFreshReview": True,
+            }
             return ReferralSaasCampaignReviewResult(
                 command_status="CAMPAIGN_REVIEW_DECISION_REPLAYED",
                 account_id=safe_account_id,
@@ -1389,6 +1444,7 @@ async def record_referral_saas_account_campaign_review_decision(
                     existing_audit.get("account_audit_event_id")
                 )
                 or None,
+                pre_activation_decision=pre_activation_decision,
             )
 
         campaign = await conn.fetchrow(
@@ -1422,6 +1478,38 @@ async def record_referral_saas_account_campaign_review_decision(
             raise CampaignReviewInvalidState(
                 "Campaign review decision requires a READY_FOR_REVIEW submission."
             )
+        submitted_by_ref = _optional_text(review_state.get("submitted_by_ref"))
+        decision_by_ref = _optional_text(command_actor_ref) or safe_reviewer_ref
+        decision_by_role = (_optional_text(command_actor_role) or "UNKNOWN").upper()
+        if safe_decision == "APPROVED":
+            if not submitted_by_ref:
+                raise CampaignReviewInvalidState(
+                    "Campaign approval requires recorded review submission ownership."
+                )
+            if submitted_by_ref == decision_by_ref:
+                raise CampaignReviewInvalidState(
+                    "Campaign approval requires separation of duties from the review submitter."
+                )
+
+        policy = await conn.fetchrow(
+            """
+            SELECT
+                COUNT(*) AS active_policy_count,
+                MAX(updated_at) AS latest_policy_updated_at
+            FROM marketing_campaign_policies
+            WHERE UPPER(tenant_code) = UPPER($1)
+              AND UPPER(campaign_code) = UPPER($2)
+              AND is_active = TRUE
+            """,
+            safe_tenant_code,
+            safe_campaign_code,
+        )
+        if int(policy.get("active_policy_count") or 0) < 1:
+            raise CampaignReviewNotReady(
+                "Campaign policy/settings evidence must exist before review decision."
+            )
+        latest_policy_updated_at = _as_iso(policy.get("latest_policy_updated_at"))
+        decision_at = _iso_now()
 
         next_status = "REVIEW_APPROVED" if safe_decision == "APPROVED" else "REVIEW_BLOCKED"
         activation_eligibility = (
@@ -1440,11 +1528,22 @@ async def record_referral_saas_account_campaign_review_decision(
                 "review_decision": safe_decision,
                 "review_reason_present": bool(safe_reason),
                 "reviewer_ref": safe_reviewer_ref,
+                "decision_by_ref": decision_by_ref,
+                "decision_by_role": decision_by_role,
+                "decision_at": decision_at,
                 "readiness_status": "REVIEWED",
                 "activation_eligibility": activation_eligibility,
                 "activation_status": "NOT_ACTIVATED",
                 "reviewer_action": reviewer_action,
                 "decision_payload_hash": safe_payload_hash,
+                "review_decision_payload_hash": safe_payload_hash,
+                "sod_status": (
+                    CAMPAIGN_REVIEW_SOD_CONFIRMED
+                    if safe_decision == "APPROVED"
+                    else CAMPAIGN_REVIEW_SOD_BLOCKED
+                ),
+                "policy_evidence_status": CAMPAIGN_POLICY_EVIDENCE_CURRENT,
+                "policy_evidence_updated_at": latest_policy_updated_at,
                 "no_campaign_activation_confirmed": True,
                 "no_link_generation_confirmed": True,
                 "no_validation_track_created_confirmed": True,
@@ -1478,6 +1577,14 @@ async def record_referral_saas_account_campaign_review_decision(
                 "activation_status": "NOT_ACTIVATED",
                 "reviewer_action": reviewer_action,
                 "command_payload_hash": safe_payload_hash,
+                "submitted_by_ref_present": bool(submitted_by_ref),
+                "decision_by_ref_present": bool(decision_by_ref),
+                "decision_by_role": decision_by_role,
+                "decision_at": decision_at,
+                "sod_status": review_state["sod_status"],
+                "policy_evidence_status": CAMPAIGN_POLICY_EVIDENCE_CURRENT,
+                "policy_evidence_updated_at": latest_policy_updated_at,
+                "review_decision_fresh": True,
                 "campaign_is_active": bool(updated_campaign.get("is_active")),
                 "no_tenant_code_exposure_confirmed": True,
                 "no_campaign_activation_confirmed": True,
@@ -1518,9 +1625,8 @@ async def record_referral_saas_account_campaign_review_decision(
                 safe_tenant_code,
                 CAMPAIGN_REVIEW_DECISION_EVENT,
                 CAMPAIGN_REVIEW_SUBMITTED,
-                _optional_text(command_actor_ref)
-                or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
-                _optional_text(command_actor_role) or "UNKNOWN",
+                decision_by_ref,
+                decision_by_role,
                 previous_status,
                 next_status,
                 safe_reason_code,
@@ -1548,6 +1654,12 @@ async def record_referral_saas_account_campaign_review_decision(
         audit_event_id=(
             str(audit_event["account_audit_event_id"]) if audit_event else None
         ),
+        pre_activation_decision={
+            "sodStatus": review_state["sod_status"],
+            "policyEvidenceStatus": CAMPAIGN_POLICY_EVIDENCE_CURRENT,
+            "reviewDecisionFresh": True,
+            "activationRequiresFreshReview": True,
+        },
     )
 
 
@@ -1674,6 +1786,7 @@ async def request_referral_saas_account_campaign_activation(
                     existing_audit.get("account_audit_event_id")
                 )
                 or None,
+                pre_activation_decision=evidence.get("pre_activation_decision"),
             )
 
         campaign = await conn.fetchrow(
@@ -1698,7 +1811,9 @@ async def request_referral_saas_account_campaign_activation(
 
         policy = await conn.fetchrow(
             """
-            SELECT COUNT(*) AS active_policy_count
+            SELECT
+                COUNT(*) AS active_policy_count,
+                MAX(updated_at) AS latest_policy_updated_at
             FROM marketing_campaign_policies
             WHERE UPPER(tenant_code) = UPPER($1)
               AND UPPER(campaign_code) = UPPER($2)
@@ -1711,6 +1826,7 @@ async def request_referral_saas_account_campaign_activation(
             raise CampaignActivationNotReady(
                 "Campaign policy/settings evidence must exist before activation."
             )
+        latest_policy_updated_at = _as_aware_utc(policy.get("latest_policy_updated_at"))
 
         attributes = campaign.get("attributes") or {}
         if isinstance(attributes, str):
@@ -1730,8 +1846,50 @@ async def request_referral_saas_account_campaign_activation(
             raise CampaignActivationNotReady(
                 "Campaign is not eligible for activation yet."
             )
+        sod_status = _optional_text(review_state.get("sod_status"))
+        submitted_by_ref = _optional_text(review_state.get("submitted_by_ref"))
+        decision_by_ref = _optional_text(review_state.get("decision_by_ref"))
+        decision_at = _parse_iso_datetime(review_state.get("decision_at"))
+        decision_payload_hash = _optional_text(
+            review_state.get("review_decision_payload_hash")
+        ) or _optional_text(review_state.get("decision_payload_hash"))
+        if sod_status != CAMPAIGN_REVIEW_SOD_CONFIRMED:
+            raise CampaignActivationNotReady(
+                "Campaign approval must include separation-of-duties proof before activation."
+            )
+        if not submitted_by_ref or not decision_by_ref or not decision_at:
+            raise CampaignActivationNotReady(
+                "Campaign approval evidence is incomplete; re-review is required before activation."
+            )
+        if submitted_by_ref == decision_by_ref:
+            raise CampaignActivationNotReady(
+                "Campaign activation requires approval by a different actor from the review submitter."
+            )
+        if not decision_payload_hash:
+            raise CampaignActivationNotReady(
+                "Campaign approval payload proof is missing; re-review is required before activation."
+            )
+        if latest_policy_updated_at and latest_policy_updated_at > decision_at:
+            review_state.update(
+                {
+                    "policy_evidence_status": CAMPAIGN_POLICY_EVIDENCE_STALE,
+                    "activation_eligibility": "NOT_ELIGIBLE_STALE_REVIEW",
+                    "reviewer_action": "Re-review campaign policy settings",
+                }
+            )
+            raise CampaignActivationNotReady(
+                "Campaign policy/settings changed after review approval; re-review is required before activation."
+            )
 
         previous_lifecycle = "READY_TO_ACTIVATE"
+        pre_activation_decision = {
+            "sodStatus": sod_status,
+            "submittedByRefPresent": True,
+            "approvedByRefPresent": True,
+            "reviewDecisionFresh": True,
+            "policyEvidenceFresh": True,
+            "serverSideActivationDecisionConfirmed": True,
+        }
         activation_state = {
             "activation_status": "ACTIVATION_REQUEST_ACCEPTED",
             "lifecycle": "ACTIVE",
@@ -1746,6 +1904,7 @@ async def request_referral_saas_account_campaign_activation(
             },
             "source": "TASK-265",
             "command_payload_hash": safe_payload_hash,
+            "pre_activation_decision": pre_activation_decision,
             "no_link_generation_confirmed": True,
             "no_validation_track_created_confirmed": True,
             "no_webhook_delivery_confirmed": True,
@@ -1757,6 +1916,7 @@ async def request_referral_saas_account_campaign_activation(
             {
                 "activation_status": "ACTIVATION_REQUEST_ACCEPTED",
                 "readiness_status": "READY_TO_ACTIVATE",
+                "policy_evidence_status": CAMPAIGN_POLICY_EVIDENCE_CURRENT,
             }
         )
         attributes["referral_saas_review"] = review_state
@@ -1790,6 +1950,7 @@ async def request_referral_saas_account_campaign_activation(
                 "readiness_status": "READY_TO_ACTIVATE",
                 "campaign_is_active": bool(updated_campaign.get("is_active")),
                 "command_payload_hash": safe_payload_hash,
+                "pre_activation_decision": pre_activation_decision,
                 "no_tenant_code_exposure_confirmed": True,
                 "no_link_generation_confirmed": True,
                 "no_validation_track_created_confirmed": True,
@@ -1854,6 +2015,7 @@ async def request_referral_saas_account_campaign_activation(
         audit_event_id=(
             str(audit_event["account_audit_event_id"]) if audit_event else None
         ),
+        pre_activation_decision=pre_activation_decision,
     )
 
 

@@ -8292,7 +8292,7 @@ Completed output: `apps/api/routers/referral_saas_accounts.py`; `test/api/test_r
 
 ## TASK-370: Add campaign pre-activation decision and separation-of-duties proof
 
-Status: Pending.
+Status: Completed.
 Product boundary: Referral SaaS.
 Shared primitive impact: Formalizes campaign approval, review, and activation ownership. Source duplication: No.
 Objective: Prove that campaign review, approval, and activation cannot be performed by the same unauthorized actor or stale evidence path.
@@ -8302,6 +8302,7 @@ Tests to add/update: SoD, stale policy, stale review, audit and idempotency test
 Acceptance criteria: Campaign activation is governed by server-side review and SoD proof.
 Dependencies: TASK-369.
 Priority: P0.
+Completed output: `services/referral_saas_campaign_service.py`; `test/test_referral_saas_campaign_service.py`; roadmap/gap/infographic updates. Campaign review submission now records submitter and policy evidence timestamps, review approval requires a separate approving actor, activation requires server-side SoD and fresh review proof, and policy changes after approval block activation until re-review.
 
 ## TASK-371: Add campaign lifecycle controls
 
