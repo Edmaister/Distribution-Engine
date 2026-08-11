@@ -8278,7 +8278,7 @@ Completed output: `services/referral_saas_integration_test_runtime.py`; `service
 
 ## TASK-369: Enforce partner-safe campaign workspace capabilities
 
-Status: Pending.
+Status: Completed.
 Product boundary: Referral SaaS.
 Shared primitive impact: Applies account capability and partner permission context to campaign APIs/UI. Source duplication: No.
 Objective: Allow partner/customer users to create or manage campaigns only when account, role, capability, and entitlement gates allow it.
@@ -8288,6 +8288,7 @@ Tests to add/update: Partner/admin permission matrix, denied action, SoD, entitl
 Acceptance criteria: Campaign operations are partner-safe and cannot be unlocked by UI navigation alone.
 Dependencies: TASK-359; TASK-361.
 Priority: P0.
+Completed output: `apps/api/routers/referral_saas_accounts.py`; `test/api/test_referral_saas_accounts_api.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; roadmap/gap/infographic updates. Adds server-side campaign read, create, policy-write, review-submit, review-decision, and activation capability enforcement using the selected-customer account boundary. Successful campaign responses now expose the enforced campaign capability, and denied-action coverage proves UI navigation cannot call campaign services without the required actor capability.
 
 ## TASK-370: Add campaign pre-activation decision and separation-of-duties proof
 

@@ -527,6 +527,25 @@ def _campaign_activation_result(**overrides) -> ReferralSaasCampaignActivationRe
     return ReferralSaasCampaignActivationResult(**values)
 
 
+def _campaign_scoped_identity_with_capabilities(*capabilities: str) -> dict:
+    return {
+        "role": "DISTRIBUTION_ADMIN",
+        "account_ref": "acct-1",
+        "allowed_jurisdictions": ["ZA"],
+        "scopes": list(capabilities),
+    }
+
+
+def _assert_campaign_capability_forbidden(response) -> None:
+    assert response.status_code == 403
+    detail = response.json()["detail"]
+    assert detail["code"] == "account_boundary_forbidden"
+    assert "SERVER_SIDE_ACCOUNT_CAPABILITY_ENFORCEMENT" in detail["guardrails"]
+    assert detail["no_capability_bypass_confirmed"] is True
+    assert "tenantCode" not in str(detail)
+    assert "FNB" not in str(detail)
+
+
 async def test_referral_saas_account_admin_can_create_account_from_draft(monkeypatch):
     calls: list[dict] = []
 
@@ -5142,6 +5161,192 @@ async def test_referral_saas_account_admin_can_list_customer_scoped_campaigns(
         {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
     ]
     assert campaign_calls == [{"tenant_code": "FNB", "limit": 25}]
+
+
+async def test_referral_saas_account_campaign_operations_reject_missing_campaign_capability(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+            operating_jurisdiction_code="ZA",
+        )
+
+    async def fail_if_campaign_service_called(**kwargs):
+        pytest.fail("Campaign service should not be called without campaign capability")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "_require_referral_saas_account_reader",
+        lambda identity: _campaign_scoped_identity_with_capabilities(
+            "REFERRAL_SAAS_ACCOUNT_READ"
+        ),
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_account_campaigns",
+        fail_if_campaign_service_called,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_account_campaign",
+        fail_if_campaign_service_called,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "create_referral_saas_account_campaign_setup",
+        fail_if_campaign_service_called,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "upsert_referral_saas_account_campaign_policy_settings",
+        fail_if_campaign_service_called,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "submit_referral_saas_account_campaign_review",
+        fail_if_campaign_service_called,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "record_referral_saas_account_campaign_review_decision",
+        fail_if_campaign_service_called,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "request_referral_saas_account_campaign_activation",
+        fail_if_campaign_service_called,
+    )
+
+    account_scope = {
+        "refType": "external_tenant_ref",
+        "externalRef": "fnb-referrals",
+        "context": "setup",
+    }
+    query_scope = {
+        "ref_type": "external_tenant_ref",
+        "external_ref": "fnb-referrals",
+        "context": "setup",
+    }
+    cases = [
+        (
+            "get",
+            "/v1/referral-saas/accounts/acct-1/campaigns",
+            {"params": {**query_scope, "limit": 25}},
+        ),
+        (
+            "get",
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001",
+            {"params": query_scope},
+        ),
+        (
+            "post",
+            "/v1/referral-saas/accounts/acct-1/campaigns",
+            {
+                "json": {
+                    "accountScope": account_scope,
+                    "campaign": {
+                        "name": "Summer Referral",
+                        "segment": "Retail",
+                        "startsAt": "2026-08-01T00:00:00Z",
+                        "maxUses": 100,
+                    },
+                    "correlationId": "corr-create-denied",
+                    "idempotencyKey": "campaign-create-denied",
+                }
+            },
+        ),
+        (
+            "put",
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/policy-settings",
+            {
+                "json": {
+                    "accountScope": account_scope,
+                    "policySettings": {
+                        "version": 1,
+                        "attributionWindowDays": 30,
+                        "eligibilityRules": [
+                            {"rule": "NEW_CUSTOMER_ONLY", "enabled": True}
+                        ],
+                        "productWindows": {"default": {"days": 30}},
+                        "productRules": {
+                            "default": {"requiresAcceptedTerms": True}
+                        },
+                        "rewardVisibility": {
+                            "mode": "configured_without_payment"
+                        },
+                    },
+                    "correlationId": "corr-policy-denied",
+                    "idempotencyKey": "campaign-policy-denied",
+                }
+            },
+        ),
+        (
+            "post",
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/review-submissions",
+            {
+                "json": {
+                    "accountScope": account_scope,
+                    "reviewSubmission": {
+                        "setupSummary": "Campaign setup and policy settings are ready.",
+                        "requestedReviewStatus": "READY_FOR_REVIEW",
+                    },
+                    "correlationId": "corr-review-submit-denied",
+                    "idempotencyKey": "campaign-review-submit-denied",
+                }
+            },
+        ),
+        (
+            "post",
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/review-decisions",
+            {
+                "json": {
+                    "accountScope": account_scope,
+                    "reviewDecision": {
+                        "decision": "APPROVED",
+                        "reason": "Campaign evidence reviewed.",
+                        "reviewerRef": "operator-1",
+                    },
+                    "correlationId": "corr-review-decision-denied",
+                    "idempotencyKey": "campaign-review-decision-denied",
+                }
+            },
+        ),
+        (
+            "post",
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/activation-requests",
+            {
+                "json": {
+                    "accountScope": {
+                        **account_scope,
+                        "context": "campaign_activation",
+                    },
+                    "activationRequest": {
+                        "requestedLifecycleStatus": "ACTIVE",
+                        "reviewStatus": "REVIEW_APPROVED",
+                        "goLiveReason": "Approved for first referral campaign test.",
+                    },
+                    "correlationId": "corr-activation-denied",
+                    "idempotencyKey": "campaign-activation-denied",
+                }
+            },
+        ),
+    ]
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        for method, url, request_kwargs in cases:
+            response = await getattr(client, method)(url, **request_kwargs)
+            _assert_campaign_capability_forbidden(response)
 
 
 async def test_referral_saas_account_admin_can_read_customer_scoped_report(

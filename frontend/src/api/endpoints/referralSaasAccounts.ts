@@ -1292,6 +1292,8 @@ export type ReferralSaasAccountCampaignListResponse = {
   account: ReferralSaasAccountSummary;
   count: number;
   campaigns: ReferralSaasAccountCampaignSummary[];
+  campaign_capability_enforced_confirmed: boolean;
+  required_campaign_capability: string;
   guardrail: string;
   redactions: string[];
   no_campaign_mutation_confirmed: boolean;
@@ -1311,6 +1313,8 @@ export type ReferralSaasAccountCampaignReadResponse = {
   context: ReferralSaasAccountResolutionContext;
   account: ReferralSaasAccountSummary;
   campaign: ReferralSaasAccountCampaignSummary;
+  campaign_capability_enforced_confirmed: boolean;
+  required_campaign_capability: string;
   guardrail: string;
   redactions: string[];
   no_campaign_mutation_confirmed: boolean;
@@ -1687,6 +1691,8 @@ export type ReferralSaasAccountCampaignSetupCreateResponse = {
     guardrails: string[];
     redactions: string[];
   };
+  campaign_capability_enforced_confirmed: boolean;
+  required_campaign_capability: string;
   guardrails: string[];
   redactions: string[];
   no_campaign_activation_confirmed: boolean;
@@ -1755,6 +1761,8 @@ export type ReferralSaasAccountCampaignPolicySettingsResponse = {
     guardrails: string[];
     redactions: string[];
   };
+  campaign_capability_enforced_confirmed: boolean;
+  required_campaign_capability: string;
   guardrails: string[];
   redactions: string[];
   no_campaign_activation_confirmed: boolean;
@@ -1825,6 +1833,8 @@ export type ReferralSaasAccountCampaignReviewResponse = {
     guardrails: string[];
     redactions: string[];
   };
+  campaign_capability_enforced_confirmed: boolean;
+  required_campaign_capability: string;
   guardrails: string[];
   redactions: string[];
   no_campaign_activation_confirmed: boolean;
@@ -1884,6 +1894,8 @@ export type ReferralSaasAccountCampaignActivationResponse = {
     guardrails: string[];
     redactions: string[];
   };
+  campaign_capability_enforced_confirmed: boolean;
+  required_campaign_capability: string;
   guardrails: string[];
   redactions: string[];
   no_link_generation_confirmed: boolean;

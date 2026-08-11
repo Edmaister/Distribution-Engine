@@ -238,6 +238,18 @@ REFERRAL_SAAS_WORKSPACE_CONTEXT_CAPABILITIES = {
     "REFERRAL_SAAS_ACCOUNT_READ",
     "REFERRAL_SAAS_WORKSPACE_READ",
 }
+REFERRAL_SAAS_CAMPAIGN_READ_CAPABILITY = "REFERRAL_SAAS_CAMPAIGN_READ"
+REFERRAL_SAAS_CAMPAIGN_CREATE_CAPABILITY = "REFERRAL_SAAS_CAMPAIGN_CREATE"
+REFERRAL_SAAS_CAMPAIGN_POLICY_WRITE_CAPABILITY = (
+    "REFERRAL_SAAS_CAMPAIGN_POLICY_WRITE"
+)
+REFERRAL_SAAS_CAMPAIGN_REVIEW_SUBMIT_CAPABILITY = (
+    "REFERRAL_SAAS_CAMPAIGN_REVIEW_SUBMIT"
+)
+REFERRAL_SAAS_CAMPAIGN_REVIEW_DECIDE_CAPABILITY = (
+    "REFERRAL_SAAS_CAMPAIGN_REVIEW_DECIDE"
+)
+REFERRAL_SAAS_CAMPAIGN_ACTIVATE_CAPABILITY = "REFERRAL_SAAS_CAMPAIGN_ACTIVATE"
 
 REFERRAL_SAAS_ACCOUNT_CONTEXTS = {"runtime", "setup"}
 MAX_ACCOUNT_LIST_LIMIT = 100
@@ -7300,13 +7312,18 @@ async def list_referral_saas_account_campaign_registry(
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     identity: dict = Depends(require_session_key),
 ) -> dict[str, Any]:
-    _require_referral_saas_account_reader(identity)
+    actor_identity = _require_referral_saas_account_reader(identity)
     normalised_context, account = await _resolve_referral_saas_account_context(
         ref_type=ref_type,
         external_ref=external_ref,
         context=context,
     )
     _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=actor_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_CAMPAIGN_READ_CAPABILITY,
+    )
 
     campaigns = await list_referral_saas_account_campaigns(
         tenant_code=account.tenant_code,
@@ -7331,6 +7348,8 @@ async def list_referral_saas_account_campaign_registry(
         "no_link_generation_confirmed": True,
         "no_campaign_activation_confirmed": True,
         "no_money_movement_confirmed": True,
+        "campaign_capability_enforced_confirmed": True,
+        "required_campaign_capability": REFERRAL_SAAS_CAMPAIGN_READ_CAPABILITY,
     }
 
 
@@ -7503,6 +7522,11 @@ async def create_referral_saas_account_campaign_route(
         context=context,
     )
     _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=admin_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_CAMPAIGN_CREATE_CAPABILITY,
+    )
 
     max_uses = campaign.get("maxUses")
     if max_uses is not None:
@@ -7577,6 +7601,8 @@ async def create_referral_saas_account_campaign_route(
         "no_policy_write_confirmed": True,
         "no_webhook_delivery_confirmed": True,
         "no_money_movement_confirmed": True,
+        "campaign_capability_enforced_confirmed": True,
+        "required_campaign_capability": REFERRAL_SAAS_CAMPAIGN_CREATE_CAPABILITY,
     }
 
 
@@ -7609,13 +7635,18 @@ async def read_referral_saas_account_campaign(
     ] = "setup",
     identity: dict = Depends(require_session_key),
 ) -> dict[str, Any]:
-    _require_referral_saas_account_reader(identity)
+    actor_identity = _require_referral_saas_account_reader(identity)
     normalised_context, account = await _resolve_referral_saas_account_context(
         ref_type=ref_type,
         external_ref=external_ref,
         context=context,
     )
     _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=actor_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_CAMPAIGN_READ_CAPABILITY,
+    )
 
     campaign = await get_referral_saas_account_campaign(
         tenant_code=account.tenant_code,
@@ -7648,6 +7679,8 @@ async def read_referral_saas_account_campaign(
         "no_link_generation_confirmed": True,
         "no_campaign_activation_confirmed": True,
         "no_money_movement_confirmed": True,
+        "campaign_capability_enforced_confirmed": True,
+        "required_campaign_capability": REFERRAL_SAAS_CAMPAIGN_READ_CAPABILITY,
     }
 
 
@@ -7707,6 +7740,11 @@ async def upsert_referral_saas_account_campaign_policy_settings_route(
         context=context,
     )
     _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=admin_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_CAMPAIGN_POLICY_WRITE_CAPABILITY,
+    )
 
     version = policy_settings.get("version") or 1
     attribution_window_days = policy_settings.get("attributionWindowDays")
@@ -7781,6 +7819,8 @@ async def upsert_referral_saas_account_campaign_policy_settings_route(
         "no_validation_track_created_confirmed": True,
         "no_webhook_delivery_confirmed": True,
         "no_money_movement_confirmed": True,
+        "campaign_capability_enforced_confirmed": True,
+        "required_campaign_capability": REFERRAL_SAAS_CAMPAIGN_POLICY_WRITE_CAPABILITY,
     }
 
 
@@ -7839,6 +7879,11 @@ async def submit_referral_saas_account_campaign_review_route(
         context=context,
     )
     _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=admin_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_CAMPAIGN_REVIEW_SUBMIT_CAPABILITY,
+    )
 
     command_payload = {
         "accountScope": {
@@ -7903,6 +7948,8 @@ async def submit_referral_saas_account_campaign_review_route(
         "no_webhook_delivery_confirmed": True,
         "no_invite_or_seat_change_confirmed": True,
         "no_money_movement_confirmed": True,
+        "campaign_capability_enforced_confirmed": True,
+        "required_campaign_capability": REFERRAL_SAAS_CAMPAIGN_REVIEW_SUBMIT_CAPABILITY,
     }
 
 
@@ -7961,6 +8008,11 @@ async def record_referral_saas_account_campaign_review_decision_route(
         context=context,
     )
     _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=admin_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_CAMPAIGN_REVIEW_DECIDE_CAPABILITY,
+    )
 
     command_payload = {
         "accountScope": {
@@ -8017,6 +8069,8 @@ async def record_referral_saas_account_campaign_review_decision_route(
         "no_webhook_delivery_confirmed": True,
         "no_invite_or_seat_change_confirmed": True,
         "no_money_movement_confirmed": True,
+        "campaign_capability_enforced_confirmed": True,
+        "required_campaign_capability": REFERRAL_SAAS_CAMPAIGN_REVIEW_DECIDE_CAPABILITY,
     }
 
 
@@ -8080,6 +8134,11 @@ async def request_referral_saas_account_campaign_activation_route(
     if context == "campaign_activation":
         normalised_context = "campaign_activation"
     _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=admin_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_CAMPAIGN_ACTIVATE_CAPABILITY,
+    )
 
     activation_window = activation_request.get("activationWindow") or {}
     if not isinstance(activation_window, dict):
@@ -8211,6 +8270,8 @@ async def request_referral_saas_account_campaign_activation_route(
         "no_invite_or_seat_change_confirmed": True,
         "no_credential_creation_confirmed": True,
         "no_billing_or_money_movement_confirmed": True,
+        "campaign_capability_enforced_confirmed": True,
+        "required_campaign_capability": REFERRAL_SAAS_CAMPAIGN_ACTIVATE_CAPABILITY,
     }
 
 
