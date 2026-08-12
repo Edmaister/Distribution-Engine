@@ -32,15 +32,33 @@ REFERRAL_REGISTRY_REDACTIONS = [
 
 @dataclass(frozen=True)
 class ReferralSaasTimelineEvent:
+    sequence: int
     event_type: str
     occurred_at: str | None
+    received_at: str | None
     source_system: str | None
+    source_event_present: bool
+    dedupe_evidence: str
+    payload_hash_present: bool
+    source_inbox_status: str | None
+    source_evidence: list[str]
+    missing_evidence: list[str]
+    recovery_posture: str
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
+            "sequence": self.sequence,
             "eventType": self.event_type,
             "occurredAt": self.occurred_at,
+            "receivedAt": self.received_at,
             "sourceSystem": self.source_system,
+            "sourceEventPresent": self.source_event_present,
+            "dedupeEvidence": self.dedupe_evidence,
+            "payloadHashPresent": self.payload_hash_present,
+            "sourceInboxStatus": self.source_inbox_status,
+            "sourceEvidence": self.source_evidence,
+            "missingEvidence": self.missing_evidence,
+            "recoveryPosture": self.recovery_posture,
         }
 
 
@@ -110,6 +128,7 @@ class ReferralSaasReferralDetail:
         return {
             **self.summary.to_safe_dict(),
             "timeline": [event.to_safe_dict() for event in self.timeline],
+            "timelineEvidenceSummary": _timeline_evidence_summary(self.timeline),
         }
 
 
@@ -251,12 +270,44 @@ async def get_referral_saas_account_referral(
         timeline_rows = await conn.fetch(
             """
             SELECT
+                ROW_NUMBER() OVER (ORDER BY rpe.occurred_at ASC, rpe.id ASC)::INT AS sequence,
                 event_type,
                 occurred_at,
-                source_system
-            FROM referral_progress_events
-            WHERE referral_track_id::TEXT = $1
-            ORDER BY occurred_at ASC, id ASC
+                received_at,
+                source_system,
+                source_event_id,
+                event_payload_hash,
+                dedupe_key,
+                idempotency_version,
+                inbox.processing_status AS source_inbox_status,
+                COALESCE(inbox.source_event_id IS NOT NULL, FALSE) AS source_inbox_event_present,
+                COALESCE(inbox.dedupe_key IS NOT NULL, FALSE) AS source_inbox_dedupe_present,
+                COALESCE(inbox.payload_hash IS NOT NULL, FALSE) AS source_inbox_payload_hash_present
+            FROM referral_progress_events rpe
+            LEFT JOIN LATERAL (
+                SELECT
+                    processing_status,
+                    source_event_id,
+                    dedupe_key,
+                    payload_hash
+                FROM enterprise_event_inbox inbox
+                WHERE inbox.referral_track_id = rpe.referral_track_id
+                  AND UPPER(inbox.event_type) = UPPER(rpe.event_type)
+                  AND (
+                    rpe.source_system IS NULL
+                    OR inbox.source_system IS NULL
+                    OR UPPER(inbox.source_system) = UPPER(rpe.source_system)
+                  )
+                  AND (
+                    (rpe.source_event_id IS NOT NULL AND inbox.source_event_id = rpe.source_event_id)
+                    OR (rpe.dedupe_key IS NOT NULL AND inbox.dedupe_key = rpe.dedupe_key)
+                    OR (rpe.source_event_id IS NULL AND rpe.dedupe_key IS NULL)
+                  )
+                ORDER BY inbox.received_at DESC
+                LIMIT 1
+            ) inbox ON TRUE
+            WHERE rpe.referral_track_id::TEXT = $1
+            ORDER BY rpe.occurred_at ASC, rpe.id ASC
             LIMIT 100
             """,
             safe_referral_track_id,
@@ -296,11 +347,174 @@ def _to_referral_summary(row: dict[str, Any]) -> ReferralSaasReferralSummary:
 
 
 def _to_timeline_event(row: dict[str, Any]) -> ReferralSaasTimelineEvent:
+    source_event_present = bool(row.get("source_event_id")) or bool(row.get("source_inbox_event_present"))
+    dedupe_key_present = bool(row.get("dedupe_key")) or bool(row.get("source_inbox_dedupe_present"))
+    payload_hash_present = bool(row.get("event_payload_hash")) or bool(
+        row.get("source_inbox_payload_hash_present")
+    )
+    source_inbox_status = _optional_text(row.get("source_inbox_status"))
+    dedupe_evidence = _dedupe_evidence(source_event_present, dedupe_key_present)
+    source_evidence = _source_evidence(
+        source_system=_optional_text(row.get("source_system")),
+        source_event_present=source_event_present,
+        dedupe_key_present=dedupe_key_present,
+        payload_hash_present=payload_hash_present,
+        source_inbox_status=source_inbox_status,
+    )
+    missing_evidence = _timeline_missing_evidence(
+        source_system=_optional_text(row.get("source_system")),
+        source_event_present=source_event_present,
+        dedupe_key_present=dedupe_key_present,
+        payload_hash_present=payload_hash_present,
+        source_inbox_status=source_inbox_status,
+    )
     return ReferralSaasTimelineEvent(
+        sequence=int(row.get("sequence") or 0),
         event_type=_optional_text(row.get("event_type")) or "UNKNOWN",
         occurred_at=_iso(row.get("occurred_at")),
+        received_at=_iso(row.get("received_at")),
         source_system=_optional_text(row.get("source_system")),
+        source_event_present=source_event_present,
+        dedupe_evidence=dedupe_evidence,
+        payload_hash_present=payload_hash_present,
+        source_inbox_status=source_inbox_status,
+        source_evidence=source_evidence,
+        missing_evidence=missing_evidence,
+        recovery_posture=_timeline_recovery_posture(
+            source_inbox_status=source_inbox_status,
+            missing_evidence=missing_evidence,
+        ),
     )
+
+
+def _dedupe_evidence(source_event_present: bool, dedupe_key_present: bool) -> str:
+    if source_event_present and dedupe_key_present:
+        return "SOURCE_EVENT_AND_DEDUPE_KEY_PRESENT"
+    if source_event_present:
+        return "SOURCE_EVENT_ONLY"
+    if dedupe_key_present:
+        return "DEDUPE_KEY_ONLY"
+    return "MISSING_DEDUPE_EVIDENCE"
+
+
+def _source_evidence(
+    *,
+    source_system: str | None,
+    source_event_present: bool,
+    dedupe_key_present: bool,
+    payload_hash_present: bool,
+    source_inbox_status: str | None,
+) -> list[str]:
+    evidence: list[str] = []
+    if source_system:
+        evidence.append("SOURCE_SYSTEM_PRESENT")
+    if source_event_present:
+        evidence.append("SOURCE_EVENT_PRESENT")
+    if dedupe_key_present:
+        evidence.append("DEDUPE_KEY_PRESENT")
+    if payload_hash_present:
+        evidence.append("PAYLOAD_HASH_PRESENT")
+    if source_inbox_status:
+        evidence.append(f"SOURCE_INBOX_{source_inbox_status}")
+    return evidence
+
+
+def _timeline_missing_evidence(
+    *,
+    source_system: str | None,
+    source_event_present: bool,
+    dedupe_key_present: bool,
+    payload_hash_present: bool,
+    source_inbox_status: str | None,
+) -> list[str]:
+    missing: list[str] = []
+    if not source_system:
+        missing.append("SOURCE_SYSTEM_MISSING")
+    if not source_event_present:
+        missing.append("SOURCE_EVENT_ID_MISSING")
+    if not dedupe_key_present:
+        missing.append("DEDUPE_KEY_MISSING")
+    if not payload_hash_present:
+        missing.append("PAYLOAD_HASH_MISSING")
+    if not source_inbox_status:
+        missing.append("SOURCE_INBOX_EVIDENCE_MISSING")
+    return missing
+
+
+def _timeline_recovery_posture(
+    *,
+    source_inbox_status: str | None,
+    missing_evidence: list[str],
+) -> str:
+    if source_inbox_status == "DUPLICATE":
+        return "DEDUPE_REPLAY_RECORDED"
+    if source_inbox_status in {"FAILED", "IGNORED"}:
+        return "SOURCE_EVENT_FAILED_OR_DELAYED"
+    if "SOURCE_SYSTEM_MISSING" in missing_evidence or "SOURCE_INBOX_EVIDENCE_MISSING" in missing_evidence:
+        return "CHECK_SOURCE_PROVENANCE"
+    if {"SOURCE_EVENT_ID_MISSING", "DEDUPE_KEY_MISSING", "PAYLOAD_HASH_MISSING"}.intersection(
+        missing_evidence
+    ):
+        return "CHECK_IDEMPOTENCY_EVIDENCE"
+    return "READY_FOR_SUPPORT_AND_ATTRIBUTION"
+
+
+def _timeline_evidence_summary(timeline: list[ReferralSaasTimelineEvent]) -> dict[str, Any]:
+    missing_source_count = sum(
+        1
+        for event in timeline
+        if "SOURCE_SYSTEM_MISSING" in event.missing_evidence
+        or "SOURCE_INBOX_EVIDENCE_MISSING" in event.missing_evidence
+    )
+    missing_idempotency_count = sum(
+        1
+        for event in timeline
+        if {"SOURCE_EVENT_ID_MISSING", "DEDUPE_KEY_MISSING", "PAYLOAD_HASH_MISSING"}.intersection(
+            event.missing_evidence
+        )
+    )
+    duplicate_count = sum(1 for event in timeline if event.recovery_posture == "DEDUPE_REPLAY_RECORDED")
+    failed_or_delayed_count = sum(
+        1 for event in timeline if event.recovery_posture == "SOURCE_EVENT_FAILED_OR_DELAYED"
+    )
+    missing_evidence = sorted({item for event in timeline for item in event.missing_evidence})
+    return {
+        "eventCount": len(timeline),
+        "sourceMatchedCount": sum(1 for event in timeline if event.source_inbox_status),
+        "missingSourceEvidenceCount": missing_source_count,
+        "missingIdempotencyEvidenceCount": missing_idempotency_count,
+        "duplicateReplayCount": duplicate_count,
+        "failedOrDelayedCount": failed_or_delayed_count,
+        "missingEvidence": missing_evidence,
+        "recoveryPosture": _timeline_summary_recovery_posture(
+            timeline=timeline,
+            missing_source_count=missing_source_count,
+            missing_idempotency_count=missing_idempotency_count,
+            duplicate_count=duplicate_count,
+            failed_or_delayed_count=failed_or_delayed_count,
+        ),
+    }
+
+
+def _timeline_summary_recovery_posture(
+    *,
+    timeline: list[ReferralSaasTimelineEvent],
+    missing_source_count: int,
+    missing_idempotency_count: int,
+    duplicate_count: int,
+    failed_or_delayed_count: int,
+) -> str:
+    if not timeline:
+        return "NO_TIMELINE_EVIDENCE"
+    if failed_or_delayed_count:
+        return "SOURCE_EVENT_FAILED_OR_DELAYED"
+    if missing_source_count:
+        return "CHECK_SOURCE_PROVENANCE"
+    if missing_idempotency_count:
+        return "CHECK_IDEMPOTENCY_EVIDENCE"
+    if duplicate_count:
+        return "DEDUPE_REPLAY_RECORDED"
+    return "READY_FOR_SUPPORT_AND_ATTRIBUTION"
 
 
 def _missing_evidence(summary: ReferralSaasReferralSummary) -> list[str]:
