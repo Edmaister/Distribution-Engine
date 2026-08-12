@@ -56,6 +56,11 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("POST", "/v1/referral-saas/accounts/{account_ref}/integrations/configuration/validate"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/referrals"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/referrals/{referral_track_id}"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/referrer-identities"),
+        (
+            "GET",
+            "/v1/referral-saas/accounts/{account_ref}/referrer-identities/{safe_referrer_key}",
+        ),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/lifecycle"),
@@ -249,6 +254,11 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("POST", "/v1/referral-saas/accounts/{account_ref}/integrations/configuration/validate"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/referrals"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/referrals/{referral_track_id}"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/referrer-identities"),
+        (
+            "GET",
+            "/v1/referral-saas/accounts/{account_ref}/referrer-identities/{safe_referrer_key}",
+        ),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/lifecycle"),
