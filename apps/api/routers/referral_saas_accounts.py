@@ -137,6 +137,12 @@ from services.referral_saas_campaign_service import (
     submit_referral_saas_account_campaign_review,
     upsert_referral_saas_account_campaign_policy_settings,
 )
+from services.referral_saas_referral_registry_service import (
+    REFERRAL_REGISTRY_GUARDRAILS,
+    REFERRAL_REGISTRY_REDACTIONS,
+    get_referral_saas_account_referral,
+    list_referral_saas_account_referrals,
+)
 from services.referral_saas_reporting_service import (
     EXPORT_REQUEST_GUARDRAILS,
     EXPORT_REQUEST_REDACTIONS,
@@ -247,6 +253,7 @@ REFERRAL_SAAS_WORKSPACE_CONTEXT_CAPABILITIES = {
     "REFERRAL_SAAS_WORKSPACE_READ",
 }
 REFERRAL_SAAS_CAMPAIGN_READ_CAPABILITY = "REFERRAL_SAAS_CAMPAIGN_READ"
+REFERRAL_SAAS_REFERRAL_READ_CAPABILITY = "REFERRAL_SAAS_REFERRAL_READ"
 REFERRAL_SAAS_CAMPAIGN_CREATE_CAPABILITY = "REFERRAL_SAAS_CAMPAIGN_CREATE"
 REFERRAL_SAAS_CAMPAIGN_POLICY_WRITE_CAPABILITY = (
     "REFERRAL_SAAS_CAMPAIGN_POLICY_WRITE"
@@ -7324,6 +7331,163 @@ async def read_referral_saas_account_support_case(
         "no_tenant_code_exposure_confirmed": True,
         "no_product_state_mutation_confirmed": True,
         "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/referrals")
+async def list_referral_saas_account_referral_registry(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    actor_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=actor_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_REFERRAL_READ_CAPABILITY,
+    )
+
+    referrals = await list_referral_saas_account_referrals(
+        tenant_code=account.tenant_code,
+        limit=limit,
+    )
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "count": len(referrals),
+        "referrals": [referral.to_safe_dict() for referral in referrals],
+        "guardrail": (
+            "Read-only Referral SaaS customer-scoped referral registry. This "
+            "endpoint resolves the selected account internally and does not "
+            "expose tenant_code, raw UCNs, raw progress payloads, mutate "
+            "referrals, repair/replay/reassign journeys, activate campaigns, "
+            "deliver webhooks, or move money."
+        ),
+        "guardrails": REFERRAL_REGISTRY_GUARDRAILS,
+        "redactions": REFERRAL_REGISTRY_REDACTIONS,
+        "no_tenant_code_exposure_confirmed": True,
+        "no_raw_identity_exposure_confirmed": True,
+        "no_raw_progress_payload_exposure_confirmed": True,
+        "no_referral_mutation_confirmed": True,
+        "no_repair_replay_reassignment_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_webhook_delivery_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+        "referral_capability_enforced_confirmed": True,
+        "required_referral_capability": REFERRAL_SAAS_REFERRAL_READ_CAPABILITY,
+    }
+
+
+@router.get("/accounts/{account_ref}/referrals/{referral_track_id}")
+async def read_referral_saas_account_referral_detail(
+    account_ref: str,
+    referral_track_id: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    actor_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=actor_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_REFERRAL_READ_CAPABILITY,
+    )
+
+    referral = await get_referral_saas_account_referral(
+        tenant_code=account.tenant_code,
+        referral_track_id=referral_track_id,
+    )
+    if referral is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "referral_not_found",
+                "message": "Referral was not found for the selected customer.",
+                "redactions": REFERRAL_REGISTRY_REDACTIONS,
+            },
+        )
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "referral": referral.to_safe_dict(),
+        "guardrail": (
+            "Read-only Referral SaaS customer-scoped referral detail. This "
+            "endpoint exposes safe status and timeline anchors only; raw UCNs, "
+            "tenant_code, progress payloads, event hashes, and dedupe keys stay "
+            "hidden."
+        ),
+        "guardrails": REFERRAL_REGISTRY_GUARDRAILS,
+        "redactions": REFERRAL_REGISTRY_REDACTIONS,
+        "no_tenant_code_exposure_confirmed": True,
+        "no_raw_identity_exposure_confirmed": True,
+        "no_raw_progress_payload_exposure_confirmed": True,
+        "no_referral_mutation_confirmed": True,
+        "no_repair_replay_reassignment_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_webhook_delivery_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+        "referral_capability_enforced_confirmed": True,
+        "required_referral_capability": REFERRAL_SAAS_REFERRAL_READ_CAPABILITY,
     }
 
 

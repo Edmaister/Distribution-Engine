@@ -215,6 +215,42 @@ export const queryKeys = {
       limit,
       refreshKey,
     ] as const,
+  referralSaasAccountReferralList: (
+    accountRef: string,
+    refType: string,
+    externalRef: string,
+    context: string,
+    limit: number,
+    refreshKey = 0,
+  ) =>
+    [
+      "referral-saas",
+      "account-referral-list",
+      accountRef,
+      refType,
+      externalRef,
+      context,
+      limit,
+      refreshKey,
+    ] as const,
+  referralSaasAccountReferralDetail: (
+    accountRef: string,
+    referralTrackId: string,
+    refType: string,
+    externalRef: string,
+    context: string,
+    refreshKey = 0,
+  ) =>
+    [
+      "referral-saas",
+      "account-referral-detail",
+      accountRef,
+      referralTrackId,
+      refType,
+      externalRef,
+      context,
+      refreshKey,
+    ] as const,
   referralSaasReport: (reportType: string, tenantCode: string, refreshKey = 0) =>
     ["referral-saas", "report", reportType, tenantCode, refreshKey] as const,
   referralSaasCampaignReadiness: (

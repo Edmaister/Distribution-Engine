@@ -345,6 +345,51 @@ READ_ONLY_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_account_referral_list",
+        method="GET",
+        path="/v1/referral-saas/accounts/{account_ref}/referrals",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS account reader role",
+        environment_rule="local/staging/production read-only where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -H "Authorization: Bearer {admin_token}" '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/referrals?ref_type={ref_type}&external_ref={external_ref}'
+            '&context=setup&limit=50"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_account_referral_read",
+        method="GET",
+        path="/v1/referral-saas/accounts/{account_ref}/referrals/{referral_track_id}",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS account reader role",
+        environment_rule="local/staging/production read-only where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "referral_track_id",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -H "Authorization: Bearer {admin_token}" '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/referrals/{referral_track_id}?ref_type={ref_type}'
+            '&external_ref={external_ref}&context=setup"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_account_campaign_list",
         method="GET",
         path="/v1/referral-saas/accounts/{account_ref}/campaigns",

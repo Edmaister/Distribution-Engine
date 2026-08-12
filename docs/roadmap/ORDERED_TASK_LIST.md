@@ -8320,7 +8320,7 @@ Completed output: `services/referral_saas_campaign_service.py`; `apps/api/router
 
 ## TASK-372: Add account-scoped referral registry and detail projection
 
-Status: Pending.
+Status: Completed.
 Product boundary: Referral SaaS.
 Shared primitive impact: Creates account-safe referral views consumed by operations, support, attribution, and reporting. Source duplication: No.
 Objective: Add selected-customer referral list/detail projections with safe identifiers, statuses, timeline anchors, and missing-evidence signals.
@@ -8330,6 +8330,7 @@ Tests to add/update: Tenant/account filtering, no-raw-identity, status and timel
 Acceptance criteria: Operators and partner users can inspect referrals without unsafe internal identifiers.
 Dependencies: TASK-358.
 Priority: P0.
+Completed output: `services/referral_saas_referral_registry_service.py`; `apps/api/routers/referral_saas_accounts.py`; `scripts/referral_saas_route_smoke_plan.py`; `test/test_referral_saas_referral_registry_service.py`; `test/test_referral_saas_route_smoke_inventory.py`; `test/test_referral_saas_route_smoke_plan.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/api/queryKeys.ts`; `frontend/src/api/referralSaasAccountQueries.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; roadmap/gap/infographic updates. Adds selected-customer referral list and detail projections with account-scope enforcement, referral status, progress anchors, attribution evidence, missing-evidence signals, safe timeline rows, and explicit redactions for internal tenant identifiers, raw UCNs, raw payloads, event hashes, and dedupe keys. The customer workspace now includes a dedicated read-only Referrals page for operations, support, attribution, and reporting without repair, replay, reassignment, webhook, credential, billing, or money side effects.
 
 ## TASK-373: Add safe referrer identity directory and dimensions
 

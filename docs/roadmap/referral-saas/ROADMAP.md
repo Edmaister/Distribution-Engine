@@ -129,7 +129,7 @@ The post-TASK-356 sequence is:
 | TASK-363 to TASK-365 | Invitation, acceptance, identity, and login | People and access becomes a complete governed journey from named person to invite, acceptance, seat/login posture, and auth reconciliation. |
 | TASK-366 to TASK-368 | Integrations | Customer-scoped API, webhook, invite-provider, and referral-message provider setup moves from saved evidence/readiness into bound execution evidence. |
 | TASK-369 to TASK-371 | Campaign management | TASK-369 now enforces partner-safe campaign read/create/policy/review/activation capabilities server-side; TASK-370 now adds pre-activation SoD and stale-evidence proof; TASK-371 completes governed lifecycle controls. |
-| TASK-372 to TASK-375 | Referral operations | Account-scoped referral registry/detail, safe identity dimensions, timeline evidence, and governed correction/replay/reassignment close the referral operations gap. |
+| TASK-372 to TASK-375 | Referral operations | TASK-372 now adds account-scoped referral registry/detail. TASK-373 to TASK-375 continue safe identity dimensions, timeline evidence, and governed correction/replay/reassignment to close the referral operations gap. |
 | TASK-376 to TASK-377 | Attribution | Dedicated Campaign Attribution and Referral/Referrer Attribution surfaces separate campaign performance from who-got-credit explanations. |
 | TASK-378 to TASK-379 | Reporting and exports | HVE funnel, journey performance, saved reports, signed exports, scheduled delivery, expiry, deletion, and provider delivery proof become complete. |
 | TASK-380 | Support and recovery | Customer/partner-safe support, audit, assignment, evidence, and governed recovery become operationally complete. |
