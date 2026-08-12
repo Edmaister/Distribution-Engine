@@ -24,6 +24,8 @@ import {
   useReferralSaasAccountDraftSelector,
   useReferralSaasAccountMaintenanceState,
   useReferralSaasAccountMembershipPosture,
+  useReferralSaasAccountReferralDetail,
+  useReferralSaasAccountReferralList,
   useReferralSaasIdentityLoginReconciliation,
   useReferralSaasLoginCompletionReadiness,
   useReferralSaasMembershipActivationReadiness,
@@ -134,6 +136,7 @@ type CustomerModule =
   | "integrations"
   | "technical"
   | "campaigns"
+  | "referrals"
   | "links"
   | "reports"
   | "support"
@@ -274,6 +277,15 @@ const customerFunctions = [
     letsYou: "Create campaign tests once blockers are clear.",
     route: "campaigns",
     icon: Target,
+    status: "Ready",
+    tone: "success" as StatusTone,
+  },
+  {
+    title: "Referrals",
+    copy: "Inspect referral journeys for this customer.",
+    letsYou: "See referral status, missing evidence, and safe timeline anchors.",
+    route: "referrals",
+    icon: ListChecks,
     status: "Ready",
     tone: "success" as StatusTone,
   },
@@ -3008,6 +3020,14 @@ export function ReferralSaasAccountMaintenancePage() {
                 )
               ) : null}
 
+              {selectedModule === "referrals" ? (
+                <CustomerReferralsPage
+                  customerName={customerName}
+                  externalTenantRef={selectedExternalTenantRef}
+                  selectedAccount={selectedAccount}
+                />
+              ) : null}
+
               {selectedModule === "links" ? (
                 <CustomerLinksAndCodesPage
                   customerName={customerName}
@@ -3134,6 +3154,221 @@ export function ReferralSaasAccountMaintenancePage() {
         </>
       ) : null}
     </>
+  );
+}
+
+function CustomerReferralsPage({
+  customerName,
+  externalTenantRef,
+  selectedAccount,
+}: {
+  customerName: string;
+  externalTenantRef: string;
+  selectedAccount?: AccountRegistryItem;
+}) {
+  const { refreshKey } = useRefreshContext();
+  const [selectedReferralTrackId, setSelectedReferralTrackId] = useState("");
+  const {
+    data: referralListResponse,
+    error: referralListError,
+    isLoading: isReferralListLoading,
+  } = useReferralSaasAccountReferralList(
+    selectedAccount?.accountId || "",
+    externalTenantRef,
+    Boolean(selectedAccount && externalTenantRef),
+    refreshKey,
+  );
+  const referrals = referralListResponse?.referrals || [];
+
+  useEffect(() => {
+    if (!selectedReferralTrackId.trim() && referrals[0]?.referralTrackId) {
+      setSelectedReferralTrackId(referrals[0].referralTrackId);
+    }
+  }, [referrals, selectedReferralTrackId]);
+
+  const {
+    data: referralDetailResponse,
+    error: referralDetailError,
+    isLoading: isReferralDetailLoading,
+  } = useReferralSaasAccountReferralDetail(
+    selectedAccount?.accountId || "",
+    selectedReferralTrackId,
+    externalTenantRef,
+    Boolean(selectedAccount && externalTenantRef && selectedReferralTrackId.trim()),
+    refreshKey,
+  );
+  const selectedReferral =
+    referralDetailResponse?.referral ||
+    referrals.find((referral) => referral.referralTrackId === selectedReferralTrackId);
+  const missingEvidenceCount = referrals.reduce(
+    (total, referral) => total + referral.missingEvidence.length,
+    0,
+  );
+  const activeCount = referrals.filter((referral) => !referral.isComplete).length;
+
+  return (
+    <section className="panel customer-module-page">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Referrals</div>
+          <h2 className="panel-title">Referrals</h2>
+          <div className="panel-subtitle">
+            Inspect customer-scoped referral journeys, safe status, missing evidence, and timeline anchors.
+          </div>
+        </div>
+        <StatusBadge label="Read only" tone="info" />
+      </div>
+      <div className="panel-body route-list">
+        <div className="grid-3">
+          <KpiCard
+            label="Referrals"
+            value={String(referrals.length)}
+            footnote="Customer-scoped journeys returned"
+            icon={ListChecks}
+          />
+          <KpiCard
+            label="Open journeys"
+            value={String(activeCount)}
+            footnote="Not marked complete yet"
+            icon={Target}
+          />
+          <KpiCard
+            label="Evidence gaps"
+            value={String(missingEvidenceCount)}
+            footnote="Missing safe proof across returned referrals"
+            icon={AlertCircle}
+          />
+        </div>
+
+        <div className="wizard-status-card">
+          <div>
+            <strong>What this page does</strong>
+            <p>
+              Shows the referrals linked to {customerName}, their current state, and the safe evidence we have. It does not repair, replay, reassign, activate campaigns, send webhooks, or move money.
+            </p>
+          </div>
+          <StatusBadge label="Customer scoped" tone="success" />
+        </div>
+
+        {isReferralListLoading ? <LoadingState label="Loading customer referrals" /> : null}
+        {referralListError ? <ErrorPanel error={referralListError} /> : null}
+        <DataTable
+          rows={referrals}
+          emptyText="No referrals are attached to this customer yet. Create and validate referral journeys from the campaign and link/code workflows first."
+          columns={[
+            {
+              key: "referral",
+              header: "Referral",
+              render: (row) => {
+                const referral = row as (typeof referrals)[number];
+                const selected = referral.referralTrackId === selectedReferralTrackId;
+                return (
+                  <button
+                    className={`button ${selected ? "button-primary" : "button-secondary"}`}
+                    onClick={() => setSelectedReferralTrackId(referral.referralTrackId)}
+                    type="button"
+                  >
+                    {referral.referralCode || referral.referralTrackId}
+                  </button>
+                );
+              },
+            },
+            {
+              key: "status",
+              header: "Status",
+              render: (row) => (
+                <StatusBadge
+                  label={formatDisplay(getValue(row, ["displayStatus"], getValue(row, ["status"], "Unknown")))}
+                  tone={statusTone(String(getValue(row, ["status"], "")))}
+                />
+              ),
+            },
+            {
+              key: "progress",
+              header: "Progress",
+              render: (row) => (
+                <span>
+                  {formatDisplay(getValue(row, ["progressPercent"], "0"))}% -{" "}
+                  {formatDisplay(getValue(row, ["progressBand"], "No band"))}
+                </span>
+              ),
+            },
+            {
+              key: "campaign",
+              header: "Campaign",
+              render: (row) => formatDisplay(getValue(row, ["campaignCode"], "Not linked")),
+            },
+            {
+              key: "missingEvidence",
+              header: "Missing evidence",
+              render: (row) => {
+                const missingEvidence = getNestedValue(row, ["missingEvidence"], []);
+                const missing = Array.isArray(missingEvidence) ? missingEvidence : [];
+                return missing.length ? (
+                  <span className="table-subtext">{missing.map((item) => formatDisplay(item)).join(", ")}</span>
+                ) : (
+                  <StatusBadge label="Evidence OK" tone="success" />
+                );
+              },
+            },
+          ]}
+        />
+
+        {isReferralDetailLoading ? <LoadingState label="Loading referral detail" /> : null}
+        {referralDetailError ? <ErrorPanel error={referralDetailError} /> : null}
+        {selectedReferral ? (
+          <div className="wizard-status-card">
+            <div>
+              <strong>Selected referral detail</strong>
+              <p>
+                {selectedReferral.referralCode || selectedReferral.referralTrackId} -{" "}
+                {formatDisplay(selectedReferral.displayStatus || selectedReferral.status)}.{" "}
+                {selectedReferral.nextMilestone
+                  ? `Next milestone: ${formatDisplay(selectedReferral.nextMilestone)}.`
+                  : "No next milestone returned."}
+              </p>
+              <p className="muted">
+                Public referrer handle:{" "}
+                {formatDisplay(selectedReferral.publicReferrerHandle || "Not returned")} | Referee alias:{" "}
+                {formatDisplay(selectedReferral.refereeAlias || "Not returned")}
+              </p>
+            </div>
+            <StatusBadge
+              label={selectedReferral.missingEvidence.length ? "Evidence gaps" : "Evidence OK"}
+              tone={selectedReferral.missingEvidence.length ? "warning" : "success"}
+            />
+          </div>
+        ) : null}
+
+        {referralDetailResponse?.referral.timeline ? (
+          <DataTable
+            rows={referralDetailResponse.referral.timeline}
+            emptyText="No progress timeline events returned for this referral yet."
+            columns={[
+              {
+                key: "eventType",
+                header: "Timeline event",
+                render: (row) => <strong>{formatDisplay(getValue(row, ["eventType"], "Unknown"))}</strong>,
+              },
+              {
+                key: "occurredAt",
+                header: "Occurred",
+                render: (row) => formatDisplay(getValue(row, ["occurredAt"], "Not returned")),
+              },
+              {
+                key: "sourceSystem",
+                header: "Source",
+                render: (row) => formatDisplay(getValue(row, ["sourceSystem"], "Not returned")),
+              },
+            ]}
+          />
+        ) : null}
+
+        <div className="customer-context-note">
+          Redacted here: internal tenant identifiers, raw referrer/referee UCNs, raw progress payloads, event hashes, and dedupe keys.
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -7863,6 +8098,7 @@ function isCustomerModule(value: string | undefined): value is CustomerModule {
       "integrations",
       "technical",
       "campaigns",
+      "referrals",
       "links",
       "reports",
     "support",

@@ -2,7 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getAdminOnboardingDrafts, getAdminOnboardingState } from "./endpoints/adminOnboarding";
 import {
+  getReferralSaasAccountReferral,
   listReferralSaasAccountCampaigns,
+  listReferralSaasAccountReferrals,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasCommercialEntitlement,
   getReferralSaasIdentityLoginReconciliation,
@@ -399,6 +401,73 @@ export function useReferralSaasAccountCampaignList(
         limit,
       }),
     enabled: Boolean(enabled && cleanedAccountRef && cleanedExternalTenantRef),
+    retry: false,
+  });
+}
+
+export function useReferralSaasAccountReferralList(
+  accountRef: string,
+  externalTenantRef: string,
+  enabled: boolean,
+  refreshKey = 0,
+  limit = 50,
+) {
+  const cleanedAccountRef = accountRef.trim();
+  const cleanedExternalTenantRef = externalTenantRef.trim();
+
+  return useQuery({
+    queryKey: queryKeys.referralSaasAccountReferralList(
+      cleanedAccountRef,
+      "external_tenant_ref",
+      cleanedExternalTenantRef,
+      "setup",
+      limit,
+      refreshKey,
+    ),
+    queryFn: () =>
+      listReferralSaasAccountReferrals({
+        accountRef: cleanedAccountRef,
+        refType: "external_tenant_ref",
+        externalRef: cleanedExternalTenantRef,
+        context: "setup",
+        limit,
+      }),
+    enabled: Boolean(enabled && cleanedAccountRef && cleanedExternalTenantRef),
+    retry: false,
+  });
+}
+
+export function useReferralSaasAccountReferralDetail(
+  accountRef: string,
+  referralTrackId: string,
+  externalTenantRef: string,
+  enabled: boolean,
+  refreshKey = 0,
+) {
+  const cleanedAccountRef = accountRef.trim();
+  const cleanedReferralTrackId = referralTrackId.trim();
+  const cleanedExternalTenantRef = externalTenantRef.trim();
+
+  return useQuery({
+    queryKey: queryKeys.referralSaasAccountReferralDetail(
+      cleanedAccountRef,
+      cleanedReferralTrackId,
+      "external_tenant_ref",
+      cleanedExternalTenantRef,
+      "setup",
+      refreshKey,
+    ),
+    queryFn: () =>
+      getReferralSaasAccountReferral({
+        accountRef: cleanedAccountRef,
+        referralTrackId: cleanedReferralTrackId,
+        refType: "external_tenant_ref",
+        externalRef: cleanedExternalTenantRef,
+        context: "setup",
+      }),
+    enabled: Boolean(
+      enabled && cleanedAccountRef && cleanedReferralTrackId && cleanedExternalTenantRef,
+    ),
     retry: false,
   });
 }
