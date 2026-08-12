@@ -8334,7 +8334,7 @@ Completed output: `services/referral_saas_referral_registry_service.py`; `apps/a
 
 ## TASK-373: Add safe referrer identity directory and dimensions
 
-Status: Pending.
+Status: Completed.
 Product boundary: Referral SaaS.
 Shared primitive impact: Provides privacy-safe referrer/customer dimensions for attribution and reporting. Source duplication: No.
 Objective: Create safe referrer identity/dimension projections that support reporting and attribution without exposing raw UCN, secrets, or cross-tenant identity.
@@ -8344,6 +8344,9 @@ Tests to add/update: Privacy/no-leak, masked identifier, cross-tenant, role-scop
 Acceptance criteria: Attribution/reporting can group and explain referrers safely.
 Dependencies: TASK-372.
 Priority: P0.
+
+Completed output:
+- Added the safe referrer identity directory service, account-scoped read APIs, smoke-route inventory coverage, privacy-safe tests, frontend API/query hooks, and a customer-scoped Referrers page that groups referral activity by safe labels, masked identifiers, campaigns, dimensions, and evidence gaps.
 
 ## TASK-374: Harden referral timeline, event idempotency, and source evidence
 

@@ -26,6 +26,8 @@ import {
   useReferralSaasAccountMembershipPosture,
   useReferralSaasAccountReferralDetail,
   useReferralSaasAccountReferralList,
+  useReferralSaasAccountReferrerDetail,
+  useReferralSaasAccountReferrerList,
   useReferralSaasIdentityLoginReconciliation,
   useReferralSaasLoginCompletionReadiness,
   useReferralSaasMembershipActivationReadiness,
@@ -137,6 +139,7 @@ type CustomerModule =
   | "technical"
   | "campaigns"
   | "referrals"
+  | "referrers"
   | "links"
   | "reports"
   | "support"
@@ -286,6 +289,15 @@ const customerFunctions = [
     letsYou: "See referral status, missing evidence, and safe timeline anchors.",
     route: "referrals",
     icon: ListChecks,
+    status: "Ready",
+    tone: "success" as StatusTone,
+  },
+  {
+    title: "Referrers",
+    copy: "See who is driving referrals without exposing raw identity.",
+    letsYou: "Group referral activity by safe referrer labels and dimensions.",
+    route: "referrers",
+    icon: Users,
     status: "Ready",
     tone: "success" as StatusTone,
   },
@@ -3028,6 +3040,14 @@ export function ReferralSaasAccountMaintenancePage() {
                 />
               ) : null}
 
+              {selectedModule === "referrers" ? (
+                <CustomerReferrersPage
+                  customerName={customerName}
+                  externalTenantRef={selectedExternalTenantRef}
+                  selectedAccount={selectedAccount}
+                />
+              ) : null}
+
               {selectedModule === "links" ? (
                 <CustomerLinksAndCodesPage
                   customerName={customerName}
@@ -3366,6 +3386,248 @@ function CustomerReferralsPage({
 
         <div className="customer-context-note">
           Redacted here: internal tenant identifiers, raw referrer/referee UCNs, raw progress payloads, event hashes, and dedupe keys.
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CustomerReferrersPage({
+  customerName,
+  externalTenantRef,
+  selectedAccount,
+}: {
+  customerName: string;
+  externalTenantRef: string;
+  selectedAccount?: AccountRegistryItem;
+}) {
+  const { refreshKey } = useRefreshContext();
+  const [selectedSafeReferrerKey, setSelectedSafeReferrerKey] = useState("");
+  const {
+    data: referrerListResponse,
+    error: referrerListError,
+    isLoading: isReferrerListLoading,
+  } = useReferralSaasAccountReferrerList(
+    selectedAccount?.accountId || "",
+    externalTenantRef,
+    Boolean(selectedAccount && externalTenantRef),
+    refreshKey,
+  );
+  const referrers = referrerListResponse?.referrers || [];
+
+  useEffect(() => {
+    if (!selectedSafeReferrerKey.trim() && referrers[0]?.safeReferrerKey) {
+      setSelectedSafeReferrerKey(referrers[0].safeReferrerKey);
+    }
+  }, [referrers, selectedSafeReferrerKey]);
+
+  const {
+    data: referrerDetailResponse,
+    error: referrerDetailError,
+    isLoading: isReferrerDetailLoading,
+  } = useReferralSaasAccountReferrerDetail(
+    selectedAccount?.accountId || "",
+    selectedSafeReferrerKey,
+    externalTenantRef,
+    Boolean(selectedAccount && externalTenantRef && selectedSafeReferrerKey.trim()),
+    refreshKey,
+  );
+  const selectedReferrer =
+    referrerDetailResponse?.referrer ||
+    referrers.find((referrer) => referrer.safeReferrerKey === selectedSafeReferrerKey);
+  const referralCount = referrers.reduce((total, referrer) => total + referrer.referralCount, 0);
+  const attributedCount = referrers.reduce(
+    (total, referrer) => total + referrer.attributedReferralCount,
+    0,
+  );
+  const missingEvidenceCount = referrers.reduce(
+    (total, referrer) => total + referrer.missingEvidenceCount,
+    0,
+  );
+
+  return (
+    <section className="panel customer-module-page">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Referrers</div>
+          <h2 className="panel-title">Referrers</h2>
+          <div className="panel-subtitle">
+            Group referral activity by privacy-safe referrer labels. Raw identity, tenant identifiers, and customer identifiers stay hidden.
+          </div>
+        </div>
+        <StatusBadge label="Read only" tone="info" />
+      </div>
+      <div className="panel-body route-list">
+        <div className="grid-3">
+          <KpiCard
+            label="Safe referrers"
+            value={String(referrers.length)}
+            footnote="Directory rows returned"
+            icon={Users}
+          />
+          <KpiCard
+            label="Referral activity"
+            value={String(referralCount)}
+            footnote="Journeys grouped under safe labels"
+            icon={ListChecks}
+          />
+          <KpiCard
+            label="Attribution evidence"
+            value={String(attributedCount)}
+            footnote={`${missingEvidenceCount} safe evidence gaps`}
+            icon={Target}
+          />
+        </div>
+
+        <div className="wizard-status-card">
+          <div>
+            <strong>What this page answers</strong>
+            <p>
+              Which referrers are driving activity for {customerName}, which campaigns they touch, and what safe evidence is still missing. It does not expose raw UCNs, create identities, reassign credit, or change campaigns.
+            </p>
+          </div>
+          <StatusBadge label="Safe dimensions" tone="success" />
+        </div>
+
+        {isReferrerListLoading ? <LoadingState label="Loading safe referrer directory" /> : null}
+        {referrerListError ? <ErrorPanel error={referrerListError} /> : null}
+        <DataTable
+          rows={referrers}
+          emptyText="No safe referrers are visible for this customer yet. Validate referral journeys first, then return here to group activity."
+          columns={[
+            {
+              key: "referrer",
+              header: "Referrer",
+              render: (row) => {
+                const referrer = row as (typeof referrers)[number];
+                const selected = referrer.safeReferrerKey === selectedSafeReferrerKey;
+                return (
+                  <button
+                    className={`button ${selected ? "button-primary" : "button-secondary"}`}
+                    onClick={() => setSelectedSafeReferrerKey(referrer.safeReferrerKey)}
+                    type="button"
+                  >
+                    {referrer.displayLabel}
+                  </button>
+                );
+              },
+            },
+            {
+              key: "maskedReferrerIdentifier",
+              header: "Safe identifier",
+              render: (row) => formatDisplay(getValue(row, ["maskedReferrerIdentifier"], "Hidden")),
+            },
+            {
+              key: "referralCount",
+              header: "Referrals",
+              render: (row) => getValue(row, ["referralCount"], "0"),
+            },
+            {
+              key: "campaigns",
+              header: "Campaigns",
+              render: (row) => {
+                const campaigns = getNestedValue(row, ["campaigns"], []);
+                return Array.isArray(campaigns) && campaigns.length
+                  ? campaigns.map((campaign) => formatDisplay(campaign)).join(", ")
+                  : "Not linked";
+              },
+            },
+            {
+              key: "missingEvidenceCount",
+              header: "Evidence",
+              render: (row) => {
+                const count = Number(getValue(row, ["missingEvidenceCount"], "0"));
+                return count ? (
+                  <StatusBadge label={`${count} gaps`} tone="warning" />
+                ) : (
+                  <StatusBadge label="Evidence OK" tone="success" />
+                );
+              },
+            },
+          ]}
+        />
+
+        {isReferrerDetailLoading ? <LoadingState label="Loading referrer detail" /> : null}
+        {referrerDetailError ? <ErrorPanel error={referrerDetailError} /> : null}
+        {selectedReferrer ? (
+          <div className="wizard-status-card">
+            <div>
+              <strong>{selectedReferrer.displayLabel}</strong>
+              <p>
+                {selectedReferrer.referralCount} referrals, {selectedReferrer.completedReferralCount} completed,{" "}
+                {selectedReferrer.attributedReferralCount} with attribution evidence.
+              </p>
+              <p className="muted">
+                Safe identifier: {selectedReferrer.maskedReferrerIdentifier}. Last seen:{" "}
+                {formatDisplay(selectedReferrer.lastSeenAt || "Not returned")}.
+              </p>
+            </div>
+            <StatusBadge
+              label={selectedReferrer.missingEvidenceCount ? "Evidence gaps" : "Evidence OK"}
+              tone={selectedReferrer.missingEvidenceCount ? "warning" : "success"}
+            />
+          </div>
+        ) : null}
+
+        {selectedReferrer?.dimensions?.length ? (
+          <div className="grid-3">
+            {selectedReferrer.dimensions.map((dimension) => (
+              <div className="wizard-status-card" key={dimension.name}>
+                <div>
+                  <strong>{formatDisplay(dimension.name)}</strong>
+                  <p>
+                    {dimension.values.length
+                      ? dimension.values
+                          .map((value) => `${formatDisplay(value.label)} (${value.count})`)
+                          .join(", ")
+                      : "No dimension values returned yet."}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {referrerDetailResponse?.referrer.referrals ? (
+          <DataTable
+            rows={referrerDetailResponse.referrer.referrals}
+            emptyText="No referrals are attached to this safe referrer key yet."
+            columns={[
+              {
+                key: "referralTrackId",
+                header: "Referral",
+                render: (row) => (
+                  <strong>
+                    {formatDisplay(getValue(row, ["referralCode"], getValue(row, ["referralTrackId"], "Unknown")))}
+                  </strong>
+                ),
+              },
+              {
+                key: "status",
+                header: "Status",
+                render: (row) => (
+                  <StatusBadge
+                    label={formatDisplay(getValue(row, ["displayStatus"], getValue(row, ["status"], "Unknown")))}
+                    tone={statusTone(String(getValue(row, ["status"], "")))}
+                  />
+                ),
+              },
+              {
+                key: "campaignCode",
+                header: "Campaign",
+                render: (row) => formatDisplay(getValue(row, ["campaignCode"], "Not linked")),
+              },
+              {
+                key: "lastProgressAt",
+                header: "Last activity",
+                render: (row) => formatDisplay(getValue(row, ["lastProgressAt"], "Not returned")),
+              },
+            ]}
+          />
+        ) : null}
+
+        <div className="customer-context-note">
+          Redacted here: internal tenant identifiers, raw referrer/referee UCNs, raw customer identifiers, raw progress payloads, event hashes, dedupe keys, secrets, and tokens.
         </div>
       </div>
     </section>
@@ -8099,6 +8361,7 @@ function isCustomerModule(value: string | undefined): value is CustomerModule {
       "technical",
       "campaigns",
       "referrals",
+      "referrers",
       "links",
       "reports",
     "support",

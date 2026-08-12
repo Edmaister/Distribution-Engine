@@ -1361,6 +1361,89 @@ export type ReferralSaasAccountReferralReadResponse = {
   no_billing_or_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasReferrerDimension = {
+  name: string;
+  values: { label: string; count: number }[];
+};
+
+export type ReferralSaasSafeReferrerIdentity = {
+  safeReferrerKey: string;
+  displayLabel: string;
+  publicReferrerHandle?: string | null;
+  maskedReferrerIdentifier: string;
+  referralCount: number;
+  openReferralCount: number;
+  completedReferralCount: number;
+  attributedReferralCount: number;
+  missingEvidenceCount: number;
+  campaignCount: number;
+  campaigns: string[];
+  firstSeenAt?: string | null;
+  lastSeenAt?: string | null;
+  statusBreakdown: { label: string; count: number }[];
+  progressBreakdown: { label: string; count: number }[];
+  dimensions: ReferralSaasReferrerDimension[];
+  missingEvidence: string[];
+  redactions: string[];
+};
+
+export type ReferralSaasSafeReferrerDetail = ReferralSaasSafeReferrerIdentity & {
+  referrals: ReferralSaasAccountReferralSummary[];
+};
+
+export type ReferralSaasSafeReferrerListRequest = ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+  limit?: number;
+};
+
+export type ReferralSaasSafeReferrerListResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  count: number;
+  referrers: ReferralSaasSafeReferrerIdentity[];
+  referral_capability_enforced_confirmed: boolean;
+  required_referral_capability: string;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  no_tenant_code_exposure_confirmed: boolean;
+  no_raw_identity_exposure_confirmed: boolean;
+  no_raw_customer_identifier_exposure_confirmed: boolean;
+  no_secret_or_token_exposure_confirmed: boolean;
+  no_referral_mutation_confirmed: boolean;
+  no_repair_replay_reassignment_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_webhook_delivery_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
+export type ReferralSaasSafeReferrerReadRequest = ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+  safeReferrerKey: string;
+};
+
+export type ReferralSaasSafeReferrerReadResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  referrer: ReferralSaasSafeReferrerDetail;
+  referral_capability_enforced_confirmed: boolean;
+  required_referral_capability: string;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  no_tenant_code_exposure_confirmed: boolean;
+  no_raw_identity_exposure_confirmed: boolean;
+  no_raw_customer_identifier_exposure_confirmed: boolean;
+  no_secret_or_token_exposure_confirmed: boolean;
+  no_referral_mutation_confirmed: boolean;
+  no_repair_replay_reassignment_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_webhook_delivery_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasAccountCampaignSummary = {
   campaignCode: string;
   name: string;
@@ -2860,6 +2943,47 @@ export function getReferralSaasAccountReferral({
     `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/referrals/${encodeURIComponent(
       referralTrackId.trim(),
     )}`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+      },
+    },
+  );
+}
+
+export function listReferralSaasAccountReferrers({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+  limit = 50,
+}: ReferralSaasSafeReferrerListRequest): Promise<ReferralSaasSafeReferrerListResponse> {
+  return apiRequest<ReferralSaasSafeReferrerListResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/referrer-identities`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+        limit,
+      },
+    },
+  );
+}
+
+export function getReferralSaasAccountReferrer({
+  accountRef,
+  safeReferrerKey,
+  refType,
+  externalRef,
+  context = "setup",
+}: ReferralSaasSafeReferrerReadRequest): Promise<ReferralSaasSafeReferrerReadResponse> {
+  return apiRequest<ReferralSaasSafeReferrerReadResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(
+      accountRef.trim(),
+    )}/referrer-identities/${encodeURIComponent(safeReferrerKey.trim())}`,
     {
       query: {
         ref_type: refType,

@@ -143,6 +143,12 @@ from services.referral_saas_referral_registry_service import (
     get_referral_saas_account_referral,
     list_referral_saas_account_referrals,
 )
+from services.referral_saas_referrer_identity_service import (
+    REFERRER_IDENTITY_GUARDRAILS,
+    REFERRER_IDENTITY_REDACTIONS,
+    get_referral_saas_safe_referrer_identity,
+    list_referral_saas_safe_referrer_identities,
+)
 from services.referral_saas_reporting_service import (
     EXPORT_REQUEST_GUARDRAILS,
     EXPORT_REQUEST_REDACTIONS,
@@ -7481,6 +7487,164 @@ async def read_referral_saas_account_referral_detail(
         "no_tenant_code_exposure_confirmed": True,
         "no_raw_identity_exposure_confirmed": True,
         "no_raw_progress_payload_exposure_confirmed": True,
+        "no_referral_mutation_confirmed": True,
+        "no_repair_replay_reassignment_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_webhook_delivery_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+        "referral_capability_enforced_confirmed": True,
+        "required_referral_capability": REFERRAL_SAAS_REFERRAL_READ_CAPABILITY,
+    }
+
+
+@router.get("/accounts/{account_ref}/referrer-identities")
+async def list_referral_saas_account_referrer_identities(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    actor_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=actor_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_REFERRAL_READ_CAPABILITY,
+    )
+
+    referrers = await list_referral_saas_safe_referrer_identities(
+        tenant_code=account.tenant_code,
+        limit=limit,
+    )
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "count": len(referrers),
+        "referrers": [referrer.to_safe_dict() for referrer in referrers],
+        "guardrail": (
+            "Read-only Referral SaaS customer-scoped referrer identity "
+            "directory. This endpoint groups referrals into privacy-safe "
+            "referrer dimensions without exposing tenant_code, raw UCNs, raw "
+            "customer identifiers, secrets, tokens, or cross-tenant identity."
+        ),
+        "guardrails": REFERRER_IDENTITY_GUARDRAILS,
+        "redactions": REFERRER_IDENTITY_REDACTIONS,
+        "no_tenant_code_exposure_confirmed": True,
+        "no_raw_identity_exposure_confirmed": True,
+        "no_raw_customer_identifier_exposure_confirmed": True,
+        "no_secret_or_token_exposure_confirmed": True,
+        "no_referral_mutation_confirmed": True,
+        "no_repair_replay_reassignment_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_webhook_delivery_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+        "referral_capability_enforced_confirmed": True,
+        "required_referral_capability": REFERRAL_SAAS_REFERRAL_READ_CAPABILITY,
+    }
+
+
+@router.get("/accounts/{account_ref}/referrer-identities/{safe_referrer_key}")
+async def read_referral_saas_account_referrer_identity(
+    account_ref: str,
+    safe_referrer_key: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    actor_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=actor_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_REFERRAL_READ_CAPABILITY,
+    )
+
+    referrer = await get_referral_saas_safe_referrer_identity(
+        tenant_code=account.tenant_code,
+        safe_referrer_key=safe_referrer_key,
+    )
+    if referrer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "referrer_identity_not_found",
+                "message": "Referrer identity was not found for the selected customer.",
+                "redactions": REFERRER_IDENTITY_REDACTIONS,
+            },
+        )
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "referrer": referrer.to_safe_dict(),
+        "guardrail": (
+            "Read-only Referral SaaS customer-scoped referrer identity detail. "
+            "The path uses a safe referrer key only; raw UCNs, tenant_code, "
+            "raw customer identifiers, secrets, tokens, and cross-tenant "
+            "identity stay hidden."
+        ),
+        "guardrails": REFERRER_IDENTITY_GUARDRAILS,
+        "redactions": REFERRER_IDENTITY_REDACTIONS,
+        "no_tenant_code_exposure_confirmed": True,
+        "no_raw_identity_exposure_confirmed": True,
+        "no_raw_customer_identifier_exposure_confirmed": True,
+        "no_secret_or_token_exposure_confirmed": True,
         "no_referral_mutation_confirmed": True,
         "no_repair_replay_reassignment_confirmed": True,
         "no_campaign_activation_confirmed": True,
