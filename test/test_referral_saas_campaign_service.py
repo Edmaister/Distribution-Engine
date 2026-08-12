@@ -54,6 +54,22 @@ def _allowed_production_activation_decision():
     }
 
 
+def _approved_review_state() -> dict[str, object]:
+    return {
+        "review_status": "REVIEW_APPROVED",
+        "activation_eligibility": "ELIGIBLE_FOR_FUTURE_ACTIVATION",
+        "sod_status": svc.CAMPAIGN_REVIEW_SOD_CONFIRMED,
+        "submitted_by_ref": "submitter-1",
+        "decision_by_ref": "reviewer-1",
+        "decision_at": datetime(2026, 8, 1, tzinfo=timezone.utc).isoformat(),
+        "review_decision_payload_hash": "decision-payload-hash",
+        "policy_evidence_status": svc.CAMPAIGN_POLICY_EVIDENCE_CURRENT,
+        "policy_evidence_updated_at": datetime(
+            2026, 7, 31, tzinfo=timezone.utc
+        ).isoformat(),
+    }
+
+
 async def test_campaign_setup_create_records_inactive_campaign_and_audit(monkeypatch):
     conn = FakeCommandConnection(
         [
@@ -398,7 +414,12 @@ async def test_campaign_review_submit_records_review_state_and_audit(monkeypatch
         [
             None,
             {"campaign_code": "CAMP001", "is_active": False, "attributes": {}},
-            {"active_policy_count": 1},
+            {
+                "active_policy_count": 1,
+                "latest_policy_updated_at": datetime(
+                    2026, 8, 1, tzinfo=timezone.utc
+                ),
+            },
             {
                 "campaign_code": "CAMP001",
                 "is_active": False,
@@ -548,9 +569,16 @@ async def test_campaign_review_decision_records_approval_without_activation(monk
                 "is_active": False,
                 "attributes": {
                     "referral_saas_review": {
-                        "review_status": "READY_FOR_REVIEW"
+                        "review_status": "READY_FOR_REVIEW",
+                        "submitted_by_ref": "operator-1",
                     }
                 },
+            },
+            {
+                "active_policy_count": 1,
+                "latest_policy_updated_at": datetime(
+                    2026, 8, 1, tzinfo=timezone.utc
+                ),
             },
             {
                 "campaign_code": "CAMP001",
@@ -579,7 +607,7 @@ async def test_campaign_review_decision_records_approval_without_activation(monk
         correlation_id="corr-1",
         idempotency_key_hash="idem-hash",
         command_payload_hash="payload-hash",
-        command_actor_ref="operator-1",
+        command_actor_ref="reviewer-1",
         command_actor_role="ADMIN",
     )
 
@@ -624,6 +652,49 @@ async def test_campaign_review_decision_requires_review_submission(monkeypatch):
         )
 
 
+async def test_campaign_review_decision_blocks_same_submitter_and_approver(
+    monkeypatch,
+):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                None,
+                {
+                    "campaign_code": "CAMP001",
+                    "is_active": False,
+                    "attributes": {
+                        "referral_saas_review": {
+                            "review_status": "READY_FOR_REVIEW",
+                            "submitted_by_ref": "operator-1",
+                        }
+                    },
+                },
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.CampaignReviewInvalidState) as exc_info:
+        await svc.record_referral_saas_account_campaign_review_decision(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            decision="APPROVED",
+            reason="Reviewed campaign setup evidence.",
+            reviewer_ref="operator-1",
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_REVIEW_DECISION",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="payload-hash",
+            command_actor_ref="operator-1",
+            command_actor_role="ADMIN",
+        )
+
+    assert "separation of duties" in str(exc_info.value)
+
+
 async def test_campaign_activation_request_activates_only_campaign_posture(
     monkeypatch,
 ):
@@ -638,13 +709,16 @@ async def test_campaign_activation_request_activates_only_campaign_posture(
                 "attributes": {
                     "referral_saas_review": {
                         "review_status": "REVIEW_APPROVED",
-                        "activation_eligibility": (
-                            "ELIGIBLE_FOR_FUTURE_ACTIVATION"
-                        ),
+                        **_approved_review_state(),
                     }
                 },
             },
-            {"active_policy_count": 1},
+            {
+                "active_policy_count": 1,
+                "latest_policy_updated_at": datetime(
+                    2026, 7, 31, tzinfo=timezone.utc
+                ),
+            },
             {
                 "campaign_code": "CAMP001",
                 "is_active": True,
@@ -653,9 +727,7 @@ async def test_campaign_activation_request_activates_only_campaign_posture(
                 "attributes": {
                     "referral_saas_review": {
                         "review_status": "REVIEW_APPROVED",
-                        "activation_eligibility": (
-                            "ELIGIBLE_FOR_FUTURE_ACTIVATION"
-                        ),
+                        **_approved_review_state(),
                         "activation_status": "ACTIVATION_REQUEST_ACCEPTED",
                     }
                 },
@@ -689,6 +761,10 @@ async def test_campaign_activation_request_activates_only_campaign_posture(
     assert (
         safe_payload["campaignActivation"]["activationStatus"]
         == "ACTIVATION_REQUEST_ACCEPTED"
+    )
+    assert (
+        safe_payload["campaignActivation"]["preActivationDecision"]["sodStatus"]
+        == svc.CAMPAIGN_REVIEW_SOD_CONFIRMED
     )
     assert "NO_LINK_GENERATION" in safe_payload["guardrails"]
     assert "NO_WEBHOOK_DELIVERY" in safe_payload["guardrails"]
@@ -773,7 +849,12 @@ async def test_campaign_activation_requires_review_approval(monkeypatch):
                         }
                     },
                 },
-                {"active_policy_count": 1},
+                {
+                    "active_policy_count": 1,
+                    "latest_policy_updated_at": datetime(
+                        2026, 7, 31, tzinfo=timezone.utc
+                    ),
+                },
             ]
         ),
     )
@@ -793,6 +874,51 @@ async def test_campaign_activation_requires_review_approval(monkeypatch):
             idempotency_key_hash="idem-hash",
             command_payload_hash="payload-hash",
         )
+
+
+async def test_campaign_activation_blocks_stale_policy_after_review(monkeypatch):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                None,
+                {
+                    "campaign_code": "CAMP001",
+                    "is_active": False,
+                    "starts_at": None,
+                    "ends_at": None,
+                    "attributes": {
+                        "referral_saas_review": _approved_review_state(),
+                    },
+                },
+                {
+                    "active_policy_count": 1,
+                    "latest_policy_updated_at": datetime(
+                        2026, 8, 2, tzinfo=timezone.utc
+                    ),
+                },
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.CampaignActivationNotReady) as exc_info:
+        await svc.request_referral_saas_account_campaign_activation(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            requested_lifecycle_status="ACTIVE",
+            review_status="REVIEW_APPROVED",
+            go_live_reason="Approved for referral campaign testing.",
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_ACTIVATION",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="payload-hash",
+            production_activation_decision=_allowed_production_activation_decision(),
+        )
+
+    assert "changed after review approval" in str(exc_info.value)
 
 
 async def test_campaign_activation_replays_matching_idempotency(monkeypatch):
