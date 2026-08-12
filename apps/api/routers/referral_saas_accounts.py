@@ -96,6 +96,8 @@ from services.referral_saas_account_setup_service import (
 from services.referral_saas_campaign_service import (
     CAMPAIGN_ACTIVATION_GUARDRAILS,
     CAMPAIGN_ACTIVATION_REDACTIONS,
+    CAMPAIGN_LIFECYCLE_GUARDRAILS,
+    CAMPAIGN_LIFECYCLE_REDACTIONS,
     CAMPAIGN_POLICY_SETTINGS_GUARDRAILS,
     CAMPAIGN_POLICY_SETTINGS_REDACTIONS,
     CAMPAIGN_REVIEW_GUARDRAILS,
@@ -107,6 +109,10 @@ from services.referral_saas_campaign_service import (
     CampaignActivationIdempotencyConflict,
     CampaignActivationNotReady,
     CampaignActivationValidationError,
+    CampaignLifecycleCampaignNotFound,
+    CampaignLifecycleIdempotencyConflict,
+    CampaignLifecycleInvalidTransition,
+    CampaignLifecycleValidationError,
     CampaignPolicySettingsAccountNotReady,
     CampaignPolicySettingsCampaignNotFound,
     CampaignPolicySettingsIdempotencyConflict,
@@ -123,7 +129,9 @@ from services.referral_saas_campaign_service import (
     ReferralSaasCampaignCommandError,
     create_referral_saas_account_campaign_setup,
     get_referral_saas_account_campaign,
+    get_referral_saas_account_campaign_lifecycle,
     list_referral_saas_account_campaigns,
+    record_referral_saas_account_campaign_lifecycle_command,
     record_referral_saas_account_campaign_review_decision,
     request_referral_saas_account_campaign_activation,
     submit_referral_saas_account_campaign_review,
@@ -250,6 +258,9 @@ REFERRAL_SAAS_CAMPAIGN_REVIEW_DECIDE_CAPABILITY = (
     "REFERRAL_SAAS_CAMPAIGN_REVIEW_DECIDE"
 )
 REFERRAL_SAAS_CAMPAIGN_ACTIVATE_CAPABILITY = "REFERRAL_SAAS_CAMPAIGN_ACTIVATE"
+REFERRAL_SAAS_CAMPAIGN_LIFECYCLE_MANAGE_CAPABILITY = (
+    "REFERRAL_SAAS_CAMPAIGN_LIFECYCLE_MANAGE"
+)
 
 REFERRAL_SAAS_ACCOUNT_CONTEXTS = {"runtime", "setup"}
 MAX_ACCOUNT_LIST_LIMIT = 100
@@ -1518,6 +1529,39 @@ def _campaign_activation_error(exc: ReferralSaasCampaignCommandError) -> HTTPExc
             "message": str(exc),
             "guardrails": list(CAMPAIGN_ACTIVATION_GUARDRAILS),
             "redactions": list(CAMPAIGN_ACTIVATION_REDACTIONS),
+            "no_link_generation_confirmed": True,
+            "no_validation_track_created_confirmed": True,
+            "no_webhook_delivery_confirmed": True,
+            "no_invite_or_seat_change_confirmed": True,
+            "no_credential_creation_confirmed": True,
+            "no_billing_or_money_movement_confirmed": True,
+        },
+    )
+
+
+def _campaign_lifecycle_error(exc: ReferralSaasCampaignCommandError) -> HTTPException:
+    if isinstance(exc, CampaignLifecycleValidationError):
+        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    elif isinstance(exc, CampaignLifecycleCampaignNotFound):
+        status_code = status.HTTP_404_NOT_FOUND
+    elif isinstance(
+        exc,
+        (
+            CampaignLifecycleInvalidTransition,
+            CampaignLifecycleIdempotencyConflict,
+        ),
+    ):
+        status_code = status.HTTP_409_CONFLICT
+    else:
+        status_code = status.HTTP_400_BAD_REQUEST
+
+    return HTTPException(
+        status_code=status_code,
+        detail={
+            "code": exc.safe_code,
+            "message": str(exc),
+            "guardrails": list(CAMPAIGN_LIFECYCLE_GUARDRAILS),
+            "redactions": list(CAMPAIGN_LIFECYCLE_REDACTIONS),
             "no_link_generation_confirmed": True,
             "no_validation_track_created_confirmed": True,
             "no_webhook_delivery_confirmed": True,
@@ -8275,6 +8319,201 @@ async def request_referral_saas_account_campaign_activation_route(
     }
 
 
+@router.get("/accounts/{account_ref}/campaigns/{campaign_code}/lifecycle")
+async def read_referral_saas_account_campaign_lifecycle_route(
+    account_ref: str,
+    campaign_code: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[str, Query()] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=admin_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_CAMPAIGN_READ_CAPABILITY,
+    )
+
+    result = await get_referral_saas_account_campaign_lifecycle(
+        account_id=account.account_id,
+        tenant_code=account.tenant_code,
+        campaign_code=campaign_code,
+    )
+    if result is None:
+        raise _campaign_lifecycle_error(
+            CampaignLifecycleCampaignNotFound(
+                "Campaign lifecycle was not found for the selected customer."
+            )
+        )
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "campaignLifecycle": result.to_safe_dict(),
+        "guardrails": list(CAMPAIGN_LIFECYCLE_GUARDRAILS),
+        "redactions": list(CAMPAIGN_LIFECYCLE_REDACTIONS),
+        "no_campaign_mutation_confirmed": True,
+        "no_link_generation_confirmed": True,
+        "no_validation_track_created_confirmed": True,
+        "no_webhook_delivery_confirmed": True,
+        "no_invite_or_seat_change_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+        "campaign_capability_enforced_confirmed": True,
+        "required_campaign_capability": REFERRAL_SAAS_CAMPAIGN_READ_CAPABILITY,
+    }
+
+
+@router.post("/accounts/{account_ref}/campaigns/{campaign_code}/lifecycle-commands")
+async def record_referral_saas_account_campaign_lifecycle_route(
+    account_ref: str,
+    campaign_code: str,
+    payload: dict[str, Any] = Body(default_factory=dict),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    _reject_unsafe_campaign_lifecycle_payload(payload)
+
+    account_scope = payload.get("accountScope") or {}
+    lifecycle_command = payload.get("lifecycleCommand") or {}
+    if not isinstance(account_scope, dict) or not isinstance(lifecycle_command, dict):
+        raise _campaign_lifecycle_error(
+            CampaignLifecycleValidationError(
+                "accountScope and lifecycleCommand must be objects."
+            )
+        )
+
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (
+        _optional_text(account_scope.get("context")) or "campaign_lifecycle"
+    ).lower()
+    idempotency_key = _optional_text(payload.get("idempotencyKey"))
+    correlation_id = _optional_text(payload.get("correlationId"))
+    reason_code = (
+        _optional_text(payload.get("reasonCode"))
+        or "CUSTOMER_PROFILE_CAMPAIGN_LIFECYCLE"
+    )
+    if not ref_type or not external_ref or not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": list(CAMPAIGN_LIFECYCLE_GUARDRAILS),
+                "redactions": list(CAMPAIGN_LIFECYCLE_REDACTIONS),
+                "no_link_generation_confirmed": True,
+                "no_validation_track_created_confirmed": True,
+                "no_webhook_delivery_confirmed": True,
+                "no_invite_or_seat_change_confirmed": True,
+                "no_credential_creation_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        )
+
+    resolve_context = "setup" if context == "campaign_lifecycle" else context
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=resolve_context,
+    )
+    if context == "campaign_lifecycle":
+        normalised_context = "campaign_lifecycle"
+    _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=admin_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_CAMPAIGN_LIFECYCLE_MANAGE_CAPABILITY,
+    )
+
+    action = _optional_text(lifecycle_command.get("action")).upper()
+    reason = _optional_text(lifecycle_command.get("reason"))
+    command_payload = {
+        "accountScope": {
+            "accountRef": _optional_text(account_ref),
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": normalised_context,
+        },
+        "campaignRef": _optional_text(campaign_code),
+        "lifecycleCommand": {
+            "action": action,
+            "reasonPresent": bool(reason),
+            "operatorNotesPresent": bool(
+                _optional_text(lifecycle_command.get("operatorNotes"))
+            ),
+        },
+    }
+    try:
+        result = await record_referral_saas_account_campaign_lifecycle_command(
+            account_id=account.account_id,
+            tenant_code=account.tenant_code,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            campaign_code=campaign_code,
+            action=action,
+            reason=reason,
+            operator_notes=_optional_text(lifecycle_command.get("operatorNotes"))
+            or None,
+            reason_code=reason_code,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_CAMPAIGN_LIFECYCLE",
+                    "account_ref": _optional_text(account_ref),
+                    "campaign_ref": _optional_text(campaign_code),
+                    "action": action,
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            command_payload_hash=hash_payload(command_payload),
+            command_actor_ref=_actor_ref(admin_identity),
+            command_actor_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except ReferralSaasCampaignCommandError as exc:
+        raise _campaign_lifecycle_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "campaignLifecycle": result.to_safe_dict(),
+        "guardrails": list(CAMPAIGN_LIFECYCLE_GUARDRAILS),
+        "redactions": list(CAMPAIGN_LIFECYCLE_REDACTIONS),
+        "no_link_generation_confirmed": True,
+        "no_validation_track_created_confirmed": True,
+        "no_webhook_delivery_confirmed": True,
+        "no_invite_or_seat_change_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+        "campaign_capability_enforced_confirmed": True,
+        "required_campaign_capability": REFERRAL_SAAS_CAMPAIGN_LIFECYCLE_MANAGE_CAPABILITY,
+    }
+
+
 @router.get("/accounts/{account_ref}/campaigns/{campaign_code}/readiness")
 async def read_referral_saas_account_campaign_readiness(
     account_ref: str,
@@ -8732,6 +8971,43 @@ UNSAFE_CAMPAIGN_ACTIVATION_KEYS = {
     "sponsorBilling",
 }
 
+UNSAFE_CAMPAIGN_LIFECYCLE_KEYS = {
+    "tenant_code",
+    "tenantCode",
+    "internal_tenant_code",
+    "internalTenantCode",
+    "campaign_code",
+    "campaignCode",
+    "generateLinks",
+    "linkGeneration",
+    "link",
+    "track",
+    "validate",
+    "campaignTrackId",
+    "campaign_track_id",
+    "webhook",
+    "credential",
+    "credentials",
+    "providerSecret",
+    "secret",
+    "invite",
+    "seat",
+    "seatId",
+    "authClaim",
+    "authClaims",
+    "billing",
+    "rewardAmount",
+    "rewardAmounts",
+    "funding",
+    "fulfilment",
+    "settlement",
+    "commission",
+    "wallet",
+    "invoice",
+    "payout",
+    "sponsorBilling",
+}
+
 
 def _reject_unsafe_invitation_payload(value: Any) -> None:
     if isinstance(value, dict):
@@ -8902,6 +9178,36 @@ def _reject_unsafe_campaign_activation_payload(value: Any) -> None:
     elif isinstance(value, list):
         for item in value:
             _reject_unsafe_campaign_activation_payload(item)
+
+
+def _reject_unsafe_campaign_lifecycle_payload(value: Any) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if str(key) in UNSAFE_CAMPAIGN_LIFECYCLE_KEYS:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "code": "REJECTED_UNSAFE_PAYLOAD",
+                        "message": (
+                            "Campaign lifecycle payload includes fields that "
+                            "belong to tenant scope, link generation, "
+                            "validation, webhook, access, billing, credential, "
+                            "or money workflows."
+                        ),
+                        "guardrails": list(CAMPAIGN_LIFECYCLE_GUARDRAILS),
+                        "redactions": list(CAMPAIGN_LIFECYCLE_REDACTIONS),
+                        "no_link_generation_confirmed": True,
+                        "no_validation_track_created_confirmed": True,
+                        "no_webhook_delivery_confirmed": True,
+                        "no_invite_or_seat_change_confirmed": True,
+                        "no_credential_creation_confirmed": True,
+                        "no_billing_or_money_movement_confirmed": True,
+                    },
+                )
+            _reject_unsafe_campaign_lifecycle_payload(child)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_unsafe_campaign_lifecycle_payload(item)
 
 
 def _actor_ref(identity: dict[str, Any]) -> str:

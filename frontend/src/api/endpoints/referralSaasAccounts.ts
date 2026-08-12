@@ -1324,6 +1324,59 @@ export type ReferralSaasAccountCampaignReadResponse = {
   no_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasCampaignLifecycleAction = "PAUSE" | "RESUME" | "END" | "ARCHIVE";
+
+export type ReferralSaasAccountCampaignLifecycle = {
+  commandStatus: string;
+  accountRef: string;
+  campaignRef: string;
+  campaignLifecycle: {
+    action?: ReferralSaasCampaignLifecycleAction | null;
+    previousLifecycle?: string | null;
+    lifecycle: string;
+    isActive: boolean;
+    allowedActions: ReferralSaasCampaignLifecycleAction[];
+    plainLanguage: string;
+  };
+  idempotency: {
+    status?: string | null;
+  };
+  audit: {
+    accountAuditEventId?: string | null;
+  };
+  nextActions: string[];
+  guardrails: string[];
+  redactions: string[];
+};
+
+export type ReferralSaasAccountCampaignLifecycleCommandRequest =
+  ReferralSaasAccountResolutionRequest & {
+    accountRef: string;
+    campaignCode: string;
+    action: ReferralSaasCampaignLifecycleAction;
+    reason: string;
+    operatorNotes?: string;
+    idempotencyKey: string;
+    correlationId: string;
+  };
+
+export type ReferralSaasAccountCampaignLifecycleCommandResponse = {
+  status: string;
+  context: string;
+  account: ReferralSaasAccountSummary;
+  campaignLifecycle: ReferralSaasAccountCampaignLifecycle;
+  guardrails: string[];
+  redactions: string[];
+  no_link_generation_confirmed: boolean;
+  no_validation_track_created_confirmed: boolean;
+  no_webhook_delivery_confirmed: boolean;
+  no_invite_or_seat_change_confirmed: boolean;
+  no_credential_creation_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+  campaign_capability_enforced_confirmed: boolean;
+  required_campaign_capability: string;
+};
+
 export type ReferralSaasSupportCaseEvidenceLink = {
   evidenceLinkId?: string | null;
   evidenceType: string;
@@ -2744,6 +2797,42 @@ export function getReferralSaasAccountCampaignReadiness({
         context,
         opportunity_id: opportunityId?.trim() || undefined,
         include_evidence: includeEvidence,
+      },
+    },
+  );
+}
+
+export function recordReferralSaasAccountCampaignLifecycleCommand({
+  accountRef,
+  campaignCode,
+  refType,
+  externalRef,
+  context = "setup",
+  action,
+  reason,
+  operatorNotes,
+  idempotencyKey,
+  correlationId,
+}: ReferralSaasAccountCampaignLifecycleCommandRequest): Promise<ReferralSaasAccountCampaignLifecycleCommandResponse> {
+  return apiRequest<ReferralSaasAccountCampaignLifecycleCommandResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaigns/${encodeURIComponent(
+      campaignCode.trim(),
+    )}/lifecycle-commands`,
+    {
+      method: "POST",
+      body: {
+        accountScope: {
+          refType,
+          externalRef: externalRef.trim(),
+          context,
+        },
+        lifecycleCommand: {
+          action,
+          reason,
+          operatorNotes: operatorNotes?.trim() || undefined,
+        },
+        idempotencyKey,
+        correlationId,
       },
     },
   );

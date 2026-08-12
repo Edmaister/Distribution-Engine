@@ -1033,3 +1033,136 @@ async def test_campaign_activation_rejects_already_active(monkeypatch):
             production_activation_decision=_allowed_production_activation_decision(),
         )
 
+
+async def test_campaign_lifecycle_command_pauses_active_campaign_with_audit(monkeypatch):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "campaign_code": "CAMP001",
+                "is_active": True,
+                "starts_at": None,
+                "ends_at": None,
+                "attributes": {
+                    "referral_saas_lifecycle": {
+                        "lifecycle": "ACTIVE",
+                        "action": "ACTIVATE",
+                    }
+                },
+            },
+            {
+                "campaign_code": "CAMP001",
+                "is_active": False,
+            },
+            {"account_audit_event_id": "audit-lifecycle-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.record_referral_saas_account_campaign_lifecycle_command(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        campaign_code="CAMP001",
+        action="PAUSE",
+        reason="Pause while compliance content is updated.",
+        operator_notes="Operator note",
+        reason_code="CUSTOMER_PROFILE_CAMPAIGN_LIFECYCLE",
+        correlation_id="corr-lifecycle-1",
+        idempotency_key_hash="idem-lifecycle-hash",
+        command_payload_hash="payload-lifecycle-hash",
+        command_actor_ref="operator-1",
+        command_actor_role="ADMIN",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "CAMPAIGN_LIFECYCLE_RECORDED"
+    assert safe_payload["campaignLifecycle"]["previousLifecycle"] == "ACTIVE"
+    assert safe_payload["campaignLifecycle"]["lifecycle"] == "PAUSED"
+    assert safe_payload["campaignLifecycle"]["isActive"] is False
+    assert "RESUME" in safe_payload["campaignLifecycle"]["allowedActions"]
+    assert "NO_LINK_GENERATION" in safe_payload["guardrails"]
+    assert "NO_WEBHOOK_DELIVERY" in safe_payload["guardrails"]
+    assert "NO_BILLING_OR_MONEY_MOVEMENT" in safe_payload["guardrails"]
+    joined_queries = "\n".join(query for query, _ in conn.fetchrow_calls)
+    assert "UPDATE marketing_campaigns" in joined_queries
+    assert "SET is_active = $3" in joined_queries
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+
+
+async def test_campaign_lifecycle_command_blocks_invalid_transition(monkeypatch):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                None,
+                {
+                    "campaign_code": "CAMP001",
+                    "is_active": False,
+                    "starts_at": None,
+                    "ends_at": None,
+                    "attributes": {
+                        "referral_saas_lifecycle": {
+                            "lifecycle": "ARCHIVED",
+                            "action": "ARCHIVE",
+                        }
+                    },
+                },
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.CampaignLifecycleInvalidTransition) as exc_info:
+        await svc.record_referral_saas_account_campaign_lifecycle_command(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            action="RESUME",
+            reason="Resume after accidental archive.",
+            correlation_id="corr-lifecycle-1",
+            idempotency_key_hash="idem-lifecycle-hash",
+            command_payload_hash="payload-lifecycle-hash",
+        )
+
+    assert "Cannot resume a campaign while lifecycle is ARCHIVED" in str(
+        exc_info.value
+    )
+
+
+async def test_campaign_lifecycle_command_conflicts_on_idempotency_payload_mismatch(
+    monkeypatch,
+):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                {
+                    "account_audit_event_id": "audit-lifecycle-1",
+                    "evidence_summary": {
+                        "campaign_code": "CAMP001",
+                        "action": "PAUSE",
+                        "lifecycle": "PAUSED",
+                        "command_payload_hash": "original-payload-hash",
+                    },
+                }
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.CampaignLifecycleIdempotencyConflict):
+        await svc.record_referral_saas_account_campaign_lifecycle_command(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            action="PAUSE",
+            reason="Pause while compliance content is updated.",
+            correlation_id="corr-lifecycle-1",
+            idempotency_key_hash="idem-lifecycle-hash",
+            command_payload_hash="changed-payload-hash",
+        )
+

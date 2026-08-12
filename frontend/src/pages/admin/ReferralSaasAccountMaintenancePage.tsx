@@ -71,6 +71,7 @@ import {
   recordReferralSaasMessageProviderTest,
   recordReferralSaasWebhookTestDispatch,
   recordReferralSaasMembershipInvitationIntent,
+  recordReferralSaasAccountCampaignLifecycleCommand,
   requestReferralSaasAccountCampaignActivation,
   requestReferralSaasAccountFoundationActivation,
   requestReferralSaasAccessProvisioning,
@@ -91,6 +92,7 @@ import {
   getReferralSaasProviderVaultReadiness,
   listReferralSaasIntegrationCredentialRequests,
   type ReferralSaasAccountCampaignSetupCreateResponse,
+  type ReferralSaasCampaignLifecycleAction,
   type ReferralSaasSupportCase,
   type ReferralSaasSupportCaseCreateResponse,
   type ReferralSaasSupportCaseLifecycleResponse,
@@ -3149,9 +3151,12 @@ function CustomerCampaignsPage({
   selectedCustomerPath: string;
 }) {
   const { refreshKey } = useRefreshContext();
+  const [campaignListRefreshKey, setCampaignListRefreshKey] = useState(0);
   const [campaignCode, setCampaignCode] = useState("");
   const [operation, setOperation] = useState<CampaignReadinessOperation>("CONTROL_PLANE_VIEW");
   const [opportunityId, setOpportunityId] = useState("");
+  const [lifecycleResult, setLifecycleResult] = useState<string | null>(null);
+  const campaignRefreshKey = refreshKey + campaignListRefreshKey;
   const {
     data: campaignListResponse,
     error: campaignListError,
@@ -3160,9 +3165,49 @@ function CustomerCampaignsPage({
     selectedAccount?.accountId || "",
     externalTenantRef,
     Boolean(selectedAccount && externalTenantRef),
-    refreshKey,
+    campaignRefreshKey,
   );
   const campaigns = campaignListResponse?.campaigns || [];
+  const lifecycleMutation = useMutation({
+    mutationFn: ({
+      action,
+      selectedCampaignCode,
+    }: {
+      action: ReferralSaasCampaignLifecycleAction;
+      selectedCampaignCode: string;
+    }) =>
+      recordReferralSaasAccountCampaignLifecycleCommand({
+        accountRef: selectedAccount?.accountId || "",
+        campaignCode: selectedCampaignCode,
+        refType: "external_tenant_ref",
+        externalRef: externalTenantRef,
+        context: "setup",
+        action,
+        reason: `${campaignLifecycleActionLabel(action)} campaign from the selected customer campaign workspace.`,
+        operatorNotes:
+          "Referral SaaS customer-scoped lifecycle command. No links, validation tracks, webhooks, invites, seats, credentials, campaign activation, or money movement requested.",
+        idempotencyKey: safeIdempotencyKey(
+          "customer-campaign-lifecycle",
+          selectedAccount?.accountId || "",
+          selectedCampaignCode,
+          action,
+          new Date().toISOString(),
+        ),
+        correlationId: safeIdempotencyKey(
+          "customer-campaign-lifecycle-correlation",
+          selectedAccount?.accountId || "",
+          selectedCampaignCode,
+          action,
+          new Date().toISOString(),
+        ),
+      }),
+    onSuccess: (response) => {
+      const lifecycle = response.campaignLifecycle.campaignLifecycle;
+      setCampaignCode(response.campaignLifecycle.campaignRef);
+      setLifecycleResult(lifecycle.plainLanguage);
+      setCampaignListRefreshKey((current) => current + 1);
+    },
+  });
 
   useEffect(() => {
     if (!campaignCode.trim() && campaigns[0]?.campaignCode) {
@@ -3283,6 +3328,7 @@ function CustomerCampaignsPage({
               header: "Action",
               render: (row) => {
                 const campaign = row as (typeof campaigns)[number];
+                const actions = campaignLifecycleActionsFor(String(campaign.lifecycle || campaign.status || ""));
                 return (
                   <div className="customer-header-actions">
                     <Link
@@ -3301,12 +3347,37 @@ function CustomerCampaignsPage({
                     >
                       Review
                     </Link>
+                    {actions.map((action) => (
+                      <button
+                        className="button button-secondary"
+                        disabled={lifecycleMutation.isPending}
+                        key={`${campaign.campaignCode}-${action}`}
+                        onClick={() =>
+                          lifecycleMutation.mutate({
+                            action,
+                            selectedCampaignCode: campaign.campaignCode,
+                          })
+                        }
+                        type="button"
+                      >
+                        {campaignLifecycleActionLabel(action)}
+                      </button>
+                    ))}
                   </div>
                 );
               },
             },
           ]}
         />
+        {lifecycleResult ? (
+          <div className="wizard-summary-strip success">
+            <div>
+              <strong>Campaign lifecycle updated.</strong> {lifecycleResult}
+            </div>
+            <StatusBadge label="Governed command" tone="success" />
+          </div>
+        ) : null}
+        {lifecycleMutation.error ? <ErrorPanel error={lifecycleMutation.error} /> : null}
 
         <form className="form-grid" onSubmit={(event) => event.preventDefault()}>
           <label>
@@ -7739,6 +7810,33 @@ function formatCampaignLabel(value: unknown): string {
     .replace(/_/g, " ")
     .toLowerCase()
     .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+}
+
+function campaignLifecycleActionsFor(status: string): ReferralSaasCampaignLifecycleAction[] {
+  const lifecycle = status.trim().toUpperCase();
+  if (lifecycle === "ACTIVE" || lifecycle === "SCHEDULED") {
+    return ["PAUSE", "END"];
+  }
+  if (lifecycle === "PAUSED") {
+    return ["RESUME", "END", "ARCHIVE"];
+  }
+  if (lifecycle === "ENDED") {
+    return ["ARCHIVE"];
+  }
+  return [];
+}
+
+function campaignLifecycleActionLabel(action: ReferralSaasCampaignLifecycleAction): string {
+  if (action === "PAUSE") {
+    return "Pause";
+  }
+  if (action === "RESUME") {
+    return "Resume";
+  }
+  if (action === "END") {
+    return "End";
+  }
+  return "Archive";
 }
 
 function buildCustomerModuleRoute(selectedCustomerPath: string, route: string, customerQuery: string) {
