@@ -56,6 +56,7 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("POST", "/v1/referral-saas/accounts/{account_ref}/integrations/configuration/validate"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/lifecycle"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/readiness"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/exports/{export_request_id}"),
         (
@@ -112,6 +113,10 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/activation-requests",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/lifecycle-commands",
         ),
         (
             "POST",
@@ -242,6 +247,7 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("POST", "/v1/referral-saas/accounts/{account_ref}/integrations/configuration/validate"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/lifecycle"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/readiness"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/exports/{export_request_id}"),
         (
@@ -287,6 +293,10 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/activation-requests",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/lifecycle-commands",
         ),
         (
             "POST",

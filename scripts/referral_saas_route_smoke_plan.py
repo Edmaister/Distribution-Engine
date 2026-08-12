@@ -413,6 +413,29 @@ READ_ONLY_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_account_campaign_lifecycle_read",
+        method="GET",
+        path="/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/lifecycle",
+        smoke_class="read_only",
+        auth_hint="Referral SaaS account reader role",
+        environment_rule="local/staging/production read-only where auth permits",
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "campaign_code",
+        ],
+        expected_state_change="none",
+        curl_template=(
+            'curl -sS -H "Authorization: Bearer {admin_token}" '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/campaigns/{campaign_code}/lifecycle?ref_type={ref_type}'
+            '&external_ref={external_ref}&context=setup"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_account_campaign_performance_report",
         method="GET",
         path="/v1/referral-saas/accounts/{account_ref}/reports/{report_type}",
@@ -995,6 +1018,43 @@ SEEDED_WRITE_ROUTES = [
             '"idempotencyKey":"{idempotency_key}"}\' '
             '"{base_url}/v1/referral-saas/accounts/{account_ref}'
             '/campaigns/{campaign_code}/activation-requests"'
+        ),
+    ),
+    SmokeRoute(
+        name="referral_saas_account_campaign_lifecycle_command",
+        method="POST",
+        path="/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/lifecycle-commands",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin/operator role",
+        environment_rule=(
+            "local/staging seeded account and campaign only; records governed "
+            "pause/resume/end/archive lifecycle maintenance"
+        ),
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "campaign_code",
+            "idempotency_key",
+        ],
+        expected_state_change=(
+            "updates selected-customer campaign lifecycle and records account "
+            "audit evidence; does not generate links, create validation tracks, "
+            "send webhooks, change access, create credentials, bill, or move money"
+        ),
+        curl_template=(
+            'curl -sS -X POST -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"campaign_lifecycle"},'
+            '"lifecycleCommand":{"action":"PAUSE",'
+            '"reason":"Seeded smoke lifecycle maintenance command."},'
+            '"correlationId":"smoke-campaign-lifecycle",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}'
+            '/campaigns/{campaign_code}/lifecycle-commands"'
         ),
     ),
     SmokeRoute(

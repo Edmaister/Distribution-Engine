@@ -78,6 +78,24 @@ CAMPAIGN_ACTIVATION_REDACTIONS = [
     "idempotency_key_hash",
     "payload_hash",
 ]
+CAMPAIGN_LIFECYCLE_EVENT = "CAMPAIGN_LIFECYCLE_COMMAND_RECORDED"
+CAMPAIGN_LIFECYCLE_RECORDED = "RECORDED"
+CAMPAIGN_LIFECYCLE_REPLAYED = "REPLAYED"
+CAMPAIGN_LIFECYCLE_ACTIONS = {"PAUSE", "RESUME", "END", "ARCHIVE"}
+CAMPAIGN_LIFECYCLE_GUARDRAILS = [
+    "NO_TENANT_CODE_EXPOSURE",
+    "NO_LINK_GENERATION",
+    "NO_VALIDATION_TRACK_CREATED",
+    "NO_WEBHOOK_DELIVERY",
+    "NO_INVITE_OR_SEAT_CHANGE",
+    "NO_CREDENTIAL_CREATION",
+    "NO_BILLING_OR_MONEY_MOVEMENT",
+]
+CAMPAIGN_LIFECYCLE_REDACTIONS = [
+    "internal_tenant_identifier",
+    "idempotency_key_hash",
+    "payload_hash",
+]
 CAMPAIGN_REVIEW_SOD_PENDING = "PENDING_REVIEW_DECISION"
 CAMPAIGN_REVIEW_SOD_CONFIRMED = "SEPARATION_OF_DUTIES_CONFIRMED"
 CAMPAIGN_REVIEW_SOD_BLOCKED = "SEPARATION_OF_DUTIES_BLOCKED"
@@ -158,6 +176,22 @@ class CampaignActivationAlreadyActive(ReferralSaasCampaignCommandError):
 
 
 class CampaignActivationIdempotencyConflict(ReferralSaasCampaignCommandError):
+    safe_code = "IDEMPOTENCY_CONFLICT"
+
+
+class CampaignLifecycleValidationError(ReferralSaasCampaignCommandError):
+    safe_code = "VALIDATION_ERROR"
+
+
+class CampaignLifecycleCampaignNotFound(ReferralSaasCampaignCommandError):
+    safe_code = "CAMPAIGN_NOT_FOUND_FOR_SELECTED_CUSTOMER"
+
+
+class CampaignLifecycleInvalidTransition(ReferralSaasCampaignCommandError):
+    safe_code = "CAMPAIGN_LIFECYCLE_INVALID_TRANSITION"
+
+
+class CampaignLifecycleIdempotencyConflict(ReferralSaasCampaignCommandError):
     safe_code = "IDEMPOTENCY_CONFLICT"
 
 
@@ -366,6 +400,45 @@ class ReferralSaasCampaignActivationResult:
         }
 
 
+@dataclass(frozen=True)
+class ReferralSaasCampaignLifecycleResult:
+    command_status: str
+    account_id: str
+    campaign_code: str
+    action: str | None
+    previous_lifecycle: str | None
+    lifecycle: str
+    is_active: bool
+    allowed_actions: list[str]
+    plain_language: str
+    idempotency_status: str | None = None
+    audit_event_id: str | None = None
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "accountRef": self.account_id,
+            "campaignRef": self.campaign_code,
+            "campaignLifecycle": {
+                "action": self.action,
+                "previousLifecycle": self.previous_lifecycle,
+                "lifecycle": self.lifecycle,
+                "isActive": self.is_active,
+                "allowedActions": list(self.allowed_actions),
+                "plainLanguage": self.plain_language,
+            },
+            "idempotency": {"status": self.idempotency_status},
+            "audit": {"accountAuditEventId": self.audit_event_id},
+            "nextActions": [
+                "Use lifecycle controls only from the selected customer campaign workspace",
+                "Issue links only while the campaign is active",
+                "Keep reporting, attribution, and support read-only against the selected customer",
+            ],
+            "guardrails": list(CAMPAIGN_LIFECYCLE_GUARDRAILS),
+            "redactions": list(CAMPAIGN_LIFECYCLE_REDACTIONS),
+        }
+
+
 def _as_iso(value: Any) -> str | None:
     if isinstance(value, datetime):
         return value.isoformat()
@@ -412,12 +485,72 @@ def _campaign_lifecycle(*, is_active: bool, starts_at: Any, ends_at: Any) -> str
     return "ACTIVE"
 
 
+def _campaign_attributes(value: Any) -> dict[str, Any]:
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _campaign_effective_lifecycle(
+    *,
+    is_active: bool,
+    starts_at: Any,
+    ends_at: Any,
+    attributes: Any,
+) -> str:
+    safe_attributes = _campaign_attributes(attributes)
+    lifecycle_state = safe_attributes.get("referral_saas_lifecycle") or {}
+    if isinstance(lifecycle_state, dict):
+        stored_lifecycle = _optional_text(lifecycle_state.get("lifecycle")).upper()
+        if stored_lifecycle in {"PAUSED", "ENDED", "ARCHIVED"}:
+            return stored_lifecycle
+        if stored_lifecycle == "ACTIVE" and is_active:
+            return _campaign_lifecycle(
+                is_active=is_active,
+                starts_at=starts_at,
+                ends_at=ends_at,
+            )
+
+    activation_state = safe_attributes.get("referral_saas_activation") or {}
+    if not is_active and not activation_state:
+        return "DRAFT"
+    return _campaign_lifecycle(is_active=is_active, starts_at=starts_at, ends_at=ends_at)
+
+
 def _campaign_status(*, lifecycle: str, policy_status: str) -> str:
-    if lifecycle in {"PAUSED", "EXPIRED"}:
+    if lifecycle in {"DRAFT", "PAUSED", "ENDED", "ARCHIVED", "EXPIRED"}:
         return lifecycle
     if policy_status != "ACTIVE_POLICY":
         return "NEEDS_POLICY"
     return lifecycle
+
+
+def _campaign_allowed_lifecycle_actions(lifecycle: str) -> list[str]:
+    safe_lifecycle = _optional_text(lifecycle).upper()
+    if safe_lifecycle in {"ACTIVE", "SCHEDULED"}:
+        return ["PAUSE", "END"]
+    if safe_lifecycle == "PAUSED":
+        return ["RESUME", "END", "ARCHIVE"]
+    if safe_lifecycle == "ENDED":
+        return ["ARCHIVE"]
+    return []
+
+
+def _campaign_lifecycle_plain_language(action: str | None, lifecycle: str) -> str:
+    if not action:
+        return f"Campaign lifecycle is {lifecycle}. No campaign state was changed."
+    if action == "PAUSE":
+        return "Campaign paused. Link issuing and active campaign checks stay blocked until the campaign is resumed."
+    if action == "RESUME":
+        return "Campaign resumed. Active campaign checks can pass again when policy and readiness remain valid."
+    if action == "END":
+        return "Campaign ended. It cannot be used for new referral activity."
+    if action == "ARCHIVE":
+        return "Campaign archived. It is retained for history and reporting, not day-to-day referral work."
+    return f"Campaign lifecycle changed to {lifecycle}."
 
 
 def _required_text(value: Any, field_name: str) -> str:
@@ -438,6 +571,13 @@ def _required_activation_text(value: Any, field_name: str) -> str:
     safe_value = str(value or "").strip()
     if not safe_value:
         raise CampaignActivationValidationError(f"{field_name} is required.")
+    return safe_value
+
+
+def _required_lifecycle_text(value: Any, field_name: str) -> str:
+    safe_value = str(value or "").strip()
+    if not safe_value:
+        raise CampaignLifecycleValidationError(f"{field_name} is required.")
     return safe_value
 
 
@@ -491,10 +631,7 @@ def _reward_visibility_status(value: dict[str, Any]) -> str:
 
 
 def _campaign_review_state(attributes: Any) -> dict[str, Any]:
-    if isinstance(attributes, str):
-        attributes = json.loads(attributes)
-    if not isinstance(attributes, dict):
-        return {}
+    attributes = _campaign_attributes(attributes)
     review_state = attributes.get("referral_saas_review") or {}
     return review_state if isinstance(review_state, dict) else {}
 
@@ -509,10 +646,11 @@ def _generate_campaign_code(tenant_code: str, segment: str, name: str) -> str:
 
 def _to_campaign_summary(row: dict[str, Any]) -> ReferralSaasCampaignSummary:
     is_active = bool(row.get("is_active"))
-    lifecycle = _campaign_lifecycle(
+    lifecycle = _campaign_effective_lifecycle(
         is_active=is_active,
         starts_at=row.get("starts_at"),
         ends_at=row.get("ends_at"),
+        attributes=row.get("attributes"),
     )
     active_policy_count = int(row.get("active_policy_count") or 0)
     policy_status = "ACTIVE_POLICY" if active_policy_count > 0 else "NO_ACTIVE_POLICY"
@@ -1912,6 +2050,23 @@ async def request_referral_saas_account_campaign_activation(
             "no_money_movement_confirmed": True,
         }
         attributes["referral_saas_activation"] = activation_state
+        attributes["referral_saas_lifecycle"] = {
+            "lifecycle": "ACTIVE",
+            "action": "ACTIVATE",
+            "previous_lifecycle": previous_lifecycle,
+            "changed_at": _iso_now(),
+            "changed_by_ref": _optional_text(command_actor_ref)
+            or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+            "reason_code": safe_reason_code,
+            "source": "TASK-371",
+            "command_payload_hash": safe_payload_hash,
+            "no_link_generation_confirmed": True,
+            "no_validation_track_created_confirmed": True,
+            "no_webhook_delivery_confirmed": True,
+            "no_invite_or_seat_change_confirmed": True,
+            "no_credential_creation_confirmed": True,
+            "no_billing_or_money_movement_confirmed": True,
+        }
         review_state.update(
             {
                 "activation_status": "ACTIVATION_REQUEST_ACCEPTED",
@@ -2019,6 +2174,267 @@ async def request_referral_saas_account_campaign_activation(
     )
 
 
+async def get_referral_saas_account_campaign_lifecycle(
+    *,
+    account_id: str,
+    tenant_code: str,
+    campaign_code: str,
+) -> ReferralSaasCampaignLifecycleResult | None:
+    campaign = await get_referral_saas_account_campaign(
+        tenant_code=tenant_code,
+        campaign_code=campaign_code,
+    )
+    if campaign is None:
+        return None
+    lifecycle = campaign.lifecycle
+    return ReferralSaasCampaignLifecycleResult(
+        command_status="CAMPAIGN_LIFECYCLE_READ",
+        account_id=account_id,
+        campaign_code=campaign.campaign_code,
+        action=None,
+        previous_lifecycle=None,
+        lifecycle=lifecycle,
+        is_active=lifecycle in {"ACTIVE", "SCHEDULED"},
+        allowed_actions=_campaign_allowed_lifecycle_actions(lifecycle),
+        plain_language=_campaign_lifecycle_plain_language(None, lifecycle),
+    )
+
+
+async def record_referral_saas_account_campaign_lifecycle_command(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    campaign_code: str,
+    action: str,
+    reason: str,
+    operator_notes: str | None = None,
+    reason_code: str = "CUSTOMER_PROFILE_CAMPAIGN_LIFECYCLE",
+    correlation_id: str = "",
+    idempotency_key_hash: str = "",
+    command_payload_hash: str = "",
+    command_actor_ref: str | None = None,
+    command_actor_role: str | None = None,
+) -> ReferralSaasCampaignLifecycleResult:
+    safe_account_id = _required_lifecycle_text(account_id, "account_id")
+    safe_tenant_code = _required_lifecycle_text(tenant_code, "tenant_code")
+    safe_campaign_code = _required_lifecycle_text(campaign_code, "campaign_code")
+    safe_action = _required_lifecycle_text(action, "lifecycleCommand.action").upper()
+    safe_reason = _required_lifecycle_text(reason, "lifecycleCommand.reason")
+    safe_reason_code = _required_lifecycle_text(reason_code, "reason_code").upper()
+    safe_correlation_id = _required_lifecycle_text(correlation_id, "correlation_id")
+    safe_idempotency_hash = _required_lifecycle_text(
+        idempotency_key_hash,
+        "idempotency_key_hash",
+    )
+    safe_payload_hash = _required_lifecycle_text(
+        command_payload_hash,
+        "command_payload_hash",
+    )
+    if safe_action not in CAMPAIGN_LIFECYCLE_ACTIONS:
+        raise CampaignLifecycleValidationError(
+            "lifecycleCommand.action must be one of PAUSE, RESUME, END, or ARCHIVE."
+        )
+
+    async with db_connection() as conn:
+        existing_audit = await conn.fetchrow(
+            """
+            SELECT account_audit_event_id, event_status, evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            CAMPAIGN_LIFECYCLE_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_audit:
+            evidence = existing_audit.get("evidence_summary") or {}
+            evidence = _campaign_attributes(evidence)
+            if _optional_text(evidence.get("command_payload_hash")) != safe_payload_hash:
+                raise CampaignLifecycleIdempotencyConflict(
+                    "Idempotency key was reused with different campaign lifecycle content."
+                )
+            lifecycle = _optional_text(evidence.get("lifecycle")) or "UNKNOWN"
+            return ReferralSaasCampaignLifecycleResult(
+                command_status="CAMPAIGN_LIFECYCLE_REPLAYED",
+                account_id=safe_account_id,
+                campaign_code=_optional_text(evidence.get("campaign_code"))
+                or safe_campaign_code,
+                action=_optional_text(evidence.get("action")) or safe_action,
+                previous_lifecycle=_optional_text(evidence.get("previous_lifecycle"))
+                or None,
+                lifecycle=lifecycle,
+                is_active=bool(evidence.get("campaign_is_active")),
+                allowed_actions=_campaign_allowed_lifecycle_actions(lifecycle),
+                plain_language=_optional_text(evidence.get("plain_language"))
+                or _campaign_lifecycle_plain_language(safe_action, lifecycle),
+                idempotency_status=CAMPAIGN_LIFECYCLE_REPLAYED,
+                audit_event_id=_optional_text(
+                    existing_audit.get("account_audit_event_id")
+                )
+                or None,
+            )
+
+        campaign = await conn.fetchrow(
+            """
+            SELECT campaign_code, is_active, starts_at, ends_at, attributes
+            FROM marketing_campaigns
+            WHERE UPPER(tenant_code) = UPPER($1)
+              AND UPPER(campaign_code) = UPPER($2)
+            LIMIT 1
+            """,
+            safe_tenant_code,
+            safe_campaign_code,
+        )
+        if not campaign:
+            raise CampaignLifecycleCampaignNotFound(
+                "Campaign was not found for the selected customer."
+            )
+
+        attributes = _campaign_attributes(campaign.get("attributes"))
+        previous_lifecycle = _campaign_effective_lifecycle(
+            is_active=bool(campaign.get("is_active")),
+            starts_at=campaign.get("starts_at"),
+            ends_at=campaign.get("ends_at"),
+            attributes=attributes,
+        )
+        allowed_actions = _campaign_allowed_lifecycle_actions(previous_lifecycle)
+        if safe_action not in allowed_actions:
+            raise CampaignLifecycleInvalidTransition(
+                f"Cannot {safe_action.lower()} a campaign while lifecycle is {previous_lifecycle}."
+            )
+
+        next_lifecycle = {
+            "PAUSE": "PAUSED",
+            "RESUME": "ACTIVE",
+            "END": "ENDED",
+            "ARCHIVE": "ARCHIVED",
+        }[safe_action]
+        next_is_active = next_lifecycle == "ACTIVE"
+        lifecycle_state = {
+            "lifecycle": next_lifecycle,
+            "action": safe_action,
+            "previous_lifecycle": previous_lifecycle,
+            "changed_at": _iso_now(),
+            "changed_by_ref": _optional_text(command_actor_ref)
+            or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+            "reason_present": bool(safe_reason),
+            "operator_notes_present": bool(_optional_text(operator_notes)),
+            "reason_code": safe_reason_code,
+            "source": "TASK-371",
+            "command_payload_hash": safe_payload_hash,
+            "no_link_generation_confirmed": True,
+            "no_validation_track_created_confirmed": True,
+            "no_webhook_delivery_confirmed": True,
+            "no_invite_or_seat_change_confirmed": True,
+            "no_credential_creation_confirmed": True,
+            "no_billing_or_money_movement_confirmed": True,
+        }
+        attributes["referral_saas_lifecycle"] = lifecycle_state
+        plain_language = _campaign_lifecycle_plain_language(
+            safe_action,
+            next_lifecycle,
+        )
+
+        async with conn.transaction():
+            updated_campaign = await conn.fetchrow(
+                """
+                UPDATE marketing_campaigns
+                SET is_active = $3,
+                    attributes = $4::jsonb,
+                    updated_at = NOW()
+                WHERE UPPER(tenant_code) = UPPER($1)
+                  AND UPPER(campaign_code) = UPPER($2)
+                RETURNING campaign_code, is_active
+                """,
+                safe_tenant_code,
+                safe_campaign_code,
+                next_is_active,
+                _jsonb(attributes),
+            )
+            audit_evidence = {
+                "campaign_code": str(updated_campaign["campaign_code"]),
+                "action": safe_action,
+                "previous_lifecycle": previous_lifecycle,
+                "lifecycle": next_lifecycle,
+                "plain_language": plain_language,
+                "campaign_is_active": bool(updated_campaign.get("is_active")),
+                "reason_present": True,
+                "operator_notes_present": bool(_optional_text(operator_notes)),
+                "command_payload_hash": safe_payload_hash,
+                "no_tenant_code_exposure_confirmed": True,
+                "no_link_generation_confirmed": True,
+                "no_validation_track_created_confirmed": True,
+                "no_webhook_delivery_confirmed": True,
+                "no_invite_or_seat_change_confirmed": True,
+                "no_credential_creation_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            }
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8,
+                    $9, $10, $11, $12, $13, $14::jsonb, $15::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                _optional_text(account_tenant_id) or None,
+                _optional_text(external_ref_id) or None,
+                safe_tenant_code,
+                CAMPAIGN_LIFECYCLE_EVENT,
+                CAMPAIGN_LIFECYCLE_RECORDED,
+                _optional_text(command_actor_ref)
+                or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                _optional_text(command_actor_role) or "UNKNOWN",
+                previous_lifecycle,
+                next_lifecycle,
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(audit_evidence),
+                _jsonb(CAMPAIGN_LIFECYCLE_REDACTIONS),
+            )
+
+    return ReferralSaasCampaignLifecycleResult(
+        command_status="CAMPAIGN_LIFECYCLE_RECORDED",
+        account_id=safe_account_id,
+        campaign_code=str(updated_campaign["campaign_code"]),
+        action=safe_action,
+        previous_lifecycle=previous_lifecycle,
+        lifecycle=next_lifecycle,
+        is_active=next_is_active,
+        allowed_actions=_campaign_allowed_lifecycle_actions(next_lifecycle),
+        plain_language=plain_language,
+        idempotency_status=CAMPAIGN_LIFECYCLE_RECORDED,
+        audit_event_id=str(audit_event["account_audit_event_id"])
+        if audit_event
+        else None,
+    )
+
+
 async def list_referral_saas_account_campaigns(
     *,
     tenant_code: str,
@@ -2040,6 +2456,7 @@ async def list_referral_saas_account_campaigns(
                 campaign.ends_at,
                 campaign.max_uses,
                 campaign.uses_count,
+                campaign.attributes,
                 campaign.created_at,
                 campaign.updated_at,
                 COUNT(policy.campaign_code) FILTER (WHERE policy.is_active = TRUE)
@@ -2061,6 +2478,7 @@ async def list_referral_saas_account_campaigns(
                 campaign.ends_at,
                 campaign.max_uses,
                 campaign.uses_count,
+                campaign.attributes,
                 campaign.created_at,
                 campaign.updated_at
             ORDER BY campaign.updated_at DESC, campaign.created_at DESC, campaign.campaign_code ASC
@@ -2093,6 +2511,7 @@ async def get_referral_saas_account_campaign(
                 campaign.ends_at,
                 campaign.max_uses,
                 campaign.uses_count,
+                campaign.attributes,
                 campaign.created_at,
                 campaign.updated_at,
                 COUNT(policy.campaign_code) FILTER (WHERE policy.is_active = TRUE)
@@ -2115,6 +2534,7 @@ async def get_referral_saas_account_campaign(
                 campaign.ends_at,
                 campaign.max_uses,
                 campaign.uses_count,
+                campaign.attributes,
                 campaign.created_at,
                 campaign.updated_at
             LIMIT 1

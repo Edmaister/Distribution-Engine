@@ -8306,7 +8306,7 @@ Completed output: `services/referral_saas_campaign_service.py`; `test/test_refer
 
 ## TASK-371: Add campaign lifecycle controls
 
-Status: Pending.
+Status: Completed.
 Product boundary: Referral SaaS.
 Shared primitive impact: Adds lifecycle state commands reusable by reports, links, and support. Source duplication: No.
 Objective: Add governed pause, resume, end, archive, and lifecycle-read commands for selected-customer campaigns.
@@ -8316,6 +8316,7 @@ Tests to add/update: Lifecycle transition, invalid transition, link/report impac
 Acceptance criteria: Campaigns can be safely maintained after launch without DB or manual state changes.
 Dependencies: TASK-370.
 Priority: P0.
+Completed output: `services/referral_saas_campaign_service.py`; `apps/api/routers/referral_saas_accounts.py`; `scripts/referral_saas_route_smoke_plan.py`; `test/test_referral_saas_route_smoke_inventory.py`; `test/test_referral_saas_route_smoke_plan.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; roadmap/gap/infographic updates. Adds selected-customer campaign lifecycle read and governed pause/resume/end/archive command routes with account scope resolution, capability checks, idempotency, audit payloads, invalid-transition blocking, lifecycle-safe campaign summaries, and explicit no-link/no-report/no-webhook/no-credential/no-access/no-billing/no-money side-effect guardrails. The Campaigns UI now shows lifecycle actions from the selected customer context and refreshes campaign state after safe lifecycle commands.
 
 ## TASK-372: Add account-scoped referral registry and detail projection
 

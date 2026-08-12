@@ -1398,6 +1398,17 @@ on TASK-366 through TASK-380.
   `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
   `docs/roadmap/ORDERED_TASK_LIST.md`;
   `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds selected-customer Reports continuation. Operators can open reports from the selected customer home, filter by report type and campaign, and preview JSON/CSV exports while the backend resolves tenant scope internally and blocks export persistence, storage, delivery, credentials, billing, and money side effects.
+- TASK-371: `services/referral_saas_campaign_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `scripts/referral_saas_route_smoke_plan.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `test/test_referral_saas_route_smoke_plan.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Adds selected-customer campaign lifecycle controls. Operators can read campaign lifecycle state and safely pause, resume, end, or archive campaigns from the customer Campaigns page while the backend enforces account scope, campaign capability, idempotency, audit evidence, invalid-transition blocking, and no link/report/webhook/credential/access/billing/DLaaS/money side effects.
 - TASK-269: `scripts/referral_saas_selected_customer_e2e_physical_check.py`;
   `test/test_referral_saas_selected_customer_e2e_physical_check.py`;
   `docs/roadmap/referral-saas/ROADMAP.md`;
