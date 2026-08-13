@@ -367,6 +367,7 @@ a {
   color: inherit;
   display: grid;
   gap: 8px;
+  grid-template-rows: auto auto 1fr auto;
   min-height: 136px;
   padding: 14px;
   text-align: left;
@@ -609,6 +610,13 @@ a {
 .customer-function-help strong {
   color: var(--color-ink);
   margin-right: 4px;
+}
+
+.customer-function-open {
+  align-self: end;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .customer-context-note {

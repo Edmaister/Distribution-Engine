@@ -8493,6 +8493,25 @@ Priority: P1.
 Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_COMMERCIAL_FINANCE_BOUNDARY.md`; `services/referral_saas_account_foundation_service.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; roadmap/gap/infographic updates.
 Definition of done: Commercial finance is now explicitly mapped as a separately contracted boundary. The commercial entitlement readback exposes only H1 plan posture, launch entitlement fields, reference limits, deferred finance capabilities, and DLaaS finance starting points; the UI explains that billing/invoices/funding/settlement/payouts/money stay outside Referral SaaS; and route inventory tests fail if Referral SaaS gains commercial-finance write routes. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.999993/10 because finance leakage is now structurally guarded while non-local proof repetition remains the final evidence gap.
 
+## TASK-382: Improve selected-customer Customer Home UX clarity
+
+Status: Complete (2026-08-14).
+Product boundary: Referral SaaS.
+Shared primitive impact: Clarifies the selected-customer workspace without changing shared APIs. Source duplication: No.
+Objective: Make the customer home explain readiness, blockers, deferred work, and next actions in plain language so operators know what to do before safe referral testing.
+Frontend impact: Customer Home uses clearer readiness copy, maps red/amber states to the corresponding action pages, and aligns service-card action text.
+Backend impact: None.
+Tests to add/update: Customer Home rendering and route tests for readiness copy and action mapping.
+Acceptance criteria: Operators can see what is ready, what blocks safe referral testing, what can wait, and which customer-scoped page to open next without reading internal status jargon.
+Dependencies: TASK-360; TASK-381.
+Priority: P1.
+
+Completed output:
+- Renamed the customer overview from generic health wording to customer readiness wording with explicit green/red/amber guidance.
+- Tightened the plain-language summary so red blockers and amber follow-ups are separated.
+- Added service-card action labels that say whether a page is ready to use, should be fixed, or can be reviewed later.
+- Kept the change frontend-only with no schema, API, route, auth, billing, money, or DLaaS side effects.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
