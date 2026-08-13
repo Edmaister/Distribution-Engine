@@ -45,6 +45,8 @@ from services.referral_saas_account_setup_service import (
     DurableAccountSetupResult,
 )
 from services.referral_saas_campaign_service import (
+    ReferralSaasCampaignAttributionProjection,
+    ReferralSaasCampaignAttributionSummary,
     ReferralSaasCampaignActivationResult,
     ReferralSaasCampaignPolicySettingsResult,
     ReferralSaasCampaignReviewResult,
@@ -449,6 +451,40 @@ def _campaign_summary(**overrides) -> ReferralSaasCampaignSummary:
     }
     values.update(overrides)
     return ReferralSaasCampaignSummary(**values)
+
+
+def _campaign_attribution_summary(**overrides) -> ReferralSaasCampaignAttributionSummary:
+    values = {
+        "status": "READY",
+        "campaign_count": 1,
+        "source_count": 1,
+        "total_interactions": 4,
+        "high_confidence_count": 1,
+        "missing_evidence_count": 0,
+        "conflict_count": 0,
+        "plain_language": "4 campaign interaction(s) found. 1 source(s) have high-confidence attribution evidence.",
+        "projections": [
+            ReferralSaasCampaignAttributionProjection(
+                campaign_code="CAMP001",
+                campaign_name="Summer Referrals",
+                segment="REFERRAL",
+                campaign_status="ACTIVE",
+                source_channel="EMAIL",
+                attribution_status="ATTRIBUTED",
+                confidence="HIGH",
+                interaction_count=4,
+                linked_referral_count=3,
+                event_count=5,
+                first_seen_at="2026-07-01T00:00:00+00:00",
+                last_seen_at="2026-07-02T00:00:00+00:00",
+                evidence=["3 linked referral record(s)."],
+                gaps=[],
+                explanation="Summer Referrals has campaign attribution evidence from EMAIL and 3 linked referral record(s).",
+            )
+        ],
+    }
+    values.update(overrides)
+    return ReferralSaasCampaignAttributionSummary(**values)
 
 
 def _campaign_setup_result(**overrides) -> ReferralSaasCampaignSetupResult:
@@ -5163,6 +5199,68 @@ async def test_referral_saas_account_admin_can_list_customer_scoped_campaigns(
     assert campaign_calls == [{"tenant_code": "FNB", "limit": 25}]
 
 
+async def test_referral_saas_account_admin_can_read_campaign_attribution_projection(
+    monkeypatch,
+):
+    resolve_calls: list[dict] = []
+    attribution_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    async def fake_build_referral_saas_account_campaign_attribution_projection(**kwargs):
+        attribution_calls.append(kwargs)
+        return _campaign_attribution_summary()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "build_referral_saas_account_campaign_attribution_projection",
+        fake_build_referral_saas_account_campaign_attribution_projection,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/campaign-attribution",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+                "limit": 25,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["campaignAttribution"]["status"] == "READY"
+    assert body["campaignAttribution"]["projections"][0]["campaignCode"] == "CAMP001"
+    assert body["campaignAttribution"]["projections"][0]["confidence"] == "HIGH"
+    assert body["no_tenant_code_exposure_confirmed"] is True
+    assert body["no_raw_identity_exposure_confirmed"] is True
+    assert body["no_raw_event_payload_exposure_confirmed"] is True
+    assert body["no_attribution_mutation_confirmed"] is True
+    assert body["no_campaign_activation_confirmed"] is True
+    assert body["no_billing_or_money_movement_confirmed"] is True
+    assert "tenantCode" not in str(body)
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert attribution_calls == [{"tenant_code": "FNB", "limit": 25}]
+
+
 async def test_referral_saas_account_campaign_operations_reject_missing_campaign_capability(
     monkeypatch,
 ):
@@ -5195,6 +5293,11 @@ async def test_referral_saas_account_campaign_operations_reject_missing_campaign
     monkeypatch.setattr(
         referral_saas_accounts,
         "list_referral_saas_account_campaigns",
+        fail_if_campaign_service_called,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "build_referral_saas_account_campaign_attribution_projection",
         fail_if_campaign_service_called,
     )
     monkeypatch.setattr(
@@ -5242,6 +5345,11 @@ async def test_referral_saas_account_campaign_operations_reject_missing_campaign
         (
             "get",
             "/v1/referral-saas/accounts/acct-1/campaigns",
+            {"params": {**query_scope, "limit": 25}},
+        ),
+        (
+            "get",
+            "/v1/referral-saas/accounts/acct-1/campaign-attribution",
             {"params": {**query_scope, "limit": 25}},
         ),
         (

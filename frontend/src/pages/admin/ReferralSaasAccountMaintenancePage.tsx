@@ -20,6 +20,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import {
   useReferralSaasAccountCampaignList,
+  useReferralSaasAccountCampaignAttribution,
   useReferralSaasAccountCampaignReadiness,
   useReferralSaasAccountDraftSelector,
   useReferralSaasAccountMaintenanceState,
@@ -106,6 +107,7 @@ import {
   type ReferralSaasCommercialEntitlementResponse,
   type ReferralSaasProductionActivationResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
+  type ReferralSaasCampaignAttributionProjection,
 } from "../../api/endpoints/referralSaasAccounts";
 import type { CampaignReadinessOperation } from "../../api/endpoints/adminCampaignReadiness";
 import { DataTable } from "../../components/DataTable";
@@ -3096,7 +3098,16 @@ export function ReferralSaasAccountMaintenancePage() {
                 />
               ) : null}
 
-              {["attribution", "progress"].includes(selectedModule) ? (
+              {selectedModule === "attribution" ? (
+                <CustomerCampaignAttributionPage
+                  customerName={customerName}
+                  externalTenantRef={selectedExternalTenantRef}
+                  selectedAccount={selectedAccount}
+                  selectedCustomerPath={selectedCustomerPath}
+                />
+              ) : null}
+
+              {selectedModule === "progress" ? (
                 <CustomerModulePage
                   customerName={customerName}
                   customerQuery={customerQuery}
@@ -4058,6 +4069,167 @@ function CustomerCampaignsPage({
         <Link className="button button-secondary" to={`/admin/referral-saas/campaigns${customerQuery}`}>
           Open legacy campaign readiness workspace
         </Link>
+      </div>
+    </section>
+  );
+}
+
+function CustomerCampaignAttributionPage({
+  customerName,
+  externalTenantRef,
+  selectedAccount,
+  selectedCustomerPath,
+}: {
+  customerName: string;
+  externalTenantRef: string;
+  selectedAccount?: AccountRegistryItem;
+  selectedCustomerPath: string;
+}) {
+  const { refreshKey } = useRefreshContext();
+  const {
+    data: attributionResponse,
+    error,
+    isLoading,
+  } = useReferralSaasAccountCampaignAttribution(
+    selectedAccount?.accountId || "",
+    externalTenantRef,
+    Boolean(selectedAccount && externalTenantRef),
+    refreshKey,
+  );
+  const attribution = attributionResponse?.campaignAttribution;
+  const projections = attribution?.projections || [];
+
+  return (
+    <section className="panel customer-module-page">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Campaign attribution</div>
+          <h2 className="panel-title">Campaign attribution</h2>
+          <div className="panel-subtitle">
+            See which campaign sources have explainable attribution evidence for this customer.
+          </div>
+        </div>
+        <div className="customer-header-actions">
+          <Link className="button secondary" to={`${selectedCustomerPath}/campaigns`}>
+            Open campaigns
+          </Link>
+          <StatusBadge label="Customer scoped" tone="success" />
+        </div>
+      </div>
+      <div className="panel-body route-list">
+        {isLoading ? <LoadingState label="Loading campaign attribution" /> : null}
+        {error ? <ErrorPanel error={error} /> : null}
+
+        {attribution ? (
+          <>
+            <div className="grid-4">
+              <KpiCard
+                label="Campaigns"
+                value={String(attribution.campaignCount)}
+                footnote="Customer campaigns included in this projection"
+                icon={Target}
+              />
+              <KpiCard
+                label="Sources"
+                value={String(attribution.sourceCount)}
+                footnote="Campaign/source combinations reviewed"
+                icon={PlugZap}
+              />
+              <KpiCard
+                label="High confidence"
+                value={String(attribution.highConfidenceCount)}
+                footnote="Sources with interaction and referral evidence"
+                icon={CheckCircle2}
+              />
+              <KpiCard
+                label="Needs evidence"
+                value={String(attribution.missingEvidenceCount + attribution.conflictCount)}
+                footnote="Missing or conflicting evidence to resolve"
+                icon={AlertCircle}
+              />
+            </div>
+
+            <div className={`wizard-summary-strip ${attribution.conflictCount ? "danger" : attribution.missingEvidenceCount ? "warning" : "success"}`}>
+              <div>
+                <strong>In plain English:</strong> {attribution.plainLanguage}
+              </div>
+              <StatusBadge label={formatCampaignLabel(attribution.status)} tone={attributionStatusTone(attribution.status)} />
+            </div>
+
+            <DataTable
+              rows={projections}
+              emptyText="No customer campaign attribution evidence is available yet."
+              columns={[
+                {
+                  key: "campaign",
+                  header: "Campaign",
+                  render: (row) => {
+                    const projection = row as ReferralSaasCampaignAttributionProjection;
+                    return (
+                      <div>
+                        <strong>{formatDisplay(projection.campaignName || projection.campaignCode)}</strong>
+                        <div className="table-subtext">
+                          {projection.campaignCode} - {formatDisplay(projection.segment)}
+                        </div>
+                      </div>
+                    );
+                  },
+                },
+                {
+                  key: "source",
+                  header: "Source",
+                  render: (row) => formatDisplay((row as ReferralSaasCampaignAttributionProjection).sourceChannel),
+                },
+                {
+                  key: "confidence",
+                  header: "Confidence",
+                  render: (row) => {
+                    const projection = row as ReferralSaasCampaignAttributionProjection;
+                    return (
+                      <div>
+                        <StatusBadge
+                          label={formatCampaignLabel(projection.confidence)}
+                          tone={attributionConfidenceTone(projection.confidence)}
+                        />
+                        <div className="table-subtext">{formatCampaignLabel(projection.attributionStatus)}</div>
+                      </div>
+                    );
+                  },
+                },
+                {
+                  key: "evidence",
+                  header: "Evidence",
+                  render: (row) => {
+                    const projection = row as ReferralSaasCampaignAttributionProjection;
+                    return (
+                      <span className="table-subtext">
+                        {projection.interactionCount} interactions, {projection.linkedReferralCount} referrals, {projection.eventCount} events
+                      </span>
+                    );
+                  },
+                },
+                {
+                  key: "explanation",
+                  header: "What it means",
+                  render: (row) => {
+                    const projection = row as ReferralSaasCampaignAttributionProjection;
+                    const gaps = projection.gaps.length ? projection.gaps.join(" ") : "No evidence gaps returned.";
+                    return (
+                      <div>
+                        <span>{projection.explanation}</span>
+                        <div className="table-subtext">{gaps}</div>
+                      </div>
+                    );
+                  },
+                },
+              ]}
+            />
+
+            <div className="customer-context-note">
+              Redacted here: internal tenant identifiers, raw user identifiers, device fingerprints, IP addresses, QR payloads, raw event payloads, secrets, tokens, and money movement details.
+            </div>
+          </>
+        ) : null}
       </div>
     </section>
   );
@@ -8406,6 +8578,34 @@ function campaignEvidenceTone(value: string): StatusTone {
     return "danger";
   }
   if (normalised.includes("warning") || normalised.includes("unknown")) {
+    return "warning";
+  }
+  return "info";
+}
+
+function attributionConfidenceTone(value: string): StatusTone {
+  const normalised = value.trim().toUpperCase();
+  if (normalised === "HIGH") {
+    return "success";
+  }
+  if (normalised === "CONFLICT") {
+    return "danger";
+  }
+  if (normalised === "MISSING" || normalised === "LOW") {
+    return "warning";
+  }
+  return "info";
+}
+
+function attributionStatusTone(value: string): StatusTone {
+  const normalised = value.trim().toUpperCase();
+  if (normalised === "READY") {
+    return "success";
+  }
+  if (normalised === "REVIEW_REQUIRED") {
+    return "danger";
+  }
+  if (normalised === "PARTIAL_EVIDENCE" || normalised === "NO_ATTRIBUTION_EVIDENCE") {
     return "warning";
   }
   return "info";

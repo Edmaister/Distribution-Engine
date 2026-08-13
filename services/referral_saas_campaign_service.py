@@ -96,6 +96,26 @@ CAMPAIGN_LIFECYCLE_REDACTIONS = [
     "idempotency_key_hash",
     "payload_hash",
 ]
+CAMPAIGN_ATTRIBUTION_GUARDRAILS = [
+    "CUSTOMER_SCOPED_ATTRIBUTION_ONLY",
+    "NO_TENANT_CODE_EXPOSURE",
+    "NO_RAW_UCN_EXPOSURE",
+    "NO_RAW_EVENT_PAYLOAD_EXPOSURE",
+    "NO_EVENT_HASH_EXPOSURE",
+    "NO_ATTRIBUTION_MUTATION",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_WEBHOOK_DELIVERY",
+    "NO_BILLING_OR_MONEY_MOVEMENT",
+]
+CAMPAIGN_ATTRIBUTION_REDACTIONS = [
+    "internal_tenant_identifier",
+    "raw_ucn",
+    "raw_event_payload",
+    "event_hash",
+    "device_fingerprint",
+    "ip_address",
+    "qr_payload",
+]
 CAMPAIGN_REVIEW_SOD_PENDING = "PENDING_REVIEW_DECISION"
 CAMPAIGN_REVIEW_SOD_CONFIRMED = "SEPARATION_OF_DUTIES_CONFIRMED"
 CAMPAIGN_REVIEW_SOD_BLOCKED = "SEPARATION_OF_DUTIES_BLOCKED"
@@ -224,6 +244,72 @@ class ReferralSaasCampaignSummary:
             "policyStatus": self.policy_status,
             "createdAt": self.created_at,
             "updatedAt": self.updated_at,
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasCampaignAttributionProjection:
+    campaign_code: str
+    campaign_name: str
+    segment: str
+    campaign_status: str
+    source_channel: str
+    attribution_status: str
+    confidence: str
+    interaction_count: int
+    linked_referral_count: int
+    event_count: int
+    first_seen_at: str | None
+    last_seen_at: str | None
+    evidence: list[str]
+    gaps: list[str]
+    explanation: str
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "campaignCode": self.campaign_code,
+            "campaignName": self.campaign_name,
+            "segment": self.segment,
+            "campaignStatus": self.campaign_status,
+            "sourceChannel": self.source_channel,
+            "attributionStatus": self.attribution_status,
+            "confidence": self.confidence,
+            "interactionCount": self.interaction_count,
+            "linkedReferralCount": self.linked_referral_count,
+            "eventCount": self.event_count,
+            "firstSeenAt": self.first_seen_at,
+            "lastSeenAt": self.last_seen_at,
+            "evidence": list(self.evidence),
+            "gaps": list(self.gaps),
+            "explanation": self.explanation,
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasCampaignAttributionSummary:
+    status: str
+    campaign_count: int
+    source_count: int
+    total_interactions: int
+    high_confidence_count: int
+    missing_evidence_count: int
+    conflict_count: int
+    plain_language: str
+    projections: list[ReferralSaasCampaignAttributionProjection]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "status": self.status,
+            "campaignCount": self.campaign_count,
+            "sourceCount": self.source_count,
+            "totalInteractions": self.total_interactions,
+            "highConfidenceCount": self.high_confidence_count,
+            "missingEvidenceCount": self.missing_evidence_count,
+            "conflictCount": self.conflict_count,
+            "plainLanguage": self.plain_language,
+            "projections": [projection.to_safe_dict() for projection in self.projections],
+            "guardrails": list(CAMPAIGN_ATTRIBUTION_GUARDRAILS),
+            "redactions": list(CAMPAIGN_ATTRIBUTION_REDACTIONS),
         }
 
 
@@ -667,6 +753,140 @@ def _to_campaign_summary(row: dict[str, Any]) -> ReferralSaasCampaignSummary:
         policy_status=policy_status,
         created_at=_as_iso(row.get("created_at")),
         updated_at=_as_iso(row.get("updated_at")),
+    )
+
+
+def _attribution_status_from_row(row: dict[str, Any]) -> str:
+    interaction_count = int(row.get("interaction_count") or 0)
+    linked_referral_count = int(row.get("linked_referral_count") or 0)
+    status_values = set(row.get("status_values") or [])
+    if not interaction_count:
+        return "MISSING_EVIDENCE"
+    if "INVALID" in status_values or "BLOCKED" in status_values:
+        return "CONFLICT"
+    if linked_referral_count > 0 and (
+        "ATTRIBUTED" in status_values or "COMPLETED" in status_values
+    ):
+        return "ATTRIBUTED"
+    if "VALIDATED" in status_values:
+        return "PARTIAL"
+    return "UNATTRIBUTED"
+
+
+def _attribution_confidence(status: str, row: dict[str, Any]) -> str:
+    if status == "ATTRIBUTED":
+        return "HIGH"
+    if status == "PARTIAL":
+        return "MEDIUM"
+    if status == "CONFLICT":
+        return "CONFLICT"
+    if int(row.get("interaction_count") or 0) == 0:
+        return "MISSING"
+    return "LOW"
+
+
+def _attribution_evidence(status: str, row: dict[str, Any]) -> list[str]:
+    evidence: list[str] = []
+    if int(row.get("interaction_count") or 0) > 0:
+        evidence.append("Campaign interaction evidence exists.")
+    if int(row.get("linked_referral_count") or 0) > 0:
+        evidence.append("Referral link evidence connects campaign activity to referrals.")
+    if int(row.get("event_count") or 0) > 0:
+        evidence.append("Campaign event evidence is present.")
+    if status == "MISSING_EVIDENCE":
+        evidence.append("No attribution evidence has been captured for this source yet.")
+    return evidence
+
+
+def _attribution_gaps(status: str, row: dict[str, Any]) -> list[str]:
+    gaps: list[str] = []
+    if int(row.get("interaction_count") or 0) == 0:
+        gaps.append("No campaign interactions found.")
+    if int(row.get("linked_referral_count") or 0) == 0:
+        gaps.append("No referral link evidence connects this source to referrals yet.")
+    if int(row.get("event_count") or 0) == 0:
+        gaps.append("No campaign event detail is available for explainability yet.")
+    if status == "CONFLICT":
+        gaps.append("Attribution evidence contains blocked or invalid statuses.")
+    return gaps
+
+
+def _attribution_explanation(status: str, row: dict[str, Any]) -> str:
+    campaign_name = str(row.get("campaign_name") or row.get("campaign_code") or "Campaign")
+    source_channel = str(row.get("source_channel") or "Unknown source")
+    interactions = int(row.get("interaction_count") or 0)
+    linked_referrals = int(row.get("linked_referral_count") or 0)
+    if status == "ATTRIBUTED":
+        return (
+            f"{campaign_name} has campaign attribution evidence from "
+            f"{source_channel} and {linked_referrals} linked referral record(s)."
+        )
+    if status == "PARTIAL":
+        return (
+            f"{campaign_name} has {interactions} validated interaction(s) from "
+            f"{source_channel}, but referral link evidence is still incomplete."
+        )
+    if status == "CONFLICT":
+        return (
+            f"{campaign_name} has attribution evidence from {source_channel}, "
+            "but some evidence is blocked or invalid and should be reviewed."
+        )
+    if status == "MISSING_EVIDENCE":
+        return (
+            f"{campaign_name} has no campaign attribution evidence for "
+            f"{source_channel} yet."
+        )
+    return (
+        f"{campaign_name} has early campaign interaction evidence from "
+        f"{source_channel}, but attribution is not complete yet."
+    )
+
+
+def _to_campaign_attribution_projection(
+    row: dict[str, Any],
+) -> ReferralSaasCampaignAttributionProjection:
+    status = _attribution_status_from_row(row)
+    return ReferralSaasCampaignAttributionProjection(
+        campaign_code=str(row.get("campaign_code") or ""),
+        campaign_name=str(row.get("campaign_name") or row.get("campaign_code") or ""),
+        segment=str(row.get("segment") or "Unsegmented"),
+        campaign_status=str(row.get("campaign_status") or "UNKNOWN"),
+        source_channel=str(row.get("source_channel") or "Unknown source"),
+        attribution_status=status,
+        confidence=_attribution_confidence(status, row),
+        interaction_count=int(row.get("interaction_count") or 0),
+        linked_referral_count=int(row.get("linked_referral_count") or 0),
+        event_count=int(row.get("event_count") or 0),
+        first_seen_at=_as_iso(row.get("first_seen_at")),
+        last_seen_at=_as_iso(row.get("last_seen_at")),
+        evidence=_attribution_evidence(status, row),
+        gaps=_attribution_gaps(status, row),
+        explanation=_attribution_explanation(status, row),
+    )
+
+
+def _campaign_attribution_plain_language(
+    *,
+    total_interactions: int,
+    high_confidence_count: int,
+    missing_evidence_count: int,
+    conflict_count: int,
+) -> str:
+    if total_interactions == 0:
+        return "No campaign attribution evidence has been captured for this customer yet."
+    if conflict_count:
+        return (
+            f"{total_interactions} campaign interaction(s) found. "
+            f"{conflict_count} source(s) need evidence review before attribution is trusted."
+        )
+    if missing_evidence_count:
+        return (
+            f"{total_interactions} campaign interaction(s) found. "
+            f"{missing_evidence_count} source(s) still need referral or event evidence."
+        )
+    return (
+        f"{total_interactions} campaign interaction(s) found. "
+        f"{high_confidence_count} source(s) have high-confidence attribution evidence."
     )
 
 
@@ -2543,3 +2763,182 @@ async def get_referral_saas_account_campaign(
             safe_campaign_code,
         )
     return _to_campaign_summary(dict(row)) if row else None
+
+
+async def build_referral_saas_account_campaign_attribution_projection(
+    *,
+    tenant_code: str,
+    limit: int = 50,
+) -> ReferralSaasCampaignAttributionSummary:
+    safe_tenant_code = str(tenant_code or "").strip()
+    if not safe_tenant_code:
+        return ReferralSaasCampaignAttributionSummary(
+            status="NO_CUSTOMER_SCOPE",
+            campaign_count=0,
+            source_count=0,
+            total_interactions=0,
+            high_confidence_count=0,
+            missing_evidence_count=0,
+            conflict_count=0,
+            plain_language=(
+                "Select a customer before reviewing campaign attribution."
+            ),
+            projections=[],
+        )
+
+    safe_limit = max(1, min(int(limit or 50), MAX_CAMPAIGN_LIST_LIMIT))
+    async with db_connection() as conn:
+        rows = await conn.fetch(
+            """
+            WITH attribution_base AS (
+                SELECT
+                    campaign.campaign_code,
+                    campaign.name AS campaign_name,
+                    campaign.segment,
+                    CASE
+                        WHEN campaign.is_active THEN 'ACTIVE'
+                        ELSE 'DRAFT'
+                    END AS campaign_status,
+                    COALESCE(
+                        NULLIF(attribution.source_channel, ''),
+                        'Unknown source'
+                    ) AS source_channel,
+                    attribution.campaign_track_id,
+                    attribution.status,
+                    attribution.scanned_at,
+                    attribution.validated_at,
+                    attribution.attributed_at,
+                    attribution.completed_at
+                FROM marketing_campaigns campaign
+                LEFT JOIN campaign_attributions attribution
+                    ON UPPER(attribution.campaign_code) = UPPER(campaign.campaign_code)
+                   AND UPPER(attribution.tenant_code) = UPPER($1)
+                WHERE UPPER(campaign.tenant_code) = UPPER($1)
+            ),
+            event_counts AS (
+                SELECT
+                    attribution.campaign_code,
+                    COALESCE(
+                        NULLIF(attribution.source_channel, ''),
+                        'Unknown source'
+                    ) AS source_channel,
+                    COUNT(event.id)::int AS event_count
+                FROM campaign_attributions attribution
+                JOIN campaign_track_events event
+                    ON event.campaign_track_id = attribution.campaign_track_id
+                WHERE UPPER(attribution.tenant_code) = UPPER($1)
+                GROUP BY attribution.campaign_code, source_channel
+            ),
+            link_counts AS (
+                SELECT
+                    attribution.campaign_code,
+                    COALESCE(
+                        NULLIF(attribution.source_channel, ''),
+                        'Unknown source'
+                    ) AS source_channel,
+                    COUNT(DISTINCT link.referral_track_id)::int AS linked_referral_count
+                FROM campaign_attributions attribution
+                JOIN campaign_referral_links link
+                    ON link.campaign_track_id = attribution.campaign_track_id
+                WHERE UPPER(attribution.tenant_code) = UPPER($1)
+                GROUP BY attribution.campaign_code, source_channel
+            )
+            SELECT
+                base.campaign_code,
+                base.campaign_name,
+                base.segment,
+                base.campaign_status,
+                base.source_channel,
+                COUNT(base.campaign_track_id)::int AS interaction_count,
+                COUNT(base.campaign_track_id)
+                    FILTER (WHERE base.status = 'VALIDATED')::int AS validated_count,
+                COUNT(base.campaign_track_id)
+                    FILTER (WHERE base.status = 'ATTRIBUTED')::int AS attributed_count,
+                COUNT(base.campaign_track_id)
+                    FILTER (WHERE base.status = 'COMPLETED')::int AS completed_count,
+                COUNT(base.campaign_track_id)
+                    FILTER (WHERE base.status IN ('BLOCKED', 'INVALID'))::int
+                    AS conflict_count,
+                COALESCE(link_counts.linked_referral_count, 0)::int
+                    AS linked_referral_count,
+                COALESCE(event_counts.event_count, 0)::int AS event_count,
+                MIN(base.scanned_at) AS first_seen_at,
+                MAX(
+                    COALESCE(
+                        base.completed_at,
+                        base.attributed_at,
+                        base.validated_at,
+                        base.scanned_at
+                    )
+                ) AS last_seen_at,
+                ARRAY_REMOVE(ARRAY_AGG(DISTINCT base.status), NULL) AS status_values
+            FROM attribution_base base
+            LEFT JOIN event_counts
+                ON UPPER(event_counts.campaign_code) = UPPER(base.campaign_code)
+               AND event_counts.source_channel = base.source_channel
+            LEFT JOIN link_counts
+                ON UPPER(link_counts.campaign_code) = UPPER(base.campaign_code)
+               AND link_counts.source_channel = base.source_channel
+            GROUP BY
+                base.campaign_code,
+                base.campaign_name,
+                base.segment,
+                base.campaign_status,
+                base.source_channel,
+                link_counts.linked_referral_count,
+                event_counts.event_count
+            ORDER BY
+                interaction_count DESC,
+                last_seen_at DESC NULLS LAST,
+                base.campaign_code ASC,
+                base.source_channel ASC
+            LIMIT $2
+            """,
+            safe_tenant_code,
+            safe_limit,
+        )
+
+    projections = [
+        _to_campaign_attribution_projection(dict(row))
+        for row in rows
+    ]
+    total_interactions = sum(
+        projection.interaction_count for projection in projections
+    )
+    high_confidence_count = sum(
+        1 for projection in projections if projection.confidence == "HIGH"
+    )
+    missing_evidence_count = sum(
+        1
+        for projection in projections
+        if projection.confidence in {"MISSING", "LOW"}
+    )
+    conflict_count = sum(
+        1 for projection in projections if projection.confidence == "CONFLICT"
+    )
+    status = "READY"
+    if not projections:
+        status = "NO_CAMPAIGNS"
+    elif conflict_count:
+        status = "REVIEW_REQUIRED"
+    elif total_interactions == 0:
+        status = "NO_ATTRIBUTION_EVIDENCE"
+    elif missing_evidence_count:
+        status = "PARTIAL_EVIDENCE"
+
+    return ReferralSaasCampaignAttributionSummary(
+        status=status,
+        campaign_count=len({projection.campaign_code for projection in projections}),
+        source_count=len(projections),
+        total_interactions=total_interactions,
+        high_confidence_count=high_confidence_count,
+        missing_evidence_count=missing_evidence_count,
+        conflict_count=conflict_count,
+        plain_language=_campaign_attribution_plain_language(
+            total_interactions=total_interactions,
+            high_confidence_count=high_confidence_count,
+            missing_evidence_count=missing_evidence_count,
+            conflict_count=conflict_count,
+        ),
+        projections=projections,
+    )
