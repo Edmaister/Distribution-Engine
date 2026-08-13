@@ -8479,7 +8479,7 @@ Definition of done: Selected-customer Support can assign safe support cases to a
 
 ## TASK-381: Define separately contracted commercial-finance mapping placeholder
 
-Status: Pending.
+Status: Complete (2026-08-13).
 Product boundary: Referral SaaS with separately scoped commercial finance.
 Shared primitive impact: Keeps plan, billing, invoices, settlement, funding, and money movement outside H1 unless explicitly contracted. Source duplication: No.
 Objective: Document which commercial-finance capabilities are deferred, which minimal entitlement fields H1 needs, and where DLaaS finance work begins.
@@ -8489,6 +8489,9 @@ Tests to add/update: No-money/no-billing route tests and entitlement-placeholder
 Acceptance criteria: Commercial-finance scope is visible, isolated, and cannot accidentally become part of the Referral SaaS launch promise.
 Dependencies: TASK-361.
 Priority: P1.
+
+Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_COMMERCIAL_FINANCE_BOUNDARY.md`; `services/referral_saas_account_foundation_service.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; roadmap/gap/infographic updates.
+Definition of done: Commercial finance is now explicitly mapped as a separately contracted boundary. The commercial entitlement readback exposes only H1 plan posture, launch entitlement fields, reference limits, deferred finance capabilities, and DLaaS finance starting points; the UI explains that billing/invoices/funding/settlement/payouts/money stay outside Referral SaaS; and route inventory tests fail if Referral SaaS gains commercial-finance write routes. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.999993/10 because finance leakage is now structurally guarded while non-local proof repetition remains the final evidence gap.
 
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 

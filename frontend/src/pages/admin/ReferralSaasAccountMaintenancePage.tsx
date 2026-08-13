@@ -5638,6 +5638,17 @@ function CustomerCommercialEntitlementPage({
               </div>
               <StatusBadge label="No billing or money" tone="success" />
             </div>
+            <div className="route-card">
+              <div>
+                <strong>Commercial finance boundary</strong>
+                <p>{commercial.commercialFinanceBoundary.nextAction}</p>
+                <p className="table-subtext">
+                  H1 only reads plan posture and launch entitlement fields. Deferred finance capability:{" "}
+                  {commercial.commercialFinanceBoundary.h1DeferredCapabilities.map(formatDisplay).join(", ")}.
+                </p>
+              </div>
+              <StatusBadge label={formatDisplay(commercial.commercialFinanceBoundary.scope)} tone="warning" />
+            </div>
             <section className="route-card">
               <div>
                 <strong>Production activation decision</strong>

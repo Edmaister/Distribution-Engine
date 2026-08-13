@@ -460,6 +460,13 @@ export type ReferralSaasCommercialEntitlement = {
   noInvoiceCreatedConfirmed: boolean;
   noPaymentOrMoneyMovementConfirmed: boolean;
   noDlaasFinanceScopeConfirmed: boolean;
+  commercialFinanceBoundary: {
+    scope: string;
+    h1EntitlementFields: string[];
+    h1DeferredCapabilities: string[];
+    dlaasFinanceStartsAt: string[];
+    nextAction: string;
+  };
 };
 
 export type ReferralSaasCommercialEntitlementRequest = ReferralSaasAccountResolutionRequest & {
