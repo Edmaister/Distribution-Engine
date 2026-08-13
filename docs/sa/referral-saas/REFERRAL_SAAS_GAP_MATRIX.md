@@ -70,15 +70,18 @@ made explicit before calling the product 10/10.
 | Reporting and exports | TASK-378 now adds source-backed HVE funnel and journey-performance reporting over tenant-scoped referral instances, progress events, campaign attribution links, and distribution route links. TASK-379 now adds audited export-file deletion proof on top of runtime export creation/read/download, signed download metadata, retention expiry, and scheduled delivery intent. Provider delivery execution remains governed by the integration/provider proof boundary rather than hidden inside export deletion. | Closed for H1 export lifecycle; continue non-local proof |
 | Support and recovery | TASK-380 now completes the partner/customer-safe selected-customer Support workspace with audited support-case assignment, owner visibility, evidence/recovery posture, idempotency replay, route coverage, and no unsafe repair/replay/retry/provider/invite/credential/auth/campaign/billing/money/DLaaS side effects. | Closed for H1 support/recovery workspace; continue non-local proof |
 | Separately contracted finance | TASK-381 now defines and enforces the commercial-finance boundary: H1 Referral SaaS can read plan posture, launch entitlement fields, and reference limits, while billing accounts, subscriptions, invoices, payments, payouts, funding, settlement, wallet/commission ledger movement, and treasury movement stay outside the H1 promise unless separately contracted. | Closed for H1 commercial-finance isolation; continue non-local proof |
+| Customer Home UX clarity | TASK-382 now clarifies the selected-customer home with plain-language readiness, red/amber action routing, and service-card action labels. | Closed for local UX clarity; continue non-local proof |
 
-Current rating now reflects TASK-381 commercial-finance boundary evidence:
+Current rating now reflects TASK-382 Customer Home UX clarity on top of the
+TASK-381 commercial-finance boundary evidence:
 Referral Management remains 9.99/10 and Campaign Attribution moves to
 9.999993/10. The
 confidence in the route to 10/10 improves because campaign attribution,
 referral/referrer who-got-credit attribution, and HVE journey performance now
 have separate customer-scoped projection/reporting surfaces, and export files
 now have signed-download metadata, expiry, schedule intent, deletion proof, and
-explicit no-finance leakage guardrails.
+explicit no-finance leakage guardrails. TASK-382 improves operator clarity but
+does not change the remaining non-local proof blocker.
 
 ## TASK-357 H1 Scope And Release Gates
 

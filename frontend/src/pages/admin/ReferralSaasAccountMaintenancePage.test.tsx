@@ -2760,7 +2760,10 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("gabs-platform");
     expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("gabs-org");
     expect(screen.getByText("This is the customer home. Campaigns, links, reports, attribution, and support stay inside this customer context.")).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "Health at a glance" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Customer readiness" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Green is ready, red blocks safe testing, and amber can wait/i),
+    ).toBeInTheDocument();
     expect(screen.getByText("Green")).toBeInTheDocument();
     expect(screen.getByText("Red")).toBeInTheDocument();
     expect(screen.getByText("Amber")).toBeInTheDocument();
@@ -2774,6 +2777,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       "/admin/referral-saas/account-maintenance/acct-gabs/campaigns",
     );
     expect(screen.getByRole("heading", { name: "Do this next" })).toBeInTheDocument();
+    expect(screen.getByText(/Start with the first item/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^Add who can manage this account/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/account-maintenance/acct-gabs/people",
@@ -2787,7 +2791,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       "href",
       "/admin/referral-saas/account-maintenance/acct-gabs/campaigns",
     );
-    expect(await screen.findByText("Everything opens against Gaborone Partners until you switch customer.")).toBeInTheDocument();
+    expect(await screen.findByText(/Choose a service page for Gaborone Partners/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Fix this - open page/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Not on this page: customer settings form, people invite form, or full health table/i)).toBeInTheDocument();
   });
 
@@ -2895,7 +2900,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       "href",
       "/admin/referral-saas/account-maintenance/acct-gabs",
     );
-    expect(screen.queryByRole("heading", { name: "Health at a glance" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Customer readiness" })).not.toBeInTheDocument();
   });
 
   it("does not keep people access as the customer-home blocker after required access is accepted", async () => {
@@ -3327,7 +3332,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       externalRef: "gabs-platform",
       context: "setup",
     });
-    expect(screen.queryByRole("heading", { name: "Health at a glance" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Customer readiness" })).not.toBeInTheDocument();
   });
 
   it("validates and saves Integrations configuration without live side effects", async () => {

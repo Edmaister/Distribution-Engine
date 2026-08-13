@@ -134,6 +134,7 @@ The post-TASK-356 sequence is:
 | TASK-378 to TASK-379 | Reporting and exports | TASK-378 now adds source-backed HVE funnel and journey-performance reporting. TASK-379 now adds persisted export deletion proof on top of saved requests, signed download metadata, expiry, and scheduled delivery intent. |
 | TASK-380 | Support and recovery | Customer/partner-safe support, audit, assignment, evidence, and governed recovery become operationally complete. |
 | TASK-381 | Separately contracted finance | Commercial-finance capability is isolated from the H1 SaaS promise while minimum entitlement posture remains visible. |
+| TASK-382 | Customer Home UX clarity | The selected-customer home explains readiness, blockers, deferred work, and next actions in plain language without changing backend capability boundaries. |
 
 This keeps the Referral SaaS product boundary intact. It does not pull in
 DLaaS distributor marketplace depth, settlement, funding, fulfilment, sponsor
@@ -2615,6 +2616,20 @@ on TASK-366 through TASK-380.
   Management and move to 9.999993/10 for Campaign Attribution because
   commercial-finance leakage is now structurally guarded while non-local proof
   repetition remains separate.
+
+- **TASK-382 - Customer Home UX clarity:** Completed output:
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`;
+  `frontend/src/styles/base.css`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md` - Tightens the selected-customer
+  home so readiness is presented in plain language, red and amber states point
+  to the page that resolves them, and service cards say whether to use, fix, or
+  review each customer-scoped function. No backend, schema, route, auth,
+  billing, money, or DLaaS behavior changed. Ratings remain 9.99/10 for
+  Referral Management and 9.999993/10 for Campaign Attribution because this is
+  UX/CX clarity while non-local proof repetition remains the final evidence
+  gap.
 
 ## Explicit Deferrals
 

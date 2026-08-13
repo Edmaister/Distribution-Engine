@@ -384,6 +384,20 @@ const customerFunctions = [
   },
 ];
 
+function customerFunctionActionLabel(tone: StatusTone, status: string): string {
+  const normalizedStatus = status.toLowerCase();
+  if (tone === "success" || normalizedStatus === "ready") {
+    return "Ready to use";
+  }
+  if (normalizedStatus.includes("can wait")) {
+    return "Review when ready";
+  }
+  if (normalizedStatus.includes("needs")) {
+    return "Fix this";
+  }
+  return "Open page";
+}
+
 const readinessCategoryMap = [
   { code: "ACCOUNT_PROFILE", label: "Account profile" },
   { code: "TENANT_LINK", label: "Tenant link" },
@@ -2116,8 +2130,10 @@ export function ReferralSaasAccountMaintenancePage() {
                   <div className="panel">
                     <div className="panel-header">
                       <div>
-                        <h2 className="panel-title">Health at a glance</h2>
-                        <div className="panel-subtitle">Based on the services we check for this customer.</div>
+                        <h2 className="panel-title">Customer readiness</h2>
+                        <div className="panel-subtitle">
+                          Green is ready, red blocks safe testing, and amber can wait. Each red or amber item links to the page that resolves it.
+                        </div>
                       </div>
                       <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
                     </div>
@@ -2169,7 +2185,7 @@ export function ReferralSaasAccountMaintenancePage() {
                         <div>
                           <strong>In plain English:</strong>{" "}
                           {effectiveBlockedCount || effectiveMissingEvidenceCount
-                            ? `Most of ${customerName} is ready. ${formatAreaCount(effectiveBlockedCount || effectiveMissingEvidenceCount, "thing")} needs attention before safe referral testing.`
+                            ? `Most of ${customerName} is ready. Fix the red item before safe referral testing; amber items can be reviewed after the blocker is clear.`
                             : `${customerName} has no visible setup blocker count. Continue with campaign, link/code, attribution, or reporting tests.`}
                         </div>
                       </div>
@@ -2180,7 +2196,7 @@ export function ReferralSaasAccountMaintenancePage() {
                     <div className="panel-header">
                       <div>
                         <h2 className="panel-title">Do this next</h2>
-                        <div className="panel-subtitle">Highest-value actions for this customer right now.</div>
+                        <div className="panel-subtitle">Start with the first item. Each action opens its own customer-scoped page.</div>
                       </div>
                     </div>
                     <div className="panel-body route-list">
@@ -2211,7 +2227,7 @@ export function ReferralSaasAccountMaintenancePage() {
                     <div>
                       <h2 className="panel-title">What you can do for this customer</h2>
                       <div className="panel-subtitle">
-                        Everything opens against {customerName} until you switch customer.
+                        Choose a service page for {customerName}. The badge tells you whether to use it now, fix it first, or leave it for later.
                       </div>
                     </div>
                     <StatusBadge label="Customer scoped" tone="success" />
@@ -2230,6 +2246,7 @@ export function ReferralSaasAccountMaintenancePage() {
                           : item;
                       const Icon = item.icon;
                       const href = buildCustomerModuleRoute(selectedCustomerPath, displayItem.route, customerQuery);
+                      const actionLabel = customerFunctionActionLabel(displayItem.tone, displayItem.status);
                       return (
                         <Link
                           className="customer-function-card"
@@ -2247,7 +2264,7 @@ export function ReferralSaasAccountMaintenancePage() {
                           <div className="customer-function-help">
                             <strong>This lets you:</strong> {displayItem.letsYou}
                           </div>
-                          <div className="customer-function-open">Open page</div>
+                          <div className="customer-function-open">{actionLabel} - open page</div>
                         </Link>
                       );
                     })}
