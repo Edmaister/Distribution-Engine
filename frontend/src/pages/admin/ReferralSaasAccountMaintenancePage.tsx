@@ -64,6 +64,7 @@ import {
 } from "../../api/endpoints/referralSaasReports";
 import {
   addReferralSaasAccountSupportCaseNote,
+  assignReferralSaasAccountSupportCase,
   cancelReferralSaasMembershipInvitationIntent,
   changeReferralSaasAccountSupportCaseStatus,
   createReferralSaasAccountSupportCase,
@@ -101,6 +102,7 @@ import {
   type ReferralSaasAccountCampaignSetupCreateResponse,
   type ReferralSaasCampaignLifecycleAction,
   type ReferralSaasSupportCase,
+  type ReferralSaasSupportCaseAssignmentResponse,
   type ReferralSaasSupportCaseCreateResponse,
   type ReferralSaasSupportCaseLifecycleResponse,
   type ReferralSaasSupportCaseRepairReplayAction,
@@ -205,6 +207,16 @@ type SupportCaseLifecycleDraft = {
 };
 
 type SupportCaseLifecycleMutationInput = SupportCaseLifecycleDraft & {
+  requestKey: string;
+};
+
+type SupportCaseAssignmentDraft = {
+  caseRef: string;
+  assigneeRef: string;
+  assignmentReason: string;
+};
+
+type SupportCaseAssignmentMutationInput = SupportCaseAssignmentDraft & {
   requestKey: string;
 };
 
@@ -630,6 +642,10 @@ export function ReferralSaasAccountMaintenancePage() {
     useState<SupportCaseLifecycleDraft | null>(null);
   const [supportCaseLifecycleResult, setSupportCaseLifecycleResult] =
     useState<ReferralSaasSupportCaseLifecycleResponse | null>(null);
+  const [supportCaseAssignmentDraft, setSupportCaseAssignmentDraft] =
+    useState<SupportCaseAssignmentDraft | null>(null);
+  const [supportCaseAssignmentResult, setSupportCaseAssignmentResult] =
+    useState<ReferralSaasSupportCaseAssignmentResponse | null>(null);
   const [supportReadinessCaseRef, setSupportReadinessCaseRef] = useState("");
   const scopeChanged =
     draftExternalTenantRef.trim() !== appliedExternalTenantRef ||
@@ -998,6 +1014,31 @@ export function ReferralSaasAccountMaintenancePage() {
     onSuccess: async (response) => {
       setSupportCaseLifecycleResult(response);
       setSupportCaseLifecycleDraft(null);
+      await supportCasesQuery.refetch();
+    },
+  });
+  const supportCaseAssignmentMutation = useMutation({
+    mutationFn: (draft: SupportCaseAssignmentMutationInput) => {
+      if (!selectedAccount) {
+        throw new Error("Select a customer before assigning support cases.");
+      }
+      return assignReferralSaasAccountSupportCase({
+        accountRef: selectedAccount.accountId,
+        caseRef: draft.caseRef,
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: selectedExternalTenantRef,
+          context: "support",
+        },
+        assigneeRef: draft.assigneeRef,
+        assignmentReason: draft.assignmentReason,
+        correlationId: `support-assignment-${draft.caseRef}-${draft.requestKey}`,
+        idempotencyKey: `support-assignment-${selectedAccount.accountId}-${draft.caseRef}-${draft.requestKey}`,
+      });
+    },
+    onSuccess: async (response) => {
+      setSupportCaseAssignmentResult(response);
+      setSupportCaseAssignmentDraft(null);
       await supportCasesQuery.refetch();
     },
   });
@@ -1572,6 +1613,7 @@ export function ReferralSaasAccountMaintenancePage() {
     }));
     setSupportCaseResult(null);
     setSupportCaseLifecycleResult(null);
+    setSupportCaseAssignmentResult(null);
   }
 
   function submitSupportCase(event: FormEvent<HTMLFormElement>) {
@@ -1646,6 +1688,26 @@ export function ReferralSaasAccountMaintenancePage() {
       noteText: cleanedNoteText,
       requestKey: newSupportCaseLifecycleRequestKey(),
       transitionReason: cleanedTransitionReason,
+    });
+  }
+
+  function submitSupportCaseAssignment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supportCaseAssignmentDraft) {
+      return;
+    }
+    const cleanedAssigneeRef = supportCaseAssignmentDraft.assigneeRef.trim();
+    const cleanedAssignmentReason = supportCaseAssignmentDraft.assignmentReason.trim();
+    if (!supportCaseAssignmentDraft.caseRef.trim() || !cleanedAssigneeRef || !cleanedAssignmentReason) {
+      return;
+    }
+    setSupportCaseResult(null);
+    setSupportCaseLifecycleResult(null);
+    supportCaseAssignmentMutation.mutate({
+      ...supportCaseAssignmentDraft,
+      assigneeRef: cleanedAssigneeRef,
+      assignmentReason: cleanedAssignmentReason,
+      requestKey: newSupportCaseAssignmentRequestKey(),
     });
   }
 
@@ -3086,15 +3148,21 @@ export function ReferralSaasAccountMaintenancePage() {
                   error={
                     supportCasesQuery.error ||
                     supportCaseMutation.error ||
-                    supportCaseLifecycleMutation.error
+                    supportCaseLifecycleMutation.error ||
+                    supportCaseAssignmentMutation.error
                   }
+                  assignmentDraft={supportCaseAssignmentDraft}
+                  assignmentResult={supportCaseAssignmentResult}
                   isLoading={supportCasesQuery.isLoading}
+                  isAssignmentSaving={supportCaseAssignmentMutation.isPending}
                   isLifecycleSaving={supportCaseLifecycleMutation.isPending}
                   isReadinessLoading={supportRepairReplayReadinessQuery.isLoading}
                   isSaving={supportCaseMutation.isPending}
                   lifecycleDraft={supportCaseLifecycleDraft}
                   lifecycleResult={supportCaseLifecycleResult}
                   onChange={updateSupportCaseDraft}
+                  onAssignmentChange={setSupportCaseAssignmentDraft}
+                  onAssignmentSubmit={submitSupportCaseAssignment}
                   onLifecycleChange={setSupportCaseLifecycleDraft}
                   onReadinessCaseChange={setSupportReadinessCaseRef}
                   onLifecycleSubmit={submitSupportCaseLifecycle}
@@ -7394,13 +7462,18 @@ function CustomerSupportCasesPage({
   customerQuery,
   draft,
   error,
+  assignmentDraft,
+  assignmentResult,
   isLoading,
+  isAssignmentSaving,
   isLifecycleSaving,
   isReadinessLoading,
   isSaving,
   lifecycleDraft,
   lifecycleResult,
   onChange,
+  onAssignmentChange,
+  onAssignmentSubmit,
   onLifecycleChange,
   onReadinessCaseChange,
   onLifecycleSubmit,
@@ -7416,13 +7489,18 @@ function CustomerSupportCasesPage({
   customerQuery: string;
   draft: SupportCaseDraft;
   error: unknown;
+  assignmentDraft: SupportCaseAssignmentDraft | null;
+  assignmentResult: ReferralSaasSupportCaseAssignmentResponse | null;
   isLoading: boolean;
+  isAssignmentSaving: boolean;
   isLifecycleSaving: boolean;
   isReadinessLoading: boolean;
   isSaving: boolean;
   lifecycleDraft: SupportCaseLifecycleDraft | null;
   lifecycleResult: ReferralSaasSupportCaseLifecycleResponse | null;
   onChange: (values: Partial<SupportCaseDraft>) => void;
+  onAssignmentChange: (values: SupportCaseAssignmentDraft | null) => void;
+  onAssignmentSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onLifecycleChange: (values: SupportCaseLifecycleDraft | null) => void;
   onReadinessCaseChange: (caseRef: string) => void;
   onLifecycleSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -7436,6 +7514,7 @@ function CustomerSupportCasesPage({
   const selectedCategory = supportCaseCategoryOptions.find((option) => option.value === draft.category);
   const selectedPriority = supportCasePriorityOptions.find((option) => option.value === draft.priority);
   const selectedLifecycleCase = cases.find((supportCase) => supportCase.caseRef === lifecycleDraft?.caseRef);
+  const selectedAssignmentCase = cases.find((supportCase) => supportCase.caseRef === assignmentDraft?.caseRef);
   return (
     <section className="panel customer-module-page">
       <div className="panel-header">
@@ -7453,12 +7532,12 @@ function CustomerSupportCasesPage({
           <div>
             <strong>What this page does</strong>
             <p>
-              Create and list customer support cases linked to safe evidence. Notes and status
-              changes can be recorded here. Repair, replay, retry, and operational fixes stay in
-              later governed workflows.
+              Create and list customer support cases linked to safe evidence, assign an owner,
+              record notes, change status, and review safe recovery posture. Repair, replay,
+              retry, and operational fixes stay in later governed workflows.
             </p>
           </div>
-          <StatusBadge label="No repair actions" tone="success" />
+          <StatusBadge label="Owner + audit" tone="success" />
         </div>
         <form className="account-setup-scope-form" onSubmit={onSubmit}>
           <label className="field">
@@ -7568,6 +7647,15 @@ function CustomerSupportCasesPage({
             credential change, billing, or money action was performed.
           </div>
         ) : null}
+        {assignmentResult ? (
+          <div className="success-panel">
+            <strong>Case owner assigned.</strong>{" "}
+            {assignmentResult.supportCaseAssignment.supportCase.title} is owned by{" "}
+            {assignmentResult.supportCaseAssignment.assignment.assigneeRef}. No repair, replay,
+            retry, referral mutation, campaign mutation, invite delivery, credential change,
+            billing, or money action was performed.
+          </div>
+        ) : null}
         <div className="wizard-status-card">
           <div>
             <strong>Customer cases</strong>
@@ -7590,6 +7678,9 @@ function CustomerSupportCasesPage({
                     <strong>{getValue(row, ["title"], "Support case")}</strong>
                     <div className="table-subtext">{getValue(row, ["summary"], "No summary returned.")}</div>
                     <div className="table-subtext">{getValue(row, ["caseRef"], "No case reference returned.")}</div>
+                    <div className="table-subtext">
+                      Owner: {getValue(row, ["assigneeRef"], "") || "Unassigned"}
+                    </div>
                   </div>
                 ),
               },
@@ -7651,6 +7742,19 @@ function CustomerSupportCasesPage({
                       <button
                         className="button secondary"
                         onClick={() =>
+                          onAssignmentChange({
+                            caseRef,
+                            assigneeRef: getValue(row, ["assigneeRef"], "") || "amplifi-support",
+                            assignmentReason: "Assigned for customer support ownership.",
+                          })
+                        }
+                        type="button"
+                      >
+                        Assign owner
+                      </button>
+                      <button
+                        className="button secondary"
+                        onClick={() =>
                           onLifecycleChange({
                             caseRef,
                             action: "note",
@@ -7698,6 +7802,63 @@ function CustomerSupportCasesPage({
           readinessCaseRef={readinessCaseRef}
           selectedCustomerPath={selectedCustomerPath}
         />
+        {assignmentDraft ? (
+          <form className="wizard-status-card support-lifecycle-card" onSubmit={onAssignmentSubmit}>
+            <div>
+              <strong>Assign case owner</strong>
+              <p>
+                {selectedAssignmentCase?.title || "Selected support case"} gets an operator owner.
+                This is internal ownership only, so no customer record or referral evidence is changed.
+              </p>
+            </div>
+            <StatusBadge label="Assignment only" tone="success" />
+            <label className="field">
+              <span>Owner reference</span>
+              <input
+                aria-label="Support case owner reference"
+                className="input"
+                onChange={(event) =>
+                  onAssignmentChange({ ...assignmentDraft, assigneeRef: event.target.value })
+                }
+                placeholder="Example: amplifi-support"
+                value={assignmentDraft.assigneeRef}
+              />
+              <span className="field-help">Use the safe operator or queue reference for this case.</span>
+            </label>
+            <label className="field">
+              <span>Why this owner?</span>
+              <textarea
+                aria-label="Support case assignment reason"
+                className="input textarea"
+                onChange={(event) =>
+                  onAssignmentChange({ ...assignmentDraft, assignmentReason: event.target.value })
+                }
+                placeholder="Example: Assigned to support owner for customer recovery follow-up."
+                value={assignmentDraft.assignmentReason}
+              />
+            </label>
+            <div className="button-row">
+              <button
+                className="button"
+                disabled={
+                  isAssignmentSaving ||
+                  !assignmentDraft.assigneeRef.trim() ||
+                  !assignmentDraft.assignmentReason.trim()
+                }
+                type="submit"
+              >
+                {isAssignmentSaving ? "Saving owner" : "Save owner"}
+              </button>
+              <button
+                className="button secondary"
+                onClick={() => onAssignmentChange(null)}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : null}
         {lifecycleDraft ? (
           <form className="wizard-status-card support-lifecycle-card" onSubmit={onLifecycleSubmit}>
             <div>
@@ -7805,7 +7966,7 @@ function CustomerSupportCasesPage({
           </form>
         ) : null}
         <div className="customer-context-note">
-          This page records support demand and the safe case trail. Assignment, repair actions,
+          This page records support demand, owner assignment, and the safe case trail. Repair actions,
           replay, retry, provider execution, export creation, credential changes, billing, and money
           movement remain separate governed workflows.
         </div>
@@ -9000,6 +9161,13 @@ function newAccessCreateAttemptKey() {
 }
 
 function newSupportCaseLifecycleRequestKey() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function newSupportCaseAssignmentRequestKey() {
   if (window.crypto?.randomUUID) {
     return window.crypto.randomUUID();
   }

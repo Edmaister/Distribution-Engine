@@ -8917,3 +8917,93 @@ async def test_referral_saas_account_admin_can_change_customer_scoped_support_ca
     assert status_calls[0]["idempotency_key_hash"]
     assert status_calls[0]["request_payload_hash"]
     assert status_calls[0]["correlation_id"] == "corr-status-1"
+
+
+async def test_referral_saas_account_admin_can_assign_customer_scoped_support_case(
+    monkeypatch,
+):
+    assignment_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    class FakeSupportCaseAssignmentResult:
+        def to_safe_dict(self):
+            return {
+                "commandStatus": "SUPPORT_CASE_ASSIGNED",
+                "supportCase": {
+                    "caseRef": "case-1",
+                    "accountRef": "acct-1",
+                    "status": "INVESTIGATING",
+                    "title": "Referral code validation failed",
+                    "summary": "Customer cannot validate a safe referral code.",
+                    "assigneeRef": "amplifi-support",
+                    "notes": [],
+                    "statusEvents": [],
+                    "redactions": ["internal_tenant_identifier"],
+                },
+                "assignment": {
+                    "previousAssigneeRef": None,
+                    "assigneeRef": "amplifi-support",
+                },
+                "idempotency": {"status": "RECORDED"},
+                "audit": {"accountAuditEventId": "audit-1"},
+                "guardrails": ["NO_REPAIR_REPLAY_RETRY"],
+                "redactions": ["internal_tenant_identifier"],
+                "no_repair_replay_retry_confirmed": True,
+                "no_referral_or_campaign_mutation_confirmed": True,
+                "no_progress_or_attribution_mutation_confirmed": True,
+                "no_report_or_export_mutation_confirmed": True,
+                "no_invite_delivery_confirmed": True,
+                "no_credential_or_auth_claim_change_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            }
+
+    async def fake_assign_referral_saas_support_case(**kwargs):
+        assignment_calls.append(kwargs)
+        return FakeSupportCaseAssignmentResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "assign_referral_saas_support_case",
+        fake_assign_referral_saas_support_case,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/support-cases/case-1/assignment",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "support",
+                },
+                "assigneeRef": "amplifi-support",
+                "assignmentReason": "Operator owns customer recovery follow-up.",
+                "idempotencyKey": "support-case-assignment-1",
+                "correlationId": "corr-assignment-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "accepted"
+    assert body["supportCaseAssignment"]["commandStatus"] == "SUPPORT_CASE_ASSIGNED"
+    assert body["supportCaseAssignment"]["assignment"]["assigneeRef"] == "amplifi-support"
+    assert body["supportCaseAssignment"]["supportCase"]["assigneeRef"] == "amplifi-support"
+    assert body["no_repair_replay_retry_confirmed"] is True
+    assert body["no_billing_or_money_movement_confirmed"] is True
+    assert assignment_calls
+    assert assignment_calls[0]["account_id"] == "acct-1"
+    assert assignment_calls[0]["tenant_code"] == "FNB"
+    assert assignment_calls[0]["case_ref"] == "case-1"
+    assert assignment_calls[0]["assignee_ref"] == "amplifi-support"
+    assert assignment_calls[0]["assignment_reason"] == "Operator owns customer recovery follow-up."
+    assert assignment_calls[0]["idempotency_key_hash"]
+    assert assignment_calls[0]["request_payload_hash"]
+    assert assignment_calls[0]["correlation_id"] == "corr-assignment-1"

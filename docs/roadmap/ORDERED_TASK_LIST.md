@@ -8463,7 +8463,7 @@ Completed output:
 
 ## TASK-380: Add partner-safe support, audit, assignment, and recovery workspace
 
-Status: Pending.
+Status: Complete (2026-08-13).
 Product boundary: Referral SaaS.
 Shared primitive impact: Unifies support cases, evidence, assignment, notes, audit, and governed recovery posture. Source duplication: No.
 Objective: Complete selected-customer and partner-safe support workspace with assignment, audit trail, evidence links, status control, and governed recovery actions.
@@ -8473,6 +8473,9 @@ Tests to add/update: Support assignment, audit, permission, evidence-link, statu
 Acceptance criteria: Support can resolve customer problems without DB access or unsafe repair buttons.
 Dependencies: TASK-375; TASK-379.
 Priority: P0.
+
+Completed output: `services/referral_saas_support_case_service.py`; `apps/api/routers/referral_saas_accounts.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; roadmap/gap/infographic updates.
+Definition of done: Selected-customer Support can assign safe support cases to an owner, show assignment and recovery posture in the customer Support workspace, record audited/idempotent assignment evidence, and preserve no repair/replay/retry/provider/invite/credential/auth/campaign/billing/money/DLaaS side effects. Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.999992/10 because support/recovery workspace finalization is closed while commercial-finance isolation and non-local proof repetition remain separate gaps.
 
 ## TASK-381: Define separately contracted commercial-finance mapping placeholder
 
