@@ -187,6 +187,7 @@ from services.referral_saas_support_case_service import (
     add_referral_saas_support_case_note,
     change_referral_saas_support_case_status,
     create_referral_saas_support_case,
+    execute_referral_saas_support_case_repair_command,
     get_referral_saas_support_case_repair_replay_readiness,
     get_referral_saas_support_case,
     list_referral_saas_operator_support_queue,
@@ -348,6 +349,22 @@ SUPPORT_CASE_REPAIR_REPLAY_READINESS_ROUTE_GUARDRAILS = {
     "NO_BILLING",
     "NO_MONEY_MOVEMENT",
 }
+SUPPORT_CASE_REPAIR_COMMAND_ROUTE_GUARDRAILS = {
+    *SUPPORT_CASE_ROUTE_GUARDRAILS,
+    "APPROVAL_REQUIRED_BEFORE_REPAIR_REPLAY",
+    "IDEMPOTENCY_REQUIRED_BEFORE_REPAIR_REPLAY",
+    "BEFORE_STATE_HASH_REQUIRED_BEFORE_REPAIR_REPLAY",
+    "IMPACT_PREVIEW_REQUIRED",
+    "ROLLBACK_PLAN_REQUIRED",
+    "COMMAND_LEDGER_ONLY",
+    "NO_BROAD_DB_MUTATION",
+    "NO_PROVIDER_DISPATCH",
+    "NO_CREDENTIAL_CHANGE",
+    "NO_AUTH_CLAIM_CHANGE",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_BILLING",
+    "NO_MONEY_MOVEMENT",
+}
 SUPPORT_QUEUE_ROUTE_GUARDRAILS = {
     *SUPPORT_CASE_QUEUE_GUARDRAILS,
 }
@@ -465,6 +482,20 @@ class ReferralSaasSupportCaseStatusRequest(BaseModel):
     accountScope: dict[str, Any] = Field(default_factory=dict)
     status: str | None = Field(default=None)
     transitionReason: str | None = Field(default=None)
+    reasonCode: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str | None = Field(default=None)
+
+
+class ReferralSaasSupportCaseRepairCommandRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    commandType: str | None = Field(default=None)
+    targetEvidenceType: str | None = Field(default=None)
+    targetEvidenceRef: str | None = Field(default=None)
+    beforeStateHash: str | None = Field(default=None)
+    impactPreview: dict[str, Any] | None = Field(default=None)
+    approvalRef: str | None = Field(default=None)
+    rollbackPlan: str | None = Field(default=None)
     reasonCode: str | None = Field(default=None)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str | None = Field(default=None)
@@ -979,6 +1010,82 @@ def _reject_unsafe_support_case_payload(value: Any) -> None:
                             "guardrails": sorted(SUPPORT_CASE_ROUTE_GUARDRAILS),
                             "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
                             "no_repair_replay_retry_confirmed": True,
+                            "no_credential_or_auth_claim_change_confirmed": True,
+                            "no_billing_or_money_movement_confirmed": True,
+                        },
+                    )
+                walk(nested)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(value)
+
+
+def _reject_unsafe_support_case_repair_command_payload(value: Any) -> None:
+    unsafe_keys = {
+        "tenant_code",
+        "tenantCode",
+        "internal_tenant_code",
+        "internalTenantCode",
+        "rawUcn",
+        "raw_ucn",
+        "providerPayload",
+        "provider_payload",
+        "auditPayload",
+        "audit_payload",
+        "dlqPayload",
+        "dlq_payload",
+        "sqlError",
+        "sql_error",
+        "stackTrace",
+        "stack_trace",
+        "requeue",
+        "override",
+        "activate",
+        "activation",
+        "webhook",
+        "credential",
+        "credentials",
+        "secret",
+        "token",
+        "authClaim",
+        "authClaims",
+        "invite",
+        "seat",
+        "billing",
+        "invoice",
+        "rewardAmount",
+        "rewardAmounts",
+        "funding",
+        "fulfilment",
+        "settlement",
+        "commission",
+        "wallet",
+        "payout",
+        "sponsorBilling",
+    }
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, nested in node.items():
+                if str(key) in unsafe_keys:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail={
+                            "code": "REJECTED_UNSAFE_PAYLOAD",
+                            "message": (
+                                "Governed support commands accept only selected "
+                                "customer evidence references, approvals, before-state "
+                                "hashes, impact previews, and rollback plans. They do "
+                                "not accept raw evidence, provider, credential, invite, "
+                                "seat, billing, or money payloads."
+                            ),
+                            "guardrails": sorted(
+                                SUPPORT_CASE_REPAIR_COMMAND_ROUTE_GUARDRAILS
+                            ),
+                            "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
+                            "no_raw_evidence_payload_confirmed": True,
                             "no_credential_or_auth_claim_change_confirmed": True,
                             "no_billing_or_money_movement_confirmed": True,
                         },
@@ -7296,6 +7403,133 @@ async def read_referral_saas_account_support_case_repair_replay_readiness(
         "no_repair_replay_retry_confirmed": True,
         "no_provider_dispatch_confirmed": True,
         "no_credential_or_auth_claim_change_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_tenant_code_exposure_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/support-cases/{case_ref}/repair-replay-commands")
+async def execute_referral_saas_account_support_case_repair_replay_command(
+    account_ref: str,
+    case_ref: str,
+    request: ReferralSaasSupportCaseRepairCommandRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    request_payload = request.model_dump(exclude_none=True)
+    _reject_unsafe_support_case_repair_command_payload(request_payload)
+
+    account_scope = request.accountScope or {}
+    if not isinstance(account_scope, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope must be an object.",
+                "guardrails": sorted(SUPPORT_CASE_REPAIR_COMMAND_ROUTE_GUARDRAILS),
+                "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
+                "no_support_case_command_created_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        )
+
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = _support_case_resolution_context(account_scope.get("context"))
+    idempotency_key = _optional_text(request.idempotencyKey)
+    correlation_id = _optional_text(request.correlationId)
+    if not ref_type or not external_ref or not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "idempotencyKey, and correlationId are required."
+                ),
+                "guardrails": sorted(SUPPORT_CASE_REPAIR_COMMAND_ROUTE_GUARDRAILS),
+                "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
+                "no_support_case_command_created_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    command_payload = {
+        "accountScope": {
+            "accountRef": _optional_text(account_ref),
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": normalised_context,
+        },
+        "supportCaseRef": _optional_text(case_ref),
+        "command": {
+            "commandType": request.commandType,
+            "targetEvidenceType": request.targetEvidenceType,
+            "targetEvidenceRef": request.targetEvidenceRef,
+            "beforeStateHash": request.beforeStateHash,
+            "impactPreview": request.impactPreview or {},
+            "approvalRef": request.approvalRef,
+            "rollbackPlan": request.rollbackPlan,
+        },
+        "reasonCode": request.reasonCode or "SUPPORT_CASE_REPAIR_COMMAND",
+    }
+    try:
+        result = await execute_referral_saas_support_case_repair_command(
+            account_id=account.account_id,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            tenant_code=account.tenant_code,
+            case_ref=case_ref,
+            command_type=request.commandType or "",
+            target_evidence_type=request.targetEvidenceType or "",
+            target_evidence_ref=request.targetEvidenceRef or "",
+            before_state_hash=request.beforeStateHash or "",
+            impact_preview=request.impactPreview,
+            approval_ref=request.approvalRef or "",
+            rollback_plan=request.rollbackPlan or "",
+            reason_code=request.reasonCode,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_SUPPORT_CASE_REPAIR_COMMAND",
+                    "account_ref": _optional_text(account_ref),
+                    "case_ref": _optional_text(case_ref),
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            request_payload_hash=hash_payload(command_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except ReferralSaasSupportCaseCommandError as exc:
+        raise _support_case_error(exc) from exc
+
+    return {
+        "status": "accepted",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "repairReplayCommand": _redact_customer_report_payload(result.to_safe_dict()),
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "Governed support command recorded for the selected customer and "
+            "support case. This creates command and audit evidence only; it "
+            "does not broadly mutate referral, campaign, progress, attribution, "
+            "report, credential, auth, billing, or money state."
+        ),
+        "guardrails": sorted(SUPPORT_CASE_REPAIR_COMMAND_ROUTE_GUARDRAILS),
+        "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
+        "no_provider_dispatch_confirmed": True,
+        "no_credential_or_auth_claim_change_confirmed": True,
+        "no_referral_or_campaign_mutation_confirmed": True,
+        "no_progress_or_attribution_mutation_confirmed": True,
+        "no_report_or_export_mutation_confirmed": True,
         "no_campaign_activation_confirmed": True,
         "no_tenant_code_exposure_confirmed": True,
         "no_billing_or_money_movement_confirmed": True,

@@ -8221,6 +8221,190 @@ async def test_referral_saas_account_admin_can_read_support_case_repair_replay_r
     assert readiness_calls == [{"account_id": "acct-1", "case_ref": "case-1"}]
 
 
+async def test_referral_saas_account_admin_can_record_support_case_repair_command(
+    monkeypatch,
+):
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    class FakeRepairCommandResult:
+        def to_safe_dict(self):
+            return {
+                "commandStatus": "SUPPORT_CASE_REPAIR_COMMAND_RECORDED",
+                "supportCase": {
+                    "caseRef": "case-1",
+                    "accountRef": "acct-1",
+                    "status": "OPEN",
+                    "redactions": ["internal_tenant_identifier"],
+                },
+                "repairCommand": {
+                    "repairCommandRef": "cmd-1",
+                    "caseRef": "case-1",
+                    "accountRef": "acct-1",
+                    "commandType": "GOVERNED_REPAIR",
+                    "commandStatus": "RECORDED",
+                    "targetEvidenceType": "LINK_CODE_INSPECTION",
+                    "targetEvidenceRef": "evidence-1",
+                    "beforeStateHash": "before-hash-123",
+                    "impactPreview": {"expectedState": "validation evidence repaired"},
+                    "approvalRef": "approval-1",
+                    "rollbackPlan": "Revert to the before-state hash if validation fails.",
+                },
+                "idempotency": {"status": "RECORDED"},
+                "audit": {"accountAuditEventId": "audit-1"},
+                "guardrails": ["COMMAND_LEDGER_ONLY", "NO_BROAD_DB_MUTATION"],
+                "redactions": ["internal_tenant_identifier"],
+                "no_provider_dispatch_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            }
+
+    async def fake_execute_referral_saas_support_case_repair_command(**kwargs):
+        command_calls.append(kwargs)
+        return FakeRepairCommandResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "execute_referral_saas_support_case_repair_command",
+        fake_execute_referral_saas_support_case_repair_command,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/support-cases/case-1/repair-replay-commands",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "support",
+                },
+                "commandType": "GOVERNED_REPAIR",
+                "targetEvidenceType": "LINK_CODE_INSPECTION",
+                "targetEvidenceRef": "evidence-1",
+                "beforeStateHash": "before-hash-123",
+                "impactPreview": {"expectedState": "validation evidence repaired"},
+                "approvalRef": "approval-1",
+                "rollbackPlan": "Revert to the before-state hash if validation fails.",
+                "idempotencyKey": "repair-command-1",
+                "correlationId": "corr-repair-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "accepted"
+    command = body["repairReplayCommand"]
+    assert command["commandStatus"] == "SUPPORT_CASE_REPAIR_COMMAND_RECORDED"
+    assert command["repairCommand"]["commandType"] == "GOVERNED_REPAIR"
+    assert body["no_provider_dispatch_confirmed"] is True
+    assert body["no_referral_or_campaign_mutation_confirmed"] is True
+    assert body["no_billing_or_money_movement_confirmed"] is True
+    assert command_calls
+    assert command_calls[0]["account_id"] == "acct-1"
+    assert command_calls[0]["tenant_code"] == "FNB"
+    assert command_calls[0]["case_ref"] == "case-1"
+    assert command_calls[0]["command_type"] == "GOVERNED_REPAIR"
+    assert command_calls[0]["target_evidence_ref"] == "evidence-1"
+    assert command_calls[0]["approval_ref"] == "approval-1"
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["request_payload_hash"]
+    assert command_calls[0]["correlation_id"] == "corr-repair-1"
+
+
+async def test_referral_saas_support_case_repair_command_rejects_unsafe_payload(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/support-cases/case-1/repair-replay-commands",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "support",
+                },
+                "commandType": "GOVERNED_REPAIR",
+                "targetEvidenceType": "LINK_CODE_INSPECTION",
+                "targetEvidenceRef": "evidence-1",
+                "beforeStateHash": "before-hash-123",
+                "impactPreview": {"providerPayload": {"raw": "blocked"}},
+                "approvalRef": "approval-1",
+                "rollbackPlan": "Revert to the before-state hash if validation fails.",
+                "idempotencyKey": "repair-command-unsafe",
+                "correlationId": "corr-repair-unsafe",
+            },
+        )
+
+    assert response.status_code == 400
+    body = response.json()
+    assert body["detail"]["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert body["detail"]["no_billing_or_money_movement_confirmed"] is True
+
+
+async def test_referral_saas_support_case_repair_command_idempotency_conflict_maps_409(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    async def fake_execute_referral_saas_support_case_repair_command(**kwargs):
+        raise referral_saas_accounts.SupportCaseIdempotencyConflict(
+            "Idempotency key was reused with different support-case command content."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "execute_referral_saas_support_case_repair_command",
+        fake_execute_referral_saas_support_case_repair_command,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/support-cases/case-1/repair-replay-commands",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "support",
+                },
+                "commandType": "GOVERNED_REPAIR",
+                "targetEvidenceType": "LINK_CODE_INSPECTION",
+                "targetEvidenceRef": "evidence-1",
+                "beforeStateHash": "before-hash-123",
+                "impactPreview": {"expectedState": "validation evidence repaired"},
+                "approvalRef": "approval-1",
+                "rollbackPlan": "Revert to the before-state hash if validation fails.",
+                "idempotencyKey": "repair-command-conflict",
+                "correlationId": "corr-repair-conflict",
+            },
+        )
+
+    assert response.status_code == 409
+    body = response.json()
+    assert body["detail"]["code"] == "IDEMPOTENCY_CONFLICT"
+    assert body["detail"]["no_billing_or_money_movement_confirmed"] is True
+
+
 async def test_referral_saas_account_admin_can_add_customer_scoped_support_case_note(
     monkeypatch,
 ):

@@ -11,8 +11,12 @@ from utils.db import db_connection
 SUPPORT_CASE_CREATED_EVENT = "SUPPORT_CASE_CREATED"
 SUPPORT_CASE_NOTE_ADDED_EVENT = "SUPPORT_CASE_NOTE_ADDED"
 SUPPORT_CASE_STATUS_CHANGED_EVENT = "SUPPORT_CASE_STATUS_CHANGED"
+SUPPORT_CASE_REPAIR_COMMAND_RECORDED_EVENT = "SUPPORT_CASE_REPAIR_COMMAND_RECORDED"
 SUPPORT_CASE_RECORDED = "RECORDED"
 SUPPORT_CASE_REPLAYED = "REPLAYED"
+SUPPORT_CASE_REPAIR_COMMAND_TYPES = frozenset(
+    {"GOVERNED_REPAIR", "GOVERNED_REPLAY", "GOVERNED_REASSIGNMENT"}
+)
 SUPPORT_CASE_NOTE_TYPES = frozenset(
     {"OPERATOR_NOTE", "CUSTOMER_UPDATE", "EVIDENCE_SUMMARY", "RESOLUTION_NOTE"}
 )
@@ -122,6 +126,22 @@ SUPPORT_CASE_REPAIR_REPLAY_READINESS_GUARDRAILS = [
     "APPROVAL_REQUIRED_BEFORE_REPAIR_REPLAY",
     "IDEMPOTENCY_REQUIRED_BEFORE_REPAIR_REPLAY",
     "BEFORE_STATE_HASH_REQUIRED_BEFORE_REPAIR_REPLAY",
+    "NO_PROVIDER_DISPATCH",
+    "NO_CREDENTIAL_CHANGE",
+    "NO_AUTH_CLAIM_CHANGE",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_BILLING",
+    "NO_MONEY_MOVEMENT",
+]
+SUPPORT_CASE_REPAIR_COMMAND_GUARDRAILS = [
+    *SUPPORT_CASE_GUARDRAILS,
+    "APPROVAL_REQUIRED_BEFORE_REPAIR_REPLAY",
+    "IDEMPOTENCY_REQUIRED_BEFORE_REPAIR_REPLAY",
+    "BEFORE_STATE_HASH_REQUIRED_BEFORE_REPAIR_REPLAY",
+    "IMPACT_PREVIEW_REQUIRED",
+    "ROLLBACK_PLAN_REQUIRED",
+    "COMMAND_LEDGER_ONLY",
+    "NO_BROAD_DB_MUTATION",
     "NO_PROVIDER_DISPATCH",
     "NO_CREDENTIAL_CHANGE",
     "NO_AUTH_CLAIM_CHANGE",
@@ -422,6 +442,75 @@ class ReferralSaasSupportCaseRepairReplayReadiness:
         }
 
 
+@dataclass(frozen=True)
+class SupportCaseRepairCommand:
+    repair_command_ref: str
+    case_ref: str
+    account_ref: str
+    command_type: str
+    command_status: str
+    target_evidence_type: str
+    target_evidence_ref: str
+    before_state_hash: str
+    impact_preview: dict[str, Any]
+    approval_ref: str
+    rollback_plan: str
+    reason_code: str | None
+    correlation_id: str | None
+    created_by_ref: str
+    created_by_role: str | None
+    created_at: str | None
+    redactions: list[str]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "repairCommandRef": self.repair_command_ref,
+            "caseRef": self.case_ref,
+            "accountRef": self.account_ref,
+            "commandType": self.command_type,
+            "commandStatus": self.command_status,
+            "targetEvidenceType": self.target_evidence_type,
+            "targetEvidenceRef": self.target_evidence_ref,
+            "beforeStateHash": self.before_state_hash,
+            "impactPreview": self.impact_preview,
+            "approvalRef": self.approval_ref,
+            "rollbackPlan": self.rollback_plan,
+            "reasonCode": self.reason_code,
+            "correlationId": self.correlation_id,
+            "createdByRef": self.created_by_ref,
+            "createdByRole": self.created_by_role,
+            "createdAt": self.created_at,
+            "redactions": self.redactions,
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasSupportCaseRepairCommandResult:
+    command_status: str
+    support_case: ReferralSaasSupportCase
+    repair_command: SupportCaseRepairCommand
+    idempotency_status: str
+    audit_event_id: str | None
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "supportCase": self.support_case.to_safe_dict(),
+            "repairCommand": self.repair_command.to_safe_dict(),
+            "idempotency": {"status": self.idempotency_status},
+            "audit": {"accountAuditEventId": self.audit_event_id},
+            "guardrails": SUPPORT_CASE_REPAIR_COMMAND_GUARDRAILS,
+            "redactions": SUPPORT_CASE_REDACTIONS,
+            "no_provider_dispatch_confirmed": True,
+            "no_credential_or_auth_claim_change_confirmed": True,
+            "no_referral_or_campaign_mutation_confirmed": True,
+            "no_progress_or_attribution_mutation_confirmed": True,
+            "no_report_or_export_mutation_confirmed": True,
+            "no_campaign_activation_confirmed": True,
+            "no_billing_or_money_movement_confirmed": True,
+        }
+
+
 def _jsonb(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
@@ -494,6 +583,15 @@ def _assert_safe_metadata(value: Any, path: str = "metadata") -> None:
     elif isinstance(value, list):
         for index, nested in enumerate(value):
             _assert_safe_metadata(nested, f"{path}[{index}]")
+
+
+def _normalise_safe_json_object(value: Any, field_name: str) -> dict[str, Any]:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise SupportCaseValidationError(f"{field_name} must be an object.")
+    _assert_safe_metadata(value, field_name)
+    return value
 
 
 def _normalise_evidence_links(
@@ -678,7 +776,7 @@ def _build_repair_replay_actions(
                 "label": _repair_replay_action_label(
                     support_case.category, "GOVERNED_REPAIR"
                 ),
-                "reasonCode": "FUTURE_GOVERNED_COMMAND_REQUIRED",
+                "reasonCode": "APPROVAL_AND_IMPACT_PREVIEW_REQUIRED",
             }
         )
     if support_case.category in replay_categories:
@@ -689,7 +787,7 @@ def _build_repair_replay_actions(
                 "label": _repair_replay_action_label(
                     support_case.category, "GOVERNED_REPLAY"
                 ),
-                "reasonCode": "FUTURE_GOVERNED_COMMAND_REQUIRED",
+                "reasonCode": "APPROVAL_AND_IMPACT_PREVIEW_REQUIRED",
             }
         )
     if len(actions) == 1:
@@ -740,6 +838,36 @@ def _status_event_from_row(row: Any) -> SupportCaseStatusEvent:
         correlation_id=_optional_text(row.get("correlation_id")),
         changed_by_ref=str(row["changed_by_ref"]),
         changed_by_role=_optional_text(row.get("changed_by_role")),
+        created_at=_as_iso(row.get("created_at")),
+        redactions=_safe_json_list(row.get("redactions")),
+    )
+
+
+def _repair_command_from_row(row: Any) -> SupportCaseRepairCommand:
+    impact_preview = row.get("impact_preview")
+    if isinstance(impact_preview, str):
+        try:
+            impact_preview = json.loads(impact_preview)
+        except json.JSONDecodeError:
+            impact_preview = {}
+    if not isinstance(impact_preview, dict):
+        impact_preview = {}
+    return SupportCaseRepairCommand(
+        repair_command_ref=str(row["repair_command_id"]),
+        case_ref=str(row["support_case_id"]),
+        account_ref=str(row["account_id"]),
+        command_type=str(row["command_type"]),
+        command_status=str(row["command_status"]),
+        target_evidence_type=str(row["target_evidence_type"]),
+        target_evidence_ref=str(row["target_evidence_ref"]),
+        before_state_hash=str(row["before_state_hash"]),
+        impact_preview=impact_preview,
+        approval_ref=str(row["approval_ref"]),
+        rollback_plan=str(row["rollback_plan"]),
+        reason_code=_optional_text(row.get("reason_code")),
+        correlation_id=_optional_text(row.get("correlation_id")),
+        created_by_ref=str(row["created_by_ref"]),
+        created_by_role=_optional_text(row.get("created_by_role")),
         created_at=_as_iso(row.get("created_at")),
         redactions=_safe_json_list(row.get("redactions")),
     )
@@ -1357,6 +1485,264 @@ async def get_referral_saas_support_case_repair_replay_readiness(
         owning_workflow=_repair_replay_owning_workflow(support_case.category),
         guardrails=sorted(SUPPORT_CASE_REPAIR_REPLAY_READINESS_GUARDRAILS),
         redactions=redactions,
+    )
+
+
+async def execute_referral_saas_support_case_repair_command(
+    *,
+    account_id: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    tenant_code: str,
+    case_ref: str,
+    command_type: str,
+    target_evidence_type: str,
+    target_evidence_ref: str,
+    before_state_hash: str,
+    impact_preview: dict[str, Any] | None,
+    approval_ref: str,
+    rollback_plan: str,
+    reason_code: str | None,
+    correlation_id: str | None,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None,
+) -> ReferralSaasSupportCaseRepairCommandResult:
+    safe_account_id = _require_bounded_text(
+        account_id, "account_id", min_length=1, max_length=80
+    )
+    safe_tenant_code = _require_bounded_text(
+        tenant_code, "tenant_code", min_length=1, max_length=120
+    )
+    safe_case_ref = _require_bounded_text(
+        case_ref, "case_ref", min_length=1, max_length=80
+    )
+    safe_command_type = _normalise_choice(
+        command_type, SUPPORT_CASE_REPAIR_COMMAND_TYPES, "commandType"
+    )
+    safe_target_evidence_type = _require_bounded_text(
+        target_evidence_type, "targetEvidenceType", min_length=3, max_length=80
+    ).upper()
+    safe_target_evidence_ref = _require_bounded_text(
+        target_evidence_ref, "targetEvidenceRef", min_length=1, max_length=160
+    )
+    safe_before_state_hash = _require_bounded_text(
+        before_state_hash, "beforeStateHash", min_length=8, max_length=256
+    )
+    safe_impact_preview = _normalise_safe_json_object(
+        impact_preview, "impactPreview"
+    )
+    if not safe_impact_preview:
+        raise SupportCaseValidationError("impactPreview must describe the expected change.")
+    safe_approval_ref = _require_bounded_text(
+        approval_ref, "approvalRef", min_length=3, max_length=160
+    )
+    safe_rollback_plan = _require_bounded_text(
+        rollback_plan, "rollbackPlan", min_length=10, max_length=1000
+    )
+    safe_idempotency_hash = _require_bounded_text(
+        idempotency_key_hash,
+        "idempotency_key_hash",
+        min_length=1,
+        max_length=256,
+    )
+    safe_payload_hash = _require_bounded_text(
+        request_payload_hash, "request_payload_hash", min_length=1, max_length=256
+    )
+    safe_actor_ref = _require_bounded_text(
+        actor_ref, "actor_ref", min_length=1, max_length=160
+    )
+    safe_actor_role = _optional_text(actor_role)
+    safe_reason_code = _optional_text(reason_code) or "SUPPORT_CASE_REPAIR_COMMAND"
+    safe_correlation_id = _optional_text(correlation_id)
+    redactions = sorted(SUPPORT_CASE_REDACTIONS)
+
+    async with db_connection() as conn:
+        case_row = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_support_cases
+            WHERE account_id = $1
+              AND support_case_id = $2
+              AND archived_at IS NULL
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_case_ref,
+        )
+        if not case_row:
+            raise SupportCaseNotFound("Support case was not found for this account.")
+
+        support_case = _support_case_from_row(case_row)
+        if support_case.status in {"RESOLVED", "CLOSED"}:
+            raise SupportCaseValidationError(
+                "Support case must be open before a governed command is recorded."
+            )
+        allowed_actions = _build_repair_replay_actions(support_case)
+        allowed_command_types = {
+            action["action"]
+            for action in allowed_actions
+            if action["action"] in SUPPORT_CASE_REPAIR_COMMAND_TYPES
+        }
+        if safe_command_type not in allowed_command_types:
+            raise SupportCaseValidationError(
+                f"{safe_command_type} is not available for this support-case category."
+            )
+
+        existing_command = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_support_case_repair_commands
+            WHERE support_case_id = $1
+              AND idempotency_key_hash = $2
+              AND archived_at IS NULL
+            LIMIT 1
+            """,
+            case_row["support_case_id"],
+            safe_idempotency_hash,
+        )
+        if existing_command:
+            if _optional_text(existing_command.get("request_payload_hash")) != safe_payload_hash:
+                raise SupportCaseIdempotencyConflict(
+                    "Idempotency key was reused with different support-case command content."
+                )
+            return ReferralSaasSupportCaseRepairCommandResult(
+                command_status="SUPPORT_CASE_REPAIR_COMMAND_REPLAYED",
+                support_case=support_case,
+                repair_command=_repair_command_from_row(existing_command),
+                idempotency_status=SUPPORT_CASE_REPLAYED,
+                audit_event_id=None,
+            )
+
+        async with conn.transaction():
+            command_row = await conn.fetchrow(
+                """
+                INSERT INTO referral_saas_support_case_repair_commands (
+                    support_case_id,
+                    account_id,
+                    command_type,
+                    command_status,
+                    target_evidence_type,
+                    target_evidence_ref,
+                    before_state_hash,
+                    impact_preview,
+                    approval_ref,
+                    rollback_plan,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    request_payload_hash,
+                    created_by_ref,
+                    created_by_role,
+                    metadata,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, 'RECORDED', $4, $5, $6, $7::jsonb,
+                    $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb,
+                    $17::jsonb
+                )
+                RETURNING *
+                """,
+                case_row["support_case_id"],
+                safe_account_id,
+                safe_command_type,
+                safe_target_evidence_type,
+                safe_target_evidence_ref,
+                safe_before_state_hash,
+                _jsonb(safe_impact_preview),
+                safe_approval_ref,
+                safe_rollback_plan,
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                safe_payload_hash,
+                safe_actor_ref,
+                safe_actor_role,
+                _jsonb(
+                    {
+                        "command_ledger_only": True,
+                        "no_broad_db_mutation_confirmed": True,
+                        "no_billing_or_money_movement_confirmed": True,
+                    }
+                ),
+                _jsonb(redactions),
+            )
+            updated_case_row = await conn.fetchrow(
+                """
+                UPDATE referral_saas_support_cases
+                SET updated_by_ref = $3,
+                    updated_at = now()
+                WHERE account_id = $1
+                  AND support_case_id = $2
+                RETURNING *
+                """,
+                safe_account_id,
+                case_row["support_case_id"],
+                safe_actor_ref,
+            )
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8,
+                    $9, $9, $10, $11, $12, $13::jsonb, $14::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                _optional_text(account_tenant_id),
+                _optional_text(external_ref_id),
+                safe_tenant_code,
+                SUPPORT_CASE_REPAIR_COMMAND_RECORDED_EVENT,
+                SUPPORT_CASE_RECORDED,
+                safe_actor_ref,
+                safe_actor_role,
+                updated_case_row["status"],
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(
+                    {
+                        "support_case_id": str(case_row["support_case_id"]),
+                        "repair_command_id": str(command_row["repair_command_id"]),
+                        "command_type": safe_command_type,
+                        "target_evidence_type": safe_target_evidence_type,
+                        "target_evidence_ref": safe_target_evidence_ref,
+                        "before_state_hash": safe_before_state_hash,
+                        "approval_ref": safe_approval_ref,
+                        "request_payload_hash": safe_payload_hash,
+                        "command_ledger_only": True,
+                        "no_broad_db_mutation_confirmed": True,
+                        "no_billing_or_money_movement_confirmed": True,
+                    }
+                ),
+                _jsonb(redactions),
+            )
+
+    return ReferralSaasSupportCaseRepairCommandResult(
+        command_status="SUPPORT_CASE_REPAIR_COMMAND_RECORDED",
+        support_case=_support_case_from_row(updated_case_row),
+        repair_command=_repair_command_from_row(command_row),
+        idempotency_status=SUPPORT_CASE_RECORDED,
+        audit_event_id=str(audit_event["account_audit_event_id"]) if audit_event else None,
     )
 
 

@@ -84,6 +84,10 @@ def test_referral_saas_current_smoke_routes_are_mounted():
             "GET",
             "/v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}/repair-replay-readiness",
         ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}/repair-replay-commands",
+        ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/preview"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/validate"),
         ("GET", "/v1/referral-saas/reports/{report_type}"),
@@ -283,6 +287,10 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         (
             "GET",
             "/v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}/repair-replay-readiness",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}/repair-replay-commands",
         ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/preview"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/validate"),

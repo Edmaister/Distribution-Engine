@@ -8367,7 +8367,7 @@ Completed output:
 
 ## TASK-375: Add governed referral correction, replay, and reassignment execution
 
-Status: Pending.
+Status: Completed.
 Product boundary: Referral SaaS.
 Shared primitive impact: Implements repair/replay as governed commands instead of generic DB mutation. Source duplication: No.
 Objective: Add safe correction/replay/reassignment command execution after approval, impact preview, idempotency, audit, and redaction gates.
@@ -8377,6 +8377,11 @@ Tests to add/update: Repair approval, replay, reassignment, conflict, rollback/c
 Acceptance criteria: Support can repair referral evidence safely without broad mutation consoles.
 Dependencies: TASK-374.
 Priority: P0.
+
+Completed output:
+- Added `referral_saas_support_case_repair_commands` as the governed support-case repair/replay/reassignment command ledger with account/case scope, command type/status, target evidence, impact preview, approval reference, rollback plan, idempotency/request hashes, actor, audit metadata, redactions, and replay-safe uniqueness.
+- Added a selected-customer support-case repair/replay command API that records only approved bounded command intent for eligible support-case categories, rejects unsafe adjacent payloads, handles idempotency replay/conflict, writes audit evidence, and confirms no provider dispatch, credential/auth mutation, campaign activation, billing, money movement, DLaaS expansion, or generic DB mutation console behavior.
+- Updated route inventory and API tests for successful command recording, unsafe payload rejection, and idempotency conflict mapping.
 
 ## TASK-376: Add dedicated Campaign Attribution projection and page
 
