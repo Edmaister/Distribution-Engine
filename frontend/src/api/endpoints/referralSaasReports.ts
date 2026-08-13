@@ -3,6 +3,7 @@ import { apiRequest } from "../client";
 export type ReferralSaasReportType =
   | "campaign_performance"
   | "referral_funnel"
+  | "journey_performance"
   | "link_code_performance"
   | "progress_event_health"
   | "attribution_quality"

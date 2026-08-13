@@ -168,6 +168,31 @@ async def test_referral_saas_reporting_contract_stays_operational_and_redacted(
 async def test_referral_saas_report_catalog_supports_initial_operational_reports(
     monkeypatch,
 ):
+    class JourneyPerformanceConnection:
+        async def fetch(self, query, *params):
+            assert "stage_counts AS" in query
+            assert params[:4] == ("FNB", "CAMP001", None, None)
+            return [
+                {
+                    "campaign_code": "CAMP001",
+                    "conversion_stage": "validated",
+                    "journey_event_type": None,
+                    "stage_count": 6,
+                },
+                {
+                    "campaign_code": "CAMP001",
+                    "conversion_stage": "completed",
+                    "journey_event_type": None,
+                    "stage_count": 4,
+                },
+                {
+                    "campaign_code": "CAMP001",
+                    "conversion_stage": "funded",
+                    "journey_event_type": "FUNDED",
+                    "stage_count": 3,
+                },
+            ]
+
     async def fake_get_marketplace_overview(**kwargs):
         return _overview()
 
@@ -188,6 +213,10 @@ async def test_referral_saas_report_catalog_supports_initial_operational_reports
     assert report["metric_class"] == "OPERATIONAL"
     assert report["export_status"] == "NOT_IMPLEMENTED"
 
+    monkeypatch.setattr(
+        reporting, "db_connection", lambda: FakeDbConnection(JourneyPerformanceConnection())
+    )
+
     funnel_report = await get_referral_saas_report(
         tenant_code="FNB",
         report_type="referral_funnel",
@@ -195,24 +224,26 @@ async def test_referral_saas_report_catalog_supports_initial_operational_reports
     )
 
     assert funnel_report["report_type"] == "referral_funnel"
-    assert funnel_report["source_report_type"] == "distribution_overview"
+    assert funnel_report["source_report_type"] == "referral_journey_performance"
     assert funnel_report["metric_class"] == "OPERATIONAL"
     assert funnel_report["export_status"] == "NOT_IMPLEMENTED"
     assert {
         metric["name"] for metric in funnel_report["metrics"]
     } >= {
-        "funnel.linked_route_count",
-        "funnel.completed_referral_count",
-        "funnel.attribution_rate",
+        "journey.validated_referral_count",
+        "journey.completed_referral_count",
+        "journey.funded_count",
+        "journey.completion_gap_count",
     }
     assert funnel_report["source_warnings"] == [
         {
-            "code": "PARTIAL_SOURCE_COVERAGE",
+            "code": "HVE_STAGE_SOURCE",
             "message": (
-                "Referral funnel currently uses tenant-safe distribution "
-                "overview metrics; validation-state and "
-                "progress-milestone stage counts need dedicated follow-up "
-                "report sources before they can be promised."
+                "Referral funnel uses tenant-scoped referral instances, "
+                "progress events, and attribution links to count high-value "
+                "journey stages. It does not expose raw UCN, event payload, "
+                "provider, reward, funding, settlement, billing, or money "
+                "evidence."
             ),
         }
     ]

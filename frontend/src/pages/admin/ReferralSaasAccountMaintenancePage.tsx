@@ -391,6 +391,11 @@ const customerReportOptions: { value: ReferralSaasReportType; label: string; cop
     copy: "Where referrals are entering, progressing, and completing.",
   },
   {
+    value: "journey_performance",
+    label: "Journey performance",
+    copy: "High-value event stages, attribution gaps, and completion gaps.",
+  },
+  {
     value: "link_code_performance",
     label: "Links and codes",
     copy: "Issued referral entry points, status, and usage signals.",

@@ -20,6 +20,7 @@ class FakeConnection:
         quality_rows: list[dict] | None = None,
         reward_rows: list[dict] | None = None,
         status_rows: list[dict] | None = None,
+        journey_rows: list[dict] | None = None,
     ):
         self.recorded_rows = recorded_rows or [
             {
@@ -210,10 +211,44 @@ class FakeConnection:
                 "status_count": 1,
             },
         ]
+        self.journey_rows = journey_rows or [
+            {
+                "campaign_code": "CAMP001",
+                "conversion_stage": "validated",
+                "journey_event_type": None,
+                "stage_count": 5,
+            },
+            {
+                "campaign_code": "CAMP001",
+                "conversion_stage": "account_opened",
+                "journey_event_type": "ACCOUNT_OPENED",
+                "stage_count": 4,
+            },
+            {
+                "campaign_code": "CAMP001",
+                "conversion_stage": "funded",
+                "journey_event_type": "FUNDED",
+                "stage_count": 3,
+            },
+            {
+                "campaign_code": "CAMP001",
+                "conversion_stage": "attributed",
+                "journey_event_type": None,
+                "stage_count": 4,
+            },
+            {
+                "campaign_code": "CAMP001",
+                "conversion_stage": "completed",
+                "journey_event_type": None,
+                "stage_count": 2,
+            },
+        ]
         self.fetch_calls: list[tuple[str, tuple]] = []
 
     async def fetch(self, query, *params):
         self.fetch_calls.append((query, params))
+        if "WITH base AS" in query and "stage_counts AS" in query:
+            return self.journey_rows
         if "FROM referral_progress_events" in query:
             return self.recorded_rows
         if "FROM referral_event_failures" in query:
@@ -316,7 +351,7 @@ def test_referral_saas_report_catalog_exposes_available_and_future_reports():
     )
     assert by_type["referral_funnel"]["status"] == "AVAILABLE"
     assert by_type["referral_funnel"]["source_report_type"] == (
-        analytics.REPORT_DISTRIBUTION_OVERVIEW
+        svc.SOURCE_JOURNEY_PERFORMANCE
     )
     assert by_type["link_code_performance"]["status"] == "AVAILABLE"
     assert by_type["link_code_performance"]["source_report_type"] == (
@@ -410,15 +445,17 @@ async def test_campaign_performance_maps_existing_analytics_to_referral_saas_rep
 
 
 @pytest.mark.asyncio
-async def test_referral_funnel_maps_existing_analytics_with_partial_source_warning(
+async def test_referral_funnel_maps_journey_performance_source_with_hve_warning(
     monkeypatch,
 ):
+    conn = FakeConnection()
     calls: list[dict] = []
 
     async def fake_get_marketplace_overview(**kwargs):
         calls.append(kwargs)
         return _overview()
 
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
     monkeypatch.setattr(
         analytics,
         "get_marketplace_overview",
@@ -432,16 +469,11 @@ async def test_referral_funnel_maps_existing_analytics_with_partial_source_warni
         filters={"campaign_ref": "CAMP001"},
     )
 
-    assert calls == [
-        {
-            "tenant_code": "FNB",
-            "sponsor_code": None,
-            "campaign_code": "CAMP001",
-        }
-    ]
+    assert calls == []
     assert report["report_type"] == "referral_funnel"
-    assert report["source_report_type"] == "distribution_overview"
+    assert report["source_report_type"] == "referral_journey_performance"
     assert report["filters"] == {
+        "tenant_code": "FNB",
         "campaign_ref": "CAMP001",
         "campaign_code": "CAMP001",
     }
@@ -449,21 +481,22 @@ async def test_referral_funnel_maps_existing_analytics_with_partial_source_warni
     assert report["export_status"] == "NOT_IMPLEMENTED"
     assert report["source_warnings"] == [
         {
-            "code": "PARTIAL_SOURCE_COVERAGE",
+            "code": "HVE_STAGE_SOURCE",
             "message": (
-                "Referral funnel currently uses tenant-safe distribution "
-                "overview metrics; validation-state and "
-                "progress-milestone stage counts need dedicated follow-up "
-                "report sources before they can be promised."
+                "Referral funnel uses tenant-scoped referral instances, "
+                "progress events, and attribution links to count high-value "
+                "journey stages. It does not expose raw UCN, event payload, "
+                "provider, reward, funding, settlement, billing, or money "
+                "evidence."
             ),
         }
     ]
 
     metric_names = {metric["name"] for metric in report["metrics"]}
-    assert "funnel.linked_route_count" in metric_names
-    assert "funnel.accepted_route_count" in metric_names
-    assert "funnel.completed_referral_count" in metric_names
-    assert "funnel.attribution_rate" in metric_names
+    assert "journey.validated_referral_count" in metric_names
+    assert "journey.attributed_referral_count" in metric_names
+    assert "journey.completed_referral_count" in metric_names
+    assert "journey.hve_event_count" in metric_names
     assert "campaigns.ready_count" not in metric_names
     assert "wallets.wallet_count" not in metric_names
     assert "governance.open_dispute_count" not in metric_names
@@ -659,6 +692,101 @@ async def test_progress_event_health_returns_unavailable_when_source_fails(monke
         "PARTIAL_SOURCE_COVERAGE",
         "UNSCOPED_FAILURES_EXCLUDED",
     }
+
+
+@pytest.mark.asyncio
+async def test_journey_performance_maps_high_value_event_funnel(monkeypatch):
+    conn = FakeConnection()
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+    start = datetime(2026, 7, 1, tzinfo=timezone.utc)
+    end = datetime(2026, 7, 12, tzinfo=timezone.utc)
+
+    report = await svc.get_referral_saas_report(
+        tenant_code="fnb",
+        report_type="journey_performance",
+        dimensions=["campaign_code", "conversion_stage", "metric_name"],
+        filters={
+            "campaign_code": "CAMP001",
+            "referrer_ucn": "900001",
+            "raw_payload": "secret",
+        },
+        data_window_start=start,
+        data_window_end=end,
+    )
+
+    assert len(conn.fetch_calls) == 1
+    query, params = conn.fetch_calls[0]
+    assert "FROM referral_instances ri" in query
+    assert "FROM referral_progress_events rpe" in query
+    assert "stage_counts AS" in query
+    assert params == ("FNB", "CAMP001", start, end)
+    assert report["report_type"] == "journey_performance"
+    assert report["source_report_type"] == "referral_journey_performance"
+    assert report["tenant_scope"] == "FNB"
+    assert report["filters"] == {
+        "tenant_code": "FNB",
+        "campaign_code": "CAMP001",
+    }
+    assert report["dimensions"] == ["campaign_code", "conversion_stage", "metric_name"]
+    assert report["data_window_start"] == start.isoformat()
+    assert report["data_window_end"] == end.isoformat()
+    assert report["export_status"] == "NOT_IMPLEMENTED"
+    assert set(report["redactions"]) == {"raw_payload", "referrer_ucn"}
+
+    counts = {metric["name"]: metric["value"] for metric in report["metrics"]}
+    assert counts["journey.validated_referral_count"] == 5
+    assert counts["journey.account_opened_count"] == 4
+    assert counts["journey.funded_count"] == 3
+    assert counts["journey.attributed_referral_count"] == 4
+    assert counts["journey.completed_referral_count"] == 2
+    assert counts["journey.hve_event_count"] == 7
+    assert counts["journey.attribution_gap_count"] == 1
+    assert counts["journey.completion_gap_count"] == 3
+    assert {warning["code"] for warning in report["source_warnings"]} == {
+        "HVE_STAGE_SOURCE"
+    }
+    assert "900001" not in str(report)
+    assert "secret" not in str(report)
+
+
+@pytest.mark.asyncio
+async def test_referral_funnel_uses_journey_performance_source(monkeypatch):
+    conn = FakeConnection()
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+
+    report = await svc.get_referral_saas_report(
+        tenant_code="FNB",
+        report_type="referral_funnel",
+        filters={"campaign_ref": "CAMP001"},
+    )
+
+    assert report["report_type"] == "referral_funnel"
+    assert report["source_report_type"] == "referral_journey_performance"
+    assert report["filters"]["campaign_code"] == "CAMP001"
+    metric_names = {metric["name"] for metric in report["metrics"]}
+    assert "journey.validated_referral_count" in metric_names
+    assert "journey.completion_gap_count" in metric_names
+
+
+@pytest.mark.asyncio
+async def test_journey_performance_returns_unavailable_when_source_fails(monkeypatch):
+    class BrokenConnection:
+        async def fetch(self, query, *params):
+            raise RuntimeError("database unavailable")
+
+    monkeypatch.setattr(
+        svc, "db_connection", lambda: FakeDbConnection(BrokenConnection())
+    )
+
+    report = await svc.get_referral_saas_report(
+        tenant_code="FNB",
+        report_type="journey_performance",
+    )
+
+    assert report["metrics"] == []
+    assert report["freshness"]["status"] == "UNAVAILABLE"
+    assert report["source_warnings"][0]["code"] == "SOURCE_UNAVAILABLE"
+    assert report["source_warnings"][1]["code"] == "HVE_STAGE_SOURCE"
 
 
 @pytest.mark.asyncio
