@@ -25,6 +25,7 @@ import {
   useReferralSaasAccountDraftSelector,
   useReferralSaasAccountMaintenanceState,
   useReferralSaasAccountMembershipPosture,
+  useReferralSaasAccountReferralAttribution,
   useReferralSaasAccountReferralDetail,
   useReferralSaasAccountReferralList,
   useReferralSaasAccountReferrerDetail,
@@ -108,6 +109,8 @@ import {
   type ReferralSaasProductionActivationResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
   type ReferralSaasCampaignAttributionProjection,
+  type ReferralSaasReferralCreditProjection,
+  type ReferralSaasReferrerCreditProjection,
 } from "../../api/endpoints/referralSaasAccounts";
 import type { CampaignReadinessOperation } from "../../api/endpoints/adminCampaignReadiness";
 import { DataTable } from "../../components/DataTable";
@@ -4096,17 +4099,30 @@ function CustomerCampaignAttributionPage({
     Boolean(selectedAccount && externalTenantRef),
     refreshKey,
   );
+  const {
+    data: referralAttributionResponse,
+    error: referralAttributionError,
+    isLoading: isReferralAttributionLoading,
+  } = useReferralSaasAccountReferralAttribution(
+    selectedAccount?.accountId || "",
+    externalTenantRef,
+    Boolean(selectedAccount && externalTenantRef),
+    refreshKey,
+  );
   const attribution = attributionResponse?.campaignAttribution;
+  const referralAttribution = referralAttributionResponse?.referralAttribution;
   const projections = attribution?.projections || [];
+  const referralProjections = referralAttribution?.referralProjections || [];
+  const referrerProjections = referralAttribution?.referrerProjections || [];
 
   return (
     <section className="panel customer-module-page">
       <div className="panel-header">
         <div>
-          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Campaign attribution</div>
-          <h2 className="panel-title">Campaign attribution</h2>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Attribution</div>
+          <h2 className="panel-title">Attribution</h2>
           <div className="panel-subtitle">
-            See which campaign sources have explainable attribution evidence for this customer.
+            See which campaign sources drove activity and which referrers can be credited safely.
           </div>
         </div>
         <div className="customer-header-actions">
@@ -4118,10 +4134,19 @@ function CustomerCampaignAttributionPage({
       </div>
       <div className="panel-body route-list">
         {isLoading ? <LoadingState label="Loading campaign attribution" /> : null}
+        {isReferralAttributionLoading ? <LoadingState label="Loading referral attribution" /> : null}
         {error ? <ErrorPanel error={error} /> : null}
+        {referralAttributionError ? <ErrorPanel error={referralAttributionError} /> : null}
 
         {attribution ? (
           <>
+            <div className="wizard-status-card">
+              <div>
+                <strong>Campaign attribution</strong>
+                <p>Which campaign source, channel, or interaction appears to have driven referral activity.</p>
+              </div>
+              <StatusBadge label="Campaign evidence" tone="info" />
+            </div>
             <div className="grid-4">
               <KpiCard
                 label="Campaigns"
@@ -4227,6 +4252,187 @@ function CustomerCampaignAttributionPage({
 
             <div className="customer-context-note">
               Redacted here: internal tenant identifiers, raw user identifiers, device fingerprints, IP addresses, QR payloads, raw event payloads, secrets, tokens, and money movement details.
+            </div>
+          </>
+        ) : null}
+
+        {referralAttribution ? (
+          <>
+            <div className="wizard-status-card">
+              <div>
+                <strong>Referral and referrer attribution</strong>
+                <p>Who gets referral credit and why, using safe referrer dimensions instead of raw identity.</p>
+              </div>
+              <StatusBadge
+                label={formatCampaignLabel(referralAttribution.status)}
+                tone={attributionStatusTone(referralAttribution.status)}
+              />
+            </div>
+
+            <div className="grid-4">
+              <KpiCard
+                label="Referrals"
+                value={String(referralAttribution.referralCount)}
+                footnote="Referral records reviewed for credit"
+                icon={LinkIcon}
+              />
+              <KpiCard
+                label="Referrers"
+                value={String(referralAttribution.referrerCount)}
+                footnote="Safe referrer dimensions"
+                icon={Users}
+              />
+              <KpiCard
+                label="Credited"
+                value={String(referralAttribution.creditedReferralCount)}
+                footnote="Referral records with explainable credit posture"
+                icon={CheckCircle2}
+              />
+              <KpiCard
+                label="Needs evidence"
+                value={String(referralAttribution.missingEvidenceCount)}
+                footnote="Credit paths needing more proof"
+                icon={AlertCircle}
+              />
+            </div>
+
+            <div className={`wizard-summary-strip ${referralAttribution.missingEvidenceCount ? "warning" : "success"}`}>
+              <div>
+                <strong>In plain English:</strong> {referralAttribution.plainLanguage}
+              </div>
+              <StatusBadge label="Who got credit" tone="success" />
+            </div>
+
+            <DataTable
+              rows={referralProjections}
+              emptyText="No referral credit evidence is available yet."
+              columns={[
+                {
+                  key: "referral",
+                  header: "Referral",
+                  render: (row) => {
+                    const projection = row as ReferralSaasReferralCreditProjection;
+                    return (
+                      <div>
+                        <strong>{formatDisplay(projection.referralCode || projection.referralTrackId)}</strong>
+                        <div className="table-subtext">
+                          {formatDisplay(projection.campaignCode || "No campaign link")}
+                        </div>
+                      </div>
+                    );
+                  },
+                },
+                {
+                  key: "referrer",
+                  header: "Referrer",
+                  render: (row) =>
+                    formatDisplay((row as ReferralSaasReferralCreditProjection).publicReferrerHandle || "Safe referrer pending"),
+                },
+                {
+                  key: "credit",
+                  header: "Credit posture",
+                  render: (row) => {
+                    const projection = row as ReferralSaasReferralCreditProjection;
+                    return (
+                      <div>
+                        <StatusBadge
+                          label={formatCampaignLabel(projection.confidence)}
+                          tone={attributionConfidenceTone(projection.confidence)}
+                        />
+                        <div className="table-subtext">{formatCampaignLabel(projection.creditStatus)}</div>
+                      </div>
+                    );
+                  },
+                },
+                {
+                  key: "evidence",
+                  header: "Evidence",
+                  render: (row) => {
+                    const projection = row as ReferralSaasReferralCreditProjection;
+                    return (
+                      <span className="table-subtext">
+                        {projection.progressEventCount} progress events, {projection.attributionEvidencePresent ? "attribution evidence" : "no attribution evidence"}
+                      </span>
+                    );
+                  },
+                },
+                {
+                  key: "why",
+                  header: "Why",
+                  render: (row) => {
+                    const projection = row as ReferralSaasReferralCreditProjection;
+                    const gaps = projection.gaps.length ? projection.gaps.join(" ") : "No credit evidence gaps returned.";
+                    return (
+                      <div>
+                        <span>{projection.explanation}</span>
+                        <div className="table-subtext">{gaps}</div>
+                      </div>
+                    );
+                  },
+                },
+              ]}
+            />
+
+            <DataTable
+              rows={referrerProjections}
+              emptyText="No safe referrer dimensions are available yet."
+              columns={[
+                {
+                  key: "referrer",
+                  header: "Safe referrer",
+                  render: (row) => {
+                    const projection = row as ReferralSaasReferrerCreditProjection;
+                    return (
+                      <div>
+                        <strong>{formatDisplay(projection.displayLabel)}</strong>
+                        <div className="table-subtext">{projection.maskedReferrerIdentifier}</div>
+                      </div>
+                    );
+                  },
+                },
+                {
+                  key: "credit",
+                  header: "Credit posture",
+                  render: (row) => {
+                    const projection = row as ReferralSaasReferrerCreditProjection;
+                    return (
+                      <div>
+                        <StatusBadge
+                          label={formatCampaignLabel(projection.creditStatus)}
+                          tone={attributionStatusTone(projection.creditStatus)}
+                        />
+                        <div className="table-subtext">{formatCampaignLabel(projection.confidence)} confidence</div>
+                      </div>
+                    );
+                  },
+                },
+                {
+                  key: "activity",
+                  header: "Activity",
+                  render: (row) => {
+                    const projection = row as ReferralSaasReferrerCreditProjection;
+                    return `${projection.attributedReferralCount}/${projection.referralCount} credited referrals, ${projection.campaignCount} campaigns`;
+                  },
+                },
+                {
+                  key: "explanation",
+                  header: "What it means",
+                  render: (row) => {
+                    const projection = row as ReferralSaasReferrerCreditProjection;
+                    const gaps = projection.gaps.length ? projection.gaps.join(" ") : "No referrer evidence gaps returned.";
+                    return (
+                      <div>
+                        <span>{projection.explanation}</span>
+                        <div className="table-subtext">{gaps}</div>
+                      </div>
+                    );
+                  },
+                },
+              ]}
+            />
+
+            <div className="customer-context-note">
+              Referral/referrer credit uses safe dimensions only. Raw UCNs, raw customer identifiers, raw progress payloads, event hashes, attribution mutation, repair/replay, webhooks, billing, and money movement stay outside this page.
             </div>
           </>
         ) : null}
@@ -8599,13 +8805,19 @@ function attributionConfidenceTone(value: string): StatusTone {
 
 function attributionStatusTone(value: string): StatusTone {
   const normalised = value.trim().toUpperCase();
-  if (normalised === "READY") {
+  if (normalised === "READY" || normalised === "CREDITED") {
     return "success";
   }
   if (normalised === "REVIEW_REQUIRED") {
     return "danger";
   }
-  if (normalised === "PARTIAL_EVIDENCE" || normalised === "NO_ATTRIBUTION_EVIDENCE") {
+  if (
+    normalised === "PARTIAL_EVIDENCE" ||
+    normalised === "NO_ATTRIBUTION_EVIDENCE" ||
+    normalised === "CREDITABLE" ||
+    normalised === "NEEDS_EVIDENCE" ||
+    normalised === "NO_REFERRALS"
+  ) {
     return "warning";
   }
   return "info";

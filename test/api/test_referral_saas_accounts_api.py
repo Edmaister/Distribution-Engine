@@ -53,6 +53,11 @@ from services.referral_saas_campaign_service import (
     ReferralSaasCampaignSetupResult,
     ReferralSaasCampaignSummary,
 )
+from services.referral_saas_referral_attribution_service import (
+    ReferralSaasReferralAttributionSummary,
+    ReferralSaasReferralCreditProjection,
+    ReferralSaasReferrerCreditProjection,
+)
 from services.referral_saas_integrations_configuration_service import (
     IntegrationConfigurationIdempotencyConflict,
     IntegrationCredentialRequestNotFound,
@@ -485,6 +490,54 @@ def _campaign_attribution_summary(**overrides) -> ReferralSaasCampaignAttributio
     }
     values.update(overrides)
     return ReferralSaasCampaignAttributionSummary(**values)
+
+
+def _referral_attribution_summary(**overrides) -> ReferralSaasReferralAttributionSummary:
+    values = {
+        "status": "READY",
+        "referral_count": 1,
+        "referrer_count": 1,
+        "credited_referral_count": 1,
+        "high_confidence_count": 1,
+        "missing_evidence_count": 0,
+        "plain_language": "1 of 1 referral record(s) can be explained across 1 safe referrer dimension(s). 0 referral record(s) still need evidence before credit can be explained safely.",
+        "referral_projections": [
+            ReferralSaasReferralCreditProjection(
+                referral_track_id="track-1",
+                referral_code="REF-001",
+                public_referrer_handle="safe-handle",
+                campaign_code="CAMP001",
+                credit_status="CREDITED",
+                confidence="HIGH",
+                progress_event_count=2,
+                accepted_terms_confirmed=True,
+                attribution_evidence_present=True,
+                evidence=["Referral code is present."],
+                gaps=[],
+                explanation="safe-handle has high confidence credit evidence for CAMP001.",
+            )
+        ],
+        "referrer_projections": [
+            ReferralSaasReferrerCreditProjection(
+                safe_referrer_key="REFERRER_SAFE",
+                display_label="safe-handle",
+                masked_referrer_identifier="referrer-...SAFE",
+                credit_status="CREDITED",
+                confidence="HIGH",
+                referral_count=1,
+                attributed_referral_count=1,
+                completed_referral_count=0,
+                campaign_count=1,
+                evidence=["1 referral record(s)."],
+                gaps=[],
+                explanation="safe-handle can be explained as a credited referrer across 1 attributed referral record(s).",
+            )
+        ],
+        "guardrails": ["CUSTOMER_SCOPED_REFERRAL_ATTRIBUTION_ONLY"],
+        "redactions": ["internal_tenant_identifier", "raw_referrer_ucn"],
+    }
+    values.update(overrides)
+    return ReferralSaasReferralAttributionSummary(**values)
 
 
 def _campaign_setup_result(**overrides) -> ReferralSaasCampaignSetupResult:
@@ -5261,6 +5314,69 @@ async def test_referral_saas_account_admin_can_read_campaign_attribution_project
     assert attribution_calls == [{"tenant_code": "FNB", "limit": 25}]
 
 
+async def test_referral_saas_account_admin_can_read_referral_attribution_projection(
+    monkeypatch,
+):
+    resolve_calls: list[dict] = []
+    attribution_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    async def fake_build_referral_saas_account_referral_attribution_projection(**kwargs):
+        attribution_calls.append(kwargs)
+        return _referral_attribution_summary()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "build_referral_saas_account_referral_attribution_projection",
+        fake_build_referral_saas_account_referral_attribution_projection,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/referral-attribution",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+                "limit": 25,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["referralAttribution"]["status"] == "READY"
+    assert body["referralAttribution"]["referralProjections"][0]["creditStatus"] == "CREDITED"
+    assert body["referralAttribution"]["referrerProjections"][0]["safeReferrerKey"] == "REFERRER_SAFE"
+    assert body["no_tenant_code_exposure_confirmed"] is True
+    assert body["no_raw_identity_exposure_confirmed"] is True
+    assert body["no_raw_progress_payload_exposure_confirmed"] is True
+    assert body["no_attribution_mutation_confirmed"] is True
+    assert body["no_repair_replay_reassignment_confirmed"] is True
+    assert body["no_campaign_activation_confirmed"] is True
+    assert body["no_billing_or_money_movement_confirmed"] is True
+    assert "tenantCode" not in str(body)
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert attribution_calls == [{"tenant_code": "FNB", "limit": 25}]
+
+
 async def test_referral_saas_account_campaign_operations_reject_missing_campaign_capability(
     monkeypatch,
 ):
@@ -5277,6 +5393,9 @@ async def test_referral_saas_account_campaign_operations_reject_missing_campaign
 
     async def fail_if_campaign_service_called(**kwargs):
         pytest.fail("Campaign service should not be called without campaign capability")
+
+    async def fail_if_referral_attribution_service_called(**kwargs):
+        pytest.fail("Referral attribution service should not be called without referral capability")
 
     monkeypatch.setattr(
         referral_saas_accounts,
@@ -5299,6 +5418,11 @@ async def test_referral_saas_account_campaign_operations_reject_missing_campaign
         referral_saas_accounts,
         "build_referral_saas_account_campaign_attribution_projection",
         fail_if_campaign_service_called,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "build_referral_saas_account_referral_attribution_projection",
+        fail_if_referral_attribution_service_called,
     )
     monkeypatch.setattr(
         referral_saas_accounts,
@@ -5350,6 +5474,11 @@ async def test_referral_saas_account_campaign_operations_reject_missing_campaign
         (
             "get",
             "/v1/referral-saas/accounts/acct-1/campaign-attribution",
+            {"params": {**query_scope, "limit": 25}},
+        ),
+        (
+            "get",
+            "/v1/referral-saas/accounts/acct-1/referral-attribution",
             {"params": {**query_scope, "limit": 25}},
         ),
         (

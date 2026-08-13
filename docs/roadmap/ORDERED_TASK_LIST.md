@@ -8404,7 +8404,7 @@ Completed output:
 
 ## TASK-377: Add dedicated Referral and Referrer Attribution projection
 
-Status: Pending.
+Status: Complete.
 Product boundary: Referral SaaS.
 Shared primitive impact: Creates privacy-safe referrer outcome views. Source duplication: No.
 Objective: Build referral/referrer attribution reports with confidence, safe dimensions, identity privacy, and explanation paths.
@@ -8414,6 +8414,12 @@ Tests to add/update: Referrer performance, privacy, confidence, aggregation, no-
 Acceptance criteria: Operators can answer who got credit and why without exposing unsafe personal or internal data.
 Dependencies: TASK-373; TASK-374.
 Priority: P0.
+
+Completed output:
+- Added a read-only customer-scoped Referral/Referrer Attribution projection API at `/v1/referral-saas/accounts/{account_ref}/referral-attribution`, using account resolution, referral-read capability enforcement, tenant-internal referral/referrer aggregation, redactions, and no-attribution-mutation/no-repair-replay/no-campaign-activation/no-webhook/no-money guardrails.
+- Added referral-credit and safe-referrer-credit projections with confidence, credit posture, evidence, gaps, and plain-language explanations over the existing referral registry and safe referrer identity primitives.
+- Extended the selected-customer Attribution frontend page so campaign attribution remains separate from referral/referrer credit while operators can answer who got credit and why without exposing unsafe personal, tenant, progress-payload, event-payload, billing, or money data.
+- Added service, API, route-inventory, and frontend query/client coverage for privacy, confidence, aggregation, missing evidence, capability enforcement, and no-leak behavior.
 
 ## TASK-378: Add HVE funnel and journey performance reporting
 
