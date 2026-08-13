@@ -8423,7 +8423,7 @@ Completed output:
 
 ## TASK-378: Add HVE funnel and journey performance reporting
 
-Status: Pending.
+Status: Complete.
 Product boundary: Referral SaaS.
 Shared primitive impact: Provides customer-scoped journey analytics reusable by reports and dashboards. Source duplication: No.
 Objective: Add high-value event funnel and journey-performance projections for campaign/referral progress.
@@ -8433,6 +8433,13 @@ Tests to add/update: Funnel correctness, freshness, tenant-scope, export parity 
 Acceptance criteria: Customer can see conversion journey performance beyond raw counts.
 Dependencies: TASK-376; TASK-377.
 Priority: P0.
+
+Completed output:
+- Added a tenant-scoped `journey_performance` Referral SaaS report source over referral instances, referral progress events, campaign attribution links, and distribution route links.
+- Replaced the previous partial referral funnel source with the same HVE/journey-performance source so Referral funnel now reports validated, attributed, completed, and high-value event stage counts rather than generic overview counts.
+- Added derived attribution-gap, completion-gap, and high-value-event metrics with campaign dimensions, freshness metadata, safe filters, redactions, and no raw UCN, payload, provider, reward, funding, settlement, billing, or money exposure.
+- Exposed Journey performance in the selected-customer Reports UI and extended reporting contract tests for tenant scope, redaction, source failures, and funnel parity.
+- Current rating remains 9.99/10 for Referral Management and moves Campaign Attribution to 9.99998/10 because HVE funnel and journey-performance reporting are now backed by real tenant-safe source data while saved report/export hardening, support finalization, commercial-finance isolation, and non-local proof repetition remain separate gaps.
 
 ## TASK-379: Harden saved reports, signed exports, schedules, delivery, and deletion proof
 

@@ -13,6 +13,7 @@ from utils.db import db_connection
 
 REPORT_CAMPAIGN_PERFORMANCE = "campaign_performance"
 REPORT_REFERRAL_FUNNEL = "referral_funnel"
+REPORT_JOURNEY_PERFORMANCE = "journey_performance"
 REPORT_LINK_CODE_PERFORMANCE = "link_code_performance"
 REPORT_PROGRESS_EVENT_HEALTH = "progress_event_health"
 REPORT_ATTRIBUTION_QUALITY = "attribution_quality"
@@ -130,6 +131,7 @@ DELIVERY_SCHEDULE_STATUSES = {
     STATUS_DELIVERY_SCHEDULE_CANCELLED,
 }
 SOURCE_PROGRESS_EVENT_HEALTH = "referral_progress_event_health"
+SOURCE_JOURNEY_PERFORMANCE = "referral_journey_performance"
 SOURCE_ATTRIBUTION_QUALITY = "referral_attribution_quality"
 SOURCE_SAFE_STATUS_DISTRIBUTION = "referral_safe_status_distribution"
 SOURCE_LINK_CODE_PERFORMANCE = "referral_link_code_performance"
@@ -155,6 +157,21 @@ REPORT_METRIC_NAME_MAPS = {
         "conversions.completion_rate": "funnel.completion_rate",
         "conversions.attribution_rate": "funnel.attribution_rate",
     },
+}
+
+JOURNEY_STAGE_EVENT_MAP = {
+    "ACCOUNT_OPENED": ("account_opened", "journey.account_opened_count"),
+    "ACCOUNT_ACTIVATED": ("account_activated", "journey.account_activated_count"),
+    "FUNDED": ("funded", "journey.funded_count"),
+    "DEBIT_ORDER_SWITCHED": (
+        "debit_order_switched",
+        "journey.debit_order_switched_count",
+    ),
+    "SALARY_SWITCHED": ("salary_switched", "journey.salary_switched_count"),
+    "FIRST_TRANSACTION_COMPLETED": (
+        "first_transaction_completed",
+        "journey.first_transaction_completed_count",
+    ),
 }
 
 SENSITIVE_FILTER_PARTS = (
@@ -427,7 +444,7 @@ REFERRAL_SAAS_REPORT_CATALOG: dict[str, dict[str, Any]] = {
     },
     REPORT_REFERRAL_FUNNEL: {
         "status": STATUS_AVAILABLE,
-        "source_report_type": analytics.REPORT_DISTRIBUTION_OVERVIEW,
+        "source_report_type": SOURCE_JOURNEY_PERFORMANCE,
         "metric_class": analytics.METRIC_OPERATIONAL,
         "allowed_dimensions": {
             "campaign_ref",
@@ -439,12 +456,41 @@ REFERRAL_SAAS_REPORT_CATALOG: dict[str, dict[str, Any]] = {
         "allowed_filters": {"campaign_ref", "campaign_code", "sponsor_code"},
         "source_warnings": [
             {
-                "code": "PARTIAL_SOURCE_COVERAGE",
+                "code": "HVE_STAGE_SOURCE",
                 "message": (
-                    "Referral funnel currently uses tenant-safe distribution "
-                    "overview metrics; validation-state and "
-                    "progress-milestone stage counts need dedicated follow-up "
-                    "report sources before they can be promised."
+                    "Referral funnel uses tenant-scoped referral instances, "
+                    "progress events, and attribution links to count high-value "
+                    "journey stages. It does not expose raw UCN, event payload, "
+                    "provider, reward, funding, settlement, billing, or money "
+                    "evidence."
+                ),
+            }
+        ],
+    },
+    REPORT_JOURNEY_PERFORMANCE: {
+        "status": STATUS_AVAILABLE,
+        "source_report_type": SOURCE_JOURNEY_PERFORMANCE,
+        "metric_class": analytics.METRIC_OPERATIONAL,
+        "allowed_dimensions": {
+            "campaign_ref",
+            "campaign_code",
+            "conversion_stage",
+            "journey_event_type",
+            "metric_name",
+            "performance_signal",
+            "progress_band",
+        },
+        "default_dimensions": ["campaign_code", "conversion_stage", "metric_name"],
+        "allowed_filters": {"campaign_ref", "campaign_code", "sponsor_code"},
+        "source_warnings": [
+            {
+                "code": "HVE_STAGE_SOURCE",
+                "message": (
+                    "Journey performance uses tenant-scoped referral instances, "
+                    "progress events, and attribution links to show where high-"
+                    "value events are being reached or dropped. It does not "
+                    "expose raw UCN, event payload, provider, reward, funding, "
+                    "settlement, billing, or money evidence."
                 ),
             }
         ],
@@ -2956,6 +3002,312 @@ async def _link_code_performance_report(
     }
 
 
+def _journey_performance_metric(
+    *,
+    name: str,
+    value: Any,
+    campaign_code: Any,
+    conversion_stage: str,
+    progress_band: str,
+    performance_signal: str,
+    journey_event_type: str | None = None,
+) -> dict[str, Any]:
+    return _report_metric(
+        name=name,
+        value=value,
+        source=SOURCE_JOURNEY_PERFORMANCE,
+        dimensions={
+            "campaign_code": campaign_code,
+            "campaign_ref": campaign_code,
+            "conversion_stage": conversion_stage,
+            "journey_event_type": journey_event_type,
+            "metric_name": name,
+            "performance_signal": performance_signal,
+            "progress_band": progress_band,
+        },
+    )
+
+
+async def _journey_performance_report(
+    *,
+    tenant_code: str,
+    catalog_report_type: str,
+    dimensions: list[str],
+    filters: dict[str, str],
+    redactions: list[str],
+    data_window_start: datetime | None,
+    data_window_end: datetime | None,
+) -> dict[str, Any]:
+    generated_at = datetime.now(timezone.utc)
+    safe_filters = {
+        "tenant_code": tenant_code,
+        **_link_code_performance_filters(filters),
+    }
+    source_warnings = REFERRAL_SAAS_REPORT_CATALOG[catalog_report_type].get(
+        "source_warnings", []
+    )
+
+    try:
+        async with db_connection() as conn:
+            rows = await conn.fetch(
+                """
+                WITH base AS (
+                    SELECT
+                        ri.referral_track_id,
+                        ri.status AS referral_status,
+                        COALESCE(ri.is_complete, false) AS is_complete,
+                        COALESCE(ca.campaign_code, o.campaign_code) AS campaign_code,
+                        CASE
+                            WHEN crl.campaign_track_id IS NOT NULL
+                              OR drl.route_id IS NOT NULL
+                                THEN true
+                            ELSE false
+                        END AS has_attribution_evidence,
+                        ri.created_at
+                    FROM referral_instances ri
+                    LEFT JOIN campaign_referral_links crl
+                      ON crl.referral_track_id = ri.referral_track_id
+                    LEFT JOIN campaign_attributions ca
+                      ON ca.campaign_track_id = crl.campaign_track_id
+                     AND ca.tenant_code = ri.tenant_code
+                    LEFT JOIN distribution_route_referral_links drl
+                      ON drl.referral_track_id = ri.referral_track_id
+                     AND drl.tenant_code = ri.tenant_code
+                    LEFT JOIN distribution_opportunities o
+                      ON o.opportunity_id = drl.opportunity_id
+                     AND o.tenant_code = ri.tenant_code
+                    WHERE ri.tenant_code = $1
+                      AND ($2::text IS NULL OR COALESCE(ca.campaign_code, o.campaign_code) = $2)
+                      AND ($3::timestamptz IS NULL OR ri.created_at >= $3)
+                      AND ($4::timestamptz IS NULL OR ri.created_at < $4)
+                ),
+                progress AS (
+                    SELECT
+                        ri.referral_track_id,
+                        rpe.event_type,
+                        COALESCE(ca.campaign_code, o.campaign_code) AS campaign_code,
+                        COUNT(*)::int AS event_count
+                    FROM referral_progress_events rpe
+                    JOIN referral_instances ri
+                      ON ri.referral_track_id = rpe.referral_track_id
+                    LEFT JOIN campaign_referral_links crl
+                      ON crl.referral_track_id = ri.referral_track_id
+                    LEFT JOIN campaign_attributions ca
+                      ON ca.campaign_track_id = crl.campaign_track_id
+                     AND ca.tenant_code = ri.tenant_code
+                    LEFT JOIN distribution_route_referral_links drl
+                      ON drl.referral_track_id = ri.referral_track_id
+                     AND drl.tenant_code = ri.tenant_code
+                    LEFT JOIN distribution_opportunities o
+                      ON o.opportunity_id = drl.opportunity_id
+                     AND o.tenant_code = ri.tenant_code
+                    WHERE ri.tenant_code = $1
+                      AND ($2::text IS NULL OR COALESCE(ca.campaign_code, o.campaign_code) = $2)
+                      AND ($3::timestamptz IS NULL OR rpe.occurred_at >= $3)
+                      AND ($4::timestamptz IS NULL OR rpe.occurred_at < $4)
+                    GROUP BY
+                        ri.referral_track_id,
+                        rpe.event_type,
+                        COALESCE(ca.campaign_code, o.campaign_code)
+                ),
+                stage_counts AS (
+                    SELECT
+                        campaign_code,
+                        'validated'::text AS conversion_stage,
+                        NULL::text AS journey_event_type,
+                        COUNT(DISTINCT referral_track_id)::int AS stage_count
+                    FROM base
+                    GROUP BY campaign_code
+                    UNION ALL
+                    SELECT
+                        campaign_code,
+                        'attributed'::text AS conversion_stage,
+                        NULL::text AS journey_event_type,
+                        COUNT(DISTINCT referral_track_id)::int AS stage_count
+                    FROM base
+                    WHERE has_attribution_evidence
+                    GROUP BY campaign_code
+                    UNION ALL
+                    SELECT
+                        campaign_code,
+                        'completed'::text AS conversion_stage,
+                        NULL::text AS journey_event_type,
+                        COUNT(DISTINCT referral_track_id)::int AS stage_count
+                    FROM base
+                    WHERE is_complete OR referral_status = 'COMPLETED'
+                    GROUP BY campaign_code
+                    UNION ALL
+                    SELECT
+                        campaign_code,
+                        LOWER(event_type) AS conversion_stage,
+                        event_type AS journey_event_type,
+                        COUNT(DISTINCT referral_track_id)::int AS stage_count
+                    FROM progress
+                    GROUP BY campaign_code, event_type
+                )
+                SELECT
+                    campaign_code,
+                    conversion_stage,
+                    journey_event_type,
+                    stage_count
+                FROM stage_counts
+                ORDER BY campaign_code NULLS LAST, conversion_stage
+                """,
+                tenant_code,
+                safe_filters.get("campaign_code"),
+                data_window_start,
+                data_window_end,
+            )
+    except Exception:
+        return {
+            "report_type": SOURCE_JOURNEY_PERFORMANCE,
+            "tenant_scope": tenant_code,
+            "external_tenant_ref": None,
+            "filters": safe_filters,
+            "dimensions": dimensions,
+            "metric_class": analytics.METRIC_OPERATIONAL,
+            "metrics": [],
+            "data_window_start": analytics._iso(data_window_start),
+            "data_window_end": analytics._iso(data_window_end),
+            "generated_at": analytics._iso(generated_at),
+            "freshness": analytics._freshness(
+                status=analytics.FRESHNESS_UNAVAILABLE,
+                generated_at=generated_at,
+                source_family=SOURCE_JOURNEY_PERFORMANCE,
+                data_window_start=data_window_start,
+                data_window_end=data_window_end,
+            ),
+            "source_warnings": [
+                {
+                    "code": "SOURCE_UNAVAILABLE",
+                    "severity": "WARNING",
+                    "source": SOURCE_JOURNEY_PERFORMANCE,
+                    "message": "Journey performance source could not be read safely.",
+                },
+                *source_warnings,
+            ],
+            "redactions": redactions,
+            "reconciliation_status": "NOT_APPLICABLE",
+        }
+
+    metric_name_by_stage = {
+        "validated": "journey.validated_referral_count",
+        "attributed": "journey.attributed_referral_count",
+        "completed": "journey.completed_referral_count",
+        **{
+            stage: metric_name
+            for stage, metric_name in JOURNEY_STAGE_EVENT_MAP.values()
+        },
+    }
+    progress_band_by_stage = {
+        "validated": "ENTERED",
+        "attributed": "ATTRIBUTED",
+        "completed": "COMPLETED",
+        "account_opened": "STARTED",
+        "account_activated": "ACTIVE",
+        "funded": "HIGH_VALUE_EVENT",
+        "debit_order_switched": "HIGH_VALUE_EVENT",
+        "salary_switched": "HIGH_VALUE_EVENT",
+        "first_transaction_completed": "HIGH_VALUE_EVENT",
+    }
+    signal_by_stage = {
+        "validated": "entry",
+        "attributed": "credit_evidence",
+        "completed": "conversion_complete",
+        "account_opened": "first_hve",
+        "account_activated": "activation",
+        "funded": "value_event",
+        "debit_order_switched": "value_event",
+        "salary_switched": "value_event",
+        "first_transaction_completed": "value_event",
+    }
+
+    metrics = []
+    totals: dict[str, int] = {}
+    for row in rows:
+        row_data = dict(row)
+        stage = str(row_data.get("conversion_stage") or "unknown").lower()
+        value = int(row_data.get("stage_count") or 0)
+        totals[stage] = totals.get(stage, 0) + value
+        metrics.append(
+            _journey_performance_metric(
+                name=metric_name_by_stage.get(stage, "journey.unmapped_stage_count"),
+                value=value,
+                campaign_code=row_data.get("campaign_code"),
+                conversion_stage=stage,
+                journey_event_type=row_data.get("journey_event_type"),
+                progress_band=progress_band_by_stage.get(stage, "IN_PROGRESS"),
+                performance_signal=signal_by_stage.get(stage, "stage_count"),
+            )
+        )
+
+    validated_count = totals.get("validated", 0)
+    attributed_count = totals.get("attributed", 0)
+    completed_count = totals.get("completed", 0)
+    hve_count = sum(
+        totals.get(stage, 0)
+        for stage in {
+            "account_opened",
+            "account_activated",
+            "funded",
+            "debit_order_switched",
+            "salary_switched",
+            "first_transaction_completed",
+        }
+    )
+    metrics.extend(
+        [
+            _journey_performance_metric(
+                name="journey.hve_event_count",
+                value=hve_count,
+                campaign_code=safe_filters.get("campaign_code"),
+                conversion_stage="high_value_events",
+                progress_band="HIGH_VALUE_EVENT",
+                performance_signal="hve_volume",
+            ),
+            _journey_performance_metric(
+                name="journey.attribution_gap_count",
+                value=max(validated_count - attributed_count, 0),
+                campaign_code=safe_filters.get("campaign_code"),
+                conversion_stage="attribution_gap",
+                progress_band="ACTION_NEEDED",
+                performance_signal="missing_credit_evidence",
+            ),
+            _journey_performance_metric(
+                name="journey.completion_gap_count",
+                value=max(validated_count - completed_count, 0),
+                campaign_code=safe_filters.get("campaign_code"),
+                conversion_stage="completion_gap",
+                progress_band="ACTION_NEEDED",
+                performance_signal="incomplete_journey",
+            ),
+        ]
+    )
+
+    return {
+        "report_type": SOURCE_JOURNEY_PERFORMANCE,
+        "tenant_scope": tenant_code,
+        "external_tenant_ref": None,
+        "filters": safe_filters,
+        "dimensions": dimensions,
+        "metric_class": analytics.METRIC_OPERATIONAL,
+        "metrics": metrics,
+        "data_window_start": analytics._iso(data_window_start),
+        "data_window_end": analytics._iso(data_window_end),
+        "generated_at": analytics._iso(generated_at),
+        "freshness": analytics._freshness(
+            status=analytics.FRESHNESS_FRESH,
+            generated_at=generated_at,
+            source_family=SOURCE_JOURNEY_PERFORMANCE,
+            data_window_start=data_window_start,
+            data_window_end=data_window_end,
+        ),
+        "source_warnings": source_warnings,
+        "redactions": redactions,
+        "reconciliation_status": "NOT_APPLICABLE",
+    }
+
+
 async def _progress_event_health_report(
     *,
     tenant_code: str,
@@ -3781,6 +4133,35 @@ async def get_referral_saas_report(
     if report == REPORT_LINK_CODE_PERFORMANCE:
         source_report = await _link_code_performance_report(
             tenant_code=tenant,
+            dimensions=resolved_dimensions,
+            filters=safe_filters,
+            redactions=redactions,
+            data_window_start=data_window_start,
+            data_window_end=data_window_end,
+        )
+        return {
+            "report_type": report,
+            "source_report_type": source_report["report_type"],
+            "tenant_scope": source_report["tenant_scope"],
+            "external_tenant_ref": source_report.get("external_tenant_ref"),
+            "filters": source_report["filters"],
+            "dimensions": resolved_dimensions,
+            "metric_class": config["metric_class"],
+            "metrics": source_report["metrics"],
+            "data_window_start": source_report["data_window_start"],
+            "data_window_end": source_report["data_window_end"],
+            "generated_at": source_report["generated_at"],
+            "freshness": source_report["freshness"],
+            "source_warnings": source_report["source_warnings"],
+            "redactions": source_report["redactions"],
+            "reconciliation_status": source_report["reconciliation_status"],
+            "catalog_status": config["status"],
+            "export_status": STATUS_NOT_IMPLEMENTED,
+        }
+    if report in {REPORT_REFERRAL_FUNNEL, REPORT_JOURNEY_PERFORMANCE}:
+        source_report = await _journey_performance_report(
+            tenant_code=tenant,
+            catalog_report_type=report,
             dimensions=resolved_dimensions,
             filters=safe_filters,
             redactions=redactions,
