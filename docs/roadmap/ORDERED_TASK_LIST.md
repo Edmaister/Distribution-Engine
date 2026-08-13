@@ -8350,7 +8350,7 @@ Completed output:
 
 ## TASK-374: Harden referral timeline, event idempotency, and source evidence
 
-Status: Pending.
+Status: Complete.
 Product boundary: Referral SaaS.
 Shared primitive impact: Strengthens event ingestion evidence consumed by support, attribution, and reporting. Source duplication: No.
 Objective: Ensure referral progress timelines expose complete safe evidence, dedupe/idempotency posture, and source-system provenance.
@@ -8360,6 +8360,10 @@ Tests to add/update: Dedupe replay, conflicting payload, missing source, timelin
 Acceptance criteria: Referral progress can be explained from source evidence without unsafe raw payloads.
 Dependencies: TASK-372.
 Priority: P0.
+
+Completed output:
+- Hardened selected-customer referral timeline read models with safe sequence, source, inbox, dedupe/idempotency, missing-evidence, and recovery-posture evidence while keeping source event IDs, payload hashes, dedupe keys, raw payloads, raw UCNs, and tenant codes redacted.
+- Updated the customer Referrals UI to show timeline evidence posture, source-proof counts, idempotency gaps, duplicate replay evidence, and event-level recovery posture in plain language.
 
 ## TASK-375: Add governed referral correction, replay, and reassignment execution
 

@@ -3220,6 +3220,7 @@ function CustomerReferralsPage({
   const selectedReferral =
     referralDetailResponse?.referral ||
     referrals.find((referral) => referral.referralTrackId === selectedReferralTrackId);
+  const timelineEvidenceSummary = referralDetailResponse?.referral.timelineEvidenceSummary;
   const missingEvidenceCount = referrals.reduce(
     (total, referral) => total + referral.missingEvidence.length,
     0,
@@ -3360,6 +3361,30 @@ function CustomerReferralsPage({
           </div>
         ) : null}
 
+        {timelineEvidenceSummary ? (
+          <div className="wizard-status-card">
+            <div>
+              <strong>Timeline evidence posture</strong>
+              <p>
+                {timelineEvidencePlainLanguage(timelineEvidenceSummary.recoveryPosture)}{" "}
+                {timelineEvidenceSummary.eventCount} event
+                {timelineEvidenceSummary.eventCount === 1 ? "" : "s"} returned,{" "}
+                {timelineEvidenceSummary.sourceMatchedCount} matched to source inbox evidence.
+              </p>
+              <p className="muted">
+                Missing source proof: {timelineEvidenceSummary.missingSourceEvidenceCount}. Missing idempotency
+                proof: {timelineEvidenceSummary.missingIdempotencyEvidenceCount}. Dedupe replays:{" "}
+                {timelineEvidenceSummary.duplicateReplayCount}. Failed or delayed source events:{" "}
+                {timelineEvidenceSummary.failedOrDelayedCount}.
+              </p>
+            </div>
+            <StatusBadge
+              label={formatDisplay(timelineEvidenceSummary.recoveryPosture)}
+              tone={timelineEvidenceTone(timelineEvidenceSummary.recoveryPosture)}
+            />
+          </div>
+        ) : null}
+
         {referralDetailResponse?.referral.timeline ? (
           <DataTable
             rows={referralDetailResponse.referral.timeline}
@@ -3367,18 +3392,64 @@ function CustomerReferralsPage({
             columns={[
               {
                 key: "eventType",
-                header: "Timeline event",
-                render: (row) => <strong>{formatDisplay(getValue(row, ["eventType"], "Unknown"))}</strong>,
+                header: "Timeline step",
+                render: (row) => (
+                  <div>
+                    <strong>
+                      #{formatDisplay(getValue(row, ["sequence"], "?"))}{" "}
+                      {formatDisplay(getValue(row, ["eventType"], "Unknown"))}
+                    </strong>
+                    <div className="table-subtext">
+                      Source: {formatDisplay(getValue(row, ["sourceSystem"], "Not returned"))}
+                    </div>
+                  </div>
+                ),
               },
               {
-                key: "occurredAt",
-                header: "Occurred",
-                render: (row) => formatDisplay(getValue(row, ["occurredAt"], "Not returned")),
+                key: "when",
+                header: "When",
+                render: (row) => (
+                  <div>
+                    <div>Occurred: {formatDisplay(getValue(row, ["occurredAt"], "Not returned"))}</div>
+                    <div className="table-subtext">
+                      Received: {formatDisplay(getValue(row, ["receivedAt"], "Not returned"))}
+                    </div>
+                  </div>
+                ),
               },
               {
-                key: "sourceSystem",
-                header: "Source",
-                render: (row) => formatDisplay(getValue(row, ["sourceSystem"], "Not returned")),
+                key: "safeEvidence",
+                header: "Safe evidence",
+                render: (row) => {
+                  const sourceEvidence = getNestedValue(row, ["sourceEvidence"], []);
+                  const missingEvidence = getNestedValue(row, ["missingEvidence"], []);
+                  const evidence = Array.isArray(sourceEvidence) ? sourceEvidence : [];
+                  const missing = Array.isArray(missingEvidence) ? missingEvidence : [];
+                  return (
+                    <div>
+                      <div>
+                        {evidence.length
+                          ? evidence.map((item) => formatDisplay(item)).join(", ")
+                          : "No source evidence returned"}
+                      </div>
+                      {missing.length ? (
+                        <div className="table-subtext">
+                          Missing: {missing.map((item) => formatDisplay(item)).join(", ")}
+                        </div>
+                      ) : (
+                        <div className="table-subtext">No missing event evidence.</div>
+                      )}
+                    </div>
+                  );
+                },
+              },
+              {
+                key: "recoveryPosture",
+                header: "Recovery posture",
+                render: (row) => {
+                  const posture = String(getValue(row, ["recoveryPosture"], "UNKNOWN"));
+                  return <StatusBadge label={formatDisplay(posture)} tone={timelineEvidenceTone(posture)} />;
+                },
               },
             ]}
           />
@@ -7824,6 +7895,44 @@ function accessProvisioningTone(status: string): StatusTone {
     return "warning";
   }
   return statusTone(status);
+}
+
+function timelineEvidenceTone(posture: string): StatusTone {
+  if (posture === "READY_FOR_SUPPORT_AND_ATTRIBUTION") {
+    return "success";
+  }
+  if (posture === "DEDUPE_REPLAY_RECORDED") {
+    return "info";
+  }
+  if (posture === "SOURCE_EVENT_FAILED_OR_DELAYED") {
+    return "danger";
+  }
+  if (posture === "CHECK_SOURCE_PROVENANCE" || posture === "CHECK_IDEMPOTENCY_EVIDENCE") {
+    return "warning";
+  }
+  return statusTone(posture);
+}
+
+function timelineEvidencePlainLanguage(posture: string) {
+  if (posture === "READY_FOR_SUPPORT_AND_ATTRIBUTION") {
+    return "The referral timeline has enough safe source and idempotency evidence to explain.";
+  }
+  if (posture === "DEDUPE_REPLAY_RECORDED") {
+    return "A replay or duplicate event was safely detected and recorded.";
+  }
+  if (posture === "SOURCE_EVENT_FAILED_OR_DELAYED") {
+    return "At least one source event is failed, ignored, or delayed.";
+  }
+  if (posture === "CHECK_SOURCE_PROVENANCE") {
+    return "Some events need source-system or inbox proof before they can be fully trusted.";
+  }
+  if (posture === "CHECK_IDEMPOTENCY_EVIDENCE") {
+    return "Some events need idempotency proof before replay safety is clear.";
+  }
+  if (posture === "NO_TIMELINE_EVIDENCE") {
+    return "No progress timeline evidence has been returned yet.";
+  }
+  return "Review the event-level evidence posture before support, attribution, or reporting decisions.";
 }
 
 function initials(name: string) {

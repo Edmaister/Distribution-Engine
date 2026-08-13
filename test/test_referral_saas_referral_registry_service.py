@@ -134,11 +134,20 @@ async def test_referral_detail_returns_safe_timeline(monkeypatch):
         fetch_results=[
             [
                 {
+                    "sequence": 1,
                     "event_type": "APPLICATION_STARTED",
                     "occurred_at": datetime(2026, 8, 1, tzinfo=timezone.utc),
+                    "received_at": datetime(2026, 8, 1, 0, 1, tzinfo=timezone.utc),
                     "source_system": "progress-api",
+                    "source_event_id": "source-event-1",
                     "meta": {"raw": "not returned"},
                     "event_payload_hash": "not-returned",
+                    "dedupe_key": "not-returned",
+                    "idempotency_version": 1,
+                    "source_inbox_status": "QUEUED",
+                    "source_inbox_event_present": True,
+                    "source_inbox_dedupe_present": True,
+                    "source_inbox_payload_hash_present": True,
                 }
             ]
         ],
@@ -155,10 +164,123 @@ async def test_referral_detail_returns_safe_timeline(monkeypatch):
     assert safe_payload["referralTrackId"] == str(referral_track_id)
     assert safe_payload["timeline"] == [
         {
+            "sequence": 1,
             "eventType": "APPLICATION_STARTED",
             "occurredAt": "2026-08-01T00:00:00+00:00",
+            "receivedAt": "2026-08-01T00:01:00+00:00",
             "sourceSystem": "progress-api",
+            "sourceEventPresent": True,
+            "dedupeEvidence": "SOURCE_EVENT_AND_DEDUPE_KEY_PRESENT",
+            "payloadHashPresent": True,
+            "sourceInboxStatus": "QUEUED",
+            "sourceEvidence": [
+                "SOURCE_SYSTEM_PRESENT",
+                "SOURCE_EVENT_PRESENT",
+                "DEDUPE_KEY_PRESENT",
+                "PAYLOAD_HASH_PRESENT",
+                "SOURCE_INBOX_QUEUED",
+            ],
+            "missingEvidence": [],
+            "recoveryPosture": "READY_FOR_SUPPORT_AND_ATTRIBUTION",
         }
     ]
+    assert safe_payload["timelineEvidenceSummary"] == {
+        "eventCount": 1,
+        "sourceMatchedCount": 1,
+        "missingSourceEvidenceCount": 0,
+        "missingIdempotencyEvidenceCount": 0,
+        "duplicateReplayCount": 0,
+        "failedOrDelayedCount": 0,
+        "missingEvidence": [],
+        "recoveryPosture": "READY_FOR_SUPPORT_AND_ATTRIBUTION",
+    }
     assert "meta" not in safe_payload["timeline"][0]
     assert "eventPayloadHash" not in safe_payload["timeline"][0]
+    assert "sourceEventId" not in safe_payload["timeline"][0]
+    assert "dedupeKey" not in safe_payload["timeline"][0]
+
+
+async def test_referral_detail_marks_missing_source_and_idempotency_evidence(monkeypatch):
+    referral_track_id = uuid4()
+    conn = FakeConnection(
+        fetchrow_results=[_referral_row(referral_track_id=referral_track_id)],
+        fetch_results=[
+            [
+                {
+                    "sequence": 1,
+                    "event_type": "APPLICATION_STARTED",
+                    "occurred_at": datetime(2026, 8, 1, tzinfo=timezone.utc),
+                    "received_at": None,
+                    "source_system": None,
+                    "source_event_id": None,
+                    "event_payload_hash": None,
+                    "dedupe_key": None,
+                    "idempotency_version": None,
+                    "source_inbox_status": None,
+                    "source_inbox_event_present": False,
+                    "source_inbox_dedupe_present": False,
+                    "source_inbox_payload_hash_present": False,
+                }
+            ]
+        ],
+    )
+    patch_db(monkeypatch, conn)
+
+    detail = await svc.get_referral_saas_account_referral(
+        tenant_code="FNB",
+        referral_track_id=str(referral_track_id),
+    )
+
+    assert detail is not None
+    safe_payload = detail.to_safe_dict()
+    assert safe_payload["timeline"][0]["missingEvidence"] == [
+        "SOURCE_SYSTEM_MISSING",
+        "SOURCE_EVENT_ID_MISSING",
+        "DEDUPE_KEY_MISSING",
+        "PAYLOAD_HASH_MISSING",
+        "SOURCE_INBOX_EVIDENCE_MISSING",
+    ]
+    assert safe_payload["timeline"][0]["recoveryPosture"] == "CHECK_SOURCE_PROVENANCE"
+    assert safe_payload["timelineEvidenceSummary"]["missingSourceEvidenceCount"] == 1
+    assert safe_payload["timelineEvidenceSummary"]["missingIdempotencyEvidenceCount"] == 1
+    assert safe_payload["timelineEvidenceSummary"]["recoveryPosture"] == "CHECK_SOURCE_PROVENANCE"
+
+
+async def test_referral_detail_surfaces_dedupe_replay_without_raw_keys(monkeypatch):
+    referral_track_id = uuid4()
+    conn = FakeConnection(
+        fetchrow_results=[_referral_row(referral_track_id=referral_track_id)],
+        fetch_results=[
+            [
+                {
+                    "sequence": 1,
+                    "event_type": "APPLICATION_STARTED",
+                    "occurred_at": datetime(2026, 8, 1, tzinfo=timezone.utc),
+                    "received_at": datetime(2026, 8, 1, 0, 1, tzinfo=timezone.utc),
+                    "source_system": "progress-api",
+                    "source_event_id": "source-event-1",
+                    "event_payload_hash": "hidden",
+                    "dedupe_key": "hidden",
+                    "idempotency_version": 1,
+                    "source_inbox_status": "DUPLICATE",
+                    "source_inbox_event_present": True,
+                    "source_inbox_dedupe_present": True,
+                    "source_inbox_payload_hash_present": True,
+                }
+            ]
+        ],
+    )
+    patch_db(monkeypatch, conn)
+
+    detail = await svc.get_referral_saas_account_referral(
+        tenant_code="FNB",
+        referral_track_id=str(referral_track_id),
+    )
+
+    assert detail is not None
+    safe_payload = detail.to_safe_dict()
+    assert safe_payload["timeline"][0]["recoveryPosture"] == "DEDUPE_REPLAY_RECORDED"
+    assert safe_payload["timelineEvidenceSummary"]["duplicateReplayCount"] == 1
+    assert safe_payload["timelineEvidenceSummary"]["recoveryPosture"] == "DEDUPE_REPLAY_RECORDED"
+    assert "eventPayloadHash" not in safe_payload["timeline"][0]
+    assert "dedupeKey" not in safe_payload["timeline"][0]

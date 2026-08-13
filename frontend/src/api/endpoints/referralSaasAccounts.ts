@@ -1301,13 +1301,34 @@ export type ReferralSaasAccountReferralSummary = {
 };
 
 export type ReferralSaasReferralTimelineEvent = {
+  sequence?: number;
   eventType: string;
   occurredAt?: string | null;
+  receivedAt?: string | null;
   sourceSystem?: string | null;
+  sourceEventPresent?: boolean;
+  dedupeEvidence?: string;
+  payloadHashPresent?: boolean;
+  sourceInboxStatus?: string | null;
+  sourceEvidence?: string[];
+  missingEvidence?: string[];
+  recoveryPosture?: string;
+};
+
+export type ReferralSaasTimelineEvidenceSummary = {
+  eventCount: number;
+  sourceMatchedCount: number;
+  missingSourceEvidenceCount: number;
+  missingIdempotencyEvidenceCount: number;
+  duplicateReplayCount: number;
+  failedOrDelayedCount: number;
+  missingEvidence: string[];
+  recoveryPosture: string;
 };
 
 export type ReferralSaasAccountReferralDetail = ReferralSaasAccountReferralSummary & {
   timeline: ReferralSaasReferralTimelineEvent[];
+  timelineEvidenceSummary?: ReferralSaasTimelineEvidenceSummary;
 };
 
 export type ReferralSaasAccountReferralListRequest = ReferralSaasAccountResolutionRequest & {
