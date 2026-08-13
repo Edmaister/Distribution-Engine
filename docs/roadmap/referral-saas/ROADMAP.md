@@ -2573,6 +2573,27 @@ on TASK-366 through TASK-380.
   proof while support finalization, commercial-finance isolation, and non-local
   proof repetition remain separate gaps.
 
+- TASK-380:
+  `services/referral_saas_support_case_service.py`;
+  `apps/api/routers/referral_saas_accounts.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Completes the
+  selected-customer Support recovery workspace with audited support-case
+  assignment. Operators can now assign case ownership from the customer Support
+  page, see the owner and recovery posture in plain language, replay assignment
+  idempotently, and keep unsafe repair/replay/retry, provider, invite,
+  credential, auth, campaign, billing, money, DLaaS, and source-fork actions out
+  of scope. Ratings remain 9.99/10 for Referral Management and move to
+  9.999992/10 for Campaign Attribution because support/recovery workspace
+  finalization is closed while commercial-finance isolation and non-local proof
+  repetition remain separate gaps.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:

@@ -9,6 +9,7 @@ from utils.db import db_connection
 
 
 SUPPORT_CASE_CREATED_EVENT = "SUPPORT_CASE_CREATED"
+SUPPORT_CASE_ASSIGNED_EVENT = "SUPPORT_CASE_ASSIGNED"
 SUPPORT_CASE_NOTE_ADDED_EVENT = "SUPPORT_CASE_NOTE_ADDED"
 SUPPORT_CASE_STATUS_CHANGED_EVENT = "SUPPORT_CASE_STATUS_CHANGED"
 SUPPORT_CASE_REPAIR_COMMAND_RECORDED_EVENT = "SUPPORT_CASE_REPAIR_COMMAND_RECORDED"
@@ -346,6 +347,37 @@ class ReferralSaasSupportCaseStatusResult:
             "audit": {"accountAuditEventId": self.audit_event_id},
             "guardrails": SUPPORT_CASE_GUARDRAILS,
             "redactions": SUPPORT_CASE_REDACTIONS,
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasSupportCaseAssignmentResult:
+    command_status: str
+    support_case: ReferralSaasSupportCase
+    previous_assignee_ref: str | None
+    assignee_ref: str
+    idempotency_status: str
+    audit_event_id: str | None
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "supportCase": self.support_case.to_safe_dict(),
+            "assignment": {
+                "previousAssigneeRef": self.previous_assignee_ref,
+                "assigneeRef": self.assignee_ref,
+            },
+            "idempotency": {"status": self.idempotency_status},
+            "audit": {"accountAuditEventId": self.audit_event_id},
+            "guardrails": SUPPORT_CASE_GUARDRAILS,
+            "redactions": SUPPORT_CASE_REDACTIONS,
+            "no_repair_replay_retry_confirmed": True,
+            "no_referral_or_campaign_mutation_confirmed": True,
+            "no_progress_or_attribution_mutation_confirmed": True,
+            "no_report_or_export_mutation_confirmed": True,
+            "no_invite_delivery_confirmed": True,
+            "no_credential_or_auth_claim_change_confirmed": True,
+            "no_billing_or_money_movement_confirmed": True,
         }
 
 
@@ -1429,6 +1461,185 @@ async def get_referral_saas_support_case(
         [_evidence_link_from_row(row) for row in evidence_rows],
         [_note_from_row(row) for row in note_rows],
         [_status_event_from_row(row) for row in status_event_rows],
+    )
+
+
+async def assign_referral_saas_support_case(
+    *,
+    account_id: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    tenant_code: str,
+    case_ref: str,
+    assignee_ref: str,
+    assignment_reason: str,
+    reason_code: str | None,
+    correlation_id: str | None,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None,
+) -> ReferralSaasSupportCaseAssignmentResult:
+    safe_account_id = _require_bounded_text(
+        account_id, "account_id", min_length=1, max_length=80
+    )
+    safe_tenant_code = _require_bounded_text(
+        tenant_code, "tenant_code", min_length=1, max_length=120
+    )
+    safe_case_ref = _require_bounded_text(
+        case_ref, "case_ref", min_length=1, max_length=80
+    )
+    safe_assignee_ref = _require_bounded_text(
+        assignee_ref, "assigneeRef", min_length=1, max_length=160
+    )
+    safe_assignment_reason = _require_bounded_text(
+        assignment_reason, "assignmentReason", min_length=3, max_length=1000
+    )
+    safe_idempotency_hash = _require_bounded_text(
+        idempotency_key_hash,
+        "idempotency_key_hash",
+        min_length=1,
+        max_length=256,
+    )
+    safe_payload_hash = _require_bounded_text(
+        request_payload_hash, "request_payload_hash", min_length=1, max_length=256
+    )
+    safe_actor_ref = _require_bounded_text(
+        actor_ref, "actor_ref", min_length=1, max_length=160
+    )
+    safe_actor_role = _optional_text(actor_role)
+    safe_reason_code = _optional_text(reason_code) or "CUSTOMER_SUPPORT_CASE_ASSIGNED"
+    safe_correlation_id = _optional_text(correlation_id)
+    redactions = sorted(SUPPORT_CASE_REDACTIONS)
+
+    async with db_connection() as conn:
+        case_row = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_support_cases
+            WHERE account_id = $1
+              AND support_case_id = $2
+              AND archived_at IS NULL
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_case_ref,
+        )
+        if not case_row:
+            raise SupportCaseNotFound("Support case was not found for this account.")
+
+        existing_event = await conn.fetchrow(
+            """
+            SELECT *
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC, account_audit_event_id DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            SUPPORT_CASE_ASSIGNED_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_event:
+            evidence_summary = existing_event.get("evidence_summary") or {}
+            if isinstance(evidence_summary, str):
+                evidence_summary = json.loads(evidence_summary)
+            if _optional_text(evidence_summary.get("request_payload_hash")) != safe_payload_hash:
+                raise SupportCaseIdempotencyConflict(
+                    "Idempotency key was reused with different support-case assignment content."
+                )
+            current_case = await get_referral_saas_support_case(
+                account_id=safe_account_id,
+                case_ref=safe_case_ref,
+            )
+            return ReferralSaasSupportCaseAssignmentResult(
+                command_status="SUPPORT_CASE_ASSIGNMENT_REPLAYED",
+                support_case=current_case,
+                previous_assignee_ref=_optional_text(
+                    evidence_summary.get("previous_assignee_ref")
+                ),
+                assignee_ref=safe_assignee_ref,
+                idempotency_status=SUPPORT_CASE_REPLAYED,
+                audit_event_id=str(existing_event["account_audit_event_id"]),
+            )
+
+        previous_assignee_ref = _optional_text(case_row.get("assignee_ref"))
+        async with conn.transaction():
+            updated_case_row = await conn.fetchrow(
+                """
+                UPDATE referral_saas_support_cases
+                SET assignee_ref = $3,
+                    updated_by_ref = $4,
+                    updated_at = now()
+                WHERE account_id = $1
+                  AND support_case_id = $2
+                RETURNING *
+                """,
+                safe_account_id,
+                case_row["support_case_id"],
+                safe_assignee_ref,
+                safe_actor_ref,
+            )
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8,
+                    $9, $9, $10, $11, $12, $13::jsonb, $14::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                _optional_text(account_tenant_id),
+                _optional_text(external_ref_id),
+                safe_tenant_code,
+                SUPPORT_CASE_ASSIGNED_EVENT,
+                SUPPORT_CASE_RECORDED,
+                safe_actor_ref,
+                safe_actor_role,
+                updated_case_row["status"],
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(
+                    {
+                        "support_case_id": str(case_row["support_case_id"]),
+                        "previous_assignee_ref": previous_assignee_ref,
+                        "assignee_ref": safe_assignee_ref,
+                        "assignment_reason": safe_assignment_reason,
+                        "request_payload_hash": safe_payload_hash,
+                        "no_repair_replay_retry_confirmed": True,
+                        "no_billing_or_money_movement_confirmed": True,
+                    }
+                ),
+                _jsonb(redactions),
+            )
+
+    return ReferralSaasSupportCaseAssignmentResult(
+        command_status="SUPPORT_CASE_ASSIGNED",
+        support_case=_support_case_from_row(updated_case_row),
+        previous_assignee_ref=previous_assignee_ref,
+        assignee_ref=safe_assignee_ref,
+        idempotency_status=SUPPORT_CASE_RECORDED,
+        audit_event_id=str(audit_event["account_audit_event_id"]) if audit_event else None,
     )
 
 
