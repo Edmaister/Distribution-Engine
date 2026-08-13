@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getAdminOnboardingDrafts, getAdminOnboardingState } from "./endpoints/adminOnboarding";
 import {
   getReferralSaasAccountReferral,
+  getReferralSaasAccountReferralAttribution,
   getReferralSaasAccountReferrer,
   getReferralSaasAccountCampaignAttribution,
   listReferralSaasAccountCampaigns,
@@ -429,6 +430,38 @@ export function useReferralSaasAccountCampaignAttribution(
     ),
     queryFn: () =>
       getReferralSaasAccountCampaignAttribution({
+        accountRef: cleanedAccountRef,
+        refType: "external_tenant_ref",
+        externalRef: cleanedExternalTenantRef,
+        context: "setup",
+        limit,
+      }),
+    enabled: Boolean(enabled && cleanedAccountRef && cleanedExternalTenantRef),
+    retry: false,
+  });
+}
+
+export function useReferralSaasAccountReferralAttribution(
+  accountRef: string,
+  externalTenantRef: string,
+  enabled: boolean,
+  refreshKey = 0,
+  limit = 50,
+) {
+  const cleanedAccountRef = accountRef.trim();
+  const cleanedExternalTenantRef = externalTenantRef.trim();
+
+  return useQuery({
+    queryKey: queryKeys.referralSaasAccountReferralAttribution(
+      cleanedAccountRef,
+      "external_tenant_ref",
+      cleanedExternalTenantRef,
+      "setup",
+      limit,
+      refreshKey,
+    ),
+    queryFn: () =>
+      getReferralSaasAccountReferralAttribution({
         accountRef: cleanedAccountRef,
         refType: "external_tenant_ref",
         externalRef: cleanedExternalTenantRef,

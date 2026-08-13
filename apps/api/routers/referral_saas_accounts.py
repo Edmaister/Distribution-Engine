@@ -146,6 +146,11 @@ from services.referral_saas_referral_registry_service import (
     get_referral_saas_account_referral,
     list_referral_saas_account_referrals,
 )
+from services.referral_saas_referral_attribution_service import (
+    REFERRAL_ATTRIBUTION_GUARDRAILS,
+    REFERRAL_ATTRIBUTION_REDACTIONS,
+    build_referral_saas_account_referral_attribution_projection,
+)
 from services.referral_saas_referrer_identity_service import (
     REFERRER_IDENTITY_GUARDRAILS,
     REFERRER_IDENTITY_REDACTIONS,
@@ -7883,6 +7888,82 @@ async def read_referral_saas_account_referrer_identity(
         "no_raw_customer_identifier_exposure_confirmed": True,
         "no_secret_or_token_exposure_confirmed": True,
         "no_referral_mutation_confirmed": True,
+        "no_repair_replay_reassignment_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_webhook_delivery_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+        "referral_capability_enforced_confirmed": True,
+        "required_referral_capability": REFERRAL_SAAS_REFERRAL_READ_CAPABILITY,
+    }
+
+
+@router.get("/accounts/{account_ref}/referral-attribution")
+async def get_referral_saas_account_referral_attribution_projection(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    actor_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=actor_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_REFERRAL_READ_CAPABILITY,
+    )
+
+    projection = await build_referral_saas_account_referral_attribution_projection(
+        tenant_code=account.tenant_code,
+        limit=limit,
+    )
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "referralAttribution": projection.to_safe_dict(),
+        "guardrail": (
+            "Read-only Referral SaaS customer-scoped referral and referrer "
+            "attribution projection. This endpoint answers who got credit and "
+            "why using safe referral/referrer dimensions only; tenant_code, raw "
+            "identity, raw progress payloads, event hashes, attribution "
+            "mutation, campaign activation, webhook delivery, billing, and "
+            "money movement stay outside this surface."
+        ),
+        "guardrails": REFERRAL_ATTRIBUTION_GUARDRAILS,
+        "redactions": REFERRAL_ATTRIBUTION_REDACTIONS,
+        "no_tenant_code_exposure_confirmed": True,
+        "no_raw_identity_exposure_confirmed": True,
+        "no_raw_progress_payload_exposure_confirmed": True,
+        "no_raw_event_payload_exposure_confirmed": True,
+        "no_attribution_mutation_confirmed": True,
         "no_repair_replay_reassignment_confirmed": True,
         "no_campaign_activation_confirmed": True,
         "no_webhook_delivery_confirmed": True,
