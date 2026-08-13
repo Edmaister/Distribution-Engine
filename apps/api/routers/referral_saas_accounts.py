@@ -96,6 +96,8 @@ from services.referral_saas_account_setup_service import (
 from services.referral_saas_campaign_service import (
     CAMPAIGN_ACTIVATION_GUARDRAILS,
     CAMPAIGN_ACTIVATION_REDACTIONS,
+    CAMPAIGN_ATTRIBUTION_GUARDRAILS,
+    CAMPAIGN_ATTRIBUTION_REDACTIONS,
     CAMPAIGN_LIFECYCLE_GUARDRAILS,
     CAMPAIGN_LIFECYCLE_REDACTIONS,
     CAMPAIGN_POLICY_SETTINGS_GUARDRAILS,
@@ -127,6 +129,7 @@ from services.referral_saas_campaign_service import (
     CampaignSetupIdempotencyConflict,
     CampaignSetupValidationError,
     ReferralSaasCampaignCommandError,
+    build_referral_saas_account_campaign_attribution_projection,
     create_referral_saas_account_campaign_setup,
     get_referral_saas_account_campaign,
     get_referral_saas_account_campaign_lifecycle,
@@ -7954,6 +7957,79 @@ async def list_referral_saas_account_campaign_registry(
         "no_link_generation_confirmed": True,
         "no_campaign_activation_confirmed": True,
         "no_money_movement_confirmed": True,
+        "campaign_capability_enforced_confirmed": True,
+        "required_campaign_capability": REFERRAL_SAAS_CAMPAIGN_READ_CAPABILITY,
+    }
+
+
+@router.get("/accounts/{account_ref}/campaign-attribution")
+async def get_referral_saas_account_campaign_attribution_projection(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External reference type used to resolve the account.",
+        ),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(
+            min_length=1,
+            description="External account/customer reference value.",
+        ),
+    ],
+    context: Annotated[
+        str,
+        Query(
+            description=(
+                "setup allows pending setup evidence; runtime requires active "
+                "account/reference/tenant-link state."
+            ),
+        ),
+    ] = "setup",
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    actor_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=actor_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_CAMPAIGN_READ_CAPABILITY,
+    )
+
+    projection = await build_referral_saas_account_campaign_attribution_projection(
+        tenant_code=account.tenant_code,
+        limit=limit,
+    )
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "campaignAttribution": projection.to_safe_dict(),
+        "guardrail": (
+            "Read-only Referral SaaS customer-scoped campaign attribution "
+            "projection. This endpoint resolves the selected account internally "
+            "and does not expose tenant_code, raw identity, raw event payloads, "
+            "activate campaigns, deliver webhooks, mutate attribution, or move "
+            "money."
+        ),
+        "guardrails": CAMPAIGN_ATTRIBUTION_GUARDRAILS,
+        "redactions": CAMPAIGN_ATTRIBUTION_REDACTIONS,
+        "no_tenant_code_exposure_confirmed": True,
+        "no_raw_identity_exposure_confirmed": True,
+        "no_raw_event_payload_exposure_confirmed": True,
+        "no_attribution_mutation_confirmed": True,
+        "no_campaign_activation_confirmed": True,
+        "no_webhook_delivery_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
         "campaign_capability_enforced_confirmed": True,
         "required_campaign_capability": REFERRAL_SAAS_CAMPAIGN_READ_CAPABILITY,
     }

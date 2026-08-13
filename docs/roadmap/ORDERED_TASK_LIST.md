@@ -8385,7 +8385,7 @@ Completed output:
 
 ## TASK-376: Add dedicated Campaign Attribution projection and page
 
-Status: Pending.
+Status: Complete.
 Product boundary: Referral SaaS.
 Shared primitive impact: Separates campaign-level attribution from referral/referrer attribution. Source duplication: No.
 Objective: Create a selected-customer Campaign Attribution page with campaign/source/channel evidence, confidence, gaps, and explainability.
@@ -8395,6 +8395,12 @@ Tests to add/update: Campaign attribution aggregation, missing evidence, conflic
 Acceptance criteria: Users can understand campaign performance attribution without reading raw events.
 Dependencies: TASK-369; TASK-374.
 Priority: P0.
+
+Completed output:
+- Added a read-only customer-scoped campaign attribution projection API at `/v1/referral-saas/accounts/{account_ref}/campaign-attribution`, using account resolution, campaign-read capability enforcement, tenant-internal aggregation, redactions, and no-attribution-mutation/no-campaign-activation/no-webhook/no-money guardrails.
+- Added campaign/source/channel attribution aggregation with confidence, missing-evidence, conflict, linked-referral, event-count, and plain-language explanation output.
+- Added a dedicated selected-customer Campaign Attribution frontend page so operators can understand campaign attribution without opening the raw attribution trace workspace.
+- Added service, API, route-inventory, and frontend endpoint tests for high-confidence, missing-evidence, conflict, tenant-scope, capability, and client-contract behavior.
 
 ## TASK-377: Add dedicated Referral and Referrer Attribution projection
 

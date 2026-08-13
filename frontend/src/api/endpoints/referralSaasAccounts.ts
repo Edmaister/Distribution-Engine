@@ -1502,6 +1502,63 @@ export type ReferralSaasAccountCampaignListResponse = {
   no_money_movement_confirmed: boolean;
 };
 
+export type ReferralSaasCampaignAttributionProjection = {
+  campaignCode: string;
+  campaignName: string;
+  segment: string;
+  campaignStatus: string;
+  sourceChannel: string;
+  attributionStatus: string;
+  confidence: string;
+  interactionCount: number;
+  linkedReferralCount: number;
+  eventCount: number;
+  firstSeenAt?: string | null;
+  lastSeenAt?: string | null;
+  evidence: string[];
+  gaps: string[];
+  explanation: string;
+};
+
+export type ReferralSaasAccountCampaignAttribution = {
+  status: string;
+  campaignCount: number;
+  sourceCount: number;
+  totalInteractions: number;
+  highConfidenceCount: number;
+  missingEvidenceCount: number;
+  conflictCount: number;
+  plainLanguage: string;
+  projections: ReferralSaasCampaignAttributionProjection[];
+  guardrails: string[];
+  redactions: string[];
+};
+
+export type ReferralSaasAccountCampaignAttributionRequest =
+  ReferralSaasAccountResolutionRequest & {
+    accountRef: string;
+    limit?: number;
+  };
+
+export type ReferralSaasAccountCampaignAttributionResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  campaignAttribution: ReferralSaasAccountCampaignAttribution;
+  campaign_capability_enforced_confirmed: boolean;
+  required_campaign_capability: string;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  no_tenant_code_exposure_confirmed: boolean;
+  no_raw_identity_exposure_confirmed: boolean;
+  no_raw_event_payload_exposure_confirmed: boolean;
+  no_attribution_mutation_confirmed: boolean;
+  no_campaign_activation_confirmed: boolean;
+  no_webhook_delivery_confirmed: boolean;
+  no_billing_or_money_movement_confirmed: boolean;
+};
+
 export type ReferralSaasAccountCampaignReadRequest = ReferralSaasAccountResolutionRequest & {
   accountRef: string;
   campaignCode: string;
@@ -3024,6 +3081,26 @@ export function listReferralSaasAccountCampaigns({
 }: ReferralSaasAccountCampaignListRequest): Promise<ReferralSaasAccountCampaignListResponse> {
   return apiRequest<ReferralSaasAccountCampaignListResponse>(
     `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaigns`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+        limit,
+      },
+    },
+  );
+}
+
+export function getReferralSaasAccountCampaignAttribution({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+  limit = 50,
+}: ReferralSaasAccountCampaignAttributionRequest): Promise<ReferralSaasAccountCampaignAttributionResponse> {
+  return apiRequest<ReferralSaasAccountCampaignAttributionResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaign-attribution`,
     {
       query: {
         ref_type: refType,

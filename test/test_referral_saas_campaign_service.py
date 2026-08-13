@@ -33,6 +33,18 @@ class FakeCommandConnection:
         return FakeTransaction()
 
 
+class FakeReadConnection:
+    def __init__(self, fetch_results):
+        self.fetch_results = list(fetch_results)
+        self.fetch_calls = []
+
+    async def fetch(self, query, *args):
+        self.fetch_calls.append((query, args))
+        if not self.fetch_results:
+            raise AssertionError(f"Unexpected fetch call: {query}")
+        return self.fetch_results.pop(0)
+
+
 def patch_db(monkeypatch, connection):
     @asynccontextmanager
     async def fake_db_connection():
@@ -68,6 +80,126 @@ def _approved_review_state() -> dict[str, object]:
             2026, 7, 31, tzinfo=timezone.utc
         ).isoformat(),
     }
+
+
+async def test_campaign_attribution_projection_builds_high_confidence_summary(
+    monkeypatch,
+):
+    conn = FakeReadConnection(
+        [
+            [
+                {
+                    "campaign_code": "SUMMER-2026",
+                    "campaign_name": "Summer referral",
+                    "segment": "Retail",
+                    "campaign_status": "ACTIVE",
+                    "source_channel": "EMAIL",
+                    "interaction_count": 4,
+                    "validated_count": 1,
+                    "attributed_count": 2,
+                    "completed_count": 1,
+                    "conflict_count": 0,
+                    "linked_referral_count": 3,
+                    "event_count": 5,
+                    "first_seen_at": datetime(2026, 8, 1, tzinfo=timezone.utc),
+                    "last_seen_at": datetime(2026, 8, 2, tzinfo=timezone.utc),
+                    "status_values": ["VALIDATED", "ATTRIBUTED", "COMPLETED"],
+                }
+            ]
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.build_referral_saas_account_campaign_attribution_projection(
+        tenant_code="FNB",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["status"] == "READY"
+    assert safe_payload["campaignCount"] == 1
+    assert safe_payload["sourceCount"] == 1
+    assert safe_payload["totalInteractions"] == 4
+    assert safe_payload["highConfidenceCount"] == 1
+    assert safe_payload["projections"][0]["confidence"] == "HIGH"
+    assert safe_payload["projections"][0]["attributionStatus"] == "ATTRIBUTED"
+    assert "tenant_code" not in safe_payload["projections"][0]
+    assert conn.fetch_calls[0][1] == ("FNB", 50)
+
+
+async def test_campaign_attribution_projection_marks_missing_evidence(monkeypatch):
+    conn = FakeReadConnection(
+        [
+            [
+                {
+                    "campaign_code": "EMPTY-2026",
+                    "campaign_name": "Empty campaign",
+                    "segment": "Retail",
+                    "campaign_status": "DRAFT",
+                    "source_channel": "Unknown source",
+                    "interaction_count": 0,
+                    "validated_count": 0,
+                    "attributed_count": 0,
+                    "completed_count": 0,
+                    "conflict_count": 0,
+                    "linked_referral_count": 0,
+                    "event_count": 0,
+                    "first_seen_at": None,
+                    "last_seen_at": None,
+                    "status_values": [],
+                }
+            ]
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.build_referral_saas_account_campaign_attribution_projection(
+        tenant_code="FNB",
+    )
+
+    projection = result.to_safe_dict()["projections"][0]
+    assert result.status == "NO_ATTRIBUTION_EVIDENCE"
+    assert projection["confidence"] == "MISSING"
+    assert projection["attributionStatus"] == "MISSING_EVIDENCE"
+    assert "No campaign interactions found." in projection["gaps"]
+
+
+async def test_campaign_attribution_projection_marks_conflicting_evidence(
+    monkeypatch,
+):
+    conn = FakeReadConnection(
+        [
+            [
+                {
+                    "campaign_code": "BLOCKED-2026",
+                    "campaign_name": "Blocked campaign",
+                    "segment": "Retail",
+                    "campaign_status": "ACTIVE",
+                    "source_channel": "QR",
+                    "interaction_count": 1,
+                    "validated_count": 0,
+                    "attributed_count": 0,
+                    "completed_count": 0,
+                    "conflict_count": 1,
+                    "linked_referral_count": 0,
+                    "event_count": 1,
+                    "first_seen_at": datetime(2026, 8, 1, tzinfo=timezone.utc),
+                    "last_seen_at": datetime(2026, 8, 1, tzinfo=timezone.utc),
+                    "status_values": ["BLOCKED"],
+                }
+            ]
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.build_referral_saas_account_campaign_attribution_projection(
+        tenant_code="FNB",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["status"] == "REVIEW_REQUIRED"
+    assert safe_payload["conflictCount"] == 1
+    assert safe_payload["projections"][0]["confidence"] == "CONFLICT"
+    assert "blocked or invalid" in safe_payload["projections"][0]["explanation"]
 
 
 async def test_campaign_setup_create_records_inactive_campaign_and_audit(monkeypatch):

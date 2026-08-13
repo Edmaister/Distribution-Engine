@@ -4,6 +4,7 @@ import { getAdminOnboardingDrafts, getAdminOnboardingState } from "./endpoints/a
 import {
   getReferralSaasAccountReferral,
   getReferralSaasAccountReferrer,
+  getReferralSaasAccountCampaignAttribution,
   listReferralSaasAccountCampaigns,
   listReferralSaasAccountReferrals,
   listReferralSaasAccountReferrers,
@@ -396,6 +397,38 @@ export function useReferralSaasAccountCampaignList(
     ),
     queryFn: () =>
       listReferralSaasAccountCampaigns({
+        accountRef: cleanedAccountRef,
+        refType: "external_tenant_ref",
+        externalRef: cleanedExternalTenantRef,
+        context: "setup",
+        limit,
+      }),
+    enabled: Boolean(enabled && cleanedAccountRef && cleanedExternalTenantRef),
+    retry: false,
+  });
+}
+
+export function useReferralSaasAccountCampaignAttribution(
+  accountRef: string,
+  externalTenantRef: string,
+  enabled: boolean,
+  refreshKey = 0,
+  limit = 50,
+) {
+  const cleanedAccountRef = accountRef.trim();
+  const cleanedExternalTenantRef = externalTenantRef.trim();
+
+  return useQuery({
+    queryKey: queryKeys.referralSaasAccountCampaignAttribution(
+      cleanedAccountRef,
+      "external_tenant_ref",
+      cleanedExternalTenantRef,
+      "setup",
+      limit,
+      refreshKey,
+    ),
+    queryFn: () =>
+      getReferralSaasAccountCampaignAttribution({
         accountRef: cleanedAccountRef,
         refType: "external_tenant_ref",
         externalRef: cleanedExternalTenantRef,

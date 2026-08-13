@@ -8,6 +8,7 @@ import {
   createReferralSaasAccountCampaignSetup,
   createReferralSaasAccountFromDraft,
   getReferralSaasAccountCampaign,
+  getReferralSaasAccountCampaignAttribution,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasAccountMembershipPosture,
   getReferralSaasIntegrationExecutionReadiness,
@@ -1553,6 +1554,89 @@ describe("referralSaasAccounts endpoint client", () => {
     });
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /tenant_code|client_secret|wallet|settlement|money_movement|activate_campaign/,
+    );
+  });
+
+  it("reads selected customer campaign attribution without exposing raw event payloads", async () => {
+    mockedApiRequest.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: {
+        accountId: "acct-1",
+        accountCode: "FNB_REFERRAL_SAAS",
+      },
+      campaignAttribution: {
+        status: "READY",
+        campaignCount: 1,
+        sourceCount: 1,
+        totalInteractions: 4,
+        highConfidenceCount: 1,
+        missingEvidenceCount: 0,
+        conflictCount: 0,
+        plainLanguage: "4 campaign interaction(s) found.",
+        projections: [
+          {
+            campaignCode: "CAMP001",
+            campaignName: "Summer Referrals",
+            segment: "REFERRAL",
+            campaignStatus: "ACTIVE",
+            sourceChannel: "EMAIL",
+            attributionStatus: "ATTRIBUTED",
+            confidence: "HIGH",
+            interactionCount: 4,
+            linkedReferralCount: 3,
+            eventCount: 5,
+            evidence: ["3 linked referral record(s)."],
+            gaps: [],
+            explanation: "Summer Referrals has campaign attribution evidence from EMAIL.",
+          },
+        ],
+        guardrails: ["READ_ONLY_CAMPAIGN_ATTRIBUTION"],
+        redactions: ["internal_tenant_identifier", "raw_event_payload"],
+      },
+      guardrail: "Read-only Referral SaaS customer-scoped campaign attribution projection.",
+      guardrails: ["READ_ONLY_CAMPAIGN_ATTRIBUTION"],
+      redactions: ["internal_tenant_identifier", "raw_event_payload"],
+      no_tenant_code_exposure_confirmed: true,
+      no_raw_identity_exposure_confirmed: true,
+      no_raw_event_payload_exposure_confirmed: true,
+      no_attribution_mutation_confirmed: true,
+      no_campaign_activation_confirmed: true,
+      no_webhook_delivery_confirmed: true,
+      no_billing_or_money_movement_confirmed: true,
+      campaign_capability_enforced_confirmed: true,
+      required_campaign_capability: "REFERRAL_SAAS_CAMPAIGN_READ",
+    });
+
+    await expect(
+      getReferralSaasAccountCampaignAttribution({
+        accountRef: " acct-1 ",
+        refType: "external_tenant_ref",
+        externalRef: " fnb-referrals ",
+        context: "setup",
+        limit: 25,
+      }),
+    ).resolves.toMatchObject({
+      campaignAttribution: {
+        status: "READY",
+        projections: [{ campaignCode: "CAMP001", confidence: "HIGH" }],
+      },
+      no_raw_event_payload_exposure_confirmed: true,
+    });
+
+    expect(mockedApiRequest).toHaveBeenCalledWith(
+      "v1/referral-saas/accounts/acct-1/campaign-attribution",
+      {
+        query: {
+          ref_type: "external_tenant_ref",
+          external_ref: "fnb-referrals",
+          context: "setup",
+          limit: 25,
+        },
+      },
+    );
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|raw_event_payload|client_secret|wallet|settlement|money_movement/,
     );
   });
 
