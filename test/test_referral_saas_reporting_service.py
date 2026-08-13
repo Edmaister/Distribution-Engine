@@ -1899,6 +1899,126 @@ async def test_referral_saas_report_export_file_download_returns_stored_content(
 
 
 @pytest.mark.asyncio
+async def test_referral_saas_report_export_file_delete_removes_content_and_signed_metadata(
+    monkeypatch,
+):
+    previous_metadata = {
+        "file_storage": {
+            "storage_mode": "object_store_signed_url",
+            "storage_ref": "export_object_abc123",
+            "file_name": "report.csv",
+            "content_type": "text/csv",
+            "content_sha256": "sha",
+            "byte_size": 20,
+            "signed_url_expires_at": "2027-07-31T00:05:00+00:00",
+            "content": "metric_name,value\nready,1\n",
+        }
+    }
+    deleted_metadata = {
+        "file_storage": {
+            "storage_mode": "deleted",
+            "storage_ref": None,
+            "file_name": "report.csv",
+            "content_type": "text/csv",
+            "content_sha256": "sha",
+            "byte_size": 20,
+            "content_removed_confirmed": True,
+            "signed_url_removed_confirmed": True,
+            "download_route_disabled_confirmed": True,
+        },
+        "delete_proof": {
+            "content_removed_confirmed": True,
+            "signed_url_removed_confirmed": True,
+            "download_route_disabled_confirmed": True,
+            "no_scheduled_delivery_deleted_confirmed": True,
+            "no_provider_delivery_triggered_confirmed": True,
+            "no_billing_or_money_movement_confirmed": True,
+        },
+    }
+    conn = FakeExportCommandConnection(
+        [
+            {
+                "export_request_id": "export-1",
+                "account_id": "acct-1",
+                "account_tenant_id": "acct-tenant-1",
+                "external_ref_id": "external-ref-1",
+                "tenant_code": "FNB",
+                "report_type": "campaign_performance",
+                "export_format": "csv",
+                "redaction_profile": "tenant_safe",
+                "row_limit": 50,
+                "row_count": 1,
+                "request_status": "READY_FOR_FILE_STORAGE",
+                "storage_status": "STORED",
+                "delivery_status": "NOT_REQUESTED",
+                "download_status": "AVAILABLE",
+                "download_url": (
+                    "/v1/referral-saas/accounts/acct-1/exports/export-1/download"
+                    "?download_token=signed&expires_at=2027-07-31T00:05:00+00:00"
+                ),
+                "metadata": previous_metadata,
+                "redactions": [],
+                "expires_at": datetime(2027, 7, 31, tzinfo=timezone.utc),
+            },
+            {
+                "export_request_id": "export-1",
+                "account_id": "acct-1",
+                "tenant_code": "FNB",
+                "report_type": "campaign_performance",
+                "export_format": "csv",
+                "redaction_profile": "tenant_safe",
+                "row_limit": 50,
+                "row_count": 1,
+                "request_status": "READY_FOR_FILE_STORAGE",
+                "storage_status": "DELETED",
+                "delivery_status": "NOT_REQUESTED",
+                "download_status": "DELETED",
+                "download_url": None,
+                "metadata": deleted_metadata,
+                "expires_at": datetime(2027, 7, 31, tzinfo=timezone.utc),
+            },
+            {"account_audit_event_id": "audit-delete-1"},
+        ]
+    )
+    monkeypatch.setattr(svc, "db_connection", lambda: FakeDbConnection(conn))
+
+    result = await svc.delete_referral_saas_report_export_file(
+        account_id="acct-1",
+        export_request_id="export-1",
+        idempotency_key_hash="delete-idem",
+        requested_by_ref="operator-1",
+        requested_by_role="ADMIN",
+        correlation_id="corr-delete",
+    )
+
+    safe_payload = result.to_safe_dict()
+    assert safe_payload["commandStatus"] == "REPORT_EXPORT_FILE_DELETED"
+    assert safe_payload["exportRequest"]["storageStatus"] == "DELETED"
+    assert safe_payload["exportRequest"]["downloadStatus"] == "DELETED"
+    assert safe_payload["exportRequest"]["downloadUrl"] is None
+    assert safe_payload["file"]["storageMode"] == "deleted"
+    assert safe_payload["file"]["storageRef"] is None
+    assert "content" not in safe_payload["file"]
+    assert safe_payload["audit"]["accountAuditEventId"] == "audit-delete-1"
+    joined_queries = "\n".join(query for query, _ in conn.fetchrow_calls)
+    assert "UPDATE referral_saas_report_export_requests" in joined_queries
+    assert "INSERT INTO platform_account_audit_events" in joined_queries
+    update_metadata = conn.fetchrow_calls[1][1][4]
+    parsed_metadata = json.loads(update_metadata)
+    stored_file = parsed_metadata["file_storage"]
+    assert stored_file["storage_mode"] == "deleted"
+    assert stored_file["storage_ref"] is None
+    assert stored_file["content_removed_confirmed"] is True
+    assert stored_file["signed_url_removed_confirmed"] is True
+    assert "content" not in stored_file
+    assert parsed_metadata["delete_proof"]["no_provider_delivery_triggered_confirmed"]
+    assert parsed_metadata["delete_proof"]["no_billing_or_money_movement_confirmed"]
+    audit_params = conn.fetchrow_calls[2][1]
+    assert svc.EXPORT_FILE_DELETE_EVENT in audit_params
+    assert "tenant_scope" not in update_metadata
+
+
+@pytest.mark.asyncio
 async def test_referral_saas_report_export_file_metadata_marks_expired_export(
     monkeypatch,
 ):

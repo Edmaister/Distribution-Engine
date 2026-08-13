@@ -205,6 +205,7 @@ def test_referral_saas_current_smoke_routes_are_mounted():
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/{export_request_id}/file",
         ),
+        ("DELETE", "/v1/referral-saas/accounts/{account_ref}/exports/{export_request_id}"),
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/delivery-schedules",
@@ -276,6 +277,7 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
             "GET",
             "/v1/referral-saas/accounts/{account_ref}/exports/{export_request_id}/download",
         ),
+        ("DELETE", "/v1/referral-saas/accounts/{account_ref}/exports/{export_request_id}"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}"),
         (
             "GET",
@@ -398,6 +400,7 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/{export_request_id}/file",
         ),
+        ("DELETE", "/v1/referral-saas/accounts/{account_ref}/exports/{export_request_id}"),
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/delivery-schedules",

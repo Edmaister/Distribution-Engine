@@ -77,6 +77,10 @@ export type ReferralSaasExportFileResponse = {
   guardrail?: string;
   no_download_url_created_confirmed?: boolean;
   no_scheduled_delivery_created_confirmed?: boolean;
+  export_file_deleted_confirmed?: boolean;
+  signed_download_metadata_removed_confirmed?: boolean;
+  no_provider_delivery_triggered_confirmed?: boolean;
+  no_scheduled_delivery_deleted_confirmed?: boolean;
   no_tenant_code_exposure_confirmed?: boolean;
   no_billing_or_money_movement_confirmed?: boolean;
 };
@@ -102,6 +106,15 @@ export type ReferralSaasAccountExportFileReadRequest = {
   accountScope: ReferralSaasCustomerAccountScopeRequest;
   exportRequestId: string;
   correlationId?: string;
+};
+
+export type ReferralSaasAccountExportFileDeleteRequest = {
+  accountRef: string;
+  accountScope: ReferralSaasCustomerAccountScopeRequest;
+  exportRequestId: string;
+  correlationId: string;
+  idempotencyKey: string;
+  reasonCode?: string;
 };
 
 export type ReferralSaasReportDeliveryCadence = "daily" | "weekly" | "monthly";
@@ -244,6 +257,19 @@ function exportRequestBody(request: ReferralSaasAccountExportFileRequest) {
 }
 
 function exportFileCommandBody(request: ReferralSaasAccountExportFileCreateRequest) {
+  return {
+    accountScope: {
+      refType: request.accountScope.refType,
+      externalRef: request.accountScope.externalRef,
+      context: request.accountScope.context || "setup",
+    },
+    correlationId: request.correlationId,
+    idempotencyKey: request.idempotencyKey,
+    reasonCode: request.reasonCode,
+  };
+}
+
+function exportFileDeleteBody(request: ReferralSaasAccountExportFileDeleteRequest) {
   return {
     accountScope: {
       refType: request.accountScope.refType,
@@ -412,6 +438,20 @@ export function downloadReferralSaasAccountReportExportFile(
     )}/download`,
     {
       query: exportFileQuery(request),
+    },
+  );
+}
+
+export function deleteReferralSaasAccountReportExportFile(
+  request: ReferralSaasAccountExportFileDeleteRequest,
+): Promise<ReferralSaasExportFileResponse> {
+  return apiRequest<ReferralSaasExportFileResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(request.accountRef)}/exports/${encodeURIComponent(
+      request.exportRequestId,
+    )}`,
+    {
+      method: "DELETE",
+      body: exportFileDeleteBody(request),
     },
   );
 }
