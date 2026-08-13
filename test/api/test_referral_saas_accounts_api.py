@@ -6373,6 +6373,114 @@ async def test_referral_saas_account_admin_can_download_report_export_file(
     assert command_calls[0]["export_request_id"] == "export-1"
 
 
+async def test_referral_saas_account_admin_can_delete_report_export_file(
+    monkeypatch,
+):
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+        )
+
+    class FakeExportDeleteResult:
+        def to_safe_dict(self):
+            return {
+                "commandStatus": "REPORT_EXPORT_FILE_DELETED",
+                "accountRef": "acct-1",
+                "reportType": "campaign_performance",
+                "exportRequest": {
+                    "exportRequestId": "export-1",
+                    "format": "csv",
+                    "redactionProfile": "tenant_safe",
+                    "rowLimit": 50,
+                    "rowCount": 1,
+                    "requestStatus": "READY_FOR_FILE_STORAGE",
+                    "storageStatus": "DELETED",
+                    "deliveryStatus": "NOT_REQUESTED",
+                    "downloadStatus": "DELETED",
+                    "downloadUrl": None,
+                    "expiresAt": "2026-07-31T00:00:00+00:00",
+                },
+                "file": {
+                    "fileName": "report.csv",
+                    "contentType": "text/csv",
+                    "contentSha256": "sha",
+                    "byteSize": 20,
+                    "storageMode": "deleted",
+                    "storageRef": None,
+                    "contentRemovedConfirmed": True,
+                    "signedUrlRemovedConfirmed": True,
+                    "downloadRouteDisabledConfirmed": True,
+                },
+                "idempotency": {"status": "RECORDED"},
+                "audit": {"accountAuditEventId": "audit-delete-1"},
+                "guardrails": [
+                    "NO_RAW_STORAGE_REF_EXPOSURE",
+                    "NO_PROVIDER_DELIVERY_TRIGGER",
+                ],
+                "redactions": ["internal_tenant_identifier"],
+            }
+
+    async def fake_delete_referral_saas_report_export_file(**kwargs):
+        command_calls.append(kwargs)
+        return FakeExportDeleteResult()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "delete_referral_saas_report_export_file",
+        fake_delete_referral_saas_report_export_file,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.request(
+            "DELETE",
+            "/v1/referral-saas/accounts/acct-1/exports/export-1",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "idempotencyKey": "export-delete-1",
+                "correlationId": "corr-delete",
+                "reasonCode": "OPERATOR_REQUEST",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "deleted"
+    assert body["reportExport"]["commandStatus"] == "REPORT_EXPORT_FILE_DELETED"
+    assert body["reportExport"]["exportRequest"]["storageStatus"] == "DELETED"
+    assert body["reportExport"]["exportRequest"]["downloadStatus"] == "DELETED"
+    assert body["reportExport"]["exportRequest"]["downloadUrl"] is None
+    assert body["reportExport"]["file"]["storageMode"] == "deleted"
+    assert body["export_file_deleted_confirmed"] is True
+    assert body["signed_download_metadata_removed_confirmed"] is True
+    assert body["no_provider_delivery_triggered_confirmed"] is True
+    assert body["no_billing_or_money_movement_confirmed"] is True
+    public_export_payload = {
+        "account": body["account"],
+        "account_scope": body["account_scope"],
+        "reportExport": body["reportExport"],
+        "redactions": body["redactions"],
+    }
+    assert "tenant_code" not in str(public_export_payload)
+    assert command_calls
+    assert command_calls[0]["account_id"] == "acct-1"
+    assert command_calls[0]["export_request_id"] == "export-1"
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["correlation_id"] == "corr-delete"
+
+
 async def test_referral_saas_account_report_rejects_path_scope_mismatch(
     monkeypatch,
 ):

@@ -4,6 +4,7 @@ import {
   createReferralSaasAccountReportDeliverySchedule,
   createReferralSaasAccountReportExportFile,
   createReferralSaasAccountReportExportRequest,
+  deleteReferralSaasAccountReportExportFile,
   downloadReferralSaasAccountReportExportFile,
   getReferralSaasAccountReportDeliveryScheduleReadiness,
   getReferralSaasAccountReportExportFileMetadata,
@@ -260,7 +261,7 @@ describe("referral SaaS reports api", () => {
     expect(JSON.stringify(body)).not.toMatch(/tenant_code|downloadUrl|scheduledDelivery|billing|money/i);
   });
 
-  it("creates and downloads a selected-customer export file through customer-scoped routes", async () => {
+  it("creates, downloads, and deletes a selected-customer export file through customer-scoped routes", async () => {
     localStorage.setItem("amplifi.apiBaseUrl", "https://api.example.test");
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ status: "ok", reportExport: {} }), {
@@ -294,12 +295,23 @@ describe("referral SaaS reports api", () => {
       exportRequestId: "export-1",
       correlationId: "report-export-download-acct-fnb",
     });
+    await deleteReferralSaasAccountReportExportFile({
+      accountRef: "acct-fnb",
+      accountScope,
+      exportRequestId: "export-1",
+      correlationId: "report-export-delete-acct-fnb",
+      idempotencyKey: "report-export-delete-acct-fnb-export-1",
+      reasonCode: "CUSTOMER_PROFILE_REPORT_EXPORT_DELETE",
+    });
 
     const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
     const [createUrl, createOptions] = calls[0];
     const createBody = JSON.parse(String(createOptions.body));
     const metadataUrl = new URL(String(calls[1][0]));
     const downloadUrl = new URL(String(calls[2][0]));
+    const deleteUrl = new URL(String(calls[3][0]));
+    const deleteOptions = calls[3][1];
+    const deleteBody = JSON.parse(String(deleteOptions.body));
 
     expect(new URL(createUrl).pathname).toBe(
       "/v1/referral-saas/accounts/acct-fnb/reports/campaign_performance/exports/export-1/file",
@@ -313,6 +325,15 @@ describe("referral SaaS reports api", () => {
     expect(downloadUrl.pathname).toBe("/v1/referral-saas/accounts/acct-fnb/exports/export-1/download");
     expect(downloadUrl.searchParams.get("correlation_id")).toBe("report-export-download-acct-fnb");
     expect(downloadUrl.searchParams.get("tenant_code")).toBeNull();
+    expect(deleteUrl.pathname).toBe("/v1/referral-saas/accounts/acct-fnb/exports/export-1");
+    expect(deleteOptions.method).toBe("DELETE");
+    expect(deleteBody).toEqual({
+      accountScope,
+      correlationId: "report-export-delete-acct-fnb",
+      idempotencyKey: "report-export-delete-acct-fnb-export-1",
+      reasonCode: "CUSTOMER_PROFILE_REPORT_EXPORT_DELETE",
+    });
+    expect(JSON.stringify(deleteBody)).not.toMatch(/tenant_code|content|signedUrl|credential|billing|money/i);
   });
 
   it("creates, lists, updates, and checks selected-customer report delivery schedules", async () => {

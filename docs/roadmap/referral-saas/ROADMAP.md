@@ -131,7 +131,7 @@ The post-TASK-356 sequence is:
 | TASK-369 to TASK-371 | Campaign management | TASK-369 now enforces partner-safe campaign read/create/policy/review/activation capabilities server-side; TASK-370 now adds pre-activation SoD and stale-evidence proof; TASK-371 completes governed lifecycle controls. |
 | TASK-372 to TASK-375 | Referral operations | TASK-372 now adds account-scoped referral registry/detail. TASK-373 now adds safe referrer identity directory and dimensions. TASK-374 now hardens referral timeline, source, dedupe/idempotency, and recovery-posture evidence. TASK-375 now adds the governed support-case correction/replay/reassignment command ledger and API boundary with approval, impact-preview, rollback, idempotency, audit, and no-adjacent-action guardrails. |
 | TASK-376 to TASK-377 | Attribution | TASK-376 now adds dedicated Campaign Attribution projection/page with campaign/source/channel confidence, gaps, and explainability. TASK-377 now adds the separate Referral/Referrer Attribution who-got-credit projection/page with safe referrer dimensions, confidence, gaps, and no-leak guardrails. |
-| TASK-378 to TASK-379 | Reporting and exports | TASK-378 now adds source-backed HVE funnel and journey-performance reporting. TASK-379 completes saved reports, signed exports, scheduled delivery, expiry, deletion, and provider delivery proof. |
+| TASK-378 to TASK-379 | Reporting and exports | TASK-378 now adds source-backed HVE funnel and journey-performance reporting. TASK-379 now adds persisted export deletion proof on top of saved requests, signed download metadata, expiry, and scheduled delivery intent. |
 | TASK-380 | Support and recovery | Customer/partner-safe support, audit, assignment, evidence, and governed recovery become operationally complete. |
 | TASK-381 | Separately contracted finance | Commercial-finance capability is isolated from the H1 SaaS promise while minimum entitlement posture remains visible. |
 
@@ -2567,10 +2567,11 @@ on TASK-366 through TASK-380.
   and completion-gap metrics with freshness, safe filters, redactions, and
   source warnings while raw UCN, event payload, provider, reward, funding,
   settlement, billing, and money evidence remain excluded. Ratings remain
-  9.99/10 for Referral Management and move to 9.99998/10 for Campaign
-  Attribution because HVE journey reporting is now source-backed while saved
-  report/export hardening, support finalization, commercial-finance isolation,
-  and non-local proof repetition remain separate gaps.
+  9.99/10 for Referral Management and move to 9.99999/10 for Campaign
+  Attribution because HVE journey reporting is now source-backed and runtime
+  exports have signed-download metadata, expiry, schedule intent, and deletion
+  proof while support finalization, commercial-finance isolation, and non-local
+  proof repetition remain separate gaps.
 
 ## Explicit Deferrals
 

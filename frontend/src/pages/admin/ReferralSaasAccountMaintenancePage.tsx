@@ -51,6 +51,7 @@ import {
   createReferralSaasAccountReportExportFile,
   createReferralSaasAccountReportDeliverySchedule,
   createReferralSaasAccountReportExportRequest,
+  deleteReferralSaasAccountReportExportFile,
   downloadReferralSaasAccountReportExportFile,
   getReferralSaasAccountReportDeliveryScheduleReadiness,
   getReferralSaasAccountReport,
@@ -6769,6 +6770,33 @@ function CustomerReportsPage({
       return response;
     },
   });
+  const deleteExportMutation = useMutation({
+    mutationFn: async () => {
+      if (!preparedExportRequestId) {
+        throw new Error("Prepare the export file before deleting it.");
+      }
+      return deleteReferralSaasAccountReportExportFile({
+        accountRef: selectedAccount?.accountId || "",
+        accountScope,
+        exportRequestId: preparedExportRequestId,
+        correlationId: safeIdempotencyKey(
+          "customer-report-export-delete",
+          selectedAccount?.accountId || "",
+          preparedExportRequestId,
+        ),
+        idempotencyKey: safeIdempotencyKey(
+          "customer-report-export-delete",
+          selectedAccount?.accountId || "",
+          preparedExportRequestId,
+        ),
+        reasonCode: "CUSTOMER_PROFILE_REPORT_EXPORT_DELETE",
+      });
+    },
+    onSuccess: () => {
+      prepareDownloadMutation.reset();
+      downloadMutation.reset();
+    },
+  });
   const scheduleMutation = useMutation({
     mutationFn: () => {
       const recipientRef = scheduleRecipientRef.trim();
@@ -6845,6 +6873,9 @@ function CustomerReportsPage({
   const exportFileSize = textValue(getNestedValue(preparedExportFile, ["byteSize"], ""));
   const exportRowCount = textValue(getNestedValue(preparedExportRequest, ["rowCount"], ""));
   const exportDownloadStatus = textValue(getNestedValue(preparedExportRequest, ["downloadStatus"], ""));
+  const deletedExportPayload = asRecord(deleteExportMutation.data?.reportExport);
+  const deletedExportRequest = asRecord(getNestedValue(deletedExportPayload, ["exportRequest"], {}));
+  const deletedExportRequestId = textValue(getNestedValue(deletedExportRequest, ["exportRequestId"], ""));
   const activeReport = customerReportOptions.find((option) => option.value === reportType) || customerReportOptions[0];
   const scheduleRows = asArray(scheduleListQuery.data?.deliverySchedules).map((entry) => {
     const record = asRecord(entry);
@@ -6879,6 +6910,7 @@ function CustomerReportsPage({
     previewMutation.reset();
     prepareDownloadMutation.reset();
     downloadMutation.reset();
+    deleteExportMutation.reset();
     scheduleMutation.reset();
     updateScheduleMutation.reset();
     readinessMutation.reset();
@@ -6912,6 +6944,7 @@ function CustomerReportsPage({
         {previewMutation.error ? <ErrorPanel error={previewMutation.error} /> : null}
         {prepareDownloadMutation.error ? <ErrorPanel error={prepareDownloadMutation.error} /> : null}
         {downloadMutation.error ? <ErrorPanel error={downloadMutation.error} /> : null}
+        {deleteExportMutation.error ? <ErrorPanel error={deleteExportMutation.error} /> : null}
         {scheduleListQuery.error ? <ErrorPanel error={scheduleListQuery.error} /> : null}
         {scheduleMutation.error ? <ErrorPanel error={scheduleMutation.error} /> : null}
         {updateScheduleMutation.error ? <ErrorPanel error={updateScheduleMutation.error} /> : null}
@@ -7108,12 +7141,27 @@ function CustomerReportsPage({
               >
                 <Download size={16} /> {downloadMutation.isPending ? "Downloading" : "Download file"}
               </button>
+              <button
+                className="button secondary"
+                disabled={deleteExportMutation.isPending || !preparedExportRequestId}
+                onClick={() => deleteExportMutation.mutate()}
+                type="button"
+              >
+                {deleteExportMutation.isPending ? "Deleting" : "Delete prepared file"}
+              </button>
             </div>
           </div>
           {downloadMutation.data ? (
             <div className="success-panel">
               <strong>Download started.</strong> The file content came from the selected-customer export route.
               No signed URL, scheduled delivery, email, credential, billing, campaign activation, or money movement was created.
+            </div>
+          ) : null}
+          {deleteExportMutation.data ? (
+            <div className="success-panel">
+              <strong>Prepared export deleted.</strong>{" "}
+              {deletedExportRequestId || "The export"} keeps its audit row, but file content and signed download metadata were removed.
+              Prepare a new file if this customer needs another download.
             </div>
           ) : null}
         </section>

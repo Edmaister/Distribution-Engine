@@ -8443,7 +8443,7 @@ Completed output:
 
 ## TASK-379: Harden saved reports, signed exports, schedules, delivery, and deletion proof
 
-Status: Pending.
+Status: Complete.
 Product boundary: Referral SaaS.
 Shared primitive impact: Completes export and reporting lifecycle evidence. Source duplication: No.
 Objective: Close report/export gaps around saved report definitions, signed downloads, scheduled delivery, provider execution, expiry, deletion, and audit proof.
@@ -8453,6 +8453,13 @@ Tests to add/update: Export storage/download, signed URL, schedule delivery, del
 Acceptance criteria: Reporting outputs are tenant-safe, traceable, expiring, deliverable, and deletable.
 Dependencies: TASK-378; TASK-368.
 Priority: P0.
+
+Completed output:
+- Added `dp/migrations/093_referral_saas_report_export_deletion_status.sql` so persisted export requests can move to explicit `DELETED` storage/download status while keeping the export request and audit evidence.
+- Added an audited backend export-file deletion command and selected-customer API route that removes prepared file content, clears signed download metadata, disables the download route, records deletion proof, and confirms no scheduled delivery, provider delivery, billing, money, tenant-code exposure, or adjacent action occurred.
+- Added a selected-customer Reports UI action for deleting a prepared export file without deleting the saved request/audit row or changing schedules.
+- Extended service, API, frontend endpoint, and route-surface tests for deletion proof, no content leak, idempotent command routing, and bounded product-wrapper exposure.
+- Campaign Attribution moves to 9.99999/10 because source-backed reporting now has runtime export creation, signed download metadata, expiry, schedule intent, and audited file deletion proof. Remaining work sits in support/recovery, commercial-finance isolation, and deployed/non-local proof repetition rather than core attribution/export capability.
 
 ## TASK-380: Add partner-safe support, audit, assignment, and recovery workspace
 

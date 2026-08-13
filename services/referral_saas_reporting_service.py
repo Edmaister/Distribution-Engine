@@ -32,6 +32,7 @@ STATUS_EXPORT_FILE_REPLAYED = "REPORT_EXPORT_FILE_REPLAYED"
 STATUS_EXPORT_FILE_METADATA_READ = "REPORT_EXPORT_FILE_METADATA_READ"
 STATUS_EXPORT_FILE_DOWNLOADED = "REPORT_EXPORT_FILE_DOWNLOADED"
 STATUS_EXPORT_FILE_EXPIRED = "REPORT_EXPORT_FILE_EXPIRED"
+STATUS_EXPORT_FILE_DELETED = "REPORT_EXPORT_FILE_DELETED"
 STATUS_DELIVERY_SCHEDULE_RECORDED = "REPORT_DELIVERY_SCHEDULE_RECORDED"
 STATUS_DELIVERY_SCHEDULE_REPLAYED = "REPORT_DELIVERY_SCHEDULE_REPLAYED"
 STATUS_DELIVERY_SCHEDULE_UPDATED = "REPORT_DELIVERY_SCHEDULE_UPDATED"
@@ -44,6 +45,7 @@ STATUS_DELIVERY_SCHEDULE_CANCELLED = "CANCELLED"
 STORAGE_STATUS_NOT_STORED = "NOT_STORED"
 STORAGE_STATUS_STORED = "STORED"
 STORAGE_STATUS_EXPIRED = "EXPIRED"
+STORAGE_STATUS_DELETED = "DELETED"
 DELIVERY_STATUS_NOT_REQUESTED = "NOT_REQUESTED"
 DELIVERY_STATUS_PENDING = "PENDING"
 DELIVERY_STATUS_DELIVERED = "DELIVERED"
@@ -51,6 +53,7 @@ DELIVERY_STATUS_FAILED = "FAILED"
 DOWNLOAD_STATUS_NOT_AVAILABLE = "NOT_AVAILABLE"
 DOWNLOAD_STATUS_AVAILABLE = "AVAILABLE"
 DOWNLOAD_STATUS_EXPIRED = "EXPIRED"
+DOWNLOAD_STATUS_DELETED = "DELETED"
 EXPORT_STORAGE_MODE_OBJECT_STORE_SIGNED_URL = "object_store_signed_url"
 EXPORT_SIGNED_URL_TTL_SECONDS = 300
 EXPORT_FORMAT_CSV = "csv"
@@ -68,6 +71,7 @@ DELIVERY_SCHEDULE_REPLAYED = "REPLAYED"
 DELIVERY_SCHEDULE_UPDATED = "UPDATED"
 EXPORT_FILE_EVENT = "REPORT_EXPORT_FILE_STORED"
 EXPORT_FILE_DOWNLOAD_EVENT = "REPORT_EXPORT_FILE_DOWNLOAD_READ"
+EXPORT_FILE_DELETE_EVENT = "REPORT_EXPORT_FILE_DELETED"
 EXPORT_REQUEST_GUARDRAILS = [
     "NO_TENANT_CODE_EXPOSURE",
     "NO_EXPORT_FILE_CREATED",
@@ -2554,6 +2558,206 @@ async def get_referral_saas_report_export_file_metadata(
         safe_export_row,
         account_id=safe_account_id,
         command_status=STATUS_EXPORT_FILE_METADATA_READ,
+    )
+
+
+async def delete_referral_saas_report_export_file(
+    *,
+    account_id: str,
+    export_request_id: str,
+    requested_by_ref: str,
+    requested_by_role: str | None = None,
+    correlation_id: str | None = None,
+    reason_code: str | None = None,
+    idempotency_key_hash: str | None = None,
+) -> ReferralSaasReportExportFileResult:
+    safe_account_id = _required_export_text(account_id, "account_id")
+    safe_export_request_id = _required_export_text(
+        export_request_id,
+        "export_request_id",
+    )
+    safe_actor_ref = _required_export_text(requested_by_ref, "requested_by_ref")
+    safe_actor_role = _optional_export_text(requested_by_role) or None
+    safe_correlation_id = _optional_export_text(correlation_id) or None
+    safe_reason_code = (
+        _optional_export_text(reason_code) or "CUSTOMER_PROFILE_REPORT_EXPORT_DELETE"
+    )
+    safe_idempotency_hash = _optional_export_text(idempotency_key_hash) or hashlib.sha256(
+        (
+            "REFERRAL_SAAS_REPORT_EXPORT_DELETE|"
+            f"{safe_account_id}|{safe_export_request_id}|{safe_actor_ref}"
+        ).encode("utf-8")
+    ).hexdigest()
+
+    async with db_connection() as conn:
+        export_row = await _fetch_export_request_row(
+            conn,
+            safe_account_id,
+            safe_export_request_id,
+        )
+        if not export_row:
+            raise ReportExportFileNotFound(
+                "Report export request was not found for this customer account."
+            )
+
+        metadata = _from_jsonb(export_row.get("metadata"), {})
+        if not isinstance(metadata, dict):
+            metadata = {}
+        previous_file_storage = _file_metadata_from_export_row(export_row)
+        previous_storage_status = str(export_row["storage_status"])
+        previous_download_status = str(export_row["download_status"])
+        if (
+            previous_storage_status == STORAGE_STATUS_DELETED
+            and previous_download_status == DOWNLOAD_STATUS_DELETED
+        ):
+            return _file_result_from_export_row(
+                export_row,
+                account_id=safe_account_id,
+                command_status=STATUS_EXPORT_FILE_DELETED,
+                idempotency_status=EXPORT_REQUEST_REPLAYED,
+            )
+
+        deleted_at = datetime.now(timezone.utc).isoformat()
+        file_storage = {
+            "storage_mode": "deleted",
+            "storage_ref": None,
+            "file_name": previous_file_storage.get("file_name"),
+            "content_type": previous_file_storage.get("content_type"),
+            "content_sha256": previous_file_storage.get("content_sha256"),
+            "byte_size": previous_file_storage.get("byte_size"),
+            "deleted_at": deleted_at,
+            "deleted_by_ref": safe_actor_ref,
+            "content_removed_confirmed": True,
+            "signed_url_removed_confirmed": True,
+            "download_route_disabled_confirmed": True,
+        }
+        updated_metadata = {
+            **metadata,
+            "file_storage": file_storage,
+            "export_file_status": STORAGE_STATUS_DELETED,
+            "download_status": DOWNLOAD_STATUS_DELETED,
+            "delete_proof": {
+                "deleted_at": deleted_at,
+                "deleted_by_ref": safe_actor_ref,
+                "reason_code": safe_reason_code,
+                "previous_storage_status": previous_storage_status,
+                "previous_download_status": previous_download_status,
+                "content_sha256": previous_file_storage.get("content_sha256"),
+                "content_removed_confirmed": True,
+                "signed_url_removed_confirmed": True,
+                "download_route_disabled_confirmed": True,
+                "no_scheduled_delivery_deleted_confirmed": True,
+                "no_provider_delivery_triggered_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        }
+        existing_redactions = _from_jsonb(export_row.get("redactions"), [])
+        if not isinstance(existing_redactions, list):
+            existing_redactions = []
+        redactions = sorted(set([*existing_redactions, *EXPORT_REQUEST_REDACTIONS]))
+
+        async with conn.transaction():
+            updated_row = await conn.fetchrow(
+                """
+                UPDATE referral_saas_report_export_requests
+                SET
+                    storage_status = $3,
+                    download_status = $4,
+                    metadata = $5::jsonb,
+                    redactions = $6::jsonb,
+                    download_url = NULL,
+                    updated_at = NOW()
+                WHERE account_id = $1
+                  AND export_request_id = $2
+                RETURNING
+                    export_request_id,
+                    account_id,
+                    tenant_code,
+                    report_type,
+                    export_format,
+                    redaction_profile,
+                    row_limit,
+                    row_count,
+                    request_status,
+                    storage_status,
+                    delivery_status,
+                    download_status,
+                    download_url,
+                    metadata,
+                    expires_at
+                """,
+                safe_account_id,
+                safe_export_request_id,
+                STORAGE_STATUS_DELETED,
+                DOWNLOAD_STATUS_DELETED,
+                _jsonb(updated_metadata),
+                _jsonb(redactions),
+            )
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8,
+                    $9, $10, $11, $12, $13, $14::jsonb, $15::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                export_row.get("account_tenant_id"),
+                export_row.get("external_ref_id"),
+                str(export_row["tenant_code"]),
+                EXPORT_FILE_DELETE_EVENT,
+                STORAGE_STATUS_DELETED,
+                safe_actor_ref,
+                safe_actor_role,
+                previous_storage_status,
+                STORAGE_STATUS_DELETED,
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(
+                    {
+                        "export_request_id": safe_export_request_id,
+                        "report_type": str(export_row["report_type"]),
+                        "previous_storage_status": previous_storage_status,
+                        "previous_download_status": previous_download_status,
+                        "storage_status": STORAGE_STATUS_DELETED,
+                        "download_status": DOWNLOAD_STATUS_DELETED,
+                        "content_sha256": previous_file_storage.get("content_sha256"),
+                        "content_removed_confirmed": True,
+                        "signed_url_removed_confirmed": True,
+                        "download_route_disabled_confirmed": True,
+                        "no_scheduled_delivery_deleted_confirmed": True,
+                        "no_provider_delivery_triggered_confirmed": True,
+                        "no_billing_or_money_movement_confirmed": True,
+                    }
+                ),
+                _jsonb(redactions),
+            )
+
+    return _file_result_from_export_row(
+        updated_row,
+        account_id=safe_account_id,
+        command_status=STATUS_EXPORT_FILE_DELETED,
+        idempotency_status=EXPORT_REQUEST_RECORDED,
+        audit_event_id=_optional_export_text(audit_event.get("account_audit_event_id"))
+        or None,
     )
 
 
