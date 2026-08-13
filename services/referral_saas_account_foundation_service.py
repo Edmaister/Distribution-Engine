@@ -95,6 +95,34 @@ COMMERCIAL_ENTITLEMENT_REDACTIONS = [
     "payment_method",
     "contract_document",
 ]
+COMMERCIAL_FINANCE_H1_ENTITLEMENT_FIELDS = [
+    "planCode",
+    "planName",
+    "contractSource",
+    "launchAllowed",
+    "productionActivationBlocked",
+    "referenceLimits",
+]
+COMMERCIAL_FINANCE_H1_DEFERRED_CAPABILITIES = [
+    "billingAccounts",
+    "subscriptions",
+    "invoices",
+    "payments",
+    "payouts",
+    "funding",
+    "settlement",
+    "walletLedger",
+    "commissionLedger",
+    "treasuryMovement",
+]
+COMMERCIAL_FINANCE_DLAAS_STARTS_AT = [
+    "sponsorBilling",
+    "fundingOperations",
+    "settlementBatches",
+    "commissionSettlement",
+    "payoutExecution",
+    "walletLedgerMovement",
+]
 PRODUCTION_ACTIVATION_GUARDRAILS = [
     "BACKEND_PRODUCTION_ACTIVATION_DECISION_REQUIRED",
     "ACCOUNT_FOUNDATION_GATE_REQUIRED",
@@ -507,6 +535,18 @@ class CommercialEntitlementProjection:
             "noInvoiceCreatedConfirmed": True,
             "noPaymentOrMoneyMovementConfirmed": True,
             "noDlaasFinanceScopeConfirmed": True,
+            "commercialFinanceBoundary": {
+                "scope": "SEPARATELY_CONTRACTED",
+                "h1EntitlementFields": list(COMMERCIAL_FINANCE_H1_ENTITLEMENT_FIELDS),
+                "h1DeferredCapabilities": list(COMMERCIAL_FINANCE_H1_DEFERRED_CAPABILITIES),
+                "dlaasFinanceStartsAt": list(COMMERCIAL_FINANCE_DLAAS_STARTS_AT),
+                "nextAction": (
+                    "Keep Referral SaaS in safe setup/launch posture. Use a "
+                    "separately contracted commercial-finance workstream for "
+                    "billing, invoices, funding, settlement, payouts, or money "
+                    "movement."
+                ),
+            },
         }
 
 

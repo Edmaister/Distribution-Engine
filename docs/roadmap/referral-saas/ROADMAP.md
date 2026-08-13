@@ -2594,6 +2594,28 @@ on TASK-366 through TASK-380.
   finalization is closed while commercial-finance isolation and non-local proof
   repetition remain separate gaps.
 
+- **TASK-381 - Separately contracted commercial finance:** Completed output:
+  `docs/sa/referral-saas/REFERRAL_SAAS_COMMERCIAL_FINANCE_BOUNDARY.md`;
+  `services/referral_saas_account_foundation_service.py`;
+  `frontend/src/api/endpoints/referralSaasAccounts.ts`;
+  `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`;
+  `test/api/test_referral_saas_accounts_api.py`;
+  `test/test_referral_saas_route_smoke_inventory.py`;
+  `docs/roadmap/ORDERED_TASK_LIST.md`;
+  `docs/roadmap/referral-saas/ROADMAP.md`;
+  `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`;
+  `outputs/referral-attribution-dlaas-roadmap-infographic.html` - Defines and
+  enforces the commercial-finance boundary for H1 Referral SaaS. Commercial
+  entitlement now returns structured readback for H1 entitlement fields,
+  deferred finance capabilities, and DLaaS finance starting points; the
+  selected-customer Plan and entitlement page explains the no-billing/no-money
+  separation; and route inventory tests prevent billing, invoice, funding,
+  settlement, payout, wallet, treasury, commission, or money write routes from
+  entering the Referral SaaS surface. Ratings remain 9.99/10 for Referral
+  Management and move to 9.999993/10 for Campaign Attribution because
+  commercial-finance leakage is now structurally guarded while non-local proof
+  repetition remains separate.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:

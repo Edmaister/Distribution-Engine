@@ -2530,6 +2530,36 @@ async def test_referral_saas_account_reader_can_read_commercial_entitlement(
     assert entitlement["noInvoiceCreatedConfirmed"] is True
     assert entitlement["noPaymentOrMoneyMovementConfirmed"] is True
     assert entitlement["noDlaasFinanceScopeConfirmed"] is True
+    commercial_finance_boundary = entitlement["commercialFinanceBoundary"]
+    assert commercial_finance_boundary["scope"] == "SEPARATELY_CONTRACTED"
+    assert commercial_finance_boundary["h1EntitlementFields"] == [
+        "planCode",
+        "planName",
+        "contractSource",
+        "launchAllowed",
+        "productionActivationBlocked",
+        "referenceLimits",
+    ]
+    assert {
+        "billingAccounts",
+        "subscriptions",
+        "invoices",
+        "payments",
+        "payouts",
+        "funding",
+        "settlement",
+        "walletLedger",
+        "commissionLedger",
+        "treasuryMovement",
+    } <= set(commercial_finance_boundary["h1DeferredCapabilities"])
+    assert {
+        "sponsorBilling",
+        "fundingOperations",
+        "settlementBatches",
+        "commissionSettlement",
+        "payoutExecution",
+        "walletLedgerMovement",
+    } <= set(commercial_finance_boundary["dlaasFinanceStartsAt"])
     assert body["no_billing_record_created_confirmed"] is True
     assert body["no_invoice_created_confirmed"] is True
     assert body["no_payment_or_money_movement_confirmed"] is True

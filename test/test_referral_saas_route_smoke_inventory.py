@@ -414,3 +414,28 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("POST", "/v1/referral-saas/public/referrals/validate"),
         ("POST", "/v1/referral-saas/referrals/{referral_track_id}/referee-ucn"),
     }
+
+
+def test_referral_saas_has_no_commercial_finance_write_routes():
+    mounted = _mounted_routes()
+    commercial_finance_terms = {
+        "billing",
+        "invoice",
+        "payment",
+        "payout",
+        "funding",
+        "settlement",
+        "wallet",
+        "treasury",
+        "commission",
+    }
+
+    finance_writes = {
+        (method, path)
+        for method, path in mounted
+        if path.startswith("/v1/referral-saas")
+        and method != "GET"
+        and any(term in path.lower() for term in commercial_finance_terms)
+    }
+
+    assert finance_writes == set()
