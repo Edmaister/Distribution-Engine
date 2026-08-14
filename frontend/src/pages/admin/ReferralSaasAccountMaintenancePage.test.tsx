@@ -30,6 +30,7 @@ import {
   changeReferralSaasAccountSupportCaseStatus,
   createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
+  bindReferralSaasAccountCampaignJourneyVersion,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasAccountSupportCaseRepairReplayReadiness,
   getReferralSaasAccountMembershipPosture,
@@ -40,6 +41,7 @@ import {
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccountJourneyDrafts,
+  listReferralSaasAccountJourneyVersions,
   listReferralSaasIntegrationCredentialRequests,
   listReferralSaasAccountSupportCases,
   listReferralSaasAccountCampaigns,
@@ -86,6 +88,7 @@ import {
   type ReferralSaasCustomerJourneyDraftListResponse,
   type ReferralSaasCustomerJourneyDraftValidationResponse,
   type ReferralSaasCustomerJourneyPublishResponse,
+  type ReferralSaasCustomerJourneyVersionListResponse,
   type ReferralSaasJourneyTemplateCatalogueResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import { ReferralSaasAccountMaintenancePage } from "./ReferralSaasAccountMaintenancePage";
@@ -102,6 +105,7 @@ vi.mock("../../api/endpoints/referralSaasReports", () => ({
   createReferralSaasAccountReportDeliverySchedule: vi.fn(),
   createReferralSaasAccountReportExportFile: vi.fn(),
   createReferralSaasAccountReportExportRequest: vi.fn(),
+  deleteReferralSaasAccountReportExportFile: vi.fn(),
   downloadReferralSaasAccountReportExportFile: vi.fn(),
   getReferralSaasAccountReportDeliveryScheduleReadiness: vi.fn(),
   getReferralSaasAccountReport: vi.fn(),
@@ -111,6 +115,8 @@ vi.mock("../../api/endpoints/referralSaasReports", () => ({
 }));
 vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   addReferralSaasAccountSupportCaseNote: vi.fn(),
+  assignReferralSaasAccountSupportCase: vi.fn(),
+  bindReferralSaasAccountCampaignJourneyVersion: vi.fn(),
   changeReferralSaasAccountSupportCaseStatus: vi.fn(),
   createReferralSaasAccountSupportCase: vi.fn(),
   createReferralSaasAccountCampaignSetup: vi.fn(),
@@ -124,6 +130,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   getReferralSaasMembershipActivationReadiness: vi.fn(),
   getReferralSaasTechnicalSetupReadiness: vi.fn(),
   listReferralSaasAccountJourneyDrafts: vi.fn(),
+  listReferralSaasAccountJourneyVersions: vi.fn(),
   listReferralSaasIntegrationCredentialRequests: vi.fn(),
   listReferralSaasAccountSupportCases: vi.fn(),
   listReferralSaasAccountCampaigns: vi.fn(),
@@ -138,6 +145,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   recordReferralSaasMessageProviderTest: vi.fn(),
   recordReferralSaasWebhookTestDispatch: vi.fn(),
   recordReferralSaasMembershipInvitationIntent: vi.fn(),
+  recordReferralSaasAccountCampaignLifecycleCommand: vi.fn(),
   requestReferralSaasAccountCampaignActivation: vi.fn(),
   requestReferralSaasAccountFoundationActivation: vi.fn(),
   requestReferralSaasAccessProvisioning: vi.fn(),
@@ -180,6 +188,9 @@ const mockedAddReferralSaasAccountSupportCaseNote = vi.mocked(addReferralSaasAcc
 const mockedChangeReferralSaasAccountSupportCaseStatus = vi.mocked(changeReferralSaasAccountSupportCaseStatus);
 const mockedCreateReferralSaasAccountSupportCase = vi.mocked(createReferralSaasAccountSupportCase);
 const mockedCreateReferralSaasAccountCampaignSetup = vi.mocked(createReferralSaasAccountCampaignSetup);
+const mockedBindReferralSaasAccountCampaignJourneyVersion = vi.mocked(
+  bindReferralSaasAccountCampaignJourneyVersion,
+);
 const mockedGetReferralSaasAccountCampaignReadiness = vi.mocked(getReferralSaasAccountCampaignReadiness);
 const mockedGetReferralSaasAccountSupportCaseRepairReplayReadiness = vi.mocked(
   getReferralSaasAccountSupportCaseRepairReplayReadiness,
@@ -192,6 +203,7 @@ const mockedGetReferralSaasLoginCompletionReadiness = vi.mocked(getReferralSaasL
 const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferralSaasMembershipActivationReadiness);
 const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTechnicalSetupReadiness);
 const mockedListReferralSaasAccountJourneyDrafts = vi.mocked(listReferralSaasAccountJourneyDrafts);
+const mockedListReferralSaasAccountJourneyVersions = vi.mocked(listReferralSaasAccountJourneyVersions);
 const mockedListReferralSaasIntegrationCredentialRequests = vi.mocked(listReferralSaasIntegrationCredentialRequests);
 const mockedListReferralSaasAccountSupportCases = vi.mocked(listReferralSaasAccountSupportCases);
 const mockedListReferralSaasAccountCampaigns = vi.mocked(listReferralSaasAccountCampaigns);
@@ -680,6 +692,70 @@ function mockJourneyPublishResponse(): ReferralSaasCustomerJourneyPublishRespons
     redactions: ["INTERNAL_TENANT_IDENTIFIER"],
     noRuntimeJourneyMutationConfirmed: true,
     noCampaignBindingConfirmed: true,
+    noCampaignActivationConfirmed: true,
+    noProviderDispatchConfirmed: true,
+    noAuthBillingOrMoneyActionConfirmed: true,
+  };
+}
+
+function mockJourneyVersionList(): ReferralSaasCustomerJourneyVersionListResponse {
+  const publishResponse = mockJourneyPublishResponse();
+  return {
+    status: "ok",
+    context: "setup",
+    account: publishResponse.account,
+    count: 1,
+    versions: [publishResponse.version],
+    guardrail: "Published customer journey versions only.",
+    guardrails: ["READ_ONLY_JOURNEY_VERSION_LIST"],
+    redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+    noRuntimeJourneyMutationConfirmed: true,
+    noCampaignBindingConfirmed: true,
+    noCampaignActivationConfirmed: true,
+    noProviderDispatchConfirmed: true,
+    noAuthBillingOrMoneyActionConfirmed: true,
+  };
+}
+
+function mockCampaignJourneyBindingResponse() {
+  return {
+    status: "ok",
+    context: "setup" as const,
+    account: {
+      accountId: "acct-gabs",
+      accountCode: "ACC-2201",
+      accountName: "Gaborone Partners",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "APPROVED",
+    },
+    commandStatus: "BOUND",
+    idempotencyStatus: "NEW_REQUEST",
+    journeyBinding: {
+      campaignJourneyBindingId: "binding-001",
+      accountId: "acct-gabs",
+      campaignCode: "BW-REFERRAL-SPRING-1234",
+      customerJourneyVersionId: "journey-version-001",
+      bindingStatus: "BOUND",
+      bindingPayloadHash: "binding-hash-001",
+      boundByRef: "amplifi-admin",
+      boundAt: "2026-07-19T00:00:00",
+      customerJourneyCode: "GABS_REFERRAL_STANDARD",
+      versionNumber: 1,
+      templateCode: "REFERRAL_STANDARD",
+      templateVersion: "1.0.0",
+      versionStatus: "PUBLISHED",
+      activationGateSatisfied: true,
+      guardrails: ["NO_CAMPAIGN_ACTIVATION"],
+      redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+      noRuntimeJourneyMutationConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noProviderDispatchConfirmed: true,
+      noAuthBillingOrMoneyActionConfirmed: true,
+    },
+    guardrail: "Campaign journey binding only.",
+    guardrails: ["NO_CAMPAIGN_ACTIVATION"],
+    redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+    noRuntimeJourneyMutationConfirmed: true,
     noCampaignActivationConfirmed: true,
     noProviderDispatchConfirmed: true,
     noAuthBillingOrMoneyActionConfirmed: true,
@@ -2201,9 +2277,11 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadiness());
     mockedListReferralSaasJourneyTemplates.mockResolvedValue(mockJourneyTemplateCatalogue());
     mockedListReferralSaasAccountJourneyDrafts.mockResolvedValue(mockJourneyDraftList());
+    mockedListReferralSaasAccountJourneyVersions.mockResolvedValue(mockJourneyVersionList());
     mockedSaveReferralSaasAccountJourneyDraft.mockResolvedValue(mockJourneyDraftCommandResponse());
     mockedValidateReferralSaasAccountJourneyDraft.mockResolvedValue(mockJourneyValidationResponse());
     mockedPublishReferralSaasAccountJourneyDraft.mockResolvedValue(mockJourneyPublishResponse());
+    mockedBindReferralSaasAccountCampaignJourneyVersion.mockResolvedValue(mockCampaignJourneyBindingResponse());
     mockedListReferralSaasIntegrationCredentialRequests.mockResolvedValue(mockIntegrationCredentialRequestList([]));
     mockedListReferralSaasAccountSupportCases.mockResolvedValue({
       status: "ok",
@@ -4607,6 +4685,9 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     fireEvent.change(screen.getByLabelText("Audience or segment"), {
       target: { value: "Retail banking customers" },
     });
+    fireEvent.change(screen.getByRole("combobox", { name: /Published customer journey/i }), {
+      target: { value: "journey-version-001" },
+    });
     fireEvent.change(screen.getByLabelText("Maximum referrals"), {
       target: { value: "100" },
     });
@@ -4632,6 +4713,20 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       },
       correlationId: "customer-profile-campaign-create-acct-gabs",
       idempotencyKey: "customer-profile-campaign-create-acct-gabs-spring-referral-pilot-retail-banking-customers",
+    });
+    await waitFor(() => expect(mockedBindReferralSaasAccountCampaignJourneyVersion).toHaveBeenCalledTimes(1));
+    expect(mockedBindReferralSaasAccountCampaignJourneyVersion.mock.calls[0][0]).toEqual({
+      accountRef: "acct-gabs",
+      campaignCode: "BW-REFERRAL-SPRING-1234",
+      accountScope: {
+        refType: "external_tenant_ref",
+        externalRef: "gabs-platform",
+        context: "setup",
+      },
+      customerJourneyVersionId: "journey-version-001",
+      correlationId: "customer-profile-campaign-journey-binding-acct-gabs-BW-REFERRAL-SPRING-1234",
+      idempotencyKey:
+        "customer-profile-campaign-journey-binding-acct-gabs-bw-referral-spring-1234-journey-version-001",
     });
     expect(await screen.findByText("Campaign setup saved.")).toBeInTheDocument();
     expect(screen.getByText(/inactive draft/i)).toBeInTheDocument();

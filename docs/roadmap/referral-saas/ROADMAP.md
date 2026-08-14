@@ -238,9 +238,9 @@ billing/money side effects. TASK-389 now adds the selected-customer Journey
 Configuration UX over the governed template catalogue and draft APIs, including
 template selection, allowed-section configuration, save, validation feedback,
 publish readiness, saved draft selection, and no runtime/provider/auth/billing/
-money side-effect guardrails. Campaign binding enforcement, incentive binding,
-runtime migration, analytics, and non-local proof remain with TASK-390 through
-TASK-394.
+money side-effect guardrails. TASK-390 now adds campaign binding enforcement;
+incentive binding, runtime migration, analytics, and non-local proof remain
+with TASK-391 through TASK-394.
 
 ## Recommended Ordered Task Sequence
 
@@ -464,7 +464,7 @@ TASK-394.
 218. TASK-387: Add journey validation and simulation service. (Complete - richer validation/simulation service added.)
 219. TASK-388: Add publish and archive customer journey version API. (Complete - governed publish/archive API added.)
 220. TASK-389: Add journey template catalogue and draft configuration UX. (Complete - customer-scoped Journey Configuration UX added.)
-221. TASK-390: Bind campaigns to published journey versions.
+221. TASK-390: Bind campaigns to published journey versions. (Complete - selected-customer campaign setup now requires a published journey version binding; readiness exposes binding posture; activation blocks missing/invalid same-account published version bindings without runtime migration.)
 222. TASK-391: Add rewards, missions, badges, and leaderboard binding controls.
 223. TASK-392: Migrate runtime journey reads from code baseline to published configuration.
 224. TASK-393: Add journey analytics and optimization read models.

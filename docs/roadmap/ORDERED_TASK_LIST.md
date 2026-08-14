@@ -8660,7 +8660,7 @@ Priority: P1.
 
 ## TASK-390: Bind campaigns to published journey versions
 
-Status: Planned.
+Status: Complete.
 Product boundary: Referral SaaS.
 Shared primitive impact: Connects campaign setup to immutable journey configuration. Source duplication: No.
 Objective: Require selected-customer campaigns to choose a published customer journey version before activation.
@@ -8671,9 +8671,16 @@ Backend impact: Campaign create/update/readiness/activation checks published jou
 Frontend impact: Campaign setup shows available published journey versions and binding posture.
 API impact: Campaign setup/readiness routes expose and enforce journey-version binding.
 Tests to add/update: No draft binding, cross-account binding blocked, archived-version behavior, activation gate, campaign UI selection.
-Acceptance criteria: Campaigns bind only to published customer journey versions for the same account; activation blocks missing/invalid binding; no runtime migration occurs until TASK-392.
+Acceptance criteria: Complete - campaigns bind only to published customer journey versions for the same account; activation blocks missing/invalid binding; no runtime migration occurs until TASK-392.
 Dependencies: TASK-389.
 Priority: P1.
+
+Completed outputs:
+- Added selected-customer published journey version list and campaign journey binding APIs with same-account, published, non-archived validation, idempotency replay/conflict handling, audit evidence, guardrails, and redactions.
+- Updated campaign readiness and activation so campaigns expose binding posture and activation blocks missing or invalid published journey bindings.
+- Updated customer-scoped campaign setup UX to require a published journey version selection and bind the campaign after saving the inactive campaign draft.
+- Added route inventory and campaign activation tests covering published journey binding requirements.
+- Runtime migration, incentive/reward binding, analytics, and non-local proof remain with TASK-391 to TASK-394.
 
 ## TASK-391: Add rewards, missions, badges, and leaderboard binding controls
 

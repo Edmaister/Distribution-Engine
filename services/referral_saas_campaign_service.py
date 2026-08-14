@@ -66,6 +66,7 @@ CAMPAIGN_ACTIVATION_RECORDED = "RECORDED"
 CAMPAIGN_ACTIVATION_REPLAYED = "REPLAYED"
 CAMPAIGN_ACTIVATION_GUARDRAILS = [
     "NO_TENANT_CODE_EXPOSURE",
+    "PUBLISHED_JOURNEY_VERSION_BINDING_REQUIRED",
     "NO_LINK_GENERATION",
     "NO_VALIDATION_TRACK_CREATED",
     "NO_WEBHOOK_DELIVERY",
@@ -2167,6 +2168,37 @@ async def request_referral_saas_account_campaign_activation(
                 "Campaign is already active for the selected customer."
             )
 
+        journey_binding = await conn.fetchrow(
+            """
+            SELECT
+                b.campaign_journey_binding_id,
+                b.customer_journey_version_id,
+                b.binding_status,
+                cv.customer_journey_code,
+                cv.version_number,
+                cv.version_status,
+                cv.archived_at
+            FROM referral_saas_campaign_journey_bindings b
+            JOIN referral_saas_customer_journey_versions cv
+              ON cv.customer_journey_version_id = b.customer_journey_version_id
+            WHERE b.account_id = $1
+              AND UPPER(b.campaign_code) = UPPER($2)
+              AND b.binding_status = 'ACTIVE'
+            ORDER BY b.bound_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_campaign_code,
+        )
+        if (
+            not journey_binding
+            or journey_binding.get("version_status") != "PUBLISHED"
+            or journey_binding.get("archived_at") is not None
+        ):
+            raise CampaignActivationNotReady(
+                "Campaign must be bound to a published customer journey version before activation."
+            )
+
         policy = await conn.fetchrow(
             """
             SELECT
@@ -2246,6 +2278,15 @@ async def request_referral_saas_account_campaign_activation(
             "approvedByRefPresent": True,
             "reviewDecisionFresh": True,
             "policyEvidenceFresh": True,
+            "publishedJourneyVersionBindingConfirmed": True,
+            "campaignJourneyBindingId": str(
+                journey_binding["campaign_journey_binding_id"]
+            ),
+            "customerJourneyVersionId": str(
+                journey_binding["customer_journey_version_id"]
+            ),
+            "customerJourneyCode": str(journey_binding["customer_journey_code"]),
+            "journeyVersionNumber": int(journey_binding["version_number"] or 1),
             "serverSideActivationDecisionConfirmed": True,
         }
         activation_state = {

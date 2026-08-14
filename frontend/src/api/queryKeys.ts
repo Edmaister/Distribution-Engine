@@ -363,6 +363,26 @@ export const queryKeys = {
       opportunityId,
       refreshKey,
     ] as const,
+  referralSaasAccountJourneyVersions: (
+    accountRef: string,
+    refType: string,
+    externalRef: string,
+    context: string,
+    includeArchived: boolean,
+    limit: number,
+    refreshKey = 0,
+  ) =>
+    [
+      "referral-saas",
+      "account-journey-versions",
+      accountRef,
+      refType,
+      externalRef,
+      context,
+      includeArchived,
+      limit,
+      refreshKey,
+    ] as const,
   partnerIntegrationWorkspace: (refreshKey = 0) =>
     ["partner", "integration-workspace", refreshKey] as const,
   consumerExperience: (

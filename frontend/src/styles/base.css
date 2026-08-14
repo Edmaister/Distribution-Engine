@@ -1635,6 +1635,10 @@ a {
   margin-top: 6px;
 }
 
+.form-grid-span {
+  grid-column: 1 / -1;
+}
+
 .wizard-summary-strip.warning {
   background: rgb(217 119 6 / 0.08);
   border-color: rgb(217 119 6 / 0.22);

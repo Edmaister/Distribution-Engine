@@ -23,6 +23,7 @@ import {
   useReferralSaasAccountCampaignList,
   useReferralSaasAccountCampaignAttribution,
   useReferralSaasAccountCampaignReadiness,
+  useReferralSaasAccountJourneyVersions,
   useReferralSaasAccountDraftSelector,
   useReferralSaasAccountMaintenanceState,
   useReferralSaasAccountMembershipPosture,
@@ -70,6 +71,7 @@ import {
   changeReferralSaasAccountSupportCaseStatus,
   createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
+  bindReferralSaasAccountCampaignJourneyVersion,
   getReferralSaasAccountSupportCaseRepairReplayReadiness,
   listReferralSaasAccountJourneyDrafts,
   listReferralSaasAccountSupportCases,
@@ -111,6 +113,8 @@ import {
   getReferralSaasProviderVaultReadiness,
   listReferralSaasIntegrationCredentialRequests,
   type ReferralSaasAccountCampaignSetupCreateResponse,
+  type ReferralSaasCampaignJourneyBindingResponse,
+  type ReferralSaasCustomerJourneyVersion,
   type ReferralSaasCampaignLifecycleAction,
   type ReferralSaasSupportCase,
   type ReferralSaasSupportCaseAssignmentResponse,
@@ -176,6 +180,7 @@ type ProfileDraft = {
 type CampaignSetupDraft = {
   name: string;
   segment: string;
+  customerJourneyVersionId: string;
   startsAt: string;
   endsAt: string;
   maxUses: string;
@@ -636,12 +641,15 @@ export function ReferralSaasAccountMaintenancePage() {
   const [campaignSetupDraft, setCampaignSetupDraft] = useState<CampaignSetupDraft>({
     name: "",
     segment: "Referral acquisition",
+    customerJourneyVersionId: "",
     startsAt: "",
     endsAt: "",
     maxUses: "",
   });
   const [campaignSetupResult, setCampaignSetupResult] =
     useState<ReferralSaasAccountCampaignSetupCreateResponse | null>(null);
+  const [campaignJourneyBindingResult, setCampaignJourneyBindingResult] =
+    useState<ReferralSaasCampaignJourneyBindingResponse | null>(null);
   const [campaignPolicyDraft, setCampaignPolicyDraft] = useState<CampaignPolicySettingsDraft>({
     campaignCode: "",
     version: "1",
@@ -767,6 +775,16 @@ export function ReferralSaasAccountMaintenancePage() {
     error: productionActivationError,
     isLoading: isProductionActivationLoading,
   } = useReferralSaasProductionActivation(
+    selectedAccount?.accountId || "",
+    selectedExternalTenantRef,
+    Boolean(accountId && selectedAccount && selectedExternalTenantRef),
+    refreshKey,
+  );
+  const {
+    data: journeyVersionsResponse,
+    error: journeyVersionListError,
+    isLoading: isJourneyVersionListLoading,
+  } = useReferralSaasAccountJourneyVersions(
     selectedAccount?.accountId || "",
     selectedExternalTenantRef,
     Boolean(accountId && selectedAccount && selectedExternalTenantRef),
@@ -975,10 +993,37 @@ export function ReferralSaasAccountMaintenancePage() {
       void refetchAccountRegistry();
     },
   });
+  const campaignJourneyBindingMutation = useMutation({
+    mutationFn: bindReferralSaasAccountCampaignJourneyVersion,
+    onSuccess: (response) => {
+      setCampaignJourneyBindingResult(response);
+    },
+  });
   const campaignSetupMutation = useMutation({
     mutationFn: createReferralSaasAccountCampaignSetup,
     onSuccess: (response) => {
       setCampaignSetupResult(response);
+      const versionId = campaignSetupDraft.customerJourneyVersionId.trim();
+      const campaignCode = response.campaignSetup.campaign.campaignCode;
+      if (selectedAccount && selectedExternalTenantRef && campaignCode && versionId) {
+        campaignJourneyBindingMutation.mutate({
+          accountRef: selectedAccount.accountId,
+          campaignCode,
+          accountScope: {
+            refType: "external_tenant_ref",
+            externalRef: selectedExternalTenantRef,
+            context: "setup",
+          },
+          customerJourneyVersionId: versionId,
+          correlationId: `customer-profile-campaign-journey-binding-${selectedAccount.accountId}-${campaignCode}`,
+          idempotencyKey: safeIdempotencyKey(
+            "customer-profile-campaign-journey-binding",
+            selectedAccount.accountId,
+            campaignCode,
+            versionId,
+          ),
+        });
+      }
     },
   });
   const campaignPolicyMutation = useMutation({
@@ -1623,6 +1668,7 @@ export function ReferralSaasAccountMaintenancePage() {
       ...values,
     }));
     setCampaignSetupResult(null);
+    setCampaignJourneyBindingResult(null);
   }
 
   function updateCampaignPolicyDraft(values: Partial<CampaignPolicySettingsDraft>) {
@@ -1750,7 +1796,14 @@ export function ReferralSaasAccountMaintenancePage() {
     event.preventDefault();
     const cleanedName = campaignSetupDraft.name.trim();
     const cleanedSegment = campaignSetupDraft.segment.trim();
-    if (!selectedAccount || !selectedExternalTenantRef || !cleanedName || !cleanedSegment) {
+    const cleanedJourneyVersionId = campaignSetupDraft.customerJourneyVersionId.trim();
+    if (
+      !selectedAccount ||
+      !selectedExternalTenantRef ||
+      !cleanedName ||
+      !cleanedSegment ||
+      !cleanedJourneyVersionId
+    ) {
       return;
     }
     const cleanedMaxUses = campaignSetupDraft.maxUses.trim();
@@ -3103,12 +3156,18 @@ export function ReferralSaasAccountMaintenancePage() {
               {selectedModule === "campaigns" ? (
                 customerSubModule === "new" ? (
                   <CustomerCampaignSetupCreatePage
+                    bindingError={campaignJourneyBindingMutation.error}
+                    bindingResult={campaignJourneyBindingResult}
                     customerName={customerName}
                     draft={campaignSetupDraft}
                     error={campaignSetupMutation.error}
+                    isBinding={campaignJourneyBindingMutation.isPending}
+                    isJourneyVersionLoading={isJourneyVersionListLoading}
                     isSaving={campaignSetupMutation.isPending}
+                    journeyVersionError={journeyVersionListError}
                     onChange={updateCampaignSetupDraft}
                     onSubmit={submitCampaignSetup}
+                    publishedJourneyVersions={journeyVersionsResponse?.versions || []}
                     result={campaignSetupResult}
                     selectedAccount={selectedAccount}
                     selectedCustomerPath={selectedCustomerPath}
@@ -4563,28 +4622,51 @@ function CustomerCampaignAttributionPage({
 }
 
 function CustomerCampaignSetupCreatePage({
+  bindingError,
+  bindingResult,
   customerName,
   draft,
   error,
+  isBinding,
+  isJourneyVersionLoading,
   isSaving,
+  journeyVersionError,
   onChange,
   onSubmit,
+  publishedJourneyVersions,
   result,
   selectedAccount,
   selectedCustomerPath,
 }: {
+  bindingError: unknown;
+  bindingResult: ReferralSaasCampaignJourneyBindingResponse | null;
   customerName: string;
   draft: CampaignSetupDraft;
   error: unknown;
+  isBinding: boolean;
+  isJourneyVersionLoading: boolean;
   isSaving: boolean;
+  journeyVersionError: unknown;
   onChange: (values: Partial<CampaignSetupDraft>) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  publishedJourneyVersions: ReferralSaasCustomerJourneyVersion[];
   result: ReferralSaasAccountCampaignSetupCreateResponse | null;
   selectedAccount?: AccountRegistryItem;
   selectedCustomerPath: string;
 }) {
   const savedCampaign = result?.campaignSetup.campaign;
-  const canSave = Boolean(selectedAccount && draft.name.trim() && draft.segment.trim());
+  const hasPublishedJourneyVersions = publishedJourneyVersions.length > 0;
+  const selectedJourneyVersion = publishedJourneyVersions.find(
+    (version) => version.customerJourneyVersionId === draft.customerJourneyVersionId,
+  );
+  const binding = bindingResult?.binding || bindingResult?.journeyBinding;
+  const canSave = Boolean(
+    selectedAccount &&
+      draft.name.trim() &&
+      draft.segment.trim() &&
+      draft.customerJourneyVersionId.trim() &&
+      hasPublishedJourneyVersions,
+  );
 
   return (
     <section className="panel customer-module-page">
@@ -4609,7 +4691,43 @@ function CustomerCampaignSetupCreatePage({
           <StatusBadge label="No tenant code entry" tone="success" />
         </div>
 
+        {isJourneyVersionLoading ? <LoadingState label="Loading published journeys" /> : null}
+        {journeyVersionError ? <ErrorPanel error={journeyVersionError} /> : null}
         <form className="form-grid" onSubmit={onSubmit}>
+          <div className="wizard-status-card form-grid-span">
+            <div>
+              <strong>Journey binding required</strong>
+              <p>
+                Choose the published journey that controls this campaign's milestones and progress. Campaign activation is blocked until this is set.
+              </p>
+            </div>
+            <StatusBadge
+              label={hasPublishedJourneyVersions ? "Choose version" : "Publish journey first"}
+              tone={hasPublishedJourneyVersions ? "info" : "warning"}
+            />
+          </div>
+          <label>
+            Published customer journey
+            <select
+              disabled={!hasPublishedJourneyVersions}
+              onChange={(event) => onChange({ customerJourneyVersionId: event.target.value })}
+              value={draft.customerJourneyVersionId}
+            >
+              <option value="">
+                {hasPublishedJourneyVersions ? "Choose a published journey" : "No published journeys yet"}
+              </option>
+              {publishedJourneyVersions.map((version) => (
+                <option key={version.customerJourneyVersionId} value={version.customerJourneyVersionId}>
+                  {formatDisplay(version.customerJourneyCode)} v{version.versionNumber} - {formatDisplay(
+                    version.templateCode,
+                  )} {version.templateVersion}
+                </option>
+              ))}
+            </select>
+            <small>
+              Only published journeys for this customer are shown. Publish one from Customer settings &gt; Journeys first if this list is empty.
+            </small>
+          </label>
           <label>
             Campaign name
             <input
@@ -4652,12 +4770,13 @@ function CustomerCampaignSetupCreatePage({
               value={draft.maxUses}
             />
           </label>
-          <button className="button" disabled={!canSave || isSaving} type="submit">
-            {isSaving ? "Saving campaign setup" : "Save campaign setup"}
+          <button className="button" disabled={!canSave || isSaving || isBinding} type="submit">
+            {isSaving || isBinding ? "Saving and binding journey" : "Save campaign setup"}
           </button>
         </form>
 
         {error ? <ErrorPanel error={error} /> : null}
+        {bindingError ? <ErrorPanel error={bindingError} /> : null}
         {result && savedCampaign ? (
           <>
             <div className="wizard-summary-strip success">
@@ -4667,6 +4786,24 @@ function CustomerCampaignSetupCreatePage({
               </div>
               <StatusBadge label={formatDisplay(savedCampaign.setupStatus)} tone="success" />
             </div>
+            {binding ? (
+              <div className="wizard-summary-strip success">
+                <div>
+                  <strong>Journey version bound.</strong>{" "}
+                  {formatDisplay(binding.customerJourneyCode || selectedJourneyVersion?.customerJourneyCode || "Selected journey")} v
+                  {binding.versionNumber || selectedJourneyVersion?.versionNumber || 1} now defines this campaign's milestones and progress model. Runtime migration waits for the later controlled task.
+                </div>
+                <StatusBadge label={formatDisplay(binding.bindingStatus)} tone="success" />
+              </div>
+            ) : (
+              <div className="wizard-summary-strip warning">
+                <div>
+                  <strong>Campaign saved, journey binding still pending.</strong>{" "}
+                  Keep this campaign inactive until the selected published journey version is bound.
+                </div>
+                <StatusBadge label="Binding pending" tone="warning" />
+              </div>
+            )}
             <div className="grid-3">
               <KpiCard
                 label="Campaign"
@@ -4704,7 +4841,7 @@ function CustomerCampaignSetupCreatePage({
             <div>
               <strong>What this saves</strong>
               <p>
-                A customer-scoped inactive campaign draft. It gives the customer a campaign record to continue with later, without activating or launching anything.
+                A customer-scoped inactive campaign draft plus its published journey version binding. It gives the customer a campaign record to continue with later, without activating or launching anything.
               </p>
             </div>
             <StatusBadge label="Safe create" tone="info" />
