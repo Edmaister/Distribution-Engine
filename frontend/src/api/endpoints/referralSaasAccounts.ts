@@ -53,6 +53,194 @@ export type ReferralSaasAccountRegistryResponse = {
   redactions: string[];
 };
 
+export type ReferralSaasJourneyTemplateVersionSummary = {
+  journeyTemplateVersionId: string;
+  templateVersion: string;
+  status: string;
+  milestoneCount: number;
+  transitionRuleCount: number;
+  evidenceRequirementCount: number;
+  allowedConfigurationSections: string[];
+  approvedByRef?: string | null;
+  approvedAt?: string | null;
+  createdByRef?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  archivedAt?: string | null;
+};
+
+export type ReferralSaasJourneyTemplateCatalogueItem = {
+  journeyTemplateId: string;
+  templateCode: string;
+  templateName: string;
+  templateFamily: string;
+  ownerScope: string;
+  status: string;
+  safeSummary: Record<string, unknown>;
+  governanceMetadata: Record<string, unknown>;
+  versionCount: number;
+  versions: ReferralSaasJourneyTemplateVersionSummary[];
+  createdByRef?: string | null;
+  updatedByRef?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  archivedAt?: string | null;
+};
+
+export type ReferralSaasJourneyTemplateCatalogueResponse = {
+  status: string;
+  templateCount: number;
+  statusFilter: string[];
+  includeArchived: boolean;
+  templates: ReferralSaasJourneyTemplateCatalogueItem[];
+  guardrails: string[];
+  redactions: string[];
+  noTenantDataConfirmed: boolean;
+  noCustomerConfigurationWriteConfirmed: boolean;
+  noRuntimeExecutionConfirmed: boolean;
+  noCampaignBindingConfirmed: boolean;
+  noProviderAuthBillingOrMoneyActionConfirmed: boolean;
+};
+
+export type ReferralSaasCustomerJourneyDraft = {
+  customerJourneyDraftId: string;
+  accountId: string;
+  journeyTemplateVersionId: string;
+  templateCode: string;
+  templateVersion: string;
+  draftName: string;
+  draftStatus: string;
+  draftVersion: number;
+  configurationPayload: Record<string, unknown>;
+  lastValidationStatus: string;
+  payloadHash: string;
+  createdByRef?: string | null;
+  updatedByRef?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  archivedAt?: string | null;
+  guardrails: string[];
+  redactions: string[];
+  noRuntimeJourneyMutationConfirmed: boolean;
+  noCampaignBindingConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noProviderDispatchConfirmed: boolean;
+  noAuthBillingOrMoneyActionConfirmed: boolean;
+};
+
+export type ReferralSaasCustomerJourneyDraftListResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  count: number;
+  drafts: ReferralSaasCustomerJourneyDraft[];
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  noRuntimeJourneyMutationConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noProviderDispatchConfirmed: boolean;
+  noAuthBillingOrMoneyActionConfirmed: boolean;
+};
+
+export type ReferralSaasCustomerJourneyValidation = {
+  journeyValidationResultId: string;
+  accountId: string;
+  customerJourneyDraftId: string;
+  journeyTemplateVersionId: string;
+  validationStatus: string;
+  blockers: Record<string, unknown>[];
+  warnings: Record<string, unknown>[];
+  safeSummary: Record<string, unknown>;
+  payloadHash: string;
+  createdAt?: string | null;
+  guardrails: string[];
+  redactions: string[];
+  noRuntimeJourneyMutationConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noProviderDispatchConfirmed: boolean;
+  noAuthBillingOrMoneyActionConfirmed: boolean;
+};
+
+export type ReferralSaasCustomerJourneyDraftCommandResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  commandStatus: string;
+  idempotencyStatus: string;
+  draft: ReferralSaasCustomerJourneyDraft;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  noRuntimeJourneyMutationConfirmed: boolean;
+  noCampaignBindingConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noProviderDispatchConfirmed: boolean;
+  noAuthBillingOrMoneyActionConfirmed: boolean;
+};
+
+export type ReferralSaasCustomerJourneyDraftValidationResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  validation: ReferralSaasCustomerJourneyValidation;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  noRuntimeJourneyMutationConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noProviderDispatchConfirmed: boolean;
+  noAuthBillingOrMoneyActionConfirmed: boolean;
+};
+
+export type ReferralSaasCustomerJourneyVersion = {
+  customerJourneyVersionId: string;
+  accountId: string;
+  customerJourneyDraftId: string;
+  journeyTemplateVersionId: string;
+  templateCode: string;
+  templateVersion: string;
+  customerJourneyCode: string;
+  versionNumber: number;
+  versionStatus: string;
+  publishedConfigurationPayload: Record<string, unknown>;
+  payloadHash: string;
+  publishedByRef?: string | null;
+  publishedAt?: string | null;
+  archivedByRef?: string | null;
+  archivedAt?: string | null;
+  archiveReason?: string | null;
+  rollbackFromVersionId?: string | null;
+  safeSummary: Record<string, unknown>;
+  governanceMetadata: Record<string, unknown>;
+  createdAt?: string | null;
+  guardrails: string[];
+  redactions: string[];
+  noRuntimeJourneyMutationConfirmed: boolean;
+  noCampaignBindingConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noProviderDispatchConfirmed: boolean;
+  noAuthBillingOrMoneyActionConfirmed: boolean;
+};
+
+export type ReferralSaasCustomerJourneyPublishResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  commandStatus: string;
+  idempotencyStatus: string;
+  version: ReferralSaasCustomerJourneyVersion;
+  archiveBlockers: Record<string, unknown>[];
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  noRuntimeJourneyMutationConfirmed: boolean;
+  noCampaignBindingConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noProviderDispatchConfirmed: boolean;
+  noAuthBillingOrMoneyActionConfirmed: boolean;
+};
+
 export type ReferralSaasAccountResolutionResponse = {
   status: string;
   context: ReferralSaasAccountResolutionContext;
@@ -2920,6 +3108,141 @@ export type ReferralSaasAccountFoundationActivationResponse = {
   no_go_live_action_confirmed: boolean;
   no_billing_or_money_movement_confirmed: boolean;
 };
+
+export function listReferralSaasJourneyTemplates({
+  statuses = ["APPROVED"],
+  includeArchived = false,
+  limit = 50,
+}: {
+  statuses?: string[];
+  includeArchived?: boolean;
+  limit?: number;
+} = {}): Promise<ReferralSaasJourneyTemplateCatalogueResponse> {
+  return apiRequest<ReferralSaasJourneyTemplateCatalogueResponse>("v1/referral-saas/journey-templates", {
+    query: {
+      status: statuses,
+      includeArchived,
+      limit,
+    },
+  });
+}
+
+export function listReferralSaasAccountJourneyDrafts({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+  includeArchived = false,
+  limit = 50,
+}: ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+  includeArchived?: boolean;
+  limit?: number;
+}): Promise<ReferralSaasCustomerJourneyDraftListResponse> {
+  return apiRequest<ReferralSaasCustomerJourneyDraftListResponse>(
+    `v1/referral-saas/accounts/${accountRef}/journey-drafts`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef,
+        context,
+        includeArchived,
+        limit,
+      },
+    },
+  );
+}
+
+export function saveReferralSaasAccountJourneyDraft({
+  accountRef,
+  accountScope,
+  templateCode,
+  templateVersion,
+  draftName,
+  configurationPayload,
+  customerJourneyDraftId,
+  correlationId,
+  idempotencyKey,
+}: {
+  accountRef: string;
+  accountScope: Record<string, unknown>;
+  templateCode: string;
+  templateVersion?: string | null;
+  draftName: string;
+  configurationPayload: Record<string, unknown>;
+  customerJourneyDraftId?: string | null;
+  correlationId?: string | null;
+  idempotencyKey: string;
+}): Promise<ReferralSaasCustomerJourneyDraftCommandResponse> {
+  return apiRequest<ReferralSaasCustomerJourneyDraftCommandResponse>(
+    `v1/referral-saas/accounts/${accountRef}/journey-drafts`,
+    {
+      method: "PUT",
+      body: {
+        accountScope,
+        templateCode,
+        templateVersion,
+        draftName,
+        configurationPayload,
+        customerJourneyDraftId,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function validateReferralSaasAccountJourneyDraft({
+  accountRef,
+  draftRef,
+  accountScope,
+  correlationId,
+  idempotencyKey,
+}: {
+  accountRef: string;
+  draftRef: string;
+  accountScope: Record<string, unknown>;
+  correlationId?: string | null;
+  idempotencyKey: string;
+}): Promise<ReferralSaasCustomerJourneyDraftValidationResponse> {
+  return apiRequest<ReferralSaasCustomerJourneyDraftValidationResponse>(
+    `v1/referral-saas/accounts/${accountRef}/journey-drafts/${draftRef}/validate`,
+    {
+      method: "POST",
+      body: {
+        accountScope,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function publishReferralSaasAccountJourneyDraft({
+  accountRef,
+  draftRef,
+  accountScope,
+  correlationId,
+  idempotencyKey,
+}: {
+  accountRef: string;
+  draftRef: string;
+  accountScope: Record<string, unknown>;
+  correlationId?: string | null;
+  idempotencyKey: string;
+}): Promise<ReferralSaasCustomerJourneyPublishResponse> {
+  return apiRequest<ReferralSaasCustomerJourneyPublishResponse>(
+    `v1/referral-saas/accounts/${accountRef}/journey-drafts/${draftRef}/publish`,
+    {
+      method: "POST",
+      body: {
+        accountScope,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
 
 export function resolveReferralSaasAccount({
   refType,

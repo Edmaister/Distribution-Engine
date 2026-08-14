@@ -8,6 +8,7 @@ import {
   Link as LinkIcon,
   ListChecks,
   PlugZap,
+  Route,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -70,7 +71,10 @@ import {
   createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
   getReferralSaasAccountSupportCaseRepairReplayReadiness,
+  listReferralSaasAccountJourneyDrafts,
   listReferralSaasAccountSupportCases,
+  listReferralSaasJourneyTemplates,
+  publishReferralSaasAccountJourneyDraft,
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasApiAccessVerification,
   recordReferralSaasIntegrationCredentialRequest,
@@ -86,14 +90,21 @@ import {
   requestReferralSaasLoginCompletionIntent,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
+  saveReferralSaasAccountJourneyDraft,
   saveReferralSaasIntegrationConfiguration,
   submitReferralSaasAccountCampaignReview,
   updateReferralSaasMembershipInvitationIntent,
   updateReferralSaasAccountCampaignPolicySettings,
+  validateReferralSaasAccountJourneyDraft,
   validateReferralSaasIntegrationConfiguration,
   type ReferralSaasAccountCampaignActivationResponse,
   type ReferralSaasAccountCampaignReviewResponse,
   type ReferralSaasAccountCampaignPolicySettingsResponse,
+  type ReferralSaasCustomerJourneyDraft,
+  type ReferralSaasCustomerJourneyDraftValidationResponse,
+  type ReferralSaasCustomerJourneyPublishResponse,
+  type ReferralSaasJourneyTemplateCatalogueItem,
+  type ReferralSaasJourneyTemplateVersionSummary,
   updateReferralSaasAccountProfile,
   getReferralSaasIntegrationConfiguration,
   getReferralSaasIntegrationExecutionReadiness,
@@ -145,6 +156,7 @@ type CustomerModule =
   | "commercial"
   | "integrations"
   | "technical"
+  | "journeys"
   | "campaigns"
   | "referrals"
   | "referrers"
@@ -353,6 +365,15 @@ const customerFunctions = [
     route: "integrations",
     icon: PlugZap,
     status: "Needs attention",
+    tone: "warning" as StatusTone,
+  },
+  {
+    title: "Journeys",
+    copy: "Choose an approved journey template and prepare this customer's version.",
+    letsYou: "Configure milestones, evidence, rewards, and attribution before campaign binding.",
+    route: "journeys",
+    icon: Route,
+    status: "Needs setup",
     tone: "warning" as StatusTone,
   },
   {
@@ -3014,6 +3035,15 @@ export function ReferralSaasAccountMaintenancePage() {
                   externalTenantRef={selectedExternalTenantRef}
                   isLoading={isTechnicalSetupLoading}
                   readiness={technicalSetupReadiness}
+                  selectedCustomerPath={selectedCustomerPath}
+                />
+              ) : null}
+
+              {selectedModule === "journeys" ? (
+                <CustomerJourneysPage
+                  customerName={customerName}
+                  externalTenantRef={selectedExternalTenantRef}
+                  selectedAccount={selectedAccount}
                   selectedCustomerPath={selectedCustomerPath}
                 />
               ) : null}
@@ -6690,6 +6720,485 @@ function CustomerTechnicalSetupPage({
   );
 }
 
+type JourneyConfigurationDraft = {
+  customerJourneyDraftId: string;
+  templateCode: string;
+  templateVersion: string;
+  draftName: string;
+  milestoneCodes: string;
+  transitionRules: string;
+  evidenceCodes: string;
+  rewardPolicyCode: string;
+  attributionWindowDays: string;
+};
+
+const defaultJourneyDraft: JourneyConfigurationDraft = {
+  customerJourneyDraftId: "",
+  templateCode: "",
+  templateVersion: "",
+  draftName: "Standard referral journey",
+  milestoneCodes: "REFERRED, QUALIFIED, CONVERTED",
+  transitionRules: "REFERRED > QUALIFIED\nQUALIFIED > CONVERTED",
+  evidenceCodes: "CUSTOMER_REFERENCE, ACCEPTED_TERMS, OUTCOME_EVENT",
+  rewardPolicyCode: "",
+  attributionWindowDays: "30",
+};
+
+function CustomerJourneysPage({
+  customerName,
+  externalTenantRef,
+  selectedAccount,
+  selectedCustomerPath,
+}: {
+  customerName: string;
+  externalTenantRef: string;
+  selectedAccount?: AccountRegistryItem;
+  selectedCustomerPath: string;
+}) {
+  const [draft, setDraft] = useState<JourneyConfigurationDraft>(defaultJourneyDraft);
+  const [selectedTemplateCode, setSelectedTemplateCode] = useState("");
+  const [latestValidation, setLatestValidation] =
+    useState<ReferralSaasCustomerJourneyDraftValidationResponse | null>(null);
+  const [latestPublish, setLatestPublish] = useState<ReferralSaasCustomerJourneyPublishResponse | null>(null);
+  const [journeyMessage, setJourneyMessage] = useState<string | null>(null);
+  const accountScope = {
+    refType: "external_tenant_ref" as const,
+    externalRef: externalTenantRef,
+    context: "setup" as const,
+  };
+  const templatesQuery = useQuery({
+    queryKey: ["referral-saas", "journey-templates", "approved"],
+    queryFn: () => listReferralSaasJourneyTemplates({ statuses: ["APPROVED"], limit: 50 }),
+    retry: false,
+  });
+  const draftsQuery = useQuery({
+    queryKey: ["referral-saas", "journey-drafts", selectedAccount?.accountId || "", externalTenantRef],
+    queryFn: () =>
+      listReferralSaasAccountJourneyDrafts({
+        accountRef: selectedAccount?.accountId || "",
+        refType: "external_tenant_ref",
+        externalRef: externalTenantRef,
+        context: "setup",
+        limit: 50,
+      }),
+    enabled: Boolean(selectedAccount?.accountId && externalTenantRef),
+    retry: false,
+  });
+  const templates = templatesQuery.data?.templates || [];
+  const selectedTemplate =
+    templates.find((template) => template.templateCode === (selectedTemplateCode || draft.templateCode)) ||
+    templates[0];
+  const selectedVersion =
+    selectedTemplate?.versions.find((version) => version.templateVersion === draft.templateVersion) ||
+    selectedTemplate?.versions[0];
+  const savedDraftRef = draft.customerJourneyDraftId;
+  const canValidate = Boolean(selectedAccount?.accountId && savedDraftRef);
+  const validationStatus = latestValidation?.validation.validationStatus || "";
+  const canPublish =
+    canValidate &&
+    Boolean(validationStatus) &&
+    !["FAILED", "BLOCKED", "INVALID"].some((blocked) => validationStatus.toUpperCase().includes(blocked));
+
+  useEffect(() => {
+    if (!selectedTemplate || draft.templateCode) {
+      return;
+    }
+    setDraft((current) => ({
+      ...current,
+      templateCode: selectedTemplate.templateCode,
+      templateVersion: selectedTemplate.versions[0]?.templateVersion || "",
+      draftName: `${selectedTemplate.templateName} for ${customerName}`,
+    }));
+    setSelectedTemplateCode(selectedTemplate.templateCode);
+  }, [customerName, draft.templateCode, selectedTemplate]);
+
+  function selectTemplate(template: ReferralSaasJourneyTemplateCatalogueItem) {
+    setSelectedTemplateCode(template.templateCode);
+    setLatestValidation(null);
+    setLatestPublish(null);
+    setDraft((current) => ({
+      ...current,
+      customerJourneyDraftId: "",
+      templateCode: template.templateCode,
+      templateVersion: template.versions[0]?.templateVersion || "",
+      draftName: `${template.templateName} for ${customerName}`,
+    }));
+  }
+
+  function loadDraft(savedDraft: ReferralSaasCustomerJourneyDraft) {
+    const payload = savedDraft.configurationPayload || {};
+    setLatestValidation(null);
+    setLatestPublish(null);
+    setSelectedTemplateCode(savedDraft.templateCode);
+    setDraft({
+      customerJourneyDraftId: savedDraft.customerJourneyDraftId,
+      templateCode: savedDraft.templateCode,
+      templateVersion: savedDraft.templateVersion,
+      draftName: savedDraft.draftName,
+      milestoneCodes: extractPayloadCodes(payload, "milestones"),
+      transitionRules: extractPayloadTransitions(payload),
+      evidenceCodes: extractPayloadCodes(payload, "evidence"),
+      rewardPolicyCode: textValue(getNestedValue(payload, ["rewards", "policyCode"])),
+      attributionWindowDays: textValue(getNestedValue(payload, ["attribution", "attributionWindowDays"]), "30"),
+    });
+    setJourneyMessage("Draft loaded. Review the configuration, then validate it before publishing.");
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      saveReferralSaasAccountJourneyDraft({
+        accountRef: selectedAccount?.accountId || "",
+        accountScope,
+        templateCode: draft.templateCode || selectedTemplate?.templateCode || "",
+        templateVersion: draft.templateVersion || selectedVersion?.templateVersion || null,
+        draftName: draft.draftName,
+        configurationPayload: buildJourneyConfigurationPayload(draft, selectedVersion),
+        customerJourneyDraftId: draft.customerJourneyDraftId || null,
+        correlationId: safeIdempotencyKey("journey-draft", selectedAccount?.accountId || "", draft.draftName),
+        idempotencyKey: safeIdempotencyKey(
+          "save-journey-draft",
+          selectedAccount?.accountId || "",
+          draft.templateCode || selectedTemplate?.templateCode || "",
+          draft.draftName,
+        ),
+      }),
+    onSuccess: async (response) => {
+      setDraft((current) => ({
+        ...current,
+        customerJourneyDraftId: response.draft.customerJourneyDraftId,
+        templateCode: response.draft.templateCode,
+        templateVersion: response.draft.templateVersion,
+        draftName: response.draft.draftName,
+      }));
+      setLatestValidation(null);
+      setLatestPublish(null);
+      setJourneyMessage(
+        `${formatDisplay(response.commandStatus)}. Customer journey draft saved. Validate it before publishing.`,
+      );
+      await draftsQuery.refetch();
+    },
+  });
+  const validateMutation = useMutation({
+    mutationFn: () =>
+      validateReferralSaasAccountJourneyDraft({
+        accountRef: selectedAccount?.accountId || "",
+        draftRef: savedDraftRef,
+        accountScope,
+        correlationId: safeIdempotencyKey("journey-validation", selectedAccount?.accountId || "", savedDraftRef),
+        idempotencyKey: safeIdempotencyKey("validate-journey-draft", selectedAccount?.accountId || "", savedDraftRef),
+      }),
+    onSuccess: async (response) => {
+      setLatestValidation(response);
+      setJourneyMessage(`${formatDisplay(response.validation.validationStatus)}. Validation evidence recorded.`);
+      await draftsQuery.refetch();
+    },
+  });
+  const publishMutation = useMutation({
+    mutationFn: () =>
+      publishReferralSaasAccountJourneyDraft({
+        accountRef: selectedAccount?.accountId || "",
+        draftRef: savedDraftRef,
+        accountScope,
+        correlationId: safeIdempotencyKey("journey-publish", selectedAccount?.accountId || "", savedDraftRef),
+        idempotencyKey: safeIdempotencyKey("publish-journey-draft", selectedAccount?.accountId || "", savedDraftRef),
+      }),
+    onSuccess: async (response) => {
+      setLatestPublish(response);
+      setJourneyMessage(
+        `${formatDisplay(response.commandStatus)}. Published an immutable customer journey version for later campaign binding.`,
+      );
+      await draftsQuery.refetch();
+    },
+  });
+
+  return (
+    <section className="panel customer-module-page" id="journeys">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Journeys</div>
+          <h2 className="panel-title">Journey configuration</h2>
+          <div className="panel-subtitle">
+            Select an approved template, save this customer's draft, validate it, then publish a version for later
+            campaign binding.
+          </div>
+        </div>
+        <StatusBadge label="Customer scoped" tone="success" />
+      </div>
+      <div className="panel-body route-list">
+        {templatesQuery.isLoading || draftsQuery.isLoading ? <LoadingState label="Loading journey configuration" /> : null}
+        {templatesQuery.error ? <ErrorPanel error={templatesQuery.error} /> : null}
+        {draftsQuery.error ? <ErrorPanel error={draftsQuery.error} /> : null}
+        {saveMutation.error ? <ErrorPanel error={saveMutation.error} /> : null}
+        {validateMutation.error ? <ErrorPanel error={validateMutation.error} /> : null}
+        {publishMutation.error ? <ErrorPanel error={publishMutation.error} /> : null}
+        {journeyMessage ? (
+          <div className="success-banner">
+            <strong>Journey configuration updated.</strong> {journeyMessage}
+          </div>
+        ) : null}
+        <div className="integrations-stage-card success">
+          <div>
+            <strong>What this page does</strong>
+            <p>
+              It prepares a customer-specific journey version from approved templates. The version is safe for later
+              campaign binding, but it does not switch runtime behaviour by itself.
+            </p>
+          </div>
+          <StatusBadge label="No live switch" tone="warning" />
+        </div>
+
+        <div className="integrations-plan-grid">
+          <div className="panel-lite integrations-step-card">
+            <h3 className="section-heading">1. Choose approved template</h3>
+            <p>Only governed templates are shown. Customer-specific data is configured in the draft below.</p>
+            <div className="route-list">
+              {templates.map((template) => (
+                <button
+                  className={`wizard-status-card ${template.templateCode === selectedTemplate?.templateCode ? "active" : ""}`}
+                  key={template.journeyTemplateId}
+                  onClick={() => selectTemplate(template)}
+                  type="button"
+                >
+                  <div>
+                    <strong>{template.templateName}</strong>
+                    <p>{textValue(getNestedValue(template.safeSummary, ["description"], "Approved journey template."))}</p>
+                    <span className="table-subtext">
+                      {template.templateCode} - {formatDisplay(template.templateFamily)} -{" "}
+                      {template.versions[0]?.milestoneCount || 0} milestones
+                    </span>
+                  </div>
+                  <StatusBadge label={formatDisplay(template.status)} tone={statusTone(template.status)} />
+                </button>
+              ))}
+              {!templates.length && !templatesQuery.isLoading ? (
+                <div className="empty-panel">No approved journey templates are available.</div>
+              ) : null}
+            </div>
+          </div>
+
+          <form
+            className="panel-lite integrations-step-card"
+            onSubmit={(event: FormEvent) => {
+              event.preventDefault();
+              saveMutation.mutate();
+            }}
+          >
+            <h3 className="section-heading">2. Configure customer draft</h3>
+            <p>Use plain configuration values. Sections unsupported by the selected template are not sent.</p>
+            <div className="grid-2">
+              <label>
+                Template version
+                <select
+                  onChange={(event) => setDraft({ ...draft, templateVersion: event.target.value })}
+                  value={draft.templateVersion}
+                >
+                  {(selectedTemplate?.versions || []).map((version) => (
+                    <option key={version.journeyTemplateVersionId} value={version.templateVersion}>
+                      {version.templateVersion} - {formatDisplay(version.status)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Draft name
+                <input
+                  onChange={(event) => setDraft({ ...draft, draftName: event.target.value })}
+                  value={draft.draftName}
+                />
+              </label>
+            </div>
+            <label>
+              Milestone codes
+              <textarea
+                onChange={(event) => setDraft({ ...draft, milestoneCodes: event.target.value })}
+                value={draft.milestoneCodes}
+              />
+            </label>
+            <label>
+              Transition rules
+              <textarea
+                onChange={(event) => setDraft({ ...draft, transitionRules: event.target.value })}
+                value={draft.transitionRules}
+              />
+            </label>
+            <label>
+              Evidence codes
+              <textarea
+                onChange={(event) => setDraft({ ...draft, evidenceCodes: event.target.value })}
+                value={draft.evidenceCodes}
+              />
+            </label>
+            <div className="grid-2">
+              <label>
+                Reward policy reference
+                <input
+                  onChange={(event) => setDraft({ ...draft, rewardPolicyCode: event.target.value })}
+                  placeholder="Optional approved reward policy code"
+                  value={draft.rewardPolicyCode}
+                />
+              </label>
+              <label>
+                Attribution window
+                <input
+                  onChange={(event) => setDraft({ ...draft, attributionWindowDays: event.target.value })}
+                  type="number"
+                  value={draft.attributionWindowDays}
+                />
+              </label>
+            </div>
+            <div className="action-row">
+              <button className="button primary" disabled={!selectedAccount?.accountId || saveMutation.isPending} type="submit">
+                {saveMutation.isPending ? "Saving" : "Save journey draft"}
+              </button>
+              <button
+                className="button secondary"
+                disabled={!canValidate || validateMutation.isPending}
+                onClick={() => validateMutation.mutate()}
+                type="button"
+              >
+                {validateMutation.isPending ? "Validating" : "Validate draft"}
+              </button>
+              <button
+                className="button secondary"
+                disabled={!canPublish || publishMutation.isPending}
+                onClick={() => publishMutation.mutate()}
+                type="button"
+              >
+                {publishMutation.isPending ? "Publishing" : "Publish journey version"}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {latestValidation ? (
+          <JourneyValidationPanel validationResponse={latestValidation} />
+        ) : null}
+        {latestPublish ? (
+          <div className="success-banner">
+            <strong>Published journey version.</strong>{" "}
+            {latestPublish.version.customerJourneyCode} v{latestPublish.version.versionNumber} is ready for TASK-390
+            campaign binding.
+          </div>
+        ) : null}
+
+        <div className="panel-lite integrations-step-card">
+          <div className="settings-summary-header">
+            <div>
+              <h3 className="section-heading">Saved drafts</h3>
+              <p>Continue an existing customer draft or publish a newly validated one.</p>
+            </div>
+            <StatusBadge label={`${draftsQuery.data?.count || 0} drafts`} tone="info" />
+          </div>
+          <div className="route-list">
+            {(draftsQuery.data?.drafts || []).map((savedDraft) => (
+              <div className="wizard-status-card" key={savedDraft.customerJourneyDraftId}>
+                <div>
+                  <strong>{savedDraft.draftName}</strong>
+                  <p>
+                    {savedDraft.templateCode} {savedDraft.templateVersion} -{" "}
+                    {formatDisplay(savedDraft.lastValidationStatus)}
+                  </p>
+                  <span className="table-subtext">
+                    Version {savedDraft.draftVersion}
+                    {savedDraft.updatedAt ? ` - updated ${savedDraft.updatedAt}` : ""}
+                  </span>
+                </div>
+                <StatusBadge label={formatDisplay(savedDraft.draftStatus)} tone={statusTone(savedDraft.draftStatus)} />
+                <button className="button secondary" onClick={() => loadDraft(savedDraft)} type="button">
+                  Use draft
+                </button>
+              </div>
+            ))}
+            {!draftsQuery.data?.drafts?.length && !draftsQuery.isLoading ? (
+              <div className="empty-panel">No customer journey drafts exist yet.</div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="integrations-footnote">
+          <div>
+            <strong>Journey configuration boundary</strong>
+            <p>
+              This page does not mutate runtime journey execution, bind campaigns, activate campaigns, dispatch
+              providers, create credentials, change auth, bill, settle, pay out, or move money.
+            </p>
+          </div>
+          <StatusBadge label="Governed draft only" tone="success" />
+        </div>
+
+        <div className="action-row integrations-handoff-row">
+          <Link className="button secondary" to={selectedCustomerPath}>
+            Customer home
+          </Link>
+          <Link className="button primary" to={`${selectedCustomerPath}/campaigns`}>
+            Continue to Campaigns
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function JourneyValidationPanel({
+  validationResponse,
+}: {
+  validationResponse: ReferralSaasCustomerJourneyDraftValidationResponse;
+}) {
+  const validation = validationResponse.validation;
+  const summary = validation.safeSummary || {};
+  const simulatedPath = textArray(getNestedValue(summary, ["simulation", "simulatedMilestonePath"]));
+  return (
+    <div className="panel-lite integrations-step-card">
+      <div className="settings-summary-header">
+        <div>
+          <h3 className="section-heading">Validation feedback</h3>
+          <p>Use this before publishing. Blockers must be fixed; warnings can be reviewed deliberately.</p>
+        </div>
+        <StatusBadge label={formatDisplay(validation.validationStatus)} tone={statusTone(validation.validationStatus)} />
+      </div>
+      <div className="grid-2">
+        <div className={`wizard-summary-strip ${validation.blockers.length ? "warning" : "success"}`}>
+          <div>
+            <strong>{validation.blockers.length} blockers</strong>
+            <p>{validation.blockers.length ? "Fix these before publish." : "No publish blockers returned."}</p>
+          </div>
+        </div>
+        <div className={`wizard-summary-strip ${validation.warnings.length ? "warning" : "success"}`}>
+          <div>
+            <strong>{validation.warnings.length} warnings</strong>
+            <p>{validation.warnings.length ? "Review these before campaign binding." : "No warnings returned."}</p>
+          </div>
+        </div>
+      </div>
+      {validation.blockers.length || validation.warnings.length ? (
+        <div className="route-list">
+          {[...validation.blockers, ...validation.warnings].map((item, index) => (
+            <div
+              className="wizard-status-card"
+              key={`${textValue(getNestedValue(item, ["code"], "item"))}-${index}`}
+            >
+              <div>
+                <strong>{formatDisplay(textValue(getNestedValue(item, ["code"], "Validation item")))}</strong>
+                <p>{textValue(getNestedValue(item, ["message"], "Review this validation item."))}</p>
+              </div>
+              <StatusBadge label={index < validation.blockers.length ? "Blocker" : "Warning"} tone="warning" />
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {simulatedPath.length ? (
+        <div className="integrations-footnote">
+          <div>
+            <strong>Simulated path</strong>
+            <p>{simulatedPath.join(" -> ")}</p>
+          </div>
+          <StatusBadge label="Read-only simulation" tone="info" />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function CustomerReportsPage({
   customerName,
   externalTenantRef,
@@ -9117,16 +9626,17 @@ function isCustomerModule(value: string | undefined): value is CustomerModule {
   return [
     "home",
     "health",
-      "settings",
-      "people",
-      "commercial",
-      "integrations",
-      "technical",
-      "campaigns",
-      "referrals",
-      "referrers",
-      "links",
-      "reports",
+    "settings",
+    "people",
+    "commercial",
+    "integrations",
+    "technical",
+    "journeys",
+    "campaigns",
+    "referrals",
+    "referrers",
+    "links",
+    "reports",
     "support",
     "attribution",
     "progress",
@@ -9159,6 +9669,86 @@ function textArray(value: unknown): string[] {
     return [];
   }
   return value.map((entry) => textValue(entry)).filter(Boolean);
+}
+
+function splitConfiguredList(value: string): string[] {
+  return value
+    .split(/[\n,]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function parseTransitionRules(value: string): { from: string; to: string }[] {
+  return value
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const separator = line.includes(">") ? ">" : ":";
+      const [from, to] = line.split(separator);
+      return { from: (from || "").trim(), to: (to || "").trim() };
+    })
+    .filter((transition) => transition.from && transition.to);
+}
+
+function allowedJourneySections(version?: ReferralSaasJourneyTemplateVersionSummary) {
+  return new Set((version?.allowedConfigurationSections || []).map((section) => section.toLowerCase()));
+}
+
+function journeySectionAllowed(sections: Set<string>, ...names: string[]) {
+  return names.some((name) => sections.has(name.toLowerCase()));
+}
+
+function buildJourneyConfigurationPayload(
+  draft: JourneyConfigurationDraft,
+  selectedVersion?: ReferralSaasJourneyTemplateVersionSummary,
+): Record<string, unknown> {
+  const sections = allowedJourneySections(selectedVersion);
+  const payload: Record<string, unknown> = {};
+  const milestones = splitConfiguredList(draft.milestoneCodes);
+  const transitions = parseTransitionRules(draft.transitionRules);
+  const evidence = splitConfiguredList(draft.evidenceCodes);
+  const rewardPolicyCode = draft.rewardPolicyCode.trim();
+  const attributionWindowDays = Number(draft.attributionWindowDays);
+
+  if (milestones.length && journeySectionAllowed(sections, "milestones", "enabledMilestones")) {
+    payload.milestones = milestones.map((code) => ({ code }));
+  }
+  if (transitions.length && journeySectionAllowed(sections, "transitions", "transitionRules")) {
+    payload.transitions = transitions;
+  }
+  if (evidence.length && journeySectionAllowed(sections, "evidence", "evidenceRequirements", "requiredEvidence")) {
+    payload.evidence = evidence.map((code) => ({ code }));
+  }
+  if (rewardPolicyCode && journeySectionAllowed(sections, "rewards", "rewardPolicy")) {
+    payload.rewards = { policyCode: rewardPolicyCode, mode: "configured_reference_only" };
+  }
+  if (
+    Number.isFinite(attributionWindowDays) &&
+    attributionWindowDays > 0 &&
+    journeySectionAllowed(sections, "attribution")
+  ) {
+    payload.attribution = { attributionWindowDays };
+  }
+  return payload;
+}
+
+function extractPayloadCodes(payload: Record<string, unknown>, key: "milestones" | "evidence") {
+  return asArray(payload[key])
+    .map((entry) => textValue(getNestedValue(entry, ["code"])))
+    .filter(Boolean)
+    .join(", ");
+}
+
+function extractPayloadTransitions(payload: Record<string, unknown>) {
+  return asArray(payload.transitions)
+    .map((entry) => {
+      const from = textValue(getNestedValue(entry, ["from"]));
+      const to = textValue(getNestedValue(entry, ["to"]));
+      return from && to ? `${from} > ${to}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
 }
 
 function downloadCustomerReportFile({

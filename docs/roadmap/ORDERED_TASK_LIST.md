@@ -8639,7 +8639,7 @@ Priority: P1.
 
 ## TASK-389: Add journey template catalogue and draft configuration UX
 
-Status: Planned.
+Status: Complete.
 Product boundary: Referral SaaS.
 Shared primitive impact: Adds a customer/admin journey configuration workspace over governed APIs. Source duplication: No.
 Objective: Let Amplifi Admin or customer admin select a template, configure allowed options, validate, and understand publish readiness in plain language.
@@ -8650,7 +8650,11 @@ Backend impact: None.
 Frontend impact: Adds Journey Configuration pages inside selected-customer context.
 API impact: Uses TASK-385 to TASK-388 APIs.
 Tests to add/update: Route rendering, template selection, draft save, validation feedback, publish readiness, no raw/internal leakage.
-Acceptance criteria: Users can configure only approved fields, see blockers/warnings plainly, and cannot access draft/runtime/provider/auth/billing/money actions outside the governed API controls.
+Acceptance criteria: Complete - users can configure only approved fields, see blockers/warnings plainly, publish a validated customer journey version for later campaign binding, and cannot access draft/runtime/provider/auth/billing/money actions outside the governed API controls.
+Completed output:
+- Added a customer-scoped Journey Configuration page under Customer Profile.
+- Wired approved journey template catalogue plus account-scoped journey draft list/save/validate/publish APIs into the frontend client and selected-customer workspace.
+- Added safe configuration payload building, validation feedback, publish readiness, saved draft selection, and explicit guardrails confirming no runtime switch, campaign binding, provider dispatch, auth, billing, settlement, payout, or money movement occurs.
 Dependencies: TASK-388.
 Priority: P1.
 
