@@ -8605,18 +8605,18 @@ Completed output:
 
 ## TASK-387: Add journey validation and simulation service
 
-Status: Planned.
+Status: Complete.
 Product boundary: Referral SaaS.
 Shared primitive impact: Provides a reusable validation/simulation primitive for journey configuration. Source duplication: No.
 Objective: Validate configured milestone sequences, optional steps, evidence requirements, attribution windows, reward bindings, and report labels before publish.
 Why now: Configurable journeys must fail closed before launch; validation is the control that makes customer self-service safe.
 Files likely involved: journey configuration service; validation service; tests; docs.
 Database/schema impact: Persists validation result evidence against drafts.
-Backend impact: Adds deterministic validation and simulation outputs with blockers, warnings, safe-to-publish flags, and next actions.
+Backend impact: Adds deterministic validation and simulation outputs with blockers, warnings, safe-to-publish flags, customer-readable summaries, transition/evidence checks, reward-safety checks, attribution-safety checks, and no-side-effect guardrails.
 Frontend impact: None.
 API impact: Existing TASK-386 validate route consumes this service.
 Tests to add/update: Invalid transition, missing evidence, unsupported optional step, reward safety, attribution-window bounds, report-label validation.
-Acceptance criteria: The service explains whether a draft can be published, why it is blocked, and what to fix without using live runtime events or changing campaign/referral state.
+Acceptance criteria: Complete - the existing draft validate route now uses richer service validation over approved template milestones, transitions, evidence requirements, reward references, and attribution settings. Validation records safe simulation summaries and blocks invalid transitions, missing/unknown evidence, unsafe reward settings, unsafe attribution overrides, and out-of-range attribution windows without using live runtime events or changing campaign/referral/provider/auth/billing/money state.
 Dependencies: TASK-386.
 Priority: P1.
 
