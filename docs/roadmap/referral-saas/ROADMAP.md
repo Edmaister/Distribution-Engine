@@ -95,6 +95,23 @@ Needed:
 - live DB/state verification
 - full golden-path and failure-path E2E tests
 
+### 6. Configurable Customer Journeys
+
+Goal: move approved referral journey models from source-code and seed-file
+delivery into governed, tenant-scoped SaaS configuration.
+
+Needed:
+
+- Amplifi-governed global journey template catalogue
+- customer/account-scoped journey configuration drafts
+- validation and simulation before publish
+- immutable published customer journey versions
+- campaign binding to published journey versions only
+- reward, mission, badge, and leaderboard binding inside approved limits
+- tenant-safe version analytics and optimization reporting
+- explicit controls for tenancy, audit, idempotency, redaction, and no unsafe
+  provider, auth, billing, payout, settlement, or money side effects
+
 ## 10/10 Gap Matrix
 
 The current focused gap matrix is:
@@ -135,6 +152,7 @@ The post-TASK-356 sequence is:
 | TASK-380 | Support and recovery | Customer/partner-safe support, audit, assignment, evidence, and governed recovery become operationally complete. |
 | TASK-381 | Separately contracted finance | Commercial-finance capability is isolated from the H1 SaaS promise while minimum entitlement posture remains visible. |
 | TASK-382 | Customer Home UX clarity | The selected-customer home explains readiness, blockers, deferred work, and next actions in plain language without changing backend capability boundaries. |
+| TASK-383 to TASK-394 | Configurable customer journeys | Post-H1 SaaS maturity path for governed journey templates, customer journey configuration, validation, publish/versioning, campaign binding, incentive binding, runtime migration, analytics, and proof. |
 
 This keeps the Referral SaaS product boundary intact. It does not pull in
 DLaaS distributor marketplace depth, settlement, funding, fulfilment, sponsor
@@ -185,6 +203,17 @@ actions.
 Integration execution, campaign control, referral
 operations, attribution, reporting, support, and non-local proof gates remain
 on TASK-366 through TASK-380.
+
+TASK-383 defines the post-H1 configurable customer journey management
+framework in
+`docs/sa/referral-saas/REFERRAL_SAAS_JOURNEY_CONFIGURATION_FRAMEWORK.md`.
+The architecture is deliberately layered: Amplifi governs global templates,
+customer/account journey configuration stays tenant-scoped, campaigns bind only
+to published versions, and runtime execution continues to use trusted
+definitions until the migration is explicitly proven. This adds the path toward
+customer/admin self-service journey configuration without creating a free-form
+journey builder, exposing internal tenant identifiers, or hiding provider,
+auth, billing, payout, settlement, or money behavior inside journey setup.
 
 ## Recommended Ordered Task Sequence
 
@@ -401,6 +430,18 @@ on TASK-366 through TASK-380.
 211. TASK-353: Add platform-reference provider/vault adapters.
 212. TASK-354: Define vendor/managed provider-vault adapter contract.
 213. TASK-355: Add vendor/managed provider-vault runtime adapters.
+214. TASK-383: Define governed journey template and customer configuration contract.
+215. TASK-384: Add journey template and customer configuration schema foundation.
+216. TASK-385: Add admin journey template catalogue read API.
+217. TASK-386: Add customer journey draft read, save, and validate API.
+218. TASK-387: Add journey validation and simulation service.
+219. TASK-388: Add publish and archive customer journey version API.
+220. TASK-389: Add journey template catalogue and draft configuration UX.
+221. TASK-390: Bind campaigns to published journey versions.
+222. TASK-391: Add rewards, missions, badges, and leaderboard binding controls.
+223. TASK-392: Migrate runtime journey reads from code baseline to published configuration.
+224. TASK-393: Add journey analytics and optimization read models.
+225. TASK-394: Run configurable journey E2E and non-local proof.
 
 - TASK-341: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_EXECUTION_TASK_341.md`;
   `scripts/referral_saas_progress_attribution_physical_check.py`;

@@ -11,6 +11,9 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
 - `REFERRAL_SAAS_GAP_MATRIX.md` - focused 10/10 gap matrix and task sequence.
 - `REFERRAL_SAAS_H1_RELEASE_SCOPE_AND_JOURNEY_GATES.md` - TASK-357 H1
   release promise, disabled/deferred scope, role posture, and release gates.
+- `REFERRAL_SAAS_JOURNEY_CONFIGURATION_FRAMEWORK.md` - TASK-383 governed
+  journey template, customer configuration, campaign binding, runtime, and
+  control framework for post-H1 configurable customer journeys.
 - `REFERRAL_SAAS_ACCOUNT_SETUP_CONTRACT.md` - TASK-134 account setup contract.
 - `REFERRAL_SAAS_ACCOUNT_SETUP_MAINTENANCE_WORKFLOW_ARCHITECTURE.md` -
   TASK-190 account setup, readiness, and maintenance workflow architecture.

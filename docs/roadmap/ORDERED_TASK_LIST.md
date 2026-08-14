@@ -8512,6 +8512,214 @@ Completed output:
 - Added service-card action labels that say whether a page is ready to use, should be fixed, or can be reviewed later.
 - Kept the change frontend-only with no schema, API, route, auth, billing, money, or DLaaS side effects.
 
+## TASK-383: Define governed journey template and customer configuration contract
+
+Status: Completed.
+Product boundary: Referral SaaS.
+Shared primitive impact: Defines the post-H1 journey-configuration boundary that can later be reused by DLaaS without forking Referral SaaS source. Source duplication: No.
+Objective: Establish the architecture, ownership, controls, and ordered delivery path for governed global journey templates, tenant/customer journey configuration, campaign binding, runtime execution, and analytics.
+Why now: The product is approaching H1 10/10 capability, but genuinely new journey types still require development and seed deployment. The next SaaS maturity layer must make approved journeys configurable without creating unsafe free-form runtime logic.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_JOURNEY_CONFIGURATION_FRAMEWORK.md`; SA index; roadmap; gap matrix; ordered task list; infographic.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: Docs readback and task-sequence validation.
+Acceptance criteria: The framework clearly separates Amplifi-governed global templates, customer/account-scoped configuration, campaign binding, runtime execution, and controls for tenancy, versioning, audit, idempotency, redaction, provider/auth/billing/money separation, and no source fork.
+Dependencies: TASK-382.
+Priority: P1.
+
+Completed output:
+- Added `docs/sa/referral-saas/REFERRAL_SAAS_JOURNEY_CONFIGURATION_FRAMEWORK.md` with the target architecture, customer outcomes, ownership matrix, controls, target workflow, and TASK-384 to TASK-394 roadmap.
+- Updated the SA index, Referral SaaS roadmap, and gap matrix so configurable journeys are tracked as a post-H1 SaaS maturity path rather than a DLaaS scope leak or immediate H1 blocker.
+
+## TASK-384: Add journey template and customer configuration schema foundation
+
+Status: Planned.
+Product boundary: Referral SaaS with Shared Platform trajectory.
+Shared primitive impact: Introduces versioned journey configuration storage that can later become a DLaaS shared primitive. Source duplication: No.
+Objective: Add durable tables for global journey templates, template versions, customer journey drafts, published customer journey versions, validation results, and campaign binding references.
+Why now: Runtime currently depends on code-defined journey and progress definitions. A controlled schema foundation is required before any admin/customer configuration UI can be trustworthy.
+Files likely involved: `dp/migrations/0xx_referral_saas_journey_configuration.sql`; schema migration tests; SA/roadmap/gap/infographic docs.
+Database/schema impact: Adds versioned journey-template/customer-configuration tables with status constraints, account scope, audit columns, payload hashes, idempotency references, and immutable publish metadata.
+Backend impact: None beyond migration validation.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: Migration replay, constraints, indexes, immutable-version field presence, account-scope fields, no tenant-code exposure assumptions.
+Acceptance criteria: Schema supports global templates, customer drafts, published versions, validation evidence, and campaign binding references without storing raw secrets, raw identity, provider payloads, billing, settlement, payout, or money evidence.
+Dependencies: TASK-383.
+Priority: P1.
+
+## TASK-385: Add admin journey template catalogue read API
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Shared primitive impact: Starts the read-only template catalogue API over the versioned configuration schema. Source duplication: No.
+Objective: Expose approved global journey templates and versions to Amplifi Admin without changing runtime behavior.
+Why now: Admins need visibility into available reusable journey models before customer-specific configuration can be created.
+Files likely involved: journey configuration service; selected admin router; route smoke inventory; API tests; docs.
+Database/schema impact: Reads TASK-384 tables only.
+Backend impact: Adds read-only global template catalogue service/API with redactions and governance metadata.
+Frontend impact: None.
+API impact: Adds read-only template list/detail routes.
+Tests to add/update: Read-only behavior, status filtering, redaction, route inventory, no tenant data leakage.
+Acceptance criteria: Amplifi Admin can list approved and draft global templates safely; no customer configuration, campaign binding, runtime execution, provider, auth, billing, or money action occurs.
+Dependencies: TASK-384.
+Priority: P1.
+
+## TASK-386: Add customer journey draft read, save, and validate API
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Shared primitive impact: Adds account-scoped journey configuration command/read wrappers. Source duplication: No.
+Objective: Allow a customer or Amplifi Admin to create, read, update, and validate a customer journey draft from an approved global template.
+Why now: Customer-specific configuration must be governed by API contracts before any self-service UX is built.
+Files likely involved: journey configuration service; selected-customer account router; API tests; route smoke tests; docs.
+Database/schema impact: Writes customer journey draft and validation result tables from TASK-384.
+Backend impact: Adds account scope, idempotency, payload hashing, draft status, validation, and redaction logic.
+Frontend impact: None.
+API impact: Adds draft read/save/validate routes.
+Tests to add/update: Account scope, capability, idempotency replay/conflict, invalid template, unsafe payload, validation warnings/blockers.
+Acceptance criteria: Draft configuration is account-scoped, validated against template rules, safe to replay idempotently, and cannot activate campaigns, mutate runtime journeys, dispatch providers, change auth, bill, settle, pay out, or move money.
+Dependencies: TASK-385.
+Priority: P1.
+
+## TASK-387: Add journey validation and simulation service
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Shared primitive impact: Provides a reusable validation/simulation primitive for journey configuration. Source duplication: No.
+Objective: Validate configured milestone sequences, optional steps, evidence requirements, attribution windows, reward bindings, and report labels before publish.
+Why now: Configurable journeys must fail closed before launch; validation is the control that makes customer self-service safe.
+Files likely involved: journey configuration service; validation service; tests; docs.
+Database/schema impact: Persists validation result evidence against drafts.
+Backend impact: Adds deterministic validation and simulation outputs with blockers, warnings, safe-to-publish flags, and next actions.
+Frontend impact: None.
+API impact: Existing TASK-386 validate route consumes this service.
+Tests to add/update: Invalid transition, missing evidence, unsupported optional step, reward safety, attribution-window bounds, report-label validation.
+Acceptance criteria: The service explains whether a draft can be published, why it is blocked, and what to fix without using live runtime events or changing campaign/referral state.
+Dependencies: TASK-386.
+Priority: P1.
+
+## TASK-388: Add publish and archive customer journey version API
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Shared primitive impact: Adds immutable version governance for customer journey configuration. Source duplication: No.
+Objective: Publish validated customer journey drafts as immutable versions and archive old versions safely.
+Why now: Campaigns must bind to stable journey versions, not mutable drafts.
+Files likely involved: journey configuration service; selected-customer account router; API tests; route smoke tests; docs.
+Database/schema impact: Writes published version, archive status, and audit evidence.
+Backend impact: Adds publish/archive commands with validation gates, audit, idempotency, version immutability, and rollback posture.
+Frontend impact: None.
+API impact: Adds publish/archive routes.
+Tests to add/update: Publish without validation blocked, immutable published payload, archive active-binding blocked or warned, idempotency, audit, capability.
+Acceptance criteria: Only validated drafts can publish; published versions cannot mutate; archive is controlled; no runtime switch, campaign activation, reward payment, provider, auth, billing, settlement, or money side effect occurs.
+Dependencies: TASK-387.
+Priority: P1.
+
+## TASK-389: Add journey template catalogue and draft configuration UX
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Shared primitive impact: Adds a customer/admin journey configuration workspace over governed APIs. Source duplication: No.
+Objective: Let Amplifi Admin or customer admin select a template, configure allowed options, validate, and understand publish readiness in plain language.
+Why now: The configuration capability needs a SaaS-grade customer journey, not raw JSON or seed-file operations.
+Files likely involved: selected-customer frontend page; API endpoint clients/query hooks; frontend tests; CSS; docs.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: Adds Journey Configuration pages inside selected-customer context.
+API impact: Uses TASK-385 to TASK-388 APIs.
+Tests to add/update: Route rendering, template selection, draft save, validation feedback, publish readiness, no raw/internal leakage.
+Acceptance criteria: Users can configure only approved fields, see blockers/warnings plainly, and cannot access draft/runtime/provider/auth/billing/money actions outside the governed API controls.
+Dependencies: TASK-388.
+Priority: P1.
+
+## TASK-390: Bind campaigns to published journey versions
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Shared primitive impact: Connects campaign setup to immutable journey configuration. Source duplication: No.
+Objective: Require selected-customer campaigns to choose a published customer journey version before activation.
+Why now: Configurable journeys only become operationally useful when campaigns can bind to approved versions.
+Files likely involved: campaign service/API/UI; journey configuration service; campaign tests; docs.
+Database/schema impact: Adds or uses campaign binding reference to published customer journey version.
+Backend impact: Campaign create/update/readiness/activation checks published journey version binding.
+Frontend impact: Campaign setup shows available published journey versions and binding posture.
+API impact: Campaign setup/readiness routes expose and enforce journey-version binding.
+Tests to add/update: No draft binding, cross-account binding blocked, archived-version behavior, activation gate, campaign UI selection.
+Acceptance criteria: Campaigns bind only to published customer journey versions for the same account; activation blocks missing/invalid binding; no runtime migration occurs until TASK-392.
+Dependencies: TASK-389.
+Priority: P1.
+
+## TASK-391: Add rewards, missions, badges, and leaderboard binding controls
+
+Status: Planned.
+Product boundary: Referral SaaS with money boundary guardrails.
+Shared primitive impact: Connects configurable journeys to existing incentive/gamification catalogues without executing money movement. Source duplication: No.
+Objective: Allow approved reward policies, missions, badges, and leaderboard definitions to be attached to customer journey versions within governed limits.
+Why now: Customers need commercial flexibility, but incentive configuration must stay separate from payout, settlement, funding, and wallet execution.
+Files likely involved: journey configuration service; reward/mission/badge/leaderboard services; UI; tests; docs.
+Database/schema impact: Adds binding rows or references to existing catalogue tables.
+Backend impact: Adds validation for approved incentive bindings and no-money boundaries.
+Frontend impact: Journey configuration UX exposes approved incentive choices with plain-language impact.
+API impact: Draft save/validate/publish includes incentive binding posture.
+Tests to add/update: Approved catalogue binding, unapproved binding rejection, reward range validation, no payout/funding/settlement side effects.
+Acceptance criteria: Journey versions can reference approved incentive configurations safely; no reward payment, payout, settlement, funding, invoice, wallet, commission, or money movement occurs.
+Dependencies: TASK-388.
+Priority: P1.
+
+## TASK-392: Migrate runtime journey reads from code baseline to published configuration
+
+Status: Planned.
+Product boundary: Referral SaaS with Shared Platform trajectory.
+Shared primitive impact: Moves runtime from static code-defined journeys toward governed versioned configuration. Source duplication: No.
+Objective: Enable runtime progress, milestone, and reporting reads to use published customer journey versions behind a controlled compatibility flag.
+Why now: Configuration does not deliver SaaS value until runtime can execute published versions safely.
+Files likely involved: `services/journey_definitions.py`; `services/progress_definitions.py`; progress service; reporting service; tests; docs.
+Database/schema impact: Reads published customer journey versions.
+Backend impact: Adds compatibility adapter from published configuration to existing runtime semantics.
+Frontend impact: None unless read models expose version labels.
+API impact: Existing progress/reporting APIs may expose safe journey-version metadata.
+Tests to add/update: Existing journey parity, configured journey parity, invalid version blocked, fallback behavior, tenant scope, idempotency, attribution/report parity.
+Acceptance criteria: Existing code-defined journeys still work; selected configured journeys execute from published immutable versions; unversioned drafts never execute; no raw payload, provider, auth, billing, payout, settlement, or money leakage occurs.
+Dependencies: TASK-390; TASK-391.
+Priority: P0.
+
+## TASK-393: Add journey analytics and optimization read models
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Shared primitive impact: Adds tenant-safe version analytics over referral progress and attribution evidence. Source duplication: No.
+Objective: Show conversion, drop-off, high-value event, reward, attribution, and version-comparison analytics for configured journeys.
+Why now: The business value of configurable journeys is not only setup speed; it is optimization from real customer outcomes.
+Files likely involved: reporting service; attribution/report APIs; selected-customer Reports/Journey UX; tests; docs.
+Database/schema impact: Reads existing referral/progress/attribution/reporting tables and published journey-version references.
+Backend impact: Adds journey-version analytics read models and report dimensions.
+Frontend impact: Adds journey analytics views or report sections.
+API impact: Adds or extends selected-customer reporting APIs.
+Tests to add/update: Tenant scope, version dimension, attribution consistency, redaction, export parity.
+Acceptance criteria: Customers can compare journey versions and see drop-offs/outcomes safely without exposing raw identity, event payloads, rewards payout detail, billing, settlement, or money data.
+Dependencies: TASK-392.
+Priority: P1.
+
+## TASK-394: Run configurable journey E2E and non-local proof
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Shared primitive impact: Proves governed configuration under realistic environment constraints. Source duplication: No.
+Objective: Run end-to-end proof for template selection, customer configuration, validation, publish, campaign binding, progress tracking, attribution, reporting, and rollback/archive posture.
+Why now: A configurable journey system must be proven beyond local docs/tests before it can be called production-grade SaaS capability.
+Files likely involved: proof runner scripts; E2E tests; docs; infographic.
+Database/schema impact: Uses configured journey schema and runtime data.
+Backend impact: Verifies APIs and runtime behavior.
+Frontend impact: Verifies customer/admin journey configuration UX and campaign binding.
+API impact: Verifies complete route spine.
+Tests to add/update: Golden path, failure path, rollback/archive, cross-tenant, non-local smoke proof.
+Acceptance criteria: Proof confirms a configured customer journey can be created, published, bound to a campaign, tracked, attributed, reported, and safely archived/rolled forward without source-code changes for an already-approved template.
+Dependencies: TASK-393.
+Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
