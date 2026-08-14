@@ -71,6 +71,7 @@ made explicit before calling the product 10/10.
 | Support and recovery | TASK-380 now completes the partner/customer-safe selected-customer Support workspace with audited support-case assignment, owner visibility, evidence/recovery posture, idempotency replay, route coverage, and no unsafe repair/replay/retry/provider/invite/credential/auth/campaign/billing/money/DLaaS side effects. | Closed for H1 support/recovery workspace; continue non-local proof |
 | Separately contracted finance | TASK-381 now defines and enforces the commercial-finance boundary: H1 Referral SaaS can read plan posture, launch entitlement fields, and reference limits, while billing accounts, subscriptions, invoices, payments, payouts, funding, settlement, wallet/commission ledger movement, and treasury movement stay outside the H1 promise unless separately contracted. | Closed for H1 commercial-finance isolation; continue non-local proof |
 | Customer Home UX clarity | TASK-382 now clarifies the selected-customer home with plain-language readiness, red/amber action routing, and service-card action labels. | Closed for local UX clarity; continue non-local proof |
+| Configurable customer journeys | TASK-383 now defines the post-H1 target-state SaaS framework for governed global templates, tenant/customer journey configurations, campaign binding to published versions, validation, publish/archive, incentive binding, runtime migration, analytics, and proof. | Opens TASK-384 to TASK-394 as a controlled SaaS maturity track after the H1 product remains safe. |
 
 Current rating now reflects TASK-382 Customer Home UX clarity on top of the
 TASK-381 commercial-finance boundary evidence:
@@ -82,6 +83,15 @@ have separate customer-scoped projection/reporting surfaces, and export files
 now have signed-download metadata, expiry, schedule intent, deletion proof, and
 explicit no-finance leakage guardrails. TASK-382 improves operator clarity but
 does not change the remaining non-local proof blocker.
+
+TASK-383 adds the configurable customer journey framework as a target-state
+SaaS maturity path. It does not change the H1 launch rating because it is a
+post-H1 architecture and delivery-control layer. Its value is strategic:
+customers and Amplifi Admins should eventually configure approved journey
+templates without source-code changes, while Amplifi continues to govern global
+templates, evidence models, transition rules, reward engines, runtime
+execution, tenancy, audit, idempotency, and no-provider/no-auth/no-money
+boundaries.
 
 ## TASK-357 H1 Scope And Release Gates
 
