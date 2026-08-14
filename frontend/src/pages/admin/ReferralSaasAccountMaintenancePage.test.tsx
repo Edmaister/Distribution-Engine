@@ -39,10 +39,13 @@ import {
   getReferralSaasLoginCompletionReadiness,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasTechnicalSetupReadiness,
+  listReferralSaasAccountJourneyDrafts,
   listReferralSaasIntegrationCredentialRequests,
   listReferralSaasAccountSupportCases,
   listReferralSaasAccountCampaigns,
   listReferralSaasAccounts,
+  listReferralSaasJourneyTemplates,
+  publishReferralSaasAccountJourneyDraft,
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasApiAccessVerification,
   recordReferralSaasIntegrationCredentialRequest,
@@ -57,12 +60,14 @@ import {
   requestReferralSaasLoginCompletionIntent,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
+  saveReferralSaasAccountJourneyDraft,
   saveReferralSaasIntegrationConfiguration,
   submitReferralSaasAccountCampaignReview,
   cancelReferralSaasMembershipInvitationIntent,
   updateReferralSaasMembershipInvitationIntent,
   updateReferralSaasAccountCampaignPolicySettings,
   updateReferralSaasAccountProfile,
+  validateReferralSaasAccountJourneyDraft,
   validateReferralSaasIntegrationConfiguration,
   type ReferralSaasAccountCampaignReviewResponse,
   type ReferralSaasAccountCampaignActivationResponse,
@@ -77,6 +82,11 @@ import {
   type ReferralSaasIntegrationCredentialRequestListResponse,
   type ReferralSaasProviderVaultReadinessResponse,
   type ReferralSaasTechnicalSetupReadinessResponse,
+  type ReferralSaasCustomerJourneyDraftCommandResponse,
+  type ReferralSaasCustomerJourneyDraftListResponse,
+  type ReferralSaasCustomerJourneyDraftValidationResponse,
+  type ReferralSaasCustomerJourneyPublishResponse,
+  type ReferralSaasJourneyTemplateCatalogueResponse,
 } from "../../api/endpoints/referralSaasAccounts";
 import { ReferralSaasAccountMaintenancePage } from "./ReferralSaasAccountMaintenancePage";
 
@@ -113,10 +123,13 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   getReferralSaasLoginCompletionReadiness: vi.fn(),
   getReferralSaasMembershipActivationReadiness: vi.fn(),
   getReferralSaasTechnicalSetupReadiness: vi.fn(),
+  listReferralSaasAccountJourneyDrafts: vi.fn(),
   listReferralSaasIntegrationCredentialRequests: vi.fn(),
   listReferralSaasAccountSupportCases: vi.fn(),
   listReferralSaasAccountCampaigns: vi.fn(),
   listReferralSaasAccounts: vi.fn(),
+  listReferralSaasJourneyTemplates: vi.fn(),
+  publishReferralSaasAccountJourneyDraft: vi.fn(),
   recordReferralSaasAccountCampaignReviewDecision: vi.fn(),
   recordReferralSaasApiAccessVerification: vi.fn(),
   recordReferralSaasIntegrationCredentialRequest: vi.fn(),
@@ -131,12 +144,14 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   requestReferralSaasLoginCompletionIntent: vi.fn(),
   requestReferralSaasMembershipInvitationDelivery: vi.fn(),
   requestReferralSaasMembershipActivation: vi.fn(),
+  saveReferralSaasAccountJourneyDraft: vi.fn(),
   saveReferralSaasIntegrationConfiguration: vi.fn(),
   submitReferralSaasAccountCampaignReview: vi.fn(),
   cancelReferralSaasMembershipInvitationIntent: vi.fn(),
   updateReferralSaasMembershipInvitationIntent: vi.fn(),
   updateReferralSaasAccountCampaignPolicySettings: vi.fn(),
   updateReferralSaasAccountProfile: vi.fn(),
+  validateReferralSaasAccountJourneyDraft: vi.fn(),
   validateReferralSaasIntegrationConfiguration: vi.fn(),
 }));
 
@@ -176,10 +191,13 @@ const mockedGetReferralSaasProviderVaultReadiness = vi.mocked(getReferralSaasPro
 const mockedGetReferralSaasLoginCompletionReadiness = vi.mocked(getReferralSaasLoginCompletionReadiness);
 const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferralSaasMembershipActivationReadiness);
 const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTechnicalSetupReadiness);
+const mockedListReferralSaasAccountJourneyDrafts = vi.mocked(listReferralSaasAccountJourneyDrafts);
 const mockedListReferralSaasIntegrationCredentialRequests = vi.mocked(listReferralSaasIntegrationCredentialRequests);
 const mockedListReferralSaasAccountSupportCases = vi.mocked(listReferralSaasAccountSupportCases);
 const mockedListReferralSaasAccountCampaigns = vi.mocked(listReferralSaasAccountCampaigns);
 const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
+const mockedListReferralSaasJourneyTemplates = vi.mocked(listReferralSaasJourneyTemplates);
+const mockedPublishReferralSaasAccountJourneyDraft = vi.mocked(publishReferralSaasAccountJourneyDraft);
 const mockedRecordReferralSaasAccountCampaignReviewDecision = vi.mocked(recordReferralSaasAccountCampaignReviewDecision);
 const mockedRecordReferralSaasApiAccessVerification = vi.mocked(recordReferralSaasApiAccessVerification);
 const mockedRecordReferralSaasIntegrationCredentialRequest = vi.mocked(recordReferralSaasIntegrationCredentialRequest);
@@ -198,12 +216,14 @@ const mockedRequestReferralSaasAccessProvisioning = vi.mocked(requestReferralSaa
 const mockedRequestReferralSaasLoginCompletionIntent = vi.mocked(requestReferralSaasLoginCompletionIntent);
 const mockedRequestReferralSaasMembershipInvitationDelivery = vi.mocked(requestReferralSaasMembershipInvitationDelivery);
 const mockedRequestReferralSaasMembershipActivation = vi.mocked(requestReferralSaasMembershipActivation);
+const mockedSaveReferralSaasAccountJourneyDraft = vi.mocked(saveReferralSaasAccountJourneyDraft);
 const mockedSaveReferralSaasIntegrationConfiguration = vi.mocked(saveReferralSaasIntegrationConfiguration);
 const mockedSubmitReferralSaasAccountCampaignReview = vi.mocked(submitReferralSaasAccountCampaignReview);
 const mockedCancelReferralSaasMembershipInvitationIntent = vi.mocked(cancelReferralSaasMembershipInvitationIntent);
 const mockedUpdateReferralSaasMembershipInvitationIntent = vi.mocked(updateReferralSaasMembershipInvitationIntent);
 const mockedUpdateReferralSaasAccountCampaignPolicySettings = vi.mocked(updateReferralSaasAccountCampaignPolicySettings);
 const mockedUpdateReferralSaasAccountProfile = vi.mocked(updateReferralSaasAccountProfile);
+const mockedValidateReferralSaasAccountJourneyDraft = vi.mocked(validateReferralSaasAccountJourneyDraft);
 const mockedValidateReferralSaasIntegrationConfiguration = vi.mocked(validateReferralSaasIntegrationConfiguration);
 
 function renderWorkspace(ui: ReactElement, initialEntry = "/admin/referral-saas/account-maintenance") {
@@ -429,6 +449,240 @@ function mockAccountRegistry(): ReferralSaasAccountRegistryResponse {
     ],
     guardrail: "Read-only Referral SaaS account registry.",
     redactions: ["internal_tenant_identifier"],
+  };
+}
+
+function mockJourneyTemplateCatalogue(): ReferralSaasJourneyTemplateCatalogueResponse {
+  return {
+    status: "ok",
+    templateCount: 1,
+    statusFilter: ["APPROVED"],
+    includeArchived: false,
+    templates: [
+      {
+        journeyTemplateId: "tmpl-001",
+        templateCode: "REFERRAL_STANDARD",
+        templateName: "Standard referral journey",
+        templateFamily: "REFERRAL",
+        ownerScope: "AMPLIFI",
+        status: "APPROVED",
+        safeSummary: {
+          description: "Referral journey with customer referral, qualification, and conversion milestones.",
+        },
+        governanceMetadata: {
+          approvalStatus: "APPROVED",
+        },
+        versionCount: 1,
+        versions: [
+          {
+            journeyTemplateVersionId: "tmpl-ver-001",
+            templateVersion: "1.0.0",
+            status: "APPROVED",
+            milestoneCount: 3,
+            transitionRuleCount: 2,
+            evidenceRequirementCount: 3,
+            allowedConfigurationSections: [
+              "milestones",
+              "transitions",
+              "evidence",
+              "rewards",
+              "attribution",
+            ],
+            approvedByRef: "amplifi-admin",
+            approvedAt: "2026-07-19T00:00:00",
+            createdByRef: "amplifi-admin",
+            createdAt: "2026-07-19T00:00:00",
+            updatedAt: "2026-07-19T00:00:00",
+            archivedAt: null,
+          },
+        ],
+        createdByRef: "amplifi-admin",
+        updatedByRef: "amplifi-admin",
+        createdAt: "2026-07-19T00:00:00",
+        updatedAt: "2026-07-19T00:00:00",
+        archivedAt: null,
+      },
+    ],
+    guardrails: ["READ_ONLY_TEMPLATE_CATALOGUE", "NO_RUNTIME_EXECUTION"],
+    redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+    noTenantDataConfirmed: true,
+    noCustomerConfigurationWriteConfirmed: true,
+    noRuntimeExecutionConfirmed: true,
+    noCampaignBindingConfirmed: true,
+    noProviderAuthBillingOrMoneyActionConfirmed: true,
+  };
+}
+
+function mockJourneyDraftList(): ReferralSaasCustomerJourneyDraftListResponse {
+  return {
+    status: "ok",
+    context: "setup",
+    account: {
+      accountId: "acct-gabs",
+      accountCode: "ACC-2201",
+      accountName: "Gaborone Partners",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "APPROVED",
+    },
+    count: 0,
+    drafts: [],
+    guardrail: "Account-scoped journey drafts only.",
+    guardrails: ["NO_RUNTIME_JOURNEY_MUTATION", "NO_CAMPAIGN_ACTIVATION"],
+    redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+    noRuntimeJourneyMutationConfirmed: true,
+    noCampaignActivationConfirmed: true,
+    noProviderDispatchConfirmed: true,
+    noAuthBillingOrMoneyActionConfirmed: true,
+  };
+}
+
+function mockJourneyDraftCommandResponse(): ReferralSaasCustomerJourneyDraftCommandResponse {
+  return {
+    status: "ok",
+    context: "setup",
+    account: {
+      accountId: "acct-gabs",
+      accountCode: "ACC-2201",
+      accountName: "Gaborone Partners",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "APPROVED",
+    },
+    commandStatus: "DRAFT_SAVED",
+    idempotencyStatus: "NEW_REQUEST",
+    draft: {
+      customerJourneyDraftId: "draft-001",
+      accountId: "acct-gabs",
+      journeyTemplateVersionId: "tmpl-ver-001",
+      templateCode: "REFERRAL_STANDARD",
+      templateVersion: "1.0.0",
+      draftName: "Standard referral journey for Gaborone Partners",
+      draftStatus: "DRAFT",
+      draftVersion: 1,
+      configurationPayload: {
+        milestones: [{ code: "REFERRED" }, { code: "QUALIFIED" }, { code: "CONVERTED" }],
+      },
+      lastValidationStatus: "NOT_VALIDATED",
+      payloadHash: "hash-001",
+      createdByRef: "amplifi-admin",
+      updatedByRef: "amplifi-admin",
+      createdAt: "2026-07-19T00:00:00",
+      updatedAt: "2026-07-19T00:00:00",
+      archivedAt: null,
+      guardrails: ["NO_RUNTIME_JOURNEY_MUTATION"],
+      redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+      noRuntimeJourneyMutationConfirmed: true,
+      noCampaignBindingConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noProviderDispatchConfirmed: true,
+      noAuthBillingOrMoneyActionConfirmed: true,
+    },
+    guardrail: "Draft only.",
+    guardrails: ["NO_RUNTIME_JOURNEY_MUTATION"],
+    redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+    noRuntimeJourneyMutationConfirmed: true,
+    noCampaignBindingConfirmed: true,
+    noCampaignActivationConfirmed: true,
+    noProviderDispatchConfirmed: true,
+    noAuthBillingOrMoneyActionConfirmed: true,
+  };
+}
+
+function mockJourneyValidationResponse(): ReferralSaasCustomerJourneyDraftValidationResponse {
+  return {
+    status: "ok",
+    context: "setup",
+    account: {
+      accountId: "acct-gabs",
+      accountCode: "ACC-2201",
+      accountName: "Gaborone Partners",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "APPROVED",
+    },
+    validation: {
+      journeyValidationResultId: "validation-001",
+      accountId: "acct-gabs",
+      customerJourneyDraftId: "draft-001",
+      journeyTemplateVersionId: "tmpl-ver-001",
+      validationStatus: "VALIDATION_PASSED",
+      blockers: [],
+      warnings: [],
+      safeSummary: {
+        simulation: {
+          simulatedMilestonePath: ["REFERRED", "QUALIFIED", "CONVERTED"],
+        },
+      },
+      payloadHash: "hash-001",
+      createdAt: "2026-07-19T00:00:00",
+      guardrails: ["NO_RUNTIME_JOURNEY_MUTATION"],
+      redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+      noRuntimeJourneyMutationConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noProviderDispatchConfirmed: true,
+      noAuthBillingOrMoneyActionConfirmed: true,
+    },
+    guardrail: "Validation only.",
+    guardrails: ["NO_RUNTIME_JOURNEY_MUTATION"],
+    redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+    noRuntimeJourneyMutationConfirmed: true,
+    noCampaignActivationConfirmed: true,
+    noProviderDispatchConfirmed: true,
+    noAuthBillingOrMoneyActionConfirmed: true,
+  };
+}
+
+function mockJourneyPublishResponse(): ReferralSaasCustomerJourneyPublishResponse {
+  return {
+    status: "ok",
+    context: "setup",
+    account: {
+      accountId: "acct-gabs",
+      accountCode: "ACC-2201",
+      accountName: "Gaborone Partners",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "APPROVED",
+    },
+    commandStatus: "PUBLISHED",
+    idempotencyStatus: "NEW_REQUEST",
+    version: {
+      customerJourneyVersionId: "journey-version-001",
+      accountId: "acct-gabs",
+      customerJourneyDraftId: "draft-001",
+      journeyTemplateVersionId: "tmpl-ver-001",
+      templateCode: "REFERRAL_STANDARD",
+      templateVersion: "1.0.0",
+      customerJourneyCode: "GABS_REFERRAL_STANDARD",
+      versionNumber: 1,
+      versionStatus: "PUBLISHED",
+      publishedConfigurationPayload: {
+        milestones: [{ code: "REFERRED" }, { code: "QUALIFIED" }, { code: "CONVERTED" }],
+      },
+      payloadHash: "hash-001",
+      publishedByRef: "amplifi-admin",
+      publishedAt: "2026-07-19T00:00:00",
+      archivedByRef: null,
+      archivedAt: null,
+      archiveReason: null,
+      rollbackFromVersionId: null,
+      safeSummary: {},
+      governanceMetadata: {},
+      createdAt: "2026-07-19T00:00:00",
+      guardrails: ["NO_RUNTIME_JOURNEY_MUTATION"],
+      redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+      noRuntimeJourneyMutationConfirmed: true,
+      noCampaignBindingConfirmed: true,
+      noCampaignActivationConfirmed: true,
+      noProviderDispatchConfirmed: true,
+      noAuthBillingOrMoneyActionConfirmed: true,
+    },
+    archiveBlockers: [],
+    guardrail: "Published version only.",
+    guardrails: ["NO_RUNTIME_JOURNEY_MUTATION"],
+    redactions: ["INTERNAL_TENANT_IDENTIFIER"],
+    noRuntimeJourneyMutationConfirmed: true,
+    noCampaignBindingConfirmed: true,
+    noCampaignActivationConfirmed: true,
+    noProviderDispatchConfirmed: true,
+    noAuthBillingOrMoneyActionConfirmed: true,
   };
 }
 
@@ -1945,6 +2199,11 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockMembershipActivationReadiness());
     mockedGetReferralSaasLoginCompletionReadiness.mockResolvedValue(mockLoginCompletionReadiness());
     mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadiness());
+    mockedListReferralSaasJourneyTemplates.mockResolvedValue(mockJourneyTemplateCatalogue());
+    mockedListReferralSaasAccountJourneyDrafts.mockResolvedValue(mockJourneyDraftList());
+    mockedSaveReferralSaasAccountJourneyDraft.mockResolvedValue(mockJourneyDraftCommandResponse());
+    mockedValidateReferralSaasAccountJourneyDraft.mockResolvedValue(mockJourneyValidationResponse());
+    mockedPublishReferralSaasAccountJourneyDraft.mockResolvedValue(mockJourneyPublishResponse());
     mockedListReferralSaasIntegrationCredentialRequests.mockResolvedValue(mockIntegrationCredentialRequestList([]));
     mockedListReferralSaasAccountSupportCases.mockResolvedValue({
       status: "ok",
@@ -3333,6 +3592,72 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       context: "setup",
     });
     expect(screen.queryByRole("heading", { name: "Customer readiness" })).not.toBeInTheDocument();
+  });
+
+  it("opens Journeys as a customer-scoped configuration page", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/journeys");
+
+    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Journey configuration" })).toBeInTheDocument();
+    expect(screen.getByText(/Select an approved template, save this customer's draft/i)).toBeInTheDocument();
+    expect(await screen.findByText("Standard referral journey")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save journey draft" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Validate draft" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Publish journey version" })).toBeDisabled();
+    expect(mockedListReferralSaasJourneyTemplates).toHaveBeenCalledWith({
+      statuses: ["APPROVED"],
+      limit: 50,
+    });
+    expect(mockedListReferralSaasAccountJourneyDrafts).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      refType: "external_tenant_ref",
+      externalRef: "gabs-platform",
+      context: "setup",
+      limit: 50,
+    });
+  });
+
+  it("saves, validates, and publishes a customer journey draft without live side effects", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/journeys");
+
+    expect(await screen.findByRole("heading", { name: "Journey configuration" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Milestone codes"), {
+      target: { value: "REFERRED, QUALIFIED, WON" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save journey draft" }));
+
+    await waitFor(() => expect(mockedSaveReferralSaasAccountJourneyDraft).toHaveBeenCalledTimes(1));
+    expect(mockedSaveReferralSaasAccountJourneyDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountRef: "acct-gabs",
+        accountScope: {
+          refType: "external_tenant_ref",
+          externalRef: "gabs-platform",
+          context: "setup",
+        },
+        templateCode: "REFERRAL_STANDARD",
+        templateVersion: "1.0.0",
+      }),
+    );
+    const saveRequest = mockedSaveReferralSaasAccountJourneyDraft.mock.calls[0][0];
+    expect(saveRequest.configurationPayload).toMatchObject({
+      milestones: [{ code: "REFERRED" }, { code: "QUALIFIED" }, { code: "WON" }],
+      transitions: [
+        { from: "REFERRED", to: "QUALIFIED" },
+        { from: "QUALIFIED", to: "CONVERTED" },
+      ],
+      evidence: [{ code: "CUSTOMER_REFERENCE" }, { code: "ACCEPTED_TERMS" }, { code: "OUTCOME_EVENT" }],
+      attribution: { attributionWindowDays: 30 },
+    });
+    expect(JSON.stringify(saveRequest)).not.toMatch(/tenantCode|tenant_code|providerSecret|billing|money/i);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Validate draft" }));
+    await waitFor(() => expect(mockedValidateReferralSaasAccountJourneyDraft).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("Simulated path")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Publish journey version" }));
+    await waitFor(() => expect(mockedPublishReferralSaasAccountJourneyDraft).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("Published journey version.")).toBeInTheDocument();
   });
 
   it("validates and saves Integrations configuration without live side effects", async () => {
