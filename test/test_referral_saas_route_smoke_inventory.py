@@ -33,6 +33,7 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("GET", "/v1/referral-saas/journey-templates/{template_code}"),
         ("GET", "/v1/referral-saas/accounts"),
         ("GET", "/v1/referral-saas/accounts/resolve"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
         ("GET", "/v1/referral-saas/accounts/membership-posture"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/membership-activation-readiness"),
         (
@@ -111,6 +112,11 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("POST", "/referrals/codes"),
         ("POST", "/referrals/referees/ucn"),
         ("POST", "/v1/referral-saas/accounts/from-draft"),
+        ("PUT", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/journey-drafts/{draft_ref}/validate",
+        ),
         ("PATCH", "/v1/referral-saas/accounts/{account_ref}/profile"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/campaigns"),
         (
@@ -241,6 +247,7 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("GET", "/v1/referral-saas/journey-templates/{template_code}"),
         ("GET", "/v1/referral-saas/accounts"),
         ("GET", "/v1/referral-saas/accounts/resolve"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
         ("GET", "/v1/referral-saas/accounts/membership-posture"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/membership-activation-readiness"),
         (
@@ -306,6 +313,11 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("POST", "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/preview"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/validate"),
         ("POST", "/v1/referral-saas/accounts/from-draft"),
+        ("PUT", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/journey-drafts/{draft_ref}/validate",
+        ),
         ("PATCH", "/v1/referral-saas/accounts/{account_ref}/profile"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/campaigns"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/support-cases"),

@@ -51,6 +51,10 @@ TASK-385 adds read-only Amplifi Admin journey template catalogue routes over
 the governed TASK-384 schema. They return safe global template/version
 metadata only and do not create customer configuration, bind campaigns, execute
 journeys, provision providers, change auth, create billing, or move money.
+TASK-386 adds selected-customer journey draft read/save/validate routes over
+the governed TASK-384 schema. They are account-scoped, idempotent where they
+write, audited, redacted, and do not publish, bind campaigns, execute journeys,
+dispatch providers, change auth, create billing, or move money.
 Seeded write routes remain local/staging-only smoke candidates and are
 classified explicitly below.
 
@@ -104,6 +108,7 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Read-only product catalogue | GET | `/v1/referral-saas/journey-templates/{template_code}` | Amplifi Admin governed journey template detail |
 | Read-only product account | GET | `/v1/referral-saas/accounts` | Referral SaaS account registry wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/resolve` | Referral SaaS account resolver wrapper |
+| Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/journey-drafts` | Referral SaaS selected-customer journey draft list wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/membership-posture` | Referral SaaS account membership posture wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/membership-activation-readiness` | Referral SaaS membership activation readiness wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/{account_ref}/technical-setup-readiness` | Referral SaaS technical setup readiness wrapper |
@@ -132,6 +137,8 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Seeded local/staging write | POST | `/referrals/codes` | Referral code issue/reuse |
 | Seeded local/staging write | POST | `/referrals/referees/ucn` | Referee UCN capture |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/from-draft` | Referral SaaS account foundation create wrapper |
+| Seeded local/staging write | PUT | `/v1/referral-saas/accounts/{account_ref}/journey-drafts` | Referral SaaS selected-customer journey draft save/update wrapper |
+| Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/journey-drafts/{draft_ref}/validate` | Referral SaaS selected-customer journey draft validation wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/campaigns` | Referral SaaS customer-scoped inactive campaign setup create wrapper |
 | Seeded local/staging write | PUT | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/policy-settings` | Referral SaaS customer-scoped campaign policy/settings wrapper |
 | Seeded local/staging write | POST | `/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-submissions` | Referral SaaS customer-scoped campaign review submission wrapper |
@@ -163,6 +170,7 @@ local/staging smoke classification:
 - `GET /v1/referral-saas/journey-templates/{template_code}`
 - `GET /v1/referral-saas/accounts`
 - `GET /v1/referral-saas/accounts/resolve`
+- `GET /v1/referral-saas/accounts/{account_ref}/journey-drafts`
 - `GET /v1/referral-saas/accounts/membership-posture`
 - `GET /v1/referral-saas/accounts/{account_ref}/membership-activation-readiness`
 - `GET /v1/referral-saas/accounts/{account_ref}/technical-setup-readiness`
@@ -177,6 +185,8 @@ local/staging smoke classification:
 - `POST /v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/validate`
 - `POST /v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/preview`
 - `POST /v1/referral-saas/accounts/{account_ref}/campaigns`
+- `PUT /v1/referral-saas/accounts/{account_ref}/journey-drafts`
+- `POST /v1/referral-saas/accounts/{account_ref}/journey-drafts/{draft_ref}/validate`
 - `PUT /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/policy-settings`
 - `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-submissions`
 - `POST /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/review-decisions`
