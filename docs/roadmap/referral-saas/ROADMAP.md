@@ -215,6 +215,15 @@ customer/admin self-service journey configuration without creating a free-form
 journey builder, exposing internal tenant identifiers, or hiding provider,
 auth, billing, payout, settlement, or money behavior inside journey setup.
 
+TASK-384 adds the schema foundation for that configurable journey path. The
+database now has durable storage for governed global templates, template
+versions, account-scoped customer journey drafts, immutable published customer
+journey versions, validation results, campaign binding references,
+configuration idempotency, and audit evidence. This is still storage-only:
+runtime execution, read APIs, draft configuration APIs, validation/simulation,
+publish/archive, campaign binding enforcement, incentive binding, analytics,
+and non-local proof remain with TASK-385 through TASK-394.
+
 ## Recommended Ordered Task Sequence
 
 1. TASK-134: Define Referral SaaS account setup contract.

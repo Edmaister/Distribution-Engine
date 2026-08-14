@@ -8535,12 +8535,12 @@ Completed output:
 
 ## TASK-384: Add journey template and customer configuration schema foundation
 
-Status: Planned.
+Status: Completed.
 Product boundary: Referral SaaS with Shared Platform trajectory.
 Shared primitive impact: Introduces versioned journey configuration storage that can later become a DLaaS shared primitive. Source duplication: No.
 Objective: Add durable tables for global journey templates, template versions, customer journey drafts, published customer journey versions, validation results, and campaign binding references.
 Why now: Runtime currently depends on code-defined journey and progress definitions. A controlled schema foundation is required before any admin/customer configuration UI can be trustworthy.
-Files likely involved: `dp/migrations/0xx_referral_saas_journey_configuration.sql`; schema migration tests; SA/roadmap/gap/infographic docs.
+Files involved: `dp/migrations/094_referral_saas_journey_configuration.sql`; `test/test_referral_saas_journey_configuration_migration.py`; SA/roadmap/gap/infographic docs.
 Database/schema impact: Adds versioned journey-template/customer-configuration tables with status constraints, account scope, audit columns, payload hashes, idempotency references, and immutable publish metadata.
 Backend impact: None beyond migration validation.
 Frontend impact: None.
@@ -8549,6 +8549,12 @@ Tests to add/update: Migration replay, constraints, indexes, immutable-version f
 Acceptance criteria: Schema supports global templates, customer drafts, published versions, validation evidence, and campaign binding references without storing raw secrets, raw identity, provider payloads, billing, settlement, payout, or money evidence.
 Dependencies: TASK-383.
 Priority: P1.
+
+Completed output:
+
+- Added additive migration `094_referral_saas_journey_configuration.sql` with governed global journey templates, template versions, account-scoped customer drafts, immutable published customer journey versions, validation results, campaign journey bindings, idempotency keys, and audit evidence.
+- Added migration-structure tests proving account scope, status constraints, indexes, immutable publish metadata, payload hashes, validation evidence, campaign binding references, idempotency storage, audit redactions, and no internal tenant-code/raw identity/provider/auth/billing/money storage columns.
+- Runtime journey execution, API access, UI configuration, campaign binding enforcement, incentives, analytics, and non-local proof remain with TASK-385 through TASK-394.
 
 ## TASK-385: Add admin journey template catalogue read API
 
