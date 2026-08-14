@@ -163,3 +163,89 @@ async def test_get_journey_template_raises_not_found(monkeypatch):
         await service.get_referral_saas_journey_template(
             template_code="missing-template",
         )
+
+
+async def test_customer_journey_validation_simulates_safe_template_defaults():
+    status, blockers, warnings, summary = service._validate_configuration_against_schema(
+        {"labels": {"title": "Mortgage application referral"}},
+        {"labels": {}, "milestones": {}, "evidence": {}, "attribution": {}},
+        [{"code": "SIGNED_UP"}, {"code": "APPLICATION_SUBMITTED"}],
+        [{"from": "SIGNED_UP", "to": "APPLICATION_SUBMITTED"}],
+        [{"code": "TERMS_ACCEPTED", "required": True}],
+    )
+
+    assert status == "PASSED_WITH_WARNINGS"
+    assert blockers == []
+    assert [warning["code"] for warning in warnings] == [
+        "REQUIRED_EVIDENCE_USES_TEMPLATE_DEFAULTS"
+    ]
+    assert summary["templateMilestoneCount"] == 2
+    assert summary["templateTransitionCount"] == 1
+    assert summary["simulation"] == {
+        "status": "PASSED_WITH_WARNINGS",
+        "canPublish": True,
+        "canBindCampaign": False,
+        "simulatedMilestonePath": ["SIGNED_UP", "APPLICATION_SUBMITTED"],
+        "customerReadableSummary": (
+            "This journey draft can be reviewed for publish readiness."
+        ),
+        "nextAction": "Review warnings and continue to governed publish controls.",
+    }
+    assert summary["noRuntimeJourneyMutationConfirmed"] is True
+    assert summary["noProviderDispatchConfirmed"] is True
+    assert summary["noAuthBillingOrMoneyActionConfirmed"] is True
+
+
+async def test_customer_journey_validation_blocks_invalid_customer_transition_and_evidence():
+    status, blockers, warnings, summary = service._validate_configuration_against_schema(
+        {
+            "milestones": [{"code": "SIGNED_UP"}, {"code": "FUNDED"}],
+            "transitions": [{"from": "SIGNED_UP", "to": "FUNDED"}],
+            "evidence": [{"code": "TERMS_ACCEPTED"}],
+        },
+        {"milestones": {}, "transitions": {}, "evidence": {}},
+        [{"code": "SIGNED_UP"}, {"code": "APPLICATION_SUBMITTED"}],
+        [{"from": "SIGNED_UP", "to": "APPLICATION_SUBMITTED"}],
+        [
+            {"code": "TERMS_ACCEPTED", "required": True},
+            {"code": "APPLICATION_COMPLETE", "required": True},
+        ],
+    )
+
+    blocker_codes = {blocker["code"] for blocker in blockers}
+    assert status == "BLOCKED"
+    assert warnings == []
+    assert blocker_codes == {
+        "UNKNOWN_MILESTONE",
+        "INVALID_CUSTOMER_TRANSITION",
+        "REQUIRED_EVIDENCE_MISSING",
+    }
+    assert summary["transitionCheckStatus"] == "BLOCKED"
+    assert summary["evidenceCheckStatus"] == "BLOCKED"
+    assert summary["simulation"]["canPublish"] is False
+    assert summary["simulation"]["canBindCampaign"] is False
+
+
+async def test_customer_journey_validation_blocks_unsafe_reward_and_attribution_settings():
+    status, blockers, warnings, summary = service._validate_configuration_against_schema(
+        {
+            "rewards": [{"policyCode": "SAFE_POLICY", "amount": 100}],
+            "attribution": {"windowDays": 120, "manualOverride": True},
+        },
+        {"rewards": {}, "attribution": {}},
+        [{"code": "SIGNED_UP"}],
+        [],
+        [],
+    )
+
+    blocker_codes = {blocker["code"] for blocker in blockers}
+    assert status == "BLOCKED"
+    assert warnings == []
+    assert blocker_codes == {
+        "UNSAFE_REWARD_SETTING",
+        "UNSAFE_ATTRIBUTION_SETTING",
+        "ATTRIBUTION_WINDOW_OUT_OF_RANGE",
+    }
+    assert summary["rewardSafetyStatus"] == "BLOCKED"
+    assert summary["attributionSafetyStatus"] == "BLOCKED"
+    assert summary["noCampaignActivationConfirmed"] is True

@@ -80,6 +80,37 @@ CUSTOMER_JOURNEY_DRAFT_UNSAFE_KEY_TOKENS = tuple(
     str(token).lower() for token in CUSTOMER_JOURNEY_DRAFT_REDACTIONS
 )
 
+REWARD_CONFIGURATION_UNSAFE_KEYS = frozenset(
+    {
+        "amount",
+        "cash_value",
+        "cashvalue",
+        "currency_amount",
+        "currencyamount",
+        "funding_account",
+        "fundingaccount",
+        "ledger",
+        "money_movement",
+        "moneymovement",
+        "payment",
+        "payout",
+        "settlement",
+        "wallet",
+    }
+)
+
+ATTRIBUTION_CONFIGURATION_UNSAFE_KEYS = frozenset(
+    {
+        "force_credit",
+        "forcecredit",
+        "manual_override",
+        "manualoverride",
+        "override",
+        "raw_event_payload",
+        "raweventpayload",
+    }
+)
+
 
 class JourneyTemplateCatalogueValidationError(ValueError):
     pass
@@ -329,6 +360,18 @@ def _json_sequence_count(value: Any) -> int:
     return 0
 
 
+def _json_sequence(value: Any, *preferred_keys: str) -> tuple[Any, ...]:
+    if isinstance(value, list):
+        return tuple(value)
+    if isinstance(value, dict):
+        for key in preferred_keys:
+            items = value.get(key)
+            if isinstance(items, list):
+                return tuple(items)
+        return tuple(value.values())
+    return ()
+
+
 def _configuration_sections(value: Any) -> tuple[str, ...]:
     if not isinstance(value, dict):
         return ()
@@ -470,6 +513,188 @@ def _reject_unsafe_customer_journey_payload(value: Any) -> None:
             _reject_unsafe_customer_journey_payload(item)
 
 
+def _normalise_code(value: Any) -> str | None:
+    if value is None:
+        return None
+    safe = str(value).strip().upper().replace("-", "_").replace(" ", "_")
+    return safe or None
+
+
+def _extract_code(item: Any, *keys: str) -> str | None:
+    if isinstance(item, str):
+        return _normalise_code(item)
+    if isinstance(item, dict):
+        for key in keys:
+            if key in item:
+                return _normalise_code(item.get(key))
+    return None
+
+
+def _extract_milestone_codes(value: Any) -> tuple[str, ...]:
+    codes: list[str] = []
+    for item in _json_sequence(value, "milestones", "items"):
+        code = _extract_code(item, "code", "milestoneCode", "milestone_code", "id")
+        if code and code not in codes:
+            codes.append(code)
+    return tuple(codes)
+
+
+def _extract_transition_pairs(value: Any) -> tuple[tuple[str, str], ...]:
+    pairs: list[tuple[str, str]] = []
+    for item in _json_sequence(value, "transitions", "rules", "items"):
+        if not isinstance(item, dict):
+            continue
+        from_code = _extract_code(
+            item, "from", "fromMilestone", "from_milestone", "fromStatus", "from_status"
+        )
+        to_code = _extract_code(
+            item, "to", "toMilestone", "to_milestone", "toStatus", "to_status"
+        )
+        if from_code and to_code and (from_code, to_code) not in pairs:
+            pairs.append((from_code, to_code))
+    return tuple(pairs)
+
+
+def _extract_required_evidence_codes(value: Any) -> tuple[str, ...]:
+    codes: list[str] = []
+    for item in _json_sequence(value, "evidence", "requirements", "items"):
+        if isinstance(item, dict) and item.get("required") is False:
+            continue
+        code = _extract_code(item, "code", "evidenceCode", "evidence_code", "id")
+        if code and code not in codes:
+            codes.append(code)
+    return tuple(codes)
+
+
+def _configured_milestone_codes(configuration_payload: Mapping[str, Any]) -> tuple[str, ...]:
+    configured = configuration_payload.get("milestones")
+    if configured is None:
+        configured = configuration_payload.get("enabledMilestones")
+    return _extract_milestone_codes(configured)
+
+
+def _configured_transition_pairs(
+    configuration_payload: Mapping[str, Any],
+) -> tuple[tuple[str, str], ...]:
+    configured = configuration_payload.get("transitions")
+    if configured is None:
+        configured = configuration_payload.get("transitionRules")
+    return _extract_transition_pairs(configured)
+
+
+def _configured_evidence_codes(configuration_payload: Mapping[str, Any]) -> tuple[str, ...]:
+    configured = configuration_payload.get("evidence")
+    if configured is None:
+        configured = configuration_payload.get("evidenceRequirements")
+    if configured is None:
+        configured = configuration_payload.get("requiredEvidence")
+    return _extract_required_evidence_codes(configured)
+
+
+def _iter_dicts(value: Any) -> tuple[dict[str, Any], ...]:
+    if isinstance(value, dict):
+        return (value,)
+    if isinstance(value, list):
+        return tuple(item for item in value if isinstance(item, dict))
+    return ()
+
+
+def _contains_key(value: Any, keys: frozenset[str]) -> bool:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            normalised_key = str(key).strip().lower().replace("-", "_")
+            if normalised_key in keys:
+                return True
+            if _contains_key(child, keys):
+                return True
+    elif isinstance(value, list):
+        return any(_contains_key(item, keys) for item in value)
+    return False
+
+
+def _validate_reward_safety(
+    configuration_payload: Mapping[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str]:
+    rewards = configuration_payload.get("rewards")
+    if rewards is None:
+        return [], [], "NOT_CONFIGURED"
+    if not isinstance(rewards, (dict, list)):
+        return [
+            {
+                "code": "INVALID_REWARD_CONFIGURATION",
+                "message": "Reward configuration must be an object or list of objects.",
+            }
+        ], [], "BLOCKED"
+    if _contains_key(rewards, REWARD_CONFIGURATION_UNSAFE_KEYS):
+        return [
+            {
+                "code": "UNSAFE_REWARD_SETTING",
+                "message": (
+                    "Reward configuration may reference approved policy codes only. "
+                    "Cash values, payouts, wallets, funding, or settlement settings "
+                    "must stay in governed reward and money workflows."
+                ),
+            }
+        ], [], "BLOCKED"
+    warnings: list[dict[str, Any]] = []
+    if not any(
+        any(key in reward for key in ("policyCode", "policy_code", "rewardPolicyRef"))
+        for reward in _iter_dicts(rewards)
+    ):
+        warnings.append(
+            {
+                "code": "REWARD_POLICY_REFERENCE_NOT_SUPPLIED",
+                "message": (
+                    "Reward settings do not reference an approved reward policy. "
+                    "Template defaults will be used until a policy reference is supplied."
+                ),
+            }
+        )
+    return [], warnings, "PASSED_WITH_WARNINGS" if warnings else "PASSED"
+
+
+def _validate_attribution_safety(
+    configuration_payload: Mapping[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str]:
+    attribution = configuration_payload.get("attribution")
+    if attribution is None:
+        return [], [], "NOT_CONFIGURED"
+    if not isinstance(attribution, dict):
+        return [
+            {
+                "code": "INVALID_ATTRIBUTION_CONFIGURATION",
+                "message": "Attribution configuration must be an object.",
+            }
+        ], [], "BLOCKED"
+
+    blockers: list[dict[str, Any]] = []
+    if _contains_key(attribution, ATTRIBUTION_CONFIGURATION_UNSAFE_KEYS):
+        blockers.append(
+            {
+                "code": "UNSAFE_ATTRIBUTION_SETTING",
+                "message": (
+                    "Attribution settings cannot force credit, override attribution, "
+                    "or include raw event payloads in the customer journey draft."
+                ),
+            }
+        )
+
+    window = attribution.get("windowDays", attribution.get("lookbackDays"))
+    if window is not None:
+        try:
+            window_days = int(window)
+        except (TypeError, ValueError):
+            window_days = 0
+        if window_days < 1 or window_days > 90:
+            blockers.append(
+                {
+                    "code": "ATTRIBUTION_WINDOW_OUT_OF_RANGE",
+                    "message": "Attribution lookback windows must be between 1 and 90 days.",
+                }
+            )
+    return blockers, [], "BLOCKED" if blockers else "PASSED"
+
+
 def _draft_from_row(row: Mapping[str, Any]) -> CustomerJourneyDraft:
     return CustomerJourneyDraft(
         customer_journey_draft_id=str(_row_value(row, "customer_journey_draft_id")),
@@ -555,11 +780,22 @@ async def _find_approved_template_version(
 def _validate_configuration_against_schema(
     configuration_payload: Mapping[str, Any],
     allowed_configuration_schema: Any,
+    milestone_schema: Any,
+    transition_rules: Any,
+    evidence_requirements: Any,
 ) -> tuple[str, list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     blockers: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
     allowed_sections = set(_configuration_sections(allowed_configuration_schema))
     supplied_sections = set(configuration_payload.keys())
+    template_milestones = _extract_milestone_codes(milestone_schema)
+    template_transitions = _extract_transition_pairs(transition_rules)
+    template_required_evidence = _extract_required_evidence_codes(
+        evidence_requirements
+    )
+    configured_milestones = _configured_milestone_codes(configuration_payload)
+    configured_transitions = _configured_transition_pairs(configuration_payload)
+    configured_evidence = _configured_evidence_codes(configuration_payload)
 
     if allowed_sections:
         unknown_sections = sorted(supplied_sections.difference(allowed_sections))
@@ -586,18 +822,189 @@ def _validate_configuration_against_schema(
             }
         )
 
+    if not template_milestones:
+        blockers.append(
+            {
+                "code": "TEMPLATE_MILESTONES_MISSING",
+                "message": (
+                    "The approved template version does not expose milestone codes "
+                    "that can be safely simulated."
+                ),
+            }
+        )
+
+    milestone_set = set(template_milestones)
+    for from_code, to_code in template_transitions:
+        missing = sorted({from_code, to_code}.difference(milestone_set))
+        if missing:
+            blockers.append(
+                {
+                    "code": "INVALID_TEMPLATE_TRANSITION",
+                    "message": (
+                        "The approved template contains transition rules that point "
+                        "to milestones not present in the milestone schema."
+                    ),
+                    "transition": {"from": from_code, "to": to_code},
+                    "missingMilestones": missing,
+                }
+            )
+
+    if len(template_milestones) > 1 and not template_transitions:
+        warnings.append(
+            {
+                "code": "TEMPLATE_TRANSITIONS_NOT_SUPPLIED",
+                "message": (
+                    "The approved template has more than one milestone but does not "
+                    "expose transition rules. Simulation can only show milestone order."
+                ),
+            }
+        )
+
+    unknown_configured_milestones = sorted(
+        set(configured_milestones).difference(milestone_set)
+    )
+    if unknown_configured_milestones:
+        blockers.append(
+            {
+                "code": "UNKNOWN_MILESTONE",
+                "message": (
+                    "Customer configuration references milestone codes outside the "
+                    "approved template version."
+                ),
+                "milestones": unknown_configured_milestones,
+            }
+        )
+
+    transition_set = set(template_transitions)
+    invalid_configured_transitions = [
+        {"from": from_code, "to": to_code}
+        for from_code, to_code in configured_transitions
+        if (from_code, to_code) not in transition_set
+    ]
+    if invalid_configured_transitions:
+        blockers.append(
+            {
+                "code": "INVALID_CUSTOMER_TRANSITION",
+                "message": (
+                    "Customer configuration includes transition rules that are not "
+                    "allowed by the approved template version."
+                ),
+                "transitions": invalid_configured_transitions,
+            }
+        )
+
+    template_evidence_set = set(template_required_evidence)
+    unknown_configured_evidence = sorted(
+        set(configured_evidence).difference(template_evidence_set)
+    )
+    if unknown_configured_evidence:
+        blockers.append(
+            {
+                "code": "UNKNOWN_EVIDENCE_REQUIREMENT",
+                "message": (
+                    "Customer configuration references evidence requirements outside "
+                    "the approved template version."
+                ),
+                "evidence": unknown_configured_evidence,
+            }
+        )
+
+    if template_required_evidence and configured_evidence:
+        missing_evidence = sorted(template_evidence_set.difference(configured_evidence))
+        if missing_evidence:
+            blockers.append(
+                {
+                    "code": "REQUIRED_EVIDENCE_MISSING",
+                    "message": (
+                        "Customer configuration omits required evidence from the "
+                        "approved template version."
+                    ),
+                    "evidence": missing_evidence,
+                }
+            )
+    elif template_required_evidence:
+        warnings.append(
+            {
+                "code": "REQUIRED_EVIDENCE_USES_TEMPLATE_DEFAULTS",
+                "message": (
+                    "Required evidence is defined by the approved template. Customer "
+                    "configuration does not override it."
+                ),
+                "evidenceCount": len(template_required_evidence),
+            }
+        )
+
+    reward_blockers, reward_warnings, reward_status = _validate_reward_safety(
+        configuration_payload
+    )
+    attribution_blockers, attribution_warnings, attribution_status = (
+        _validate_attribution_safety(configuration_payload)
+    )
+    blockers.extend(reward_blockers)
+    blockers.extend(attribution_blockers)
+    warnings.extend(reward_warnings)
+    warnings.extend(attribution_warnings)
+
     status = "PASSED"
     if blockers:
         status = "BLOCKED"
     elif warnings:
         status = "PASSED_WITH_WARNINGS"
 
+    transition_blocked = any(
+        blocker["code"] in {"INVALID_TEMPLATE_TRANSITION", "INVALID_CUSTOMER_TRANSITION"}
+        for blocker in blockers
+    )
+    evidence_warned = any(
+        warning["code"] == "REQUIRED_EVIDENCE_USES_TEMPLATE_DEFAULTS"
+        for warning in warnings
+    )
+    evidence_blocked = any(
+        blocker["code"] in {"UNKNOWN_EVIDENCE_REQUIREMENT", "REQUIRED_EVIDENCE_MISSING"}
+        for blocker in blockers
+    )
+    simulated_path = list(configured_milestones or template_milestones)
     safe_summary = {
         "configurationSectionCount": len(supplied_sections),
         "configurationSections": sorted(supplied_sections),
         "allowedConfigurationSections": sorted(allowed_sections),
+        "templateMilestoneCount": len(template_milestones),
+        "templateTransitionCount": len(template_transitions),
+        "templateRequiredEvidenceCount": len(template_required_evidence),
+        "configuredMilestoneCount": len(configured_milestones),
+        "configuredTransitionCount": len(configured_transitions),
+        "configuredEvidenceCount": len(configured_evidence),
+        "transitionCheckStatus": "BLOCKED" if transition_blocked else "PASSED",
+        "evidenceCheckStatus": "BLOCKED"
+        if evidence_blocked
+        else "PASSED_WITH_WARNINGS"
+        if evidence_warned
+        else "PASSED",
+        "rewardSafetyStatus": reward_status,
+        "attributionSafetyStatus": attribution_status,
+        "simulation": {
+            "status": status,
+            "canPublish": status != "BLOCKED",
+            "canBindCampaign": False,
+            "simulatedMilestonePath": simulated_path,
+            "customerReadableSummary": (
+                "This journey draft can be reviewed for publish readiness."
+                if status != "BLOCKED"
+                else "This journey draft needs fixes before it can be published."
+            ),
+            "nextAction": (
+                "Review warnings and continue to governed publish controls."
+                if status != "BLOCKED"
+                else "Resolve blockers, then validate the journey draft again."
+            ),
+        },
         "blockerCount": len(blockers),
         "warningCount": len(warnings),
+        "noRuntimeJourneyMutationConfirmed": True,
+        "noCampaignBindingConfirmed": True,
+        "noCampaignActivationConfirmed": True,
+        "noProviderDispatchConfirmed": True,
+        "noAuthBillingOrMoneyActionConfirmed": True,
     }
     return status, blockers, warnings, safe_summary
 
@@ -1136,6 +1543,9 @@ async def validate_referral_saas_customer_journey_draft(
                 v.template_code,
                 v.template_version,
                 v.status AS version_status,
+                v.milestone_schema,
+                v.transition_rules,
+                v.evidence_requirements,
                 v.allowed_configuration_schema
             FROM referral_saas_customer_journey_drafts d
             JOIN referral_saas_journey_template_versions v
@@ -1162,6 +1572,9 @@ async def validate_referral_saas_customer_journey_draft(
             _validate_configuration_against_schema(
                 configuration_payload,
                 _row_value(draft_row, "allowed_configuration_schema"),
+                _row_value(draft_row, "milestone_schema"),
+                _row_value(draft_row, "transition_rules"),
+                _row_value(draft_row, "evidence_requirements"),
             )
         )
         next_draft_status = (

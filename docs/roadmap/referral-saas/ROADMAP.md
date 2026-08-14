@@ -225,9 +225,12 @@ approved and draft global templates without exposing raw definition payloads or
 customer configuration. TASK-386 adds the selected-customer journey draft
 read/save/validate API with approved-template lookup, payload hashing,
 idempotency, validation evidence, audit, guardrails, and redactions. Runtime
-execution, richer validation/simulation, publish/archive, campaign binding
-enforcement, incentive binding, analytics, and non-local proof remain with
-TASK-387 through TASK-394.
+execution, publish/archive, campaign binding enforcement, incentive binding,
+analytics, UI, and non-local proof remain with TASK-388 through TASK-394.
+TASK-387 now adds richer validation/simulation behind the existing customer
+journey draft validate route, including milestone/transition/evidence checks,
+reward-safety checks, attribution-safety checks, safe-to-publish summaries, and
+no runtime/provider/auth/billing/money side effects.
 
 ## Recommended Ordered Task Sequence
 
@@ -448,7 +451,7 @@ TASK-387 through TASK-394.
 215. TASK-384: Add journey template and customer configuration schema foundation.
 216. TASK-385: Add admin journey template catalogue read API. (Complete - read-only catalogue API added.)
 217. TASK-386: Add customer journey draft read, save, and validate API. (Complete - account-scoped draft API added.)
-218. TASK-387: Add journey validation and simulation service.
+218. TASK-387: Add journey validation and simulation service. (Complete - richer validation/simulation service added.)
 219. TASK-388: Add publish and archive customer journey version API.
 220. TASK-389: Add journey template catalogue and draft configuration UX.
 221. TASK-390: Bind campaigns to published journey versions.
