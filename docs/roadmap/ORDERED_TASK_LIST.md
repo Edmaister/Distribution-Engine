@@ -8554,11 +8554,11 @@ Completed output:
 
 - Added additive migration `094_referral_saas_journey_configuration.sql` with governed global journey templates, template versions, account-scoped customer drafts, immutable published customer journey versions, validation results, campaign journey bindings, idempotency keys, and audit evidence.
 - Added migration-structure tests proving account scope, status constraints, indexes, immutable publish metadata, payload hashes, validation evidence, campaign binding references, idempotency storage, audit redactions, and no internal tenant-code/raw identity/provider/auth/billing/money storage columns.
-- Runtime journey execution, API access, UI configuration, campaign binding enforcement, incentives, analytics, and non-local proof remain with TASK-385 through TASK-394.
+- Runtime journey execution, customer draft APIs, UI configuration, campaign binding enforcement, incentives, analytics, and non-local proof remain with TASK-386 through TASK-394.
 
 ## TASK-385: Add admin journey template catalogue read API
 
-Status: Planned.
+Status: Complete.
 Product boundary: Referral SaaS.
 Shared primitive impact: Starts the read-only template catalogue API over the versioned configuration schema. Source duplication: No.
 Objective: Expose approved global journey templates and versions to Amplifi Admin without changing runtime behavior.
@@ -8572,6 +8572,13 @@ Tests to add/update: Read-only behavior, status filtering, redaction, route inve
 Acceptance criteria: Amplifi Admin can list approved and draft global templates safely; no customer configuration, campaign binding, runtime execution, provider, auth, billing, or money action occurs.
 Dependencies: TASK-384.
 Priority: P1.
+
+Completed output:
+
+- Added a read-only journey template catalogue service over the TASK-384 template and template-version tables.
+- Added Amplifi Admin list/detail routes for `/v1/referral-saas/journey-templates` and `/v1/referral-saas/journey-templates/{template_code}` with status filtering, archive opt-in, safe limits, guardrails, and redactions.
+- Added API/service/route-inventory coverage proving reader-only access, partner denial, status validation, missing-template handling, safe metadata, and no raw template payload, tenant, provider, auth, billing, payout, settlement, or money evidence leakage.
+- Customer draft APIs, validation/simulation, publish/archive, campaign binding, incentive binding, runtime migration, analytics, and non-local proof remain with TASK-386 through TASK-394.
 
 ## TASK-386: Add customer journey draft read, save, and validate API
 

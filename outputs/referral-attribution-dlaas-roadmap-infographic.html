@@ -615,7 +615,7 @@
         <div class="section-head">
           <h2>Current Status Snapshot</h2>
           <p>
-            Updated after TASK-134 through TASK-384 for Referral SaaS, with
+            Updated after TASK-134 through TASK-385 for Referral SaaS, with
             shared-platform context kept separate from the first product wedge.
           </p>
         </div>
@@ -642,7 +642,7 @@
           </div>
           <div class="status-pill">
             <b>Configurable journey schema is now started</b>
-            <span>TASK-383 adds the governed development framework for configurable customer journeys. TASK-384 now adds the durable schema foundation for Amplifi-owned global templates, versioned template definitions, account-scoped customer journey drafts, immutable published customer journey versions, validation evidence, campaign binding references, idempotency, audit, and redaction controls. APIs, UI, validation/simulation, publish/archive, incentive binding, runtime migration, analytics, and non-local proof remain in TASK-385 through TASK-394.</span>
+            <span>TASK-383 adds the governed development framework for configurable customer journeys. TASK-384 now adds the durable schema foundation for Amplifi-owned global templates, versioned template definitions, account-scoped customer journey drafts, immutable published customer journey versions, validation evidence, campaign binding references, idempotency, audit, and redaction controls. TASK-385 now adds the read-only Amplifi Admin journey template catalogue API with status filtering, safe limits, governance metadata, and redactions. Customer draft APIs, UI, validation/simulation, publish/archive, incentive binding, runtime migration, analytics, and non-local proof remain in TASK-386 through TASK-394.</span>
           </div>
           <div class="status-pill">
             <b>Hardening still missing</b>
@@ -967,7 +967,8 @@
             <ol>
               <li>TASK-383 defines the development framework and control model.</li>
               <li>TASK-384 adds the durable schema foundation for templates, drafts, published versions, validation evidence, campaign binding, idempotency, and audit.</li>
-              <li>TASK-385 through TASK-388 add APIs, validation, publish, archive, and version controls.</li>
+              <li>TASK-385 adds the read-only admin journey template catalogue API.</li>
+              <li>TASK-386 through TASK-388 add customer draft APIs, validation, publish, archive, and version controls.</li>
               <li>TASK-389 through TASK-391 add customer/admin UX, campaign binding, and governed incentive binding.</li>
               <li>TASK-392 through TASK-394 prove runtime execution, analytics, and non-local E2E evidence.</li>
             </ol>
@@ -1300,8 +1301,8 @@
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Configurable customer journeys</div>
-            <div class="matrix-cell">TASK-383 defines the framework and TASK-384 adds the schema foundation, but customers still cannot configure and publish journey versions without governed APIs, UI, and runtime migration.</div>
-            <div class="matrix-cell">Complete TASK-385 through TASK-394: template catalogue APIs, customer draft APIs, validation, publishing, campaign binding, incentive binding, runtime migration, analytics, and non-local E2E proof.</div>
+            <div class="matrix-cell">TASK-383 defines the framework, TASK-384 adds the schema foundation, and TASK-385 adds the read-only admin template catalogue API, but customers still cannot configure and publish journey versions without governed customer APIs, UI, and runtime migration.</div>
+            <div class="matrix-cell">Complete TASK-386 through TASK-394: customer draft APIs, validation, publishing, campaign binding, incentive binding, runtime migration, analytics, and non-local E2E proof.</div>
           </div>
           <div class="matrix-row" role="row">
             <div class="matrix-cell">Live DB/state verification</div>

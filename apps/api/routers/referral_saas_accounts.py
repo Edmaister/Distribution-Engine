@@ -237,6 +237,14 @@ from services.referral_saas_integrations_configuration_service import (
     upsert_referral_saas_integration_configuration,
     validate_referral_saas_integration_configuration,
 )
+from services.referral_saas_journey_configuration_service import (
+    JOURNEY_TEMPLATE_CATALOGUE_GUARDRAILS,
+    JOURNEY_TEMPLATE_CATALOGUE_REDACTIONS,
+    JourneyTemplateCatalogueValidationError,
+    JourneyTemplateNotFound,
+    get_referral_saas_journey_template,
+    list_referral_saas_journey_templates,
+)
 from services.referral_saas_technical_setup_service import (
     build_referral_saas_technical_setup_readiness,
 )
@@ -3767,6 +3775,147 @@ async def read_referral_saas_workspace_account_context(
         "no_invite_delivery_confirmed": True,
         "no_auth_claim_change_confirmed": True,
         "no_money_movement_confirmed": True,
+    }
+
+
+@router.get("/journey-templates")
+async def list_referral_saas_journey_template_catalogue(
+    template_statuses: Annotated[
+        list[str] | None,
+        Query(
+            alias="status",
+            description=(
+                "Optional repeatable template status filter. Supported values "
+                "match the governed template schema: APPROVED, DRAFT, DISABLED, "
+                "or ARCHIVED."
+            ),
+        ),
+    ] = None,
+    include_archived: Annotated[
+        bool,
+        Query(
+            alias="includeArchived",
+            description="Include archived templates and versions in admin catalogue reads.",
+        ),
+    ] = False,
+    limit: Annotated[
+        int,
+        Query(
+            ge=1,
+            le=100,
+            description="Maximum number of governed journey templates to return.",
+        ),
+    ] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    try:
+        catalogue = await list_referral_saas_journey_templates(
+            statuses=template_statuses,
+            include_archived=include_archived,
+            limit=limit,
+        )
+    except JourneyTemplateCatalogueValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "journey_template_catalogue_validation_error",
+                "message": str(exc),
+                "guardrails": list(JOURNEY_TEMPLATE_CATALOGUE_GUARDRAILS),
+                "redactions": list(JOURNEY_TEMPLATE_CATALOGUE_REDACTIONS),
+                "noCustomerConfigurationWriteConfirmed": True,
+                "noRuntimeExecutionConfirmed": True,
+                "noCampaignBindingConfirmed": True,
+                "noProviderAuthBillingOrMoneyActionConfirmed": True,
+            },
+        ) from exc
+
+    body = catalogue.to_safe_dict()
+    body["guardrail"] = (
+        "Read-only Amplifi Admin journey template catalogue. This endpoint "
+        "shows governed global templates and safe version summaries only. It "
+        "does not create customer journey configuration, bind campaigns, run "
+        "journeys, provision providers, change auth, create billing, or move money."
+    )
+    return body
+
+
+@router.get("/journey-templates/{template_code}")
+async def get_referral_saas_journey_template_catalogue_item(
+    template_code: str,
+    template_statuses: Annotated[
+        list[str] | None,
+        Query(
+            alias="status",
+            description=(
+                "Optional repeatable template status filter. Supported values "
+                "match the governed template schema: APPROVED, DRAFT, DISABLED, "
+                "or ARCHIVED."
+            ),
+        ),
+    ] = None,
+    include_archived: Annotated[
+        bool,
+        Query(
+            alias="includeArchived",
+            description="Include archived templates and versions in admin catalogue reads.",
+        ),
+    ] = False,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    try:
+        template = await get_referral_saas_journey_template(
+            template_code=template_code,
+            statuses=template_statuses,
+            include_archived=include_archived,
+        )
+    except JourneyTemplateCatalogueValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "journey_template_catalogue_validation_error",
+                "message": str(exc),
+                "guardrails": list(JOURNEY_TEMPLATE_CATALOGUE_GUARDRAILS),
+                "redactions": list(JOURNEY_TEMPLATE_CATALOGUE_REDACTIONS),
+                "noCustomerConfigurationWriteConfirmed": True,
+                "noRuntimeExecutionConfirmed": True,
+                "noCampaignBindingConfirmed": True,
+                "noProviderAuthBillingOrMoneyActionConfirmed": True,
+            },
+        ) from exc
+    except JourneyTemplateNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "journey_template_not_found",
+                "message": "Journey template was not found in the safe admin catalogue.",
+                "guardrails": list(JOURNEY_TEMPLATE_CATALOGUE_GUARDRAILS),
+                "redactions": list(JOURNEY_TEMPLATE_CATALOGUE_REDACTIONS),
+                "noTenantDataConfirmed": True,
+                "noCustomerConfigurationWriteConfirmed": True,
+                "noRuntimeExecutionConfirmed": True,
+                "noCampaignBindingConfirmed": True,
+                "noProviderAuthBillingOrMoneyActionConfirmed": True,
+            },
+        ) from exc
+
+    return {
+        "status": "READY",
+        "template": template.to_safe_dict(),
+        "guardrails": list(JOURNEY_TEMPLATE_CATALOGUE_GUARDRAILS),
+        "redactions": list(JOURNEY_TEMPLATE_CATALOGUE_REDACTIONS),
+        "guardrail": (
+            "Read-only Amplifi Admin journey template detail. This endpoint "
+            "returns safe catalogue metadata only; raw definition payloads, "
+            "transition rules, customer data, runtime execution, campaign binding, "
+            "provider, auth, billing, and money actions stay out of this route."
+        ),
+        "noTenantDataConfirmed": True,
+        "noCustomerConfigurationWriteConfirmed": True,
+        "noRuntimeExecutionConfirmed": True,
+        "noCampaignBindingConfirmed": True,
+        "noProviderAuthBillingOrMoneyActionConfirmed": True,
     }
 
 
