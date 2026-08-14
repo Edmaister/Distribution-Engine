@@ -223,6 +223,22 @@ export type ReferralSaasCustomerJourneyVersion = {
   noAuthBillingOrMoneyActionConfirmed: boolean;
 };
 
+export type ReferralSaasCustomerJourneyVersionListResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  count: number;
+  versions: ReferralSaasCustomerJourneyVersion[];
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  noRuntimeJourneyMutationConfirmed: boolean;
+  noCampaignBindingConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noProviderDispatchConfirmed: boolean;
+  noAuthBillingOrMoneyActionConfirmed: boolean;
+};
+
 export type ReferralSaasCustomerJourneyPublishResponse = {
   status: string;
   context: ReferralSaasAccountResolutionContext;
@@ -236,6 +252,65 @@ export type ReferralSaasCustomerJourneyPublishResponse = {
   redactions: string[];
   noRuntimeJourneyMutationConfirmed: boolean;
   noCampaignBindingConfirmed: boolean;
+  noCampaignActivationConfirmed: boolean;
+  noProviderDispatchConfirmed: boolean;
+  noAuthBillingOrMoneyActionConfirmed: boolean;
+};
+
+export type ReferralSaasCampaignJourneyBinding = {
+  campaignJourneyBindingId?: string;
+  accountId?: string;
+  campaignCode: string;
+  customerJourneyVersionId?: string;
+  bindingStatus: string;
+  bindingPayloadHash?: string;
+  boundByRef?: string | null;
+  boundAt?: string | null;
+  unboundByRef?: string | null;
+  unboundAt?: string | null;
+  safeSummary?: Record<string, unknown>;
+  governanceMetadata?: Record<string, unknown>;
+  customerJourneyCode?: string;
+  versionNumber?: number;
+  templateCode?: string;
+  templateVersion?: string;
+  versionStatus?: string;
+  archivedAt?: string | null;
+  activationGateSatisfied?: boolean;
+  message?: string;
+  guardrails?: string[];
+  redactions?: string[];
+  noRuntimeJourneyMutationConfirmed?: boolean;
+  noCampaignActivationConfirmed?: boolean;
+  noProviderDispatchConfirmed?: boolean;
+  noAuthBillingOrMoneyActionConfirmed?: boolean;
+};
+
+export type ReferralSaasCampaignJourneyBindingRequest = {
+  accountRef: string;
+  campaignCode: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  customerJourneyVersionId: string;
+  correlationId?: string | null;
+  idempotencyKey: string;
+};
+
+export type ReferralSaasCampaignJourneyBindingResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  commandStatus?: string;
+  idempotencyStatus?: string;
+  binding?: ReferralSaasCampaignJourneyBinding;
+  journeyBinding?: ReferralSaasCampaignJourneyBinding;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+  noRuntimeJourneyMutationConfirmed: boolean;
   noCampaignActivationConfirmed: boolean;
   noProviderDispatchConfirmed: boolean;
   noAuthBillingOrMoneyActionConfirmed: boolean;
@@ -2257,11 +2332,13 @@ export type ReferralSaasAccountCampaignReadinessResponse = {
   context: ReferralSaasAccountResolutionContext;
   account: ReferralSaasAccountSummary;
   readiness: Record<string, unknown>;
+  journeyBinding?: ReferralSaasCampaignJourneyBinding;
   guardrail: string;
   redactions: string[];
   no_campaign_mutation_confirmed: boolean;
   no_policy_write_confirmed: boolean;
   no_link_generation_confirmed: boolean;
+  no_runtime_journey_mutation_confirmed?: boolean;
   no_campaign_activation_confirmed: boolean;
   no_money_movement_confirmed: boolean;
 };
@@ -3237,6 +3314,77 @@ export function publishReferralSaasAccountJourneyDraft({
       method: "POST",
       body: {
         accountScope,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function listReferralSaasAccountJourneyVersions({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+  includeArchived = false,
+  limit = 50,
+}: ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+  includeArchived?: boolean;
+  limit?: number;
+}): Promise<ReferralSaasCustomerJourneyVersionListResponse> {
+  return apiRequest<ReferralSaasCustomerJourneyVersionListResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/journey-versions`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+        includeArchived,
+        limit,
+      },
+    },
+  );
+}
+
+export function getReferralSaasAccountCampaignJourneyBinding({
+  accountRef,
+  campaignCode,
+  refType,
+  externalRef,
+  context = "setup",
+}: ReferralSaasAccountCampaignReadRequest): Promise<ReferralSaasCampaignJourneyBindingResponse> {
+  return apiRequest<ReferralSaasCampaignJourneyBindingResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaigns/${encodeURIComponent(
+      campaignCode.trim(),
+    )}/journey-binding`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+      },
+    },
+  );
+}
+
+export function bindReferralSaasAccountCampaignJourneyVersion({
+  accountRef,
+  campaignCode,
+  accountScope,
+  customerJourneyVersionId,
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasCampaignJourneyBindingRequest): Promise<ReferralSaasCampaignJourneyBindingResponse> {
+  return apiRequest<ReferralSaasCampaignJourneyBindingResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaigns/${encodeURIComponent(
+      campaignCode.trim(),
+    )}/journey-binding`,
+    {
+      method: "PUT",
+      body: {
+        accountScope,
+        customerJourneyVersionId,
         correlationId,
         idempotencyKey,
       },

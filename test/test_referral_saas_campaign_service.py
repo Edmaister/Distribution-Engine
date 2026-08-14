@@ -82,6 +82,18 @@ def _approved_review_state() -> dict[str, object]:
     }
 
 
+def _published_journey_binding_row() -> dict[str, object]:
+    return {
+        "campaign_journey_binding_id": "binding-1",
+        "customer_journey_version_id": "journey-version-1",
+        "binding_status": "ACTIVE",
+        "customer_journey_code": "customer-journey",
+        "version_number": 1,
+        "version_status": "PUBLISHED",
+        "archived_at": None,
+    }
+
+
 async def test_campaign_attribution_projection_builds_high_confidence_summary(
     monkeypatch,
 ):
@@ -845,6 +857,7 @@ async def test_campaign_activation_request_activates_only_campaign_posture(
                     }
                 },
             },
+            _published_journey_binding_row(),
             {
                 "active_policy_count": 1,
                 "latest_policy_updated_at": datetime(
@@ -981,6 +994,7 @@ async def test_campaign_activation_requires_review_approval(monkeypatch):
                         }
                     },
                 },
+                _published_journey_binding_row(),
                 {
                     "active_policy_count": 1,
                     "latest_policy_updated_at": datetime(
@@ -1023,6 +1037,7 @@ async def test_campaign_activation_blocks_stale_policy_after_review(monkeypatch)
                         "referral_saas_review": _approved_review_state(),
                     },
                 },
+                _published_journey_binding_row(),
                 {
                     "active_policy_count": 1,
                     "latest_policy_updated_at": datetime(
@@ -1051,6 +1066,46 @@ async def test_campaign_activation_blocks_stale_policy_after_review(monkeypatch)
         )
 
     assert "changed after review approval" in str(exc_info.value)
+
+
+async def test_campaign_activation_requires_published_journey_binding(monkeypatch):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                None,
+                {
+                    "campaign_code": "CAMP001",
+                    "is_active": False,
+                    "starts_at": None,
+                    "ends_at": None,
+                    "attributes": {
+                        "referral_saas_review": _approved_review_state(),
+                    },
+                },
+                None,
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.CampaignActivationNotReady) as exc_info:
+        await svc.request_referral_saas_account_campaign_activation(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            requested_lifecycle_status="ACTIVE",
+            review_status="REVIEW_APPROVED",
+            go_live_reason="Approved for referral campaign testing.",
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_ACTIVATION",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="payload-hash",
+            production_activation_decision=_allowed_production_activation_decision(),
+        )
+
+    assert "published customer journey version" in str(exc_info.value)
 
 
 async def test_campaign_activation_replays_matching_idempotency(monkeypatch):
