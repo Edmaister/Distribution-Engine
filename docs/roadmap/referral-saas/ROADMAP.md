@@ -219,10 +219,13 @@ TASK-384 adds the schema foundation for that configurable journey path. The
 database now has durable storage for governed global templates, template
 versions, account-scoped customer journey drafts, immutable published customer
 journey versions, validation results, campaign binding references,
-configuration idempotency, and audit evidence. This is still storage-only:
-runtime execution, read APIs, draft configuration APIs, validation/simulation,
-publish/archive, campaign binding enforcement, incentive binding, analytics,
-and non-local proof remain with TASK-385 through TASK-394.
+configuration idempotency, and audit evidence. TASK-385 adds the first
+read-only admin catalogue API over that schema so Amplifi Admin can inspect
+approved and draft global templates without exposing raw definition payloads or
+customer configuration. Runtime execution, customer draft APIs,
+validation/simulation, publish/archive, campaign binding enforcement,
+incentive binding, analytics, and non-local proof remain with TASK-386 through
+TASK-394.
 
 ## Recommended Ordered Task Sequence
 
@@ -441,7 +444,7 @@ and non-local proof remain with TASK-385 through TASK-394.
 213. TASK-355: Add vendor/managed provider-vault runtime adapters.
 214. TASK-383: Define governed journey template and customer configuration contract.
 215. TASK-384: Add journey template and customer configuration schema foundation.
-216. TASK-385: Add admin journey template catalogue read API.
+216. TASK-385: Add admin journey template catalogue read API. (Complete - read-only catalogue API added.)
 217. TASK-386: Add customer journey draft read, save, and validate API.
 218. TASK-387: Add journey validation and simulation service.
 219. TASK-388: Add publish and archive customer journey version API.

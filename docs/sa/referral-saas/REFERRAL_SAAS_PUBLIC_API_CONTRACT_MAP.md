@@ -120,6 +120,8 @@ Future Referral SaaS APIs should follow these rules:
 
 | Target route | Method | Current source/wrapper | Auth | Notes |
 |---|---|---|---|---|
+| `/v1/referral-saas/journey-templates` | `GET` | TASK-385 wrapper over TASK-384 governed template schema | Amplifi Admin/account reader bridge | Implemented as read-only global journey template catalogue. Returns safe template/version summaries only; no customer journey configuration write, campaign binding, runtime execution, provider setup, auth, billing, or money behavior. |
+| `/v1/referral-saas/journey-templates/{templateCode}` | `GET` | TASK-385 wrapper over TASK-384 governed template schema | Amplifi Admin/account reader bridge | Implemented as read-only global journey template detail. Raw definition payloads, transition rules, evidence requirements, payload hashes, tenant/account data, provider payloads, secrets, credentials, auth claims, billing, and money fields remain redacted. |
 | `/v1/referral-saas/account` | `GET` | TASK-134 contract; future account wrapper | SaaS account admin/member | Not currently implemented as product route. |
 | `/v1/referral-saas/account-setup/drafts` | `POST` | TASK-191 wrapper over `POST /admin/onboarding/drafts` | Admin/onboarding bridge first; future account setup role | Future wrapper contract only. Saves setup evidence, carries idempotency/audit posture, and must reject internal `tenant_code`. |
 | `/v1/referral-saas/account-setup/validate` | `POST` | TASK-191 wrapper over `POST /admin/onboarding/validate` | Admin/onboarding bridge first; future account setup role | Future wrapper contract only. Validates setup evidence without saving or live actions. |

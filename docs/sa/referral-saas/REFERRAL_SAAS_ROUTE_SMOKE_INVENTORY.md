@@ -47,6 +47,10 @@ TASK-273 adds the seeded/customer-scoped report export request route. It
 persists export request and account-audit evidence only; it still does not
 create export files, download URLs, object storage records, scheduled delivery,
 credentials, invoices, billing events, or money movement.
+TASK-385 adds read-only Amplifi Admin journey template catalogue routes over
+the governed TASK-384 schema. They return safe global template/version
+metadata only and do not create customer configuration, bind campaigns, execute
+journeys, provision providers, change auth, create billing, or move money.
 Seeded write routes remain local/staging-only smoke candidates and are
 classified explicitly below.
 
@@ -96,6 +100,8 @@ The active application mounts these Referral SaaS-relevant shared primitives:
 | Read-only product diagnostic | GET | `/v1/referral-saas/operator/links/inspect` | Referral SaaS operator link/code inspection wrapper |
 | Read-only product diagnostic | GET | `/v1/referral-saas/operator/outcomes/{referral_track_id}/trace` | Referral SaaS operator attribution trace wrapper |
 | Read-only product diagnostic | GET | `/v1/referral-saas/operator/referrals/{referral_track_id}/progress-status` | Referral SaaS operator progress/status diagnostics wrapper |
+| Read-only product catalogue | GET | `/v1/referral-saas/journey-templates` | Amplifi Admin governed journey template catalogue |
+| Read-only product catalogue | GET | `/v1/referral-saas/journey-templates/{template_code}` | Amplifi Admin governed journey template detail |
 | Read-only product account | GET | `/v1/referral-saas/accounts` | Referral SaaS account registry wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/resolve` | Referral SaaS account resolver wrapper |
 | Read-only product account | GET | `/v1/referral-saas/accounts/membership-posture` | Referral SaaS account membership posture wrapper |
@@ -153,6 +159,8 @@ local/staging smoke classification:
 - `GET /v1/referral-saas/operator/links/inspect`
 - `GET /v1/referral-saas/operator/outcomes/{referral_track_id}/trace`
 - `GET /v1/referral-saas/operator/referrals/{referral_track_id}/progress-status`
+- `GET /v1/referral-saas/journey-templates`
+- `GET /v1/referral-saas/journey-templates/{template_code}`
 - `GET /v1/referral-saas/accounts`
 - `GET /v1/referral-saas/accounts/resolve`
 - `GET /v1/referral-saas/accounts/membership-posture`

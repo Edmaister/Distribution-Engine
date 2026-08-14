@@ -851,6 +851,176 @@ async def test_referral_saas_account_reader_can_list_safe_account_registry(monke
     assert calls == [{"limit": 20}]
 
 
+async def test_referral_saas_admin_can_list_journey_template_catalogue(monkeypatch):
+    calls: list[dict] = []
+
+    async def fake_list_referral_saas_journey_templates(**kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "status": "READY",
+                "templateCount": 1,
+                "statusFilter": ["APPROVED", "DRAFT"],
+                "templates": [
+                    {
+                        "templateCode": "REFERRAL_STANDARD",
+                        "templateName": "Referral standard",
+                        "templateFamily": "REFERRAL",
+                        "status": "APPROVED",
+                        "safeSummary": {"plainLanguageName": "Referral standard"},
+                        "versionCount": 1,
+                        "versions": [
+                            {
+                                "templateVersion": "1.0.0",
+                                "status": "APPROVED",
+                                "milestoneCount": 2,
+                                "transitionRuleCount": 1,
+                                "evidenceRequirementCount": 1,
+                            }
+                        ],
+                    }
+                ],
+                "guardrails": ["READ_ONLY_TEMPLATE_CATALOGUE"],
+                "redactions": ["definition_payload", "tenant_code"],
+                "noTenantDataConfirmed": True,
+                "noCustomerConfigurationWriteConfirmed": True,
+                "noRuntimeExecutionConfirmed": True,
+                "noCampaignBindingConfirmed": True,
+                "noProviderAuthBillingOrMoneyActionConfirmed": True,
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_journey_templates",
+        fake_list_referral_saas_journey_templates,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/journey-templates",
+            params={"status": ["APPROVED", "DRAFT"], "limit": 10},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["templateCount"] == 1
+    assert body["templates"][0]["templateCode"] == "REFERRAL_STANDARD"
+    assert body["noCustomerConfigurationWriteConfirmed"] is True
+    assert body["noRuntimeExecutionConfirmed"] is True
+    assert body["noProviderAuthBillingOrMoneyActionConfirmed"] is True
+    assert "definitionPayload" not in str(body["templates"][0])
+    assert calls == [
+        {
+            "statuses": ["APPROVED", "DRAFT"],
+            "include_archived": False,
+            "limit": 10,
+        }
+    ]
+
+
+async def test_referral_saas_admin_can_get_journey_template_catalogue_detail(
+    monkeypatch,
+):
+    calls: list[dict] = []
+
+    async def fake_get_referral_saas_journey_template(**kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "templateCode": "REFERRAL_STANDARD",
+                "templateName": "Referral standard",
+                "templateFamily": "REFERRAL",
+                "status": "APPROVED",
+                "versions": [
+                    {
+                        "templateVersion": "1.0.0",
+                        "milestoneCount": 2,
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_journey_template",
+        fake_get_referral_saas_journey_template,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/journey-templates/REFERRAL_STANDARD",
+            params={"includeArchived": "true"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "READY"
+    assert body["template"]["templateCode"] == "REFERRAL_STANDARD"
+    assert body["noCampaignBindingConfirmed"] is True
+    assert calls == [
+        {
+            "template_code": "REFERRAL_STANDARD",
+            "statuses": None,
+            "include_archived": True,
+        }
+    ]
+
+
+async def test_referral_saas_journey_template_catalogue_rejects_bad_status(
+    monkeypatch,
+):
+    async def fake_list_referral_saas_journey_templates(**kwargs):
+        raise referral_saas_accounts.JourneyTemplateCatalogueValidationError(
+            "Unsupported journey template status: LIVE"
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_journey_templates",
+        fake_list_referral_saas_journey_templates,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/journey-templates",
+            params={"status": "LIVE"},
+        )
+
+    assert response.status_code == 422
+    body = response.json()["detail"]
+    assert body["code"] == "journey_template_catalogue_validation_error"
+    assert body["noCustomerConfigurationWriteConfirmed"] is True
+
+
+async def test_referral_saas_journey_template_detail_returns_404_for_missing(
+    monkeypatch,
+):
+    async def fake_get_referral_saas_journey_template(**kwargs):
+        raise referral_saas_accounts.JourneyTemplateNotFound("UNKNOWN")
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_journey_template",
+        fake_get_referral_saas_journey_template,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get("/v1/referral-saas/journey-templates/UNKNOWN")
+
+    assert response.status_code == 404
+    body = response.json()["detail"]
+    assert body["code"] == "journey_template_not_found"
+    assert body["noTenantDataConfirmed"] is True
+
+
+async def test_referral_saas_partner_cannot_list_global_journey_templates():
+    async with AsyncClient(app=app, base_url="http://test", headers=PARTNER_HEADERS) as client:
+        response = await client.get("/v1/referral-saas/journey-templates")
+
+    assert response.status_code == 403
+
+
 async def test_referral_saas_partner_workspace_account_context_is_account_scoped(
     monkeypatch,
 ):
