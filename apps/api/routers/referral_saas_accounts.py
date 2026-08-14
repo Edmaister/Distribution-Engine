@@ -243,17 +243,24 @@ from services.referral_saas_integrations_configuration_service import (
 from services.referral_saas_journey_configuration_service import (
     CUSTOMER_JOURNEY_DRAFT_GUARDRAILS,
     CUSTOMER_JOURNEY_DRAFT_REDACTIONS,
+    CUSTOMER_JOURNEY_VERSION_GUARDRAILS,
+    CUSTOMER_JOURNEY_VERSION_REDACTIONS,
     JOURNEY_TEMPLATE_CATALOGUE_GUARDRAILS,
     JOURNEY_TEMPLATE_CATALOGUE_REDACTIONS,
     CustomerJourneyDraftIdempotencyConflict,
     CustomerJourneyDraftNotFound,
     CustomerJourneyDraftUnsafePayload,
     CustomerJourneyDraftValidationError,
+    CustomerJourneyVersionArchiveBlocked,
+    CustomerJourneyVersionCommandError,
+    CustomerJourneyVersionNotFound,
     JourneyTemplateCatalogueValidationError,
     JourneyTemplateNotFound,
+    archive_referral_saas_customer_journey_version,
     get_referral_saas_journey_template,
     list_referral_saas_customer_journey_drafts,
     list_referral_saas_journey_templates,
+    publish_referral_saas_customer_journey_version,
     save_referral_saas_customer_journey_draft,
     validate_referral_saas_customer_journey_draft,
 )
@@ -619,6 +626,19 @@ class ReferralSaasCustomerJourneyDraftSaveRequest(BaseModel):
 
 class ReferralSaasCustomerJourneyDraftValidateRequest(BaseModel):
     accountScope: dict[str, Any] = Field(default_factory=dict)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasCustomerJourneyDraftPublishRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasCustomerJourneyVersionArchiveRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    archiveReason: str = Field(min_length=1, max_length=500)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str = Field(min_length=1)
 
@@ -4221,6 +4241,174 @@ async def validate_referral_saas_customer_journey_draft_configuration(
         "noProviderDispatchConfirmed": True,
         "noAuthBillingOrMoneyActionConfirmed": True,
     }
+
+
+@router.post("/accounts/{account_ref}/journey-drafts/{draft_ref}/publish")
+async def publish_referral_saas_customer_journey_draft_configuration(
+    account_ref: str,
+    draft_ref: str,
+    request: ReferralSaasCustomerJourneyDraftPublishRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_customer_journey_draft_account_context(
+        account_ref=account_ref,
+        account_scope=request.accountScope,
+        identity=admin_identity,
+    )
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await publish_referral_saas_customer_journey_version(
+            account_id=account.account_id,
+            customer_journey_draft_id=draft_ref,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except CustomerJourneyDraftIdempotencyConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "IDEMPOTENCY_CONFLICT",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_VERSION_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_VERSION_REDACTIONS),
+            },
+        ) from exc
+    except CustomerJourneyDraftValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "VALIDATION_ERROR",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_VERSION_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_VERSION_REDACTIONS),
+            },
+        ) from exc
+    except CustomerJourneyDraftNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "CUSTOMER_JOURNEY_DRAFT_NOT_FOUND",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_VERSION_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_VERSION_REDACTIONS),
+            },
+        ) from exc
+    except CustomerJourneyVersionNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "CUSTOMER_JOURNEY_VERSION_NOT_FOUND",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_VERSION_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_VERSION_REDACTIONS),
+            },
+        ) from exc
+
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "guardrail": (
+                "Customer journey publish for the selected account. This "
+                "creates an immutable published version from validated draft "
+                "evidence only; it does not bind campaigns, execute journeys, "
+                "dispatch providers, change auth, bill, settle, pay out, or "
+                "move money."
+            ),
+        }
+    )
+    return body
+
+
+@router.post("/accounts/{account_ref}/journey-versions/{version_ref}/archive")
+async def archive_referral_saas_customer_journey_version_configuration(
+    account_ref: str,
+    version_ref: str,
+    request: ReferralSaasCustomerJourneyVersionArchiveRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_customer_journey_draft_account_context(
+        account_ref=account_ref,
+        account_scope=request.accountScope,
+        identity=admin_identity,
+    )
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await archive_referral_saas_customer_journey_version(
+            account_id=account.account_id,
+            customer_journey_version_id=version_ref,
+            archive_reason=request.archiveReason,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except CustomerJourneyDraftIdempotencyConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "IDEMPOTENCY_CONFLICT",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_VERSION_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_VERSION_REDACTIONS),
+            },
+        ) from exc
+    except CustomerJourneyVersionArchiveBlocked as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "CUSTOMER_JOURNEY_VERSION_ARCHIVE_BLOCKED",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_VERSION_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_VERSION_REDACTIONS),
+                "noCampaignBindingMutationConfirmed": True,
+            },
+        ) from exc
+    except CustomerJourneyVersionCommandError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "CUSTOMER_JOURNEY_VERSION_COMMAND_ERROR",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_VERSION_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_VERSION_REDACTIONS),
+            },
+        ) from exc
+    except CustomerJourneyVersionNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "CUSTOMER_JOURNEY_VERSION_NOT_FOUND",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_VERSION_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_VERSION_REDACTIONS),
+            },
+        ) from exc
+
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "guardrail": (
+                "Customer journey archive for the selected account. This "
+                "archives a published version only when no active campaign "
+                "binding blocks it; it does not bind campaigns, execute "
+                "journeys, dispatch providers, change auth, bill, settle, "
+                "pay out, or move money."
+            ),
+        }
+    )
+    return body
 
 
 @router.get("/accounts/resolve")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Mapping, Sequence
@@ -80,6 +81,21 @@ CUSTOMER_JOURNEY_DRAFT_UNSAFE_KEY_TOKENS = tuple(
     str(token).lower() for token in CUSTOMER_JOURNEY_DRAFT_REDACTIONS
 )
 
+CUSTOMER_JOURNEY_VERSION_GUARDRAILS = (
+    "ACCOUNT_SCOPED_CUSTOMER_JOURNEY_VERSION",
+    "VALIDATED_DRAFT_REQUIRED",
+    "IMMUTABLE_PUBLISHED_VERSION",
+    "IDEMPOTENT_VERSION_COMMANDS",
+    "ARCHIVE_ACTIVE_BINDING_BLOCKED",
+    "NO_RUNTIME_JOURNEY_MUTATION",
+    "NO_CAMPAIGN_BINDING",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_PROVIDER_DISPATCH",
+    "NO_AUTH_BILLING_OR_MONEY_ACTION",
+)
+
+CUSTOMER_JOURNEY_VERSION_REDACTIONS = CUSTOMER_JOURNEY_DRAFT_REDACTIONS
+
 REWARD_CONFIGURATION_UNSAFE_KEYS = frozenset(
     {
         "amount",
@@ -133,6 +149,18 @@ class CustomerJourneyDraftNotFound(Exception):
 
 
 class CustomerJourneyDraftIdempotencyConflict(Exception):
+    pass
+
+
+class CustomerJourneyVersionNotFound(Exception):
+    pass
+
+
+class CustomerJourneyVersionCommandError(ValueError):
+    pass
+
+
+class CustomerJourneyVersionArchiveBlocked(CustomerJourneyVersionCommandError):
     pass
 
 
@@ -325,6 +353,86 @@ class CustomerJourneyDraftValidationResult:
             "createdAt": _isoformat(self.created_at),
             "guardrails": list(CUSTOMER_JOURNEY_DRAFT_GUARDRAILS),
             "redactions": list(CUSTOMER_JOURNEY_DRAFT_REDACTIONS),
+            "noRuntimeJourneyMutationConfirmed": True,
+            "noCampaignBindingConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noProviderDispatchConfirmed": True,
+            "noAuthBillingOrMoneyActionConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class CustomerJourneyVersion:
+    customer_journey_version_id: str
+    account_id: str
+    customer_journey_draft_id: str | None
+    journey_template_version_id: str
+    template_code: str
+    template_version: str
+    customer_journey_code: str
+    version_number: int
+    version_status: str
+    published_configuration_payload: dict[str, Any]
+    payload_hash: str
+    published_by_ref: str
+    published_at: datetime | str | None
+    archived_by_ref: str | None
+    archived_at: datetime | str | None
+    archive_reason: str | None
+    rollback_from_version_id: str | None
+    safe_summary: dict[str, Any]
+    governance_metadata: dict[str, Any]
+    created_at: datetime | str | None
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "customerJourneyVersionId": self.customer_journey_version_id,
+            "accountId": self.account_id,
+            "customerJourneyDraftId": self.customer_journey_draft_id,
+            "journeyTemplateVersionId": self.journey_template_version_id,
+            "templateCode": self.template_code,
+            "templateVersion": self.template_version,
+            "customerJourneyCode": self.customer_journey_code,
+            "versionNumber": self.version_number,
+            "versionStatus": self.version_status,
+            "publishedConfigurationPayload": _redact_json(
+                self.published_configuration_payload
+            ),
+            "payloadHash": self.payload_hash,
+            "publishedByRef": self.published_by_ref,
+            "publishedAt": _isoformat(self.published_at),
+            "archivedByRef": self.archived_by_ref,
+            "archivedAt": _isoformat(self.archived_at),
+            "archiveReason": self.archive_reason,
+            "rollbackFromVersionId": self.rollback_from_version_id,
+            "safeSummary": self.safe_summary,
+            "governanceMetadata": _redact_json(self.governance_metadata),
+            "createdAt": _isoformat(self.created_at),
+            "guardrails": list(CUSTOMER_JOURNEY_VERSION_GUARDRAILS),
+            "redactions": list(CUSTOMER_JOURNEY_VERSION_REDACTIONS),
+            "noRuntimeJourneyMutationConfirmed": True,
+            "noCampaignBindingConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noProviderDispatchConfirmed": True,
+            "noAuthBillingOrMoneyActionConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class CustomerJourneyVersionCommandResult:
+    command_status: str
+    version: CustomerJourneyVersion
+    idempotency_status: str
+    archive_blockers: tuple[dict[str, Any], ...] = ()
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "idempotencyStatus": self.idempotency_status,
+            "version": self.version.to_safe_dict(),
+            "archiveBlockers": list(self.archive_blockers),
+            "guardrails": list(CUSTOMER_JOURNEY_VERSION_GUARDRAILS),
+            "redactions": list(CUSTOMER_JOURNEY_VERSION_REDACTIONS),
             "noRuntimeJourneyMutationConfirmed": True,
             "noCampaignBindingConfirmed": True,
             "noCampaignActivationConfirmed": True,
@@ -735,6 +843,45 @@ def _validation_result_from_row(
         else (),
         safe_summary=_json_dict(_row_value(row, "safe_summary")),
         payload_hash=str(_row_value(row, "payload_hash")),
+        created_at=_row_value(row, "created_at"),
+    )
+
+
+def _customer_journey_code(value: str) -> str:
+    normalised = re.sub(r"[^A-Z0-9]+", "_", value.upper()).strip("_")
+    normalised = re.sub(r"_+", "_", normalised)
+    return (normalised or "CUSTOMER_JOURNEY")[:120]
+
+
+def _version_from_row(row: Mapping[str, Any]) -> CustomerJourneyVersion:
+    return CustomerJourneyVersion(
+        customer_journey_version_id=str(
+            _row_value(row, "customer_journey_version_id")
+        ),
+        account_id=str(_row_value(row, "account_id")),
+        customer_journey_draft_id=str(_row_value(row, "customer_journey_draft_id"))
+        if _row_value(row, "customer_journey_draft_id")
+        else None,
+        journey_template_version_id=str(_row_value(row, "journey_template_version_id")),
+        template_code=str(_row_value(row, "template_code")),
+        template_version=str(_row_value(row, "template_version")),
+        customer_journey_code=str(_row_value(row, "customer_journey_code")),
+        version_number=int(_row_value(row, "version_number") or 1),
+        version_status=str(_row_value(row, "version_status")),
+        published_configuration_payload=_json_dict(
+            _row_value(row, "published_configuration_payload")
+        ),
+        payload_hash=str(_row_value(row, "payload_hash")),
+        published_by_ref=str(_row_value(row, "published_by_ref")),
+        published_at=_row_value(row, "published_at"),
+        archived_by_ref=_row_value(row, "archived_by_ref"),
+        archived_at=_row_value(row, "archived_at"),
+        archive_reason=_row_value(row, "archive_reason"),
+        rollback_from_version_id=str(_row_value(row, "rollback_from_version_id"))
+        if _row_value(row, "rollback_from_version_id")
+        else None,
+        safe_summary=_json_dict(_row_value(row, "safe_summary")),
+        governance_metadata=_json_dict(_row_value(row, "governance_metadata")),
         created_at=_row_value(row, "created_at"),
     )
 
@@ -1620,8 +1767,9 @@ async def validate_referral_saas_customer_journey_draft(
                 """
                 UPDATE referral_saas_customer_journey_drafts
                 SET last_validation_status = $3,
-                    draft_status = $4,
-                    updated_by_ref = $5,
+                    last_validation_result_id = $4,
+                    draft_status = $5,
+                    updated_by_ref = $6,
                     updated_at = now()
                 WHERE customer_journey_draft_id = $1
                   AND account_id = $2
@@ -1629,6 +1777,7 @@ async def validate_referral_saas_customer_journey_draft(
                 safe_draft_id,
                 safe_account_id,
                 validation_status,
+                validation_id,
                 next_draft_status,
                 safe_actor_ref,
             )
@@ -1692,3 +1841,478 @@ async def validate_referral_saas_customer_journey_draft(
             )
 
     return _validation_result_from_row(validation_row)
+
+
+async def publish_referral_saas_customer_journey_version(
+    *,
+    account_id: str,
+    customer_journey_draft_id: str,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None,
+    correlation_id: str | None = None,
+) -> CustomerJourneyVersionCommandResult:
+    safe_account_id = _required_text(account_id, "account_id", max_length=80)
+    safe_draft_id = _required_text(
+        customer_journey_draft_id, "customer_journey_draft_id", max_length=80
+    )
+    safe_idempotency_hash = _required_text(
+        idempotency_key_hash, "idempotency_key_hash", max_length=256
+    )
+    safe_request_hash = _required_text(
+        request_payload_hash, "request_payload_hash", max_length=256
+    )
+    safe_actor_ref = _required_text(actor_ref, "actor_ref", max_length=160)
+    safe_actor_role = _optional_text(actor_role, max_length=80)
+    safe_correlation_id = _optional_text(correlation_id, max_length=160)
+
+    async with db_connection() as conn:
+        existing_idempotency = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_journey_configuration_idempotency_keys
+            WHERE account_id = $1
+              AND operation_type = 'CUSTOMER_JOURNEY_VERSION_PUBLISH'
+              AND idempotency_key_hash = $2
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_idempotency_hash,
+        )
+        if existing_idempotency:
+            if (
+                _row_value(existing_idempotency, "request_payload_hash")
+                != safe_request_hash
+            ):
+                raise CustomerJourneyDraftIdempotencyConflict(
+                    "Idempotency key was reused with different journey publish content."
+                )
+            version_row = await conn.fetchrow(
+                """
+                SELECT
+                    cv.*,
+                    tv.template_code,
+                    tv.template_version
+                FROM referral_saas_customer_journey_versions cv
+                JOIN referral_saas_journey_template_versions tv
+                    ON tv.journey_template_version_id = cv.journey_template_version_id
+                WHERE cv.customer_journey_version_id = $1
+                  AND cv.account_id = $2
+                LIMIT 1
+                """,
+                _row_value(existing_idempotency, "resource_id"),
+                safe_account_id,
+            )
+            if not version_row:
+                raise CustomerJourneyVersionNotFound(
+                    str(_row_value(existing_idempotency, "resource_id"))
+                )
+            return CustomerJourneyVersionCommandResult(
+                command_status="VERSION_PUBLISHED",
+                version=_version_from_row(version_row),
+                idempotency_status="REPLAY_SAME_PAYLOAD",
+            )
+
+        draft_row = await conn.fetchrow(
+            """
+            SELECT
+                d.*,
+                tv.template_code,
+                tv.template_version,
+                tv.status AS template_version_status,
+                vr.validation_status AS recorded_validation_status,
+                vr.payload_hash AS validation_payload_hash,
+                vr.safe_summary AS validation_safe_summary
+            FROM referral_saas_customer_journey_drafts d
+            JOIN referral_saas_journey_template_versions tv
+                ON tv.journey_template_version_id = d.journey_template_version_id
+            LEFT JOIN referral_saas_journey_validation_results vr
+                ON vr.journey_validation_result_id = d.last_validation_result_id
+            WHERE d.customer_journey_draft_id = $1
+              AND d.account_id = $2
+              AND d.archived_at IS NULL
+            LIMIT 1
+            """,
+            safe_draft_id,
+            safe_account_id,
+        )
+        if not draft_row:
+            raise CustomerJourneyDraftNotFound(safe_draft_id)
+        if _row_value(draft_row, "template_version_status") != "APPROVED":
+            raise CustomerJourneyDraftValidationError(
+                "Journey draft must reference an approved template version."
+            )
+
+        validation_status = str(_row_value(draft_row, "last_validation_status") or "")
+        recorded_validation_status = str(
+            _row_value(draft_row, "recorded_validation_status") or ""
+        )
+        if validation_status not in {"PASSED", "PASSED_WITH_WARNINGS"}:
+            raise CustomerJourneyDraftValidationError(
+                "Journey draft must pass validation before it can be published."
+            )
+        if recorded_validation_status != validation_status:
+            raise CustomerJourneyDraftValidationError(
+                "Journey draft validation evidence is missing or stale."
+            )
+        if (
+            _row_value(draft_row, "validation_payload_hash")
+            != _row_value(draft_row, "payload_hash")
+        ):
+            raise CustomerJourneyDraftValidationError(
+                "Journey draft changed after validation and must be revalidated."
+            )
+
+        configuration_payload = _normalise_configuration_payload(
+            _row_value(draft_row, "configuration_payload")
+        )
+        customer_journey_code = _customer_journey_code(
+            str(
+                _row_value(draft_row, "draft_name")
+                or _row_value(draft_row, "template_code")
+                or "CUSTOMER_JOURNEY"
+            )
+        )
+        safe_summary = _json_dict(_row_value(draft_row, "validation_safe_summary"))
+        governance_metadata = {
+            "sourceDraftStatus": _row_value(draft_row, "draft_status"),
+            "sourceDraftVersion": _row_value(draft_row, "draft_version"),
+            "validationResultId": str(_row_value(draft_row, "last_validation_result_id")),
+            "validationStatus": validation_status,
+            "templateCode": _row_value(draft_row, "template_code"),
+            "templateVersion": _row_value(draft_row, "template_version"),
+            "noRuntimeJourneyMutationConfirmed": True,
+            "noCampaignBindingConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noProviderDispatchConfirmed": True,
+            "noAuthBillingOrMoneyActionConfirmed": True,
+        }
+
+        async with conn.transaction():
+            version_number_row = await conn.fetchrow(
+                """
+                SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version_number
+                FROM referral_saas_customer_journey_versions
+                WHERE account_id = $1
+                  AND customer_journey_code = $2
+                """,
+                safe_account_id,
+                customer_journey_code,
+            )
+            version_row = await conn.fetchrow(
+                """
+                INSERT INTO referral_saas_customer_journey_versions (
+                    account_id,
+                    customer_journey_draft_id,
+                    journey_template_version_id,
+                    customer_journey_code,
+                    version_number,
+                    version_status,
+                    published_configuration_payload,
+                    payload_hash,
+                    published_by_ref,
+                    safe_summary,
+                    governance_metadata
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, 'PUBLISHED', $6::jsonb, $7, $8,
+                    $9::jsonb, $10::jsonb
+                )
+                RETURNING *
+                """,
+                safe_account_id,
+                safe_draft_id,
+                _row_value(draft_row, "journey_template_version_id"),
+                customer_journey_code,
+                int(_row_value(version_number_row, "next_version_number") or 1),
+                _jsonb(configuration_payload),
+                _row_value(draft_row, "payload_hash"),
+                safe_actor_ref,
+                _jsonb(safe_summary),
+                _jsonb(governance_metadata),
+            )
+            version_id = str(_row_value(version_row, "customer_journey_version_id"))
+            await conn.execute(
+                """
+                UPDATE referral_saas_customer_journey_drafts
+                SET draft_status = 'PUBLISHED',
+                    updated_by_ref = $3,
+                    updated_at = now()
+                WHERE customer_journey_draft_id = $1
+                  AND account_id = $2
+                """,
+                safe_draft_id,
+                safe_account_id,
+                safe_actor_ref,
+            )
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_journey_configuration_idempotency_keys (
+                    account_id,
+                    operation_type,
+                    idempotency_key_hash,
+                    request_payload_hash,
+                    response_payload_hash,
+                    resource_type,
+                    resource_id,
+                    response_status
+                )
+                VALUES ($1, 'CUSTOMER_JOURNEY_VERSION_PUBLISH', $2, $3, $4,
+                        'CUSTOMER_JOURNEY_VERSION', $5, 'SUCCESS')
+                """,
+                safe_account_id,
+                safe_idempotency_hash,
+                safe_request_hash,
+                _payload_hash({"customerJourneyVersionId": version_id}),
+                version_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_journey_configuration_audit (
+                    account_id,
+                    journey_template_version_id,
+                    customer_journey_draft_id,
+                    customer_journey_version_id,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, 'CUSTOMER_JOURNEY_VERSION_PUBLISHED',
+                    'RECORDED', $5, $6, $7, 'PUBLISHED',
+                    'CUSTOMER_JOURNEY_VERSION_PUBLISH', $8, $9, $10::jsonb,
+                    $11::jsonb
+                )
+                """,
+                safe_account_id,
+                _row_value(draft_row, "journey_template_version_id"),
+                safe_draft_id,
+                version_id,
+                safe_actor_ref,
+                safe_actor_role,
+                _row_value(draft_row, "draft_status"),
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(governance_metadata),
+                _jsonb(CUSTOMER_JOURNEY_VERSION_REDACTIONS),
+            )
+            version_row = dict(version_row)
+            version_row["template_code"] = _row_value(draft_row, "template_code")
+            version_row["template_version"] = _row_value(draft_row, "template_version")
+
+    return CustomerJourneyVersionCommandResult(
+        command_status="VERSION_PUBLISHED",
+        version=_version_from_row(version_row),
+        idempotency_status="NEW_REQUEST",
+    )
+
+
+async def archive_referral_saas_customer_journey_version(
+    *,
+    account_id: str,
+    customer_journey_version_id: str,
+    archive_reason: str,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None,
+    correlation_id: str | None = None,
+) -> CustomerJourneyVersionCommandResult:
+    safe_account_id = _required_text(account_id, "account_id", max_length=80)
+    safe_version_id = _required_text(
+        customer_journey_version_id, "customer_journey_version_id", max_length=80
+    )
+    safe_archive_reason = _required_text(
+        archive_reason, "archive_reason", max_length=500
+    )
+    safe_idempotency_hash = _required_text(
+        idempotency_key_hash, "idempotency_key_hash", max_length=256
+    )
+    safe_request_hash = _required_text(
+        request_payload_hash, "request_payload_hash", max_length=256
+    )
+    safe_actor_ref = _required_text(actor_ref, "actor_ref", max_length=160)
+    safe_actor_role = _optional_text(actor_role, max_length=80)
+    safe_correlation_id = _optional_text(correlation_id, max_length=160)
+
+    async with db_connection() as conn:
+        existing_idempotency = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_journey_configuration_idempotency_keys
+            WHERE account_id = $1
+              AND operation_type = 'CUSTOMER_JOURNEY_VERSION_ARCHIVE'
+              AND idempotency_key_hash = $2
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_idempotency_hash,
+        )
+        if existing_idempotency:
+            if (
+                _row_value(existing_idempotency, "request_payload_hash")
+                != safe_request_hash
+            ):
+                raise CustomerJourneyDraftIdempotencyConflict(
+                    "Idempotency key was reused with different journey archive content."
+                )
+            version_row = await conn.fetchrow(
+                """
+                SELECT
+                    cv.*,
+                    tv.template_code,
+                    tv.template_version
+                FROM referral_saas_customer_journey_versions cv
+                JOIN referral_saas_journey_template_versions tv
+                    ON tv.journey_template_version_id = cv.journey_template_version_id
+                WHERE cv.customer_journey_version_id = $1
+                  AND cv.account_id = $2
+                LIMIT 1
+                """,
+                _row_value(existing_idempotency, "resource_id"),
+                safe_account_id,
+            )
+            if not version_row:
+                raise CustomerJourneyVersionNotFound(
+                    str(_row_value(existing_idempotency, "resource_id"))
+                )
+            return CustomerJourneyVersionCommandResult(
+                command_status="VERSION_ARCHIVED",
+                version=_version_from_row(version_row),
+                idempotency_status="REPLAY_SAME_PAYLOAD",
+            )
+
+        version_row = await conn.fetchrow(
+            """
+            SELECT
+                cv.*,
+                tv.template_code,
+                tv.template_version
+            FROM referral_saas_customer_journey_versions cv
+            JOIN referral_saas_journey_template_versions tv
+                ON tv.journey_template_version_id = cv.journey_template_version_id
+            WHERE cv.customer_journey_version_id = $1
+              AND cv.account_id = $2
+            LIMIT 1
+            """,
+            safe_version_id,
+            safe_account_id,
+        )
+        if not version_row:
+            raise CustomerJourneyVersionNotFound(safe_version_id)
+
+        active_binding_row = await conn.fetchrow(
+            """
+            SELECT campaign_journey_binding_id, campaign_code, binding_status
+            FROM referral_saas_campaign_journey_bindings
+            WHERE account_id = $1
+              AND customer_journey_version_id = $2
+              AND binding_status = 'ACTIVE'
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_version_id,
+        )
+        if _row_value(version_row, "version_status") == "ACTIVE" or active_binding_row:
+            raise CustomerJourneyVersionArchiveBlocked(
+                "Journey version cannot be archived while active campaign bindings exist."
+            )
+
+        async with conn.transaction():
+            updated_row = await conn.fetchrow(
+                """
+                UPDATE referral_saas_customer_journey_versions
+                SET version_status = 'ARCHIVED',
+                    archived_by_ref = $3,
+                    archived_at = now(),
+                    archive_reason = $4
+                WHERE customer_journey_version_id = $1
+                  AND account_id = $2
+                  AND version_status <> 'ARCHIVED'
+                RETURNING *
+                """,
+                safe_version_id,
+                safe_account_id,
+                safe_actor_ref,
+                safe_archive_reason,
+            )
+            if not updated_row:
+                updated_row = version_row
+            version_id = str(_row_value(updated_row, "customer_journey_version_id"))
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_journey_configuration_idempotency_keys (
+                    account_id,
+                    operation_type,
+                    idempotency_key_hash,
+                    request_payload_hash,
+                    response_payload_hash,
+                    resource_type,
+                    resource_id,
+                    response_status
+                )
+                VALUES ($1, 'CUSTOMER_JOURNEY_VERSION_ARCHIVE', $2, $3, $4,
+                        'CUSTOMER_JOURNEY_VERSION', $5, 'SUCCESS')
+                """,
+                safe_account_id,
+                safe_idempotency_hash,
+                safe_request_hash,
+                _payload_hash({"customerJourneyVersionId": version_id}),
+                version_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_journey_configuration_audit (
+                    account_id,
+                    journey_template_version_id,
+                    customer_journey_draft_id,
+                    customer_journey_version_id,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, 'CUSTOMER_JOURNEY_VERSION_ARCHIVED',
+                    'RECORDED', $5, $6, $7, 'ARCHIVED',
+                    'CUSTOMER_JOURNEY_VERSION_ARCHIVE', $8, $9, $10::jsonb,
+                    $11::jsonb
+                )
+                """,
+                safe_account_id,
+                _row_value(version_row, "journey_template_version_id"),
+                _row_value(version_row, "customer_journey_draft_id"),
+                version_id,
+                safe_actor_ref,
+                safe_actor_role,
+                _row_value(version_row, "version_status"),
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb({"archiveReason": safe_archive_reason}),
+                _jsonb(CUSTOMER_JOURNEY_VERSION_REDACTIONS),
+            )
+            updated_row = dict(updated_row)
+            updated_row["template_code"] = _row_value(version_row, "template_code")
+            updated_row["template_version"] = _row_value(version_row, "template_version")
+
+    return CustomerJourneyVersionCommandResult(
+        command_status="VERSION_ARCHIVED",
+        version=_version_from_row(updated_row),
+        idempotency_status="NEW_REQUEST",
+    )

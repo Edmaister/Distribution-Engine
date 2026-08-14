@@ -230,7 +230,13 @@ analytics, UI, and non-local proof remain with TASK-388 through TASK-394.
 TASK-387 now adds richer validation/simulation behind the existing customer
 journey draft validate route, including milestone/transition/evidence checks,
 reward-safety checks, attribution-safety checks, safe-to-publish summaries, and
-no runtime/provider/auth/billing/money side effects.
+no runtime/provider/auth/billing/money side effects. TASK-388 now adds
+selected-customer publish/archive APIs for validated customer journey drafts,
+creating immutable published versions with idempotency, audit, stale-validation
+blocking, active-binding archive protection, and no runtime/provider/auth/
+billing/money side effects. UI, campaign binding enforcement, incentive
+binding, runtime migration, analytics, and non-local proof remain with TASK-389
+through TASK-394.
 
 ## Recommended Ordered Task Sequence
 
@@ -452,7 +458,7 @@ no runtime/provider/auth/billing/money side effects.
 216. TASK-385: Add admin journey template catalogue read API. (Complete - read-only catalogue API added.)
 217. TASK-386: Add customer journey draft read, save, and validate API. (Complete - account-scoped draft API added.)
 218. TASK-387: Add journey validation and simulation service. (Complete - richer validation/simulation service added.)
-219. TASK-388: Add publish and archive customer journey version API.
+219. TASK-388: Add publish and archive customer journey version API. (Complete - governed publish/archive API added.)
 220. TASK-389: Add journey template catalogue and draft configuration UX.
 221. TASK-390: Bind campaigns to published journey versions.
 222. TASK-391: Add rewards, missions, badges, and leaderboard binding controls.
