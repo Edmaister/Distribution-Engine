@@ -5833,6 +5833,9 @@ async def test_referral_saas_account_admin_can_read_customer_scoped_campaign_rea
             "unknowns": [],
         }
 
+    async def fake_get_referral_saas_campaign_journey_binding(**kwargs):
+        return None
+
     monkeypatch.setattr(
         referral_saas_accounts,
         "resolve_setup_account_by_external_reference",
@@ -5842,6 +5845,11 @@ async def test_referral_saas_account_admin_can_read_customer_scoped_campaign_rea
         referral_saas_accounts,
         "get_campaign_readiness",
         fake_get_campaign_readiness,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_campaign_journey_binding",
+        fake_get_referral_saas_campaign_journey_binding,
     )
 
     async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
