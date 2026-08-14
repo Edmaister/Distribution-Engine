@@ -8622,7 +8622,7 @@ Priority: P1.
 
 ## TASK-388: Add publish and archive customer journey version API
 
-Status: Planned.
+Status: Complete.
 Product boundary: Referral SaaS.
 Shared primitive impact: Adds immutable version governance for customer journey configuration. Source duplication: No.
 Objective: Publish validated customer journey drafts as immutable versions and archive old versions safely.
@@ -8633,7 +8633,7 @@ Backend impact: Adds publish/archive commands with validation gates, audit, idem
 Frontend impact: None.
 API impact: Adds publish/archive routes.
 Tests to add/update: Publish without validation blocked, immutable published payload, archive active-binding blocked or warned, idempotency, audit, capability.
-Acceptance criteria: Only validated drafts can publish; published versions cannot mutate; archive is controlled; no runtime switch, campaign activation, reward payment, provider, auth, billing, settlement, or money side effect occurs.
+Acceptance criteria: Complete - validated customer journey drafts can publish to immutable customer journey versions through the selected-customer API, unvalidated or stale validation evidence is blocked, archive is controlled and blocks active versions or active campaign bindings, idempotency conflicts fail closed, and audit/readback evidence confirms no runtime switch, campaign activation, reward payment, provider, auth, billing, settlement, or money side effect occurs.
 Dependencies: TASK-387.
 Priority: P1.
 
