@@ -8582,7 +8582,7 @@ Completed output:
 
 ## TASK-386: Add customer journey draft read, save, and validate API
 
-Status: Planned.
+Status: Complete.
 Product boundary: Referral SaaS.
 Shared primitive impact: Adds account-scoped journey configuration command/read wrappers. Source duplication: No.
 Objective: Allow a customer or Amplifi Admin to create, read, update, and validate a customer journey draft from an approved global template.
@@ -8596,6 +8596,12 @@ Tests to add/update: Account scope, capability, idempotency replay/conflict, inv
 Acceptance criteria: Draft configuration is account-scoped, validated against template rules, safe to replay idempotently, and cannot activate campaigns, mutate runtime journeys, dispatch providers, change auth, bill, settle, pay out, or move money.
 Dependencies: TASK-385.
 Priority: P1.
+
+Completed output:
+- Added selected-customer journey draft list, save, and validate routes under `/v1/referral-saas/accounts/{account_ref}/journey-drafts`.
+- Added service-layer draft persistence, approved-template lookup, payload hashing, idempotency replay/conflict handling, validation-result persistence, audit evidence, guardrails, and redactions over the TASK-384 schema.
+- Added API and route-smoke coverage for account scope, safe command/read responses, idempotency conflict mapping, unsafe-payload rejection, and validation output.
+- No runtime journey execution, campaign binding, campaign activation, provider dispatch, auth, billing, payout, settlement, or money behavior was introduced.
 
 ## TASK-387: Add journey validation and simulation service
 

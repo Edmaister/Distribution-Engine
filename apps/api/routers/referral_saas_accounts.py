@@ -8,7 +8,10 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, st
 from pydantic import BaseModel, Field
 
 from services.campaign_readiness_service import get_campaign_readiness
-from services.onboarding.onboarding_draft_idempotency_service import hash_payload
+from services.onboarding.onboarding_draft_idempotency_service import (
+    hash_idempotency_key,
+    hash_payload,
+)
 from services.referral_code import (
     get_or_create_referrer_code,
     validate_referral_code,
@@ -238,12 +241,21 @@ from services.referral_saas_integrations_configuration_service import (
     validate_referral_saas_integration_configuration,
 )
 from services.referral_saas_journey_configuration_service import (
+    CUSTOMER_JOURNEY_DRAFT_GUARDRAILS,
+    CUSTOMER_JOURNEY_DRAFT_REDACTIONS,
     JOURNEY_TEMPLATE_CATALOGUE_GUARDRAILS,
     JOURNEY_TEMPLATE_CATALOGUE_REDACTIONS,
+    CustomerJourneyDraftIdempotencyConflict,
+    CustomerJourneyDraftNotFound,
+    CustomerJourneyDraftUnsafePayload,
+    CustomerJourneyDraftValidationError,
     JourneyTemplateCatalogueValidationError,
     JourneyTemplateNotFound,
     get_referral_saas_journey_template,
+    list_referral_saas_customer_journey_drafts,
     list_referral_saas_journey_templates,
+    save_referral_saas_customer_journey_draft,
+    validate_referral_saas_customer_journey_draft,
 )
 from services.referral_saas_technical_setup_service import (
     build_referral_saas_technical_setup_readiness,
@@ -592,6 +604,23 @@ class ReferralSaasProviderVaultExecutionRequest(BaseModel):
     reasonCode: str | None = Field(default=None)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str | None = Field(default=None)
+
+
+class ReferralSaasCustomerJourneyDraftSaveRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    templateCode: str = Field(min_length=1)
+    templateVersion: str | None = Field(default=None)
+    draftName: str = Field(min_length=1)
+    configurationPayload: dict[str, Any] = Field(default_factory=dict)
+    customerJourneyDraftId: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasCustomerJourneyDraftValidateRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
 
 
 def _require_referral_saas_account_reader(identity: dict[str, Any]) -> dict[str, Any]:
@@ -1199,6 +1228,47 @@ async def _resolve_active_campaign_link_code_context(
     )
     _require_active_campaign(campaign_code, campaign)
     return normalised_context, account, campaign
+
+
+async def _resolve_customer_journey_draft_account_context(
+    *,
+    account_ref: str,
+    account_scope: dict[str, Any],
+    identity: dict[str, Any] | None = None,
+) -> tuple[str, Any]:
+    if not isinstance(account_scope, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope is required.",
+                "guardrails": list(CUSTOMER_JOURNEY_DRAFT_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_DRAFT_REDACTIONS),
+            },
+        )
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    if not ref_type or not external_ref:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope.refType and accountScope.externalRef are required.",
+                "guardrails": list(CUSTOMER_JOURNEY_DRAFT_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_DRAFT_REDACTIONS),
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
+    _assert_account_path_scope(account_ref, account)
+    return normalised_context, account
 
 
 async def _resolve_referral_saas_account_context(
@@ -3916,6 +3986,240 @@ async def get_referral_saas_journey_template_catalogue_item(
         "noRuntimeExecutionConfirmed": True,
         "noCampaignBindingConfirmed": True,
         "noProviderAuthBillingOrMoneyActionConfirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/journey-drafts")
+async def list_referral_saas_customer_journey_draft_configuration(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(description="External reference type used to resolve the account."),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(description="External customer/account reference value."),
+    ],
+    context: Annotated[
+        str,
+        Query(description="setup or runtime account resolution context."),
+    ] = "setup",
+    include_archived: Annotated[
+        bool,
+        Query(alias="includeArchived", description="Include archived drafts."),
+    ] = False,
+    limit: Annotated[
+        int,
+        Query(ge=1, le=100, description="Maximum number of drafts to return."),
+    ] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    reader_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=reader_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    drafts = await list_referral_saas_customer_journey_drafts(
+        account_id=account.account_id,
+        include_archived=include_archived,
+        limit=limit,
+    )
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "count": len(drafts),
+        "drafts": [draft.to_safe_dict() for draft in drafts],
+        "guardrail": (
+            "Read-only customer journey draft list for the selected account. It "
+            "does not create, validate, publish, bind campaigns, execute journeys, "
+            "dispatch providers, change auth, bill, settle, pay out, or move money."
+        ),
+        "guardrails": list(CUSTOMER_JOURNEY_DRAFT_GUARDRAILS),
+        "redactions": list(CUSTOMER_JOURNEY_DRAFT_REDACTIONS),
+        "noRuntimeJourneyMutationConfirmed": True,
+        "noCampaignActivationConfirmed": True,
+        "noProviderDispatchConfirmed": True,
+        "noAuthBillingOrMoneyActionConfirmed": True,
+    }
+
+
+@router.put("/accounts/{account_ref}/journey-drafts")
+async def save_referral_saas_customer_journey_draft_configuration(
+    account_ref: str,
+    request: ReferralSaasCustomerJourneyDraftSaveRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_customer_journey_draft_account_context(
+        account_ref=account_ref,
+        account_scope=request.accountScope,
+        identity=admin_identity,
+    )
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await save_referral_saas_customer_journey_draft(
+            account_id=account.account_id,
+            template_code=request.templateCode,
+            template_version=request.templateVersion,
+            draft_name=request.draftName,
+            configuration_payload=request.configurationPayload,
+            customer_journey_draft_id=request.customerJourneyDraftId,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except CustomerJourneyDraftIdempotencyConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "IDEMPOTENCY_CONFLICT",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_DRAFT_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_DRAFT_REDACTIONS),
+            },
+        ) from exc
+    except CustomerJourneyDraftUnsafePayload as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "REJECTED_UNSAFE_PAYLOAD",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_DRAFT_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_DRAFT_REDACTIONS),
+                "noRuntimeJourneyMutationConfirmed": True,
+                "noCampaignActivationConfirmed": True,
+                "noProviderDispatchConfirmed": True,
+                "noAuthBillingOrMoneyActionConfirmed": True,
+            },
+        ) from exc
+    except CustomerJourneyDraftValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "VALIDATION_ERROR",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_DRAFT_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_DRAFT_REDACTIONS),
+            },
+        ) from exc
+    except (CustomerJourneyDraftNotFound, JourneyTemplateNotFound) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "CUSTOMER_JOURNEY_DRAFT_OR_TEMPLATE_NOT_FOUND",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_DRAFT_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_DRAFT_REDACTIONS),
+            },
+        ) from exc
+
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "guardrail": (
+                "Customer journey draft save for the selected account. This "
+                "records safe configuration intent only; it does not publish, "
+                "bind campaigns, execute journeys, dispatch providers, change "
+                "auth, bill, settle, pay out, or move money."
+            ),
+        }
+    )
+    return body
+
+
+@router.post("/accounts/{account_ref}/journey-drafts/{draft_ref}/validate")
+async def validate_referral_saas_customer_journey_draft_configuration(
+    account_ref: str,
+    draft_ref: str,
+    request: ReferralSaasCustomerJourneyDraftValidateRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_customer_journey_draft_account_context(
+        account_ref=account_ref,
+        account_scope=request.accountScope,
+        identity=admin_identity,
+    )
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        validation = await validate_referral_saas_customer_journey_draft(
+            account_id=account.account_id,
+            customer_journey_draft_id=draft_ref,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except CustomerJourneyDraftIdempotencyConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "IDEMPOTENCY_CONFLICT",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_DRAFT_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_DRAFT_REDACTIONS),
+            },
+        ) from exc
+    except CustomerJourneyDraftUnsafePayload as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "REJECTED_UNSAFE_PAYLOAD",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_DRAFT_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_DRAFT_REDACTIONS),
+            },
+        ) from exc
+    except CustomerJourneyDraftValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "VALIDATION_ERROR",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_DRAFT_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_DRAFT_REDACTIONS),
+            },
+        ) from exc
+    except CustomerJourneyDraftNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "CUSTOMER_JOURNEY_DRAFT_NOT_FOUND",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_DRAFT_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_DRAFT_REDACTIONS),
+            },
+        ) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "validation": validation.to_safe_dict(),
+        "guardrail": (
+            "Customer journey draft validation for the selected account. This "
+            "checks safe draft configuration against an approved template only; "
+            "it does not publish, bind campaigns, execute journeys, dispatch "
+            "providers, change auth, bill, settle, pay out, or move money."
+        ),
+        "guardrails": list(CUSTOMER_JOURNEY_DRAFT_GUARDRAILS),
+        "redactions": list(CUSTOMER_JOURNEY_DRAFT_REDACTIONS),
+        "noRuntimeJourneyMutationConfirmed": True,
+        "noCampaignActivationConfirmed": True,
+        "noProviderDispatchConfirmed": True,
+        "noAuthBillingOrMoneyActionConfirmed": True,
     }
 
 

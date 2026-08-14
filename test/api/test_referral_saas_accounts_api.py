@@ -1014,6 +1014,288 @@ async def test_referral_saas_journey_template_detail_returns_404_for_missing(
     assert body["noTenantDataConfirmed"] is True
 
 
+async def test_referral_saas_admin_can_list_customer_journey_drafts(monkeypatch):
+    resolve_calls: list[dict] = []
+    list_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_list_referral_saas_customer_journey_drafts(**kwargs):
+        list_calls.append(kwargs)
+        return (
+            SimpleNamespace(
+                to_safe_dict=lambda: {
+                    "customerJourneyDraftId": "draft-1",
+                    "draftStatus": "DRAFT",
+                    "templateCode": "REFERRAL_STANDARD",
+                    "configurationPayload": {"milestones": []},
+                    "noRuntimeJourneyMutationConfirmed": True,
+                    "noCampaignActivationConfirmed": True,
+                }
+            ),
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_customer_journey_drafts",
+        fake_list_referral_saas_customer_journey_drafts,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/journey-drafts",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+                "limit": 10,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["count"] == 1
+    assert body["drafts"][0]["customerJourneyDraftId"] == "draft-1"
+    assert body["noRuntimeJourneyMutationConfirmed"] is True
+    assert body["noProviderDispatchConfirmed"] is True
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert list_calls == [
+        {"account_id": "acct-1", "include_archived": False, "limit": 10}
+    ]
+
+
+async def test_referral_saas_admin_can_save_customer_journey_draft(monkeypatch):
+    resolve_calls: list[dict] = []
+    save_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_save_referral_saas_customer_journey_draft(**kwargs):
+        save_calls.append(kwargs)
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "commandStatus": "DRAFT_SAVED",
+                "idempotencyStatus": "NEW_REQUEST",
+                "draft": {
+                    "customerJourneyDraftId": "draft-1",
+                    "draftStatus": "DRAFT",
+                    "templateCode": "REFERRAL_STANDARD",
+                },
+                "noRuntimeJourneyMutationConfirmed": True,
+                "noCampaignBindingConfirmed": True,
+                "noAuthBillingOrMoneyActionConfirmed": True,
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "save_referral_saas_customer_journey_draft",
+        fake_save_referral_saas_customer_journey_draft,
+    )
+
+    payload = {
+        "accountScope": {
+            "refType": "external_tenant_ref",
+            "externalRef": "fnb-referrals",
+            "context": "setup",
+        },
+        "templateCode": "REFERRAL_STANDARD",
+        "templateVersion": "1.0.0",
+        "draftName": "FNB referral journey",
+        "configurationPayload": {"milestones": [{"code": "REFERRED"}]},
+        "idempotencyKey": "draft-save-1",
+    }
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/journey-drafts",
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["commandStatus"] == "DRAFT_SAVED"
+    assert body["draft"]["customerJourneyDraftId"] == "draft-1"
+    assert body["noCampaignBindingConfirmed"] is True
+    assert body["noAuthBillingOrMoneyActionConfirmed"] is True
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert save_calls[0]["account_id"] == "acct-1"
+    assert save_calls[0]["template_code"] == "REFERRAL_STANDARD"
+    assert save_calls[0]["configuration_payload"] == {
+        "milestones": [{"code": "REFERRED"}]
+    }
+    assert save_calls[0]["idempotency_key_hash"]
+    assert save_calls[0]["request_payload_hash"]
+
+
+async def test_referral_saas_customer_journey_draft_save_rejects_conflict(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_save_referral_saas_customer_journey_draft(**kwargs):
+        raise referral_saas_accounts.CustomerJourneyDraftIdempotencyConflict(
+            "Idempotency key was reused with different journey draft content."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "save_referral_saas_customer_journey_draft",
+        fake_save_referral_saas_customer_journey_draft,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/journey-drafts",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "templateCode": "REFERRAL_STANDARD",
+                "draftName": "FNB referral journey",
+                "configurationPayload": {},
+                "idempotencyKey": "draft-save-1",
+            },
+        )
+
+    assert response.status_code == 409
+    body = response.json()["detail"]
+    assert body["code"] == "IDEMPOTENCY_CONFLICT"
+    assert "NO_CAMPAIGN_ACTIVATION" in body["guardrails"]
+
+
+async def test_referral_saas_customer_journey_draft_save_rejects_unsafe_payload(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_save_referral_saas_customer_journey_draft(**kwargs):
+        raise referral_saas_accounts.CustomerJourneyDraftUnsafePayload(
+            "Unsafe customer journey configuration field is not allowed."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "save_referral_saas_customer_journey_draft",
+        fake_save_referral_saas_customer_journey_draft,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/journey-drafts",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "templateCode": "REFERRAL_STANDARD",
+                "draftName": "FNB referral journey",
+                "configurationPayload": {"api_key": "secret"},
+                "idempotencyKey": "draft-save-unsafe",
+            },
+        )
+
+    assert response.status_code == 422
+    body = response.json()["detail"]
+    assert body["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert body["noProviderDispatchConfirmed"] is True
+    assert body["noAuthBillingOrMoneyActionConfirmed"] is True
+
+
+async def test_referral_saas_admin_can_validate_customer_journey_draft(
+    monkeypatch,
+):
+    resolve_calls: list[dict] = []
+    validate_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_validate_referral_saas_customer_journey_draft(**kwargs):
+        validate_calls.append(kwargs)
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "journeyValidationResultId": "validation-1",
+                "customerJourneyDraftId": "draft-1",
+                "validationStatus": "PASSED_WITH_WARNINGS",
+                "blockers": [],
+                "warnings": [{"code": "EMPTY_CONFIGURATION"}],
+                "safeSummary": {"blockerCount": 0, "warningCount": 1},
+                "noRuntimeJourneyMutationConfirmed": True,
+                "noCampaignActivationConfirmed": True,
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "validate_referral_saas_customer_journey_draft",
+        fake_validate_referral_saas_customer_journey_draft,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/journey-drafts/draft-1/validate",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "idempotencyKey": "draft-validate-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["validation"]["validationStatus"] == "PASSED_WITH_WARNINGS"
+    assert body["noRuntimeJourneyMutationConfirmed"] is True
+    assert body["noCampaignActivationConfirmed"] is True
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert validate_calls[0]["account_id"] == "acct-1"
+    assert validate_calls[0]["customer_journey_draft_id"] == "draft-1"
+    assert validate_calls[0]["idempotency_key_hash"]
+    assert validate_calls[0]["request_payload_hash"]
+
+
 async def test_referral_saas_partner_cannot_list_global_journey_templates():
     async with AsyncClient(app=app, base_url="http://test", headers=PARTNER_HEADERS) as client:
         response = await client.get("/v1/referral-saas/journey-templates")
