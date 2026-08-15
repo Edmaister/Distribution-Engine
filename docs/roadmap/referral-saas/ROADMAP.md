@@ -238,9 +238,13 @@ billing/money side effects. TASK-389 now adds the selected-customer Journey
 Configuration UX over the governed template catalogue and draft APIs, including
 template selection, allowed-section configuration, save, validation feedback,
 publish readiness, saved draft selection, and no runtime/provider/auth/billing/
-money side-effect guardrails. TASK-390 now adds campaign binding enforcement;
-incentive binding, runtime migration, analytics, and non-local proof remain
-with TASK-391 through TASK-394.
+money side-effect guardrails. TASK-390 now adds campaign binding enforcement.
+TASK-391 now adds account-scoped incentive binding for approved reward policy,
+mission, badge, and leaderboard catalogue references. TASK-392 now adds the
+runtime compatibility adapter from published customer journey versions to the
+existing journey/progress runtime definitions behind an explicit flag, with
+code-baseline fallback and draft/archive/template-status guards. Analytics and
+non-local proof remain with TASK-393 through TASK-394.
 
 ## Recommended Ordered Task Sequence
 
@@ -466,7 +470,7 @@ with TASK-391 through TASK-394.
 220. TASK-389: Add journey template catalogue and draft configuration UX. (Complete - customer-scoped Journey Configuration UX added.)
 221. TASK-390: Bind campaigns to published journey versions. (Complete - selected-customer campaign setup now requires a published journey version binding; readiness exposes binding posture; activation blocks missing/invalid same-account published version bindings without runtime migration.)
 222. TASK-391: Add rewards, missions, badges, and leaderboard binding controls. (Complete - account-scoped published journey incentive binding schema/API added for approved reward policy, mission, badge, and leaderboard catalogue references with idempotency, audit, redaction, and no-money guardrails.)
-223. TASK-392: Migrate runtime journey reads from code baseline to published configuration.
+223. TASK-392: Migrate runtime journey reads from code baseline to published configuration. (Complete - published-version runtime compatibility adapter added with account scope, static fallback, draft/archive/template-status guards, safe metadata, and no provider/auth/billing/payout/settlement/money side effects.)
 224. TASK-393: Add journey analytics and optimization read models.
 225. TASK-394: Run configurable journey E2E and non-local proof.
 

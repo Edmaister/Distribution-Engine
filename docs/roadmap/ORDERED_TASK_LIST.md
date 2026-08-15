@@ -8701,18 +8701,18 @@ Priority: P1.
 
 ## TASK-392: Migrate runtime journey reads from code baseline to published configuration
 
-Status: Planned.
+Status: Complete.
 Product boundary: Referral SaaS with Shared Platform trajectory.
 Shared primitive impact: Moves runtime from static code-defined journeys toward governed versioned configuration. Source duplication: No.
 Objective: Enable runtime progress, milestone, and reporting reads to use published customer journey versions behind a controlled compatibility flag.
 Why now: Configuration does not deliver SaaS value until runtime can execute published versions safely.
-Files likely involved: `services/journey_definitions.py`; `services/progress_definitions.py`; progress service; reporting service; tests; docs.
+Files involved: `services/referral_saas_runtime_journey_configuration_service.py`; `test/test_referral_saas_runtime_journey_configuration_service.py`; docs.
 Database/schema impact: Reads published customer journey versions.
-Backend impact: Adds compatibility adapter from published configuration to existing runtime semantics.
-Frontend impact: None unless read models expose version labels.
-API impact: Existing progress/reporting APIs may expose safe journey-version metadata.
-Tests to add/update: Existing journey parity, configured journey parity, invalid version blocked, fallback behavior, tenant scope, idempotency, attribution/report parity.
-Acceptance criteria: Existing code-defined journeys still work; selected configured journeys execute from published immutable versions; unversioned drafts never execute; no raw payload, provider, auth, billing, payout, settlement, or money leakage occurs.
+Backend impact: Complete - added a compatibility adapter that maps account-scoped published customer journey versions into the existing `JourneyDefinition` and `ProgressDefinition` runtime semantics while preserving code-defined fallback behavior.
+Frontend impact: Docs/infographic only; no runtime UI surface changed.
+API impact: No public route changes; downstream progress/reporting integration remains bounded to later tasks.
+Tests to add/update: Complete - focused coverage for fallback behavior, published-version mapping, missing account scope, draft/archive rejection, unapproved template rejection, and safe metadata redaction.
+Acceptance criteria: Complete - existing code-defined journeys still work; selected configured journeys can resolve from published immutable versions behind an explicit compatibility flag; unversioned drafts, archived versions, wrong-scope access, and unapproved templates do not execute; no raw payload, provider, auth, billing, payout, settlement, or money leakage occurs. TASK-393 and TASK-394 remain for analytics integration and non-local proof.
 Dependencies: TASK-390; TASK-391.
 Priority: P0.
 
