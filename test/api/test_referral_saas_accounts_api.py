@@ -1704,6 +1704,182 @@ async def test_referral_saas_programme_draft_validate_rejects_conflict(monkeypat
     assert "NO_PROGRAMME_PUBLISH" in body["guardrails"]
 
 
+async def test_referral_saas_admin_can_publish_programme_lifecycle(monkeypatch):
+    resolve_calls: list[dict] = []
+    publish_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_publish_referral_saas_programme_version(**kwargs):
+        publish_calls.append(kwargs)
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "commandStatus": "PROGRAMME_VERSION_PUBLISHED",
+                "idempotencyStatus": "NEW_REQUEST",
+                "resource": {
+                    "programmeVersionId": "programme-version-1",
+                    "programmeCode": "PRG_PROGRAMME",
+                    "versionStatus": "PUBLISHED",
+                    "versionNumber": 1,
+                    "guardrails": ["IMMUTABLE_PROGRAMME_VERSION"],
+                },
+                "plainLanguageSummary": "Programme version published.",
+                "guardrails": ["IMMUTABLE_PROGRAMME_VERSION"],
+                "redactions": [],
+                "noCampaignActivationConfirmed": True,
+                "noReferralRuntimeSwitchConfirmed": True,
+                "noProviderDispatchConfirmed": True,
+                "noCredentialOrAuthMutationConfirmed": True,
+                "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "publish_referral_saas_programme_version",
+        fake_publish_referral_saas_programme_version,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/programmes/drafts/programme-draft-1/publish",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "publishReason": "Approved for controlled programme configuration.",
+                "idempotencyKey": "programme-publish-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["programmeVersion"]["programmeVersionId"] == "programme-version-1"
+    assert body["programmeVersion"]["versionStatus"] == "PUBLISHED"
+    assert body["noCampaignActivationConfirmed"] is True
+    assert body["noReferralRuntimeSwitchConfirmed"] is True
+    assert body["noBillingPayoutSettlementOrMoneyMovementConfirmed"] is True
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert publish_calls[0]["account_id"] == "acct-1"
+    assert publish_calls[0]["programme_draft_id"] == "programme-draft-1"
+    assert publish_calls[0]["publish_reason"] == (
+        "Approved for controlled programme configuration."
+    )
+    assert publish_calls[0]["idempotency_key_hash"]
+    assert publish_calls[0]["request_payload_hash"]
+
+
+async def test_referral_saas_programme_lifecycle_rejects_invalid_state(monkeypatch):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_submit_referral_saas_programme_draft_for_review(**kwargs):
+        raise referral_saas_accounts.ProgrammeConfigurationValidationError(
+            "Programme draft must be validated with publish allowed before review submission."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "submit_referral_saas_programme_draft_for_review",
+        fake_submit_referral_saas_programme_draft_for_review,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/programmes/drafts/programme-draft-1/submit-review",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "reviewReason": "Ready for review.",
+                "idempotencyKey": "programme-review-submit-1",
+            },
+        )
+
+    assert response.status_code == 422
+    body = response.json()["detail"]
+    assert body["code"] == "VALIDATION_ERROR"
+    assert "NO_CAMPAIGN_ACTIVATION" in body["guardrails"]
+
+
+async def test_referral_saas_admin_can_prepare_programme_rollback_readiness(
+    monkeypatch,
+):
+    rollback_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_prepare_referral_saas_programme_rollback_readiness(**kwargs):
+        rollback_calls.append(kwargs)
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "commandStatus": "PROGRAMME_ROLLBACK_READINESS_RECORDED",
+                "idempotencyStatus": "NEW_REQUEST",
+                "resource": {
+                    "programmeVersionId": "programme-version-1",
+                    "rollbackReadiness": "RECORDED",
+                    "rollbackActivation": "NOT_PERFORMED",
+                },
+                "plainLanguageSummary": "Rollback readiness recorded only.",
+                "guardrails": ["ROLLBACK_READINESS_ONLY"],
+                "redactions": [],
+                "noCampaignActivationConfirmed": True,
+                "noReferralRuntimeSwitchConfirmed": True,
+                "noProviderDispatchConfirmed": True,
+                "noCredentialOrAuthMutationConfirmed": True,
+                "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "prepare_referral_saas_programme_rollback_readiness",
+        fake_prepare_referral_saas_programme_rollback_readiness,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/programmes/versions/programme-version-1/rollback-readiness",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "rollbackReason": "Prepare a controlled rollback review.",
+                "idempotencyKey": "programme-rollback-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["rollbackReadiness"]["rollbackActivation"] == "NOT_PERFORMED"
+    assert body["noReferralRuntimeSwitchConfirmed"] is True
+    assert rollback_calls[0]["programme_version_id"] == "programme-version-1"
+
+
 async def test_referral_saas_admin_can_validate_customer_journey_draft(
     monkeypatch,
 ):

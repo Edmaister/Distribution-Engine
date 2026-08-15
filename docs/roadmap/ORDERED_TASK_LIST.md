@@ -8841,7 +8841,7 @@ Priority: P0.
 
 ## TASK-400: Add programme review, publish, retire, and rollback guardrails
 
-Status: Open.
+Status: Complete.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
 Shared primitive impact: Adds programme-version lifecycle governance. Source duplication: No.
@@ -8849,11 +8849,11 @@ Objective: Publish validated programme drafts as immutable versions and support 
 Why now: Campaigns and referrals must bind to a stable programme version, not independently edited settings.
 Files likely involved: programme configuration service; selected-customer router; API tests; audit/idempotency tests; docs.
 Database/schema impact: Writes published programme versions, lifecycle status, rollback/retire metadata, review evidence, checksums, idempotency, and audit.
-Backend impact: Adds submit/review/publish/retire/rollback commands with separation-of-duties checks where applicable.
+Backend impact: Complete - adds submit-for-review, review-decision, publish, retire, and rollback-readiness commands with account scope, validation/review gates, immutable published versions, idempotency, audit, and explicit no-adjacent-action guardrails.
 Frontend impact: API-ready publish lifecycle.
-API impact: Adds selected-customer programme review/publish/retire/rollback routes.
-Tests to add/update: Publish without validation blocked, stale validation blocked, same-actor review blocked where required, immutable version readback, active campaign/referral rollback guardrails, idempotency, audit.
-Acceptance criteria: Only validated/reviewed programme drafts can publish; published versions are immutable; retirement/rollback is explicit and cannot silently mutate active campaigns, existing referrals, providers, auth, billing, settlement, or money state.
+API impact: Complete - adds selected-customer programme submit-review, review-decision, publish, retire, and rollback-readiness routes.
+Tests to add/update: Complete - lifecycle happy path, invalid-state rejection, rollback-readiness command, route inventory, py_compile, and diff check.
+Acceptance criteria: Complete - only validated/reviewed programme drafts can publish; published versions are immutable; retirement and rollback readiness are explicit and cannot silently mutate active campaigns, existing referrals, providers, auth, billing, settlement, or money state.
 Dependencies: TASK-399.
 Priority: P0.
 

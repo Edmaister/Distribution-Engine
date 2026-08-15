@@ -316,8 +316,12 @@ commercial entitlement posture, and incentive/engagement configuration gaps.
 The validation writes evidence, updates draft validation posture, supports
 idempotent replay/conflict handling, and returns customer-safe blockers,
 warnings, next actions, publish/campaign-binding allowances, and a no-side-
-effect simulation. Implementation now moves to TASK-400 for programme review,
-publish, retire, and rollback guardrails.
+effect simulation. TASK-400 now adds the governed programme lifecycle layer:
+validated drafts can be submitted for review, approved or blocked, published as
+immutable account-scoped programme versions, retired explicitly, and checked for
+rollback readiness without mutating campaigns, referrals, providers, auth,
+billing, settlement, or money state. Implementation now moves to TASK-401 for
+campaign binding to published programme versions.
 
 ## Recommended Ordered Task Sequence
 

@@ -23,6 +23,15 @@ PROGRAMME_CONFIGURATION_GUARDRAILS = (
     "NO_BILLING_PAYOUT_SETTLEMENT_OR_MONEY_MOVEMENT",
 )
 
+PROGRAMME_LIFECYCLE_GUARDRAILS = (
+    *PROGRAMME_CONFIGURATION_GUARDRAILS,
+    "VALIDATED_DRAFT_REQUIRED",
+    "APPROVED_REVIEW_REQUIRED",
+    "IMMUTABLE_PROGRAMME_VERSION",
+    "EXPLICIT_RETIREMENT_REQUIRED",
+    "ROLLBACK_READINESS_ONLY",
+)
+
 PROGRAMME_CONFIGURATION_REDACTIONS = (
     "tenant_code",
     "internal_tenant_identifier",
@@ -467,6 +476,33 @@ class ProgrammeDraftCommandResult:
             "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
             "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
             "noProgrammePublishConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noReferralRuntimeSwitchConfirmed": True,
+            "noProviderDispatchConfirmed": True,
+            "noCredentialOrAuthMutationConfirmed": True,
+            "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class ProgrammeLifecycleCommandResult:
+    command_status: str
+    resource: ProgrammeDraft | ProgrammeVersionSummary | dict[str, Any]
+    idempotency_status: str
+    plain_language_summary: str
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        if isinstance(self.resource, (ProgrammeDraft, ProgrammeVersionSummary)):
+            resource = self.resource.to_safe_dict()
+        else:
+            resource = _redact_json(self.resource)
+        return {
+            "commandStatus": self.command_status,
+            "idempotencyStatus": self.idempotency_status,
+            "resource": resource,
+            "plainLanguageSummary": self.plain_language_summary,
+            "guardrails": list(PROGRAMME_LIFECYCLE_GUARDRAILS),
+            "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
             "noCampaignActivationConfirmed": True,
             "noReferralRuntimeSwitchConfirmed": True,
             "noProviderDispatchConfirmed": True,
@@ -1564,3 +1600,862 @@ async def validate_referral_saas_programme_draft(
             )
 
     return _programme_validation_result_from_row(validation_row)
+
+
+def _programme_code_from_draft(draft_id: str) -> str:
+    return f"PRG_{draft_id.replace('-', '')[:16].upper()}"
+
+
+async def submit_referral_saas_programme_draft_for_review(
+    *,
+    account_id: str,
+    programme_draft_id: str,
+    review_reason: str,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None,
+    correlation_id: str | None = None,
+) -> ProgrammeLifecycleCommandResult:
+    safe_account_id = _required_text(account_id, "account_id", max_length=80)
+    safe_draft_id = _required_text(programme_draft_id, "programme_draft_id", max_length=80)
+    safe_reason = _required_text(review_reason, "review_reason", max_length=500)
+    safe_idempotency_hash = _required_text(idempotency_key_hash, "idempotency_key_hash", max_length=256)
+    safe_request_hash = _required_text(request_payload_hash, "request_payload_hash", max_length=256)
+    safe_actor_ref = _required_text(actor_ref, "actor_ref", max_length=160)
+    safe_actor_role = _optional_text(actor_role, max_length=80)
+    safe_correlation_id = _optional_text(correlation_id, max_length=160)
+
+    async with db_connection() as conn:
+        existing_idempotency = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_programme_configuration_idempotency_keys
+            WHERE account_id = $1
+              AND operation_type = 'PROGRAMME_DRAFT_SUBMIT_REVIEW'
+              AND idempotency_key_hash = $2
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_idempotency_hash,
+        )
+        if existing_idempotency:
+            if _row_value(existing_idempotency, "request_payload_hash") != safe_request_hash:
+                raise ProgrammeConfigurationIdempotencyConflict(
+                    "Idempotency key was reused with different programme review submission content."
+                )
+            replay_row = await conn.fetchrow(
+                """
+                SELECT *
+                FROM referral_saas_programme_drafts
+                WHERE account_id = $1
+                  AND programme_draft_id = $2
+                  AND archived_at IS NULL
+                LIMIT 1
+                """,
+                safe_account_id,
+                _row_value(existing_idempotency, "resource_id"),
+            )
+            if not replay_row:
+                raise ProgrammeConfigurationNotFound(str(_row_value(existing_idempotency, "resource_id")))
+            return ProgrammeLifecycleCommandResult(
+                command_status="REPLAY_SAME_PAYLOAD",
+                resource=_draft_from_row(replay_row),
+                idempotency_status="REPLAY_SAME_PAYLOAD",
+                plain_language_summary="Programme draft review submission was already recorded.",
+            )
+
+        draft_row = await conn.fetchrow(
+            """
+            SELECT d.*, vr.publish_allowed
+            FROM referral_saas_programme_drafts d
+            LEFT JOIN referral_saas_programme_validation_results vr
+              ON vr.programme_validation_result_id = d.validation_result_id
+            WHERE d.account_id = $1
+              AND d.programme_draft_id = $2
+              AND d.archived_at IS NULL
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_draft_id,
+        )
+        if not draft_row:
+            raise ProgrammeConfigurationNotFound(safe_draft_id)
+        if str(_row_value(draft_row, "programme_status")) != "VALIDATED" or not bool(
+            _row_value(draft_row, "publish_allowed")
+        ):
+            raise ProgrammeConfigurationValidationError(
+                "Programme draft must be validated with publish allowed before review submission."
+            )
+
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                """
+                UPDATE referral_saas_programme_drafts
+                SET programme_status = 'READY_FOR_REVIEW',
+                    review_status = 'READY_FOR_REVIEW',
+                    updated_by_ref = $3,
+                    updated_at = now()
+                WHERE account_id = $1
+                  AND programme_draft_id = $2
+                  AND archived_at IS NULL
+                RETURNING *
+                """,
+                safe_account_id,
+                safe_draft_id,
+                safe_actor_ref,
+            )
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_programme_configuration_idempotency_keys (
+                    account_id, operation_type, idempotency_key_hash,
+                    request_payload_hash, response_payload_hash, resource_type,
+                    resource_id, response_status
+                )
+                VALUES ($1, 'PROGRAMME_DRAFT_SUBMIT_REVIEW', $2, $3, $4,
+                        'PROGRAMME_DRAFT', $5, 'SUCCESS')
+                """,
+                safe_account_id,
+                safe_idempotency_hash,
+                safe_request_hash,
+                _payload_hash({"programmeDraftId": safe_draft_id}),
+                safe_draft_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_programme_configuration_audit (
+                    account_id, programme_draft_id, customer_journey_version_id,
+                    event_type, event_status, actor_ref, actor_role,
+                    previous_status, next_status, reason_code, correlation_id,
+                    idempotency_key_hash, evidence_summary, redactions
+                )
+                VALUES (
+                    $1, $2, $3, 'PROGRAMME_DRAFT_SUBMITTED_FOR_REVIEW',
+                    'RECORDED', $4, $5, $6, 'READY_FOR_REVIEW',
+                    'PROGRAMME_REVIEW_REQUESTED', $7, $8, $9::jsonb, $10::jsonb
+                )
+                """,
+                safe_account_id,
+                safe_draft_id,
+                str(_row_value(draft_row, "customer_journey_version_id")),
+                safe_actor_ref,
+                safe_actor_role,
+                str(_row_value(draft_row, "programme_status")),
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb({"reviewReason": safe_reason, "noSideEffectsConfirmed": True}),
+                _jsonb(PROGRAMME_CONFIGURATION_REDACTIONS),
+            )
+
+    return ProgrammeLifecycleCommandResult(
+        command_status="READY_FOR_REVIEW",
+        resource=_draft_from_row(row),
+        idempotency_status="NEW_REQUEST",
+        plain_language_summary="Programme draft is ready for an explicit review decision.",
+    )
+
+
+async def decide_referral_saas_programme_draft_review(
+    *,
+    account_id: str,
+    programme_draft_id: str,
+    decision: str,
+    review_reason: str,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None,
+    correlation_id: str | None = None,
+) -> ProgrammeLifecycleCommandResult:
+    safe_account_id = _required_text(account_id, "account_id", max_length=80)
+    safe_draft_id = _required_text(programme_draft_id, "programme_draft_id", max_length=80)
+    safe_decision = _normalise_code(decision, "decision", max_length=40)
+    if safe_decision not in {"APPROVE", "BLOCK", "REQUEST_CHANGES"}:
+        raise ProgrammeConfigurationValidationError(
+            "decision must be APPROVE, BLOCK, or REQUEST_CHANGES."
+        )
+    safe_reason = _required_text(review_reason, "review_reason", max_length=500)
+    safe_idempotency_hash = _required_text(idempotency_key_hash, "idempotency_key_hash", max_length=256)
+    safe_request_hash = _required_text(request_payload_hash, "request_payload_hash", max_length=256)
+    safe_actor_ref = _required_text(actor_ref, "actor_ref", max_length=160)
+    safe_actor_role = _optional_text(actor_role, max_length=80)
+    safe_correlation_id = _optional_text(correlation_id, max_length=160)
+
+    status_map = {
+        "APPROVE": ("APPROVED_FOR_PUBLISH", "APPROVED", "PROGRAMME_REVIEW_APPROVED"),
+        "BLOCK": ("BLOCKED", "BLOCKED", "PROGRAMME_REVIEW_BLOCKED"),
+        "REQUEST_CHANGES": ("DRAFT", "CHANGES_REQUESTED", "PROGRAMME_REVIEW_CHANGES_REQUESTED"),
+    }
+    next_programme_status, next_review_status, reason_code = status_map[safe_decision]
+
+    async with db_connection() as conn:
+        existing_idempotency = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_programme_configuration_idempotency_keys
+            WHERE account_id = $1
+              AND operation_type = 'PROGRAMME_DRAFT_REVIEW_DECISION'
+              AND idempotency_key_hash = $2
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_idempotency_hash,
+        )
+        if existing_idempotency:
+            if _row_value(existing_idempotency, "request_payload_hash") != safe_request_hash:
+                raise ProgrammeConfigurationIdempotencyConflict(
+                    "Idempotency key was reused with different programme review decision content."
+                )
+            replay_row = await conn.fetchrow(
+                """
+                SELECT *
+                FROM referral_saas_programme_drafts
+                WHERE account_id = $1
+                  AND programme_draft_id = $2
+                  AND archived_at IS NULL
+                LIMIT 1
+                """,
+                safe_account_id,
+                _row_value(existing_idempotency, "resource_id"),
+            )
+            if not replay_row:
+                raise ProgrammeConfigurationNotFound(str(_row_value(existing_idempotency, "resource_id")))
+            return ProgrammeLifecycleCommandResult(
+                command_status="REPLAY_SAME_PAYLOAD",
+                resource=_draft_from_row(replay_row),
+                idempotency_status="REPLAY_SAME_PAYLOAD",
+                plain_language_summary="Programme review decision was already recorded.",
+            )
+
+        draft_row = await conn.fetchrow(
+            """
+            SELECT d.*, vr.publish_allowed
+            FROM referral_saas_programme_drafts d
+            LEFT JOIN referral_saas_programme_validation_results vr
+              ON vr.programme_validation_result_id = d.validation_result_id
+            WHERE d.account_id = $1
+              AND d.programme_draft_id = $2
+              AND d.archived_at IS NULL
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_draft_id,
+        )
+        if not draft_row:
+            raise ProgrammeConfigurationNotFound(safe_draft_id)
+        if str(_row_value(draft_row, "programme_status")) != "READY_FOR_REVIEW":
+            raise ProgrammeConfigurationValidationError(
+                "Programme draft must be submitted for review before a review decision."
+            )
+        if safe_decision == "APPROVE" and not bool(_row_value(draft_row, "publish_allowed")):
+            raise ProgrammeConfigurationValidationError(
+                "Programme draft cannot be approved because publish is not allowed."
+            )
+
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                """
+                UPDATE referral_saas_programme_drafts
+                SET programme_status = $3,
+                    review_status = $4,
+                    updated_by_ref = $5,
+                    updated_at = now()
+                WHERE account_id = $1
+                  AND programme_draft_id = $2
+                  AND archived_at IS NULL
+                RETURNING *
+                """,
+                safe_account_id,
+                safe_draft_id,
+                next_programme_status,
+                next_review_status,
+                safe_actor_ref,
+            )
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_programme_configuration_idempotency_keys (
+                    account_id, operation_type, idempotency_key_hash,
+                    request_payload_hash, response_payload_hash, resource_type,
+                    resource_id, response_status
+                )
+                VALUES ($1, 'PROGRAMME_DRAFT_REVIEW_DECISION', $2, $3, $4,
+                        'PROGRAMME_DRAFT', $5, 'SUCCESS')
+                """,
+                safe_account_id,
+                safe_idempotency_hash,
+                safe_request_hash,
+                _payload_hash({"programmeDraftId": safe_draft_id, "decision": safe_decision}),
+                safe_draft_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_programme_configuration_audit (
+                    account_id, programme_draft_id, customer_journey_version_id,
+                    event_type, event_status, actor_ref, actor_role,
+                    previous_status, next_status, reason_code, correlation_id,
+                    idempotency_key_hash, evidence_summary, redactions
+                )
+                VALUES (
+                    $1, $2, $3, 'PROGRAMME_DRAFT_REVIEW_DECIDED',
+                    'RECORDED', $4, $5, $6, $7, $8, $9, $10,
+                    $11::jsonb, $12::jsonb
+                )
+                """,
+                safe_account_id,
+                safe_draft_id,
+                str(_row_value(draft_row, "customer_journey_version_id")),
+                safe_actor_ref,
+                safe_actor_role,
+                str(_row_value(draft_row, "programme_status")),
+                next_programme_status,
+                reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb({"decision": safe_decision, "reviewReason": safe_reason}),
+                _jsonb(PROGRAMME_CONFIGURATION_REDACTIONS),
+            )
+
+    return ProgrammeLifecycleCommandResult(
+        command_status=next_programme_status,
+        resource=_draft_from_row(row),
+        idempotency_status="NEW_REQUEST",
+        plain_language_summary=(
+            "Programme draft is approved for publishing."
+            if safe_decision == "APPROVE"
+            else "Programme draft review decision has been recorded."
+        ),
+    )
+
+
+async def publish_referral_saas_programme_version(
+    *,
+    account_id: str,
+    programme_draft_id: str,
+    publish_reason: str,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None,
+    correlation_id: str | None = None,
+) -> ProgrammeLifecycleCommandResult:
+    safe_account_id = _required_text(account_id, "account_id", max_length=80)
+    safe_draft_id = _required_text(programme_draft_id, "programme_draft_id", max_length=80)
+    safe_reason = _required_text(publish_reason, "publish_reason", max_length=500)
+    safe_idempotency_hash = _required_text(idempotency_key_hash, "idempotency_key_hash", max_length=256)
+    safe_request_hash = _required_text(request_payload_hash, "request_payload_hash", max_length=256)
+    safe_actor_ref = _required_text(actor_ref, "actor_ref", max_length=160)
+    safe_actor_role = _optional_text(actor_role, max_length=80)
+    safe_correlation_id = _optional_text(correlation_id, max_length=160)
+
+    async with db_connection() as conn:
+        existing_idempotency = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_programme_configuration_idempotency_keys
+            WHERE account_id = $1
+              AND operation_type = 'PROGRAMME_VERSION_PUBLISH'
+              AND idempotency_key_hash = $2
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_idempotency_hash,
+        )
+        if existing_idempotency:
+            if _row_value(existing_idempotency, "request_payload_hash") != safe_request_hash:
+                raise ProgrammeConfigurationIdempotencyConflict(
+                    "Idempotency key was reused with different programme publish content."
+                )
+            replay_row = await conn.fetchrow(
+                """
+                SELECT *
+                FROM referral_saas_programme_versions
+                WHERE account_id = $1
+                  AND programme_version_id = $2
+                LIMIT 1
+                """,
+                safe_account_id,
+                _row_value(existing_idempotency, "resource_id"),
+            )
+            if not replay_row:
+                raise ProgrammeConfigurationNotFound(str(_row_value(existing_idempotency, "resource_id")))
+            return ProgrammeLifecycleCommandResult(
+                command_status="REPLAY_SAME_PAYLOAD",
+                resource=_version_from_row(replay_row),
+                idempotency_status="REPLAY_SAME_PAYLOAD",
+                plain_language_summary="Programme version publish was already recorded.",
+            )
+
+        draft_row = await conn.fetchrow(
+            """
+            SELECT d.*, vr.publish_allowed, vr.payload_hash AS validation_payload_hash
+            FROM referral_saas_programme_drafts d
+            LEFT JOIN referral_saas_programme_validation_results vr
+              ON vr.programme_validation_result_id = d.validation_result_id
+            WHERE d.account_id = $1
+              AND d.programme_draft_id = $2
+              AND d.archived_at IS NULL
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_draft_id,
+        )
+        if not draft_row:
+            raise ProgrammeConfigurationNotFound(safe_draft_id)
+        if (
+            str(_row_value(draft_row, "programme_status")) != "APPROVED_FOR_PUBLISH"
+            or str(_row_value(draft_row, "review_status")) != "APPROVED"
+            or not bool(_row_value(draft_row, "publish_allowed"))
+        ):
+            raise ProgrammeConfigurationValidationError(
+                "Programme draft must be validated and approved before publishing."
+            )
+        if not _row_value(draft_row, "effective_from"):
+            raise ProgrammeConfigurationValidationError(
+                "Programme draft needs an effective start date before publishing."
+            )
+
+        programme_code = _programme_code_from_draft(safe_draft_id)
+        next_version_number = int(
+            await conn.fetchval(
+                """
+                SELECT COALESCE(MAX(version_number), 0) + 1
+                FROM referral_saas_programme_versions
+                WHERE account_id = $1
+                  AND programme_code = $2
+                """,
+                safe_account_id,
+                programme_code,
+            )
+            or 1
+        )
+        safe_summary = {
+            "plainLanguageSummary": "Programme version published for account-scoped campaign setup.",
+            "programmeName": str(_row_value(draft_row, "programme_name")),
+            "subProductCode": str(_row_value(draft_row, "sub_product_code")),
+            "versionNumber": next_version_number,
+            "noSideEffectsConfirmed": True,
+        }
+        governance_metadata = {
+            "publishReason": safe_reason,
+            "reviewStatus": "APPROVED",
+            "validatedResultId": str(_row_value(draft_row, "validation_result_id")),
+            "immutableVersion": True,
+        }
+
+        async with conn.transaction():
+            version_row = await conn.fetchrow(
+                """
+                INSERT INTO referral_saas_programme_versions (
+                    account_id,
+                    programme_draft_id,
+                    source_programme_version_id,
+                    customer_journey_version_id,
+                    programme_code,
+                    programme_name,
+                    programme_description,
+                    operating_jurisdiction_code,
+                    product_code,
+                    sub_product_code,
+                    version_number,
+                    version_status,
+                    published_configuration_snapshot,
+                    campaign_defaults_snapshot,
+                    incentive_refs_snapshot,
+                    engagement_refs_snapshot,
+                    integration_readiness_snapshot,
+                    commercial_entitlement_snapshot,
+                    validation_result_id,
+                    review_status,
+                    reviewed_by_ref,
+                    reviewed_at,
+                    review_reason,
+                    effective_from,
+                    effective_to,
+                    configuration_checksum,
+                    payload_hash,
+                    published_by_ref,
+                    safe_summary,
+                    governance_metadata
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                    $11, 'PUBLISHED', $12::jsonb, $13::jsonb, $14::jsonb,
+                    $15::jsonb, $16::jsonb, $17::jsonb, $18, 'APPROVED',
+                    $19, now(), $20, $21, $22, $23, $24, $19, $25::jsonb,
+                    $26::jsonb
+                )
+                RETURNING *
+                """,
+                safe_account_id,
+                safe_draft_id,
+                _row_value(draft_row, "source_programme_version_id"),
+                str(_row_value(draft_row, "customer_journey_version_id")),
+                programme_code,
+                str(_row_value(draft_row, "programme_name")),
+                _row_value(draft_row, "programme_description"),
+                str(_row_value(draft_row, "operating_jurisdiction_code")),
+                str(_row_value(draft_row, "product_code")),
+                str(_row_value(draft_row, "sub_product_code")),
+                next_version_number,
+                _jsonb(
+                    {
+                        "draftPayloadHash": str(_row_value(draft_row, "payload_hash")),
+                        "validationPayloadHash": _row_value(draft_row, "validation_payload_hash"),
+                    }
+                ),
+                _jsonb(_json_dict(_row_value(draft_row, "campaign_defaults"))),
+                _jsonb(_json_list(_row_value(draft_row, "incentive_refs"))),
+                _jsonb(_json_list(_row_value(draft_row, "engagement_refs"))),
+                _jsonb(_json_dict(_row_value(draft_row, "integration_readiness_snapshot"))),
+                _jsonb(_json_dict(_row_value(draft_row, "commercial_entitlement_snapshot"))),
+                str(_row_value(draft_row, "validation_result_id")),
+                safe_actor_ref,
+                safe_reason,
+                _row_value(draft_row, "effective_from"),
+                _row_value(draft_row, "effective_to"),
+                str(_row_value(draft_row, "configuration_checksum")),
+                str(_row_value(draft_row, "payload_hash")),
+                _jsonb(safe_summary),
+                _jsonb(governance_metadata),
+            )
+            version_id = str(_row_value(version_row, "programme_version_id"))
+            await conn.execute(
+                """
+                UPDATE referral_saas_programme_drafts
+                SET programme_status = 'ARCHIVED',
+                    archived_at = now(),
+                    updated_by_ref = $3,
+                    updated_at = now()
+                WHERE account_id = $1
+                  AND programme_draft_id = $2
+                """,
+                safe_account_id,
+                safe_draft_id,
+                safe_actor_ref,
+            )
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_programme_configuration_idempotency_keys (
+                    account_id, operation_type, idempotency_key_hash,
+                    request_payload_hash, response_payload_hash, resource_type,
+                    resource_id, response_status
+                )
+                VALUES ($1, 'PROGRAMME_VERSION_PUBLISH', $2, $3, $4,
+                        'PROGRAMME_VERSION', $5, 'SUCCESS')
+                """,
+                safe_account_id,
+                safe_idempotency_hash,
+                safe_request_hash,
+                _payload_hash({"programmeVersionId": version_id}),
+                version_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_programme_configuration_audit (
+                    account_id, programme_draft_id, programme_version_id,
+                    customer_journey_version_id, event_type, event_status,
+                    actor_ref, actor_role, previous_status, next_status,
+                    reason_code, correlation_id, idempotency_key_hash,
+                    evidence_summary, redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, 'PROGRAMME_VERSION_PUBLISHED',
+                    'RECORDED', $5, $6, 'APPROVED_FOR_PUBLISH',
+                    'PUBLISHED', 'PROGRAMME_VERSION_PUBLISH', $7, $8,
+                    $9::jsonb, $10::jsonb
+                )
+                """,
+                safe_account_id,
+                safe_draft_id,
+                version_id,
+                str(_row_value(draft_row, "customer_journey_version_id")),
+                safe_actor_ref,
+                safe_actor_role,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(governance_metadata),
+                _jsonb(PROGRAMME_CONFIGURATION_REDACTIONS),
+            )
+
+    return ProgrammeLifecycleCommandResult(
+        command_status="PROGRAMME_VERSION_PUBLISHED",
+        resource=_version_from_row(version_row),
+        idempotency_status="NEW_REQUEST",
+        plain_language_summary=(
+            "Programme version published as immutable account configuration. "
+            "No campaign, provider, auth, billing, settlement, payout, or money workflow ran."
+        ),
+    )
+
+
+async def retire_referral_saas_programme_version(
+    *,
+    account_id: str,
+    programme_version_id: str,
+    retirement_reason: str,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None,
+    correlation_id: str | None = None,
+) -> ProgrammeLifecycleCommandResult:
+    safe_account_id = _required_text(account_id, "account_id", max_length=80)
+    safe_version_id = _required_text(programme_version_id, "programme_version_id", max_length=80)
+    safe_reason = _required_text(retirement_reason, "retirement_reason", max_length=500)
+    safe_idempotency_hash = _required_text(idempotency_key_hash, "idempotency_key_hash", max_length=256)
+    safe_request_hash = _required_text(request_payload_hash, "request_payload_hash", max_length=256)
+    safe_actor_ref = _required_text(actor_ref, "actor_ref", max_length=160)
+    safe_actor_role = _optional_text(actor_role, max_length=80)
+    safe_correlation_id = _optional_text(correlation_id, max_length=160)
+
+    async with db_connection() as conn:
+        existing_idempotency = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_programme_configuration_idempotency_keys
+            WHERE account_id = $1
+              AND operation_type = 'PROGRAMME_VERSION_RETIRE'
+              AND idempotency_key_hash = $2
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_idempotency_hash,
+        )
+        if existing_idempotency:
+            if _row_value(existing_idempotency, "request_payload_hash") != safe_request_hash:
+                raise ProgrammeConfigurationIdempotencyConflict(
+                    "Idempotency key was reused with different programme retirement content."
+                )
+            replay_row = await conn.fetchrow(
+                """
+                SELECT *
+                FROM referral_saas_programme_versions
+                WHERE account_id = $1
+                  AND programme_version_id = $2
+                LIMIT 1
+                """,
+                safe_account_id,
+                _row_value(existing_idempotency, "resource_id"),
+            )
+            if not replay_row:
+                raise ProgrammeConfigurationNotFound(str(_row_value(existing_idempotency, "resource_id")))
+            return ProgrammeLifecycleCommandResult(
+                command_status="REPLAY_SAME_PAYLOAD",
+                resource=_version_from_row(replay_row),
+                idempotency_status="REPLAY_SAME_PAYLOAD",
+                plain_language_summary="Programme version retirement was already recorded.",
+            )
+
+        version_row = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_programme_versions
+            WHERE account_id = $1
+              AND programme_version_id = $2
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_version_id,
+        )
+        if not version_row:
+            raise ProgrammeConfigurationNotFound(safe_version_id)
+        if str(_row_value(version_row, "version_status")) in {"RETIRED", "ARCHIVED"}:
+            raise ProgrammeConfigurationValidationError(
+                "Programme version is already retired or archived."
+            )
+
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                """
+                UPDATE referral_saas_programme_versions
+                SET version_status = 'RETIRED',
+                    retired_by_ref = $3,
+                    retired_at = now(),
+                    retirement_reason = $4
+                WHERE account_id = $1
+                  AND programme_version_id = $2
+                RETURNING *
+                """,
+                safe_account_id,
+                safe_version_id,
+                safe_actor_ref,
+                safe_reason,
+            )
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_programme_configuration_idempotency_keys (
+                    account_id, operation_type, idempotency_key_hash,
+                    request_payload_hash, response_payload_hash, resource_type,
+                    resource_id, response_status
+                )
+                VALUES ($1, 'PROGRAMME_VERSION_RETIRE', $2, $3, $4,
+                        'PROGRAMME_VERSION', $5, 'SUCCESS')
+                """,
+                safe_account_id,
+                safe_idempotency_hash,
+                safe_request_hash,
+                _payload_hash({"programmeVersionId": safe_version_id, "status": "RETIRED"}),
+                safe_version_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_programme_configuration_audit (
+                    account_id, programme_version_id, customer_journey_version_id,
+                    event_type, event_status, actor_ref, actor_role,
+                    previous_status, next_status, reason_code, correlation_id,
+                    idempotency_key_hash, evidence_summary, redactions
+                )
+                VALUES (
+                    $1, $2, $3, 'PROGRAMME_VERSION_RETIRED', 'RECORDED',
+                    $4, $5, $6, 'RETIRED', 'PROGRAMME_VERSION_RETIRE',
+                    $7, $8, $9::jsonb, $10::jsonb
+                )
+                """,
+                safe_account_id,
+                safe_version_id,
+                str(_row_value(version_row, "customer_journey_version_id")),
+                safe_actor_ref,
+                safe_actor_role,
+                str(_row_value(version_row, "version_status")),
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb({"retirementReason": safe_reason, "noSideEffectsConfirmed": True}),
+                _jsonb(PROGRAMME_CONFIGURATION_REDACTIONS),
+            )
+
+    return ProgrammeLifecycleCommandResult(
+        command_status="PROGRAMME_VERSION_RETIRED",
+        resource=_version_from_row(row),
+        idempotency_status="NEW_REQUEST",
+        plain_language_summary="Programme version retired without changing active campaigns or referral runtime.",
+    )
+
+
+async def prepare_referral_saas_programme_rollback_readiness(
+    *,
+    account_id: str,
+    programme_version_id: str,
+    rollback_reason: str,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None,
+    correlation_id: str | None = None,
+) -> ProgrammeLifecycleCommandResult:
+    safe_account_id = _required_text(account_id, "account_id", max_length=80)
+    safe_version_id = _required_text(programme_version_id, "programme_version_id", max_length=80)
+    safe_reason = _required_text(rollback_reason, "rollback_reason", max_length=500)
+    safe_idempotency_hash = _required_text(idempotency_key_hash, "idempotency_key_hash", max_length=256)
+    safe_request_hash = _required_text(request_payload_hash, "request_payload_hash", max_length=256)
+    safe_actor_ref = _required_text(actor_ref, "actor_ref", max_length=160)
+    safe_actor_role = _optional_text(actor_role, max_length=80)
+    safe_correlation_id = _optional_text(correlation_id, max_length=160)
+
+    async with db_connection() as conn:
+        existing_idempotency = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_programme_configuration_idempotency_keys
+            WHERE account_id = $1
+              AND operation_type = 'PROGRAMME_ROLLBACK_READINESS'
+              AND idempotency_key_hash = $2
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_idempotency_hash,
+        )
+        if existing_idempotency:
+            if _row_value(existing_idempotency, "request_payload_hash") != safe_request_hash:
+                raise ProgrammeConfigurationIdempotencyConflict(
+                    "Idempotency key was reused with different programme rollback readiness content."
+                )
+            return ProgrammeLifecycleCommandResult(
+                command_status="REPLAY_SAME_PAYLOAD",
+                resource={
+                    "programmeVersionId": safe_version_id,
+                    "rollbackReadiness": "RECORDED",
+                    "rollbackActivation": "NOT_PERFORMED",
+                },
+                idempotency_status="REPLAY_SAME_PAYLOAD",
+                plain_language_summary="Programme rollback readiness was already recorded.",
+            )
+
+        version_row = await conn.fetchrow(
+            """
+            SELECT *
+            FROM referral_saas_programme_versions
+            WHERE account_id = $1
+              AND programme_version_id = $2
+              AND version_status <> 'ARCHIVED'
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_version_id,
+        )
+        if not version_row:
+            raise ProgrammeConfigurationNotFound(safe_version_id)
+
+        readiness = {
+            "programmeVersionId": safe_version_id,
+            "programmeCode": str(_row_value(version_row, "programme_code")),
+            "currentVersionStatus": str(_row_value(version_row, "version_status")),
+            "rollbackReadiness": "RECORDED",
+            "rollbackActivation": "NOT_PERFORMED",
+            "campaignRuntimeSwitch": "NOT_PERFORMED",
+            "providerDispatch": "NOT_PERFORMED",
+            "authBillingOrMoneyAction": "NOT_PERFORMED",
+            "nextAction": "Use a separate reviewed campaign-binding workflow before changing any live campaign.",
+        }
+        async with conn.transaction():
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_programme_configuration_idempotency_keys (
+                    account_id, operation_type, idempotency_key_hash,
+                    request_payload_hash, response_payload_hash, resource_type,
+                    resource_id, response_status
+                )
+                VALUES ($1, 'PROGRAMME_ROLLBACK_READINESS', $2, $3, $4,
+                        'PROGRAMME_VERSION', $5, 'SUCCESS')
+                """,
+                safe_account_id,
+                safe_idempotency_hash,
+                safe_request_hash,
+                _payload_hash(readiness),
+                safe_version_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_programme_configuration_audit (
+                    account_id, programme_version_id, customer_journey_version_id,
+                    event_type, event_status, actor_ref, actor_role,
+                    previous_status, next_status, reason_code, correlation_id,
+                    idempotency_key_hash, evidence_summary, redactions
+                )
+                VALUES (
+                    $1, $2, $3, 'PROGRAMME_ROLLBACK_READINESS_RECORDED',
+                    'RECORDED', $4, $5, $6, $6,
+                    'PROGRAMME_ROLLBACK_READINESS', $7, $8, $9::jsonb,
+                    $10::jsonb
+                )
+                """,
+                safe_account_id,
+                safe_version_id,
+                str(_row_value(version_row, "customer_journey_version_id")),
+                safe_actor_ref,
+                safe_actor_role,
+                str(_row_value(version_row, "version_status")),
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb({"rollbackReason": safe_reason, **readiness}),
+                _jsonb(PROGRAMME_CONFIGURATION_REDACTIONS),
+            )
+
+    return ProgrammeLifecycleCommandResult(
+        command_status="PROGRAMME_ROLLBACK_READINESS_RECORDED",
+        resource=readiness,
+        idempotency_status="NEW_REQUEST",
+        plain_language_summary=(
+            "Rollback readiness recorded only. No campaign, referral runtime, provider, auth, "
+            "billing, settlement, payout, or money workflow ran."
+        ),
+    )

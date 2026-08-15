@@ -137,6 +137,26 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ),
         (
             "POST",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/drafts/{draft_ref}/submit-review",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/drafts/{draft_ref}/review-decision",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/drafts/{draft_ref}/publish",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/versions/{version_ref}/retire",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/versions/{version_ref}/rollback-readiness",
+        ),
+        (
+            "POST",
             "/v1/referral-saas/accounts/{account_ref}/journey-drafts/{draft_ref}/validate",
         ),
         (
@@ -373,6 +393,26 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/programmes/drafts/{draft_ref}/validate",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/drafts/{draft_ref}/submit-review",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/drafts/{draft_ref}/review-decision",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/drafts/{draft_ref}/publish",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/versions/{version_ref}/retire",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/versions/{version_ref}/rollback-readiness",
         ),
         (
             "POST",
