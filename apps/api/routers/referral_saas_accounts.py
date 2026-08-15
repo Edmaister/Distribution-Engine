@@ -279,6 +279,11 @@ from services.referral_saas_journey_configuration_service import (
     save_referral_saas_customer_journey_draft,
     validate_referral_saas_customer_journey_draft,
 )
+from services.referral_saas_journey_analytics_service import (
+    JOURNEY_ANALYTICS_GUARDRAILS,
+    JOURNEY_ANALYTICS_REDACTIONS,
+    build_referral_saas_journey_analytics_read_model,
+)
 from services.referral_saas_technical_setup_service import (
     build_referral_saas_technical_setup_readiness,
 )
@@ -4439,6 +4444,78 @@ async def archive_referral_saas_customer_journey_version_configuration(
         }
     )
     return body
+
+
+@router.get("/accounts/{account_ref}/journey-analytics")
+async def get_referral_saas_customer_journey_analytics(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(description="External reference type used to resolve the account."),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(description="External customer/account reference value."),
+    ],
+    context: Annotated[
+        str,
+        Query(description="setup or runtime account resolution context."),
+    ] = "setup",
+    limit: Annotated[
+        int,
+        Query(ge=1, le=100, description="Maximum number of journey versions to compare."),
+    ] = 50,
+    data_window_start: Annotated[
+        datetime | None,
+        Query(
+            alias="dataWindowStart",
+            description="Optional inclusive start timestamp for referral/progress evidence.",
+        ),
+    ] = None,
+    data_window_end: Annotated[
+        datetime | None,
+        Query(
+            alias="dataWindowEnd",
+            description="Optional inclusive end timestamp for referral/progress evidence.",
+        ),
+    ] = None,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    reader_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=reader_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    analytics = await build_referral_saas_journey_analytics_read_model(
+        account_id=account.account_id,
+        tenant_code=account.tenant_code,
+        limit=limit,
+        data_window_start=data_window_start,
+        data_window_end=data_window_end,
+    )
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "journeyAnalytics": analytics.to_safe_dict(),
+        "guardrail": (
+            "Read-only journey optimization analytics for the selected account. "
+            "This endpoint compares published journey versions and active "
+            "campaign bindings using aggregate referral, progress, and "
+            "attribution evidence only."
+        ),
+        "guardrails": list(JOURNEY_ANALYTICS_GUARDRAILS),
+        "redactions": list(JOURNEY_ANALYTICS_REDACTIONS),
+        "noRawIdentityOrEventPayloadConfirmed": True,
+        "noRewardPayoutDetailConfirmed": True,
+        "noProviderDispatchConfirmed": True,
+        "noAuthBillingSettlementOrMoneyActionConfirmed": True,
+    }
 
 
 @router.get("/accounts/{account_ref}/journey-versions")
