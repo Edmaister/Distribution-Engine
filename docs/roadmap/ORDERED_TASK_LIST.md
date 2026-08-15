@@ -8787,19 +8787,19 @@ Priority: P1.
 
 ## TASK-397: Add programme draft and version schema foundation
 
-Status: Open.
+Status: Complete (2026-08-15).
 Product boundary: Referral SaaS with Shared Platform trajectory.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_CONTRACT.md`.
 Shared primitive impact: Adds durable programme configuration storage that can later generalize into DLaaS programme/version primitives. Source duplication: No.
 Objective: Add account-scoped programme drafts, immutable programme versions, validation results, idempotency keys, audit evidence, and effective-date/checksum metadata.
 Why now: Published journeys and incentive references need one programme snapshot before campaigns/referrals can bind to a complete versioned business configuration.
 Files likely involved: additive migration; migration tests; roadmap/gap/infographic docs.
-Database/schema impact: Adds programme draft/version/validation/idempotency/audit tables. Must reference platform accounts and published customer journey versions; must not expose or persist unsafe raw secrets, provider payloads, auth claims, billing, settlement, payout, wallet, treasury, invoice, or money movement fields.
+Database/schema impact: Complete - adds `referral_saas_programme_drafts`, `referral_saas_programme_versions`, `referral_saas_programme_validation_results`, `referral_saas_programme_configuration_idempotency_keys`, and `referral_saas_programme_configuration_audit`. Tables reference platform accounts and published customer journey versions; unsafe raw secrets, provider payloads, auth claims, billing, settlement, payout, wallet, treasury, invoice, and money movement fields are excluded.
 Backend impact: Migration validation only.
 Frontend impact: None.
 API impact: None.
-Tests to add/update: Migration replay, constraints, indexes, account scope, immutable publish metadata, effective-date constraints, checksum fields, and unsafe-column absence tests.
-Acceptance criteria: Schema can persist a complete programme draft and immutable published version with account scope, journey version reference, campaign defaults, approved catalogue references, readiness snapshots, approval evidence, checksum, idempotency, and audit.
+Tests to add/update: Complete - migration ordering, tables/columns, replay-safe constraints, indexes, account scope, published journey-version references, immutable publish metadata, effective-date constraints, checksum fields, idempotency/audit fields, and unsafe-column absence tests.
+Acceptance criteria: Complete - schema can persist a complete programme draft and immutable published version with account scope, journey version reference, campaign defaults, approved catalogue references, readiness snapshots, approval evidence, checksum, idempotency, and audit.
 Dependencies: TASK-396.
 Priority: P1.
 
