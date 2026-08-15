@@ -133,6 +133,10 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ),
         (
             "POST",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/drafts/{draft_ref}/validate",
+        ),
+        (
+            "POST",
             "/v1/referral-saas/accounts/{account_ref}/journey-drafts/{draft_ref}/validate",
         ),
         (

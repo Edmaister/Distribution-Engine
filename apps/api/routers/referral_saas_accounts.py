@@ -295,6 +295,7 @@ from services.referral_saas_programme_configuration_service import (
     get_referral_saas_programme_draft,
     list_referral_saas_programme_versions,
     save_referral_saas_programme_draft,
+    validate_referral_saas_programme_draft,
 )
 from services.referral_saas_technical_setup_service import (
     build_referral_saas_technical_setup_readiness,
@@ -706,6 +707,12 @@ class ReferralSaasProgrammeDraftSaveRequest(BaseModel):
     commercialEntitlementSnapshot: dict[str, Any] = Field(default_factory=dict)
     effectiveFrom: str | None = Field(default=None)
     effectiveTo: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasProgrammeDraftValidateRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str = Field(min_length=1)
 
@@ -4574,6 +4581,94 @@ async def update_referral_saas_programme_configuration_draft(
         programme_draft_id=draft_ref,
         identity=identity,
     )
+
+
+@router.post("/accounts/{account_ref}/programmes/drafts/{draft_ref}/validate")
+async def validate_referral_saas_programme_configuration_draft(
+    account_ref: str,
+    draft_ref: str,
+    request: ReferralSaasProgrammeDraftValidateRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_programme_configuration_account_context(
+        account_ref=account_ref,
+        account_scope=request.accountScope,
+        identity=admin_identity,
+    )
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        validation = await validate_referral_saas_programme_draft(
+            account_id=account.account_id,
+            programme_draft_id=draft_ref,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except ProgrammeConfigurationIdempotencyConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "IDEMPOTENCY_CONFLICT",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+    except ProgrammeConfigurationUnsafePayload as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "REJECTED_UNSAFE_PAYLOAD",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+    except ProgrammeConfigurationValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "VALIDATION_ERROR",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+    except ProgrammeConfigurationNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "PROGRAMME_CONFIGURATION_NOT_FOUND",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "validation": validation.to_safe_dict(),
+        "guardrail": (
+            "Programme validation for the selected account. This checks whether "
+            "the programme draft can be published or bound to campaigns; it does "
+            "not publish, activate campaigns, switch referral runtime, dispatch "
+            "providers, create credentials, mutate auth, bill, settle, pay out, "
+            "or move money."
+        ),
+        "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+        "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+        "noProgrammePublishConfirmed": True,
+        "noCampaignActivationConfirmed": True,
+        "noReferralRuntimeSwitchConfirmed": True,
+        "noProviderDispatchConfirmed": True,
+        "noCredentialOrAuthMutationConfirmed": True,
+        "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+    }
 
 
 @router.post("/accounts/{account_ref}/journey-drafts/{draft_ref}/validate")

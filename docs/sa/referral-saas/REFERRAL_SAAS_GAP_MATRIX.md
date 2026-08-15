@@ -145,8 +145,12 @@ dates, configuration checksums, payload hashes, review/publish/retire metadata,
 redactions, and replay controls. TASK-398 now adds the selected-customer
 programme version list, approved building-block catalogue, programme draft
 read/create/update APIs, account-scope checks, idempotency replay/conflict
-handling, audit, redactions, and no-side-effect guardrails. Remaining work is
-TASK-399 through TASK-405: validation/simulation,
+handling, audit, redactions, and no-side-effect guardrails. TASK-399 now adds
+side-effect-free programme validation and simulation with blocker/warning
+classification, customer-safe next actions, validation evidence, publish and
+campaign-binding allowances, idempotent replay/conflict handling, and explicit
+no campaign/referral/provider/auth/billing/settlement/money mutation
+guardrails. Remaining work is TASK-400 through TASK-405:
 review/publish/retire/rollback, campaign binding, incentive/runtime binding,
 analytics, and a simple customer Programme UX.
 

@@ -1595,6 +1595,115 @@ async def test_referral_saas_programme_draft_save_rejects_unsafe_payload(
     assert body["noCredentialOrAuthMutationConfirmed"] is True
 
 
+async def test_referral_saas_admin_can_validate_programme_draft(monkeypatch):
+    resolve_calls: list[dict] = []
+    validate_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_validate_referral_saas_programme_draft(**kwargs):
+        validate_calls.append(kwargs)
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "programmeValidationResultId": "programme-validation-1",
+                "programmeDraftId": "programme-draft-1",
+                "validationStatus": "NEEDS_ATTENTION",
+                "publishAllowed": True,
+                "campaignBindingAllowed": False,
+                "plainLanguageSummary": (
+                    "Programme can be published, but 1 setup item should be "
+                    "finished before launch."
+                ),
+                "blockers": [],
+                "warnings": [{"code": "INTEGRATION_READINESS_NEEDS_WORK"}],
+                "simulation": {"campaignActivation": "NOT_PERFORMED"},
+                "noProgrammePublishConfirmed": True,
+                "noCampaignActivationConfirmed": True,
+                "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "validate_referral_saas_programme_draft",
+        fake_validate_referral_saas_programme_draft,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/programmes/drafts/programme-draft-1/validate",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "idempotencyKey": "programme-draft-validate-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["validation"]["validationStatus"] == "NEEDS_ATTENTION"
+    assert body["validation"]["publishAllowed"] is True
+    assert body["validation"]["campaignBindingAllowed"] is False
+    assert body["noProgrammePublishConfirmed"] is True
+    assert body["noCampaignActivationConfirmed"] is True
+    assert body["noBillingPayoutSettlementOrMoneyMovementConfirmed"] is True
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert validate_calls[0]["account_id"] == "acct-1"
+    assert validate_calls[0]["programme_draft_id"] == "programme-draft-1"
+    assert validate_calls[0]["idempotency_key_hash"]
+    assert validate_calls[0]["request_payload_hash"]
+
+
+async def test_referral_saas_programme_draft_validate_rejects_conflict(monkeypatch):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_validate_referral_saas_programme_draft(**kwargs):
+        raise referral_saas_accounts.ProgrammeConfigurationIdempotencyConflict(
+            "Idempotency key was reused with different programme validation content."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "validate_referral_saas_programme_draft",
+        fake_validate_referral_saas_programme_draft,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/programmes/drafts/programme-draft-1/validate",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "idempotencyKey": "programme-draft-validate-1",
+            },
+        )
+
+    assert response.status_code == 409
+    body = response.json()["detail"]
+    assert body["code"] == "IDEMPOTENCY_CONFLICT"
+    assert "NO_PROGRAMME_PUBLISH" in body["guardrails"]
+
+
 async def test_referral_saas_admin_can_validate_customer_journey_draft(
     monkeypatch,
 ):
