@@ -243,8 +243,10 @@ TASK-391 now adds account-scoped incentive binding for approved reward policy,
 mission, badge, and leaderboard catalogue references. TASK-392 now adds the
 runtime compatibility adapter from published customer journey versions to the
 existing journey/progress runtime definitions behind an explicit flag, with
-code-baseline fallback and draft/archive/template-status guards. Analytics and
-non-local proof remain with TASK-393 through TASK-394.
+code-baseline fallback and draft/archive/template-status guards. TASK-393 now
+adds tenant-safe journey analytics over published versions, active campaign
+bindings, referral progress, high-value events, attribution rates, completion
+rates, and drop-off gaps. Non-local proof remains with TASK-394.
 
 ## Recommended Ordered Task Sequence
 
@@ -471,7 +473,7 @@ non-local proof remain with TASK-393 through TASK-394.
 221. TASK-390: Bind campaigns to published journey versions. (Complete - selected-customer campaign setup now requires a published journey version binding; readiness exposes binding posture; activation blocks missing/invalid same-account published version bindings without runtime migration.)
 222. TASK-391: Add rewards, missions, badges, and leaderboard binding controls. (Complete - account-scoped published journey incentive binding schema/API added for approved reward policy, mission, badge, and leaderboard catalogue references with idempotency, audit, redaction, and no-money guardrails.)
 223. TASK-392: Migrate runtime journey reads from code baseline to published configuration. (Complete - published-version runtime compatibility adapter added with account scope, static fallback, draft/archive/template-status guards, safe metadata, and no provider/auth/billing/payout/settlement/money side effects.)
-224. TASK-393: Add journey analytics and optimization read models.
+224. TASK-393: Add journey analytics and optimization read models. (Complete - account-scoped journey analytics API/read model added for published journey version comparison, active campaign binding counts, referral/progress/high-value-event aggregates, attribution/completion rates, drop-off gaps, guardrails, and redactions.)
 225. TASK-394: Run configurable journey E2E and non-local proof.
 
 - TASK-341: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_EXECUTION_TASK_341.md`;

@@ -8680,7 +8680,7 @@ Completed outputs:
 - Updated campaign readiness and activation so campaigns expose binding posture and activation blocks missing or invalid published journey bindings.
 - Updated customer-scoped campaign setup UX to require a published journey version selection and bind the campaign after saving the inactive campaign draft.
 - Added route inventory and campaign activation tests covering published journey binding requirements.
-- Runtime migration, incentive/reward binding, analytics, and non-local proof remain with TASK-391 to TASK-394.
+- Runtime migration, incentive/reward binding, journey analytics, and non-local proof continue with TASK-391 to TASK-394.
 
 ## TASK-391: Add rewards, missions, badges, and leaderboard binding controls
 
@@ -8718,18 +8718,18 @@ Priority: P0.
 
 ## TASK-393: Add journey analytics and optimization read models
 
-Status: Planned.
+Status: Complete.
 Product boundary: Referral SaaS.
 Shared primitive impact: Adds tenant-safe version analytics over referral progress and attribution evidence. Source duplication: No.
 Objective: Show conversion, drop-off, high-value event, reward, attribution, and version-comparison analytics for configured journeys.
 Why now: The business value of configurable journeys is not only setup speed; it is optimization from real customer outcomes.
-Files likely involved: reporting service; attribution/report APIs; selected-customer Reports/Journey UX; tests; docs.
+Files involved: `services/referral_saas_journey_analytics_service.py`; `apps/api/routers/referral_saas_accounts.py`; tests; docs.
 Database/schema impact: Reads existing referral/progress/attribution/reporting tables and published journey-version references.
-Backend impact: Adds journey-version analytics read models and report dimensions.
-Frontend impact: Adds journey analytics views or report sections.
-API impact: Adds or extends selected-customer reporting APIs.
-Tests to add/update: Tenant scope, version dimension, attribution consistency, redaction, export parity.
-Acceptance criteria: Customers can compare journey versions and see drop-offs/outcomes safely without exposing raw identity, event payloads, rewards payout detail, billing, settlement, or money data.
+Backend impact: Complete - added tenant-safe journey-version analytics read models over published customer journey versions, active campaign bindings, referral counts, progress event counts, high-value event counts, attribution rates, completion rates, and drop-off gaps.
+Frontend impact: API-ready; selected-customer Journey/Reports UX consumption remains bounded to later UX work.
+API impact: Complete - added `GET /v1/referral-saas/accounts/{account_ref}/journey-analytics` for selected-account version comparison.
+Tests to add/update: Complete - focused service/API/route inventory coverage for account scope, version dimensions, redaction, aggregate-only analytics, and bounded product route surface.
+Acceptance criteria: Complete - customers can compare journey versions and see drop-offs/outcomes safely without exposing raw identity, event payloads, rewards payout detail, billing, settlement, or money data. TASK-394 remains for non-local E2E proof.
 Dependencies: TASK-392.
 Priority: P1.
 

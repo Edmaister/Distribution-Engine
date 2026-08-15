@@ -1720,6 +1720,88 @@ async def test_referral_saas_customer_journey_incentive_binding_idempotency_conf
     assert "IDEMPOTENT_INCENTIVE_BINDING_COMMANDS" in body["guardrails"]
 
 
+async def test_referral_saas_account_reader_can_read_journey_analytics(monkeypatch):
+    calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", tenant_code="FNB")
+
+    async def fake_build_referral_saas_journey_analytics_read_model(**kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "versionCount": 1,
+                "versions": [
+                    {
+                        "customerJourneyVersionId": "version-1",
+                        "customerJourneyCode": "FNB_REFERRAL",
+                        "versionNumber": 2,
+                        "versionStatus": "PUBLISHED",
+                        "campaignCount": 1,
+                        "referralCount": 10,
+                        "attributionRate": 0.7,
+                        "completionRate": 0.4,
+                        "guardrails": ["ACCOUNT_SCOPED_JOURNEY_ANALYTICS"],
+                        "redactions": ["tenant_code", "raw_event_payload"],
+                    }
+                ],
+                "summary": {
+                    "journeyVersionsCompared": 1,
+                    "analyticsSignal": "OPTIMISE_COMPLETION",
+                },
+                "guardrails": ["ACCOUNT_SCOPED_JOURNEY_ANALYTICS"],
+                "redactions": ["tenant_code", "raw_event_payload"],
+                "noRawIdentityOrEventPayloadConfirmed": True,
+                "noRewardPayoutDetailConfirmed": True,
+                "noProviderDispatchConfirmed": True,
+                "noAuthBillingSettlementOrMoneyActionConfirmed": True,
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "build_referral_saas_journey_analytics_read_model",
+        fake_build_referral_saas_journey_analytics_read_model,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/journey-analytics",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+                "limit": 10,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["account"]["accountCode"] == "ACCT_FNB"
+    assert "tenantCode" not in body["account"]
+    assert body["journeyAnalytics"]["summary"]["analyticsSignal"] == (
+        "OPTIMISE_COMPLETION"
+    )
+    assert body["journeyAnalytics"]["versions"][0]["completionRate"] == 0.4
+    assert body["noRawIdentityOrEventPayloadConfirmed"] is True
+    assert body["noAuthBillingSettlementOrMoneyActionConfirmed"] is True
+    assert calls == [
+        {
+            "account_id": "acct-1",
+            "tenant_code": "FNB",
+            "limit": 10,
+            "data_window_start": None,
+            "data_window_end": None,
+        }
+    ]
+
+
 async def test_referral_saas_partner_cannot_list_global_journey_templates():
     async with AsyncClient(app=app, base_url="http://test", headers=PARTNER_HEADERS) as client:
         response = await client.get("/v1/referral-saas/journey-templates")
