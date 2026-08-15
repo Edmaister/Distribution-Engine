@@ -309,7 +309,15 @@ journey-version checks, idempotency replay/conflict handling, payload hashing,
 audit, redactions, and explicit no-publish, no-campaign-activation,
 no-runtime-switch, no-provider-dispatch, no-credential, no-auth, no-billing,
 no-payout, no-settlement, and no-money guardrails. Implementation now moves to
-TASK-399 for programme validation and simulation.
+TASK-399 now adds programme validation and simulation over this spine. Drafts
+can be checked for journey-version publish posture, effective-date safety,
+unsafe payload fields, campaign-default completeness, integration readiness,
+commercial entitlement posture, and incentive/engagement configuration gaps.
+The validation writes evidence, updates draft validation posture, supports
+idempotent replay/conflict handling, and returns customer-safe blockers,
+warnings, next actions, publish/campaign-binding allowances, and a no-side-
+effect simulation. Implementation now moves to TASK-400 for programme review,
+publish, retire, and rollback guardrails.
 
 ## Recommended Ordered Task Sequence
 

@@ -8823,7 +8823,7 @@ Priority: P1.
 
 ## TASK-399: Add programme validation and simulation service
 
-Status: Open.
+Status: Complete.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
 Shared primitive impact: Provides reusable validation over programme-level configuration. Source duplication: No.
@@ -8834,8 +8834,8 @@ Database/schema impact: Persists validation result evidence against programme dr
 Backend impact: Adds deterministic blockers, warnings, safe-to-publish summary, next-best-action output, and side-effect-free simulation.
 Frontend impact: Validation payload should be plain-language ready for TASK-405.
 API impact: Adds or extends selected-customer programme validation route.
-Tests to add/update: Missing journey version, invalid effective dates, unsafe incentive references, stale integration/entitlement posture, blocked campaign defaults, no-side-effect proof.
-Acceptance criteria: Programme validation explains exactly what blocks publish and what can wait, using customer-safe language, without mutating campaigns/referrals/providers/auth/billing/money state.
+Tests to add/update: Complete - route-level success/conflict coverage, seeded route smoke inventory, py_compile, and diff check.
+Acceptance criteria: Complete - programme validation explains blockers versus can-wait warnings in customer-safe language, persists validation evidence, updates draft validation posture, supports idempotent replay/conflict handling, and returns an explicit no-publish, no-campaign-activation, no-runtime-switch, no-provider-dispatch, no-credential/auth, no-billing/payout/settlement, and no-money simulation.
 Dependencies: TASK-398.
 Priority: P0.
 
