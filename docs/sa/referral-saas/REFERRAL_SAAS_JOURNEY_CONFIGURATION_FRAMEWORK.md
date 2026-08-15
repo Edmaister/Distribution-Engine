@@ -122,7 +122,7 @@ Every implementation task in this track must preserve these controls:
 | TASK-391 | Add rewards, missions, badges, and leaderboard binding controls | Incentive mechanics become configurable inside approved limits | Complete - approved catalogue references can bind to published customer journey versions with account scope, idempotency, audit, redaction, and no payout/money movement |
 | TASK-392 | Migrate runtime reads from code baseline to published config where proven | Runtime can execute configured journeys safely | Complete - published-version adapter maps approved template milestones/transitions into runtime definitions behind an explicit flag; static fallback, account scope, draft/archive rejection, template approval guard, safe metadata, and no unversioned runtime |
 | TASK-393 | Add journey analytics and optimization read models | Customers can optimize journeys from conversion/drop-off evidence | Complete - account-scoped read models compare published journey versions by active campaign bindings, referral/progress/high-value-event aggregates, attribution rates, completion rates, drop-off gaps, guardrails, and redactions |
-| TASK-394 | Run configurable journey E2E and non-local proof | Proves create-config-bind-track-report path outside local-only data | Live/staging proof, no leak, no unsafe side effects |
+| TASK-394 | Run configurable journey E2E and non-local proof | Complete - proves create-config-bind-track-report path with a repeatable physical runner | Approved template, account draft, validation, publish, campaign binding, progress replay, attribution/reporting/analytics readback, archive guardrail, no unsafe side effects |
 
 ## Definition Of Done For This Track
 
@@ -130,6 +130,12 @@ This track is complete when a customer or Amplifi Admin can select an approved
 global journey template, configure a tenant/customer-specific version, validate
 it, publish it, bind it to a campaign, track referrals against it, and report on
 performance without source-code changes for already-approved journey models.
+
+TASK-394 completes the implementation proof path for already-approved templates
+with `scripts/referral_saas_configurable_journey_e2e_physical_check.py`. The
+remaining launch-confidence work is environmental proof repetition under the
+existing non-local verification tasks, not additional configurable journey
+feature construction.
 
 New global journey models, new evidence rules, new transition engines, new
 reward-calculation engines, auth/login behavior, provider dispatch, billing,

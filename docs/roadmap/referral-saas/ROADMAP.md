@@ -224,9 +224,10 @@ read-only admin catalogue API over that schema so Amplifi Admin can inspect
 approved and draft global templates without exposing raw definition payloads or
 customer configuration. TASK-386 adds the selected-customer journey draft
 read/save/validate API with approved-template lookup, payload hashing,
-idempotency, validation evidence, audit, guardrails, and redactions. Runtime
-execution, publish/archive, campaign binding enforcement, incentive binding,
-analytics, UI, and non-local proof remain with TASK-388 through TASK-394.
+idempotency, validation evidence, audit, guardrails, and redactions. TASK-388
+through TASK-394 now complete the publish/archive, UI, campaign binding,
+incentive binding, runtime compatibility, analytics, and repeatable E2E proof
+path for configurable journeys.
 TASK-387 now adds richer validation/simulation behind the existing customer
 journey draft validate route, including milestone/transition/evidence checks,
 reward-safety checks, attribution-safety checks, safe-to-publish summaries, and
@@ -246,7 +247,16 @@ existing journey/progress runtime definitions behind an explicit flag, with
 code-baseline fallback and draft/archive/template-status guards. TASK-393 now
 adds tenant-safe journey analytics over published versions, active campaign
 bindings, referral progress, high-value events, attribution rates, completion
-rates, and drop-off gaps. Non-local proof remains with TASK-394.
+rates, and drop-off gaps.
+TASK-394 now adds the repeatable configurable journey E2E proof runner. The
+proof selects an approved template, saves and validates a customer draft,
+publishes an immutable version, binds and activates a customer campaign, issues
+and validates a referral code, records and replays progress, reads progress
+status, attribution trace, campaign report, journey analytics, and archive
+guardrail posture without source-code journey changes, provider dispatch,
+invite delivery, credential creation, auth, billing, settlement, or money
+movement. The configurable journey implementation stream is complete; remaining
+non-local launch evidence stays tracked by TASK-027 and TASK-348.
 
 ## Recommended Ordered Task Sequence
 
@@ -474,7 +484,11 @@ rates, and drop-off gaps. Non-local proof remains with TASK-394.
 222. TASK-391: Add rewards, missions, badges, and leaderboard binding controls. (Complete - account-scoped published journey incentive binding schema/API added for approved reward policy, mission, badge, and leaderboard catalogue references with idempotency, audit, redaction, and no-money guardrails.)
 223. TASK-392: Migrate runtime journey reads from code baseline to published configuration. (Complete - published-version runtime compatibility adapter added with account scope, static fallback, draft/archive/template-status guards, safe metadata, and no provider/auth/billing/payout/settlement/money side effects.)
 224. TASK-393: Add journey analytics and optimization read models. (Complete - account-scoped journey analytics API/read model added for published journey version comparison, active campaign binding counts, referral/progress/high-value-event aggregates, attribution/completion rates, drop-off gaps, guardrails, and redactions.)
-225. TASK-394: Run configurable journey E2E and non-local proof.
+225. TASK-394: Run configurable journey E2E and non-local proof. (Complete -
+repeatable proof runner added for approved-template selection, account-scoped
+draft validation/publish, campaign binding, referral/progress/attribution/
+reporting/analytics readback, and archive guardrail posture without source-code
+journey changes or unsafe adjacent side effects.)
 
 - TASK-341: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRESS_ATTRIBUTION_MUTATION_PROOF_EXECUTION_TASK_341.md`;
   `scripts/referral_saas_progress_attribution_physical_check.py`;

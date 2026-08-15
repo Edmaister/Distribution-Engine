@@ -71,18 +71,20 @@ made explicit before calling the product 10/10.
 | Support and recovery | TASK-380 now completes the partner/customer-safe selected-customer Support workspace with audited support-case assignment, owner visibility, evidence/recovery posture, idempotency replay, route coverage, and no unsafe repair/replay/retry/provider/invite/credential/auth/campaign/billing/money/DLaaS side effects. | Closed for H1 support/recovery workspace; continue non-local proof |
 | Separately contracted finance | TASK-381 now defines and enforces the commercial-finance boundary: H1 Referral SaaS can read plan posture, launch entitlement fields, and reference limits, while billing accounts, subscriptions, invoices, payments, payouts, funding, settlement, wallet/commission ledger movement, and treasury movement stay outside the H1 promise unless separately contracted. | Closed for H1 commercial-finance isolation; continue non-local proof |
 | Customer Home UX clarity | TASK-382 now clarifies the selected-customer home with plain-language readiness, red/amber action routing, and service-card action labels. | Closed for local UX clarity; continue non-local proof |
-| Configurable customer journeys | TASK-383 defines the post-H1 target-state SaaS framework for governed global templates, tenant/customer journey configurations, campaign binding to published versions, validation, publish/archive, incentive binding, runtime migration, analytics, and proof. TASK-384 now adds the durable schema foundation for templates, versions, account-scoped drafts, published customer journey versions, validation results, campaign binding references, idempotency, and audit evidence. TASK-385 now adds the read-only Amplifi Admin journey template catalogue API with status filtering, safe limits, governance metadata, and redactions over the versioned template schema. TASK-386 now adds account-scoped customer journey draft read/save/validate APIs with approved-template lookup, payload hashing, idempotency replay/conflict handling, validation evidence, audit, guardrails, and redactions. TASK-387 now adds richer validation/simulation behind the validate route with milestone/transition/evidence checks, reward-safety checks, attribution-safety checks, safe-to-publish summaries, and no runtime/provider/auth/billing/money side effects. TASK-388 now adds selected-customer publish/archive APIs so only validated drafts become immutable versions, archive blocks active versions or active campaign bindings, and idempotency/audit evidence remains explicit. TASK-389 now adds selected-customer Journey Configuration UX with approved template selection, allowed-section draft configuration, validation feedback, publish readiness, saved draft selection, and no runtime/provider/auth/billing/money guardrails. TASK-390 now binds customer campaigns to same-account published journey versions and blocks activation when the binding is missing or invalid. TASK-391 now adds account-scoped published journey incentive bindings for approved reward policy, mission, badge, and leaderboard catalogue references with idempotency, audit, redaction, and no reward/payout/money side effects. TASK-392 now adds the runtime compatibility adapter from published customer journey versions to existing journey/progress runtime definitions behind an explicit flag with static fallback and safe metadata. TASK-393 now adds tenant-safe journey analytics over published versions, active campaign bindings, referral/progress/high-value-event aggregates, attribution rates, completion rates, and drop-off gaps. | Continue TASK-394: non-local configurable journey E2E proof. |
+| Configurable customer journeys | TASK-383 defines the post-H1 target-state SaaS framework for governed global templates, tenant/customer journey configurations, campaign binding to published versions, validation, publish/archive, incentive binding, runtime migration, analytics, and proof. TASK-384 now adds the durable schema foundation for templates, versions, account-scoped drafts, published customer journey versions, validation results, campaign binding references, idempotency, and audit evidence. TASK-385 now adds the read-only Amplifi Admin journey template catalogue API with status filtering, safe limits, governance metadata, and redactions over the versioned template schema. TASK-386 now adds account-scoped customer journey draft read/save/validate APIs with approved-template lookup, payload hashing, idempotency replay/conflict handling, validation evidence, audit, guardrails, and redactions. TASK-387 now adds richer validation/simulation behind the validate route with milestone/transition/evidence checks, reward-safety checks, attribution-safety checks, safe-to-publish summaries, and no runtime/provider/auth/billing/money side effects. TASK-388 now adds selected-customer publish/archive APIs so only validated drafts become immutable versions, archive blocks active versions or active campaign bindings, and idempotency/audit evidence remains explicit. TASK-389 now adds selected-customer Journey Configuration UX with approved template selection, allowed-section draft configuration, validation feedback, publish readiness, saved draft selection, and no runtime/provider/auth/billing/money guardrails. TASK-390 now binds customer campaigns to same-account published journey versions and blocks activation when that binding is missing or invalid. TASK-391 now adds account-scoped published journey incentive bindings for approved reward policy, mission, badge, and leaderboard catalogue references with idempotency, audit, redaction, and no reward/payout/money side effects. TASK-392 now adds the runtime compatibility adapter from published customer journey versions to existing journey/progress runtime definitions behind an explicit flag with static fallback and safe metadata. TASK-393 now adds tenant-safe journey analytics over published versions, active campaign bindings, referral/progress/high-value-event aggregates, attribution rates, completion rates, and drop-off gaps. TASK-394 now adds a repeatable configurable journey E2E proof runner across approved-template selection, customer draft validation/publish, campaign binding/activation, referral validation, progress replay, attribution/reporting/analytics readback, and archive guardrail posture without source-code journey changes or unsafe adjacent side effects. | Closed for configurable journey implementation; repeat non-local environment evidence under TASK-027/TASK-348. |
 
-Current rating now reflects TASK-382 Customer Home UX clarity on top of the
-TASK-381 commercial-finance boundary evidence:
-Referral Management remains 9.99/10 and Campaign Attribution moves to
-9.999993/10. The
-confidence in the route to 10/10 improves because campaign attribution,
+Current rating now reflects TASK-394 configurable journey E2E proof on top of
+the TASK-381 commercial-finance boundary evidence:
+Referral Management moves to 9.999/10 and Campaign Attribution moves to
+9.999995/10. The
+confidence in the route to 10/10 improves because configurable journeys,
+campaign attribution,
 referral/referrer who-got-credit attribution, and HVE journey performance now
 have separate customer-scoped projection/reporting surfaces, and export files
 now have signed-download metadata, expiry, schedule intent, deletion proof, and
-explicit no-finance leakage guardrails. TASK-382 improves operator clarity but
-does not change the remaining non-local proof blocker.
+explicit no-finance leakage guardrails. TASK-394 proves the configurable
+journey spine locally and repeatably, but it does not change the remaining
+non-local proof blocker.
 
 TASK-383 adds the configurable customer journey framework as a target-state
 SaaS maturity path. It does not change the H1 launch rating because it is a
@@ -93,12 +95,13 @@ templates, evidence models, transition rules, reward engines, runtime
 execution, tenancy, audit, idempotency, and no-provider/no-auth/no-money
 boundaries.
 
-TASK-384 starts implementing that maturity path by adding the versioned
-configuration schema, and TASK-385 adds the first read-only admin template
-catalogue API. The gap is now smaller but not closed: no customer draft API,
-validation service, publish/archive command, campaign binding enforcement,
-incentive binding UI, runtime read migration, or non-local
-configurable-journey proof exists yet.
+TASK-384 through TASK-394 implement and prove that maturity path: versioned
+configuration schema, admin catalogue, customer drafts, validation/simulation,
+publish/archive, Journey Configuration UX, campaign binding enforcement,
+incentive binding, runtime compatibility, analytics, and repeatable E2E proof
+now exist for already-approved templates. Remaining 10/10 evidence is no
+longer configurable-journey implementation work; it is the separate non-local
+environment verification tracked by TASK-027 and TASK-348.
 
 ## TASK-357 H1 Scope And Release Gates
 
@@ -114,9 +117,10 @@ customer-journey tasks add more runtime behavior. The controlling artifact is
 | UX rule | Every customer page must make the selected customer, readiness state, one next action, reason, and non-action boundary obvious in plain language. |
 | Downstream enforcement | TASK-358 now enforces core selected-customer account, jurisdiction, and account-read capability gates; TASK-359 adds the partner/customer workspace account-context resolver with no unscoped account enumeration or internal tenant identifier exposure; TASK-360 adds the shared workspace overview projection with selected-account, readiness, primary-action, safe-to-leave, capability-aware worklist, redaction, and no-live-action guardrails; TASK-361 adds the read-only commercial entitlement and plan posture gate with no-billing/no-money boundaries; TASK-362 adds the backend production activation decision gate and blocks activation when account foundation, people/access, integrations, campaign readiness, commercial entitlement, or evidence freshness is incomplete; TASK-363 adds governed provider-backed invite delivery; TASK-364 adds expiring invite acceptance with token expiry, replay protection, audit, and no provisioning side effects; TASK-365 adds read-only identity/login reconciliation across customer access, optional platform seat, identity-provider evidence, revocation posture, and auth-claim readiness with no provisioning side effects; TASK-366 adds the redacted account-to-integration-client binding gate and blocks execution against unbound or wrong-tenant client context; TASK-367 adds credential/vault lifecycle proof evidence; TASK-368 adds adapter-backed safe integration test execution evidence; TASK-369 adds server-side campaign workspace capability enforcement for read, create, policy, review, and activation routes; TASK-370 adds campaign SoD and stale-evidence activation proof; TASK-371 adds governed campaign lifecycle controls; TASK-372 adds account-scoped referral registry/detail projections; TASK-373 now adds safe referrer identity directory and dimensions; TASK-374 now hardens referral timeline/source/idempotency evidence and recovery posture; TASK-375 adds the governed correction/replay/reassignment command execution boundary; TASK-376 adds dedicated campaign attribution projection/page; TASK-377 adds dedicated referral/referrer who-got-credit attribution; TASK-378 adds source-backed HVE funnel and journey-performance reporting; TASK-379 adds export lifecycle deletion proof; TASK-380 completes the selected-customer Support assignment/recovery workspace with audit/idempotency and no-adjacent-action guardrails; TASK-381 now closes commercial-finance isolation with structured entitlement-boundary readback and no-finance-write route tests. |
 
-The ratings now reflect completed HVE journey reporting: Referral Management
-remains 9.99/10 and Campaign Attribution moves to 9.999993/10. Confidence
-improves because the remaining work now has a single H1 release-gate contract,
+The ratings now reflect completed configurable journey E2E proof: Referral
+Management moves to 9.999/10 and Campaign Attribution moves to 9.999995/10.
+Confidence improves because the remaining work now has a single H1
+release-gate contract,
 separate campaign and referral/referrer attribution surfaces, and source-backed
 journey-performance reporting with signed export and deletion proof.
 

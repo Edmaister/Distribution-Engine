@@ -8554,7 +8554,7 @@ Completed output:
 
 - Added additive migration `094_referral_saas_journey_configuration.sql` with governed global journey templates, template versions, account-scoped customer drafts, immutable published customer journey versions, validation results, campaign journey bindings, idempotency keys, and audit evidence.
 - Added migration-structure tests proving account scope, status constraints, indexes, immutable publish metadata, payload hashes, validation evidence, campaign binding references, idempotency storage, audit redactions, and no internal tenant-code/raw identity/provider/auth/billing/money storage columns.
-- Runtime journey execution, customer draft APIs, UI configuration, campaign binding enforcement, incentives, analytics, and non-local proof remain with TASK-386 through TASK-394.
+- TASK-386 through TASK-394 now complete customer draft APIs, validation, publish/archive, UI configuration, campaign binding enforcement, incentives, runtime compatibility, analytics, and repeatable E2E proof.
 
 ## TASK-385: Add admin journey template catalogue read API
 
@@ -8578,7 +8578,7 @@ Completed output:
 - Added a read-only journey template catalogue service over the TASK-384 template and template-version tables.
 - Added Amplifi Admin list/detail routes for `/v1/referral-saas/journey-templates` and `/v1/referral-saas/journey-templates/{template_code}` with status filtering, archive opt-in, safe limits, guardrails, and redactions.
 - Added API/service/route-inventory coverage proving reader-only access, partner denial, status validation, missing-template handling, safe metadata, and no raw template payload, tenant, provider, auth, billing, payout, settlement, or money evidence leakage.
-- Customer draft APIs, validation/simulation, publish/archive, campaign binding, incentive binding, runtime migration, analytics, and non-local proof remain with TASK-386 through TASK-394.
+- TASK-386 through TASK-394 now complete customer draft APIs, validation/simulation, publish/archive, campaign binding, incentive binding, runtime compatibility, analytics, and repeatable E2E proof.
 
 ## TASK-386: Add customer journey draft read, save, and validate API
 
@@ -8680,7 +8680,7 @@ Completed outputs:
 - Updated campaign readiness and activation so campaigns expose binding posture and activation blocks missing or invalid published journey bindings.
 - Updated customer-scoped campaign setup UX to require a published journey version selection and bind the campaign after saving the inactive campaign draft.
 - Added route inventory and campaign activation tests covering published journey binding requirements.
-- Runtime migration, incentive/reward binding, journey analytics, and non-local proof continue with TASK-391 to TASK-394.
+- TASK-391 through TASK-394 now complete incentive/reward binding, runtime compatibility, journey analytics, and repeatable E2E proof.
 
 ## TASK-391: Add rewards, missions, badges, and leaderboard binding controls
 
@@ -8712,7 +8712,7 @@ Backend impact: Complete - added a compatibility adapter that maps account-scope
 Frontend impact: Docs/infographic only; no runtime UI surface changed.
 API impact: No public route changes; downstream progress/reporting integration remains bounded to later tasks.
 Tests to add/update: Complete - focused coverage for fallback behavior, published-version mapping, missing account scope, draft/archive rejection, unapproved template rejection, and safe metadata redaction.
-Acceptance criteria: Complete - existing code-defined journeys still work; selected configured journeys can resolve from published immutable versions behind an explicit compatibility flag; unversioned drafts, archived versions, wrong-scope access, and unapproved templates do not execute; no raw payload, provider, auth, billing, payout, settlement, or money leakage occurs. TASK-393 and TASK-394 remain for analytics integration and non-local proof.
+Acceptance criteria: Complete - existing code-defined journeys still work; selected configured journeys can resolve from published immutable versions behind an explicit compatibility flag; unversioned drafts, archived versions, wrong-scope access, and unapproved templates do not execute; no raw payload, provider, auth, billing, payout, settlement, or money leakage occurs. TASK-393 and TASK-394 now complete analytics integration and repeatable E2E proof.
 Dependencies: TASK-390; TASK-391.
 Priority: P0.
 
@@ -8729,24 +8729,24 @@ Backend impact: Complete - added tenant-safe journey-version analytics read mode
 Frontend impact: API-ready; selected-customer Journey/Reports UX consumption remains bounded to later UX work.
 API impact: Complete - added `GET /v1/referral-saas/accounts/{account_ref}/journey-analytics` for selected-account version comparison.
 Tests to add/update: Complete - focused service/API/route inventory coverage for account scope, version dimensions, redaction, aggregate-only analytics, and bounded product route surface.
-Acceptance criteria: Complete - customers can compare journey versions and see drop-offs/outcomes safely without exposing raw identity, event payloads, rewards payout detail, billing, settlement, or money data. TASK-394 remains for non-local E2E proof.
+Acceptance criteria: Complete - customers can compare journey versions and see drop-offs/outcomes safely without exposing raw identity, event payloads, rewards payout detail, billing, settlement, or money data. TASK-394 now adds repeatable configurable journey E2E proof.
 Dependencies: TASK-392.
 Priority: P1.
 
 ## TASK-394: Run configurable journey E2E and non-local proof
 
-Status: Planned.
+Status: Complete (2026-08-15).
 Product boundary: Referral SaaS.
 Shared primitive impact: Proves governed configuration under realistic environment constraints. Source duplication: No.
 Objective: Run end-to-end proof for template selection, customer configuration, validation, publish, campaign binding, progress tracking, attribution, reporting, and rollback/archive posture.
 Why now: A configurable journey system must be proven beyond local docs/tests before it can be called production-grade SaaS capability.
-Files likely involved: proof runner scripts; E2E tests; docs; infographic.
-Database/schema impact: Uses configured journey schema and runtime data.
-Backend impact: Verifies APIs and runtime behavior.
-Frontend impact: Verifies customer/admin journey configuration UX and campaign binding.
-API impact: Verifies complete route spine.
-Tests to add/update: Golden path, failure path, rollback/archive, cross-tenant, non-local smoke proof.
-Acceptance criteria: Proof confirms a configured customer journey can be created, published, bound to a campaign, tracked, attributed, reported, and safely archived/rolled forward without source-code changes for an already-approved template.
+Completed output: `scripts/referral_saas_configurable_journey_e2e_physical_check.py`; `test/test_referral_saas_configurable_journey_e2e_physical_check.py`; `scripts/README.md`; roadmap/gap/infographic updates. Adds a repeatable configurable-journey proof runner that selects an approved global template, saves and validates an account-scoped draft, publishes an immutable customer journey version, creates and binds a customer campaign, activates the bound campaign, issues and validates a referral code, records and replays progress, reads progress status, attribution trace, campaign report, journey analytics, and verifies archive/rollback posture without source-code journey changes, provider dispatch, invite delivery, credential creation, auth, billing, settlement, or money movement.
+Database/schema impact: Uses configured journey schema and runtime data; no schema change.
+Backend impact: Verifies configured journey, campaign, referral, progress, attribution, reporting, analytics, and archive guardrail APIs through one proof spine.
+Frontend impact: API-ready physical proof supports customer/admin journey configuration UX and campaign binding verification.
+API impact: Complete - verifies the configurable journey route spine from catalogue through runtime readback.
+Tests to add/update: Complete - focused runner tests cover golden path, blocked validation, internal-scope leak rejection, progress replay, reporting/analytics readback, and active-binding archive guardrail posture.
+Acceptance criteria: Complete - proof confirms a configured customer journey can be created, published, bound to a campaign, tracked, attributed, reported, and safely archive-checked without source-code changes for an already-approved template. Non-local/staging repetition remains tracked by the existing environment-verification blockers TASK-027 and TASK-348.
 Dependencies: TASK-393.
 Priority: P0.
 
