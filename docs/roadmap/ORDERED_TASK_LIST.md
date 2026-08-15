@@ -8750,6 +8750,203 @@ Acceptance criteria: Complete - proof confirms a configured customer journey can
 Dependencies: TASK-393.
 Priority: P0.
 
+## TASK-395: Define Referral SaaS UX/CX maturity scorecard
+
+Status: Complete (2026-08-15).
+Product boundary: Referral SaaS.
+Shared primitive impact: Establishes a reusable UX/CX standard over existing selected-customer, account, campaign, people/access, integration, attribution, reporting, and support primitives. Source duplication: No.
+Objective: Define the plain-language UX/CX maturity standard and page-by-page simplification backlog now that the core Referral SaaS capability spine is close to production-ready.
+Why now: The remaining product risk is no longer only backend capability. Users must understand where they are, what each page does, what is blocking them, and what to do next without interpreting raw platform evidence.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_UX_CX_MATURITY_SCORECARD.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: No runtime UI change in this task; defines the UX standards and downstream UI tasks.
+API impact: None.
+Tests to add/update: Documentation readback and roadmap/gap alignment only.
+Acceptance criteria: Complete - the UX/CX scorecard defines the five-second screen contract, customer-scoped information architecture, plain-language readiness model, page-by-page target UX, and downstream UX tasks from TASK-396 to TASK-405 without changing product boundaries, forking source, inventing backend states, or exposing DLaaS/money workflows.
+Dependencies: TASK-394.
+Priority: P1.
+
+## TASK-396: Define Referral SaaS programme configuration contract
+
+Status: Open.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
+Shared primitive impact: Defines a future shared programme-version control plane while keeping Referral SaaS product boundaries intact. Source duplication: No.
+Objective: Define the simple customer/admin programme configuration contract that sits above journey templates, campaign defaults, incentives, readiness, approvals, and effective dates.
+Why now: Configurable journeys are complete, but customers still need one plain-language business object instead of separate journey, campaign, reward, mission, badge, leaderboard, integration, and readiness fragments.
+Files likely involved: programme configuration SA contract; roadmap; gap matrix; infographic.
+Database/schema impact: None.
+Backend impact: Defines API and service boundaries only.
+Frontend impact: Defines the simple Programme IA and language model.
+API impact: Contract only.
+Tests to add/update: Documentation readback and task alignment.
+Acceptance criteria: Contract explains programme ownership, lifecycle, allowed fields, review/publish controls, tenancy, idempotency, audit, redaction, runtime boundaries, no-provider/no-auth/no-billing/no-money guardrails, and the plain-language UX model.
+Dependencies: TASK-395.
+Priority: P1.
+
+## TASK-397: Add programme draft and version schema foundation
+
+Status: Open.
+Product boundary: Referral SaaS with Shared Platform trajectory.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
+Shared primitive impact: Adds durable programme configuration storage that can later generalize into DLaaS programme/version primitives. Source duplication: No.
+Objective: Add account-scoped programme drafts, immutable programme versions, validation results, idempotency keys, audit evidence, and effective-date/checksum metadata.
+Why now: Published journeys and incentive references need one programme snapshot before campaigns/referrals can bind to a complete versioned business configuration.
+Files likely involved: additive migration; migration tests; roadmap/gap/infographic docs.
+Database/schema impact: Adds programme draft/version/validation/idempotency/audit tables. Must reference platform accounts and published customer journey versions; must not expose or persist unsafe raw secrets, provider payloads, auth claims, billing, settlement, payout, wallet, treasury, invoice, or money movement fields.
+Backend impact: Migration validation only.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: Migration replay, constraints, indexes, account scope, immutable publish metadata, effective-date constraints, checksum fields, and unsafe-column absence tests.
+Acceptance criteria: Schema can persist a complete programme draft and immutable published version with account scope, journey version reference, campaign defaults, approved catalogue references, readiness snapshots, approval evidence, checksum, idempotency, and audit.
+Dependencies: TASK-396.
+Priority: P1.
+
+## TASK-398: Add programme catalogue and draft read/save APIs
+
+Status: Open.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
+Shared primitive impact: Adds selected-customer programme configuration service/API wrappers. Source duplication: No.
+Objective: Let Amplifi Admin or an authorized customer admin list programme versions, read programme drafts, and save draft programme intent from approved building blocks.
+Why now: Programme setup must be API-governed before UI can safely present a simple create/copy/edit experience.
+Files likely involved: programme configuration service; selected-customer router; API endpoint client; API/service/route tests.
+Database/schema impact: Reads/writes TASK-397 tables.
+Backend impact: Adds account scope, capability checks, idempotency replay/conflict handling, payload hashing, audit, and redaction.
+Frontend impact: API-ready only unless paired with TASK-405.
+API impact: Adds selected-customer programme draft/version read and save routes.
+Tests to add/update: Account scope, wrong-account rejection, role/capability checks, idempotency replay/conflict, unsafe payload rejection, redactions, route inventory.
+Acceptance criteria: Draft programme configuration can be saved safely without publishing, campaign activation, referral runtime switching, provider dispatch, credential creation, auth mutation, billing, payout, settlement, or money movement.
+Dependencies: TASK-397.
+Priority: P1.
+
+## TASK-399: Add programme validation and simulation service
+
+Status: Open.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
+Shared primitive impact: Provides reusable validation over programme-level configuration. Source duplication: No.
+Objective: Validate and simulate a programme across journey version, campaign defaults, incentives, engagement references, integrations readiness, entitlement posture, jurisdiction, and effective dates.
+Why now: Customers need simple guidance, but the backend must prove all bound pieces fit before review or publish.
+Files likely involved: programme validation service; API route; tests; docs.
+Database/schema impact: Persists validation result evidence against programme drafts.
+Backend impact: Adds deterministic blockers, warnings, safe-to-publish summary, next-best-action output, and side-effect-free simulation.
+Frontend impact: Validation payload should be plain-language ready for TASK-405.
+API impact: Adds or extends selected-customer programme validation route.
+Tests to add/update: Missing journey version, invalid effective dates, unsafe incentive references, stale integration/entitlement posture, blocked campaign defaults, no-side-effect proof.
+Acceptance criteria: Programme validation explains exactly what blocks publish and what can wait, using customer-safe language, without mutating campaigns/referrals/providers/auth/billing/money state.
+Dependencies: TASK-398.
+Priority: P0.
+
+## TASK-400: Add programme review, publish, retire, and rollback guardrails
+
+Status: Open.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
+Shared primitive impact: Adds programme-version lifecycle governance. Source duplication: No.
+Objective: Publish validated programme drafts as immutable versions and support controlled retirement/rollback posture.
+Why now: Campaigns and referrals must bind to a stable programme version, not independently edited settings.
+Files likely involved: programme configuration service; selected-customer router; API tests; audit/idempotency tests; docs.
+Database/schema impact: Writes published programme versions, lifecycle status, rollback/retire metadata, review evidence, checksums, idempotency, and audit.
+Backend impact: Adds submit/review/publish/retire/rollback commands with separation-of-duties checks where applicable.
+Frontend impact: API-ready publish lifecycle.
+API impact: Adds selected-customer programme review/publish/retire/rollback routes.
+Tests to add/update: Publish without validation blocked, stale validation blocked, same-actor review blocked where required, immutable version readback, active campaign/referral rollback guardrails, idempotency, audit.
+Acceptance criteria: Only validated/reviewed programme drafts can publish; published versions are immutable; retirement/rollback is explicit and cannot silently mutate active campaigns, existing referrals, providers, auth, billing, settlement, or money state.
+Dependencies: TASK-399.
+Priority: P0.
+
+## TASK-401: Bind campaigns to published programme versions
+
+Status: Open.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
+Shared primitive impact: Moves campaign configuration from journey-only binding to programme-version binding. Source duplication: No.
+Objective: Require customer campaigns to bind to a published programme version and derive the journey binding from that programme.
+Why now: A campaign should not separately pick journey and incentive settings after a programme has been published.
+Files likely involved: campaign service/API/UI; programme configuration service; readiness/activation tests; docs.
+Database/schema impact: Adds or uses programme-version binding references on campaign setup.
+Backend impact: Campaign readiness and activation validate same-account published programme binding.
+Frontend impact: Campaign setup shows programme selection instead of loose journey selection where available.
+API impact: Campaign read/create/update/readiness/activation expose and enforce programme binding.
+Tests to add/update: No draft binding, wrong-account binding blocked, retired-version behavior, activation gate, backwards compatibility for existing journey-bound campaigns.
+Acceptance criteria: Campaigns can be created from a published programme version; activation blocks missing, retired, wrong-account, or invalid programme versions; no campaign can silently diverge from its programme snapshot.
+Dependencies: TASK-400.
+Priority: P0.
+
+## TASK-402: Add programme-scoped incentive and engagement version binding controls
+
+Status: Open.
+Product boundary: Referral SaaS with money boundary guardrails.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
+Shared primitive impact: Tightens reward/mission/badge/leaderboard scope around programme versions. Source duplication: No.
+Objective: Bind approved reward policy, mission, badge, and leaderboard references to programme versions with explicit effective-date and catalogue-version posture.
+Why now: Journey-level incentive references are safe, but a world-class programme platform needs one historical incentive/engagement snapshot per programme version.
+Files likely involved: incentive binding schema/service/API/tests; reward/mission/badge/leaderboard catalogue adapters; docs.
+Database/schema impact: Adds programme-scoped incentive and engagement binding rows or extends existing binding references without duplicating catalogue tables.
+Backend impact: Validates approved catalogue status, account/jurisdiction/product scope, version/effective-date compatibility, idempotency, audit, and redaction.
+Frontend impact: API-ready approved catalogue picker for TASK-405.
+API impact: Adds programme incentive/engagement list/bind routes.
+Tests to add/update: Approved-only binding, cross-account/cross-jurisdiction rejection, stale/retired catalogue rejection, no payout/award/scoring side effects, idempotency/audit.
+Acceptance criteria: A published programme version has a clear approved incentive/engagement snapshot while reward application, mission progress, badge award, leaderboard scoring, payout, settlement, funding, billing, invoice, wallet, commission, and money movement remain outside setup.
+Dependencies: TASK-400.
+Priority: P1.
+
+## TASK-403: Bind new referrals and runtime reads to published programme versions
+
+Status: Open.
+Product boundary: Referral SaaS with Shared Platform trajectory.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
+Shared primitive impact: Adds programme-version runtime identity for historical replay. Source duplication: No.
+Objective: Ensure new referral instances created under programme-bound campaigns carry the programme version identity needed for runtime reads and historical replay.
+Why now: Analytics and replay are only trustworthy if each referral is tied to the complete programme snapshot that was active when it was created.
+Files likely involved: referral validation/instance service; progress/runtime adapters; attribution/reporting services; migration/tests; docs.
+Database/schema impact: Adds or populates programme-version references where needed on referral/campaign runtime read models.
+Backend impact: Runtime reads resolve journey/progress/incentive context through programme version when enabled, with fallback for legacy referrals.
+Frontend impact: Customer-safe programme/version labels in diagnostics only.
+API impact: Referral/progress/attribution/reporting responses may expose safe programme version metadata.
+Tests to add/update: New referral programme binding, legacy fallback, wrong-account rejection, historical replay stability, analytics consistency, no raw config leakage.
+Acceptance criteria: New referrals bind to a published programme version; existing referrals continue safely; progress, attribution, reporting, and replay can resolve the correct historical configuration without source-code journey changes or unsafe side effects.
+Dependencies: TASK-401; TASK-402.
+Priority: P0.
+
+## TASK-404: Add programme analytics and version comparison read models
+
+Status: Open.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
+Shared primitive impact: Adds tenant-safe programme optimization read models. Source duplication: No.
+Objective: Show customer-safe performance, drop-off, attribution, incentive, and campaign outcome comparisons by programme version.
+Why now: The business value of configurable programmes is optimization, not just setup.
+Files likely involved: programme analytics service/API; reporting projections; frontend endpoint clients; tests; docs.
+Database/schema impact: Reads programme versions, campaign bindings, referral/progress/attribution/reporting data.
+Backend impact: Adds aggregate-only analytics with redactions and version dimensions.
+Frontend impact: API-ready read model for Programme UX.
+API impact: Adds selected-customer programme analytics route.
+Tests to add/update: Account scope, aggregate-only payloads, no raw identity/event payload/reward payout/billing/money leakage, empty-state behavior, version comparison.
+Acceptance criteria: Customers can compare programme versions and see what improved or regressed in plain language without exposing raw event payloads, internal identifiers, payout detail, billing, settlement, or money data.
+Dependencies: TASK-403.
+Priority: P1.
+
+## TASK-405: Add simple Programme UX and E2E proof
+
+Status: Open.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_UX_CX_MATURITY_SCORECARD.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
+Shared primitive impact: Proves the programme model as a customer/admin SaaS workflow. Source duplication: No.
+Objective: Add a simple selected-customer Programme workspace and repeatable proof across draft, validation, review, publish, campaign creation/binding, referral creation, progress, attribution, reporting, analytics, and rollback posture.
+Why now: The platform should feel like a simple SaaS product, not a series of technical control screens.
+Files likely involved: selected-customer frontend Programme pages; API endpoint clients; Playwright/Vitest tests; physical proof runner; roadmap/gap/infographic docs.
+Database/schema impact: Uses TASK-397 through TASK-404 schema and runtime evidence.
+Backend impact: No new backend primitives beyond proof fixes.
+Frontend impact: Adds Programme list/detail/create/copy/review pages with one primary next action, plain-language blockers, labelled metadata, disclosure-based diagnostics, and customer-safe copy.
+API impact: Verifies the TASK-398 through TASK-404 route spine.
+Tests to add/update: Frontend render/navigation tests; API-client tests; E2E proof runner; redaction/no-side-effect checks; legacy fallback checks.
+Acceptance criteria: A user can create or copy a programme, configure approved options, validate, submit, publish, create a campaign from it, generate referral activity, and compare outcomes in a simple customer-scoped UI without interpreting raw configuration or triggering provider/auth/billing/settlement/money side effects.
+Dependencies: TASK-404.
+Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

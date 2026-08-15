@@ -103,6 +103,27 @@ now exist for already-approved templates. Remaining 10/10 evidence is no
 longer configurable-journey implementation work; it is the separate non-local
 environment verification tracked by TASK-027 and TASK-348.
 
+TASK-395 adds the UX/CX maturity scorecard in
+`docs/sa/referral-saas/REFERRAL_SAAS_UX_CX_MATURITY_SCORECARD.md`. This
+separates backend capability readiness from product-experience readiness. The
+Referral SaaS score remains technically near-complete, but the next tasks must
+make the customer journey simpler: customer context first, one primary next
+action per page, labelled metadata instead of raw identifiers, health states
+that route to the exact fixing action, standalone work pages, partner-simple
+language, Amplifi Admin diagnostics by disclosure, and no DLaaS or money-flow
+leakage in the focused SaaS experience.
+
+TASK-396 through TASK-405 add the remaining target-state SaaS configuration
+path identified after the configurable journey review. The gap is not another
+free-form journey editor. The product needs one simple, governed business
+object: a versioned Referral programme that binds customer, jurisdiction,
+approved journey version, campaign defaults, approved incentive/engagement
+references, readiness posture, review evidence, effective dates, and immutable
+checksums. This keeps customer/admin configuration understandable while giving
+the backend a single versioned object for campaign binding, referral binding,
+analytics, and historical replay. The controlling artifact is
+`docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
+
 ## TASK-357 H1 Scope And Release Gates
 
 TASK-357 locks the H1 Referral SaaS release promise before the remaining
