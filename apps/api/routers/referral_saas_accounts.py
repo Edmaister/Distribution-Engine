@@ -291,10 +291,15 @@ from services.referral_saas_programme_configuration_service import (
     ProgrammeConfigurationNotFound,
     ProgrammeConfigurationUnsafePayload,
     ProgrammeConfigurationValidationError,
+    decide_referral_saas_programme_draft_review,
     get_referral_saas_programme_catalogue,
     get_referral_saas_programme_draft,
     list_referral_saas_programme_versions,
+    prepare_referral_saas_programme_rollback_readiness,
+    publish_referral_saas_programme_version,
+    retire_referral_saas_programme_version,
     save_referral_saas_programme_draft,
+    submit_referral_saas_programme_draft_for_review,
     validate_referral_saas_programme_draft,
 )
 from services.referral_saas_technical_setup_service import (
@@ -713,6 +718,42 @@ class ReferralSaasProgrammeDraftSaveRequest(BaseModel):
 
 class ReferralSaasProgrammeDraftValidateRequest(BaseModel):
     accountScope: dict[str, Any] = Field(default_factory=dict)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasProgrammeReviewSubmitRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    reviewReason: str = Field(min_length=1)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasProgrammeReviewDecisionRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    decision: str = Field(min_length=1)
+    reviewReason: str = Field(min_length=1)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasProgrammePublishRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    publishReason: str = Field(min_length=1)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasProgrammeRetireRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    retirementReason: str = Field(min_length=1)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasProgrammeRollbackReadinessRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    rollbackReason: str = Field(min_length=1)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str = Field(min_length=1)
 
@@ -4554,6 +4595,50 @@ async def _save_referral_saas_programme_draft_response(
     return body
 
 
+def _raise_programme_configuration_http_exception(exc: Exception) -> None:
+    if isinstance(exc, ProgrammeConfigurationIdempotencyConflict):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "IDEMPOTENCY_CONFLICT",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+    if isinstance(exc, ProgrammeConfigurationUnsafePayload):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "REJECTED_UNSAFE_PAYLOAD",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+    if isinstance(exc, ProgrammeConfigurationValidationError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "VALIDATION_ERROR",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+    if isinstance(exc, ProgrammeConfigurationNotFound):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "PROGRAMME_CONFIGURATION_NOT_FOUND",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+    raise exc
+
+
 @router.post("/accounts/{account_ref}/programmes/drafts")
 async def create_referral_saas_programme_configuration_draft(
     account_ref: str,
@@ -4669,6 +4754,261 @@ async def validate_referral_saas_programme_configuration_draft(
         "noCredentialOrAuthMutationConfirmed": True,
         "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
     }
+
+
+@router.post("/accounts/{account_ref}/programmes/drafts/{draft_ref}/submit-review")
+async def submit_referral_saas_programme_configuration_review(
+    account_ref: str,
+    draft_ref: str,
+    request: ReferralSaasProgrammeReviewSubmitRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_programme_configuration_account_context(
+        account_ref=account_ref,
+        account_scope=request.accountScope,
+        identity=admin_identity,
+    )
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await submit_referral_saas_programme_draft_for_review(
+            account_id=account.account_id,
+            programme_draft_id=draft_ref,
+            review_reason=request.reviewReason,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except (
+        ProgrammeConfigurationIdempotencyConflict,
+        ProgrammeConfigurationUnsafePayload,
+        ProgrammeConfigurationValidationError,
+        ProgrammeConfigurationNotFound,
+    ) as exc:
+        _raise_programme_configuration_http_exception(exc)
+
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "guardrail": (
+                "Programme review submission for the selected account. This moves "
+                "a validated draft to review only; it does not publish, activate "
+                "campaigns, switch referral runtime, dispatch providers, create "
+                "credentials, mutate auth, bill, settle, pay out, or move money."
+            ),
+        }
+    )
+    return body
+
+
+@router.post("/accounts/{account_ref}/programmes/drafts/{draft_ref}/review-decision")
+async def decide_referral_saas_programme_configuration_review(
+    account_ref: str,
+    draft_ref: str,
+    request: ReferralSaasProgrammeReviewDecisionRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_programme_configuration_account_context(
+        account_ref=account_ref,
+        account_scope=request.accountScope,
+        identity=admin_identity,
+    )
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await decide_referral_saas_programme_draft_review(
+            account_id=account.account_id,
+            programme_draft_id=draft_ref,
+            decision=request.decision,
+            review_reason=request.reviewReason,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except (
+        ProgrammeConfigurationIdempotencyConflict,
+        ProgrammeConfigurationUnsafePayload,
+        ProgrammeConfigurationValidationError,
+        ProgrammeConfigurationNotFound,
+    ) as exc:
+        _raise_programme_configuration_http_exception(exc)
+
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "guardrail": (
+                "Programme review decision for the selected account. It records "
+                "approval, block, or change request only; it does not publish, "
+                "activate campaigns, switch referral runtime, dispatch providers, "
+                "create credentials, mutate auth, bill, settle, pay out, or move money."
+            ),
+        }
+    )
+    return body
+
+
+@router.post("/accounts/{account_ref}/programmes/drafts/{draft_ref}/publish")
+async def publish_referral_saas_programme_configuration_version(
+    account_ref: str,
+    draft_ref: str,
+    request: ReferralSaasProgrammePublishRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_programme_configuration_account_context(
+        account_ref=account_ref,
+        account_scope=request.accountScope,
+        identity=admin_identity,
+    )
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await publish_referral_saas_programme_version(
+            account_id=account.account_id,
+            programme_draft_id=draft_ref,
+            publish_reason=request.publishReason,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except (
+        ProgrammeConfigurationIdempotencyConflict,
+        ProgrammeConfigurationUnsafePayload,
+        ProgrammeConfigurationValidationError,
+        ProgrammeConfigurationNotFound,
+    ) as exc:
+        _raise_programme_configuration_http_exception(exc)
+
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "programmeVersion": body["resource"],
+            "guardrail": (
+                "Programme version publish for the selected account. It creates "
+                "an immutable programme configuration version only; it does not "
+                "activate campaigns, switch referral runtime, dispatch providers, "
+                "create credentials, mutate auth, bill, settle, pay out, or move money."
+            ),
+            "noProgrammePublishSimulationConfirmed": False,
+        }
+    )
+    return body
+
+
+@router.post("/accounts/{account_ref}/programmes/versions/{version_ref}/retire")
+async def retire_referral_saas_programme_configuration_version(
+    account_ref: str,
+    version_ref: str,
+    request: ReferralSaasProgrammeRetireRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_programme_configuration_account_context(
+        account_ref=account_ref,
+        account_scope=request.accountScope,
+        identity=admin_identity,
+    )
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await retire_referral_saas_programme_version(
+            account_id=account.account_id,
+            programme_version_id=version_ref,
+            retirement_reason=request.retirementReason,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except (
+        ProgrammeConfigurationIdempotencyConflict,
+        ProgrammeConfigurationUnsafePayload,
+        ProgrammeConfigurationValidationError,
+        ProgrammeConfigurationNotFound,
+    ) as exc:
+        _raise_programme_configuration_http_exception(exc)
+
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "programmeVersion": body["resource"],
+            "guardrail": (
+                "Programme version retirement for the selected account. It retires "
+                "the configuration record only; it does not activate campaigns, "
+                "switch referral runtime, dispatch providers, create credentials, "
+                "mutate auth, bill, settle, pay out, or move money."
+            ),
+        }
+    )
+    return body
+
+
+@router.post("/accounts/{account_ref}/programmes/versions/{version_ref}/rollback-readiness")
+async def prepare_referral_saas_programme_configuration_rollback_readiness(
+    account_ref: str,
+    version_ref: str,
+    request: ReferralSaasProgrammeRollbackReadinessRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_programme_configuration_account_context(
+        account_ref=account_ref,
+        account_scope=request.accountScope,
+        identity=admin_identity,
+    )
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await prepare_referral_saas_programme_rollback_readiness(
+            account_id=account.account_id,
+            programme_version_id=version_ref,
+            rollback_reason=request.rollbackReason,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except (
+        ProgrammeConfigurationIdempotencyConflict,
+        ProgrammeConfigurationUnsafePayload,
+        ProgrammeConfigurationValidationError,
+        ProgrammeConfigurationNotFound,
+    ) as exc:
+        _raise_programme_configuration_http_exception(exc)
+
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "rollbackReadiness": body["resource"],
+            "guardrail": (
+                "Programme rollback readiness for the selected account. It records "
+                "that rollback can be reviewed later; it does not switch live "
+                "campaigns, referral runtime, providers, credentials, auth, billing, "
+                "settlement, payout, or money workflows."
+            ),
+        }
+    )
+    return body
 
 
 @router.post("/accounts/{account_ref}/journey-drafts/{draft_ref}/validate")
