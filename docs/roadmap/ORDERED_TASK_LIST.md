@@ -8769,7 +8769,7 @@ Priority: P1.
 
 ## TASK-396: Define Referral SaaS programme configuration contract
 
-Status: Open.
+Status: Complete (2026-08-15).
 Product boundary: Referral SaaS.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
 Shared primitive impact: Defines a future shared programme-version control plane while keeping Referral SaaS product boundaries intact. Source duplication: No.
@@ -8780,8 +8780,8 @@ Database/schema impact: None.
 Backend impact: Defines API and service boundaries only.
 Frontend impact: Defines the simple Programme IA and language model.
 API impact: Contract only.
-Tests to add/update: Documentation readback and task alignment.
-Acceptance criteria: Contract explains programme ownership, lifecycle, allowed fields, review/publish controls, tenancy, idempotency, audit, redaction, runtime boundaries, no-provider/no-auth/no-billing/no-money guardrails, and the plain-language UX model.
+Tests to add/update: Complete - documentation readback and task alignment.
+Acceptance criteria: Complete - `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_CONTRACT.md` explains programme ownership, lifecycle, allowed fields, review/publish controls, tenancy, idempotency, audit, redaction, runtime boundaries, no-provider/no-auth/no-billing/no-money guardrails, and the plain-language UX model.
 Dependencies: TASK-395.
 Priority: P1.
 
@@ -8789,7 +8789,7 @@ Priority: P1.
 
 Status: Open.
 Product boundary: Referral SaaS with Shared Platform trajectory.
-Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_CONTRACT.md`.
 Shared primitive impact: Adds durable programme configuration storage that can later generalize into DLaaS programme/version primitives. Source duplication: No.
 Objective: Add account-scoped programme drafts, immutable programme versions, validation results, idempotency keys, audit evidence, and effective-date/checksum metadata.
 Why now: Published journeys and incentive references need one programme snapshot before campaigns/referrals can bind to a complete versioned business configuration.
