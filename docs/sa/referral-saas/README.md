@@ -14,6 +14,12 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
 - `REFERRAL_SAAS_JOURNEY_CONFIGURATION_FRAMEWORK.md` - TASK-383 governed
   journey template, customer configuration, campaign binding, runtime, and
   control framework for post-H1 configurable customer journeys.
+- `REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md` - TASK-396 to TASK-405
+  roadmap for customer-visible programme configuration above the governed
+  journey configuration spine.
+- `REFERRAL_SAAS_PROGRAMME_CONFIGURATION_CONTRACT.md` - TASK-396 simple
+  Referral programme ownership, lifecycle, validation, command, redaction, and
+  side-effect boundary contract.
 - `REFERRAL_SAAS_ACCOUNT_SETUP_CONTRACT.md` - TASK-134 account setup contract.
 - `REFERRAL_SAAS_ACCOUNT_SETUP_MAINTENANCE_WORKFLOW_ARCHITECTURE.md` -
   TASK-190 account setup, readiness, and maintenance workflow architecture.

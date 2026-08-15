@@ -282,6 +282,15 @@ and compare outcomes. This is still Referral SaaS work; it must not introduce
 DLaaS marketplace, fulfilment, settlement, funding, sponsor billing, raw
 secrets, unmanaged provider dispatch, auth-claim mutation, or money movement.
 
+TASK-396 now defines the programme configuration contract in
+`docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_CONTRACT.md`.
+The contract locks the plain-language business object, ownership model,
+required fields, lifecycle states, command boundaries, validation rules,
+redactions, idempotency/audit expectations, route shape, and no-provider,
+no-auth, no-billing, no-settlement, and no-money side-effect boundaries.
+Implementation now moves to TASK-397 for durable programme draft/version
+schema.
+
 ## Recommended Ordered Task Sequence
 
 1. TASK-134: Define Referral SaaS account setup contract.

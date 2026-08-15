@@ -124,6 +124,17 @@ the backend a single versioned object for campaign binding, referral binding,
 analytics, and historical replay. The controlling artifact is
 `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
 
+TASK-396 now closes the definition gap with
+`docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_CONTRACT.md`.
+The contract defines the customer-visible Programme object, ownership split,
+required business/configuration/governance fields, lifecycle states, command
+boundary, validation output, selected-customer API shape, frontend IA,
+redactions, idempotency/audit controls, and no-provider/no-auth/no-billing/
+no-settlement/no-money side effects. Remaining work is implementation:
+TASK-397 through TASK-405 must add schema, APIs, validation/simulation,
+publish/retire/rollback, campaign binding, incentive binding, runtime binding,
+analytics, and the simple customer Programme UX proof.
+
 ## TASK-357 H1 Scope And Release Gates
 
 TASK-357 locks the H1 Referral SaaS release promise before the remaining
