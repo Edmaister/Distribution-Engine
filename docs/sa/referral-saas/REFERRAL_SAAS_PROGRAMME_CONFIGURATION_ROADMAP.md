@@ -103,7 +103,7 @@ to a simple, governed programme configuration platform.
 | TASK-398 | Add programme catalogue and draft read/save/validate APIs. |
 | TASK-399 | Add programme validation and simulation over journey, incentives, campaign defaults, integrations, and entitlement posture. |
 | TASK-400 | Add programme review, publish, retire, and rollback guardrails. |
-| TASK-401 | Bind campaigns to published programme versions. |
+| TASK-401 | Bind campaigns to published programme versions through customer-scoped create/update and activation gates. |
 | TASK-402 | Add programme-scoped incentive and engagement version binding controls. |
 | TASK-403 | Bind new referrals/runtime reads to published programme versions with historical replay posture. |
 | TASK-404 | Add programme analytics and version comparison read models. |

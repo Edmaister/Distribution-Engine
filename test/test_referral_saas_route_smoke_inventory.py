@@ -179,6 +179,10 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ),
         (
             "PUT",
+            "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/programme-binding",
+        ),
+        (
+            "PUT",
             "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/policy-settings",
         ),
         (
@@ -435,6 +439,10 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         (
             "PUT",
             "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/journey-binding",
+        ),
+        (
+            "PUT",
+            "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/programme-binding",
         ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/support-cases"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}/notes"),

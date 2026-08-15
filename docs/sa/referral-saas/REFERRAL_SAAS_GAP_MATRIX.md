@@ -153,9 +153,10 @@ no campaign/referral/provider/auth/billing/settlement/money mutation
 guardrails. TASK-400 now closes the programme lifecycle guardrail gap with
 submit-for-review, review-decision, immutable publish, explicit retirement, and
 rollback-readiness commands that preserve no campaign/referral/provider/auth/
-billing/settlement/money side effects. Remaining work is TASK-401 through
-TASK-405: campaign binding, incentive/runtime binding, analytics, and a simple
-customer Programme UX.
+billing/settlement/money side effects. TASK-401 now closes the campaign
+programme-binding gap by validating same-account published programme versions
+on campaign setup and activation. Remaining work is TASK-402 through TASK-405:
+incentive/runtime binding, analytics, and a simple customer Programme UX.
 
 ## TASK-357 H1 Scope And Release Gates
 

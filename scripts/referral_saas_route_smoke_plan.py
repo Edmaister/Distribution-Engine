@@ -953,6 +953,42 @@ SEEDED_WRITE_ROUTES = [
         ),
     ),
     SmokeRoute(
+        name="referral_saas_account_campaign_programme_binding",
+        method="PUT",
+        path="/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/programme-binding",
+        smoke_class="seeded_write",
+        auth_hint="Referral SaaS account admin role",
+        environment_rule=(
+            "local/staging seeded account, inactive campaign, and published "
+            "programme version only; records campaign-to-programme binding"
+        ),
+        seeded_subjects=[
+            "base_url",
+            "admin_token",
+            "account_ref",
+            "ref_type",
+            "external_ref",
+            "campaign_code",
+            "programme_version_id",
+            "idempotency_key",
+        ],
+        expected_state_change=(
+            "binds an inactive campaign setup to a published programme version "
+            "for the selected account; does not activate campaigns, dispatch "
+            "providers, change auth, bill, or move money"
+        ),
+        curl_template=(
+            'curl -sS -X PUT -H "Authorization: Bearer {admin_token}" '
+            '-H "Content-Type: application/json" '
+            '-d \'{"accountScope":{"refType":"{ref_type}",'
+            '"externalRef":"{external_ref}","context":"setup"},'
+            '"programmeVersionId":"{programme_version_id}",'
+            '"correlationId":"smoke-campaign-programme-binding",'
+            '"idempotencyKey":"{idempotency_key}"}\' '
+            '"{base_url}/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/programme-binding"'
+        ),
+    ),
+    SmokeRoute(
         name="referral_saas_account_campaign_policy_settings",
         method="PUT",
         path="/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/policy-settings",

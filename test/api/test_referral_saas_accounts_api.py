@@ -8193,6 +8193,7 @@ async def test_referral_saas_account_admin_can_create_customer_scoped_campaign_s
                     "segment": "Retail",
                     "startsAt": "2026-08-01T00:00:00Z",
                     "maxUses": 100,
+                    "programmeVersionId": "programme-version-1",
                 },
                 "setupIntent": {"reason": "Initial campaign setup"},
                 "correlationId": "corr-1",
@@ -8217,8 +8218,78 @@ async def test_referral_saas_account_admin_can_create_customer_scoped_campaign_s
     assert command_calls[0]["name"] == "Summer Referral"
     assert command_calls[0]["segment"] == "Retail"
     assert command_calls[0]["max_uses"] == 100
+    assert command_calls[0]["programme_version_id"] == "programme-version-1"
     assert command_calls[0]["idempotency_key_hash"]
     assert command_calls[0]["command_payload_hash"]
+
+
+async def test_referral_saas_account_admin_can_bind_campaign_to_programme_version(
+    monkeypatch,
+):
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    async def fake_bind_campaign_programme_version(**kwargs):
+        command_calls.append(kwargs)
+        return _campaign_setup_result(
+            command_status="CAMPAIGN_PROGRAMME_BINDING_RECORDED",
+            campaign_code="CAMP001",
+            idempotency_status="RECORDED",
+            programme_binding={
+                "programmeVersionId": "programme-version-1",
+                "programmeCode": "FNB_REFERRAL",
+                "versionStatus": "PUBLISHED",
+                "customerJourneyVersionId": "journey-version-1",
+            },
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "bind_referral_saas_account_campaign_programme_version",
+        fake_bind_campaign_programme_version,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/programme-binding",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "programmeVersionId": "programme-version-1",
+                "correlationId": "corr-programme-bind-1",
+                "idempotencyKey": "programme-bind-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["campaign"]["programmeBinding"]["programmeVersionId"] == "programme-version-1"
+    assert body["noCampaignActivationConfirmed"] is True
+    assert body["noMoneyMovementConfirmed"] is True
+    assert command_calls[0]["account_id"] == "acct-1"
+    assert command_calls[0]["tenant_code"] == "FNB"
+    assert command_calls[0]["campaign_code"] == "CAMP001"
+    assert command_calls[0]["programme_version_id"] == "programme-version-1"
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["request_payload_hash"]
 
 
 async def test_referral_saas_account_campaign_create_rejects_unsafe_payload():
