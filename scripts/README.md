@@ -51,6 +51,12 @@ initialization, seeding, backfilling, nightly refreshes, and health checks.
   ingest, progress status, attribution trace, and customer report readback
   without provider, webhook, invite, credential, auth, billing, money, or DLaaS
   side effects.
+- `referral_saas_configurable_journey_e2e_physical_check.py` - Run TASK-394
+  configurable journey proof over approved template selection, customer draft
+  save/validate/publish, campaign binding, referral code validation, progress
+  ingest/replay, attribution/reporting/analytics readback, and archive
+  guardrails without source-code journey changes, provider dispatch, invites,
+  credentials, auth, billing, settlement, or money movement.
 
 ## Usage
 
@@ -76,6 +82,7 @@ python scripts/referral_saas_selected_customer_e2e_physical_check.py --base-url 
 python scripts/referral_saas_selected_customer_mutation_e2e_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref <customer-reference>
 python scripts/referral_saas_people_access_provisioning_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --external-tenant-ref <customer-reference> --database
 python scripts/referral_saas_progress_attribution_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --progress-key test-partner-key --tenant-code FNB --external-tenant-ref <customer-reference>
+python scripts/referral_saas_configurable_journey_e2e_physical_check.py --base-url http://127.0.0.1:8000 --admin-key test-admin-key --progress-key test-partner-key --tenant-code FNB --external-tenant-ref <customer-reference>
 ```
 
 ## Migration Replay Contract
