@@ -142,9 +142,13 @@ audit evidence can now be stored against `account_id` and published customer
 journey versions. The schema includes campaign defaults, approved
 incentive/engagement references, readiness and entitlement snapshots, effective
 dates, configuration checksums, payload hashes, review/publish/retire metadata,
-redactions, and replay controls. Remaining work is TASK-398 through TASK-405:
-APIs, validation/simulation, review/publish/retire/rollback, campaign binding,
-incentive/runtime binding, analytics, and a simple customer Programme UX.
+redactions, and replay controls. TASK-398 now adds the selected-customer
+programme version list, approved building-block catalogue, programme draft
+read/create/update APIs, account-scope checks, idempotency replay/conflict
+handling, audit, redactions, and no-side-effect guardrails. Remaining work is
+TASK-399 through TASK-405: validation/simulation,
+review/publish/retire/rollback, campaign binding, incentive/runtime binding,
+analytics, and a simple customer Programme UX.
 
 ## TASK-357 H1 Scope And Release Gates
 
