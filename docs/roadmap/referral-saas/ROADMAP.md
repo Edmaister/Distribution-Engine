@@ -258,6 +258,17 @@ invite delivery, credential creation, auth, billing, settlement, or money
 movement. The configurable journey implementation stream is complete; remaining
 non-local launch evidence stays tracked by TASK-027 and TASK-348.
 
+TASK-395 starts the focused UX/CX hardening stream in
+`docs/sa/referral-saas/REFERRAL_SAAS_UX_CX_MATURITY_SCORECARD.md`. This does
+not change the backend capability rating or widen the product boundary. It
+defines the five-second screen contract, target customer-scoped information
+architecture, plain-language readiness model, and page-by-page UX backlog for
+TASK-396 through TASK-405. The next implementation work should simplify the
+experience around customer selection, customer home, account health, people and
+access, integrations, campaigns, links/codes, reports, attribution, and support
+without exposing DLaaS, finance, settlement, funding, fulfilment, or raw
+technical workflows as ordinary Referral SaaS actions.
+
 ## Recommended Ordered Task Sequence
 
 1. TASK-134: Define Referral SaaS account setup contract.

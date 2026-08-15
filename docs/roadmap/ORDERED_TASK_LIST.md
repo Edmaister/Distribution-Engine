@@ -8750,6 +8750,23 @@ Acceptance criteria: Complete - proof confirms a configured customer journey can
 Dependencies: TASK-393.
 Priority: P0.
 
+## TASK-395: Define Referral SaaS UX/CX maturity scorecard
+
+Status: Complete (2026-08-15).
+Product boundary: Referral SaaS.
+Shared primitive impact: Establishes a reusable UX/CX standard over existing selected-customer, account, campaign, people/access, integration, attribution, reporting, and support primitives. Source duplication: No.
+Objective: Define the plain-language UX/CX maturity standard and page-by-page simplification backlog now that the core Referral SaaS capability spine is close to production-ready.
+Why now: The remaining product risk is no longer only backend capability. Users must understand where they are, what each page does, what is blocking them, and what to do next without interpreting raw platform evidence.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_UX_CX_MATURITY_SCORECARD.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `outputs/referral-attribution-dlaas-roadmap-infographic.html`.
+Database/schema impact: None.
+Backend impact: None.
+Frontend impact: No runtime UI change in this task; defines the UX standards and downstream UI tasks.
+API impact: None.
+Tests to add/update: Documentation readback and roadmap/gap alignment only.
+Acceptance criteria: Complete - the UX/CX scorecard defines the five-second screen contract, customer-scoped information architecture, plain-language readiness model, page-by-page target UX, and downstream UX tasks from TASK-396 to TASK-405 without changing product boundaries, forking source, inventing backend states, or exposing DLaaS/money workflows.
+Dependencies: TASK-394.
+Priority: P1.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
