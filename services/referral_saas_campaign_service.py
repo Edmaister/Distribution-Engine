@@ -2106,24 +2106,6 @@ async def record_referral_saas_account_campaign_review_decision(
             attributes = json.loads(attributes)
         if not isinstance(attributes, dict):
             attributes = {}
-        programme_binding = _campaign_programme_binding(attributes)
-        if not programme_binding:
-            raise CampaignActivationNotReady(
-                "Campaign must be bound to a published programme version before activation."
-            )
-        programme_version_id = _optional_text(
-            programme_binding.get("programmeVersionId")
-        )
-        if not programme_version_id:
-            raise CampaignActivationNotReady(
-                "Campaign programme binding is missing the published programme version."
-            )
-        programme_version = await _fetch_published_programme_version_for_binding(
-            conn,
-            account_id=safe_account_id,
-            programme_version_id=programme_version_id,
-            error_cls=CampaignActivationNotReady,
-        )
         review_state = _campaign_review_state(attributes)
         previous_status = _optional_text(review_state.get("review_status"))
         if previous_status != "READY_FOR_REVIEW":
@@ -2142,6 +2124,24 @@ async def record_referral_saas_account_campaign_review_decision(
                 raise CampaignReviewInvalidState(
                     "Campaign approval requires separation of duties from the review submitter."
                 )
+        programme_binding = _campaign_programme_binding(attributes)
+        if not programme_binding:
+            raise CampaignActivationNotReady(
+                "Campaign must be bound to a published programme version before activation."
+            )
+        programme_version_id = _optional_text(
+            programme_binding.get("programmeVersionId")
+        )
+        if not programme_version_id:
+            raise CampaignActivationNotReady(
+                "Campaign programme binding is missing the published programme version."
+            )
+        programme_version = await _fetch_published_programme_version_for_binding(
+            conn,
+            account_id=safe_account_id,
+            programme_version_id=programme_version_id,
+            error_cls=CampaignActivationNotReady,
+        )
 
         policy = await conn.fetchrow(
             """
