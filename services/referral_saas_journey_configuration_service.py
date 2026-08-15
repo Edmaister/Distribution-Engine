@@ -47,6 +47,7 @@ DEFAULT_TEMPLATE_CATALOGUE_STATUSES = ("APPROVED", "DRAFT")
 MAX_TEMPLATE_CATALOGUE_LIMIT = 100
 MAX_CUSTOMER_JOURNEY_DRAFT_LIMIT = 100
 MAX_CUSTOMER_JOURNEY_VERSION_LIMIT = 100
+MAX_CUSTOMER_JOURNEY_INCENTIVE_BINDING_LIMIT = 100
 
 CUSTOMER_JOURNEY_DRAFT_GUARDRAILS = (
     "ACCOUNT_SCOPED_CUSTOMER_JOURNEY_DRAFT",
@@ -117,6 +118,40 @@ CAMPAIGN_JOURNEY_BINDING_REDACTIONS = tuple(
             "runtime_journey_id",
         )
     )
+)
+
+CUSTOMER_JOURNEY_INCENTIVE_BINDING_GUARDRAILS = (
+    "ACCOUNT_SCOPED_CUSTOMER_JOURNEY_INCENTIVE_BINDING",
+    "PUBLISHED_CUSTOMER_JOURNEY_VERSION_REQUIRED",
+    "APPROVED_INCENTIVE_CATALOGUE_REFERENCE_REQUIRED",
+    "IDEMPOTENT_INCENTIVE_BINDING_COMMANDS",
+    "NO_REWARD_APPLICATION",
+    "NO_BADGE_AWARD",
+    "NO_MISSION_PROGRESS_MUTATION",
+    "NO_LEADERBOARD_SCORING",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_PROVIDER_DISPATCH",
+    "NO_AUTH_BILLING_OR_MONEY_ACTION",
+)
+
+CUSTOMER_JOURNEY_INCENTIVE_BINDING_REDACTIONS = tuple(
+    dict.fromkeys(
+        (
+            *CAMPAIGN_JOURNEY_BINDING_REDACTIONS,
+            "reward_amount",
+            "bonus_reward_amount",
+            "referrer_reward_amount",
+            "referee_reward_amount",
+            "currency",
+            "score_value",
+            "funding_account",
+            "commission",
+        )
+    )
+)
+
+CUSTOMER_JOURNEY_INCENTIVE_BINDING_TYPES = frozenset(
+    {"REWARD_POLICY", "MISSION", "BADGE", "LEADERBOARD"}
 )
 
 REWARD_CONFIGURATION_UNSAFE_KEYS = frozenset(
@@ -196,6 +231,18 @@ class CampaignJourneyBindingIdempotencyConflict(Exception):
 
 
 class CampaignJourneyBindingNotFound(Exception):
+    pass
+
+
+class CustomerJourneyIncentiveBindingValidationError(ValueError):
+    pass
+
+
+class CustomerJourneyIncentiveBindingIdempotencyConflict(Exception):
+    pass
+
+
+class CustomerJourneyIncentiveBindingNotFound(Exception):
     pass
 
 
@@ -551,6 +598,84 @@ class CampaignJourneyBindingCommandResult:
         }
 
 
+@dataclass(frozen=True)
+class CustomerJourneyIncentiveBinding:
+    customer_journey_incentive_binding_id: str
+    account_id: str
+    customer_journey_version_id: str
+    incentive_type: str
+    catalogue_ref: str
+    binding_status: str
+    binding_payload_hash: str
+    bound_by_ref: str
+    bound_at: datetime | str | None
+    archived_by_ref: str | None
+    archived_at: datetime | str | None
+    safe_summary: dict[str, Any]
+    governance_metadata: dict[str, Any]
+    customer_journey_code: str
+    version_number: int
+    template_code: str
+    template_version: str
+    version_status: str
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "customerJourneyIncentiveBindingId": (
+                self.customer_journey_incentive_binding_id
+            ),
+            "accountId": self.account_id,
+            "customerJourneyVersionId": self.customer_journey_version_id,
+            "incentiveType": self.incentive_type,
+            "catalogueRef": self.catalogue_ref,
+            "bindingStatus": self.binding_status,
+            "bindingPayloadHash": self.binding_payload_hash,
+            "boundByRef": self.bound_by_ref,
+            "boundAt": _isoformat(self.bound_at),
+            "archivedByRef": self.archived_by_ref,
+            "archivedAt": _isoformat(self.archived_at),
+            "safeSummary": self.safe_summary,
+            "governanceMetadata": _redact_json(self.governance_metadata),
+            "customerJourneyCode": self.customer_journey_code,
+            "versionNumber": self.version_number,
+            "templateCode": self.template_code,
+            "templateVersion": self.template_version,
+            "versionStatus": self.version_status,
+            "guardrails": list(CUSTOMER_JOURNEY_INCENTIVE_BINDING_GUARDRAILS),
+            "redactions": list(CUSTOMER_JOURNEY_INCENTIVE_BINDING_REDACTIONS),
+            "noRewardApplicationConfirmed": True,
+            "noBadgeAwardConfirmed": True,
+            "noMissionProgressMutationConfirmed": True,
+            "noLeaderboardScoringConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noProviderDispatchConfirmed": True,
+            "noAuthBillingOrMoneyActionConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class CustomerJourneyIncentiveBindingCommandResult:
+    command_status: str
+    binding: CustomerJourneyIncentiveBinding
+    idempotency_status: str
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "idempotencyStatus": self.idempotency_status,
+            "binding": self.binding.to_safe_dict(),
+            "guardrails": list(CUSTOMER_JOURNEY_INCENTIVE_BINDING_GUARDRAILS),
+            "redactions": list(CUSTOMER_JOURNEY_INCENTIVE_BINDING_REDACTIONS),
+            "noRewardApplicationConfirmed": True,
+            "noBadgeAwardConfirmed": True,
+            "noMissionProgressMutationConfirmed": True,
+            "noLeaderboardScoringConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noProviderDispatchConfirmed": True,
+            "noAuthBillingOrMoneyActionConfirmed": True,
+        }
+
+
 def _isoformat(value: datetime | str | None) -> str | None:
     if isinstance(value, datetime):
         return value.isoformat()
@@ -668,6 +793,10 @@ def _safe_draft_limit(limit: int) -> int:
 
 def _safe_version_limit(limit: int) -> int:
     return max(1, min(int(limit), MAX_CUSTOMER_JOURNEY_VERSION_LIMIT))
+
+
+def _safe_incentive_binding_limit(limit: int) -> int:
+    return max(1, min(int(limit), MAX_CUSTOMER_JOURNEY_INCENTIVE_BINDING_LIMIT))
 
 
 def _canonical_json(value: Any) -> str:
@@ -1021,6 +1150,193 @@ def _binding_from_row(row: Mapping[str, Any]) -> CampaignJourneyBinding:
         version_status=str(_row_value(row, "version_status")),
         archived_at=_row_value(row, "archived_at"),
     )
+
+
+def _incentive_binding_from_row(
+    row: Mapping[str, Any],
+) -> CustomerJourneyIncentiveBinding:
+    return CustomerJourneyIncentiveBinding(
+        customer_journey_incentive_binding_id=str(
+            _row_value(row, "customer_journey_incentive_binding_id")
+        ),
+        account_id=str(_row_value(row, "account_id")),
+        customer_journey_version_id=str(_row_value(row, "customer_journey_version_id")),
+        incentive_type=str(_row_value(row, "incentive_type")),
+        catalogue_ref=str(_row_value(row, "catalogue_ref")),
+        binding_status=str(_row_value(row, "binding_status")),
+        binding_payload_hash=str(_row_value(row, "binding_payload_hash")),
+        bound_by_ref=str(_row_value(row, "bound_by_ref")),
+        bound_at=_row_value(row, "bound_at"),
+        archived_by_ref=_row_value(row, "archived_by_ref"),
+        archived_at=_row_value(row, "archived_at"),
+        safe_summary=_json_dict(_row_value(row, "safe_summary")),
+        governance_metadata=_json_dict(_row_value(row, "governance_metadata")),
+        customer_journey_code=str(_row_value(row, "customer_journey_code")),
+        version_number=int(_row_value(row, "version_number") or 1),
+        template_code=str(_row_value(row, "template_code")),
+        template_version=str(_row_value(row, "template_version")),
+        version_status=str(_row_value(row, "version_status")),
+    )
+
+
+async def _find_published_customer_journey_version(
+    conn: Any,
+    *,
+    account_id: str,
+    customer_journey_version_id: str,
+) -> Mapping[str, Any]:
+    row = await conn.fetchrow(
+        """
+        SELECT
+            cv.*,
+            tv.template_code,
+            tv.template_version
+        FROM referral_saas_customer_journey_versions cv
+        JOIN referral_saas_journey_template_versions tv
+            ON tv.journey_template_version_id = cv.journey_template_version_id
+        WHERE cv.customer_journey_version_id = $1
+          AND cv.account_id = $2
+        LIMIT 1
+        """,
+        customer_journey_version_id,
+        account_id,
+    )
+    if not row:
+        raise CustomerJourneyVersionNotFound(customer_journey_version_id)
+    if (
+        _row_value(row, "version_status") != "PUBLISHED"
+        or _row_value(row, "archived_at") is not None
+    ):
+        raise CustomerJourneyIncentiveBindingValidationError(
+            "Incentives can bind only to published, unarchived customer journey versions."
+        )
+    return row
+
+
+def _normalise_incentive_type(value: Any) -> str:
+    incentive_type = _required_text(value, "incentive_type").upper()
+    if incentive_type not in CUSTOMER_JOURNEY_INCENTIVE_BINDING_TYPES:
+        raise CustomerJourneyIncentiveBindingValidationError(
+            "incentive_type must be one of REWARD_POLICY, MISSION, BADGE, or LEADERBOARD."
+        )
+    return incentive_type
+
+
+async def _find_approved_incentive_catalogue_record(
+    conn: Any,
+    *,
+    incentive_type: str,
+    catalogue_ref: str,
+) -> dict[str, Any]:
+    if incentive_type == "REWARD_POLICY":
+        try:
+            policy_id = int(catalogue_ref)
+        except (TypeError, ValueError) as exc:
+            raise CustomerJourneyIncentiveBindingValidationError(
+                "REWARD_POLICY catalogue_ref must be an active reward policy id."
+            ) from exc
+        row = await conn.fetchrow(
+            """
+            SELECT
+                id::text AS catalogue_ref,
+                product,
+                sub_product,
+                reward_type,
+                referrer_reward_amount,
+                referee_reward_amount,
+                allow_referee_reward,
+                is_active
+            FROM reward_policies
+            WHERE id = $1
+              AND is_active IS TRUE
+            LIMIT 1
+            """,
+            policy_id,
+        )
+        if not row:
+            raise CustomerJourneyIncentiveBindingValidationError(
+                "Active reward policy was not found for this catalogue reference."
+            )
+        referrer_amount = float(_row_value(row, "referrer_reward_amount") or 0)
+        referee_amount = float(_row_value(row, "referee_reward_amount") or 0)
+        if referrer_amount < 0 or referee_amount < 0:
+            raise CustomerJourneyIncentiveBindingValidationError(
+                "Reward policy amounts must be zero or greater."
+            )
+        return {
+            "catalogueRef": str(_row_value(row, "catalogue_ref")),
+            "label": "Reward policy",
+            "product": _row_value(row, "product"),
+            "subProduct": _row_value(row, "sub_product"),
+            "rewardType": _row_value(row, "reward_type"),
+            "allowRefereeReward": bool(_row_value(row, "allow_referee_reward")),
+        }
+
+    if incentive_type == "MISSION":
+        row = await conn.fetchrow(
+            """
+            SELECT mission_code, mission_name, product, sub_product, event_type, is_active
+            FROM mission_definitions
+            WHERE UPPER(mission_code) = UPPER($1)
+              AND is_active IS TRUE
+            LIMIT 1
+            """,
+            catalogue_ref,
+        )
+        if not row:
+            raise CustomerJourneyIncentiveBindingValidationError(
+                "Active mission definition was not found for this catalogue reference."
+            )
+        return {
+            "catalogueRef": str(_row_value(row, "mission_code")),
+            "label": _row_value(row, "mission_name"),
+            "product": _row_value(row, "product"),
+            "subProduct": _row_value(row, "sub_product"),
+            "eventType": _row_value(row, "event_type"),
+        }
+
+    if incentive_type == "BADGE":
+        row = await conn.fetchrow(
+            """
+            SELECT badge_code, badge_name, badge_category, trigger_type, is_active
+            FROM badge_definitions
+            WHERE UPPER(badge_code) = UPPER($1)
+              AND is_active IS TRUE
+            LIMIT 1
+            """,
+            catalogue_ref,
+        )
+        if not row:
+            raise CustomerJourneyIncentiveBindingValidationError(
+                "Active badge definition was not found for this catalogue reference."
+            )
+        return {
+            "catalogueRef": str(_row_value(row, "badge_code")),
+            "label": _row_value(row, "badge_name"),
+            "badgeCategory": _row_value(row, "badge_category"),
+            "triggerType": _row_value(row, "trigger_type"),
+        }
+
+    row = await conn.fetchrow(
+        """
+        SELECT leaderboard_code, leaderboard_name, scope_type, subject_type, active
+        FROM leaderboard_definitions
+        WHERE UPPER(leaderboard_code) = UPPER($1)
+          AND active IS TRUE
+        LIMIT 1
+        """,
+        catalogue_ref,
+    )
+    if not row:
+        raise CustomerJourneyIncentiveBindingValidationError(
+            "Active leaderboard definition was not found for this catalogue reference."
+        )
+    return {
+        "catalogueRef": str(_row_value(row, "leaderboard_code")),
+        "label": _row_value(row, "leaderboard_name"),
+        "scopeType": _row_value(row, "scope_type"),
+        "subjectType": _row_value(row, "subject_type"),
+    }
 
 
 async def _find_approved_template_version(
@@ -2783,5 +3099,310 @@ async def bind_referral_saas_campaign_journey_version(
     return CampaignJourneyBindingCommandResult(
         command_status="CAMPAIGN_JOURNEY_VERSION_BOUND",
         binding=_binding_from_row(binding_row),
+        idempotency_status="NEW_REQUEST",
+    )
+
+
+async def list_referral_saas_customer_journey_incentive_bindings(
+    *,
+    account_id: str,
+    customer_journey_version_id: str,
+    include_archived: bool = False,
+    limit: int = 50,
+) -> tuple[CustomerJourneyIncentiveBinding, ...]:
+    safe_account_id = _required_text(account_id, "account_id")
+    safe_version_id = _required_text(
+        customer_journey_version_id, "customer_journey_version_id"
+    )
+    safe_limit = _safe_incentive_binding_limit(limit)
+    archived_filter = "" if include_archived else "AND b.binding_status = 'ACTIVE'"
+
+    async with db_connection() as conn:
+        rows = await conn.fetch(
+            f"""
+            SELECT
+                b.*,
+                cv.customer_journey_code,
+                cv.version_number,
+                cv.version_status,
+                tv.template_code,
+                tv.template_version
+            FROM referral_saas_customer_journey_incentive_bindings b
+            JOIN referral_saas_customer_journey_versions cv
+                ON cv.customer_journey_version_id = b.customer_journey_version_id
+            JOIN referral_saas_journey_template_versions tv
+                ON tv.journey_template_version_id = cv.journey_template_version_id
+            WHERE b.account_id = $1
+              AND b.customer_journey_version_id = $2
+              {archived_filter}
+            ORDER BY b.bound_at DESC
+            LIMIT $3
+            """,
+            safe_account_id,
+            safe_version_id,
+            safe_limit,
+        )
+    return tuple(_incentive_binding_from_row(row) for row in rows)
+
+
+async def bind_referral_saas_customer_journey_incentive(
+    *,
+    account_id: str,
+    customer_journey_version_id: str,
+    incentive_type: str,
+    catalogue_ref: str,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None = None,
+    correlation_id: str | None = None,
+) -> CustomerJourneyIncentiveBindingCommandResult:
+    safe_account_id = _required_text(account_id, "account_id")
+    safe_version_id = _required_text(
+        customer_journey_version_id, "customer_journey_version_id"
+    )
+    safe_incentive_type = _normalise_incentive_type(incentive_type)
+    safe_catalogue_ref = _required_text(catalogue_ref, "catalogue_ref", max_length=160)
+    safe_idempotency_hash = _required_text(
+        idempotency_key_hash, "idempotency_key_hash"
+    )
+    safe_request_hash = _required_text(request_payload_hash, "request_payload_hash")
+    safe_actor_ref = _required_text(actor_ref, "actor_ref")
+    safe_actor_role = _optional_text(actor_role) or "UNKNOWN"
+    safe_correlation_id = (
+        _optional_text(correlation_id) or "customer-journey-incentive-binding"
+    )
+
+    async with db_connection() as conn:
+        existing_idempotency = await conn.fetchrow(
+            """
+            SELECT resource_id, request_payload_hash
+            FROM referral_saas_journey_configuration_idempotency_keys
+            WHERE account_id = $1
+              AND operation_type = 'CUSTOMER_JOURNEY_INCENTIVE_BIND'
+              AND idempotency_key_hash = $2
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_idempotency_hash,
+        )
+        if existing_idempotency:
+            if (
+                _row_value(existing_idempotency, "request_payload_hash")
+                != safe_request_hash
+            ):
+                raise CustomerJourneyIncentiveBindingIdempotencyConflict(
+                    "Idempotency key was reused with different customer journey incentive binding content."
+                )
+            binding_row = await conn.fetchrow(
+                """
+                SELECT
+                    b.*,
+                    cv.customer_journey_code,
+                    cv.version_number,
+                    cv.version_status,
+                    tv.template_code,
+                    tv.template_version
+                FROM referral_saas_customer_journey_incentive_bindings b
+                JOIN referral_saas_customer_journey_versions cv
+                    ON cv.customer_journey_version_id = b.customer_journey_version_id
+                JOIN referral_saas_journey_template_versions tv
+                    ON tv.journey_template_version_id = cv.journey_template_version_id
+                WHERE b.customer_journey_incentive_binding_id = $1
+                  AND b.account_id = $2
+                LIMIT 1
+                """,
+                _row_value(existing_idempotency, "resource_id"),
+                safe_account_id,
+            )
+            if not binding_row:
+                raise CustomerJourneyIncentiveBindingNotFound(
+                    str(_row_value(existing_idempotency, "resource_id"))
+                )
+            return CustomerJourneyIncentiveBindingCommandResult(
+                command_status="CUSTOMER_JOURNEY_INCENTIVE_BOUND",
+                binding=_incentive_binding_from_row(binding_row),
+                idempotency_status="REPLAY_SAME_PAYLOAD",
+            )
+
+        version_row = await _find_published_customer_journey_version(
+            conn,
+            account_id=safe_account_id,
+            customer_journey_version_id=safe_version_id,
+        )
+        catalogue_record = await _find_approved_incentive_catalogue_record(
+            conn,
+            incentive_type=safe_incentive_type,
+            catalogue_ref=safe_catalogue_ref,
+        )
+
+        existing_active_row = await conn.fetchrow(
+            """
+            SELECT
+                b.*,
+                cv.customer_journey_code,
+                cv.version_number,
+                cv.version_status,
+                tv.template_code,
+                tv.template_version
+            FROM referral_saas_customer_journey_incentive_bindings b
+            JOIN referral_saas_customer_journey_versions cv
+                ON cv.customer_journey_version_id = b.customer_journey_version_id
+            JOIN referral_saas_journey_template_versions tv
+                ON tv.journey_template_version_id = cv.journey_template_version_id
+            WHERE b.account_id = $1
+              AND b.customer_journey_version_id = $2
+              AND b.incentive_type = $3
+              AND UPPER(b.catalogue_ref) = UPPER($4)
+              AND b.binding_status = 'ACTIVE'
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_version_id,
+            safe_incentive_type,
+            catalogue_record["catalogueRef"],
+        )
+
+        safe_summary = {
+            "incentiveType": safe_incentive_type,
+            "catalogueRef": catalogue_record["catalogueRef"],
+            "catalogueLabel": catalogue_record.get("label"),
+            "customerJourneyVersionId": safe_version_id,
+            "customerJourneyCode": _row_value(version_row, "customer_journey_code"),
+            "versionNumber": int(_row_value(version_row, "version_number") or 1),
+            "templateCode": _row_value(version_row, "template_code"),
+            "templateVersion": _row_value(version_row, "template_version"),
+            "bindingStatus": "ACTIVE",
+            "catalogueApproved": True,
+            "noRewardApplicationConfirmed": True,
+            "noBadgeAwardConfirmed": True,
+            "noMissionProgressMutationConfirmed": True,
+            "noLeaderboardScoringConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noProviderDispatchConfirmed": True,
+            "noAuthBillingOrMoneyActionConfirmed": True,
+        }
+        governance_metadata = {
+            "source": "TASK-391",
+            "bindingControl": "APPROVED_CATALOGUE_REFERENCE_REQUIRED",
+            "publishedVersionRequired": True,
+            "catalogueRecord": catalogue_record,
+        }
+
+        async with conn.transaction():
+            if existing_active_row:
+                binding_row = existing_active_row
+                command_status = "CUSTOMER_JOURNEY_INCENTIVE_ALREADY_BOUND"
+            else:
+                binding_row = await conn.fetchrow(
+                    """
+                    INSERT INTO referral_saas_customer_journey_incentive_bindings (
+                        account_id,
+                        customer_journey_version_id,
+                        incentive_type,
+                        catalogue_ref,
+                        binding_status,
+                        binding_payload_hash,
+                        idempotency_key_hash,
+                        correlation_id,
+                        bound_by_ref,
+                        safe_summary,
+                        governance_metadata
+                    )
+                    VALUES (
+                        $1, $2, $3, $4, 'ACTIVE', $5, $6, $7, $8,
+                        $9::jsonb, $10::jsonb
+                    )
+                    RETURNING *
+                    """,
+                    safe_account_id,
+                    safe_version_id,
+                    safe_incentive_type,
+                    catalogue_record["catalogueRef"],
+                    safe_request_hash,
+                    safe_idempotency_hash,
+                    safe_correlation_id,
+                    safe_actor_ref,
+                    _jsonb(safe_summary),
+                    _jsonb(governance_metadata),
+                )
+                command_status = "CUSTOMER_JOURNEY_INCENTIVE_BOUND"
+
+            binding_id = str(
+                _row_value(binding_row, "customer_journey_incentive_binding_id")
+            )
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_journey_configuration_idempotency_keys (
+                    account_id,
+                    operation_type,
+                    idempotency_key_hash,
+                    request_payload_hash,
+                    response_payload_hash,
+                    resource_type,
+                    resource_id,
+                    response_status
+                )
+                VALUES ($1, 'CUSTOMER_JOURNEY_INCENTIVE_BIND', $2, $3, $4,
+                        'CUSTOMER_JOURNEY_INCENTIVE_BINDING', $5, 'SUCCESS')
+                """,
+                safe_account_id,
+                safe_idempotency_hash,
+                safe_request_hash,
+                _payload_hash({"customerJourneyIncentiveBindingId": binding_id}),
+                binding_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_journey_configuration_audit (
+                    account_id,
+                    journey_template_version_id,
+                    customer_journey_version_id,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, 'CUSTOMER_JOURNEY_INCENTIVE_BOUND',
+                    'RECORDED', $4, $5, NULL, 'ACTIVE',
+                    'CUSTOMER_JOURNEY_INCENTIVE_BIND', $6, $7, $8::jsonb,
+                    $9::jsonb
+                )
+                """,
+                safe_account_id,
+                _row_value(version_row, "journey_template_version_id"),
+                safe_version_id,
+                safe_actor_ref,
+                safe_actor_role,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(safe_summary),
+                _jsonb(CUSTOMER_JOURNEY_INCENTIVE_BINDING_REDACTIONS),
+            )
+            binding_row = dict(binding_row)
+            binding_row.update(
+                {
+                    "customer_journey_code": _row_value(
+                        version_row, "customer_journey_code"
+                    ),
+                    "version_number": _row_value(version_row, "version_number"),
+                    "version_status": _row_value(version_row, "version_status"),
+                    "template_code": _row_value(version_row, "template_code"),
+                    "template_version": _row_value(version_row, "template_version"),
+                }
+            )
+
+    return CustomerJourneyIncentiveBindingCommandResult(
+        command_status=command_status,
+        binding=_incentive_binding_from_row(binding_row),
         idempotency_status="NEW_REQUEST",
     )

@@ -243,6 +243,8 @@ from services.referral_saas_integrations_configuration_service import (
 from services.referral_saas_journey_configuration_service import (
     CAMPAIGN_JOURNEY_BINDING_GUARDRAILS,
     CAMPAIGN_JOURNEY_BINDING_REDACTIONS,
+    CUSTOMER_JOURNEY_INCENTIVE_BINDING_GUARDRAILS,
+    CUSTOMER_JOURNEY_INCENTIVE_BINDING_REDACTIONS,
     CUSTOMER_JOURNEY_DRAFT_GUARDRAILS,
     CUSTOMER_JOURNEY_DRAFT_REDACTIONS,
     CUSTOMER_JOURNEY_VERSION_GUARDRAILS,
@@ -252,6 +254,9 @@ from services.referral_saas_journey_configuration_service import (
     CampaignJourneyBindingIdempotencyConflict,
     CampaignJourneyBindingNotFound,
     CampaignJourneyBindingValidationError,
+    CustomerJourneyIncentiveBindingIdempotencyConflict,
+    CustomerJourneyIncentiveBindingNotFound,
+    CustomerJourneyIncentiveBindingValidationError,
     CustomerJourneyDraftIdempotencyConflict,
     CustomerJourneyDraftNotFound,
     CustomerJourneyDraftUnsafePayload,
@@ -262,9 +267,11 @@ from services.referral_saas_journey_configuration_service import (
     JourneyTemplateCatalogueValidationError,
     JourneyTemplateNotFound,
     archive_referral_saas_customer_journey_version,
+    bind_referral_saas_customer_journey_incentive,
     bind_referral_saas_campaign_journey_version,
     get_referral_saas_campaign_journey_binding,
     get_referral_saas_journey_template,
+    list_referral_saas_customer_journey_incentive_bindings,
     list_referral_saas_customer_journey_drafts,
     list_referral_saas_customer_journey_versions,
     list_referral_saas_journey_templates,
@@ -647,6 +654,14 @@ class ReferralSaasCustomerJourneyDraftPublishRequest(BaseModel):
 class ReferralSaasCustomerJourneyVersionArchiveRequest(BaseModel):
     accountScope: dict[str, Any] = Field(default_factory=dict)
     archiveReason: str = Field(min_length=1, max_length=500)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasCustomerJourneyIncentiveBindingRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    incentiveType: str = Field(min_length=1)
+    catalogueRef: str = Field(min_length=1)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str = Field(min_length=1)
 
@@ -4486,6 +4501,170 @@ async def list_referral_saas_customer_journey_version_configuration(
         "noProviderDispatchConfirmed": True,
         "noAuthBillingOrMoneyActionConfirmed": True,
     }
+
+
+@router.get("/accounts/{account_ref}/journey-versions/{version_ref}/incentive-bindings")
+async def list_referral_saas_customer_journey_incentive_binding_configuration(
+    account_ref: str,
+    version_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(description="External reference type used to resolve the account."),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(description="External customer/account reference value."),
+    ],
+    context: Annotated[
+        str,
+        Query(description="setup or runtime account resolution context."),
+    ] = "setup",
+    include_archived: Annotated[
+        bool,
+        Query(alias="includeArchived", description="Include archived bindings."),
+    ] = False,
+    limit: Annotated[
+        int,
+        Query(ge=1, le=100, description="Maximum number of bindings to return."),
+    ] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    reader_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=reader_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    bindings = await list_referral_saas_customer_journey_incentive_bindings(
+        account_id=account.account_id,
+        customer_journey_version_id=version_ref,
+        include_archived=include_archived,
+        limit=limit,
+    )
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "count": len(bindings),
+        "incentiveBindings": [binding.to_safe_dict() for binding in bindings],
+        "guardrail": (
+            "Read-only customer journey incentive catalogue bindings for the "
+            "selected account and published journey version. This endpoint does "
+            "not apply rewards, award badges, mutate missions, score "
+            "leaderboards, activate campaigns, dispatch providers, change auth, "
+            "bill, settle, pay out, or move money."
+        ),
+        "guardrails": list(CUSTOMER_JOURNEY_INCENTIVE_BINDING_GUARDRAILS),
+        "redactions": list(CUSTOMER_JOURNEY_INCENTIVE_BINDING_REDACTIONS),
+        "noRewardApplicationConfirmed": True,
+        "noBadgeAwardConfirmed": True,
+        "noMissionProgressMutationConfirmed": True,
+        "noLeaderboardScoringConfirmed": True,
+        "noCampaignActivationConfirmed": True,
+        "noProviderDispatchConfirmed": True,
+        "noAuthBillingOrMoneyActionConfirmed": True,
+    }
+
+
+@router.post("/accounts/{account_ref}/journey-versions/{version_ref}/incentive-bindings")
+async def bind_referral_saas_customer_journey_incentive_binding_route(
+    account_ref: str,
+    version_ref: str,
+    request: ReferralSaasCustomerJourneyIncentiveBindingRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    account_scope = request.accountScope or {}
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    if not ref_type or not external_ref:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope.refType and accountScope.externalRef are required.",
+                "guardrails": list(CUSTOMER_JOURNEY_INCENTIVE_BINDING_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_INCENTIVE_BINDING_REDACTIONS),
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=admin_identity,
+        required_capability=REFERRAL_SAAS_CAMPAIGN_POLICY_WRITE_CAPABILITY,
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await bind_referral_saas_customer_journey_incentive(
+            account_id=account.account_id,
+            customer_journey_version_id=version_ref,
+            incentive_type=request.incentiveType,
+            catalogue_ref=request.catalogueRef,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except CustomerJourneyIncentiveBindingIdempotencyConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "idempotency_conflict",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_INCENTIVE_BINDING_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_INCENTIVE_BINDING_REDACTIONS),
+            },
+        ) from exc
+    except (
+        CustomerJourneyIncentiveBindingNotFound,
+        CustomerJourneyVersionNotFound,
+    ) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "not_found",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_INCENTIVE_BINDING_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_INCENTIVE_BINDING_REDACTIONS),
+            },
+        ) from exc
+    except CustomerJourneyIncentiveBindingValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_JOURNEY_INCENTIVE_BINDING_GUARDRAILS),
+                "redactions": list(CUSTOMER_JOURNEY_INCENTIVE_BINDING_REDACTIONS),
+            },
+        ) from exc
+
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "guardrail": (
+                "Binds an approved incentive catalogue reference to this "
+                "published customer journey version. This records configuration "
+                "intent only; it does not apply rewards, award badges, mutate "
+                "missions, score leaderboards, activate campaigns, dispatch "
+                "providers, change auth, bill, settle, pay out, or move money."
+            ),
+        }
+    )
+    return body
 
 
 @router.get("/accounts/resolve")

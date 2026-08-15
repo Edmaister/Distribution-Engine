@@ -1510,6 +1510,216 @@ async def test_referral_saas_customer_journey_archive_blocks_active_binding(
     assert body["noCampaignBindingMutationConfirmed"] is True
 
 
+async def test_referral_saas_admin_can_list_customer_journey_incentive_bindings(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_list_referral_saas_customer_journey_incentive_bindings(**kwargs):
+        assert kwargs["account_id"] == "acct-1"
+        assert kwargs["customer_journey_version_id"] == "version-1"
+        return (
+            SimpleNamespace(
+                to_safe_dict=lambda: {
+                    "customerJourneyIncentiveBindingId": "binding-1",
+                    "incentiveType": "MISSION",
+                    "catalogueRef": "WELCOME_MISSION",
+                    "bindingStatus": "ACTIVE",
+                    "noRewardApplicationConfirmed": True,
+                    "noBadgeAwardConfirmed": True,
+                    "noMissionProgressMutationConfirmed": True,
+                    "noLeaderboardScoringConfirmed": True,
+                    "noCampaignActivationConfirmed": True,
+                    "noProviderDispatchConfirmed": True,
+                    "noAuthBillingOrMoneyActionConfirmed": True,
+                }
+            ),
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_customer_journey_incentive_bindings",
+        fake_list_referral_saas_customer_journey_incentive_bindings,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/journey-versions/version-1/incentive-bindings",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["count"] == 1
+    assert body["incentiveBindings"][0]["incentiveType"] == "MISSION"
+    assert body["noRewardApplicationConfirmed"] is True
+    assert body["noLeaderboardScoringConfirmed"] is True
+    assert "NO_AUTH_BILLING_OR_MONEY_ACTION" in body["guardrails"]
+
+
+async def test_referral_saas_admin_can_bind_customer_journey_incentive(
+    monkeypatch,
+):
+    bind_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_bind_referral_saas_customer_journey_incentive(**kwargs):
+        bind_calls.append(kwargs)
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "commandStatus": "CUSTOMER_JOURNEY_INCENTIVE_BOUND",
+                "idempotencyStatus": "NEW_REQUEST",
+                "binding": {
+                    "customerJourneyIncentiveBindingId": "binding-1",
+                    "incentiveType": "REWARD_POLICY",
+                    "catalogueRef": "42",
+                    "bindingStatus": "ACTIVE",
+                },
+                "noRewardApplicationConfirmed": True,
+                "noBadgeAwardConfirmed": True,
+                "noMissionProgressMutationConfirmed": True,
+                "noLeaderboardScoringConfirmed": True,
+                "noCampaignActivationConfirmed": True,
+                "noProviderDispatchConfirmed": True,
+                "noAuthBillingOrMoneyActionConfirmed": True,
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "bind_referral_saas_customer_journey_incentive",
+        fake_bind_referral_saas_customer_journey_incentive,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/journey-versions/version-1/incentive-bindings",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "incentiveType": "REWARD_POLICY",
+                "catalogueRef": "42",
+                "idempotencyKey": "incentive-binding-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["commandStatus"] == "CUSTOMER_JOURNEY_INCENTIVE_BOUND"
+    assert body["binding"]["incentiveType"] == "REWARD_POLICY"
+    assert body["noRewardApplicationConfirmed"] is True
+    assert body["noCampaignActivationConfirmed"] is True
+    assert bind_calls[0]["customer_journey_version_id"] == "version-1"
+    assert bind_calls[0]["incentive_type"] == "REWARD_POLICY"
+    assert bind_calls[0]["catalogue_ref"] == "42"
+    assert bind_calls[0]["idempotency_key_hash"]
+    assert bind_calls[0]["request_payload_hash"]
+
+
+async def test_referral_saas_customer_journey_incentive_binding_rejects_unapproved_catalogue(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_bind_referral_saas_customer_journey_incentive(**kwargs):
+        raise referral_saas_accounts.CustomerJourneyIncentiveBindingValidationError(
+            "Active reward policy was not found for this catalogue reference."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "bind_referral_saas_customer_journey_incentive",
+        fake_bind_referral_saas_customer_journey_incentive,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/journey-versions/version-1/incentive-bindings",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "incentiveType": "REWARD_POLICY",
+                "catalogueRef": "999",
+                "idempotencyKey": "incentive-binding-unapproved",
+            },
+        )
+
+    assert response.status_code == 422
+    body = response.json()["detail"]
+    assert body["code"] == "validation_error"
+    assert "APPROVED_INCENTIVE_CATALOGUE_REFERENCE_REQUIRED" in body["guardrails"]
+
+
+async def test_referral_saas_customer_journey_incentive_binding_idempotency_conflict(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_bind_referral_saas_customer_journey_incentive(**kwargs):
+        raise referral_saas_accounts.CustomerJourneyIncentiveBindingIdempotencyConflict(
+            "Idempotency key was reused with different customer journey incentive binding content."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "bind_referral_saas_customer_journey_incentive",
+        fake_bind_referral_saas_customer_journey_incentive,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/journey-versions/version-1/incentive-bindings",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "incentiveType": "MISSION",
+                "catalogueRef": "WELCOME_MISSION",
+                "idempotencyKey": "incentive-binding-conflict",
+            },
+        )
+
+    assert response.status_code == 409
+    body = response.json()["detail"]
+    assert body["code"] == "idempotency_conflict"
+    assert "IDEMPOTENT_INCENTIVE_BINDING_COMMANDS" in body["guardrails"]
+
+
 async def test_referral_saas_partner_cannot_list_global_journey_templates():
     async with AsyncClient(app=app, base_url="http://test", headers=PARTNER_HEADERS) as client:
         response = await client.get("/v1/referral-saas/journey-templates")

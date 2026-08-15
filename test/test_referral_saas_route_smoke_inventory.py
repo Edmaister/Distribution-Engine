@@ -66,6 +66,10 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/referral-attribution"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/journey-versions"),
+        (
+            "GET",
+            "/v1/referral-saas/accounts/{account_ref}/journey-versions/{version_ref}/incentive-bindings",
+        ),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaign-attribution"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}"),
@@ -126,6 +130,10 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/journey-versions/{version_ref}/archive",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/journey-versions/{version_ref}/incentive-bindings",
         ),
         ("PATCH", "/v1/referral-saas/accounts/{account_ref}/profile"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/campaigns"),
@@ -294,6 +302,10 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/referral-attribution"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/journey-versions"),
+        (
+            "GET",
+            "/v1/referral-saas/accounts/{account_ref}/journey-versions/{version_ref}/incentive-bindings",
+        ),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaign-attribution"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}"),
@@ -341,6 +353,10 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/journey-versions/{version_ref}/archive",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/journey-versions/{version_ref}/incentive-bindings",
         ),
         ("PATCH", "/v1/referral-saas/accounts/{account_ref}/profile"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/campaigns"),
