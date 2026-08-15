@@ -56,17 +56,17 @@ training or explanation:
 
 | Surface | Target UX | Current concern to watch | Next UX task |
 | --- | --- | --- | --- |
-| Account Setup | Create a new customer account foundation through a short guided path. Ends at customer home, not maintenance. | Review/save/internal gates can still feel like system ceremony if not collapsed into a single business action. | TASK-396 |
-| Customer Selection | Pick market, then customer, then open customer home. Customer cards show labelled identity, not raw duplicate strings. | Raw identifiers can look duplicated or unexplained. | TASK-396 |
-| Customer Home | Show customer health, the one next action, and service entry points. No stacked operational workflows. | Red/amber counts need obvious linked actions. | TASK-397 |
-| Account Health | Explain what blocks safe referral testing, what can wait, and which page fixes each item. | Health must not duplicate Customer Home without adding diagnostic value. | TASK-398 |
-| People and Access | Person-first list of required responsibilities, missing roles, confirmed people, optional login setup, and diagnostics behind disclosure. | Progress should be per person/responsibility, not a vague global bar. | TASK-399 |
-| Integrations | Replace "technical setup" language with a connection workspace: plan, request credentials, configure provider, test safely, approve readiness. | Provider/vault/adapter wording must not be the default user language. | TASK-400 |
-| Campaigns | Customer-scoped campaign list, create, configure, review, activate, pause/resume/end/archive with clear status and next action. | Campaign creation should feel like a business setup journey, not API wrapper exposure. | TASK-401 |
-| Links and Codes | Issue, reuse, validate, inspect, expire/revoke/reissue referral entry points for the selected campaign/customer. | Must keep campaign context obvious and validation outcomes plain. | TASK-402 |
-| Reports and Insights | Performance, funnels, exports, schedule intent, and journey analytics in one understandable insight model. | Reporting should avoid raw export lifecycle language unless in diagnostics. | TASK-403 |
-| Attribution | Separate campaign attribution and referral/referrer attribution, both explain "who/what got credit and why". | Confidence and missing evidence need plain-language explanations. | TASK-404 |
-| Support | Customer-scoped cases, notes, statuses, evidence links, and governed recovery requests. | Repair/replay controls must stay gated and not appear as ordinary user buttons. | TASK-405 |
+| Account Setup | Create a new customer account foundation through a short guided path. Ends at customer home, not maintenance. | Review/save/internal gates can still feel like system ceremony if not collapsed into a single business action. | Covered by programme configuration tranche TASK-396 through TASK-405 |
+| Customer Selection | Pick market, then customer, then open customer home. Customer cards show labelled identity, not raw duplicate strings. | Raw identifiers can look duplicated or unexplained. | Covered by programme configuration tranche TASK-396 through TASK-405 |
+| Customer Home | Show customer health, the one next action, and service entry points. No stacked operational workflows. | Red/amber counts need obvious linked actions. | Covered by programme configuration tranche TASK-396 through TASK-405 |
+| Account Health | Explain what blocks safe referral testing, what can wait, and which page fixes each item. | Health must not duplicate Customer Home without adding diagnostic value. | Covered by programme configuration tranche TASK-396 through TASK-405 |
+| People and Access | Person-first list of required responsibilities, missing roles, confirmed people, optional login setup, and diagnostics behind disclosure. | Progress should be per person/responsibility, not a vague global bar. | Covered by programme configuration tranche TASK-396 through TASK-405 |
+| Integrations | Replace "technical setup" language with a connection workspace: plan, request credentials, configure provider, test safely, approve readiness. | Provider/vault/adapter wording must not be the default user language. | Covered by programme configuration tranche TASK-396 through TASK-405 |
+| Campaigns | Customer-scoped campaign list, create, configure, review, activate, pause/resume/end/archive with clear status and next action. | Campaign creation should feel like a business setup journey, not API wrapper exposure. | Covered by programme configuration tranche TASK-396 through TASK-405 |
+| Links and Codes | Issue, reuse, validate, inspect, expire/revoke/reissue referral entry points for the selected campaign/customer. | Must keep campaign context obvious and validation outcomes plain. | Covered by programme configuration tranche TASK-396 through TASK-405 |
+| Reports and Insights | Performance, funnels, exports, schedule intent, and journey analytics in one understandable insight model. | Reporting should avoid raw export lifecycle language unless in diagnostics. | Covered by programme configuration tranche TASK-396 through TASK-405 |
+| Attribution | Separate campaign attribution and referral/referrer attribution, both explain "who/what got credit and why". | Confidence and missing evidence need plain-language explanations. | Covered by programme configuration tranche TASK-396 through TASK-405 |
+| Support | Customer-scoped cases, notes, statuses, evidence links, and governed recovery requests. | Repair/replay controls must stay gated and not appear as ordinary user buttons. | Covered by programme configuration tranche TASK-396 through TASK-405 |
 
 ## Target information architecture
 
@@ -114,18 +114,35 @@ Use these plain-language states in the UI before exposing technical detail:
 - Screens must remain usable without forcing users through unrelated DLaaS,
   finance, settlement, funding, fulfilment, or marketplace flows.
 
-## UX backlog created by this scorecard
+## Programme configuration UX requirements
+
+The page-level CX standards above are still required, but they are now folded
+into the programme-configuration roadmap instead of tracked as separate UX-only
+task IDs. The next build layer is the customer-visible **Referral programme**
+configuration model defined in
+`docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
+
+The programme work keeps the product simple for customers:
+
+- Customers configure a programme, not raw journey engine tables.
+- Drafts, validation, review, publish, retire, and rollback are explicit.
+- Campaigns are created from approved programme versions.
+- Incentives, missions, badges, and leaderboard choices are selected from
+  governed templates instead of edited as unsafe free-form rules.
+- Diagnostics remain available to Amplifi Admin and support, not the default
+  customer experience.
+
+## Programme configuration backlog
 
 | Task | Focus | Outcome |
 | --- | --- | --- |
-| TASK-396 | Customer selection and header clarity | Jurisdiction/customer cards and customer header use labelled business metadata with no duplicate raw strings. |
-| TASK-397 | Customer Home next-action clarity | RAG health links directly to the resolving service page and one primary next action. |
-| TASK-398 | Account Health redesign | Health becomes a plain-language launch checklist with grouped blockers, warnings, and action links. |
-| TASK-399 | People and Access role lifecycle UX | Each required responsibility shows its own lifecycle: missing, named, confirmed, optional login, and diagnostics. |
-| TASK-400 | Integrations workspace UX | Technical setup becomes customer-scoped Integrations with plan, provider request, safe test, and readiness states. |
-| TASK-401 | Campaign setup UX | Campaign create/review/activate is simplified into a customer-scoped business workflow. |
-| TASK-402 | Links and Codes UX | Entry-point issue, validation, reuse, revoke, expire, and investigation actions are made campaign/customer-scoped and plain. |
-| TASK-403 | Reports and Insights UX | Reporting, exports, schedules, funnels, and journey analytics are grouped into understandable insights. |
-| TASK-404 | Attribution UX | Campaign and referral attribution explain credit, confidence, and gaps without raw evidence overload. |
-| TASK-405 | Support UX | Support cases, evidence, notes, assignments, and recovery controls are made customer-safe and action-oriented. |
-
+| TASK-396 | Programme configuration contract | Define the customer-facing programme object, version model, governance states, tenant scope, and simple UX language. |
+| TASK-397 | Programme schema foundation | Add durable programme draft/version storage with immutable published snapshots and audit-ready metadata. |
+| TASK-398 | Programme catalogue and draft APIs | Let customers and Amplifi Admins read available templates and save customer-scoped programme drafts. |
+| TASK-399 | Programme validation and simulation | Validate drafts side-effect-free and show plain-language readiness, blockers, warnings, and projected outcomes. |
+| TASK-400 | Programme review, publish, retire, and rollback | Add governed lifecycle controls so only approved programme versions can be used by campaigns. |
+| TASK-401 | Campaigns from programme versions | Bind campaign setup to a published programme version instead of hand-picking raw journey logic. |
+| TASK-402 | Incentive and engagement binding | Connect governed reward, mission, badge, and leaderboard template versions to programme versions. |
+| TASK-403 | Runtime referral version binding | Ensure new referrals bind to the active programme version while historical referrals keep their original rules. |
+| TASK-404 | Programme analytics and version comparison | Compare programme versions, campaign outcomes, funnel performance, and incentive impact. |
+| TASK-405 | Simple Programme UX and E2E proof | Build the customer-facing Programme setup experience and prove customer-owned configuration end to end. |

@@ -269,6 +269,19 @@ access, integrations, campaigns, links/codes, reports, attribution, and support
 without exposing DLaaS, finance, settlement, funding, fulfilment, or raw
 technical workflows as ordinary Referral SaaS actions.
 
+TASK-396 through TASK-405 now target the next maturity layer:
+customer-visible programme configuration. The governing document is
+`docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
+This extends the completed configurable journey spine into one simple business
+object, `Referral programme`, that binds customer, market, approved journey
+version, campaign defaults, approved incentive references, readiness posture,
+approval evidence, and effective dates. The intent is to make configuration
+safe enough for customer/admin ownership while keeping the UX plain: create or
+copy a programme, validate it, submit it, publish it, create campaigns from it,
+and compare outcomes. This is still Referral SaaS work; it must not introduce
+DLaaS marketplace, fulfilment, settlement, funding, sponsor billing, raw
+secrets, unmanaged provider dispatch, auth-claim mutation, or money movement.
+
 ## Recommended Ordered Task Sequence
 
 1. TASK-134: Define Referral SaaS account setup contract.

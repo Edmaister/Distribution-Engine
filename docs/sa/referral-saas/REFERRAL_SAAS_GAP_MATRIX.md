@@ -113,6 +113,17 @@ that route to the exact fixing action, standalone work pages, partner-simple
 language, Amplifi Admin diagnostics by disclosure, and no DLaaS or money-flow
 leakage in the focused SaaS experience.
 
+TASK-396 through TASK-405 add the remaining target-state SaaS configuration
+path identified after the configurable journey review. The gap is not another
+free-form journey editor. The product needs one simple, governed business
+object: a versioned Referral programme that binds customer, jurisdiction,
+approved journey version, campaign defaults, approved incentive/engagement
+references, readiness posture, review evidence, effective dates, and immutable
+checksums. This keeps customer/admin configuration understandable while giving
+the backend a single versioned object for campaign binding, referral binding,
+analytics, and historical replay. The controlling artifact is
+`docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
+
 ## TASK-357 H1 Scope And Release Gates
 
 TASK-357 locks the H1 Referral SaaS release promise before the remaining
