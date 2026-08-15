@@ -94,6 +94,33 @@ def _published_journey_binding_row() -> dict[str, object]:
     }
 
 
+def _published_programme_binding() -> dict[str, object]:
+    return {
+        "programmeVersionId": "programme-version-1",
+        "programmeCode": "PROGRAMME-1",
+        "programmeName": "Programme 1",
+        "versionNumber": 1,
+        "versionStatus": "PUBLISHED",
+        "customerJourneyVersionId": "journey-version-1",
+        "source": "PUBLISHED_PROGRAMME_VERSION",
+    }
+
+
+def _published_programme_version_row() -> dict[str, object]:
+    return {
+        "programme_version_id": "programme-version-1",
+        "account_id": "acct-1",
+        "programme_code": "PROGRAMME-1",
+        "programme_name": "Programme 1",
+        "version_number": 1,
+        "version_status": "PUBLISHED",
+        "customer_journey_version_id": "journey-version-1",
+        "effective_from": None,
+        "effective_to": None,
+        "retired_at": None,
+    }
+
+
 async def test_campaign_attribution_projection_builds_high_confidence_summary(
     monkeypatch,
 ):
@@ -716,29 +743,10 @@ async def test_campaign_review_decision_records_approval_without_activation(monk
                         "review_status": "READY_FOR_REVIEW",
                         "submitted_by_ref": "operator-1",
                     },
-                    "referral_saas_programme_binding": {
-                        "programmeVersionId": "programme-version-1",
-                        "programmeCode": "PROGRAMME-1",
-                        "programmeName": "Programme 1",
-                        "versionNumber": 1,
-                        "versionStatus": "PUBLISHED",
-                        "customerJourneyVersionId": "journey-version-1",
-                        "source": "PUBLISHED_PROGRAMME_VERSION",
-                    },
+                    "referral_saas_programme_binding": _published_programme_binding(),
                 },
             },
-            {
-                "programme_version_id": "programme-version-1",
-                "account_id": "acct-1",
-                "programme_code": "PROGRAMME-1",
-                "programme_name": "Programme 1",
-                "version_number": 1,
-                "version_status": "PUBLISHED",
-                "customer_journey_version_id": "journey-version-1",
-                "effective_from": None,
-                "effective_to": None,
-                "retired_at": None,
-            },
+            _published_programme_version_row(),
             {
                 "active_policy_count": 1,
                 "latest_policy_updated_at": datetime(
@@ -875,7 +883,8 @@ async def test_campaign_activation_request_activates_only_campaign_posture(
                     "referral_saas_review": {
                         "review_status": "REVIEW_APPROVED",
                         **_approved_review_state(),
-                    }
+                    },
+                    "referral_saas_programme_binding": _published_programme_binding(),
                 },
             },
             _published_journey_binding_row(),
@@ -885,6 +894,7 @@ async def test_campaign_activation_request_activates_only_campaign_posture(
                     2026, 7, 31, tzinfo=timezone.utc
                 ),
             },
+            _published_programme_version_row(),
             {
                 "campaign_code": "CAMP001",
                 "is_active": True,

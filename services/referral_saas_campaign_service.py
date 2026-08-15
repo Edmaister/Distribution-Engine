@@ -2563,6 +2563,24 @@ async def request_referral_saas_account_campaign_activation(
             raise CampaignActivationNotReady(
                 "Campaign policy/settings changed after review approval; re-review is required before activation."
             )
+        programme_binding = _campaign_programme_binding(attributes)
+        if not programme_binding:
+            raise CampaignActivationNotReady(
+                "Campaign must be bound to a published programme version before activation."
+            )
+        programme_version_id = _optional_text(
+            programme_binding.get("programmeVersionId")
+        )
+        if not programme_version_id:
+            raise CampaignActivationNotReady(
+                "Campaign programme binding is missing the published programme version."
+            )
+        programme_version = await _fetch_published_programme_version_for_binding(
+            conn,
+            account_id=safe_account_id,
+            programme_version_id=programme_version_id,
+            error_cls=CampaignActivationNotReady,
+        )
 
         previous_lifecycle = "READY_TO_ACTIVATE"
         pre_activation_decision = {
