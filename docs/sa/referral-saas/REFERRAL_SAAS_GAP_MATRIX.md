@@ -135,6 +135,17 @@ TASK-397 through TASK-405 must add schema, APIs, validation/simulation,
 publish/retire/rollback, campaign binding, incentive binding, runtime binding,
 analytics, and the simple customer Programme UX proof.
 
+TASK-397 now closes the durable-storage gap with
+`dp/migrations/096_referral_saas_programme_configuration.sql`. Programme
+drafts, immutable programme versions, validation results, idempotency keys, and
+audit evidence can now be stored against `account_id` and published customer
+journey versions. The schema includes campaign defaults, approved
+incentive/engagement references, readiness and entitlement snapshots, effective
+dates, configuration checksums, payload hashes, review/publish/retire metadata,
+redactions, and replay controls. Remaining work is TASK-398 through TASK-405:
+APIs, validation/simulation, review/publish/retire/rollback, campaign binding,
+incentive/runtime binding, analytics, and a simple customer Programme UX.
+
 ## TASK-357 H1 Scope And Release Gates
 
 TASK-357 locks the H1 Referral SaaS release promise before the remaining

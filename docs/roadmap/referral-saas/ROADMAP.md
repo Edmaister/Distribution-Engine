@@ -291,6 +291,19 @@ no-auth, no-billing, no-settlement, and no-money side-effect boundaries.
 Implementation now moves to TASK-397 for durable programme draft/version
 schema.
 
+TASK-397 now adds that schema foundation in
+`dp/migrations/096_referral_saas_programme_configuration.sql`. The migration
+creates account-scoped programme drafts, immutable programme versions,
+programme validation results, programme idempotency keys, and programme audit
+evidence. It binds programmes to published customer journey versions and stores
+campaign defaults, approved incentive/engagement references, integration
+readiness snapshots, commercial entitlement snapshots, effective dates,
+configuration checksums, payload hashes, review/publish/retire metadata, and
+safe summaries without raw secrets, provider payloads, auth claims, billing,
+settlement, payout, wallet, treasury, invoice, or money movement fields.
+Implementation now moves to TASK-398 for selected-customer programme read/save
+APIs over this storage.
+
 ## Recommended Ordered Task Sequence
 
 1. TASK-134: Define Referral SaaS account setup contract.
