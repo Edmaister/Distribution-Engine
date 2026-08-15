@@ -715,8 +715,29 @@ async def test_campaign_review_decision_records_approval_without_activation(monk
                     "referral_saas_review": {
                         "review_status": "READY_FOR_REVIEW",
                         "submitted_by_ref": "operator-1",
-                    }
+                    },
+                    "referral_saas_programme_binding": {
+                        "programmeVersionId": "programme-version-1",
+                        "programmeCode": "PROGRAMME-1",
+                        "programmeName": "Programme 1",
+                        "versionNumber": 1,
+                        "versionStatus": "PUBLISHED",
+                        "customerJourneyVersionId": "journey-version-1",
+                        "source": "PUBLISHED_PROGRAMME_VERSION",
+                    },
                 },
+            },
+            {
+                "programme_version_id": "programme-version-1",
+                "account_id": "acct-1",
+                "programme_code": "PROGRAMME-1",
+                "programme_name": "Programme 1",
+                "version_number": 1,
+                "version_status": "PUBLISHED",
+                "customer_journey_version_id": "journey-version-1",
+                "effective_from": None,
+                "effective_to": None,
+                "retired_at": None,
             },
             {
                 "active_policy_count": 1,
