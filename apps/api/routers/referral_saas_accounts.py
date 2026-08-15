@@ -284,6 +284,18 @@ from services.referral_saas_journey_analytics_service import (
     JOURNEY_ANALYTICS_REDACTIONS,
     build_referral_saas_journey_analytics_read_model,
 )
+from services.referral_saas_programme_configuration_service import (
+    PROGRAMME_CONFIGURATION_GUARDRAILS,
+    PROGRAMME_CONFIGURATION_REDACTIONS,
+    ProgrammeConfigurationIdempotencyConflict,
+    ProgrammeConfigurationNotFound,
+    ProgrammeConfigurationUnsafePayload,
+    ProgrammeConfigurationValidationError,
+    get_referral_saas_programme_catalogue,
+    get_referral_saas_programme_draft,
+    list_referral_saas_programme_versions,
+    save_referral_saas_programme_draft,
+)
 from services.referral_saas_technical_setup_service import (
     build_referral_saas_technical_setup_readiness,
 )
@@ -674,6 +686,26 @@ class ReferralSaasCustomerJourneyIncentiveBindingRequest(BaseModel):
 class ReferralSaasCampaignJourneyBindingRequest(BaseModel):
     accountScope: dict[str, Any] = Field(default_factory=dict)
     customerJourneyVersionId: str = Field(min_length=1)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasProgrammeDraftSaveRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    programmeName: str = Field(min_length=1)
+    programmeDescription: str | None = Field(default=None)
+    operatingJurisdictionCode: str = Field(min_length=1)
+    productCode: str = Field(default="REFERRAL_SAAS", min_length=1)
+    subProductCode: str = Field(min_length=1)
+    customerJourneyVersionId: str = Field(min_length=1)
+    sourceProgrammeVersionId: str | None = Field(default=None)
+    campaignDefaults: dict[str, Any] = Field(default_factory=dict)
+    incentiveRefs: list[Any] = Field(default_factory=list)
+    engagementRefs: list[Any] = Field(default_factory=list)
+    integrationReadinessSnapshot: dict[str, Any] = Field(default_factory=dict)
+    commercialEntitlementSnapshot: dict[str, Any] = Field(default_factory=dict)
+    effectiveFrom: str | None = Field(default=None)
+    effectiveTo: str | None = Field(default=None)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str = Field(min_length=1)
 
@@ -1312,6 +1344,47 @@ async def _resolve_customer_journey_draft_account_context(
                 "message": "accountScope.refType and accountScope.externalRef are required.",
                 "guardrails": list(CUSTOMER_JOURNEY_DRAFT_GUARDRAILS),
                 "redactions": list(CUSTOMER_JOURNEY_DRAFT_REDACTIONS),
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
+    _assert_account_path_scope(account_ref, account)
+    return normalised_context, account
+
+
+async def _resolve_programme_configuration_account_context(
+    *,
+    account_ref: str,
+    account_scope: dict[str, Any],
+    identity: dict[str, Any] | None = None,
+) -> tuple[str, Any]:
+    if not isinstance(account_scope, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope is required.",
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        )
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    if not ref_type or not external_ref:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope.refType and accountScope.externalRef are required.",
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
             },
         )
 
@@ -4191,6 +4264,316 @@ async def save_referral_saas_customer_journey_draft_configuration(
         }
     )
     return body
+
+
+@router.get("/accounts/{account_ref}/programmes")
+async def list_referral_saas_programme_configuration_versions(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(description="External reference type used to resolve the account."),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(description="External customer/account reference value."),
+    ],
+    context: Annotated[
+        str,
+        Query(description="setup or runtime account resolution context."),
+    ] = "setup",
+    include_retired: Annotated[
+        bool,
+        Query(alias="includeRetired", description="Include retired programme versions."),
+    ] = False,
+    limit: Annotated[
+        int,
+        Query(ge=1, le=100, description="Maximum number of versions to return."),
+    ] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    reader_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=reader_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    versions = await list_referral_saas_programme_versions(
+        account_id=account.account_id,
+        include_retired=include_retired,
+        limit=limit,
+    )
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "count": len(versions),
+        "programmes": [version.to_safe_dict() for version in versions],
+        "guardrail": (
+            "Read-only programme version list for the selected account. It does "
+            "not publish programmes, activate campaigns, switch referral runtime, "
+            "dispatch providers, create credentials, change auth, bill, settle, "
+            "pay out, or move money."
+        ),
+        "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+        "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+        "noProgrammePublishConfirmed": True,
+        "noCampaignActivationConfirmed": True,
+        "noReferralRuntimeSwitchConfirmed": True,
+        "noProviderDispatchConfirmed": True,
+        "noCredentialOrAuthMutationConfirmed": True,
+        "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/programmes/catalogue")
+async def get_referral_saas_programme_configuration_catalogue(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(description="External reference type used to resolve the account."),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(description="External customer/account reference value."),
+    ],
+    context: Annotated[
+        str,
+        Query(description="setup or runtime account resolution context."),
+    ] = "setup",
+    limit: Annotated[
+        int,
+        Query(ge=1, le=100, description="Maximum number of catalogue items to return."),
+    ] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    reader_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=reader_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    catalogue = await get_referral_saas_programme_catalogue(
+        account_id=account.account_id,
+        limit=limit,
+    )
+    catalogue.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "guardrail": (
+                "Programme catalogue for approved account-scoped building blocks. "
+                "It returns safe journey version and product options only; no "
+                "programme is published and no campaign, provider, auth, billing, "
+                "settlement, payout, or money workflow runs."
+            ),
+        }
+    )
+    return catalogue
+
+
+@router.get("/accounts/{account_ref}/programmes/drafts/{draft_ref}")
+async def get_referral_saas_programme_configuration_draft(
+    account_ref: str,
+    draft_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(description="External reference type used to resolve the account."),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(description="External customer/account reference value."),
+    ],
+    context: Annotated[
+        str,
+        Query(description="setup or runtime account resolution context."),
+    ] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    reader_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=reader_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
+    _assert_account_path_scope(account_ref, account)
+    try:
+        draft = await get_referral_saas_programme_draft(
+            account_id=account.account_id,
+            programme_draft_id=draft_ref,
+        )
+    except ProgrammeConfigurationNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "PROGRAMME_CONFIGURATION_NOT_FOUND",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "draft": draft.to_safe_dict(),
+        "guardrail": (
+            "Read-only programme draft for the selected account. It does not "
+            "publish, activate campaigns, switch runtime journeys, dispatch "
+            "providers, create credentials, change auth, bill, settle, pay out, "
+            "or move money."
+        ),
+        "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+        "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+        "noProgrammePublishConfirmed": True,
+        "noCampaignActivationConfirmed": True,
+        "noReferralRuntimeSwitchConfirmed": True,
+        "noProviderDispatchConfirmed": True,
+        "noCredentialOrAuthMutationConfirmed": True,
+        "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+    }
+
+
+async def _save_referral_saas_programme_draft_response(
+    *,
+    account_ref: str,
+    request: ReferralSaasProgrammeDraftSaveRequest,
+    programme_draft_id: str | None,
+    identity: dict,
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_programme_configuration_account_context(
+        account_ref=account_ref,
+        account_scope=request.accountScope,
+        identity=admin_identity,
+    )
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await save_referral_saas_programme_draft(
+            account_id=account.account_id,
+            programme_name=request.programmeName,
+            programme_description=request.programmeDescription,
+            operating_jurisdiction_code=request.operatingJurisdictionCode,
+            product_code=request.productCode,
+            sub_product_code=request.subProductCode,
+            customer_journey_version_id=request.customerJourneyVersionId,
+            source_programme_version_id=request.sourceProgrammeVersionId,
+            programme_draft_id=programme_draft_id,
+            campaign_defaults=request.campaignDefaults,
+            incentive_refs=request.incentiveRefs,
+            engagement_refs=request.engagementRefs,
+            integration_readiness_snapshot=request.integrationReadinessSnapshot,
+            commercial_entitlement_snapshot=request.commercialEntitlementSnapshot,
+            effective_from=request.effectiveFrom,
+            effective_to=request.effectiveTo,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except ProgrammeConfigurationIdempotencyConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "IDEMPOTENCY_CONFLICT",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+    except ProgrammeConfigurationUnsafePayload as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "REJECTED_UNSAFE_PAYLOAD",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+                "noProgrammePublishConfirmed": True,
+                "noCampaignActivationConfirmed": True,
+                "noReferralRuntimeSwitchConfirmed": True,
+                "noProviderDispatchConfirmed": True,
+                "noCredentialOrAuthMutationConfirmed": True,
+                "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+            },
+        ) from exc
+    except ProgrammeConfigurationValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "VALIDATION_ERROR",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+    except ProgrammeConfigurationNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "PROGRAMME_CONFIGURATION_NOT_FOUND",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "guardrail": (
+                "Programme draft save for the selected account. This records "
+                "safe programme intent only; it does not publish, activate "
+                "campaigns, switch referral runtime, dispatch providers, create "
+                "credentials, mutate auth, bill, settle, pay out, or move money."
+            ),
+        }
+    )
+    return body
+
+
+@router.post("/accounts/{account_ref}/programmes/drafts")
+async def create_referral_saas_programme_configuration_draft(
+    account_ref: str,
+    request: ReferralSaasProgrammeDraftSaveRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    return await _save_referral_saas_programme_draft_response(
+        account_ref=account_ref,
+        request=request,
+        programme_draft_id=None,
+        identity=identity,
+    )
+
+
+@router.put("/accounts/{account_ref}/programmes/drafts/{draft_ref}")
+async def update_referral_saas_programme_configuration_draft(
+    account_ref: str,
+    draft_ref: str,
+    request: ReferralSaasProgrammeDraftSaveRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    return await _save_referral_saas_programme_draft_response(
+        account_ref=account_ref,
+        request=request,
+        programme_draft_id=draft_ref,
+        identity=identity,
+    )
 
 
 @router.post("/accounts/{account_ref}/journey-drafts/{draft_ref}/validate")

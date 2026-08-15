@@ -8805,7 +8805,7 @@ Priority: P1.
 
 ## TASK-398: Add programme catalogue and draft read/save APIs
 
-Status: Open.
+Status: Complete.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
 Shared primitive impact: Adds selected-customer programme configuration service/API wrappers. Source duplication: No.
@@ -8813,11 +8813,11 @@ Objective: Let Amplifi Admin or an authorized customer admin list programme vers
 Why now: Programme setup must be API-governed before UI can safely present a simple create/copy/edit experience.
 Files likely involved: programme configuration service; selected-customer router; API endpoint client; API/service/route tests.
 Database/schema impact: Reads/writes TASK-397 tables.
-Backend impact: Adds account scope, capability checks, idempotency replay/conflict handling, payload hashing, audit, and redaction.
+Backend impact: Complete - adds account scope, capability checks, approved catalogue reads, idempotency replay/conflict handling, payload hashing, audit, and redaction.
 Frontend impact: API-ready only unless paired with TASK-405.
-API impact: Adds selected-customer programme draft/version read and save routes.
-Tests to add/update: Account scope, wrong-account rejection, role/capability checks, idempotency replay/conflict, unsafe payload rejection, redactions, route inventory.
-Acceptance criteria: Draft programme configuration can be saved safely without publishing, campaign activation, referral runtime switching, provider dispatch, credential creation, auth mutation, billing, payout, settlement, or money movement.
+API impact: Complete - adds selected-customer programme version list, approved building-block catalogue, programme draft read, programme draft create, and programme draft update routes.
+Tests to add/update: Complete - programme list/catalogue/read/save/update, idempotency conflict, unsafe payload rejection, route inventory, py_compile, and diff check.
+Acceptance criteria: Complete - draft programme configuration can be saved safely without publishing, campaign activation, referral runtime switching, provider dispatch, credential creation, auth mutation, billing, payout, settlement, or money movement.
 Dependencies: TASK-397.
 Priority: P1.
 

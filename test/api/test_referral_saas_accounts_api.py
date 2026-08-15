@@ -1233,6 +1233,368 @@ async def test_referral_saas_customer_journey_draft_save_rejects_unsafe_payload(
     assert body["noAuthBillingOrMoneyActionConfirmed"] is True
 
 
+async def test_referral_saas_admin_can_list_programmes(monkeypatch):
+    resolve_calls: list[dict] = []
+    list_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_list_referral_saas_programme_versions(**kwargs):
+        list_calls.append(kwargs)
+        return (
+            SimpleNamespace(
+                to_safe_dict=lambda: {
+                    "programmeVersionId": "programme-version-1",
+                    "programmeName": "Home Loans Referral Programme",
+                    "versionStatus": "PUBLISHED",
+                    "noCampaignActivationConfirmed": True,
+                }
+            ),
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_programme_versions",
+        fake_list_referral_saas_programme_versions,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/programmes",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+                "limit": 10,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["count"] == 1
+    assert body["programmes"][0]["programmeVersionId"] == "programme-version-1"
+    assert body["noProgrammePublishConfirmed"] is True
+    assert body["noBillingPayoutSettlementOrMoneyMovementConfirmed"] is True
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert list_calls == [
+        {"account_id": "acct-1", "include_retired": False, "limit": 10}
+    ]
+
+
+async def test_referral_saas_admin_can_get_programme_catalogue(monkeypatch):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_get_referral_saas_programme_catalogue(**kwargs):
+        return {
+            "productCode": "REFERRAL_SAAS",
+            "subProductCodes": ["RMCA_BUNDLE"],
+            "customerJourneyVersions": [
+                {
+                    "customerJourneyVersionId": "journey-version-1",
+                    "customerJourneyCode": "HOME_LOANS",
+                    "versionStatus": "PUBLISHED",
+                }
+            ],
+            "guardrails": ["ACCOUNT_SCOPED_PROGRAMME_CONFIGURATION"],
+            "redactions": ["tenant_code"],
+            "noCampaignActivationConfirmed": True,
+        }
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_programme_catalogue",
+        fake_get_referral_saas_programme_catalogue,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/programmes/catalogue",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["productCode"] == "REFERRAL_SAAS"
+    assert body["customerJourneyVersions"][0]["customerJourneyVersionId"] == "journey-version-1"
+    assert body["noCampaignActivationConfirmed"] is True
+
+
+async def test_referral_saas_admin_can_get_programme_draft(monkeypatch):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_get_referral_saas_programme_draft(**kwargs):
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "programmeDraftId": "programme-draft-1",
+                "programmeName": "Home Loans Referral Programme",
+                "programmeStatus": "DRAFT",
+                "noProgrammePublishConfirmed": True,
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "get_referral_saas_programme_draft",
+        fake_get_referral_saas_programme_draft,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/programmes/drafts/programme-draft-1",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["draft"]["programmeDraftId"] == "programme-draft-1"
+    assert body["noProgrammePublishConfirmed"] is True
+    assert body["noCredentialOrAuthMutationConfirmed"] is True
+
+
+async def test_referral_saas_admin_can_save_programme_draft(monkeypatch):
+    resolve_calls: list[dict] = []
+    save_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        resolve_calls.append(kwargs)
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_save_referral_saas_programme_draft(**kwargs):
+        save_calls.append(kwargs)
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "commandStatus": "DRAFT_SAVED",
+                "idempotencyStatus": "NEW_REQUEST",
+                "draft": {
+                    "programmeDraftId": "programme-draft-1",
+                    "programmeName": "Home Loans Referral Programme",
+                    "programmeStatus": "DRAFT",
+                },
+                "noProgrammePublishConfirmed": True,
+                "noCampaignActivationConfirmed": True,
+                "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "save_referral_saas_programme_draft",
+        fake_save_referral_saas_programme_draft,
+    )
+
+    payload = {
+        "accountScope": {
+            "refType": "external_tenant_ref",
+            "externalRef": "fnb-referrals",
+            "context": "setup",
+        },
+        "programmeName": "Home Loans Referral Programme",
+        "programmeDescription": "Mortgage acquisition referral programme.",
+        "operatingJurisdictionCode": "ZA",
+        "productCode": "REFERRAL_SAAS",
+        "subProductCode": "RMCA_BUNDLE",
+        "customerJourneyVersionId": "journey-version-1",
+        "campaignDefaults": {"defaultChannel": "email"},
+        "incentiveRefs": [{"catalogueRef": "reward-policy-1"}],
+        "engagementRefs": [],
+        "idempotencyKey": "programme-draft-save-1",
+    }
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/programmes/drafts",
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["commandStatus"] == "DRAFT_SAVED"
+    assert body["draft"]["programmeDraftId"] == "programme-draft-1"
+    assert body["noCampaignActivationConfirmed"] is True
+    assert body["noBillingPayoutSettlementOrMoneyMovementConfirmed"] is True
+    assert resolve_calls == [
+        {"ref_type": "external_tenant_ref", "external_ref": "fnb-referrals"}
+    ]
+    assert save_calls[0]["account_id"] == "acct-1"
+    assert save_calls[0]["programme_name"] == "Home Loans Referral Programme"
+    assert save_calls[0]["sub_product_code"] == "RMCA_BUNDLE"
+    assert save_calls[0]["campaign_defaults"] == {"defaultChannel": "email"}
+    assert save_calls[0]["idempotency_key_hash"]
+    assert save_calls[0]["request_payload_hash"]
+
+
+async def test_referral_saas_admin_can_update_programme_draft(monkeypatch):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_save_referral_saas_programme_draft(**kwargs):
+        assert kwargs["programme_draft_id"] == "programme-draft-1"
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "commandStatus": "DRAFT_SAVED",
+                "idempotencyStatus": "NEW_REQUEST",
+                "draft": {
+                    "programmeDraftId": "programme-draft-1",
+                    "programmeName": "Updated Programme",
+                    "draftVersion": 2,
+                },
+                "noProgrammePublishConfirmed": True,
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "save_referral_saas_programme_draft",
+        fake_save_referral_saas_programme_draft,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/programmes/drafts/programme-draft-1",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "programmeName": "Updated Programme",
+                "operatingJurisdictionCode": "ZA",
+                "subProductCode": "RMCA_BUNDLE",
+                "customerJourneyVersionId": "journey-version-1",
+                "idempotencyKey": "programme-draft-update-1",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["draft"]["draftVersion"] == 2
+
+
+async def test_referral_saas_programme_draft_save_rejects_conflict(monkeypatch):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_save_referral_saas_programme_draft(**kwargs):
+        raise referral_saas_accounts.ProgrammeConfigurationIdempotencyConflict(
+            "Idempotency key was reused with different programme draft content."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "save_referral_saas_programme_draft",
+        fake_save_referral_saas_programme_draft,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/programmes/drafts",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "programmeName": "Programme",
+                "operatingJurisdictionCode": "ZA",
+                "subProductCode": "RMCA_BUNDLE",
+                "customerJourneyVersionId": "journey-version-1",
+                "idempotencyKey": "programme-draft-save-1",
+            },
+        )
+
+    assert response.status_code == 409
+    body = response.json()["detail"]
+    assert body["code"] == "IDEMPOTENCY_CONFLICT"
+    assert "NO_CAMPAIGN_ACTIVATION" in body["guardrails"]
+
+
+async def test_referral_saas_programme_draft_save_rejects_unsafe_payload(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_save_referral_saas_programme_draft(**kwargs):
+        raise referral_saas_accounts.ProgrammeConfigurationUnsafePayload(
+            "Programme configuration contains a reserved provider field."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "save_referral_saas_programme_draft",
+        fake_save_referral_saas_programme_draft,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/programmes/drafts",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "programmeName": "Programme",
+                "operatingJurisdictionCode": "ZA",
+                "subProductCode": "RMCA_BUNDLE",
+                "customerJourneyVersionId": "journey-version-1",
+                "campaignDefaults": {"api_key": "secret"},
+                "idempotencyKey": "programme-draft-unsafe",
+            },
+        )
+
+    assert response.status_code == 422
+    body = response.json()["detail"]
+    assert body["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert body["noProviderDispatchConfirmed"] is True
+    assert body["noCredentialOrAuthMutationConfirmed"] is True
+
+
 async def test_referral_saas_admin_can_validate_customer_journey_draft(
     monkeypatch,
 ):

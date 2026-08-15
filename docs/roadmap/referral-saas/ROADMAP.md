@@ -301,8 +301,15 @@ readiness snapshots, commercial entitlement snapshots, effective dates,
 configuration checksums, payload hashes, review/publish/retire metadata, and
 safe summaries without raw secrets, provider payloads, auth claims, billing,
 settlement, payout, wallet, treasury, invoice, or money movement fields.
-Implementation now moves to TASK-398 for selected-customer programme read/save
-APIs over this storage.
+TASK-398 now adds selected-customer programme configuration APIs over this
+storage. Amplifi Admin and authorized customer-admin flows can list programme
+versions, read approved building-block catalogues, read draft programmes, and
+create/update draft programme intent with account scope, published
+journey-version checks, idempotency replay/conflict handling, payload hashing,
+audit, redactions, and explicit no-publish, no-campaign-activation,
+no-runtime-switch, no-provider-dispatch, no-credential, no-auth, no-billing,
+no-payout, no-settlement, and no-money guardrails. Implementation now moves to
+TASK-399 for programme validation and simulation.
 
 ## Recommended Ordered Task Sequence
 

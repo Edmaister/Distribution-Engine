@@ -34,6 +34,12 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("GET", "/v1/referral-saas/accounts"),
         ("GET", "/v1/referral-saas/accounts/resolve"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/catalogue"),
+        (
+            "GET",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/drafts/{draft_ref}",
+        ),
         ("GET", "/v1/referral-saas/accounts/membership-posture"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/membership-activation-readiness"),
         (
@@ -120,6 +126,11 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("POST", "/referrals/referees/ucn"),
         ("POST", "/v1/referral-saas/accounts/from-draft"),
         ("PUT", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
+        ("POST", "/v1/referral-saas/accounts/{account_ref}/programmes/drafts"),
+        (
+            "PUT",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/drafts/{draft_ref}",
+        ),
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/journey-drafts/{draft_ref}/validate",
@@ -271,6 +282,12 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("GET", "/v1/referral-saas/accounts"),
         ("GET", "/v1/referral-saas/accounts/resolve"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/catalogue"),
+        (
+            "GET",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/drafts/{draft_ref}",
+        ),
         ("GET", "/v1/referral-saas/accounts/membership-posture"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/membership-activation-readiness"),
         (
@@ -344,6 +361,11 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("POST", "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/validate"),
         ("POST", "/v1/referral-saas/accounts/from-draft"),
         ("PUT", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
+        ("POST", "/v1/referral-saas/accounts/{account_ref}/programmes/drafts"),
+        (
+            "PUT",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/drafts/{draft_ref}",
+        ),
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/journey-drafts/{draft_ref}/validate",
