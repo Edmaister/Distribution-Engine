@@ -119,7 +119,7 @@ Every implementation task in this track must preserve these controls:
 | TASK-388 | Add publish/archive customer journey version API | Approved journey versions can be locked for use | Immutable versions, audit, rollback posture, SoD where required |
 | TASK-389 | Wire journey template catalogue and draft UX | Customer/Admin gets a plain-language journey configuration workspace | Step-by-step UX, customer context, safe labels, no raw technical leakage |
 | TASK-390 | Bind campaigns to published journey versions | Campaign setup becomes template/version driven | Published-version-only, readiness gate, no draft binding |
-| TASK-391 | Add rewards, missions, badges, and leaderboard binding controls | Incentive mechanics become configurable inside approved limits | Approved catalogues, money boundary, audit, no payout movement |
+| TASK-391 | Add rewards, missions, badges, and leaderboard binding controls | Incentive mechanics become configurable inside approved limits | Complete - approved catalogue references can bind to published customer journey versions with account scope, idempotency, audit, redaction, and no payout/money movement |
 | TASK-392 | Migrate runtime reads from code baseline to published config where proven | Runtime can execute configured journeys safely | Backward compatibility, feature flag, proof runner, no unversioned runtime |
 | TASK-393 | Add journey analytics and optimization read models | Customers can optimize journeys from conversion/drop-off evidence | Tenant-safe reports, version comparison, attribution redaction |
 | TASK-394 | Run configurable journey E2E and non-local proof | Proves create-config-bind-track-report path outside local-only data | Live/staging proof, no leak, no unsafe side effects |

@@ -465,7 +465,7 @@ with TASK-391 through TASK-394.
 219. TASK-388: Add publish and archive customer journey version API. (Complete - governed publish/archive API added.)
 220. TASK-389: Add journey template catalogue and draft configuration UX. (Complete - customer-scoped Journey Configuration UX added.)
 221. TASK-390: Bind campaigns to published journey versions. (Complete - selected-customer campaign setup now requires a published journey version binding; readiness exposes binding posture; activation blocks missing/invalid same-account published version bindings without runtime migration.)
-222. TASK-391: Add rewards, missions, badges, and leaderboard binding controls.
+222. TASK-391: Add rewards, missions, badges, and leaderboard binding controls. (Complete - account-scoped published journey incentive binding schema/API added for approved reward policy, mission, badge, and leaderboard catalogue references with idempotency, audit, redaction, and no-money guardrails.)
 223. TASK-392: Migrate runtime journey reads from code baseline to published configuration.
 224. TASK-393: Add journey analytics and optimization read models.
 225. TASK-394: Run configurable journey E2E and non-local proof.

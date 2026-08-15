@@ -8684,18 +8684,18 @@ Completed outputs:
 
 ## TASK-391: Add rewards, missions, badges, and leaderboard binding controls
 
-Status: Planned.
+Status: Complete (2026-08-15).
 Product boundary: Referral SaaS with money boundary guardrails.
 Shared primitive impact: Connects configurable journeys to existing incentive/gamification catalogues without executing money movement. Source duplication: No.
 Objective: Allow approved reward policies, missions, badges, and leaderboard definitions to be attached to customer journey versions within governed limits.
 Why now: Customers need commercial flexibility, but incentive configuration must stay separate from payout, settlement, funding, and wallet execution.
-Files likely involved: journey configuration service; reward/mission/badge/leaderboard services; UI; tests; docs.
-Database/schema impact: Adds binding rows or references to existing catalogue tables.
-Backend impact: Adds validation for approved incentive bindings and no-money boundaries.
-Frontend impact: Journey configuration UX exposes approved incentive choices with plain-language impact.
-API impact: Draft save/validate/publish includes incentive binding posture.
+Files involved: `dp/migrations/095_referral_saas_journey_incentive_bindings.sql`; `services/referral_saas_journey_configuration_service.py`; `apps/api/routers/referral_saas_accounts.py`; focused service/API/migration tests; route inventory; roadmap/gap/infographic updates.
+Database/schema impact: Adds account-scoped customer journey incentive binding rows that reference published customer journey versions and approved catalogue refs.
+Backend impact: Adds validation for approved reward policy, mission, badge, and leaderboard bindings with published-version, idempotency, audit, redaction, and no-money boundaries.
+Frontend impact: None in this task; the binding primitive is exposed through guarded APIs before UI selection and runtime consumption.
+API impact: Adds selected-customer list/bind incentive binding routes under published journey versions.
 Tests to add/update: Approved catalogue binding, unapproved binding rejection, reward range validation, no payout/funding/settlement side effects.
-Acceptance criteria: Journey versions can reference approved incentive configurations safely; no reward payment, payout, settlement, funding, invoice, wallet, commission, or money movement occurs.
+Acceptance criteria: Complete - published customer journey versions can reference active approved incentive catalogue items safely through account-scoped, idempotent APIs; unapproved or unsafe references are rejected; audit evidence and redactions are recorded; no reward application, badge award, mission progress mutation, leaderboard scoring, campaign activation, provider dispatch, auth, billing, payout, settlement, funding, invoice, wallet, commission, or money movement occurs.
 Dependencies: TASK-388.
 Priority: P1.
 

@@ -135,6 +135,46 @@ async def test_list_journey_templates_rejects_unknown_status(monkeypatch):
         await service.list_referral_saas_journey_templates(statuses=["LIVE"])
 
 
+async def test_customer_journey_incentive_binding_rejects_unknown_type():
+    with pytest.raises(service.CustomerJourneyIncentiveBindingValidationError):
+        service._normalise_incentive_type("PAYOUT")
+
+
+async def test_customer_journey_incentive_binding_safe_dict_blocks_side_effects():
+    binding = service.CustomerJourneyIncentiveBinding(
+        customer_journey_incentive_binding_id="binding-1",
+        account_id="acct-1",
+        customer_journey_version_id="version-1",
+        incentive_type="MISSION",
+        catalogue_ref="WELCOME_MISSION",
+        binding_status="ACTIVE",
+        binding_payload_hash="hash-1",
+        bound_by_ref="amplifi-admin",
+        bound_at=datetime(2026, 8, 15, tzinfo=timezone.utc),
+        archived_by_ref=None,
+        archived_at=None,
+        safe_summary={"catalogueLabel": "Welcome mission"},
+        governance_metadata={"source": "TASK-391", "payload_hash": "hidden"},
+        customer_journey_code="FNB_REFERRAL",
+        version_number=1,
+        template_code="REFERRAL_STANDARD",
+        template_version="1.0.0",
+        version_status="PUBLISHED",
+    )
+
+    body = binding.to_safe_dict()
+
+    assert body["incentiveType"] == "MISSION"
+    assert body["catalogueRef"] == "WELCOME_MISSION"
+    assert body["governanceMetadata"] == {"source": "TASK-391"}
+    assert body["noRewardApplicationConfirmed"] is True
+    assert body["noBadgeAwardConfirmed"] is True
+    assert body["noMissionProgressMutationConfirmed"] is True
+    assert body["noLeaderboardScoringConfirmed"] is True
+    assert body["noAuthBillingOrMoneyActionConfirmed"] is True
+    assert "reward_amount" in body["redactions"]
+
+
 async def test_get_journey_template_returns_safe_detail(monkeypatch):
     conn = FakeConn(
         [
