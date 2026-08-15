@@ -372,6 +372,10 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ),
         (
             "POST",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/drafts/{draft_ref}/validate",
+        ),
+        (
+            "POST",
             "/v1/referral-saas/accounts/{account_ref}/journey-drafts/{draft_ref}/validate",
         ),
         (
