@@ -340,6 +340,20 @@ settlement/money side effects. The programme configuration implementation stream
 is complete; remaining proof work is the non-local environment evidence tracked
 by TASK-027 and TASK-348.
 
+TASK-406 through TASK-414 add the next domain-hardening tranche so the product
+does not drift into an overloaded "everything is a campaign" or "everything is
+a programme" model. The controlling artifact is
+`docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`.
+The tranche separates customer product/offering taxonomy from Amplifi service
+packaging, keeps Referral Programme and Campaign Management as distinct domain
+services, makes campaign-to-programme binding authoritative, introduces
+approved campaign override controls, freezes effective runtime rule snapshots,
+and adds reporting/UX proof that customer, product/offering, programme,
+campaign, and override context can be understood without raw technical detail.
+This remains Referral SaaS work with Shared Platform trajectory; it must not
+pull in DLaaS marketplace, funding, fulfilment, settlement, sponsor billing,
+auth-claim mutation, provider dispatch, credential creation, or money movement.
+
 ## Recommended Ordered Task Sequence
 
 1. TASK-134: Define Referral SaaS account setup contract.

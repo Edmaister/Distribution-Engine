@@ -109,6 +109,38 @@ to a simple, governed programme configuration platform.
 | TASK-404 | Completed: add aggregate-only programme analytics and version comparison read models with guardrails, redactions, and no adjacent side effects. |
 | TASK-405 | Add the simple customer Programme UX and end-to-end proof. |
 
+## Post-Programme Domain Hardening Tranche
+
+TASK-406 through TASK-414 close the remaining domain-modelling and CX gap
+identified after the programme configuration review. The controlling artifact
+is
+`docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`.
+
+The purpose is not to add another configuration wizard. It is to make the
+current programme and campaign platform commercially clear:
+
+- customer product/offering taxonomy must be separate from Amplifi service
+  packaging
+- referral programme configuration must remain a different domain from
+  campaign management
+- campaigns must bind to published programme versions
+- campaign reward or attribution differences must be explicit approved
+  overrides
+- runtime referrals and analytics must preserve customer, product/offering,
+  programme, campaign, and effective-rule evidence
+
+| Task | Outcome |
+| --- | --- |
+| TASK-406 | Lock the programme, campaign, product/offering, and override domain contract. |
+| TASK-407 | Add customer product/offering catalogue schema and migration tests. |
+| TASK-408 | Add selected-customer product/offering catalogue APIs and safe read models. |
+| TASK-409 | Bind programme drafts and versions to customer product/offering references without overloading Amplifi package codes. |
+| TASK-410 | Deprecate or wrap campaign journey-binding so programme binding is the authoritative campaign activation path. |
+| TASK-411 | Add campaign-specific override contract, schema/API, and validation for reward, attribution, channel, cap, and date overrides. |
+| TASK-412 | Add effective-rule runtime resolver snapshots across programme defaults and campaign overrides. |
+| TASK-413 | Add reporting/analytics dimensions for customer product/offering, programme version, campaign, and override posture. |
+| TASK-414 | Add simple customer-scoped UX for product catalogue, programme-to-product binding, campaign override review, and proof. |
+
 ## Definition Of Done
 
 This tranche is complete when a selected customer can configure a referral
@@ -116,3 +148,8 @@ programme from approved building blocks, validate it, publish an immutable
 version, create/bind campaigns from it, generate referrals against it, and
 compare outcomes between versions without source-code changes or unsafe
 adjacent side effects.
+
+The post-programme hardening tranche is complete when the same flow also
+answers, in plain language, which customer product/offering the programme is
+for, which campaign used it, which overrides were approved, and which effective
+rules were frozen for every new referral.

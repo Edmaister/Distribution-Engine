@@ -167,6 +167,24 @@ UX proof gap with approved catalogue selection, draft save/update, validation,
 review, publish, published-version visibility, aggregate analytics, and campaign
 handoff in a customer-scoped UI.
 
+TASK-406 through TASK-414 now capture the remaining domain-modelling gap after
+the programme implementation stream. The current code has separate programme
+and campaign services, but the business model still needs stronger execution
+guardrails so `product_code`/`sub_product_code` are not misused as customer
+product taxonomy, campaigns do not silently own referral-programme rules, and
+campaign-specific reward or attribution differences are explicit approved
+overrides. The controlling artifact is
+`docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`.
+
+| Gap | Required task path | Close-out expectation |
+| --- | --- | --- |
+| Customer product/offering taxonomy is not separated from Amplifi service packaging. | TASK-406 to TASK-409 | Customer product line/offering is modelled, stored, read, and bound to programme drafts/versions without overloading Amplifi package codes. |
+| Programme and campaign services exist, but route/API semantics still allow journey/programme/campaign confusion. | TASK-406 and TASK-410 | Programme binding becomes the authoritative campaign activation path; legacy campaign journey-binding is deprecated, wrapped, or clearly marked as compatibility only. |
+| Campaign-specific reward, attribution, channel, date, and cap differences need a governed override model. | TASK-411 | Campaign overrides are explicit, approved, audited, idempotent, and bounded by the programme's allowed override envelope. |
+| Runtime referrals need one immutable effective-rule snapshot for historical replay. | TASK-412 | New referrals store customer, product/offering, programme version, campaign, default rules, override rules, and checksum metadata safely. |
+| Reporting must explain product/offering, programme, campaign, and override performance separately. | TASK-413 | Analytics dimensions distinguish product/offering, programme version, campaign, and override posture without raw payload, billing, payout, settlement, or money leakage. |
+| UX must keep the model simple despite the richer architecture. | TASK-414 | Customer-scoped UI explains Product, Programme, Campaign, and Override in plain language, with one next action per page and diagnostics by disclosure. |
+
 ## TASK-357 H1 Scope And Release Gates
 
 TASK-357 locks the H1 Referral SaaS release promise before the remaining
