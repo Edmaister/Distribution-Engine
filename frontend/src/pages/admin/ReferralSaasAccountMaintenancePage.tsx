@@ -429,6 +429,39 @@ const customerFunctions = [
   },
 ];
 
+const configurationProofSteps = [
+  {
+    title: "Customer product",
+    copy: "What this customer sells or wants referrals for, such as an account, insurance product, or partner offer.",
+    route: "settings" as CustomerModule,
+    action: "Review customer settings",
+  },
+  {
+    title: "Referral programme",
+    copy: "The reusable rule package: journey, product scope, default attribution, and approved incentive references.",
+    route: "programmes" as CustomerModule,
+    action: "Open programmes",
+  },
+  {
+    title: "Campaign",
+    copy: "The time-bound market activity that uses a published programme for a channel, audience, and date window.",
+    route: "campaigns" as CustomerModule,
+    action: "Open campaigns",
+  },
+  {
+    title: "Campaign-specific changes",
+    copy: "Approved differences for one campaign only, such as a reward, date, audience, or attribution-window change.",
+    route: "campaigns" as CustomerModule,
+    action: "Review campaign changes",
+  },
+  {
+    title: "Reporting",
+    copy: "The read-only view that separates customer product, programme, campaign, and approved changes in results.",
+    route: "reports" as CustomerModule,
+    action: "Open reports",
+  },
+];
+
 function customerFunctionActionLabel(tone: StatusTone, status: string): string {
   const normalizedStatus = status.toLowerCase();
   if (tone === "success" || normalizedStatus === "ready") {
@@ -2342,6 +2375,36 @@ export function ReferralSaasAccountMaintenancePage() {
                         </Link>
                       );
                     })}
+                  </div>
+                </section>
+              ) : null}
+
+              {selectedModule === "home" ? (
+                <section className="panel">
+                  <div className="panel-header">
+                    <div>
+                      <h2 className="panel-title">How configuration fits together</h2>
+                      <div className="panel-subtitle">
+                        Keep the customer product, referral programme, campaign, campaign-specific changes, and reporting separate.
+                      </div>
+                    </div>
+                    <StatusBadge label="Plain language" tone="success" />
+                  </div>
+                  <div className="panel-body configuration-proof-grid">
+                    {configurationProofSteps.map((step, index) => (
+                      <Link
+                        className="configuration-proof-card"
+                        key={step.title}
+                        to={buildCustomerModuleRoute(selectedCustomerPath, step.route, customerQuery)}
+                      >
+                        <span className="configuration-proof-index">{index + 1}</span>
+                        <div>
+                          <strong>{step.title}</strong>
+                          <p>{step.copy}</p>
+                          <span>{step.action}</span>
+                        </div>
+                      </Link>
+                    ))}
                   </div>
                 </section>
               ) : null}
@@ -7445,6 +7508,7 @@ function CustomerProgrammesPage({
     ["ACTIVE", "PUBLISHED"].includes(programme.versionStatus),
   );
   const analyticsVersions = analyticsQuery.data?.programmeAnalytics.versions || [];
+  const reportingDimensions = analyticsQuery.data?.programmeAnalytics.reportingDimensions;
   const selectedJourney =
     journeyVersions.find((version) => version.customerJourneyVersionId === draft.customerJourneyVersionId) ||
     journeyVersions[0];
@@ -7684,6 +7748,32 @@ function CustomerProgrammesPage({
           <StatusBadge label={draft.programmeDraftId ? "Draft loaded" : "Start here"} tone={draft.programmeDraftId ? "info" : "warning"} />
         </div>
 
+        <div className="panel-lite integrations-step-card">
+          <div className="settings-summary-header">
+            <div>
+              <h3 className="section-heading">How this stays simple</h3>
+              <p>Each layer has one job. Campaigns use a published programme; campaign-specific changes are visible and bounded.</p>
+            </div>
+            <StatusBadge label="No raw config" tone="success" />
+          </div>
+          <div className="configuration-proof-grid">
+            {configurationProofSteps.map((step, index) => (
+              <Link
+                className="configuration-proof-card"
+                key={step.title}
+                to={buildCustomerModuleRoute(selectedCustomerPath, step.route, "")}
+              >
+                <span className="configuration-proof-index">{index + 1}</span>
+                <div>
+                  <strong>{step.title}</strong>
+                  <p>{step.copy}</p>
+                  <span>{step.action}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
         <form
           className="panel-lite integrations-step-card"
           onSubmit={(event: FormEvent) => {
@@ -7867,10 +7957,40 @@ function CustomerProgrammesPage({
             <div className="settings-summary-header">
               <div>
                 <h3 className="section-heading">Programme performance</h3>
-                <p>Compare versions once campaigns and referrals create evidence.</p>
+                <p>Read-only reporting separates product, programme, campaign, and approved campaign changes.</p>
               </div>
               <StatusBadge label="Read-only analytics" tone="success" />
             </div>
+            {reportingDimensions ? (
+              <div className="configuration-proof-grid compact">
+                <div className="configuration-proof-card static">
+                  <span className="configuration-proof-index">P</span>
+                  <div>
+                    <strong>Products measured</strong>
+                    <p>
+                      {reportingDimensions.productLineCount ?? 0} product lines and{" "}
+                      {reportingDimensions.productOfferingCount ?? 0} offerings.
+                    </p>
+                  </div>
+                </div>
+                <div className="configuration-proof-card static">
+                  <span className="configuration-proof-index">C</span>
+                  <div>
+                    <strong>Campaigns measured</strong>
+                    <p>{reportingDimensions.runtimeCampaignCount ?? 0} campaigns with runtime referral evidence.</p>
+                  </div>
+                </div>
+                <div className="configuration-proof-card static">
+                  <span className="configuration-proof-index">O</span>
+                  <div>
+                    <strong>Campaign changes measured</strong>
+                    <p>
+                      {reportingDimensions.approvedCampaignOverrideReferralCount ?? 0} referrals used approved campaign-specific changes.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
             <div className="route-list">
               {analyticsVersions.slice(0, 5).map((version) => (
                 <div className="wizard-status-card" key={version.programmeVersionId}>

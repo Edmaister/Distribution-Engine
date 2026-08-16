@@ -918,6 +918,15 @@ function mockProgrammeAnalytics() {
           performanceSignal: "BASELINE",
         },
       ],
+      reportingDimensions: {
+        productLineCount: 1,
+        productOfferingCount: 2,
+        runtimeCampaignCount: 3,
+        approvedCampaignOverrideReferralCount: 4,
+        effectiveRuleSnapshotCount: 12,
+        overrideRate: 0.33,
+        snapshotCoverageRate: 1,
+      },
       summary: {},
       dataWindowStart: null,
       dataWindowEnd: null,
@@ -3923,12 +3932,19 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Programme workspace" })).toBeInTheDocument();
     expect(screen.getByText(/A programme is the governed package a campaign uses/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "How this stays simple" })).toBeInTheDocument();
+    expect(screen.getByText("Customer product")).toBeInTheDocument();
+    expect(screen.getByText("Referral programme")).toBeInTheDocument();
+    expect(screen.getByText("Campaign-specific changes")).toBeInTheDocument();
     expect((await screen.findAllByText("Gaborone Partners referral programme")).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("button", { name: "Save programme draft" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Validate programme" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Publish programme version" })).toBeDisabled();
     expect(screen.getByText("Published programme versions")).toBeInTheDocument();
     expect(screen.getByText("Programme performance")).toBeInTheDocument();
+    expect(screen.getByText("Products measured")).toBeInTheDocument();
+    expect(screen.getByText("Campaign changes measured")).toBeInTheDocument();
+    expect(screen.queryByText("effectiveRuleSnapshot")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Continue to Campaigns" })).toHaveAttribute(
       "href",
       "/admin/referral-saas/account-maintenance/acct-gabs/campaigns",
@@ -5515,6 +5531,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     fireEvent.click(await screen.findByRole("button", { name: /FNB Referral SaaS/ }));
     fireEvent.click(screen.getByRole("link", { name: "Open customer profile" }));
     expect(await screen.findByRole("heading", { name: "What you can do for this customer" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "How configuration fits together" })).toBeInTheDocument();
+    expect(screen.getByText(/Keep the customer product, referral programme, campaign, campaign-specific changes, and reporting separate/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Customer settings/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/account-maintenance/acct-fnb/settings",

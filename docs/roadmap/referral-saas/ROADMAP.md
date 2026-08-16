@@ -373,8 +373,11 @@ programme version, campaign, approved override posture, and checksum evidence
 without exposing raw configuration or triggering adjacent side effects. TASK-413
 is complete and adds safe aggregate reporting dimensions from immutable runtime
 effective-rule snapshots so product/offering, programme, campaign, and override
-impact can be separated without raw payload or money leakage. TASK-414 remains:
-plain-language UX proof.
+impact can be separated without raw payload or money leakage. TASK-414 is
+complete and adds the selected-customer UX proof: customer home and Programme
+workspace now explain customer product, referral programme, campaign,
+campaign-specific changes, and reporting as separate plain-language layers with
+safe reporting-dimension labels and diagnostics kept behind disclosure.
 
 ## Recommended Ordered Task Sequence
 

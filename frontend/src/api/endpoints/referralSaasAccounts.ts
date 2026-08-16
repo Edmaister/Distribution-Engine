@@ -418,6 +418,15 @@ export type ReferralSaasProgrammeAnalyticsResponse = {
       performanceSignal: string;
     }[];
     summary: Record<string, unknown>;
+    reportingDimensions?: {
+      productLineCount?: number;
+      productOfferingCount?: number;
+      runtimeCampaignCount?: number;
+      approvedCampaignOverrideReferralCount?: number;
+      effectiveRuleSnapshotCount?: number;
+      overrideRate?: number;
+      snapshotCoverageRate?: number;
+    };
     dataWindowStart?: string | null;
     dataWindowEnd?: string | null;
     guardrails: string[];

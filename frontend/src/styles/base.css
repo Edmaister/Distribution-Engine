@@ -359,6 +359,16 @@ a {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.configuration-proof-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.configuration-proof-grid.compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .customer-selector-card,
 .customer-function-card {
   background: var(--color-white);
@@ -386,6 +396,56 @@ a {
 .customer-function-card:hover {
   background: var(--color-signal-light);
   border-color: rgb(37 99 235 / 0.34);
+}
+
+.configuration-proof-card {
+  align-items: flex-start;
+  background: var(--color-white);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-panel);
+  color: inherit;
+  display: flex;
+  gap: 10px;
+  min-height: 128px;
+  padding: 12px;
+  text-decoration: none;
+}
+
+.configuration-proof-card:hover {
+  background: var(--color-signal-light);
+  border-color: rgb(37 99 235 / 0.34);
+}
+
+.configuration-proof-card.static:hover {
+  background: var(--color-white);
+  border-color: var(--color-rule);
+}
+
+.configuration-proof-card p {
+  color: var(--color-ink-soft);
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 4px 0 8px;
+}
+
+.configuration-proof-card span:last-child {
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.configuration-proof-index {
+  align-items: center;
+  background: rgb(37 99 235 / 0.1);
+  border: 1px solid rgb(37 99 235 / 0.24);
+  border-radius: 999px;
+  color: var(--color-primary);
+  display: inline-flex;
+  flex: 0 0 26px;
+  font-size: 12px;
+  font-weight: 700;
+  height: 26px;
+  justify-content: center;
 }
 
 .customer-selector-card.selected {
@@ -5272,6 +5332,8 @@ textarea.input {
   .grid-2,
   .customer-selector-grid,
   .customer-function-grid,
+  .configuration-proof-grid,
+  .configuration-proof-grid.compact,
   .customer-overview-grid,
   .customer-health-strip,
   .earnings-command-header,
