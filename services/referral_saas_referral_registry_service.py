@@ -87,6 +87,11 @@ class ReferralSaasReferralSummary:
     last_progress_at: str | None
     progress_event_count: int
     has_attribution_evidence: bool
+    programme_version_id: str | None = None
+    programme_code: str | None = None
+    programme_name: str | None = None
+    programme_version_number: int | None = None
+    customer_journey_version_id: str | None = None
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
@@ -113,6 +118,7 @@ class ReferralSaasReferralSummary:
             "lastProgressAt": self.last_progress_at,
             "progressEventCount": self.progress_event_count,
             "hasAttributionEvidence": self.has_attribution_evidence,
+            "programmeVersion": _programme_runtime_summary(self),
             "missingEvidence": _missing_evidence(self),
             "timelineAnchors": _timeline_anchors(self),
             "redactions": REFERRAL_REGISTRY_REDACTIONS,
@@ -173,6 +179,11 @@ async def list_referral_saas_account_referrals(
                 ri.completed_at,
                 ri.created_at,
                 ri.updated_at,
+                ri.programme_version_id,
+                ri.programme_runtime_context->>'programmeCode' AS programme_code,
+                ri.programme_runtime_context->>'programmeName' AS programme_name,
+                NULLIF(ri.programme_runtime_context->>'versionNumber', '')::INT AS programme_version_number,
+                ri.programme_runtime_context->>'customerJourneyVersionId' AS customer_journey_version_id,
                 progress.last_progress_at,
                 COALESCE(progress.progress_event_count, 0) AS progress_event_count,
                 (ca.campaign_track_id IS NOT NULL) AS has_attribution_evidence
@@ -242,6 +253,11 @@ async def get_referral_saas_account_referral(
                 ri.completed_at,
                 ri.created_at,
                 ri.updated_at,
+                ri.programme_version_id,
+                ri.programme_runtime_context->>'programmeCode' AS programme_code,
+                ri.programme_runtime_context->>'programmeName' AS programme_name,
+                NULLIF(ri.programme_runtime_context->>'versionNumber', '')::INT AS programme_version_number,
+                ri.programme_runtime_context->>'customerJourneyVersionId' AS customer_journey_version_id,
                 progress.last_progress_at,
                 COALESCE(progress.progress_event_count, 0) AS progress_event_count,
                 (ca.campaign_track_id IS NOT NULL) AS has_attribution_evidence
@@ -343,6 +359,11 @@ def _to_referral_summary(row: dict[str, Any]) -> ReferralSaasReferralSummary:
         last_progress_at=_iso(row.get("last_progress_at")),
         progress_event_count=int(row.get("progress_event_count") or 0),
         has_attribution_evidence=bool(row.get("has_attribution_evidence")),
+        programme_version_id=_optional_text(row.get("programme_version_id")),
+        programme_code=_optional_text(row.get("programme_code")),
+        programme_name=_optional_text(row.get("programme_name")),
+        programme_version_number=_optional_int(row.get("programme_version_number")),
+        customer_journey_version_id=_optional_text(row.get("customer_journey_version_id")),
     )
 
 
@@ -540,6 +561,19 @@ def _timeline_anchors(summary: ReferralSaasReferralSummary) -> dict[str, Any]:
         "lastProgressAt": summary.last_progress_at,
         "completedAt": summary.completed_at,
         "nextMilestone": summary.next_milestone,
+    }
+
+
+def _programme_runtime_summary(summary: ReferralSaasReferralSummary) -> dict[str, Any]:
+    if not summary.programme_version_id:
+        return {"bindingStatus": "LEGACY_OR_UNBOUND"}
+    return {
+        "bindingStatus": "BOUND_AT_REFERRAL_CREATION",
+        "programmeVersionId": summary.programme_version_id,
+        "programmeCode": summary.programme_code,
+        "programmeName": summary.programme_name,
+        "versionNumber": summary.programme_version_number,
+        "customerJourneyVersionId": summary.customer_journey_version_id,
     }
 
 

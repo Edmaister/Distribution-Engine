@@ -231,6 +231,7 @@ async def test_referral_saas_local_golden_path_uses_shared_primitives(monkeypatc
             {
                 "referrer_code_id": "code-id-1",
                 "referrer_ucn": "5555555555",
+                "sticker": "QR001",
             }
         ]
     )
