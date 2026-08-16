@@ -8980,7 +8980,7 @@ Definition of done: Complete - the build framework has a single domain-boundary 
 
 ## TASK-407: Add customer product and offering catalogue schema foundation
 
-Status: Ready.
+Status: Complete (2026-08-16). Output: `dp/migrations/099_referral_saas_customer_product_offering_catalogue.sql`; `test/test_referral_saas_customer_product_catalogue_migration.py`.
 Product boundary: Referral SaaS with Shared Platform trajectory.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Adds a customer product/offering taxonomy foundation that can later generalize to DLaaS without forking source. Source duplication: No.
@@ -8988,20 +8988,20 @@ Linked enhancement: Referral SaaS governed configuration platform.
 Linked platform/product capability: Customer product catalogue; selected-customer configuration; account-scoped taxonomy.
 Objective: Add durable account-scoped product line and product offering storage so customer offerings such as Transactional Banking, Easy Account, Insurance, Funeral Plan, Telco, Fibre, Automotive, or Vehicle Finance are not stored in Amplifi service package fields.
 Why now: Programmes need to bind to the customer's real product/offering before campaign and analytics work can be commercially clear.
-Files likely involved: additive migration; migration contract tests; roadmap/gap/infographic docs.
+Files involved: `dp/migrations/099_referral_saas_customer_product_offering_catalogue.sql`; `test/test_referral_saas_customer_product_catalogue_migration.py`; roadmap/gap/infographic docs.
 Database/schema impact: Add account-scoped customer product line/offering tables with external references, display labels, operating jurisdiction, lifecycle status, audit/idempotency fields, uniqueness constraints, and redactions. Do not remove or reinterpret existing programme `product_code`/`sub_product_code` fields in this task.
 Backend impact: Migration validation only.
 Frontend impact: None.
 API impact: None.
-Tests to add/update: Migration ordering, table/column/index/constraint tests, unsafe-column absence tests, and source-duplication checks where practical.
+Tests added/updated: Migration ordering, table/column/index/constraint tests, unsafe-column absence tests, and source-duplication checks where practical.
 Validation method: Migration contract tests, Python compile for tests/scripts where touched, and `git diff --check`.
-Acceptance criteria: Customer product lines and offerings can be stored per selected account and jurisdiction without exposing internal tenant identifiers or mixing with Amplifi service package codes.
+Acceptance criteria: Complete - customer product lines and offerings can be stored per selected account and jurisdiction without exposing internal tenant identifiers or mixing with Amplifi service package codes.
 Dependencies: TASK-406.
 Blocked by: None.
 Risk level: Medium.
 Rollback notes: Revert additive migration, tests, and docs.
 Explicit non-goals: Do not migrate existing programme rows, change campaign behavior, add UI, create referrals, apply rewards, launch campaigns, configure providers, mutate auth, bill, settle, or move money.
-Definition of done: The database has a clear source of truth for customer product/offering taxonomy separate from Amplifi SaaS package fields. Priority: P0.
+Definition of done: Complete - the database has a clear source of truth for customer product/offering taxonomy separate from Amplifi SaaS package fields. Priority: P0.
 
 ## TASK-408: Add selected-customer product and offering catalogue APIs
 
