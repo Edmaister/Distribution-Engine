@@ -178,12 +178,13 @@ overrides. The controlling artifact is
 TASK-406 is complete and locks the boundary vocabulary and ownership model.
 TASK-407 is complete and adds the durable customer product/offering catalogue
 schema foundation. TASK-408 is complete and adds the selected-customer API
-wrappers over that catalogue. TASK-409 is next and binds programme
-drafts/versions to approved customer product/offering records.
+wrappers over that catalogue. TASK-409 is complete and binds programme
+drafts/versions to approved customer product/offering records without
+overloading Amplifi service package fields.
 
 | Gap | Required task path | Close-out expectation |
 | --- | --- | --- |
-| Customer product/offering taxonomy is not separated from Amplifi service packaging. | TASK-409 | Customer product line/offering is now stored and read/written through selected-customer APIs; next it must be bound to programme drafts/versions without overloading Amplifi package codes. |
+| Customer product/offering taxonomy is not separated from Amplifi service packaging. | TASK-409 | Complete - customer product line/offering is stored, read/written through selected-customer APIs, and bound to programme drafts/versions without overloading Amplifi package codes. |
 | Programme and campaign services exist, but route/API semantics still allow journey/programme/campaign confusion. | TASK-410 | Programme binding becomes the authoritative campaign activation path; legacy campaign journey-binding is deprecated, wrapped, or clearly marked as compatibility only. |
 | Campaign-specific reward, attribution, channel, date, and cap differences need a governed override model. | TASK-411 | Campaign overrides are explicit, approved, audited, idempotent, and bounded by the programme's allowed override envelope. |
 | Runtime referrals need one immutable effective-rule snapshot for historical replay. | TASK-412 | New referrals store customer, product/offering, programme version, campaign, default rules, override rules, and checksum metadata safely. |

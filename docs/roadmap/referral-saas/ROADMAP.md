@@ -357,8 +357,10 @@ TASK-406 is complete. TASK-407 adds the durable customer product/offering
 catalogue schema foundation with account-scoped product-line and offering
 tables, jurisdiction, lifecycle status, idempotency, audit, redaction, and
 unsafe-column guardrails. TASK-408 is complete and exposes selected-customer
-API wrappers over that catalogue. TASK-409 is the next implementation task and
-binds programme drafts/versions to approved customer product/offering records.
+API wrappers over that catalogue. TASK-409 is complete and binds programme
+drafts/versions to approved customer product/offering records without
+overloading Amplifi service package fields. TASK-410 is the next implementation
+task and makes programme binding the authoritative campaign activation path.
 
 ## Recommended Ordered Task Sequence
 

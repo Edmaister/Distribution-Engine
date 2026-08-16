@@ -733,6 +733,8 @@ class ReferralSaasProgrammeDraftSaveRequest(BaseModel):
     operatingJurisdictionCode: str = Field(min_length=1)
     productCode: str = Field(default="REFERRAL_SAAS", min_length=1)
     subProductCode: str = Field(min_length=1)
+    customerProductLineId: str | None = Field(default=None)
+    customerProductOfferingId: str | None = Field(default=None)
     customerJourneyVersionId: str = Field(min_length=1)
     sourceProgrammeVersionId: str | None = Field(default=None)
     campaignDefaults: dict[str, Any] = Field(default_factory=dict)
@@ -4832,6 +4834,8 @@ async def _save_referral_saas_programme_draft_response(
             operating_jurisdiction_code=request.operatingJurisdictionCode,
             product_code=request.productCode,
             sub_product_code=request.subProductCode,
+            customer_product_line_id=request.customerProductLineId,
+            customer_product_offering_id=request.customerProductOfferingId,
             customer_journey_version_id=request.customerJourneyVersionId,
             source_programme_version_id=request.sourceProgrammeVersionId,
             programme_draft_id=programme_draft_id,

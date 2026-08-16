@@ -9030,7 +9030,7 @@ Definition of done: Complete - product/offering catalogue choices are available 
 
 ## TASK-409: Bind programme drafts and versions to customer product offerings
 
-Status: Ready.
+Status: Complete.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Connects programme configuration to customer product/offering taxonomy while preserving existing Amplifi service package fields. Source duplication: No.
@@ -9039,13 +9039,13 @@ Linked platform/product capability: Programme-to-product binding; customer produ
 Objective: Add product/offering binding to programme drafts and published versions so each programme clearly states which customer product/offering it governs.
 Why now: Programme analytics, campaign defaults, and runtime referrals must answer which customer offering was promoted without using Amplifi package fields as a proxy.
 Files likely involved: additive migration, programme configuration service/API, programme validation, programme analytics service, tests, docs.
-Database/schema impact: Add nullable then validated references from programme drafts/versions to customer product/offering catalogue records; preserve existing `product_code`/`sub_product_code` semantics unless a later migration explicitly changes them.
-Backend impact: Validate same-account, same-jurisdiction, active product/offering status during draft save, validation, review, and publish.
+Database/schema impact: Complete - adds nullable customer product line and offering references to programme drafts and published versions, with foreign keys, pair constraints, indexes, and comments that preserve `product_code`/`sub_product_code` as Amplifi package fields.
+Backend impact: Complete - programme draft save/read, validation, review, submit, and publish paths validate same-account, same-jurisdiction, active customer product/offering bindings and expose safe binding labels.
 Frontend impact: API payload/read models expose safe product/offering labels for TASK-414.
-API impact: Programme draft and version routes include safe product/offering metadata and reject invalid cross-account/cross-jurisdiction bindings.
-Tests to add/update: Programme save/validate/publish product/offering tests, wrong-account rejection, retired-offering rejection, route inventory if shape changes, analytics safe-label tests.
-Validation method: Focused pytest, Python compile, and `git diff --check`.
-Acceptance criteria: Programme drafts and published versions can bind to a customer product/offering; unsafe or mismatched bindings block validation/publish; existing package fields remain distinct and documented.
+API impact: Complete - programme draft routes accept customer product line/offering IDs and draft/version safe read models include product/offering metadata without exposing tenant internals.
+Tests to add/update: Complete - added migration coverage, helper validation coverage for active/missing/retired/partial bindings, and API wrapper payload coverage.
+Validation method: Complete - focused pytest, Python compile, and `git diff --check`.
+Acceptance criteria: Complete - programme drafts and published versions can bind to a customer product/offering; unsafe or mismatched bindings block validation/publish; existing package fields remain distinct and documented.
 Dependencies: TASK-408.
 Blocked by: None.
 Risk level: Medium.
