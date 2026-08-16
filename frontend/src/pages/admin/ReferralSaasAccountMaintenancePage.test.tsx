@@ -4947,8 +4947,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     fireEvent.change(screen.getByLabelText("Audience or segment"), {
       target: { value: "Retail banking customers" },
     });
-    fireEvent.change(screen.getByRole("combobox", { name: /Published customer journey/i }), {
-      target: { value: "journey-version-001" },
+    fireEvent.change(screen.getByRole("combobox", { name: /Published programme/i }), {
+      target: { value: "programme-version-001" },
     });
     fireEvent.change(screen.getByLabelText("Maximum referrals"), {
       target: { value: "100" },
@@ -4966,6 +4966,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       campaign: {
         name: "Spring referral pilot",
         segment: "Retail banking customers",
+        programmeVersionId: "programme-version-001",
         startsAt: null,
         endsAt: null,
         maxUses: 100,
@@ -4976,20 +4977,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       correlationId: "customer-profile-campaign-create-acct-gabs",
       idempotencyKey: "customer-profile-campaign-create-acct-gabs-spring-referral-pilot-retail-banking-customers",
     });
-    await waitFor(() => expect(mockedBindReferralSaasAccountCampaignJourneyVersion).toHaveBeenCalledTimes(1));
-    expect(mockedBindReferralSaasAccountCampaignJourneyVersion.mock.calls[0][0]).toEqual({
-      accountRef: "acct-gabs",
-      campaignCode: "BW-REFERRAL-SPRING-1234",
-      accountScope: {
-        refType: "external_tenant_ref",
-        externalRef: "gabs-platform",
-        context: "setup",
-      },
-      customerJourneyVersionId: "journey-version-001",
-      correlationId: "customer-profile-campaign-journey-binding-acct-gabs-BW-REFERRAL-SPRING-1234",
-      idempotencyKey:
-        "customer-profile-campaign-journey-binding-acct-gabs-bw-referral-spring-1234-journey-version-001",
-    });
+    expect(mockedBindReferralSaasAccountCampaignJourneyVersion).not.toHaveBeenCalled();
     expect(await screen.findByText("Campaign setup saved.")).toBeInTheDocument();
     expect(screen.getByText(/inactive draft/i)).toBeInTheDocument();
     expect(screen.getByText("Complete policy and attribution settings")).toBeInTheDocument();
