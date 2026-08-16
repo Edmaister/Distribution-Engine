@@ -71,12 +71,18 @@ import {
   changeReferralSaasAccountSupportCaseStatus,
   createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
+  createReferralSaasProgrammeDraft,
+  decideReferralSaasProgrammeDraftReview,
   bindReferralSaasAccountCampaignJourneyVersion,
+  getReferralSaasAccountProgrammeAnalytics,
+  getReferralSaasAccountProgrammeCatalogue,
   getReferralSaasAccountSupportCaseRepairReplayReadiness,
   listReferralSaasAccountJourneyDrafts,
+  listReferralSaasAccountProgrammes,
   listReferralSaasAccountSupportCases,
   listReferralSaasJourneyTemplates,
   publishReferralSaasAccountJourneyDraft,
+  publishReferralSaasProgrammeDraft,
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasApiAccessVerification,
   recordReferralSaasIntegrationCredentialRequest,
@@ -94,10 +100,13 @@ import {
   requestReferralSaasMembershipInvitationDelivery,
   saveReferralSaasAccountJourneyDraft,
   saveReferralSaasIntegrationConfiguration,
+  submitReferralSaasProgrammeDraftReview,
   submitReferralSaasAccountCampaignReview,
+  updateReferralSaasProgrammeDraft,
   updateReferralSaasMembershipInvitationIntent,
   updateReferralSaasAccountCampaignPolicySettings,
   validateReferralSaasAccountJourneyDraft,
+  validateReferralSaasProgrammeDraft,
   validateReferralSaasIntegrationConfiguration,
   type ReferralSaasAccountCampaignActivationResponse,
   type ReferralSaasAccountCampaignReviewResponse,
@@ -107,6 +116,9 @@ import {
   type ReferralSaasCustomerJourneyPublishResponse,
   type ReferralSaasJourneyTemplateCatalogueItem,
   type ReferralSaasJourneyTemplateVersionSummary,
+  type ReferralSaasProgrammeDraft,
+  type ReferralSaasProgrammeLifecycleResponse,
+  type ReferralSaasProgrammeValidationResponse,
   updateReferralSaasAccountProfile,
   getReferralSaasIntegrationConfiguration,
   getReferralSaasIntegrationExecutionReadiness,
@@ -161,6 +173,7 @@ type CustomerModule =
   | "integrations"
   | "technical"
   | "journeys"
+  | "programmes"
   | "campaigns"
   | "referrals"
   | "referrers"
@@ -307,6 +320,15 @@ const customerFunctions = [
     route: "commercial",
     icon: SlidersHorizontal,
     status: "Needs attention",
+    tone: "warning" as StatusTone,
+  },
+  {
+    title: "Programmes",
+    copy: "Build the versioned package campaigns will use.",
+    letsYou: "Combine a published journey with approved product, incentive, and setup defaults.",
+    route: "programmes",
+    icon: FileJson,
+    status: "Needs setup",
     tone: "warning" as StatusTone,
   },
   {
@@ -3094,6 +3116,15 @@ export function ReferralSaasAccountMaintenancePage() {
 
               {selectedModule === "journeys" ? (
                 <CustomerJourneysPage
+                  customerName={customerName}
+                  externalTenantRef={selectedExternalTenantRef}
+                  selectedAccount={selectedAccount}
+                  selectedCustomerPath={selectedCustomerPath}
+                />
+              ) : null}
+
+              {selectedModule === "programmes" ? (
+                <CustomerProgrammesPage
                   customerName={customerName}
                   externalTenantRef={selectedExternalTenantRef}
                   selectedAccount={selectedAccount}
@@ -7336,6 +7367,603 @@ function JourneyValidationPanel({
   );
 }
 
+type ProgrammeConfigurationDraft = {
+  programmeDraftId: string;
+  programmeName: string;
+  programmeDescription: string;
+  customerJourneyVersionId: string;
+  subProductCode: string;
+  campaignPurpose: string;
+  defaultAttributionWindowDays: string;
+  incentiveRef: string;
+  engagementRef: string;
+  effectiveFrom: string;
+  effectiveTo: string;
+  reviewReason: string;
+  publishReason: string;
+};
+
+const defaultProgrammeDraft: ProgrammeConfigurationDraft = {
+  programmeDraftId: "",
+  programmeName: "",
+  programmeDescription: "Referral management and campaign attribution programme.",
+  customerJourneyVersionId: "",
+  subProductCode: "RMCA_BUNDLE",
+  campaignPurpose: "Customer referral acquisition",
+  defaultAttributionWindowDays: "30",
+  incentiveRef: "",
+  engagementRef: "",
+  effectiveFrom: "",
+  effectiveTo: "",
+  reviewReason: "Programme package reviewed for customer-safe campaign setup.",
+  publishReason: "Approved for customer-scoped campaign setup.",
+};
+
+function CustomerProgrammesPage({
+  customerName,
+  externalTenantRef,
+  selectedAccount,
+  selectedCustomerPath,
+}: {
+  customerName: string;
+  externalTenantRef: string;
+  selectedAccount?: AccountRegistryItem;
+  selectedCustomerPath: string;
+}) {
+  const [draft, setDraft] = useState<ProgrammeConfigurationDraft>({
+    ...defaultProgrammeDraft,
+    programmeName: `${customerName} referral programme`,
+  });
+  const [latestValidation, setLatestValidation] = useState<ReferralSaasProgrammeValidationResponse | null>(null);
+  const [latestLifecycle, setLatestLifecycle] = useState<ReferralSaasProgrammeLifecycleResponse | null>(null);
+  const [programmeMessage, setProgrammeMessage] = useState<string | null>(null);
+  const accountScope = {
+    refType: "external_tenant_ref" as const,
+    externalRef: externalTenantRef,
+    context: "setup" as const,
+  };
+  const accountRef = selectedAccount?.accountId || "";
+  const catalogueQuery = useQuery({
+    queryKey: ["referral-saas", "programme-catalogue", accountRef, externalTenantRef],
+    queryFn: () =>
+      getReferralSaasAccountProgrammeCatalogue({
+        accountRef,
+        refType: "external_tenant_ref",
+        externalRef: externalTenantRef,
+        context: "setup",
+        limit: 50,
+      }),
+    enabled: Boolean(accountRef && externalTenantRef),
+    retry: false,
+  });
+  const programmesQuery = useQuery({
+    queryKey: ["referral-saas", "programmes", accountRef, externalTenantRef],
+    queryFn: () =>
+      listReferralSaasAccountProgrammes({
+        accountRef,
+        refType: "external_tenant_ref",
+        externalRef: externalTenantRef,
+        context: "setup",
+        includeRetired: true,
+        limit: 50,
+      }),
+    enabled: Boolean(accountRef && externalTenantRef),
+    retry: false,
+  });
+  const analyticsQuery = useQuery({
+    queryKey: ["referral-saas", "programme-analytics", accountRef, externalTenantRef],
+    queryFn: () =>
+      getReferralSaasAccountProgrammeAnalytics({
+        accountRef,
+        refType: "external_tenant_ref",
+        externalRef: externalTenantRef,
+        context: "setup",
+        limit: 50,
+      }),
+    enabled: Boolean(accountRef && externalTenantRef),
+    retry: false,
+  });
+  const journeyVersions = catalogueQuery.data?.customerJourneyVersions || [];
+  const subProductCodes = catalogueQuery.data?.subProductCodes || ["RMCA_BUNDLE"];
+  const publishedProgrammes = programmesQuery.data?.programmes || [];
+  const activeProgrammes = publishedProgrammes.filter((programme) =>
+    ["ACTIVE", "PUBLISHED"].includes(programme.versionStatus),
+  );
+  const analyticsVersions = analyticsQuery.data?.programmeAnalytics.versions || [];
+  const selectedJourney =
+    journeyVersions.find((version) => version.customerJourneyVersionId === draft.customerJourneyVersionId) ||
+    journeyVersions[0];
+  const canSave = Boolean(accountRef && (draft.customerJourneyVersionId || selectedJourney?.customerJourneyVersionId));
+  const canValidate = Boolean(accountRef && draft.programmeDraftId);
+  const publishAllowed = Boolean(latestValidation?.validation.publishAllowed);
+  const canPublish = canValidate && publishAllowed;
+
+  useEffect(() => {
+    if (draft.customerJourneyVersionId || !selectedJourney) {
+      return;
+    }
+    setDraft((current) => ({
+      ...current,
+      customerJourneyVersionId: selectedJourney.customerJourneyVersionId,
+    }));
+  }, [draft.customerJourneyVersionId, selectedJourney]);
+
+  function loadProgrammeDraft(savedDraft: ReferralSaasProgrammeDraft) {
+    const campaignDefaults = asRecord(savedDraft.campaignDefaults);
+    setDraft({
+      programmeDraftId: savedDraft.programmeDraftId,
+      programmeName: savedDraft.programmeName,
+      programmeDescription: savedDraft.programmeDescription || "",
+      customerJourneyVersionId: savedDraft.customerJourneyVersionId,
+      subProductCode: savedDraft.subProductCode,
+      campaignPurpose: textValue(getNestedValue(campaignDefaults, ["campaignPurpose"]), "Customer referral acquisition"),
+      defaultAttributionWindowDays: textValue(
+        getNestedValue(campaignDefaults, ["attributionWindowDays"]),
+        "30",
+      ),
+      incentiveRef: textValue(savedDraft.incentiveRefs[0]),
+      engagementRef: textValue(savedDraft.engagementRefs[0]),
+      effectiveFrom: savedDraft.effectiveFrom || "",
+      effectiveTo: savedDraft.effectiveTo || "",
+      reviewReason: "Programme package reviewed for customer-safe campaign setup.",
+      publishReason: "Approved for customer-scoped campaign setup.",
+    });
+    setLatestValidation(null);
+    setLatestLifecycle(null);
+    setProgrammeMessage("Programme draft loaded. Validate it before review or publish.");
+  }
+
+  function programmePayload() {
+    const attributionWindowDays = Number(draft.defaultAttributionWindowDays);
+    return {
+      accountScope,
+      programmeName: draft.programmeName.trim() || `${customerName} referral programme`,
+      programmeDescription: draft.programmeDescription.trim() || null,
+      operatingJurisdictionCode: selectedAccount?.operatingJurisdictionCode || defaultOperatingMarket,
+      productCode: catalogueQuery.data?.productCode || "REFERRAL_SAAS",
+      subProductCode: draft.subProductCode || subProductCodes[0] || "RMCA_BUNDLE",
+      customerJourneyVersionId: draft.customerJourneyVersionId || selectedJourney?.customerJourneyVersionId || "",
+      campaignDefaults: {
+        campaignPurpose: draft.campaignPurpose.trim() || "Customer referral acquisition",
+        attributionWindowDays: Number.isFinite(attributionWindowDays) && attributionWindowDays > 0 ? attributionWindowDays : 30,
+        setupMode: "customer_scoped_programme",
+      },
+      incentiveRefs: draft.incentiveRef.trim() ? [draft.incentiveRef.trim()] : [],
+      engagementRefs: draft.engagementRef.trim() ? [draft.engagementRef.trim()] : [],
+      integrationReadinessSnapshot: {
+        providerDispatch: "not_performed",
+        credentials: "not_created",
+      },
+      commercialEntitlementSnapshot: {
+        billing: "not_performed",
+        moneyMovement: "not_performed",
+      },
+      effectiveFrom: draft.effectiveFrom || null,
+      effectiveTo: draft.effectiveTo || null,
+      correlationId: safeIdempotencyKey("programme-draft", accountRef, draft.programmeName),
+      idempotencyKey: safeIdempotencyKey(
+        "save-programme-draft",
+        accountRef,
+        draft.programmeDraftId || "new",
+        draft.programmeName,
+        draft.customerJourneyVersionId || selectedJourney?.customerJourneyVersionId || "",
+        draft.subProductCode,
+      ),
+    };
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      draft.programmeDraftId
+        ? updateReferralSaasProgrammeDraft({
+            accountRef,
+            draftRef: draft.programmeDraftId,
+            body: programmePayload(),
+          })
+        : createReferralSaasProgrammeDraft({
+            accountRef,
+            body: programmePayload(),
+          }),
+    onSuccess: async (response) => {
+      setDraft((current) => ({
+        ...current,
+        programmeDraftId: response.draft.programmeDraftId,
+        programmeName: response.draft.programmeName,
+        customerJourneyVersionId: response.draft.customerJourneyVersionId,
+        subProductCode: response.draft.subProductCode,
+      }));
+      setLatestValidation(null);
+      setLatestLifecycle(null);
+      setProgrammeMessage(`${formatDisplay(response.commandStatus)}. Programme draft saved. Validate it next.`);
+      await programmesQuery.refetch();
+    },
+  });
+  const validateMutation = useMutation({
+    mutationFn: () =>
+      validateReferralSaasProgrammeDraft({
+        accountRef,
+        draftRef: draft.programmeDraftId,
+        accountScope,
+        correlationId: safeIdempotencyKey("programme-validation", accountRef, draft.programmeDraftId),
+        idempotencyKey: safeIdempotencyKey(
+          "validate-programme-draft",
+          accountRef,
+          draft.programmeDraftId,
+          draft.programmeName,
+        ),
+      }),
+    onSuccess: (response) => {
+      setLatestValidation(response);
+      setLatestLifecycle(null);
+      setProgrammeMessage(response.validation.plainLanguageSummary || "Programme validation recorded.");
+    },
+  });
+  const submitReviewMutation = useMutation({
+    mutationFn: () =>
+      submitReferralSaasProgrammeDraftReview({
+        accountRef,
+        draftRef: draft.programmeDraftId,
+        accountScope,
+        reviewReason: draft.reviewReason,
+        correlationId: safeIdempotencyKey("programme-review-submit", accountRef, draft.programmeDraftId),
+        idempotencyKey: safeIdempotencyKey("submit-programme-review", accountRef, draft.programmeDraftId),
+      }),
+    onSuccess: (response) => {
+      setLatestLifecycle(response);
+      setProgrammeMessage(response.plainLanguageSummary || "Programme draft submitted for review.");
+    },
+  });
+  const approveMutation = useMutation({
+    mutationFn: () =>
+      decideReferralSaasProgrammeDraftReview({
+        accountRef,
+        draftRef: draft.programmeDraftId,
+        accountScope,
+        decision: "APPROVED",
+        reviewReason: draft.reviewReason,
+        correlationId: safeIdempotencyKey("programme-review-approval", accountRef, draft.programmeDraftId),
+        idempotencyKey: safeIdempotencyKey("approve-programme-review", accountRef, draft.programmeDraftId),
+      }),
+    onSuccess: (response) => {
+      setLatestLifecycle(response);
+      setProgrammeMessage(response.plainLanguageSummary || "Programme draft approved for publish.");
+    },
+  });
+  const publishMutation = useMutation({
+    mutationFn: () =>
+      publishReferralSaasProgrammeDraft({
+        accountRef,
+        draftRef: draft.programmeDraftId,
+        accountScope,
+        publishReason: draft.publishReason,
+        correlationId: safeIdempotencyKey("programme-publish", accountRef, draft.programmeDraftId),
+        idempotencyKey: safeIdempotencyKey("publish-programme", accountRef, draft.programmeDraftId),
+      }),
+    onSuccess: async (response) => {
+      setLatestLifecycle(response);
+      setProgrammeMessage(response.plainLanguageSummary || "Programme version published for campaign setup.");
+      await Promise.all([programmesQuery.refetch(), analyticsQuery.refetch()]);
+    },
+  });
+
+  return (
+    <section className="panel customer-module-page" id="programmes">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Programmes</div>
+          <h2 className="panel-title">Programme workspace</h2>
+          <div className="panel-subtitle">
+            A programme is the governed package a campaign uses: journey version, product scope, defaults, and safe
+            incentive references.
+          </div>
+        </div>
+        <StatusBadge label="Customer scoped" tone="success" />
+      </div>
+      <div className="panel-body route-list">
+        {catalogueQuery.isLoading || programmesQuery.isLoading || analyticsQuery.isLoading ? (
+          <LoadingState label="Loading programme workspace" />
+        ) : null}
+        {catalogueQuery.error ? <ErrorPanel error={catalogueQuery.error} /> : null}
+        {programmesQuery.error ? <ErrorPanel error={programmesQuery.error} /> : null}
+        {analyticsQuery.error ? <ErrorPanel error={analyticsQuery.error} /> : null}
+        {saveMutation.error ? <ErrorPanel error={saveMutation.error} /> : null}
+        {validateMutation.error ? <ErrorPanel error={validateMutation.error} /> : null}
+        {submitReviewMutation.error ? <ErrorPanel error={submitReviewMutation.error} /> : null}
+        {approveMutation.error ? <ErrorPanel error={approveMutation.error} /> : null}
+        {publishMutation.error ? <ErrorPanel error={publishMutation.error} /> : null}
+        {programmeMessage ? (
+          <div className="success-banner">
+            <strong>Programme updated.</strong> {programmeMessage}
+          </div>
+        ) : null}
+
+        <div className="kpi-grid">
+          <KpiCard
+            label="Published programmes"
+            value={publishedProgrammes.length}
+            footnote="Versioned packages for campaigns"
+            icon={FileJson}
+          />
+          <KpiCard
+            label="Active packages"
+            value={activeProgrammes.length}
+            footnote="Usable or published programme versions"
+            icon={CheckCircle2}
+          />
+          <KpiCard
+            label="Comparable versions"
+            value={analyticsVersions.length}
+            footnote="Analytics-ready programme versions"
+            icon={BarChart3}
+          />
+        </div>
+
+        <div className="integrations-stage-card warning">
+          <div>
+            <strong>Do this next</strong>
+            <p>
+              Create the programme package, validate it, approve it, then publish it. Campaigns can use the published
+              version after this page is done.
+            </p>
+          </div>
+          <StatusBadge label={draft.programmeDraftId ? "Draft loaded" : "Start here"} tone={draft.programmeDraftId ? "info" : "warning"} />
+        </div>
+
+        <form
+          className="panel-lite integrations-step-card"
+          onSubmit={(event: FormEvent) => {
+            event.preventDefault();
+            saveMutation.mutate();
+          }}
+        >
+          <div className="settings-summary-header">
+            <div>
+              <h3 className="section-heading">1. Build the programme package</h3>
+              <p>Choose a published journey version, then add the plain defaults campaigns should inherit.</p>
+            </div>
+            <StatusBadge label="No live action" tone="warning" />
+          </div>
+          <div className="grid-2">
+            <label>
+              Published journey version
+              <select
+                onChange={(event) => setDraft({ ...draft, customerJourneyVersionId: event.target.value })}
+                value={draft.customerJourneyVersionId}
+              >
+                {journeyVersions.map((version) => (
+                  <option key={version.customerJourneyVersionId} value={version.customerJourneyVersionId}>
+                    {version.customerJourneyCode} v{version.versionNumber} - {formatDisplay(version.templateCode)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Product package
+              <select onChange={(event) => setDraft({ ...draft, subProductCode: event.target.value })} value={draft.subProductCode}>
+                {subProductCodes.map((code) => (
+                  <option key={code} value={code}>
+                    {formatDisplay(code)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label>
+            Programme name
+            <input onChange={(event) => setDraft({ ...draft, programmeName: event.target.value })} value={draft.programmeName} />
+          </label>
+          <label>
+            What is this programme for?
+            <textarea
+              onChange={(event) => setDraft({ ...draft, programmeDescription: event.target.value })}
+              value={draft.programmeDescription}
+            />
+          </label>
+          <div className="grid-2">
+            <label>
+              Campaign purpose
+              <input onChange={(event) => setDraft({ ...draft, campaignPurpose: event.target.value })} value={draft.campaignPurpose} />
+            </label>
+            <label>
+              Attribution window
+              <input
+                onChange={(event) => setDraft({ ...draft, defaultAttributionWindowDays: event.target.value })}
+                type="number"
+                value={draft.defaultAttributionWindowDays}
+              />
+            </label>
+          </div>
+          <div className="grid-2">
+            <label>
+              Incentive reference
+              <input
+                onChange={(event) => setDraft({ ...draft, incentiveRef: event.target.value })}
+                placeholder="Optional approved reward or incentive code"
+                value={draft.incentiveRef}
+              />
+            </label>
+            <label>
+              Engagement reference
+              <input
+                onChange={(event) => setDraft({ ...draft, engagementRef: event.target.value })}
+                placeholder="Optional mission, badge, or leaderboard code"
+                value={draft.engagementRef}
+              />
+            </label>
+          </div>
+          <div className="action-row">
+            <button className="button primary" disabled={!canSave || saveMutation.isPending} type="submit">
+              {saveMutation.isPending ? "Saving" : "Save programme draft"}
+            </button>
+            <button
+              className="button secondary"
+              disabled={!canValidate || validateMutation.isPending}
+              onClick={() => validateMutation.mutate()}
+              type="button"
+            >
+              {validateMutation.isPending ? "Validating" : "Validate programme"}
+            </button>
+          </div>
+        </form>
+
+        <div className="panel-lite integrations-step-card">
+          <div className="settings-summary-header">
+            <div>
+              <h3 className="section-heading">2. Review and publish</h3>
+              <p>Publishing creates an immutable programme version. It still does not activate a campaign.</p>
+            </div>
+            <StatusBadge label={publishAllowed ? "Publish allowed" : "Validate first"} tone={publishAllowed ? "success" : "warning"} />
+          </div>
+          {latestValidation ? <ProgrammeValidationSummary validationResponse={latestValidation} /> : null}
+          <label>
+            Review note
+            <textarea onChange={(event) => setDraft({ ...draft, reviewReason: event.target.value })} value={draft.reviewReason} />
+          </label>
+          <label>
+            Publish note
+            <textarea onChange={(event) => setDraft({ ...draft, publishReason: event.target.value })} value={draft.publishReason} />
+          </label>
+          <div className="action-row">
+            <button
+              className="button secondary"
+              disabled={!canValidate || submitReviewMutation.isPending}
+              onClick={() => submitReviewMutation.mutate()}
+              type="button"
+            >
+              {submitReviewMutation.isPending ? "Submitting" : "Submit for review"}
+            </button>
+            <button
+              className="button secondary"
+              disabled={!canValidate || approveMutation.isPending}
+              onClick={() => approveMutation.mutate()}
+              type="button"
+            >
+              {approveMutation.isPending ? "Approving" : "Approve programme"}
+            </button>
+            <button
+              className="button primary"
+              disabled={!canPublish || publishMutation.isPending}
+              onClick={() => publishMutation.mutate()}
+              type="button"
+            >
+              {publishMutation.isPending ? "Publishing" : "Publish programme version"}
+            </button>
+          </div>
+          {latestLifecycle ? (
+            <div className="success-banner">
+              <strong>{formatDisplay(latestLifecycle.commandStatus)}.</strong>{" "}
+              {latestLifecycle.plainLanguageSummary || "Programme lifecycle command recorded."}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="grid-2">
+          <div className="panel-lite integrations-step-card">
+            <div className="settings-summary-header">
+              <div>
+                <h3 className="section-heading">Published programme versions</h3>
+                <p>Campaigns bind to one of these packages.</p>
+              </div>
+              <StatusBadge label={`${publishedProgrammes.length} versions`} tone="info" />
+            </div>
+            <div className="route-list">
+              {publishedProgrammes.map((programme) => (
+                <div className="wizard-status-card" key={programme.programmeVersionId}>
+                  <div>
+                    <strong>{programme.programmeName}</strong>
+                    <p>
+                      {formatDisplay(programme.subProductCode)} - version {programme.versionNumber}
+                    </p>
+                    <span className="table-subtext">
+                      Journey version: {programme.customerJourneyVersionId}
+                      {programme.publishedAt ? ` - published ${programme.publishedAt}` : ""}
+                    </span>
+                  </div>
+                  <StatusBadge label={formatDisplay(programme.versionStatus)} tone={statusTone(programme.versionStatus)} />
+                </div>
+              ))}
+              {!publishedProgrammes.length && !programmesQuery.isLoading ? (
+                <div className="empty-panel">No published programme versions yet.</div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="panel-lite integrations-step-card">
+            <div className="settings-summary-header">
+              <div>
+                <h3 className="section-heading">Programme performance</h3>
+                <p>Compare versions once campaigns and referrals create evidence.</p>
+              </div>
+              <StatusBadge label="Read-only analytics" tone="success" />
+            </div>
+            <div className="route-list">
+              {analyticsVersions.slice(0, 5).map((version) => (
+                <div className="wizard-status-card" key={version.programmeVersionId}>
+                  <div>
+                    <strong>{version.programmeName}</strong>
+                    <p>
+                      {version.referralCount} referrals - {Math.round(version.attributionRate * 100)}% attributed -{" "}
+                      {Math.round(version.completionRate * 100)}% completed
+                    </p>
+                  </div>
+                  <StatusBadge label={formatDisplay(version.performanceSignal)} tone={statusTone(version.performanceSignal)} />
+                </div>
+              ))}
+              {!analyticsVersions.length && !analyticsQuery.isLoading ? (
+                <div className="empty-panel">No programme analytics yet. Publish a programme and bind campaigns first.</div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <details className="panel-lite integrations-step-card">
+          <summary>Show programme diagnostics</summary>
+          <div className="route-list">
+            <div className="empty-panel">
+              Safe workspace: no campaign activation, provider dispatch, credential creation, auth mutation, billing,
+              payout, settlement, or money movement happens on this page.
+            </div>
+            {(programmesQuery.data?.guardrails || []).map((guardrail) => (
+              <span className="tag-pill" key={guardrail}>
+                {guardrail}
+              </span>
+            ))}
+          </div>
+        </details>
+
+        <div className="action-row integrations-handoff-row">
+          <Link className="button secondary" to={selectedCustomerPath}>
+            Customer home
+          </Link>
+          <Link className="button primary" to={`${selectedCustomerPath}/campaigns`}>
+            Continue to Campaigns
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProgrammeValidationSummary({
+  validationResponse,
+}: {
+  validationResponse: ReferralSaasProgrammeValidationResponse;
+}) {
+  const validation = validationResponse.validation;
+  return (
+    <div className="integrations-stage-card success">
+      <div>
+        <strong>{formatDisplay(validation.validationStatus)}</strong>
+        <p>{validation.plainLanguageSummary || "Programme validation completed."}</p>
+        <span className="table-subtext">
+          {validation.blockers.length} blockers, {validation.warnings.length} warnings.
+        </span>
+      </div>
+      <StatusBadge label={validation.publishAllowed ? "Ready to publish" : "Needs work"} tone={validation.publishAllowed ? "success" : "warning"} />
+    </div>
+  );
+}
+
 function CustomerReportsPage({
   customerName,
   externalTenantRef,
@@ -9769,6 +10397,7 @@ function isCustomerModule(value: string | undefined): value is CustomerModule {
     "integrations",
     "technical",
     "journeys",
+    "programmes",
     "campaigns",
     "referrals",
     "referrers",

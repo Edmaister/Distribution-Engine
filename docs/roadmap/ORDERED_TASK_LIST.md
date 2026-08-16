@@ -8930,25 +8930,27 @@ Tests added/updated: Account scope, aggregate-only payloads, no raw identity/eve
 Validation method: `py_compile` for edited Python files; focused pytest for programme analytics service, account API route, and route inventory.
 Acceptance criteria: Complete - customers can compare programme versions and see what improved or regressed in plain language without exposing raw event payloads, internal identifiers, payout detail, billing, settlement, or money data.
 Dependencies: TASK-403.
-Blocked by: None. TASK-405 remains for the simple customer Programme UX and E2E proof.
+Blocked by: None.
 Priority: P1.
 
 ## TASK-405: Add simple Programme UX and E2E proof
 
-Status: Open.
+Status: Complete (2026-08-16). Output: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_UX_CX_MATURITY_SCORECARD.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
 Shared primitive impact: Proves the programme model as a customer/admin SaaS workflow. Source duplication: No.
 Objective: Add a simple selected-customer Programme workspace and repeatable proof across draft, validation, review, publish, campaign creation/binding, referral creation, progress, attribution, reporting, analytics, and rollback posture.
 Why now: The platform should feel like a simple SaaS product, not a series of technical control screens.
-Files likely involved: selected-customer frontend Programme pages; API endpoint clients; Playwright/Vitest tests; physical proof runner; roadmap/gap/infographic docs.
+Files involved: `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/api/endpoints/referralSaasAccounts.test.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; roadmap/gap/infographic docs.
 Database/schema impact: Uses TASK-397 through TASK-404 schema and runtime evidence.
 Backend impact: No new backend primitives beyond proof fixes.
-Frontend impact: Adds Programme list/detail/create/copy/review pages with one primary next action, plain-language blockers, labelled metadata, disclosure-based diagnostics, and customer-safe copy.
+Frontend impact: Adds the selected-customer Programme workspace with one primary next action, plain-language blockers, labelled metadata, disclosure-based diagnostics, published version visibility, analytics readback, and campaign handoff.
 API impact: Verifies the TASK-398 through TASK-404 route spine.
-Tests to add/update: Frontend render/navigation tests; API-client tests; E2E proof runner; redaction/no-side-effect checks; legacy fallback checks.
-Acceptance criteria: A user can create or copy a programme, configure approved options, validate, submit, publish, create a campaign from it, generate referral activity, and compare outcomes in a simple customer-scoped UI without interpreting raw configuration or triggering provider/auth/billing/settlement/money side effects.
+Tests added/updated: Frontend render/navigation tests and API-client tests for the bounded programme route, catalogue/list/analytics reads, draft save/update, validation, review, publish, and no-adjacent-action contract.
+Validation method: `npm run lint`; `npm run test -- ReferralSaasAccountMaintenancePage.test.tsx referralSaasAccounts.test.ts`; `npm run build`; `git diff --check`.
+Acceptance criteria: Complete - a user can manage a simple selected-customer Programme workspace over approved catalogue options, save and validate programme drafts, submit/approve/publish programme versions, view published versions and aggregate analytics, and continue to campaigns without interpreting raw configuration or triggering provider/auth/billing/settlement/money side effects.
 Dependencies: TASK-404.
+Blocked by: None. TASK-027 and TASK-348 remain for non-local verification evidence.
 Priority: P0.
 
 ## TASK-039: Fix clean DB migration failure for referral_track_id

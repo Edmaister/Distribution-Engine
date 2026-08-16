@@ -257,6 +257,177 @@ export type ReferralSaasCustomerJourneyPublishResponse = {
   noAuthBillingOrMoneyActionConfirmed: boolean;
 };
 
+export type ReferralSaasProgrammeJourneyCatalogueItem = {
+  customerJourneyVersionId: string;
+  customerJourneyCode: string;
+  versionNumber: number;
+  versionStatus: string;
+  templateCode: string;
+  templateVersion: string;
+  safeSummary: Record<string, unknown>;
+  governanceMetadata: Record<string, unknown>;
+  publishedAt?: string | null;
+};
+
+export type ReferralSaasProgrammeCatalogueResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  customerJourneyVersions: ReferralSaasProgrammeJourneyCatalogueItem[];
+  productCode: string;
+  subProductCodes: string[];
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+};
+
+export type ReferralSaasProgrammeDraft = {
+  programmeDraftId: string;
+  accountId: string;
+  sourceProgrammeVersionId?: string | null;
+  customerJourneyVersionId: string;
+  programmeName: string;
+  programmeDescription?: string | null;
+  operatingJurisdictionCode: string;
+  productCode: string;
+  subProductCode: string;
+  programmeStatus: string;
+  draftVersion: number;
+  campaignDefaults: Record<string, unknown>;
+  incentiveRefs: unknown[];
+  engagementRefs: unknown[];
+  integrationReadinessSnapshot: Record<string, unknown>;
+  commercialEntitlementSnapshot: Record<string, unknown>;
+  lastValidationStatus: string;
+  reviewStatus: string;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  archivedAt?: string | null;
+  guardrails: string[];
+  redactions: string[];
+};
+
+export type ReferralSaasProgrammeVersion = {
+  programmeVersionId: string;
+  accountId: string;
+  programmeCode: string;
+  programmeName: string;
+  programmeDescription?: string | null;
+  operatingJurisdictionCode: string;
+  productCode: string;
+  subProductCode: string;
+  versionNumber: number;
+  versionStatus: string;
+  customerJourneyVersionId: string;
+  campaignDefaultsSnapshot: Record<string, unknown>;
+  incentiveRefsSnapshot: unknown[];
+  engagementRefsSnapshot: unknown[];
+  integrationReadinessSnapshot: Record<string, unknown>;
+  commercialEntitlementSnapshot: Record<string, unknown>;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+  safeSummary: Record<string, unknown>;
+  governanceMetadata: Record<string, unknown>;
+  publishedAt?: string | null;
+  retiredAt?: string | null;
+  guardrails: string[];
+  redactions: string[];
+};
+
+export type ReferralSaasProgrammeListResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  count: number;
+  programmes: ReferralSaasProgrammeVersion[];
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+};
+
+export type ReferralSaasProgrammeDraftCommandResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  commandStatus: string;
+  idempotencyStatus: string;
+  draft: ReferralSaasProgrammeDraft;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+};
+
+export type ReferralSaasProgrammeValidationResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  validation: {
+    programmeValidationResultId: string;
+    programmeDraftId: string;
+    validationStatus: string;
+    publishAllowed: boolean;
+    campaignBindingAllowed: boolean;
+    plainLanguageSummary: string;
+    blockers: Record<string, unknown>[];
+    warnings: Record<string, unknown>[];
+    configurationSnapshot: Record<string, unknown>;
+    simulation: Record<string, unknown>;
+    guardrails: string[];
+    redactions: string[];
+  };
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+};
+
+export type ReferralSaasProgrammeLifecycleResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  commandStatus: string;
+  idempotencyStatus: string;
+  resource: ReferralSaasProgrammeDraft | ReferralSaasProgrammeVersion | Record<string, unknown>;
+  programmeVersion?: ReferralSaasProgrammeVersion;
+  plainLanguageSummary: string;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+};
+
+export type ReferralSaasProgrammeAnalyticsResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  programmeAnalytics: {
+    versionCount: number;
+    versions: {
+      programmeVersionId: string;
+      programmeCode: string;
+      programmeName: string;
+      versionNumber: number;
+      versionStatus: string;
+      campaignCount: number;
+      activeCampaignCount: number;
+      referralCount: number;
+      attributedReferralCount: number;
+      completedReferralCount: number;
+      attributionRate: number;
+      completionRate: number;
+      performanceSignal: string;
+    }[];
+    summary: Record<string, unknown>;
+    dataWindowStart?: string | null;
+    dataWindowEnd?: string | null;
+    guardrails: string[];
+    redactions: string[];
+  };
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+};
+
 export type ReferralSaasCampaignJourneyBinding = {
   campaignJourneyBindingId?: string;
   accountId?: string;
@@ -3342,6 +3513,238 @@ export function listReferralSaasAccountJourneyVersions({
         context,
         includeArchived,
         limit,
+      },
+    },
+  );
+}
+
+export function listReferralSaasAccountProgrammes({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+  includeRetired = false,
+  limit = 50,
+}: ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+  includeRetired?: boolean;
+  limit?: number;
+}): Promise<ReferralSaasProgrammeListResponse> {
+  return apiRequest<ReferralSaasProgrammeListResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/programmes`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+        includeRetired,
+        limit,
+      },
+    },
+  );
+}
+
+export function getReferralSaasAccountProgrammeCatalogue({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+  limit = 50,
+}: ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+  limit?: number;
+}): Promise<ReferralSaasProgrammeCatalogueResponse> {
+  return apiRequest<ReferralSaasProgrammeCatalogueResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/programmes/catalogue`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+        limit,
+      },
+    },
+  );
+}
+
+export function getReferralSaasAccountProgrammeAnalytics({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+  limit = 50,
+}: ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+  limit?: number;
+}): Promise<ReferralSaasProgrammeAnalyticsResponse> {
+  return apiRequest<ReferralSaasProgrammeAnalyticsResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/programmes/analytics`,
+    {
+      query: {
+        ref_type: refType,
+        external_ref: externalRef.trim(),
+        context,
+        limit,
+      },
+    },
+  );
+}
+
+export function createReferralSaasProgrammeDraft({
+  accountRef,
+  body,
+}: {
+  accountRef: string;
+  body: Record<string, unknown>;
+}): Promise<ReferralSaasProgrammeDraftCommandResponse> {
+  return apiRequest<ReferralSaasProgrammeDraftCommandResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/programmes/drafts`,
+    {
+      method: "POST",
+      body,
+    },
+  );
+}
+
+export function updateReferralSaasProgrammeDraft({
+  accountRef,
+  draftRef,
+  body,
+}: {
+  accountRef: string;
+  draftRef: string;
+  body: Record<string, unknown>;
+}): Promise<ReferralSaasProgrammeDraftCommandResponse> {
+  return apiRequest<ReferralSaasProgrammeDraftCommandResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/programmes/drafts/${encodeURIComponent(
+      draftRef.trim(),
+    )}`,
+    {
+      method: "PUT",
+      body,
+    },
+  );
+}
+
+export function validateReferralSaasProgrammeDraft({
+  accountRef,
+  draftRef,
+  accountScope,
+  correlationId,
+  idempotencyKey,
+}: {
+  accountRef: string;
+  draftRef: string;
+  accountScope: Record<string, unknown>;
+  correlationId?: string | null;
+  idempotencyKey: string;
+}): Promise<ReferralSaasProgrammeValidationResponse> {
+  return apiRequest<ReferralSaasProgrammeValidationResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/programmes/drafts/${encodeURIComponent(
+      draftRef.trim(),
+    )}/validate`,
+    {
+      method: "POST",
+      body: {
+        accountScope,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function submitReferralSaasProgrammeDraftReview({
+  accountRef,
+  draftRef,
+  accountScope,
+  reviewReason,
+  correlationId,
+  idempotencyKey,
+}: {
+  accountRef: string;
+  draftRef: string;
+  accountScope: Record<string, unknown>;
+  reviewReason: string;
+  correlationId?: string | null;
+  idempotencyKey: string;
+}): Promise<ReferralSaasProgrammeLifecycleResponse> {
+  return apiRequest<ReferralSaasProgrammeLifecycleResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/programmes/drafts/${encodeURIComponent(
+      draftRef.trim(),
+    )}/submit-review`,
+    {
+      method: "POST",
+      body: {
+        accountScope,
+        reviewReason,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function decideReferralSaasProgrammeDraftReview({
+  accountRef,
+  draftRef,
+  accountScope,
+  decision,
+  reviewReason,
+  correlationId,
+  idempotencyKey,
+}: {
+  accountRef: string;
+  draftRef: string;
+  accountScope: Record<string, unknown>;
+  decision: "APPROVED" | "BLOCKED" | "CHANGE_REQUESTED";
+  reviewReason: string;
+  correlationId?: string | null;
+  idempotencyKey: string;
+}): Promise<ReferralSaasProgrammeLifecycleResponse> {
+  return apiRequest<ReferralSaasProgrammeLifecycleResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/programmes/drafts/${encodeURIComponent(
+      draftRef.trim(),
+    )}/review-decision`,
+    {
+      method: "POST",
+      body: {
+        accountScope,
+        decision,
+        reviewReason,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function publishReferralSaasProgrammeDraft({
+  accountRef,
+  draftRef,
+  accountScope,
+  publishReason,
+  correlationId,
+  idempotencyKey,
+}: {
+  accountRef: string;
+  draftRef: string;
+  accountScope: Record<string, unknown>;
+  publishReason: string;
+  correlationId?: string | null;
+  idempotencyKey: string;
+}): Promise<ReferralSaasProgrammeLifecycleResponse> {
+  return apiRequest<ReferralSaasProgrammeLifecycleResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/programmes/drafts/${encodeURIComponent(
+      draftRef.trim(),
+    )}/publish`,
+    {
+      method: "POST",
+      body: {
+        accountScope,
+        publishReason,
+        correlationId,
+        idempotencyKey,
       },
     },
   );

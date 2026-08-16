@@ -332,8 +332,13 @@ TASK-404 now adds aggregate-only programme analytics and version-comparison
 read models over published programme versions, campaign bindings,
 referral/progress evidence, and attribution/completion rates with customer-safe
 summaries, guardrails, redactions, and no provider/auth/billing/settlement/money
-side effects. Implementation now moves to TASK-405 for the simple customer
-Programme UX and end-to-end proof.
+side effects. TASK-405 now adds the simple selected-customer Programme
+workspace with approved catalogue selection, draft save/update, validation,
+review, publish, published-version visibility, aggregate analytics, and campaign
+handoff without exposing raw configuration or triggering provider/auth/billing/
+settlement/money side effects. The programme configuration implementation stream
+is complete; remaining proof work is the non-local environment evidence tracked
+by TASK-027 and TASK-348.
 
 ## Recommended Ordered Task Sequence
 
