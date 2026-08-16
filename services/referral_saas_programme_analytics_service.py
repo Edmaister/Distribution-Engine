@@ -9,6 +9,7 @@ from utils.db import db_connection
 PROGRAMME_ANALYTICS_GUARDRAILS = (
     "ACCOUNT_SCOPED_PROGRAMME_ANALYTICS",
     "PUBLISHED_PROGRAMME_VERSION_DIMENSION_ONLY",
+    "PRODUCT_PROGRAMME_CAMPAIGN_OVERRIDE_DIMENSIONS_ONLY",
     "TENANT_SAFE_AGGREGATES_ONLY",
     "NO_RAW_IDENTITY_OR_EVENT_PAYLOAD",
     "NO_INCENTIVE_REWARD_PAYOUT_DETAIL",
@@ -60,6 +61,11 @@ class ProgrammeVersionAnalytics:
     high_value_event_count: int
     incentive_binding_count: int
     engagement_binding_count: int
+    product_line_count: int
+    product_offering_count: int
+    runtime_campaign_count: int
+    approved_override_referral_count: int
+    effective_rule_snapshot_count: int
 
     @property
     def attribution_gap_count(self) -> int:
@@ -82,9 +88,19 @@ class ProgrammeVersionAnalytics:
         return _safe_rate(self.high_value_event_count, self.progress_event_count)
 
     @property
+    def approved_override_rate(self) -> float:
+        return _safe_rate(self.approved_override_referral_count, self.referral_count)
+
+    @property
+    def snapshot_coverage_rate(self) -> float:
+        return _safe_rate(self.effective_rule_snapshot_count, self.referral_count)
+
+    @property
     def performance_signal(self) -> str:
         if self.referral_count <= 0:
             return "NO_TRAFFIC"
+        if self.effective_rule_snapshot_count < self.referral_count:
+            return "SNAPSHOT_COVERAGE_GAP"
         if self.attribution_gap_count > self.completed_referral_count:
             return "OPTIMISE_ATTRIBUTION"
         if self.completion_gap_count > self.completed_referral_count:
@@ -117,6 +133,16 @@ class ProgrammeVersionAnalytics:
             "attributionRate": self.attribution_rate,
             "completionRate": self.completion_rate,
             "highValueEventRate": self.high_value_event_rate,
+            "reportingDimensions": {
+                "productLineCount": self.product_line_count,
+                "productOfferingCount": self.product_offering_count,
+                "runtimeCampaignCount": self.runtime_campaign_count,
+                "approvedOverrideReferralCount": self.approved_override_referral_count,
+                "effectiveRuleSnapshotCount": self.effective_rule_snapshot_count,
+                "approvedOverrideRate": self.approved_override_rate,
+                "snapshotCoverageRate": self.snapshot_coverage_rate,
+                "dimensionsSource": "REFERRAL_RUNTIME_EFFECTIVE_RULE_SNAPSHOT",
+            },
             "performanceSignal": self.performance_signal,
             "guardrails": list(PROGRAMME_ANALYTICS_GUARDRAILS),
             "redactions": list(PROGRAMME_ANALYTICS_REDACTIONS),
@@ -214,6 +240,7 @@ async def build_referral_saas_programme_analytics_read_model(
                     v.programme_version_id,
                     ri.referral_track_id,
                     COALESCE(ri.is_complete, false) AS is_complete,
+                    ri.programme_runtime_context,
                     CASE
                         WHEN ca.campaign_track_id IS NOT NULL THEN true
                         WHEN ri.programme_version_id = v.programme_version_id THEN true
@@ -246,6 +273,41 @@ async def build_referral_saas_programme_analytics_read_model(
                     COUNT(DISTINCT referral_track_id) FILTER (
                         WHERE is_complete
                     ) AS completed_referral_count
+                FROM referral_evidence
+                GROUP BY programme_version_id
+            ),
+            runtime_dimension_counts AS (
+                SELECT
+                    programme_version_id,
+                    COUNT(DISTINCT NULLIF(
+                        programme_runtime_context #>>
+                            '{effectiveRuleSnapshot,customerProductBinding,externalProductLineRef}',
+                        ''
+                    )) AS product_line_count,
+                    COUNT(DISTINCT NULLIF(
+                        programme_runtime_context #>>
+                            '{effectiveRuleSnapshot,customerProductBinding,externalOfferingRef}',
+                        ''
+                    )) AS product_offering_count,
+                    COUNT(DISTINCT NULLIF(
+                        programme_runtime_context #>>
+                            '{effectiveRuleSnapshot,campaign,campaignCode}',
+                        ''
+                    )) AS runtime_campaign_count,
+                    COUNT(DISTINCT referral_track_id) FILTER (
+                        WHERE LOWER(COALESCE(
+                            programme_runtime_context #>>
+                                '{effectiveRuleSnapshot,campaignOverrideRules,approved}',
+                            'false'
+                        )) = 'true'
+                    ) AS approved_override_referral_count,
+                    COUNT(DISTINCT referral_track_id) FILTER (
+                        WHERE COALESCE(
+                            programme_runtime_context #>>
+                                '{effectiveRuleSnapshot,effectiveRulesChecksum}',
+                            ''
+                        ) <> ''
+                    ) AS effective_rule_snapshot_count
                 FROM referral_evidence
                 GROUP BY programme_version_id
             ),
@@ -285,7 +347,14 @@ async def build_referral_saas_programme_analytics_read_model(
                 COALESCE(pc.progress_event_count, 0) AS progress_event_count,
                 COALESCE(pc.high_value_event_count, 0) AS high_value_event_count,
                 COALESCE(v.incentive_binding_count, 0) AS incentive_binding_count,
-                COALESCE(v.engagement_binding_count, 0) AS engagement_binding_count
+                COALESCE(v.engagement_binding_count, 0) AS engagement_binding_count,
+                COALESCE(rdc.product_line_count, 0) AS product_line_count,
+                COALESCE(rdc.product_offering_count, 0) AS product_offering_count,
+                COALESCE(rdc.runtime_campaign_count, 0) AS runtime_campaign_count,
+                COALESCE(rdc.approved_override_referral_count, 0)
+                    AS approved_override_referral_count,
+                COALESCE(rdc.effective_rule_snapshot_count, 0)
+                    AS effective_rule_snapshot_count
             FROM versions v
             LEFT JOIN campaign_counts cc
                 ON cc.programme_version_id = v.programme_version_id::text
@@ -293,6 +362,8 @@ async def build_referral_saas_programme_analytics_read_model(
                 ON rc.programme_version_id = v.programme_version_id
             LEFT JOIN progress_counts pc
                 ON pc.programme_version_id = v.programme_version_id
+            LEFT JOIN runtime_dimension_counts rdc
+                ON rdc.programme_version_id = v.programme_version_id
             ORDER BY v.published_at DESC, v.version_number DESC
             """,
             safe_account_id,
@@ -332,6 +403,13 @@ def _analytics_from_row(row: Mapping[str, Any]) -> ProgrammeVersionAnalytics:
         high_value_event_count=int(row["high_value_event_count"] or 0),
         incentive_binding_count=int(row["incentive_binding_count"] or 0),
         engagement_binding_count=int(row["engagement_binding_count"] or 0),
+        product_line_count=int(row["product_line_count"] or 0),
+        product_offering_count=int(row["product_offering_count"] or 0),
+        runtime_campaign_count=int(row["runtime_campaign_count"] or 0),
+        approved_override_referral_count=int(
+            row["approved_override_referral_count"] or 0
+        ),
+        effective_rule_snapshot_count=int(row["effective_rule_snapshot_count"] or 0),
     )
 
 
@@ -343,6 +421,15 @@ def _build_summary(versions: tuple[ProgrammeVersionAnalytics, ...]) -> dict[str,
     high_value_event_count = sum(version.high_value_event_count for version in versions)
     campaign_count = sum(version.campaign_count for version in versions)
     active_campaign_count = sum(version.active_campaign_count for version in versions)
+    product_line_count = sum(version.product_line_count for version in versions)
+    product_offering_count = sum(version.product_offering_count for version in versions)
+    runtime_campaign_count = sum(version.runtime_campaign_count for version in versions)
+    approved_override_referral_count = sum(
+        version.approved_override_referral_count for version in versions
+    )
+    effective_rule_snapshot_count = sum(
+        version.effective_rule_snapshot_count for version in versions
+    )
     latest_version = versions[0] if versions else None
     previous_version = versions[1] if len(versions) > 1 else None
 
@@ -360,6 +447,22 @@ def _build_summary(versions: tuple[ProgrammeVersionAnalytics, ...]) -> dict[str,
         "attributionRate": _safe_rate(attributed_count, referral_count),
         "completionRate": _safe_rate(completed_count, referral_count),
         "highValueEventRate": _safe_rate(high_value_event_count, progress_event_count),
+        "reportingDimensions": {
+            "productLineCount": product_line_count,
+            "productOfferingCount": product_offering_count,
+            "runtimeCampaignCount": runtime_campaign_count,
+            "approvedOverrideReferralCount": approved_override_referral_count,
+            "effectiveRuleSnapshotCount": effective_rule_snapshot_count,
+            "approvedOverrideRate": _safe_rate(
+                approved_override_referral_count,
+                referral_count,
+            ),
+            "snapshotCoverageRate": _safe_rate(
+                effective_rule_snapshot_count,
+                referral_count,
+            ),
+            "dimensionsSource": "REFERRAL_RUNTIME_EFFECTIVE_RULE_SNAPSHOT",
+        },
         "analyticsSignal": _summary_signal(versions),
         "latestProgrammeVersionId": (
             latest_version.programme_version_id if latest_version else None

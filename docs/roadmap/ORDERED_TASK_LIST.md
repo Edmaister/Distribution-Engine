@@ -9133,7 +9133,7 @@ Definition of done: Runtime referral creation freezes the governed rule context 
 
 ## TASK-413: Add product, programme, campaign, and override reporting dimensions
 
-Status: Ready.
+Status: Complete.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Adds aggregate read-model dimensions over existing referral/campaign/programme evidence. Source duplication: No.
@@ -9154,6 +9154,7 @@ Blocked by: None.
 Risk level: Medium.
 Rollback notes: Revert reporting/API/test/doc updates.
 Explicit non-goals: Do not create exports, dispatch scheduled reports, apply rewards, activate campaigns, mutate referrals, bill, settle, payout, or move money.
+Completed output: `services/referral_saas_programme_analytics_service.py`; `test/test_referral_saas_programme_analytics_service.py`; roadmap, gap matrix, and infographic updates. Programme analytics now exposes safe aggregate reporting dimensions for product line count, product offering count, runtime campaign count, approved campaign override referral count, effective rule snapshot count, override rate, and snapshot coverage rate using the immutable `effectiveRuleSnapshot` runtime evidence from referral instances. The model adds a reporting-dimension guardrail, flags snapshot coverage gaps, keeps account/tenant/raw event/reward/provider/auth/billing/payout/settlement/money data redacted, and remains side-effect free.
 Definition of done: Customer-safe reporting separates product/offering performance, programme performance, campaign performance, and override impact. Priority: P1.
 
 ## TASK-414: Add simple UX proof for product, programme, campaign, and override separation
