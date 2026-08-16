@@ -15,6 +15,8 @@ import services.referral_code as rc
 
 PROGRAMME_VERSION_ID = "11111111-1111-4111-8111-111111111111"
 CUSTOMER_JOURNEY_VERSION_ID = "22222222-2222-4222-8222-222222222222"
+CUSTOMER_PRODUCT_LINE_ID = "33333333-3333-4333-8333-333333333333"
+CUSTOMER_PRODUCT_OFFERING_ID = "44444444-4444-4444-8444-444444444444"
 
 
 # -----------------------
@@ -230,6 +232,31 @@ async def test_validate_referral_code_binds_programme_runtime_context(monkeypatc
                     }
                 }
             },
+            {
+                "programme_version_id": PROGRAMME_VERSION_ID,
+                "programme_code": "HOME_LOAN",
+                "programme_name": "Home Loan Referral",
+                "version_number": 2,
+                "version_status": "PUBLISHED",
+                "customer_journey_version_id": CUSTOMER_JOURNEY_VERSION_ID,
+                "operating_jurisdiction_code": "ZA",
+                "customer_product_line_id": CUSTOMER_PRODUCT_LINE_ID,
+                "customer_product_offering_id": CUSTOMER_PRODUCT_OFFERING_ID,
+                "campaign_defaults_snapshot": {
+                    "reward": {"type": "voucher"},
+                    "attribution": {"model": "last-touch"},
+                },
+                "configuration_checksum": "programme-checksum",
+                "safe_summary": {"label": "Home loan referral"},
+                "retired_at": None,
+                "external_product_line_ref": "HOME_LOANS",
+                "product_line_name": "Home Loans",
+                "product_line_category": "Banking and financial services",
+                "external_offering_ref": "STANDARD_HOME_LOAN",
+                "offering_name": "Standard Home Loan",
+                "offering_family": "Mortgage",
+                "product_offering_operating_jurisdiction_code": "ZA",
+            },
         ]
     )
     patch_async_db(monkeypatch, conn)
@@ -266,6 +293,158 @@ async def test_validate_referral_code_binds_programme_runtime_context(monkeypatc
     assert runtime_context["customerJourneyVersionId"] == CUSTOMER_JOURNEY_VERSION_ID
     assert runtime_context["source"] == "CAMPAIGN_PUBLISHED_PROGRAMME_BINDING"
     assert "rawConfig" not in runtime_context
+    snapshot = runtime_context["effectiveRuleSnapshot"]
+    assert snapshot["snapshotType"] == "REFERRAL_SAAS_EFFECTIVE_RULE_CONTEXT"
+    assert snapshot["customerProductBinding"] == {
+        "customerProductLineId": CUSTOMER_PRODUCT_LINE_ID,
+        "customerProductOfferingId": CUSTOMER_PRODUCT_OFFERING_ID,
+        "externalProductLineRef": "HOME_LOANS",
+        "productLineName": "Home Loans",
+        "productLineCategory": "Banking and financial services",
+        "externalOfferingRef": "STANDARD_HOME_LOAN",
+        "offeringName": "Standard Home Loan",
+        "offeringFamily": "Mortgage",
+        "operatingJurisdictionCode": "ZA",
+    }
+    assert snapshot["programmeDefaultRules"]["ruleKeys"] == ["attribution", "reward"]
+    assert snapshot["programmeDefaultRules"]["checksum"]
+    assert snapshot["campaignOverrideRules"] == {
+        "present": False,
+        "approved": False,
+        "overrideKeys": [],
+        "overrideReasonPresent": False,
+        "approvedAt": None,
+        "checksum": rc._canonical_hash({}),
+    }
+    assert snapshot["effectiveRulesChecksum"]
+    assert snapshot["configurationPayloadRedacted"] is True
+    assert "rawConfig" not in json.dumps(snapshot)
+
+
+@pytest.mark.asyncio
+async def test_validate_referral_code_freezes_approved_campaign_override_snapshot(monkeypatch):
+    conn = FakeAsyncConn(
+        fetchrow_values=[
+            {
+                "referrer_code_id": "code-id",
+                "referrer_ucn": "123",
+                "sticker": "CAMPAIGN-001",
+            },
+            {
+                "campaign_code": "CAMPAIGN-001",
+                "attributes": {
+                    "referral_saas_programme_binding": {
+                        "programmeVersionId": PROGRAMME_VERSION_ID,
+                        "programmeCode": "HOME_LOAN",
+                        "programmeName": "Home Loan Referral",
+                        "versionNumber": 2,
+                        "customerJourneyVersionId": CUSTOMER_JOURNEY_VERSION_ID,
+                    },
+                    "referral_saas_campaign_override": {
+                        "programmeVersionId": PROGRAMME_VERSION_ID,
+                        "overrideStatus": "APPROVED",
+                        "overridePayload": {
+                            "reward": {"displayLabel": "Campaign launch reward"},
+                            "audience": {"segment": "Premier"},
+                        },
+                        "overrideReason": "Launch incentive",
+                        "approvedAt": "2026-08-01T00:00:00Z",
+                        "secret": "must not leak",
+                    },
+                },
+            },
+            {
+                "programme_version_id": PROGRAMME_VERSION_ID,
+                "programme_code": "HOME_LOAN",
+                "programme_name": "Home Loan Referral",
+                "version_number": 2,
+                "version_status": "PUBLISHED",
+                "customer_journey_version_id": CUSTOMER_JOURNEY_VERSION_ID,
+                "operating_jurisdiction_code": "ZA",
+                "customer_product_line_id": CUSTOMER_PRODUCT_LINE_ID,
+                "customer_product_offering_id": CUSTOMER_PRODUCT_OFFERING_ID,
+                "campaign_defaults_snapshot": {"reward": {"type": "voucher"}},
+                "configuration_checksum": "programme-checksum",
+                "safe_summary": {"label": "Home loan referral"},
+                "retired_at": None,
+                "external_product_line_ref": "HOME_LOANS",
+                "product_line_name": "Home Loans",
+                "product_line_category": "Banking and financial services",
+                "external_offering_ref": "STANDARD_HOME_LOAN",
+                "offering_name": "Standard Home Loan",
+                "offering_family": "Mortgage",
+                "product_offering_operating_jurisdiction_code": "ZA",
+            },
+        ]
+    )
+    patch_async_db(monkeypatch, conn)
+
+    monkeypatch.setattr(rc, "_normalize_alias", lambda x: "Alias1")
+    monkeypatch.setattr(rc, "_validate_alias", lambda x: (True, None, "alias1"))
+
+    body, status = await rc.validate_referral_code(
+        tenant_code="FNB",
+        referral_code="ABC",
+        accepted_terms=True,
+    )
+
+    assert status == 200
+    assert body["valid"] is True
+    referral_insert = next(
+        call for call in conn.executed if "INSERT INTO referral_instances" in call[0]
+    )
+    runtime_context = json.loads(referral_insert[1][11])
+    snapshot = runtime_context["effectiveRuleSnapshot"]
+    assert snapshot["campaignOverrideRules"]["present"] is True
+    assert snapshot["campaignOverrideRules"]["approved"] is True
+    assert snapshot["campaignOverrideRules"]["overrideKeys"] == ["audience", "reward"]
+    assert snapshot["campaignOverrideRules"]["overrideReasonPresent"] is True
+    assert snapshot["campaignOverrideRules"]["approvedAt"] == "2026-08-01T00:00:00Z"
+    safe_snapshot_text = json.dumps(snapshot)
+    assert "Campaign launch reward" not in safe_snapshot_text
+    assert "Premier" not in safe_snapshot_text
+    assert "must not leak" not in safe_snapshot_text
+
+
+@pytest.mark.asyncio
+async def test_validate_referral_code_fails_closed_for_missing_programme_binding(monkeypatch):
+    conn = FakeAsyncConn(
+        fetchrow_values=[
+            {
+                "referrer_code_id": "code-id",
+                "referrer_ucn": "123",
+                "sticker": "CAMPAIGN-001",
+            },
+            {
+                "campaign_code": "CAMPAIGN-001",
+                "attributes": {
+                    "referral_saas_programme_binding": {
+                        "programmeVersionId": PROGRAMME_VERSION_ID,
+                        "programmeCode": "HOME_LOAN",
+                        "programmeName": "Home Loan Referral",
+                        "versionNumber": 2,
+                        "customerJourneyVersionId": CUSTOMER_JOURNEY_VERSION_ID,
+                    },
+                },
+            },
+            None,
+        ]
+    )
+    patch_async_db(monkeypatch, conn)
+
+    monkeypatch.setattr(rc, "_normalize_alias", lambda x: "Alias1")
+    monkeypatch.setattr(rc, "_validate_alias", lambda x: (True, None, "alias1"))
+
+    body, status = await rc.validate_referral_code(
+        tenant_code="FNB",
+        referral_code="ABC",
+        accepted_terms=True,
+    )
+
+    assert status == 200
+    assert body["valid"] is True
+    assert body["error_code"] == "REFERRAL_LOG_FAILED"
+    assert not any("INSERT INTO referral_instances" in call[0] for call in conn.executed)
 
 
 @pytest.mark.asyncio
