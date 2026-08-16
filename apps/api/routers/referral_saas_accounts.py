@@ -132,6 +132,7 @@ from services.referral_saas_campaign_service import (
     CampaignSetupIdempotencyConflict,
     CampaignSetupValidationError,
     ReferralSaasCampaignCommandError,
+    bind_referral_saas_account_campaign_programme_version,
     build_referral_saas_account_campaign_attribution_projection,
     create_referral_saas_account_campaign_setup,
     get_referral_saas_account_campaign,
@@ -692,6 +693,13 @@ class ReferralSaasCustomerJourneyIncentiveBindingRequest(BaseModel):
 class ReferralSaasCampaignJourneyBindingRequest(BaseModel):
     accountScope: dict[str, Any] = Field(default_factory=dict)
     customerJourneyVersionId: str = Field(min_length=1)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasCampaignProgrammeBindingRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    programmeVersionId: str = Field(min_length=1)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str = Field(min_length=1)
 
@@ -10350,6 +10358,7 @@ async def create_referral_saas_account_campaign_route(
             raise _campaign_setup_error(
                 CampaignSetupValidationError("campaign.maxUses must be a number.")
             ) from exc
+    programme_version_id = _optional_text(campaign.get("programmeVersionId")) or None
 
     command_payload = {
         "accountScope": {
@@ -10364,6 +10373,7 @@ async def create_referral_saas_account_campaign_route(
             "startsAt": _optional_text(campaign.get("startsAt")) or None,
             "endsAt": _optional_text(campaign.get("endsAt")) or None,
             "maxUses": max_uses,
+            "programmeVersionId": programme_version_id,
         },
         "setupIntent": {
             "requestedStatus": "DRAFT",
@@ -10385,6 +10395,7 @@ async def create_referral_saas_account_campaign_route(
             starts_at=_optional_datetime(campaign.get("startsAt")),
             ends_at=_optional_datetime(campaign.get("endsAt")),
             max_uses=max_uses,
+            programme_version_id=programme_version_id,
             reason_code=reason_code,
             correlation_id=correlation_id,
             idempotency_key_hash=hash_payload(
@@ -10675,6 +10686,88 @@ async def bind_referral_saas_account_campaign_journey_binding_route(
                 "journeys, activate campaigns, dispatch providers, change auth, bill, "
                 "settle, or move money."
             ),
+        }
+    )
+    return body
+
+
+@router.put("/accounts/{account_ref}/campaigns/{campaign_code}/programme-binding")
+async def bind_referral_saas_account_campaign_programme_binding_route(
+    account_ref: str,
+    campaign_code: str,
+    request: ReferralSaasCampaignProgrammeBindingRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    account_scope = request.accountScope or {}
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    if not ref_type or not external_ref:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope.refType and accountScope.externalRef are required.",
+                "guardrails": list(CAMPAIGN_SETUP_GUARDRAILS),
+                "redactions": list(CAMPAIGN_SETUP_REDACTIONS),
+                "no_campaign_activation_confirmed": True,
+                "no_money_movement_confirmed": True,
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=admin_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_CAMPAIGN_CREATE_CAPABILITY,
+    )
+
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await bind_referral_saas_account_campaign_programme_version(
+            account_id=account.account_id,
+            tenant_code=account.tenant_code,
+            campaign_code=campaign_code,
+            programme_version_id=request.programmeVersionId,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_CAMPAIGN_PROGRAMME_VERSION_BIND",
+                    "account_ref": _optional_text(account_ref),
+                    "campaign_ref": _optional_text(campaign_code),
+                    "idempotency_key": request.idempotencyKey,
+                }
+            ),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except ReferralSaasCampaignCommandError as exc:
+        raise _campaign_setup_error(exc) from exc
+
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "guardrail": (
+                "Binds this inactive campaign setup to a published programme "
+                "version for customer-scoped campaign readiness. This does not "
+                "activate campaigns, dispatch providers, change auth, bill, "
+                "settle, or move money."
+            ),
+            "guardrails": list(CAMPAIGN_SETUP_GUARDRAILS),
+            "redactions": list(CAMPAIGN_SETUP_REDACTIONS),
+            "noCampaignActivationConfirmed": True,
+            "noProviderDispatchConfirmed": True,
+            "noMoneyMovementConfirmed": True,
         }
     )
     return body

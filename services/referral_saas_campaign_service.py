@@ -13,6 +13,9 @@ MAX_CAMPAIGN_LIST_LIMIT = 100
 CAMPAIGN_SETUP_CREATE_EVENT = "CAMPAIGN_SETUP_DRAFT_RECORDED"
 CAMPAIGN_SETUP_RECORDED = "RECORDED"
 CAMPAIGN_SETUP_REPLAYED = "REPLAYED"
+CAMPAIGN_PROGRAMME_BINDING_EVENT = "CAMPAIGN_PROGRAMME_BINDING_RECORDED"
+CAMPAIGN_PROGRAMME_BINDING_RECORDED = "RECORDED"
+CAMPAIGN_PROGRAMME_BINDING_REPLAYED = "REPLAYED"
 CAMPAIGN_SETUP_GUARDRAILS = [
     "NO_TENANT_CODE_EXPOSURE",
     "NO_CAMPAIGN_ACTIVATION",
@@ -230,6 +233,7 @@ class ReferralSaasCampaignSummary:
     policy_status: str
     created_at: str | None
     updated_at: str | None
+    programme_binding: dict[str, Any] | None = None
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
@@ -243,6 +247,7 @@ class ReferralSaasCampaignSummary:
             "maxUses": self.max_uses,
             "usesCount": self.uses_count,
             "policyStatus": self.policy_status,
+            "programmeBinding": self.programme_binding,
             "createdAt": self.created_at,
             "updatedAt": self.updated_at,
         }
@@ -328,6 +333,7 @@ class ReferralSaasCampaignSetupResult:
     max_uses: int | None
     idempotency_status: str
     audit_event_id: str | None
+    programme_binding: dict[str, Any] | None = None
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
@@ -343,6 +349,7 @@ class ReferralSaasCampaignSetupResult:
                 "startsAt": self.starts_at,
                 "endsAt": self.ends_at,
                 "maxUses": self.max_uses,
+                "programmeBinding": self.programme_binding,
             },
             "idempotency": {"status": self.idempotency_status},
             "audit": {"accountAuditEventId": self.audit_event_id},
@@ -723,6 +730,76 @@ def _campaign_review_state(attributes: Any) -> dict[str, Any]:
     return review_state if isinstance(review_state, dict) else {}
 
 
+def _campaign_programme_binding(attributes: Any) -> dict[str, Any] | None:
+    attributes = _campaign_attributes(attributes)
+    binding = attributes.get("referral_saas_programme_binding")
+    return binding if isinstance(binding, dict) else None
+
+
+def _programme_binding_from_row(
+    row: dict[str, Any],
+    *,
+    actor_ref: str | None,
+) -> dict[str, Any]:
+    return {
+        "programmeVersionId": str(row["programme_version_id"]),
+        "programmeCode": str(row["programme_code"]),
+        "programmeName": str(row["programme_name"]),
+        "versionNumber": int(row.get("version_number") or 1),
+        "versionStatus": str(row["version_status"]),
+        "customerJourneyVersionId": str(row["customer_journey_version_id"]),
+        "boundAt": _iso_now(),
+        "boundByRef": _optional_text(actor_ref) or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+        "source": "PUBLISHED_PROGRAMME_VERSION",
+    }
+
+
+async def _fetch_published_programme_version_for_binding(
+    conn: Any,
+    *,
+    account_id: str,
+    programme_version_id: str,
+    error_cls: type[ReferralSaasCampaignCommandError],
+) -> dict[str, Any]:
+    safe_programme_version_id = _required_text(
+        programme_version_id,
+        "programmeVersionId",
+    )
+    row = await conn.fetchrow(
+        """
+        SELECT
+            programme_version_id,
+            account_id,
+            programme_code,
+            programme_name,
+            version_number,
+            version_status,
+            customer_journey_version_id,
+            effective_from,
+            effective_to,
+            retired_at
+        FROM referral_saas_programme_versions
+        WHERE account_id = $1
+          AND programme_version_id = $2
+        LIMIT 1
+        """,
+        account_id,
+        safe_programme_version_id,
+    )
+    if not row:
+        raise error_cls(
+            "Campaign programme binding must use a programme version published for the selected customer."
+        )
+    safe_row = dict(row)
+    if str(safe_row.get("version_status") or "").upper() != "PUBLISHED":
+        raise error_cls(
+            "Campaign programme binding must use a published programme version."
+        )
+    if safe_row.get("retired_at") is not None:
+        raise error_cls("Retired programme versions cannot be bound to campaigns.")
+    return safe_row
+
+
 def _generate_campaign_code(tenant_code: str, segment: str, name: str) -> str:
     tenant = (_optional_text(tenant_code) or "GEN").upper().replace(" ", "-")
     safe_segment = (_optional_text(segment) or "GENERAL").upper().replace(" ", "-")
@@ -754,6 +831,7 @@ def _to_campaign_summary(row: dict[str, Any]) -> ReferralSaasCampaignSummary:
         policy_status=policy_status,
         created_at=_as_iso(row.get("created_at")),
         updated_at=_as_iso(row.get("updated_at")),
+        programme_binding=_campaign_programme_binding(row.get("attributes")),
     )
 
 
@@ -905,6 +983,7 @@ async def create_referral_saas_account_campaign_setup(
     starts_at: datetime | None = None,
     ends_at: datetime | None = None,
     max_uses: int | None = None,
+    programme_version_id: str | None = None,
     reason_code: str,
     correlation_id: str,
     idempotency_key_hash: str,
@@ -1011,6 +1090,19 @@ async def create_referral_saas_account_campaign_setup(
                 "A campaign setup already exists for this selected customer, name, and segment."
             )
 
+        programme_binding = None
+        if _optional_text(programme_version_id):
+            programme_version = await _fetch_published_programme_version_for_binding(
+                conn,
+                account_id=safe_account_id,
+                programme_version_id=str(programme_version_id),
+                error_cls=CampaignSetupValidationError,
+            )
+            programme_binding = _programme_binding_from_row(
+                programme_version,
+                actor_ref=command_actor_ref,
+            )
+
         campaign_code = _generate_campaign_code(safe_tenant_code, safe_segment, safe_name)
         attributes = {
             "source": "TASK-256",
@@ -1023,6 +1115,8 @@ async def create_referral_saas_account_campaign_setup(
             "no_policy_write_confirmed": True,
             "no_money_movement_confirmed": True,
         }
+        if programme_binding:
+            attributes["referral_saas_programme_binding"] = programme_binding
 
         async with conn.transaction():
             campaign = await conn.fetchrow(
@@ -1071,6 +1165,7 @@ async def create_referral_saas_account_campaign_setup(
                     else None
                 ),
                 "command_payload_hash": safe_payload_hash,
+                "programme_binding": programme_binding,
                 "no_tenant_code_exposure_confirmed": True,
                 "no_campaign_activation_confirmed": True,
                 "no_link_generation_confirmed": True,
@@ -1139,6 +1234,186 @@ async def create_referral_saas_account_campaign_setup(
         audit_event_id=(
             str(audit_event["account_audit_event_id"]) if audit_event else None
         ),
+        programme_binding=programme_binding,
+    )
+
+
+async def bind_referral_saas_account_campaign_programme_version(
+    *,
+    account_id: str,
+    tenant_code: str,
+    campaign_code: str,
+    programme_version_id: str,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str | None = None,
+    actor_role: str | None = None,
+    correlation_id: str | None = None,
+) -> ReferralSaasCampaignSetupResult:
+    safe_account_id = _required_text(account_id, "account_id")
+    safe_tenant_code = _required_text(tenant_code, "tenant_code")
+    safe_campaign_code = _required_text(campaign_code, "campaign_code")
+    safe_idempotency_hash = _required_text(
+        idempotency_key_hash,
+        "idempotency_key_hash",
+    )
+    safe_payload_hash = _required_text(request_payload_hash, "request_payload_hash")
+
+    async with db_connection() as conn:
+        existing_audit = await conn.fetchrow(
+            """
+            SELECT account_audit_event_id, evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            CAMPAIGN_PROGRAMME_BINDING_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_audit:
+            evidence = existing_audit.get("evidence_summary") or {}
+            if isinstance(evidence, str):
+                evidence = json.loads(evidence)
+            if _optional_text(evidence.get("request_payload_hash")) != safe_payload_hash:
+                raise CampaignSetupIdempotencyConflict(
+                    "Idempotency key was reused with different campaign programme binding content."
+                )
+            return ReferralSaasCampaignSetupResult(
+                command_status="CAMPAIGN_PROGRAMME_BINDING_REPLAYED",
+                account_id=safe_account_id,
+                campaign_code=safe_campaign_code,
+                name=_optional_text(evidence.get("name")) or "",
+                segment=_optional_text(evidence.get("segment")) or "",
+                setup_status=_optional_text(evidence.get("setup_status")) or "DRAFT",
+                is_active=False,
+                starts_at=_optional_text(evidence.get("starts_at")) or None,
+                ends_at=_optional_text(evidence.get("ends_at")) or None,
+                max_uses=None,
+                idempotency_status=CAMPAIGN_PROGRAMME_BINDING_REPLAYED,
+                audit_event_id=_optional_text(existing_audit.get("account_audit_event_id"))
+                or None,
+                programme_binding=evidence.get("programme_binding"),
+            )
+
+        campaign = await conn.fetchrow(
+            """
+            SELECT campaign_code, name, segment, is_active, starts_at, ends_at, max_uses, attributes
+            FROM marketing_campaigns
+            WHERE UPPER(tenant_code) = UPPER($1)
+              AND UPPER(campaign_code) = UPPER($2)
+            LIMIT 1
+            """,
+            safe_tenant_code,
+            safe_campaign_code,
+        )
+        if not campaign:
+            raise CampaignSetupValidationError(
+                "Campaign was not found for the selected customer."
+            )
+        if bool(campaign.get("is_active")):
+            raise CampaignSetupValidationError(
+                "Programme binding can only be changed while the campaign is inactive."
+            )
+
+        programme_version = await _fetch_published_programme_version_for_binding(
+            conn,
+            account_id=safe_account_id,
+            programme_version_id=programme_version_id,
+            error_cls=CampaignSetupValidationError,
+        )
+        programme_binding = _programme_binding_from_row(
+            programme_version,
+            actor_ref=actor_ref,
+        )
+        attributes = _campaign_attributes(campaign.get("attributes"))
+        attributes["referral_saas_programme_binding"] = programme_binding
+
+        async with conn.transaction():
+            updated = await conn.fetchrow(
+                """
+                UPDATE marketing_campaigns
+                SET attributes = $3::jsonb,
+                    updated_at = NOW()
+                WHERE UPPER(tenant_code) = UPPER($1)
+                  AND UPPER(campaign_code) = UPPER($2)
+                RETURNING campaign_code, name, segment, is_active, starts_at, ends_at, max_uses
+                """,
+                safe_tenant_code,
+                safe_campaign_code,
+                _jsonb(attributes),
+            )
+            audit_evidence = {
+                "campaign_code": safe_campaign_code,
+                "name": str(updated["name"]),
+                "segment": str(updated["segment"]),
+                "setup_status": "DRAFT",
+                "is_active": bool(updated["is_active"]),
+                "starts_at": _as_iso(updated.get("starts_at")),
+                "ends_at": _as_iso(updated.get("ends_at")),
+                "programme_binding": programme_binding,
+                "request_payload_hash": safe_payload_hash,
+                "no_campaign_activation_confirmed": True,
+                "no_runtime_journey_mutation_confirmed": True,
+                "no_money_movement_confirmed": True,
+            }
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6,
+                    NULL, 'PROGRAMME_BOUND', 'CUSTOMER_CAMPAIGN_PROGRAMME_BINDING',
+                    $7, $8, $9::jsonb, $10::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                safe_tenant_code,
+                CAMPAIGN_PROGRAMME_BINDING_EVENT,
+                CAMPAIGN_PROGRAMME_BINDING_RECORDED,
+                _optional_text(actor_ref) or "REFERRAL_SAAS_ACCOUNT_OPERATOR",
+                _optional_text(actor_role) or "UNKNOWN",
+                _optional_text(correlation_id) or _iso_now(),
+                safe_idempotency_hash,
+                _jsonb(audit_evidence),
+                _jsonb(CAMPAIGN_SETUP_REDACTIONS),
+            )
+
+    return ReferralSaasCampaignSetupResult(
+        command_status="CAMPAIGN_PROGRAMME_BINDING_RECORDED",
+        account_id=safe_account_id,
+        campaign_code=str(updated["campaign_code"]),
+        name=str(updated["name"]),
+        segment=str(updated["segment"]),
+        setup_status="DRAFT",
+        is_active=bool(updated["is_active"]),
+        starts_at=_as_iso(updated.get("starts_at")),
+        ends_at=_as_iso(updated.get("ends_at")),
+        max_uses=(
+            int(updated["max_uses"])
+            if updated.get("max_uses") is not None
+            else None
+        ),
+        idempotency_status=CAMPAIGN_PROGRAMME_BINDING_RECORDED,
+        audit_event_id=str(audit_event["account_audit_event_id"]) if audit_event else None,
+        programme_binding=programme_binding,
     )
 
 
@@ -1849,6 +2124,24 @@ async def record_referral_saas_account_campaign_review_decision(
                 raise CampaignReviewInvalidState(
                     "Campaign approval requires separation of duties from the review submitter."
                 )
+        programme_binding = _campaign_programme_binding(attributes)
+        if not programme_binding:
+            raise CampaignActivationNotReady(
+                "Campaign must be bound to a published programme version before activation."
+            )
+        programme_version_id = _optional_text(
+            programme_binding.get("programmeVersionId")
+        )
+        if not programme_version_id:
+            raise CampaignActivationNotReady(
+                "Campaign programme binding is missing the published programme version."
+            )
+        programme_version = await _fetch_published_programme_version_for_binding(
+            conn,
+            account_id=safe_account_id,
+            programme_version_id=programme_version_id,
+            error_cls=CampaignActivationNotReady,
+        )
 
         policy = await conn.fetchrow(
             """
@@ -2270,6 +2563,24 @@ async def request_referral_saas_account_campaign_activation(
             raise CampaignActivationNotReady(
                 "Campaign policy/settings changed after review approval; re-review is required before activation."
             )
+        programme_binding = _campaign_programme_binding(attributes)
+        if not programme_binding:
+            raise CampaignActivationNotReady(
+                "Campaign must be bound to a published programme version before activation."
+            )
+        programme_version_id = _optional_text(
+            programme_binding.get("programmeVersionId")
+        )
+        if not programme_version_id:
+            raise CampaignActivationNotReady(
+                "Campaign programme binding is missing the published programme version."
+            )
+        programme_version = await _fetch_published_programme_version_for_binding(
+            conn,
+            account_id=safe_account_id,
+            programme_version_id=programme_version_id,
+            error_cls=CampaignActivationNotReady,
+        )
 
         previous_lifecycle = "READY_TO_ACTIVATE"
         pre_activation_decision = {
@@ -2287,6 +2598,10 @@ async def request_referral_saas_account_campaign_activation(
             ),
             "customerJourneyCode": str(journey_binding["customer_journey_code"]),
             "journeyVersionNumber": int(journey_binding["version_number"] or 1),
+            "publishedProgrammeVersionBindingConfirmed": True,
+            "programmeVersionId": str(programme_version["programme_version_id"]),
+            "programmeCode": str(programme_version["programme_code"]),
+            "programmeVersionNumber": int(programme_version.get("version_number") or 1),
             "serverSideActivationDecisionConfirmed": True,
         }
         activation_state = {

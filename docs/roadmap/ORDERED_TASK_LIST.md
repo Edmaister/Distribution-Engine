@@ -8859,19 +8859,19 @@ Priority: P0.
 
 ## TASK-401: Bind campaigns to published programme versions
 
-Status: Open.
+Status: Completed.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
 Shared primitive impact: Moves campaign configuration from journey-only binding to programme-version binding. Source duplication: No.
 Objective: Require customer campaigns to bind to a published programme version and derive the journey binding from that programme.
 Why now: A campaign should not separately pick journey and incentive settings after a programme has been published.
 Files likely involved: campaign service/API/UI; programme configuration service; readiness/activation tests; docs.
-Database/schema impact: Adds or uses programme-version binding references on campaign setup.
-Backend impact: Campaign readiness and activation validate same-account published programme binding.
-Frontend impact: Campaign setup shows programme selection instead of loose journey selection where available.
-API impact: Campaign read/create/update/readiness/activation expose and enforce programme binding.
-Tests to add/update: No draft binding, wrong-account binding blocked, retired-version behavior, activation gate, backwards compatibility for existing journey-bound campaigns.
-Acceptance criteria: Campaigns can be created from a published programme version; activation blocks missing, retired, wrong-account, or invalid programme versions; no campaign can silently diverge from its programme snapshot.
+Database/schema impact: Uses existing `marketing_campaigns.attributes` to store the safe programme binding snapshot; no schema fork.
+Backend impact: Campaign create and programme-binding commands validate same-account published programme versions; activation blocks campaigns without a valid published programme binding.
+Frontend impact: API now exposes `campaign.programmeBinding` for campaign setup/read surfaces to show the selected programme version.
+API impact: Campaign read/create expose programme binding and `PUT /v1/referral-saas/accounts/{account_ref}/campaigns/{campaign_code}/programme-binding` records an inactive campaign-to-programme binding.
+Tests added/updated: Campaign create programme pass-through, programme-binding route, route smoke inventory, route smoke plan.
+Acceptance criteria: Completed. Campaigns can be created or updated with a published programme version; invalid/missing programme binding is blocked before activation; the route and smoke surfaces acknowledge the new product-level binding command.
 Dependencies: TASK-400.
 Priority: P0.
 

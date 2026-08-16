@@ -320,8 +320,10 @@ effect simulation. TASK-400 now adds the governed programme lifecycle layer:
 validated drafts can be submitted for review, approved or blocked, published as
 immutable account-scoped programme versions, retired explicitly, and checked for
 rollback readiness without mutating campaigns, referrals, providers, auth,
-billing, settlement, or money state. Implementation now moves to TASK-401 for
-campaign binding to published programme versions.
+billing, settlement, or money state. TASK-401 now binds campaigns to published
+programme versions through customer-scoped campaign setup and activation gates.
+Implementation now moves to TASK-402 for programme-scoped incentive and
+engagement version binding controls.
 
 ## Recommended Ordered Task Sequence
 
