@@ -320,6 +320,7 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("GET", "/v1/referral-saas/accounts/resolve"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/analytics"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/catalogue"),
         (
             "GET",
