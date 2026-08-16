@@ -46,6 +46,84 @@ CAMPAIGN_POLICY_SETTINGS_REDACTIONS = [
     "idempotency_key_hash",
     "payload_hash",
 ]
+CAMPAIGN_OVERRIDE_EVENT = "CAMPAIGN_OVERRIDE_RECORDED"
+CAMPAIGN_OVERRIDE_RECORDED = "RECORDED"
+CAMPAIGN_OVERRIDE_REPLAYED = "REPLAYED"
+CAMPAIGN_OVERRIDE_GUARDRAILS = [
+    "PROGRAMME_ALLOWED_OVERRIDE_ENVELOPE_REQUIRED",
+    "NO_PROGRAMME_DEFAULT_REPLACEMENT",
+    "NO_CAMPAIGN_ACTIVATION",
+    "NO_LINK_GENERATION",
+    "NO_VALIDATION_TRACK_CREATED",
+    "NO_WEBHOOK_DELIVERY",
+    "NO_PROVIDER_DISPATCH",
+    "NO_AUTH_OR_ACCESS_CHANGE",
+    "NO_BILLING_OR_MONEY_MOVEMENT",
+]
+CAMPAIGN_OVERRIDE_REDACTIONS = [
+    "internal_tenant_identifier",
+    "idempotency_key_hash",
+    "payload_hash",
+    "provider_secret",
+    "raw_reward_amount",
+]
+DEFAULT_CAMPAIGN_OVERRIDE_KEYS = {
+    "attributionWindowDays",
+    "campaignCap",
+    "campaignEndsAt",
+    "campaignStartsAt",
+    "campaignTags",
+    "channelMix",
+    "engagementRef",
+    "incentiveRef",
+    "rewardPolicyRef",
+    "rewardTreatmentRef",
+    "sourceChannels",
+}
+UNSAFE_CAMPAIGN_OVERRIDE_KEYS = {
+    "tenant_code",
+    "tenantCode",
+    "internal_tenant_code",
+    "internalTenantCode",
+    "campaign_code",
+    "campaignCode",
+    "programmeCode",
+    "programmeVersionId",
+    "journeyCode",
+    "journeyVersionId",
+    "customerJourneyVersionId",
+    "isActive",
+    "is_active",
+    "activate",
+    "activation",
+    "goLive",
+    "campaignActivation",
+    "generateLinks",
+    "linkGeneration",
+    "validate",
+    "campaignTrackId",
+    "campaign_track_id",
+    "webhook",
+    "credential",
+    "credentials",
+    "providerSecret",
+    "secret",
+    "authClaim",
+    "authClaims",
+    "seat",
+    "invite",
+    "rewardAmount",
+    "rewardAmounts",
+    "reward_amounts_json",
+    "funding",
+    "fulfilment",
+    "settlement",
+    "commission",
+    "wallet",
+    "invoice",
+    "payout",
+    "sponsorBilling",
+}
 CAMPAIGN_REVIEW_SUBMIT_EVENT = "CAMPAIGN_REVIEW_SUBMITTED"
 CAMPAIGN_REVIEW_DECISION_EVENT = "CAMPAIGN_REVIEW_DECISION_RECORDED"
 CAMPAIGN_REVIEW_SUBMITTED = "RECORDED"
@@ -160,6 +238,18 @@ class CampaignPolicySettingsCampaignNotFound(ReferralSaasCampaignCommandError):
 
 
 class CampaignPolicySettingsIdempotencyConflict(ReferralSaasCampaignCommandError):
+    safe_code = "IDEMPOTENCY_CONFLICT"
+
+
+class CampaignOverrideValidationError(ReferralSaasCampaignCommandError):
+    safe_code = "VALIDATION_ERROR"
+
+
+class CampaignOverrideCampaignNotFound(ReferralSaasCampaignCommandError):
+    safe_code = "CAMPAIGN_NOT_FOUND_FOR_SELECTED_CUSTOMER"
+
+
+class CampaignOverrideIdempotencyConflict(ReferralSaasCampaignCommandError):
     safe_code = "IDEMPOTENCY_CONFLICT"
 
 
@@ -401,6 +491,43 @@ class ReferralSaasCampaignPolicySettingsResult:
             ],
             "guardrails": list(CAMPAIGN_POLICY_SETTINGS_GUARDRAILS),
             "redactions": list(CAMPAIGN_POLICY_SETTINGS_REDACTIONS),
+        }
+
+
+@dataclass(frozen=True)
+class ReferralSaasCampaignOverrideResult:
+    command_status: str
+    account_id: str
+    campaign_code: str
+    programme_version_id: str
+    override_status: str
+    override_keys: list[str]
+    allowed_override_keys: list[str]
+    override_reason: str
+    idempotency_status: str
+    audit_event_id: str | None
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "accountRef": self.account_id,
+            "campaignRef": self.campaign_code,
+            "campaignOverride": {
+                "programmeVersionId": self.programme_version_id,
+                "overrideStatus": self.override_status,
+                "overrideKeys": list(self.override_keys),
+                "allowedOverrideKeys": list(self.allowed_override_keys),
+                "overrideReason": self.override_reason,
+            },
+            "idempotency": {"status": self.idempotency_status},
+            "audit": {"accountAuditEventId": self.audit_event_id},
+            "nextActions": [
+                "Review campaign-specific changes before activation",
+                "Keep programme defaults as the source of truth",
+                "Use campaign overrides only for approved campaign variation",
+            ],
+            "guardrails": list(CAMPAIGN_OVERRIDE_GUARDRAILS),
+            "redactions": list(CAMPAIGN_OVERRIDE_REDACTIONS),
         }
 
 
@@ -699,6 +826,88 @@ def _json_list(value: Any, field_name: str) -> list[Any]:
     return value
 
 
+def _campaign_override_json_dict(value: Any, field_name: str) -> dict[str, Any]:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise CampaignOverrideValidationError(f"{field_name} must be an object.")
+    return value
+
+
+def _campaign_override_required_text(value: Any, field_name: str) -> str:
+    safe_value = str(value or "").strip()
+    if not safe_value:
+        raise CampaignOverrideValidationError(f"{field_name} is required.")
+    return safe_value
+
+
+def _reject_unsafe_campaign_override_payload(value: Any) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if str(key) in UNSAFE_CAMPAIGN_OVERRIDE_KEYS:
+                raise CampaignOverrideValidationError(
+                    "Campaign overrides cannot include tenant scope, programme "
+                    "identity, journey identity, activation, link generation, "
+                    "provider, access, auth, billing, payout, settlement, or money fields."
+                )
+            _reject_unsafe_campaign_override_payload(child)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_unsafe_campaign_override_payload(item)
+
+
+def _allowed_campaign_override_keys(programme_version: dict[str, Any]) -> list[str]:
+    defaults = programme_version.get("campaign_defaults_snapshot")
+    if isinstance(defaults, str):
+        try:
+            defaults = json.loads(defaults)
+        except json.JSONDecodeError:
+            defaults = {}
+    if not isinstance(defaults, dict):
+        defaults = {}
+
+    envelope = (
+        defaults.get("allowedCampaignOverrides")
+        or defaults.get("allowedOverrides")
+        or defaults.get("campaignOverrideEnvelope")
+        or {}
+    )
+    if isinstance(envelope, dict):
+        allowed = envelope.get("allowedKeys") or envelope.get("keys") or []
+    else:
+        allowed = envelope
+    if isinstance(allowed, str):
+        allowed = [allowed]
+    if not isinstance(allowed, list) or not allowed:
+        return sorted(DEFAULT_CAMPAIGN_OVERRIDE_KEYS)
+
+    safe_allowed = {
+        str(key).strip()
+        for key in allowed
+        if str(key or "").strip() in DEFAULT_CAMPAIGN_OVERRIDE_KEYS
+    }
+    return sorted(safe_allowed or DEFAULT_CAMPAIGN_OVERRIDE_KEYS)
+
+
+def _validate_campaign_override_payload(
+    *,
+    override_payload: dict[str, Any],
+    allowed_override_keys: list[str],
+) -> list[str]:
+    if not override_payload:
+        raise CampaignOverrideValidationError("campaignOverride.overridePayload is required.")
+    _reject_unsafe_campaign_override_payload(override_payload)
+    safe_allowed = set(allowed_override_keys)
+    override_keys = sorted(str(key).strip() for key in override_payload)
+    unsupported = [key for key in override_keys if key not in safe_allowed]
+    if unsupported:
+        raise CampaignOverrideValidationError(
+            "Campaign override includes fields outside the published programme "
+            f"allowed override envelope: {', '.join(unsupported)}."
+        )
+    return override_keys
+
+
 def _positive_int(value: Any, field_name: str) -> int:
     try:
         safe_value = int(value)
@@ -777,6 +986,7 @@ async def _fetch_published_programme_version_for_binding(
             customer_journey_version_id,
             effective_from,
             effective_to,
+            campaign_defaults_snapshot,
             retired_at
         FROM referral_saas_programme_versions
         WHERE account_id = $1
@@ -1700,6 +1910,286 @@ async def upsert_referral_saas_account_campaign_policy_settings(
     )
 
 
+async def upsert_referral_saas_account_campaign_override(
+    *,
+    account_id: str,
+    tenant_code: str,
+    account_tenant_id: str | None,
+    external_ref_id: str | None,
+    campaign_code: str,
+    programme_version_id: str,
+    override_payload: dict[str, Any] | None,
+    override_reason: str,
+    override_status: str = "APPROVED",
+    reason_code: str = "CUSTOMER_PROFILE_CAMPAIGN_OVERRIDE",
+    correlation_id: str = "",
+    idempotency_key_hash: str = "",
+    command_payload_hash: str = "",
+    command_actor_ref: str | None = None,
+    command_actor_role: str | None = None,
+) -> ReferralSaasCampaignOverrideResult:
+    safe_account_id = _campaign_override_required_text(account_id, "account_id")
+    safe_tenant_code = _campaign_override_required_text(tenant_code, "tenant_code")
+    safe_campaign_code = _campaign_override_required_text(
+        campaign_code,
+        "campaign_code",
+    )
+    safe_programme_version_id = _campaign_override_required_text(
+        programme_version_id,
+        "campaignOverride.programmeVersionId",
+    )
+    safe_override_payload = _campaign_override_json_dict(
+        override_payload,
+        "campaignOverride.overridePayload",
+    )
+    safe_override_reason = _campaign_override_required_text(
+        override_reason,
+        "campaignOverride.overrideReason",
+    )
+    safe_override_status = _campaign_override_required_text(
+        override_status,
+        "campaignOverride.overrideStatus",
+    ).upper()
+    safe_reason_code = _campaign_override_required_text(
+        reason_code,
+        "reason_code",
+    ).upper()
+    safe_correlation_id = _campaign_override_required_text(
+        correlation_id,
+        "correlation_id",
+    )
+    safe_idempotency_hash = _campaign_override_required_text(
+        idempotency_key_hash,
+        "idempotency_key_hash",
+    )
+    safe_payload_hash = _campaign_override_required_text(
+        command_payload_hash,
+        "command_payload_hash",
+    )
+    if safe_override_status != "APPROVED":
+        raise CampaignOverrideValidationError(
+            "campaignOverride.overrideStatus must be APPROVED."
+        )
+
+    async with db_connection() as conn:
+        existing_audit = await conn.fetchrow(
+            """
+            SELECT
+                account_audit_event_id,
+                event_status,
+                evidence_summary
+            FROM platform_account_audit_events
+            WHERE account_id = $1
+              AND event_type = $2
+              AND idempotency_key_hash = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            CAMPAIGN_OVERRIDE_EVENT,
+            safe_idempotency_hash,
+        )
+        if existing_audit:
+            evidence = existing_audit.get("evidence_summary") or {}
+            if isinstance(evidence, str):
+                evidence = json.loads(evidence)
+            if _optional_text(evidence.get("command_payload_hash")) != safe_payload_hash:
+                raise CampaignOverrideIdempotencyConflict(
+                    "Idempotency key was reused with different campaign override content."
+                )
+            return ReferralSaasCampaignOverrideResult(
+                command_status="CAMPAIGN_OVERRIDE_REPLAYED",
+                account_id=safe_account_id,
+                campaign_code=_optional_text(evidence.get("campaign_code"))
+                or safe_campaign_code,
+                programme_version_id=_optional_text(
+                    evidence.get("programme_version_id")
+                )
+                or safe_programme_version_id,
+                override_status=_optional_text(evidence.get("override_status"))
+                or safe_override_status,
+                override_keys=list(evidence.get("override_keys") or []),
+                allowed_override_keys=list(
+                    evidence.get("allowed_override_keys") or []
+                ),
+                override_reason=_optional_text(evidence.get("override_reason"))
+                or safe_override_reason,
+                idempotency_status=CAMPAIGN_OVERRIDE_REPLAYED,
+                audit_event_id=_optional_text(
+                    existing_audit.get("account_audit_event_id")
+                )
+                or None,
+            )
+
+        campaign = await conn.fetchrow(
+            """
+            SELECT campaign_code, is_active, attributes
+            FROM marketing_campaigns
+            WHERE UPPER(tenant_code) = UPPER($1)
+              AND UPPER(campaign_code) = UPPER($2)
+            LIMIT 1
+            """,
+            safe_tenant_code,
+            safe_campaign_code,
+        )
+        if not campaign:
+            raise CampaignOverrideCampaignNotFound(
+                "Campaign was not found for the selected customer."
+            )
+        if bool(campaign.get("is_active")):
+            raise CampaignOverrideValidationError(
+                "Campaign overrides can only be changed while the campaign is inactive."
+            )
+
+        attributes = campaign.get("attributes") or {}
+        if isinstance(attributes, str):
+            attributes = json.loads(attributes)
+        if not isinstance(attributes, dict):
+            attributes = {}
+        programme_binding = _campaign_programme_binding(attributes)
+        if not programme_binding:
+            raise CampaignOverrideValidationError(
+                "Campaign must be bound to a published programme before overrides can be saved."
+            )
+        bound_programme_version_id = _optional_text(
+            programme_binding.get("programmeVersionId")
+        )
+        if bound_programme_version_id != safe_programme_version_id:
+            raise CampaignOverrideValidationError(
+                "Campaign override programmeVersionId must match the bound programme version."
+            )
+
+        programme_version = await _fetch_published_programme_version_for_binding(
+            conn,
+            account_id=safe_account_id,
+            programme_version_id=safe_programme_version_id,
+            error_cls=CampaignOverrideValidationError,
+        )
+        allowed_override_keys = _allowed_campaign_override_keys(programme_version)
+        override_keys = _validate_campaign_override_payload(
+            override_payload=safe_override_payload,
+            allowed_override_keys=allowed_override_keys,
+        )
+        approved_at = _iso_now()
+        approved_by_ref = (
+            _optional_text(command_actor_ref) or "REFERRAL_SAAS_ACCOUNT_OPERATOR"
+        )
+        override_state = {
+            "programmeVersionId": safe_programme_version_id,
+            "programmeCode": str(programme_version["programme_code"]),
+            "programmeVersionNumber": int(
+                programme_version.get("version_number") or 1
+            ),
+            "overrideStatus": safe_override_status,
+            "overrideKeys": override_keys,
+            "allowedOverrideKeys": allowed_override_keys,
+            "overridePayload": safe_override_payload,
+            "overrideReason": safe_override_reason,
+            "approvedAt": approved_at,
+            "approvedByRef": approved_by_ref,
+            "source": "TASK-411",
+            "commandPayloadHash": safe_payload_hash,
+            "guardrails": list(CAMPAIGN_OVERRIDE_GUARDRAILS),
+            "noCampaignActivationConfirmed": True,
+            "noProviderDispatchConfirmed": True,
+            "noInviteOrSeatChangeConfirmed": True,
+            "noCredentialCreationConfirmed": True,
+            "noBillingOrMoneyMovementConfirmed": True,
+        }
+        attributes["referral_saas_campaign_override"] = override_state
+
+        async with conn.transaction():
+            updated_campaign = await conn.fetchrow(
+                """
+                UPDATE marketing_campaigns
+                SET attributes = $3::jsonb,
+                    updated_at = NOW()
+                WHERE UPPER(tenant_code) = UPPER($1)
+                  AND UPPER(campaign_code) = UPPER($2)
+                RETURNING campaign_code, attributes
+                """,
+                safe_tenant_code,
+                safe_campaign_code,
+                _jsonb(attributes),
+            )
+            audit_evidence = {
+                "campaign_code": str(updated_campaign["campaign_code"]),
+                "programme_version_id": safe_programme_version_id,
+                "programme_code": str(programme_version["programme_code"]),
+                "override_status": safe_override_status,
+                "override_keys": override_keys,
+                "allowed_override_keys": allowed_override_keys,
+                "override_reason": safe_override_reason,
+                "approved_by_ref_present": bool(approved_by_ref),
+                "approved_at": approved_at,
+                "command_payload_hash": safe_payload_hash,
+                "no_tenant_code_exposure_confirmed": True,
+                "no_campaign_activation_confirmed": True,
+                "no_link_generation_confirmed": True,
+                "no_validation_track_created_confirmed": True,
+                "no_webhook_delivery_confirmed": True,
+                "no_provider_dispatch_confirmed": True,
+                "no_invite_or_seat_change_confirmed": True,
+                "no_credential_creation_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            }
+            audit_event = await conn.fetchrow(
+                """
+                INSERT INTO platform_account_audit_events (
+                    account_id,
+                    account_tenant_id,
+                    external_ref_id,
+                    tenant_code,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8,
+                    NULL, 'APPROVED_CAMPAIGN_OVERRIDE', $9, $10, $11,
+                    $12::jsonb, $13::jsonb
+                )
+                RETURNING account_audit_event_id
+                """,
+                safe_account_id,
+                _optional_text(account_tenant_id) or None,
+                _optional_text(external_ref_id) or None,
+                safe_tenant_code,
+                CAMPAIGN_OVERRIDE_EVENT,
+                CAMPAIGN_OVERRIDE_RECORDED,
+                approved_by_ref,
+                _optional_text(command_actor_role) or "UNKNOWN",
+                safe_reason_code,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(audit_evidence),
+                _jsonb(CAMPAIGN_OVERRIDE_REDACTIONS),
+            )
+
+    return ReferralSaasCampaignOverrideResult(
+        command_status="CAMPAIGN_OVERRIDE_RECORDED",
+        account_id=safe_account_id,
+        campaign_code=str(updated_campaign["campaign_code"]),
+        programme_version_id=safe_programme_version_id,
+        override_status=safe_override_status,
+        override_keys=override_keys,
+        allowed_override_keys=allowed_override_keys,
+        override_reason=safe_override_reason,
+        idempotency_status=CAMPAIGN_OVERRIDE_RECORDED,
+        audit_event_id=(
+            str(audit_event["account_audit_event_id"]) if audit_event else None
+        ),
+    )
+
+
 async def submit_referral_saas_account_campaign_review(
     *,
     account_id: str,
@@ -2550,6 +3040,28 @@ async def request_referral_saas_account_campaign_activation(
             programme_version_id=programme_version_id,
             error_cls=CampaignActivationNotReady,
         )
+        campaign_override = attributes.get("referral_saas_campaign_override") or {}
+        if isinstance(campaign_override, str):
+            campaign_override = json.loads(campaign_override)
+        if campaign_override:
+            if not isinstance(campaign_override, dict):
+                raise CampaignActivationNotReady(
+                    "Campaign override evidence is invalid; re-record the override before activation."
+                )
+            override_programme_version_id = _optional_text(
+                campaign_override.get("programmeVersionId")
+            )
+            override_status = _optional_text(
+                campaign_override.get("overrideStatus")
+            ).upper()
+            if override_programme_version_id != programme_version_id:
+                raise CampaignActivationNotReady(
+                    "Campaign override must match the bound published programme version before activation."
+                )
+            if override_status != "APPROVED":
+                raise CampaignActivationNotReady(
+                    "Campaign-specific overrides must be approved before activation."
+                )
 
         previous_lifecycle = "READY_TO_ACTIVATE"
         pre_activation_decision = {

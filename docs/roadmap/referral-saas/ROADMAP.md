@@ -363,8 +363,12 @@ overloading Amplifi service package fields. TASK-410 is complete and makes
 programme binding the authoritative campaign activation path: activation now
 requires a published programme version, derives journey context from that
 programme version, and keeps legacy campaign journey-binding as compatibility
-only. TASK-411 is the next implementation task and adds governed
-campaign-specific override controls.
+only. TASK-411 is complete and adds governed campaign-specific override
+controls so reward, attribution, channel, date, cap, and audience differences
+are explicit, approved, audited, idempotent, bounded by the published
+programme version's allowed override envelope, and blocked from activation if
+stale or unapproved. TASK-412 through TASK-414 remain: immutable runtime
+effective-rule snapshots, reporting dimensions, and plain-language UX proof.
 
 ## Recommended Ordered Task Sequence
 
