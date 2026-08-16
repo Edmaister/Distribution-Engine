@@ -49,6 +49,11 @@ async def test_programme_analytics_returns_safe_version_comparison(monkeypatch):
                 "high_value_event_count": 5,
                 "incentive_binding_count": 3,
                 "engagement_binding_count": 2,
+                "product_line_count": 1,
+                "product_offering_count": 1,
+                "runtime_campaign_count": 2,
+                "approved_override_referral_count": 3,
+                "effective_rule_snapshot_count": 10,
             },
             {
                 "programme_version_id": "programme-version-1",
@@ -68,6 +73,11 @@ async def test_programme_analytics_returns_safe_version_comparison(monkeypatch):
                 "high_value_event_count": 2,
                 "incentive_binding_count": 1,
                 "engagement_binding_count": 1,
+                "product_line_count": 1,
+                "product_offering_count": 1,
+                "runtime_campaign_count": 1,
+                "approved_override_referral_count": 0,
+                "effective_rule_snapshot_count": 8,
             },
         ]
     )
@@ -89,10 +99,30 @@ async def test_programme_analytics_returns_safe_version_comparison(monkeypatch):
     assert latest["highValueEventRate"] == 0.2273
     assert latest["incentiveBindingCount"] == 3
     assert latest["engagementBindingCount"] == 2
+    assert latest["reportingDimensions"] == {
+        "productLineCount": 1,
+        "productOfferingCount": 1,
+        "runtimeCampaignCount": 2,
+        "approvedOverrideReferralCount": 3,
+        "effectiveRuleSnapshotCount": 10,
+        "approvedOverrideRate": 0.3,
+        "snapshotCoverageRate": 1.0,
+        "dimensionsSource": "REFERRAL_RUNTIME_EFFECTIVE_RULE_SNAPSHOT",
+    }
     assert latest["performanceSignal"] == "OPTIMISE_COMPLETION"
     assert safe["summary"]["programmeVersionsCompared"] == 2
     assert safe["summary"]["analyticsSignal"] == "OPTIMISE_COMPLETION"
     assert safe["summary"]["latestProgrammeVersionId"] == "programme-version-2"
+    assert safe["summary"]["reportingDimensions"] == {
+        "productLineCount": 2,
+        "productOfferingCount": 2,
+        "runtimeCampaignCount": 3,
+        "approvedOverrideReferralCount": 3,
+        "effectiveRuleSnapshotCount": 18,
+        "approvedOverrideRate": 0.1667,
+        "snapshotCoverageRate": 1.0,
+        "dimensionsSource": "REFERRAL_RUNTIME_EFFECTIVE_RULE_SNAPSHOT",
+    }
     assert safe["summary"]["previousProgrammeVersionId"] == "programme-version-1"
     assert safe["summary"]["latestVsPrevious"]["comparisonSignal"] == "IMPROVED"
     assert safe["summary"]["latestVsPrevious"]["completionRateChange"] == 0.15
@@ -104,6 +134,10 @@ async def test_programme_analytics_returns_safe_version_comparison(monkeypatch):
     assert "reward_amount" in safe["redactions"]
     assert safe["noIncentiveRewardPayoutDetailConfirmed"] is True
     assert safe["noAuthBillingSettlementOrMoneyActionConfirmed"] is True
+    assert (
+        "PRODUCT_PROGRAMME_CAMPAIGN_OVERRIDE_DIMENSIONS_ONLY"
+        in safe["guardrails"]
+    )
 
     query = conn.calls[0][1]
     assert "referral_saas_programme_versions" in query
@@ -111,6 +145,9 @@ async def test_programme_analytics_returns_safe_version_comparison(monkeypatch):
     assert "referral_instances" in query
     assert "referral_progress_events" in query
     assert "campaign_attributions" in query
+    assert "effectiveRuleSnapshot" in query
+    assert "customerProductBinding" in query
+    assert "campaignOverrideRules" in query
     assert conn.calls[0][2][0] == "acct-1"
     assert conn.calls[0][2][1] == "FNB"
 
@@ -137,6 +174,11 @@ async def test_programme_analytics_handles_versions_without_traffic(monkeypatch)
                 "high_value_event_count": 0,
                 "incentive_binding_count": 0,
                 "engagement_binding_count": 0,
+                "product_line_count": 0,
+                "product_offering_count": 0,
+                "runtime_campaign_count": 0,
+                "approved_override_referral_count": 0,
+                "effective_rule_snapshot_count": 0,
             }
         ]
     )
@@ -150,6 +192,50 @@ async def test_programme_analytics_handles_versions_without_traffic(monkeypatch)
 
     safe = result.to_safe_dict()
     assert safe["versions"][0]["performanceSignal"] == "NO_TRAFFIC"
+    assert safe["versions"][0]["reportingDimensions"]["snapshotCoverageRate"] == 0.0
     assert safe["summary"]["analyticsSignal"] == "NO_TRAFFIC"
     assert safe["summary"]["latestVsPrevious"]["comparisonSignal"] == "BASELINE_ONLY"
     assert conn.calls[0][2][3] == svc.MAX_PROGRAMME_ANALYTICS_LIMIT
+
+
+@pytest.mark.asyncio
+async def test_programme_analytics_flags_runtime_snapshot_coverage_gap(monkeypatch):
+    conn = FakeConn(
+        rows=[
+            {
+                "programme_version_id": "programme-version-1",
+                "programme_code": "HOME_LOANS",
+                "programme_name": "Home Loans Referral Programme",
+                "version_number": 1,
+                "version_status": "PUBLISHED",
+                "customer_journey_version_id": "journey-version-1",
+                "sub_product_code": "RMCA_BUNDLE",
+                "published_at": None,
+                "campaign_count": 1,
+                "active_campaign_count": 1,
+                "referral_count": 4,
+                "attributed_referral_count": 4,
+                "completed_referral_count": 4,
+                "progress_event_count": 4,
+                "high_value_event_count": 4,
+                "incentive_binding_count": 1,
+                "engagement_binding_count": 1,
+                "product_line_count": 1,
+                "product_offering_count": 1,
+                "runtime_campaign_count": 1,
+                "approved_override_referral_count": 1,
+                "effective_rule_snapshot_count": 3,
+            }
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.build_referral_saas_programme_analytics_read_model(
+        account_id="acct-1",
+        tenant_code="FNB",
+    )
+
+    safe = result.to_safe_dict()
+    assert safe["versions"][0]["performanceSignal"] == "SNAPSHOT_COVERAGE_GAP"
+    assert safe["versions"][0]["reportingDimensions"]["snapshotCoverageRate"] == 0.75
+    assert safe["summary"]["analyticsSignal"] == "SNAPSHOT_COVERAGE_GAP"

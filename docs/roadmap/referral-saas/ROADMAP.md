@@ -371,7 +371,10 @@ stale or unapproved. TASK-412 is complete and freezes safe effective-rule
 runtime snapshots on new referral creation, including customer product/offering,
 programme version, campaign, approved override posture, and checksum evidence
 without exposing raw configuration or triggering adjacent side effects. TASK-413
-through TASK-414 remain: reporting dimensions and plain-language UX proof.
+is complete and adds safe aggregate reporting dimensions from immutable runtime
+effective-rule snapshots so product/offering, programme, campaign, and override
+impact can be separated without raw payload or money leakage. TASK-414 remains:
+plain-language UX proof.
 
 ## Recommended Ordered Task Sequence
 
