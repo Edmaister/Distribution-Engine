@@ -353,11 +353,12 @@ campaign, and override context can be understood without raw technical detail.
 This remains Referral SaaS work with Shared Platform trajectory; it must not
 pull in DLaaS marketplace, funding, fulfilment, settlement, sponsor billing,
 auth-claim mutation, provider dispatch, credential creation, or money movement.
-TASK-406 is complete. TASK-407 now adds the durable customer product/offering
+TASK-406 is complete. TASK-407 adds the durable customer product/offering
 catalogue schema foundation with account-scoped product-line and offering
 tables, jurisdiction, lifecycle status, idempotency, audit, redaction, and
-unsafe-column guardrails. TASK-408 is the next implementation task and adds the
-selected-customer API wrappers over that catalogue.
+unsafe-column guardrails. TASK-408 is complete and exposes selected-customer
+API wrappers over that catalogue. TASK-409 is the next implementation task and
+binds programme drafts/versions to approved customer product/offering records.
 
 ## Recommended Ordered Task Sequence
 
