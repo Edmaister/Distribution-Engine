@@ -8953,6 +8953,231 @@ Dependencies: TASK-404.
 Blocked by: None. TASK-027 and TASK-348 remain for non-local verification evidence.
 Priority: P0.
 
+## TASK-406: Lock programme, campaign, product, and offering domain boundaries
+
+Status: Ready.
+Product boundary: Referral SaaS with Shared Platform trajectory.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`.
+Shared primitive impact: Establishes naming and ownership controls across product catalogue, programme configuration, campaign management, runtime resolution, reporting, and UX. Source duplication: No.
+Linked enhancement: Referral SaaS governed configuration platform.
+Linked platform/product capability: Customer product taxonomy; programme/campaign domain separation; configuration guardrails.
+Objective: Convert the architectural assessment into a reviewed implementation contract that clearly separates customer product/offering, Amplifi service packaging, referral programme, campaign, campaign overrides, and runtime effective rules.
+Why now: TASK-396 through TASK-405 prove programme configuration, but the next work must avoid overloading `product_code`/`sub_product_code` and must keep referral and campaign management as two separate domain services.
+Files likely involved: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; infographic.
+Database/schema impact: None.
+Backend impact: Contract only; no service behavior changes.
+Frontend impact: Contract only; defines future plain-language IA.
+API impact: Contract only.
+Tests to add/update: Documentation readback and route/service inventory notes only.
+Validation method: `git diff --check` and documentation readback.
+Acceptance criteria: The domain contract defines which service owns product/offering, programme, campaign, override, runtime snapshot, and reporting responsibilities; it lists forbidden overloads and no-side-effect controls; downstream tasks can cite it without re-debating terms.
+Dependencies: TASK-405.
+Blocked by: None.
+Risk level: Low.
+Rollback notes: Revert documentation updates only.
+Explicit non-goals: Do not add schema, routes, services, UI, provider dispatch, invite delivery, credential creation, auth-claim mutation, campaign activation, billing, payout, settlement, funding, wallet, treasury, invoice, commission, sponsor billing, DLaaS marketplace behavior, or money movement.
+Definition of done: The build framework has a single domain-boundary source of truth for customer product/offering, programme, campaign, override, runtime, and reporting work. Priority: P0.
+
+## TASK-407: Add customer product and offering catalogue schema foundation
+
+Status: Ready.
+Product boundary: Referral SaaS with Shared Platform trajectory.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds a customer product/offering taxonomy foundation that can later generalize to DLaaS without forking source. Source duplication: No.
+Linked enhancement: Referral SaaS governed configuration platform.
+Linked platform/product capability: Customer product catalogue; selected-customer configuration; account-scoped taxonomy.
+Objective: Add durable account-scoped product line and product offering storage so customer offerings such as Transactional Banking, Easy Account, Insurance, Funeral Plan, Telco, Fibre, Automotive, or Vehicle Finance are not stored in Amplifi service package fields.
+Why now: Programmes need to bind to the customer's real product/offering before campaign and analytics work can be commercially clear.
+Files likely involved: additive migration; migration contract tests; roadmap/gap/infographic docs.
+Database/schema impact: Add account-scoped customer product line/offering tables with external references, display labels, operating jurisdiction, lifecycle status, audit/idempotency fields, uniqueness constraints, and redactions. Do not remove or reinterpret existing programme `product_code`/`sub_product_code` fields in this task.
+Backend impact: Migration validation only.
+Frontend impact: None.
+API impact: None.
+Tests to add/update: Migration ordering, table/column/index/constraint tests, unsafe-column absence tests, and source-duplication checks where practical.
+Validation method: Migration contract tests, Python compile for tests/scripts where touched, and `git diff --check`.
+Acceptance criteria: Customer product lines and offerings can be stored per selected account and jurisdiction without exposing internal tenant identifiers or mixing with Amplifi service package codes.
+Dependencies: TASK-406.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert additive migration, tests, and docs.
+Explicit non-goals: Do not migrate existing programme rows, change campaign behavior, add UI, create referrals, apply rewards, launch campaigns, configure providers, mutate auth, bill, settle, or move money.
+Definition of done: The database has a clear source of truth for customer product/offering taxonomy separate from Amplifi SaaS package fields. Priority: P0.
+
+## TASK-408: Add selected-customer product and offering catalogue APIs
+
+Status: Ready.
+Product boundary: Referral SaaS with Shared Platform trajectory.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds selected-customer catalogue service/API wrappers over the product/offering schema. Source duplication: No.
+Linked enhancement: Referral SaaS governed configuration platform.
+Linked platform/product capability: Customer product catalogue APIs; tenant-safe selected-customer configuration.
+Objective: Add selected-customer APIs to list, create/update, retire, and read customer product lines and product offerings with account scope, idempotency, audit, and redaction.
+Why now: Programme UX and APIs need approved product/offering choices rather than free-text or overloaded package codes.
+Files likely involved: product catalogue service; selected-customer router; API schemas/client; API/service tests; route smoke inventory; docs.
+Database/schema impact: Reads/writes TASK-407 tables.
+Backend impact: Adds account-scope checks, operating-jurisdiction checks, idempotency replay/conflict handling, audit, lifecycle rules, duplicate prevention, and unsafe payload rejection.
+Frontend impact: API-ready only unless paired with TASK-414.
+API impact: Add selected-customer product line/offering list/read/write routes.
+Tests to add/update: API/service tests for create/update/list/retire, duplicate refs, wrong-account rejection, unsafe payload rejection, route smoke inventory, and redaction.
+Validation method: Focused pytest, route inventory test, Python compile, and `git diff --check`.
+Acceptance criteria: A selected customer can maintain safe product/offering catalogue entries without tenant-code entry, source duplication, provider side effects, auth mutation, billing, settlement, payout, or money movement.
+Dependencies: TASK-407.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Remove service/router/schema/client/tests/docs added in this task.
+Explicit non-goals: Do not bind programmes, create campaigns, activate campaigns, create referrals, apply incentives, dispatch providers, create credentials, mutate auth claims, bill, settle, or move money.
+Definition of done: Product/offering catalogue choices are available through selected-customer APIs and safe read models. Priority: P0.
+
+## TASK-409: Bind programme drafts and versions to customer product offerings
+
+Status: Ready.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Connects programme configuration to customer product/offering taxonomy while preserving existing Amplifi service package fields. Source duplication: No.
+Linked enhancement: Referral SaaS governed configuration platform.
+Linked platform/product capability: Programme-to-product binding; customer product/offering context.
+Objective: Add product/offering binding to programme drafts and published versions so each programme clearly states which customer product/offering it governs.
+Why now: Programme analytics, campaign defaults, and runtime referrals must answer which customer offering was promoted without using Amplifi package fields as a proxy.
+Files likely involved: additive migration, programme configuration service/API, programme validation, programme analytics service, tests, docs.
+Database/schema impact: Add nullable then validated references from programme drafts/versions to customer product/offering catalogue records; preserve existing `product_code`/`sub_product_code` semantics unless a later migration explicitly changes them.
+Backend impact: Validate same-account, same-jurisdiction, active product/offering status during draft save, validation, review, and publish.
+Frontend impact: API payload/read models expose safe product/offering labels for TASK-414.
+API impact: Programme draft and version routes include safe product/offering metadata and reject invalid cross-account/cross-jurisdiction bindings.
+Tests to add/update: Programme save/validate/publish product/offering tests, wrong-account rejection, retired-offering rejection, route inventory if shape changes, analytics safe-label tests.
+Validation method: Focused pytest, Python compile, and `git diff --check`.
+Acceptance criteria: Programme drafts and published versions can bind to a customer product/offering; unsafe or mismatched bindings block validation/publish; existing package fields remain distinct and documented.
+Dependencies: TASK-408.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert additive schema/API/service/test/doc updates.
+Explicit non-goals: Do not change campaign activation behavior except for safe read metadata, migrate legacy rows destructively, create referrals, apply rewards, dispatch providers, mutate auth, bill, settle, or move money.
+Definition of done: Referral programmes are commercially attached to customer product/offering records without overloading Amplifi service packaging. Priority: P0.
+
+## TASK-410: Make programme binding the authoritative campaign activation path
+
+Status: Ready.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Clarifies campaign service activation semantics while preserving compatibility where needed. Source duplication: No.
+Linked enhancement: Referral SaaS governed configuration platform.
+Linked platform/product capability: Campaign management; programme binding enforcement; journey-binding compatibility.
+Objective: Deprecate, wrap, or clearly mark legacy campaign journey-binding behavior so published programme binding is the authoritative activation prerequisite.
+Why now: Campaigns should not independently choose journey rules once programme versions exist.
+Files likely involved: campaign service, selected-customer campaign routes, route inventory, campaign readiness/activation tests, frontend copy where surfaced, docs.
+Database/schema impact: None expected; existing campaign attributes may continue carrying compatibility snapshots.
+Backend impact: Activation and readiness must prefer programme binding and derive journey context from programme version; legacy journey-binding routes must not create a competing activation path.
+Frontend impact: Plain-language campaign screens should say "Programme" rather than "Journey binding" for ordinary users; diagnostics may retain compatibility detail.
+API impact: Keep compatibility routes only if tests prove they are bounded and non-authoritative; update route docs/inventory as needed.
+Tests to add/update: Activation precedence tests, legacy journey-binding compatibility tests, route inventory tests, no competing binding path tests.
+Validation method: Focused campaign service/API pytest, route smoke inventory, Python compile, and `git diff --check`.
+Acceptance criteria: Campaign activation cannot bypass a valid published programme binding; legacy journey-binding cannot silently override programme configuration.
+Dependencies: TASK-409.
+Blocked by: None.
+Risk level: High.
+Rollback notes: Revert service/API/frontend/docs changes and restore previous activation behavior.
+Explicit non-goals: Do not remove compatibility routes unless tests and docs explicitly allow it; do not change referral runtime behavior, provider dispatch, auth, billing, payout, settlement, or money movement.
+Definition of done: Campaigns have one authoritative product path: bind to a published programme version, then activate through existing governed campaign controls. Priority: P0.
+
+## TASK-411: Add governed campaign-specific override controls
+
+Status: Ready.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds bounded override semantics between programme defaults and campaign execution. Source duplication: No.
+Linked enhancement: Referral SaaS governed configuration platform.
+Linked platform/product capability: Campaign overrides; reward/attribution governance; campaign setup.
+Objective: Add explicit campaign override controls for approved reward policy variation, attribution window, source/channel constraints, audience, caps, and dates where the published programme allows overrides.
+Why now: Campaigns can legitimately differ from programme defaults, but those differences must be visible, governed, and auditable.
+Files likely involved: campaign override contract/schema/service/API/tests; campaign readiness/activation; programme validation; docs.
+Database/schema impact: Add or formalize safe campaign override storage in campaign attributes or additive tables with checksum, approval, idempotency, audit, and redaction metadata.
+Backend impact: Validate overrides against programme allowed-override envelope; reject unsupported reward, attribution, channel, cap, date, provider, auth, billing, settlement, payout, and money fields.
+Frontend impact: API-ready for TASK-414; ordinary UI should show "Campaign-specific changes" rather than raw override payloads.
+API impact: Add or extend selected-customer campaign policy/override routes with explicit approved override posture.
+Tests to add/update: Allowed/disallowed overrides, reward-policy override approval, attribution-window override, cross-account rejection, idempotency conflict, no payout/money side effects, activation blocker tests.
+Validation method: Focused campaign override/service/API pytest, Python compile, route inventory if new routes, and `git diff --check`.
+Acceptance criteria: Campaign-specific differences are explicit approved overrides and cannot silently replace programme defaults or trigger adjacent side effects.
+Dependencies: TASK-410.
+Blocked by: None.
+Risk level: High.
+Rollback notes: Revert override schema/service/API/tests/docs and restore previous campaign policy behavior.
+Explicit non-goals: Do not apply rewards, score missions/badges/leaderboards, create payouts, dispatch providers, mutate auth, activate campaigns outside existing gate, bill, settle, or move money.
+Definition of done: Campaign Management can vary from a Referral Programme only through explicit, bounded, reviewed, and audited campaign overrides. Priority: P0.
+
+## TASK-412: Add effective-rule runtime resolver snapshots
+
+Status: Ready.
+Product boundary: Referral SaaS with Shared Platform trajectory.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds runtime effective-rule snapshots that future DLaaS can reuse for historical replay. Source duplication: No.
+Linked enhancement: Referral SaaS governed configuration platform.
+Linked platform/product capability: Runtime rule resolution; historical replay; referral auditability.
+Objective: Resolve programme defaults plus campaign overrides into a safe immutable effective-rule snapshot when new referrals are created.
+Why now: Reporting and support must be able to explain what rules were active at referral creation time even after programme or campaign configuration changes.
+Files likely involved: referral validation/instance service; campaign service; programme configuration service; runtime adapter; migration/tests; docs.
+Database/schema impact: Add or populate runtime snapshot metadata for new referral instances, including customer/product/offering/programme/campaign/override references, effective checksum, and redacted summary.
+Backend impact: Add resolver service or adapter that fails closed when programme/campaign binding is inconsistent and preserves legacy fallback for old referrals.
+Frontend impact: Safe metadata may appear in diagnostics only.
+API impact: Referral registry/detail, attribution, reporting, and support read models may expose safe effective-rule labels.
+Tests to add/update: Resolver unit tests, new-referral snapshot tests, legacy fallback tests, changed-programme historical-stability tests, no raw config leakage tests.
+Validation method: Focused pytest, Python compile, and `git diff --check`.
+Acceptance criteria: New referrals carry immutable effective-rule evidence tying customer, product/offering, programme version, campaign, and approved overrides together for replay and reporting.
+Dependencies: TASK-411.
+Blocked by: None.
+Risk level: High.
+Rollback notes: Revert resolver/schema/read-model/test/doc updates.
+Explicit non-goals: Do not rewrite historical referrals destructively, apply rewards, dispatch providers, mutate auth, bill, settle, payout, or move money.
+Definition of done: Runtime referral creation freezes the governed rule context it used without exposing raw configuration or unsafe adjacent behavior. Priority: P0.
+
+## TASK-413: Add product, programme, campaign, and override reporting dimensions
+
+Status: Ready.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds aggregate read-model dimensions over existing referral/campaign/programme evidence. Source duplication: No.
+Linked enhancement: Referral SaaS governed configuration platform.
+Linked platform/product capability: Programme analytics; campaign attribution; product/offering performance.
+Objective: Extend analytics/reporting so users can distinguish product/offering, programme version, campaign, campaign override, referral progress, and attribution outcomes.
+Why now: Once product/offering binding and campaign overrides exist, reports must explain performance by the right business dimension.
+Files likely involved: reporting services, programme analytics service, attribution reporting service, API routes, frontend API client/tests, docs.
+Database/schema impact: None expected; aggregate over TASK-407 through TASK-412 structures.
+Backend impact: Add aggregate-only dimensions, safe filters, redactions, empty-state behavior, freshness, and no raw event/reward/billing/money leakage.
+Frontend impact: API-ready for TASK-414; may add safe labels if small.
+API impact: Extend selected-customer reports/programme analytics read models with safe product/offering/programme/campaign/override dimensions.
+Tests to add/update: Aggregate-only tests, dimension correctness, redaction/no-leak tests, empty-state tests, route/API tests.
+Validation method: Focused reporting/analytics pytest, Python compile, and `git diff --check`.
+Acceptance criteria: Reports answer which customer product/offering, programme version, campaign, and override drove outcomes without exposing raw payloads, internal tenant identifiers, payout, billing, settlement, or money data.
+Dependencies: TASK-412.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert reporting/API/test/doc updates.
+Explicit non-goals: Do not create exports, dispatch scheduled reports, apply rewards, activate campaigns, mutate referrals, bill, settle, payout, or move money.
+Definition of done: Customer-safe reporting separates product/offering performance, programme performance, campaign performance, and override impact. Priority: P1.
+
+## TASK-414: Add simple UX proof for product, programme, campaign, and override separation
+
+Status: Ready.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_UX_CX_MATURITY_SCORECARD.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Uses selected-customer API/client primitives and shared UI patterns without source duplication. Source duplication: No.
+Linked enhancement: Referral SaaS governed configuration platform.
+Linked platform/product capability: Customer product catalogue UX; programme configuration UX; campaign override UX; plain-language SaaS workflow.
+Objective: Add a simple customer-scoped UX path that makes the richer architecture understandable: Product catalogue, Programme, Campaign, Campaign-specific changes, and Reporting.
+Why now: The architecture only becomes commercially useful if customer/admin users can configure it without understanding raw technical terms.
+Files likely involved: selected-customer Account Maintenance page/routes; frontend API clients/queries; tests; UX docs; roadmap/gap/infographic.
+Database/schema impact: None.
+Backend impact: None expected beyond small API shape fixes discovered by UI tests.
+Frontend impact: Add or refine standalone pages/cards for product/offering catalogue, programme-to-product binding, campaign-specific override review, and reporting handoff with one next action per page.
+API impact: Reuse TASK-408 through TASK-413 APIs.
+Tests to add/update: Frontend render/navigation tests, API-client tests, no raw-id/no-tenant-code/no-technical-jargon assertions where practical, responsive layout checks where available.
+Validation method: `npm run lint`; focused frontend tests; `npm run build`; `git diff --check`.
+Acceptance criteria: A user can see the difference between customer product, referral programme, campaign, and campaign-specific changes in plain language; no page presents raw configuration as the default; diagnostics remain behind disclosure; no provider/auth/billing/settlement/money workflows appear as ordinary Referral SaaS actions.
+Dependencies: TASK-413.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert frontend/API-client/test/doc updates.
+Explicit non-goals: Do not add new backend domain behavior, source forks, provider dispatch, credential creation, invite delivery, auth mutation, billing, settlement, payout, or money movement.
+Definition of done: The selected-customer UX proves the domain model is simple enough to use and hard enough to misuse. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
