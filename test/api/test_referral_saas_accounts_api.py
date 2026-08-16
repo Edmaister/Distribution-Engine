@@ -1528,7 +1528,7 @@ async def test_referral_saas_admin_can_upsert_customer_product_line(monkeypatch)
     assert upsert_calls[0]["account_id"] == "acct-1"
     assert upsert_calls[0]["product_line_ref"] == "TRANSACTIONAL_BANKING"
     assert upsert_calls[0]["idempotency_key_hash"] != "product-line-key-1"
-    assert upsert_calls[0]["actor_ref"] == "test-admin-key"
+    assert upsert_calls[0]["actor_ref"] == "ADMIN"
 
 
 async def test_referral_saas_admin_can_upsert_customer_product_offering(monkeypatch):
