@@ -155,8 +155,12 @@ submit-for-review, review-decision, immutable publish, explicit retirement, and
 rollback-readiness commands that preserve no campaign/referral/provider/auth/
 billing/settlement/money side effects. TASK-401 now closes the campaign
 programme-binding gap by validating same-account published programme versions
-on campaign setup and activation. Remaining work is TASK-402 through TASK-405:
-incentive/runtime binding, analytics, and a simple customer Programme UX.
+on campaign setup and activation. TASK-402 now closes the programme incentive
+and engagement snapshot gap by binding approved reward policy, mission, badge,
+and leaderboard references to published programme versions with effective-date,
+idempotency, audit, and no-side-effect guardrails. Remaining work is TASK-403
+through TASK-405: runtime binding, analytics, and a simple customer Programme
+UX.
 
 ## TASK-357 H1 Scope And Release Gates
 

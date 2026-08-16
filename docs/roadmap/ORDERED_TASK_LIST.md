@@ -8877,7 +8877,7 @@ Priority: P0.
 
 ## TASK-402: Add programme-scoped incentive and engagement version binding controls
 
-Status: Open.
+Status: Completed.
 Product boundary: Referral SaaS with money boundary guardrails.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
 Shared primitive impact: Tightens reward/mission/badge/leaderboard scope around programme versions. Source duplication: No.
@@ -8890,6 +8890,7 @@ Frontend impact: API-ready approved catalogue picker for TASK-405.
 API impact: Adds programme incentive/engagement list/bind routes.
 Tests to add/update: Approved-only binding, cross-account/cross-jurisdiction rejection, stale/retired catalogue rejection, no payout/award/scoring side effects, idempotency/audit.
 Acceptance criteria: A published programme version has a clear approved incentive/engagement snapshot while reward application, mission progress, badge award, leaderboard scoring, payout, settlement, funding, billing, invoice, wallet, commission, and money movement remain outside setup.
+Completed output: Added programme-scoped incentive/engagement binding schema, service, account-scoped list/bind APIs, route inventory coverage, migration contract tests, and API tests with no reward application, mission progress, badge award, leaderboard scoring, provider, auth, billing, settlement, payout, or money side effects.
 Dependencies: TASK-400.
 Priority: P1.
 
