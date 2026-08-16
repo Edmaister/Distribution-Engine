@@ -1993,6 +1993,8 @@ async def test_referral_saas_admin_can_save_programme_draft(monkeypatch):
         "operatingJurisdictionCode": "ZA",
         "productCode": "REFERRAL_SAAS",
         "subProductCode": "RMCA_BUNDLE",
+        "customerProductLineId": "line-1",
+        "customerProductOfferingId": "offering-1",
         "customerJourneyVersionId": "journey-version-1",
         "campaignDefaults": {"defaultChannel": "email"},
         "incentiveRefs": [{"catalogueRef": "reward-policy-1"}],
@@ -2017,6 +2019,8 @@ async def test_referral_saas_admin_can_save_programme_draft(monkeypatch):
     assert save_calls[0]["account_id"] == "acct-1"
     assert save_calls[0]["programme_name"] == "Home Loans Referral Programme"
     assert save_calls[0]["sub_product_code"] == "RMCA_BUNDLE"
+    assert save_calls[0]["customer_product_line_id"] == "line-1"
+    assert save_calls[0]["customer_product_offering_id"] == "offering-1"
     assert save_calls[0]["campaign_defaults"] == {"defaultChannel": "email"}
     assert save_calls[0]["idempotency_key_hash"]
     assert save_calls[0]["request_payload_hash"]

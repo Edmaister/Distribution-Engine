@@ -134,7 +134,7 @@ current programme and campaign platform commercially clear:
 | TASK-406 | Complete - lock the programme, campaign, product/offering, and override domain contract. |
 | TASK-407 | Complete - add customer product/offering catalogue schema and migration tests. |
 | TASK-408 | Complete - add selected-customer product/offering catalogue APIs and safe read models. |
-| TASK-409 | Bind programme drafts and versions to customer product/offering references without overloading Amplifi package codes. |
+| TASK-409 | Complete - bind programme drafts and versions to customer product/offering references without overloading Amplifi package codes. |
 | TASK-410 | Deprecate or wrap campaign journey-binding so programme binding is the authoritative campaign activation path. |
 | TASK-411 | Add campaign-specific override contract, schema/API, and validation for reward, attribution, channel, cap, and date overrides. |
 | TASK-412 | Add effective-rule runtime resolver snapshots across programme defaults and campaign overrides. |

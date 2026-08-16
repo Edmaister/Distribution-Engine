@@ -16,6 +16,7 @@ from utils.db import db_connection
 PROGRAMME_CONFIGURATION_GUARDRAILS = (
     "ACCOUNT_SCOPED_PROGRAMME_CONFIGURATION",
     "PUBLISHED_CUSTOMER_JOURNEY_VERSION_REQUIRED",
+    "ACTIVE_CUSTOMER_PRODUCT_OFFERING_REQUIRED",
     "APPROVED_BUILDING_BLOCKS_ONLY",
     "IDEMPOTENT_PROGRAMME_DRAFT_COMMANDS",
     "SAFE_PROGRAMME_PAYLOAD_ONLY",
@@ -135,6 +136,13 @@ def _row_value(row: Mapping[str, Any], key: str) -> Any:
         return row[key]
     except (KeyError, TypeError):
         return getattr(row, key)
+
+
+def _optional_row_value(row: Mapping[str, Any], key: str) -> Any:
+    try:
+        return row[key]
+    except (AttributeError, KeyError, TypeError):
+        return None
 
 
 def _isoformat(value: Any) -> str | None:
@@ -370,6 +378,9 @@ class ProgrammeVersionSummary:
     operating_jurisdiction_code: str
     product_code: str
     sub_product_code: str
+    customer_product_line_id: str | None
+    customer_product_offering_id: str | None
+    customer_product_binding: dict[str, Any]
     version_number: int
     version_status: str
     customer_journey_version_id: str
@@ -395,6 +406,9 @@ class ProgrammeVersionSummary:
             "operatingJurisdictionCode": self.operating_jurisdiction_code,
             "productCode": self.product_code,
             "subProductCode": self.sub_product_code,
+            "customerProductLineId": self.customer_product_line_id,
+            "customerProductOfferingId": self.customer_product_offering_id,
+            "customerProductBinding": _redact_json(self.customer_product_binding),
             "versionNumber": self.version_number,
             "versionStatus": self.version_status,
             "customerJourneyVersionId": self.customer_journey_version_id,
@@ -428,6 +442,9 @@ class ProgrammeDraft:
     operating_jurisdiction_code: str
     product_code: str
     sub_product_code: str
+    customer_product_line_id: str | None
+    customer_product_offering_id: str | None
+    customer_product_binding: dict[str, Any]
     programme_status: str
     draft_version: int
     campaign_defaults: dict[str, Any]
@@ -457,6 +474,9 @@ class ProgrammeDraft:
             "operatingJurisdictionCode": self.operating_jurisdiction_code,
             "productCode": self.product_code,
             "subProductCode": self.sub_product_code,
+            "customerProductLineId": self.customer_product_line_id,
+            "customerProductOfferingId": self.customer_product_offering_id,
+            "customerProductBinding": _redact_json(self.customer_product_binding),
             "programmeStatus": self.programme_status,
             "draftVersion": self.draft_version,
             "campaignDefaults": _redact_json(self.campaign_defaults),
@@ -674,6 +694,97 @@ class ProgrammeValidationResult:
         }
 
 
+def _customer_product_binding_from_row(row: Mapping[str, Any]) -> dict[str, Any]:
+    product_line_id = _optional_row_value(row, "customer_product_line_id")
+    product_offering_id = _optional_row_value(row, "customer_product_offering_id")
+    if not product_line_id and not product_offering_id:
+        return {}
+    return {
+        "customerProductLineId": str(product_line_id) if product_line_id else None,
+        "customerProductOfferingId": str(product_offering_id) if product_offering_id else None,
+        "externalProductLineRef": _optional_row_value(row, "external_product_line_ref"),
+        "productLineName": _optional_row_value(row, "product_line_name"),
+        "productLineCategory": _optional_row_value(row, "product_line_category"),
+        "externalOfferingRef": _optional_row_value(row, "external_offering_ref"),
+        "offeringName": _optional_row_value(row, "offering_name"),
+        "offeringFamily": _optional_row_value(row, "offering_family"),
+        "operatingJurisdictionCode": _optional_row_value(
+            row,
+            "product_offering_operating_jurisdiction_code",
+        )
+        or _optional_row_value(row, "operating_jurisdiction_code"),
+        "productLineStatus": _optional_row_value(row, "product_line_status"),
+        "offeringStatus": _optional_row_value(row, "product_offering_status"),
+    }
+
+
+async def _get_active_customer_product_offering_binding(
+    conn: Any,
+    *,
+    account_id: str,
+    operating_jurisdiction_code: str,
+    customer_product_line_id: str | None,
+    customer_product_offering_id: str | None,
+    required: bool,
+) -> dict[str, Any]:
+    if not customer_product_line_id and not customer_product_offering_id:
+        if required:
+            raise ProgrammeConfigurationValidationError(
+                "Programme must be bound to a customer product line and product offering."
+            )
+        return {}
+    if not customer_product_line_id or not customer_product_offering_id:
+        raise ProgrammeConfigurationValidationError(
+            "Programme product binding needs both customer_product_line_id and customer_product_offering_id."
+        )
+
+    row = await conn.fetchrow(
+        """
+        SELECT
+            l.customer_product_line_id,
+            l.external_product_line_ref,
+            l.product_line_name,
+            l.product_line_category,
+            l.lifecycle_status AS product_line_status,
+            o.customer_product_offering_id,
+            o.external_offering_ref,
+            o.offering_name,
+            o.offering_family,
+            o.lifecycle_status AS product_offering_status,
+            o.operating_jurisdiction_code AS product_offering_operating_jurisdiction_code
+        FROM referral_saas_customer_product_offerings o
+        JOIN referral_saas_customer_product_lines l
+            ON l.customer_product_line_id = o.customer_product_line_id
+           AND l.account_id = o.account_id
+        WHERE o.account_id = $1
+          AND l.account_id = $1
+          AND l.customer_product_line_id = $2
+          AND o.customer_product_offering_id = $3
+          AND l.operating_jurisdiction_code = $4
+          AND o.operating_jurisdiction_code = $4
+          AND l.archived_at IS NULL
+          AND o.archived_at IS NULL
+        LIMIT 1
+        """,
+        account_id,
+        customer_product_line_id,
+        customer_product_offering_id,
+        operating_jurisdiction_code,
+    )
+    if not row:
+        raise ProgrammeConfigurationValidationError(
+            "Programme product/offering binding must reference the same account and jurisdiction."
+        )
+    if (
+        str(_row_value(row, "product_line_status")) != "ACTIVE"
+        or str(_row_value(row, "product_offering_status")) != "ACTIVE"
+    ):
+        raise ProgrammeConfigurationValidationError(
+            "Programme product/offering binding must reference an active product line and active offering."
+        )
+    return _customer_product_binding_from_row(row)
+
+
 def _draft_from_row(row: Mapping[str, Any]) -> ProgrammeDraft:
     return ProgrammeDraft(
         programme_draft_id=str(_row_value(row, "programme_draft_id")),
@@ -687,6 +798,15 @@ def _draft_from_row(row: Mapping[str, Any]) -> ProgrammeDraft:
         operating_jurisdiction_code=str(_row_value(row, "operating_jurisdiction_code")),
         product_code=str(_row_value(row, "product_code")),
         sub_product_code=str(_row_value(row, "sub_product_code")),
+        customer_product_line_id=str(_optional_row_value(row, "customer_product_line_id"))
+        if _optional_row_value(row, "customer_product_line_id")
+        else None,
+        customer_product_offering_id=str(
+            _optional_row_value(row, "customer_product_offering_id")
+        )
+        if _optional_row_value(row, "customer_product_offering_id")
+        else None,
+        customer_product_binding=_customer_product_binding_from_row(row),
         programme_status=str(_row_value(row, "programme_status")),
         draft_version=int(_row_value(row, "draft_version") or 1),
         campaign_defaults=_json_dict(_row_value(row, "campaign_defaults")),
@@ -743,6 +863,15 @@ def _version_from_row(row: Mapping[str, Any]) -> ProgrammeVersionSummary:
         operating_jurisdiction_code=str(_row_value(row, "operating_jurisdiction_code")),
         product_code=str(_row_value(row, "product_code")),
         sub_product_code=str(_row_value(row, "sub_product_code")),
+        customer_product_line_id=str(_optional_row_value(row, "customer_product_line_id"))
+        if _optional_row_value(row, "customer_product_line_id")
+        else None,
+        customer_product_offering_id=str(
+            _optional_row_value(row, "customer_product_offering_id")
+        )
+        if _optional_row_value(row, "customer_product_offering_id")
+        else None,
+        customer_product_binding=_customer_product_binding_from_row(row),
         version_number=int(_row_value(row, "version_number") or 1),
         version_status=str(_row_value(row, "version_status")),
         customer_journey_version_id=str(_row_value(row, "customer_journey_version_id")),
@@ -896,16 +1025,33 @@ async def list_referral_saas_programme_versions(
     limit: int = 50,
 ) -> tuple[ProgrammeVersionSummary, ...]:
     safe_account_id = _required_text(account_id, "account_id", max_length=80)
-    retired_clause = "" if include_retired else "AND version_status <> 'RETIRED'"
+    retired_clause = "" if include_retired else "AND v.version_status <> 'RETIRED'"
 
     async with db_connection() as conn:
         rows = await conn.fetch(
             f"""
-            SELECT *
-            FROM referral_saas_programme_versions
-            WHERE account_id = $1
+            SELECT
+                v.*,
+                l.external_product_line_ref,
+                l.product_line_name,
+                l.product_line_category,
+                l.lifecycle_status AS product_line_status,
+                o.external_offering_ref,
+                o.offering_name,
+                o.offering_family,
+                o.lifecycle_status AS product_offering_status,
+                o.operating_jurisdiction_code AS product_offering_operating_jurisdiction_code
+            FROM referral_saas_programme_versions v
+            LEFT JOIN referral_saas_customer_product_lines l
+                ON l.customer_product_line_id = v.customer_product_line_id
+               AND l.account_id = v.account_id
+            LEFT JOIN referral_saas_customer_product_offerings o
+                ON o.customer_product_offering_id = v.customer_product_offering_id
+               AND o.customer_product_line_id = v.customer_product_line_id
+               AND o.account_id = v.account_id
+            WHERE v.account_id = $1
               {retired_clause}
-            ORDER BY published_at DESC, version_number DESC
+            ORDER BY v.published_at DESC, v.version_number DESC
             LIMIT $2
             """,
             safe_account_id,
@@ -1319,16 +1465,33 @@ async def list_referral_saas_programme_drafts(
     limit: int = 50,
 ) -> tuple[ProgrammeDraft, ...]:
     safe_account_id = _required_text(account_id, "account_id", max_length=80)
-    archived_clause = "" if include_archived else "AND archived_at IS NULL"
+    archived_clause = "" if include_archived else "AND d.archived_at IS NULL"
 
     async with db_connection() as conn:
         rows = await conn.fetch(
             f"""
-            SELECT *
-            FROM referral_saas_programme_drafts
-            WHERE account_id = $1
+            SELECT
+                d.*,
+                l.external_product_line_ref,
+                l.product_line_name,
+                l.product_line_category,
+                l.lifecycle_status AS product_line_status,
+                o.external_offering_ref,
+                o.offering_name,
+                o.offering_family,
+                o.lifecycle_status AS product_offering_status,
+                o.operating_jurisdiction_code AS product_offering_operating_jurisdiction_code
+            FROM referral_saas_programme_drafts d
+            LEFT JOIN referral_saas_customer_product_lines l
+                ON l.customer_product_line_id = d.customer_product_line_id
+               AND l.account_id = d.account_id
+            LEFT JOIN referral_saas_customer_product_offerings o
+                ON o.customer_product_offering_id = d.customer_product_offering_id
+               AND o.customer_product_line_id = d.customer_product_line_id
+               AND o.account_id = d.account_id
+            WHERE d.account_id = $1
               {archived_clause}
-            ORDER BY updated_at DESC, created_at DESC
+            ORDER BY d.updated_at DESC, d.created_at DESC
             LIMIT $2
             """,
             safe_account_id,
@@ -1348,11 +1511,28 @@ async def get_referral_saas_programme_draft(
     async with db_connection() as conn:
         row = await conn.fetchrow(
             """
-            SELECT *
-            FROM referral_saas_programme_drafts
-            WHERE account_id = $1
-              AND programme_draft_id = $2
-              AND archived_at IS NULL
+            SELECT
+                d.*,
+                l.external_product_line_ref,
+                l.product_line_name,
+                l.product_line_category,
+                l.lifecycle_status AS product_line_status,
+                o.external_offering_ref,
+                o.offering_name,
+                o.offering_family,
+                o.lifecycle_status AS product_offering_status,
+                o.operating_jurisdiction_code AS product_offering_operating_jurisdiction_code
+            FROM referral_saas_programme_drafts d
+            LEFT JOIN referral_saas_customer_product_lines l
+                ON l.customer_product_line_id = d.customer_product_line_id
+               AND l.account_id = d.account_id
+            LEFT JOIN referral_saas_customer_product_offerings o
+                ON o.customer_product_offering_id = d.customer_product_offering_id
+               AND o.customer_product_line_id = d.customer_product_line_id
+               AND o.account_id = d.account_id
+            WHERE d.account_id = $1
+              AND d.programme_draft_id = $2
+              AND d.archived_at IS NULL
             LIMIT 1
             """,
             safe_account_id,
@@ -1454,6 +1634,8 @@ async def save_referral_saas_programme_draft(
     source_programme_version_id: str | None = None,
     programme_draft_id: str | None = None,
     product_code: str = "REFERRAL_SAAS",
+    customer_product_line_id: str | None = None,
+    customer_product_offering_id: str | None = None,
     effective_from: str | None = None,
     effective_to: str | None = None,
     idempotency_key_hash: str,
@@ -1487,6 +1669,14 @@ async def save_referral_saas_programme_draft(
     safe_customer_journey_version_id = _required_text(
         customer_journey_version_id,
         "customer_journey_version_id",
+        max_length=80,
+    )
+    safe_customer_product_line_id = _optional_text(
+        customer_product_line_id,
+        max_length=80,
+    )
+    safe_customer_product_offering_id = _optional_text(
+        customer_product_offering_id,
         max_length=80,
     )
     safe_source_programme_version_id = _optional_text(
@@ -1530,6 +1720,8 @@ async def save_referral_saas_programme_draft(
         "operatingJurisdictionCode": safe_jurisdiction,
         "productCode": safe_product_code,
         "subProductCode": safe_sub_product_code,
+        "customerProductLineId": safe_customer_product_line_id,
+        "customerProductOfferingId": safe_customer_product_offering_id,
         "customerJourneyVersionId": safe_customer_journey_version_id,
         "sourceProgrammeVersionId": safe_source_programme_version_id,
         "campaignDefaults": safe_campaign_defaults,
@@ -1587,6 +1779,14 @@ async def save_referral_saas_programme_draft(
             account_id=safe_account_id,
             customer_journey_version_id=safe_customer_journey_version_id,
         )
+        product_binding = await _get_active_customer_product_offering_binding(
+            conn,
+            account_id=safe_account_id,
+            operating_jurisdiction_code=safe_jurisdiction,
+            customer_product_line_id=safe_customer_product_line_id,
+            customer_product_offering_id=safe_customer_product_offering_id,
+            required=False,
+        )
 
         async with conn.transaction():
             if safe_programme_draft_id:
@@ -1600,23 +1800,25 @@ async def save_referral_saas_programme_draft(
                         operating_jurisdiction_code = $7,
                         product_code = $8,
                         sub_product_code = $9,
+                        customer_product_line_id = $10,
+                        customer_product_offering_id = $11,
                         programme_status = 'DRAFT',
                         draft_version = draft_version + 1,
-                        campaign_defaults = $10::jsonb,
-                        incentive_refs = $11::jsonb,
-                        engagement_refs = $12::jsonb,
-                        integration_readiness_snapshot = $13::jsonb,
-                        commercial_entitlement_snapshot = $14::jsonb,
+                        campaign_defaults = $12::jsonb,
+                        incentive_refs = $13::jsonb,
+                        engagement_refs = $14::jsonb,
+                        integration_readiness_snapshot = $15::jsonb,
+                        commercial_entitlement_snapshot = $16::jsonb,
                         validation_result_id = NULL,
                         last_validation_status = 'NOT_VALIDATED',
                         review_status = 'NOT_SUBMITTED',
-                        effective_from = $15,
-                        effective_to = $16,
-                        configuration_checksum = $17,
-                        payload_hash = $17,
-                        idempotency_key_hash = $18,
-                        correlation_id = $19,
-                        updated_by_ref = $20,
+                        effective_from = $17,
+                        effective_to = $18,
+                        configuration_checksum = $19,
+                        payload_hash = $19,
+                        idempotency_key_hash = $20,
+                        correlation_id = $21,
+                        updated_by_ref = $22,
                         updated_at = now()
                     WHERE programme_draft_id = $1
                       AND account_id = $2
@@ -1633,6 +1835,8 @@ async def save_referral_saas_programme_draft(
                     safe_jurisdiction,
                     safe_product_code,
                     safe_sub_product_code,
+                    safe_customer_product_line_id,
+                    safe_customer_product_offering_id,
                     _jsonb(safe_campaign_defaults),
                     _jsonb(safe_incentive_refs),
                     _jsonb(safe_engagement_refs),
@@ -1660,6 +1864,8 @@ async def save_referral_saas_programme_draft(
                         operating_jurisdiction_code,
                         product_code,
                         sub_product_code,
+                        customer_product_line_id,
+                        customer_product_offering_id,
                         programme_status,
                         draft_version,
                         campaign_defaults,
@@ -1679,10 +1885,11 @@ async def save_referral_saas_programme_draft(
                         updated_by_ref
                     )
                     VALUES (
-                        $1, $2, $3, $4, $5, $6, $7, $8, 'DRAFT', 1,
-                        $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb,
-                        $13::jsonb, 'NOT_VALIDATED', 'NOT_SUBMITTED',
-                        $14, $15, $16, $16, $17, $18, $19, $19
+                        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                        'DRAFT', 1, $11::jsonb, $12::jsonb, $13::jsonb,
+                        $14::jsonb, $15::jsonb, 'NOT_VALIDATED',
+                        'NOT_SUBMITTED', $16, $17, $18, $18, $19, $20,
+                        $21, $21
                     )
                     RETURNING *
                     """,
@@ -1694,6 +1901,8 @@ async def save_referral_saas_programme_draft(
                     safe_jurisdiction,
                     safe_product_code,
                     safe_sub_product_code,
+                    safe_customer_product_line_id,
+                    safe_customer_product_offering_id,
                     _jsonb(safe_campaign_defaults),
                     _jsonb(safe_incentive_refs),
                     _jsonb(safe_engagement_refs),
@@ -1766,6 +1975,7 @@ async def save_referral_saas_programme_draft(
                         "programmeName": safe_programme_name,
                         "productCode": safe_product_code,
                         "subProductCode": safe_sub_product_code,
+                        "customerProductBinding": product_binding,
                         "configurationChecksum": payload_hash,
                     }
                 ),
@@ -1883,6 +2093,39 @@ async def validate_referral_saas_programme_draft(
                     ),
                     next_action="Select a published customer journey version.",
                     area="journey",
+                    can_wait=False,
+                )
+            )
+        product_binding: dict[str, Any] = {}
+        try:
+            product_binding = await _get_active_customer_product_offering_binding(
+                conn,
+                account_id=safe_account_id,
+                operating_jurisdiction_code=str(
+                    _row_value(draft_row, "operating_jurisdiction_code")
+                ),
+                customer_product_line_id=str(
+                    _optional_row_value(draft_row, "customer_product_line_id")
+                )
+                if _optional_row_value(draft_row, "customer_product_line_id")
+                else None,
+                customer_product_offering_id=str(
+                    _optional_row_value(draft_row, "customer_product_offering_id")
+                )
+                if _optional_row_value(draft_row, "customer_product_offering_id")
+                else None,
+                required=True,
+            )
+        except ProgrammeConfigurationValidationError as exc:
+            blockers.append(
+                _issue(
+                    code="ACTIVE_CUSTOMER_PRODUCT_OFFERING_REQUIRED",
+                    title="Customer product and offering required",
+                    plain_language=str(exc),
+                    next_action=(
+                        "Choose an active customer product line and offering for this programme."
+                    ),
+                    area="customer_product_offering",
                     can_wait=False,
                 )
             )
@@ -2077,6 +2320,17 @@ async def validate_referral_saas_programme_draft(
             ),
             "productCode": str(_row_value(draft_row, "product_code")),
             "subProductCode": str(_row_value(draft_row, "sub_product_code")),
+            "customerProductLineId": str(
+                _optional_row_value(draft_row, "customer_product_line_id")
+            )
+            if _optional_row_value(draft_row, "customer_product_line_id")
+            else None,
+            "customerProductOfferingId": str(
+                _optional_row_value(draft_row, "customer_product_offering_id")
+            )
+            if _optional_row_value(draft_row, "customer_product_offering_id")
+            else None,
+            "customerProductBinding": product_binding,
             "effectiveFrom": _isoformat(effective_from),
             "effectiveTo": _isoformat(effective_to),
             "blockerCount": len(blockers),
@@ -2307,6 +2561,22 @@ async def submit_referral_saas_programme_draft_for_review(
             raise ProgrammeConfigurationValidationError(
                 "Programme draft must be validated with publish allowed before review submission."
             )
+        await _get_active_customer_product_offering_binding(
+            conn,
+            account_id=safe_account_id,
+            operating_jurisdiction_code=str(_row_value(draft_row, "operating_jurisdiction_code")),
+            customer_product_line_id=str(
+                _optional_row_value(draft_row, "customer_product_line_id")
+            )
+            if _optional_row_value(draft_row, "customer_product_line_id")
+            else None,
+            customer_product_offering_id=str(
+                _optional_row_value(draft_row, "customer_product_offering_id")
+            )
+            if _optional_row_value(draft_row, "customer_product_offering_id")
+            else None,
+            required=True,
+        )
 
         async with conn.transaction():
             row = await conn.fetchrow(
@@ -2471,6 +2741,23 @@ async def decide_referral_saas_programme_draft_review(
             raise ProgrammeConfigurationValidationError(
                 "Programme draft cannot be approved because publish is not allowed."
             )
+        if safe_decision == "APPROVE":
+            await _get_active_customer_product_offering_binding(
+                conn,
+                account_id=safe_account_id,
+                operating_jurisdiction_code=str(_row_value(draft_row, "operating_jurisdiction_code")),
+                customer_product_line_id=str(
+                    _optional_row_value(draft_row, "customer_product_line_id")
+                )
+                if _optional_row_value(draft_row, "customer_product_line_id")
+                else None,
+                customer_product_offering_id=str(
+                    _optional_row_value(draft_row, "customer_product_offering_id")
+                )
+                if _optional_row_value(draft_row, "customer_product_offering_id")
+                else None,
+                required=True,
+            )
 
         async with conn.transaction():
             row = await conn.fetchrow(
@@ -2633,6 +2920,22 @@ async def publish_referral_saas_programme_version(
             raise ProgrammeConfigurationValidationError(
                 "Programme draft needs an effective start date before publishing."
             )
+        product_binding = await _get_active_customer_product_offering_binding(
+            conn,
+            account_id=safe_account_id,
+            operating_jurisdiction_code=str(_row_value(draft_row, "operating_jurisdiction_code")),
+            customer_product_line_id=str(
+                _optional_row_value(draft_row, "customer_product_line_id")
+            )
+            if _optional_row_value(draft_row, "customer_product_line_id")
+            else None,
+            customer_product_offering_id=str(
+                _optional_row_value(draft_row, "customer_product_offering_id")
+            )
+            if _optional_row_value(draft_row, "customer_product_offering_id")
+            else None,
+            required=True,
+        )
 
         programme_code = _programme_code_from_draft(safe_draft_id)
         next_version_number = int(
@@ -2652,6 +2955,7 @@ async def publish_referral_saas_programme_version(
             "plainLanguageSummary": "Programme version published for account-scoped campaign setup.",
             "programmeName": str(_row_value(draft_row, "programme_name")),
             "subProductCode": str(_row_value(draft_row, "sub_product_code")),
+            "customerProductBinding": product_binding,
             "versionNumber": next_version_number,
             "noSideEffectsConfirmed": True,
         }
@@ -2659,6 +2963,7 @@ async def publish_referral_saas_programme_version(
             "publishReason": safe_reason,
             "reviewStatus": "APPROVED",
             "validatedResultId": str(_row_value(draft_row, "validation_result_id")),
+            "customerProductBinding": product_binding,
             "immutableVersion": True,
         }
 
@@ -2676,6 +2981,8 @@ async def publish_referral_saas_programme_version(
                     operating_jurisdiction_code,
                     product_code,
                     sub_product_code,
+                    customer_product_line_id,
+                    customer_product_offering_id,
                     version_number,
                     version_status,
                     published_configuration_snapshot,
@@ -2699,10 +3006,10 @@ async def publish_referral_saas_programme_version(
                 )
                 VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                    $11, 'PUBLISHED', $12::jsonb, $13::jsonb, $14::jsonb,
-                    $15::jsonb, $16::jsonb, $17::jsonb, $18, 'APPROVED',
-                    $19, now(), $20, $21, $22, $23, $24, $19, $25::jsonb,
-                    $26::jsonb
+                    $11, $12, $13, 'PUBLISHED', $14::jsonb, $15::jsonb,
+                    $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20,
+                    'APPROVED', $21, now(), $22, $23, $24, $25, $26, $21,
+                    $27::jsonb, $28::jsonb
                 )
                 RETURNING *
                 """,
@@ -2716,11 +3023,20 @@ async def publish_referral_saas_programme_version(
                 str(_row_value(draft_row, "operating_jurisdiction_code")),
                 str(_row_value(draft_row, "product_code")),
                 str(_row_value(draft_row, "sub_product_code")),
+                _optional_row_value(draft_row, "customer_product_line_id"),
+                _optional_row_value(draft_row, "customer_product_offering_id"),
                 next_version_number,
                 _jsonb(
                     {
                         "draftPayloadHash": str(_row_value(draft_row, "payload_hash")),
                         "validationPayloadHash": _row_value(draft_row, "validation_payload_hash"),
+                        "customerProductLineId": str(
+                            _row_value(draft_row, "customer_product_line_id")
+                        ),
+                        "customerProductOfferingId": str(
+                            _row_value(draft_row, "customer_product_offering_id")
+                        ),
+                        "customerProductBinding": product_binding,
                     }
                 ),
                 _jsonb(_json_dict(_row_value(draft_row, "campaign_defaults"))),
