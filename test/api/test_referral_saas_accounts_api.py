@@ -1291,6 +1291,82 @@ async def test_referral_saas_admin_can_list_programmes(monkeypatch):
     ]
 
 
+async def test_referral_saas_admin_can_get_programme_analytics(monkeypatch):
+    analytics_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB", tenant_code="FNB")
+
+    async def fake_build_referral_saas_programme_analytics_read_model(**kwargs):
+        analytics_calls.append(kwargs)
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "versionCount": 2,
+                "summary": {
+                    "programmeVersionsCompared": 2,
+                    "analyticsSignal": "OPTIMISE_COMPLETION",
+                    "latestVsPrevious": {"comparisonSignal": "IMPROVED"},
+                },
+                "versions": [
+                    {
+                        "programmeVersionId": "programme-version-2",
+                        "programmeName": "Home Loans Referral Programme",
+                        "completionRate": 0.4,
+                        "noRawIdentityOrEventPayloadConfirmed": True,
+                    }
+                ],
+                "guardrails": ["ACCOUNT_SCOPED_PROGRAMME_ANALYTICS"],
+                "redactions": ["tenant_code", "raw_event_payload", "money"],
+                "noRawIdentityOrEventPayloadConfirmed": True,
+                "noIncentiveRewardPayoutDetailConfirmed": True,
+                "noAuthBillingSettlementOrMoneyActionConfirmed": True,
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "build_referral_saas_programme_analytics_read_model",
+        fake_build_referral_saas_programme_analytics_read_model,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/programmes/analytics",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+                "limit": 10,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["programmeAnalytics"]["versionCount"] == 2
+    assert body["programmeAnalytics"]["summary"]["latestVsPrevious"][
+        "comparisonSignal"
+    ] == "IMPROVED"
+    assert body["noRawIdentityOrEventPayloadConfirmed"] is True
+    assert body["noIncentiveRewardPayoutDetailConfirmed"] is True
+    assert body["noAuthBillingSettlementOrMoneyActionConfirmed"] is True
+    assert "NO_BILLING_SETTLEMENT_OR_MONEY_ACTION" in body["guardrails"]
+    assert analytics_calls == [
+        {
+            "account_id": "acct-1",
+            "tenant_code": "FNB",
+            "limit": 10,
+            "data_window_start": None,
+            "data_window_end": None,
+        }
+    ]
+
+
 async def test_referral_saas_admin_can_get_programme_catalogue(monkeypatch):
     async def fake_resolve_setup_account_by_external_reference(**kwargs):
         return _context(account_id="acct-1", account_code="ACCT_FNB")

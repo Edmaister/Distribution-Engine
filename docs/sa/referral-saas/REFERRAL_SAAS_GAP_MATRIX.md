@@ -130,10 +130,10 @@ The contract defines the customer-visible Programme object, ownership split,
 required business/configuration/governance fields, lifecycle states, command
 boundary, validation output, selected-customer API shape, frontend IA,
 redactions, idempotency/audit controls, and no-provider/no-auth/no-billing/
-no-settlement/no-money side effects. Remaining work is implementation:
-TASK-397 through TASK-405 must add schema, APIs, validation/simulation,
-publish/retire/rollback, campaign binding, incentive binding, runtime binding,
-analytics, and the simple customer Programme UX proof.
+no-settlement/no-money side effects. TASK-397 through TASK-404 now add schema,
+APIs, validation/simulation, publish/retire/rollback, campaign binding,
+incentive binding, runtime binding, and aggregate programme analytics.
+Remaining work is TASK-405: the simple customer Programme UX proof.
 
 TASK-397 now closes the durable-storage gap with
 `dp/migrations/096_referral_saas_programme_configuration.sql`. Programme
@@ -161,8 +161,9 @@ and leaderboard references to published programme versions with effective-date,
 idempotency, audit, and no-side-effect guardrails. TASK-403 now closes the
 runtime binding gap by storing the programme-version identity used when new
 referrals are created and exposing only safe runtime metadata on referral
-registry reads. Remaining work is TASK-404 through TASK-405: analytics and a
-simple customer Programme UX.
+registry reads. TASK-404 now closes the programme analytics gap with
+aggregate-only version comparison. Remaining work is TASK-405: a simple
+customer Programme UX.
 
 ## TASK-357 H1 Scope And Release Gates
 

@@ -35,6 +35,7 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("GET", "/v1/referral-saas/accounts/resolve"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/analytics"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/catalogue"),
         (
             "GET",
@@ -303,9 +304,10 @@ def test_referral_saas_current_smoke_routes_are_mounted():
 def test_referral_saas_product_wrapper_route_surface_is_bounded():
     mounted = _mounted_routes()
 
-    assert {
+    mounted_referral_saas_routes = {
         item for item in mounted if item[1].startswith("/v1/referral-saas")
-    } == {
+    }
+    expected_referral_saas_routes = {
         ("GET", "/v1/referral-saas/reports/{report_type}"),
         ("GET", "/v1/referral-saas/operator/links/inspect"),
         ("GET", "/v1/referral-saas/operator/support-cases"),
@@ -319,6 +321,7 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("GET", "/v1/referral-saas/accounts/resolve"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/analytics"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/catalogue"),
         (
             "GET",
@@ -570,6 +573,11 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("POST", "/v1/referral-saas/public/referrals/validate"),
         ("POST", "/v1/referral-saas/referrals/{referral_track_id}/referee-ucn"),
     }
+    expected_referral_saas_routes.add(
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/analytics")
+    )
+
+    assert mounted_referral_saas_routes == expected_referral_saas_routes
 
 
 def test_referral_saas_has_no_commercial_finance_write_routes():

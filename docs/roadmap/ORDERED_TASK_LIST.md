@@ -8915,20 +8915,22 @@ Priority: P0.
 
 ## TASK-404: Add programme analytics and version comparison read models
 
-Status: Open.
+Status: Complete (2026-08-16). Output: `services/referral_saas_programme_analytics_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/test_referral_saas_programme_analytics_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
 Shared primitive impact: Adds tenant-safe programme optimization read models. Source duplication: No.
 Objective: Show customer-safe performance, drop-off, attribution, incentive, and campaign outcome comparisons by programme version.
 Why now: The business value of configurable programmes is optimization, not just setup.
-Files likely involved: programme analytics service/API; reporting projections; frontend endpoint clients; tests; docs.
-Database/schema impact: Reads programme versions, campaign bindings, referral/progress/attribution/reporting data.
-Backend impact: Adds aggregate-only analytics with redactions and version dimensions.
-Frontend impact: API-ready read model for Programme UX.
-API impact: Adds selected-customer programme analytics route.
-Tests to add/update: Account scope, aggregate-only payloads, no raw identity/event payload/reward payout/billing/money leakage, empty-state behavior, version comparison.
-Acceptance criteria: Customers can compare programme versions and see what improved or regressed in plain language without exposing raw event payloads, internal identifiers, payout detail, billing, settlement, or money data.
+Files involved: `services/referral_saas_programme_analytics_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/test_referral_saas_programme_analytics_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; roadmap, SA, gap matrix, and infographic docs.
+Database/schema impact: None. Reads programme versions, campaign bindings, referral/progress/attribution data using existing tables and safe aggregate projections.
+Backend impact: Adds aggregate-only analytics with redactions, programme-version dimensions, version comparison, plain-language summary, guardrails, and no raw payload, payout, billing, settlement, provider, auth, or money side effects.
+Frontend impact: API-ready read model for the next Programme UX task.
+API impact: Adds `GET /v1/referral-saas/accounts/{account_ref}/programmes/analytics`.
+Tests added/updated: Account scope, aggregate-only payloads, no raw identity/event payload/reward payout/billing/money leakage, empty-state behavior, route inventory, and version comparison.
+Validation method: `py_compile` for edited Python files; focused pytest for programme analytics service, account API route, and route inventory.
+Acceptance criteria: Complete - customers can compare programme versions and see what improved or regressed in plain language without exposing raw event payloads, internal identifiers, payout detail, billing, settlement, or money data.
 Dependencies: TASK-403.
+Blocked by: None. TASK-405 remains for the simple customer Programme UX and E2E proof.
 Priority: P1.
 
 ## TASK-405: Add simple Programme UX and E2E proof

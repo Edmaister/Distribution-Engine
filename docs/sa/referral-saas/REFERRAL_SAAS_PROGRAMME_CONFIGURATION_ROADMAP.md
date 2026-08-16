@@ -106,7 +106,7 @@ to a simple, governed programme configuration platform.
 | TASK-401 | Bind campaigns to published programme versions through customer-scoped create/update and activation gates. |
 | TASK-402 | Completed: bind approved programme-scoped incentive and engagement references to published programme versions with effective-date, audit, idempotency, and no-side-effect guardrails. |
 | TASK-403 | Completed: bind new referrals/runtime reads to published programme versions with historical replay posture and legacy fallback. |
-| TASK-404 | Add programme analytics and version comparison read models. |
+| TASK-404 | Completed: add aggregate-only programme analytics and version comparison read models with guardrails, redactions, and no adjacent side effects. |
 | TASK-405 | Add the simple customer Programme UX and end-to-end proof. |
 
 ## Definition Of Done
