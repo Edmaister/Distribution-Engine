@@ -1416,6 +1416,263 @@ async def test_referral_saas_admin_can_get_programme_catalogue(monkeypatch):
     assert body["noCampaignActivationConfirmed"] is True
 
 
+async def test_referral_saas_admin_can_get_customer_product_catalogue(monkeypatch):
+    list_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_list_referral_saas_customer_product_catalogue(**kwargs):
+        list_calls.append(kwargs)
+        return {
+            "productLines": [
+                {
+                    "customerProductLineId": "line-1",
+                    "externalProductLineRef": "TRANSACTIONAL_BANKING",
+                    "productLineName": "Transactional Banking",
+                    "productLineCategory": "BANKING",
+                    "operatingJurisdictionCode": "ZA",
+                    "lifecycleStatus": "ACTIVE",
+                    "offerings": [],
+                }
+            ],
+            "count": 1,
+        }
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "list_referral_saas_customer_product_catalogue",
+        fake_list_referral_saas_customer_product_catalogue,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/accounts/acct-1/product-catalogue",
+            params={
+                "ref_type": "external_tenant_ref",
+                "external_ref": "fnb-referrals",
+                "context": "setup",
+                "limit": 25,
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["productLines"][0]["productLineName"] == "Transactional Banking"
+    assert body["noProgrammeBindingConfirmed"] is True
+    assert body["noCampaignCreationConfirmed"] is True
+    assert body["noBillingPayoutSettlementOrMoneyMovementConfirmed"] is True
+    assert list_calls == [{"account_id": "acct-1", "limit": 25}]
+
+
+async def test_referral_saas_admin_can_upsert_customer_product_line(monkeypatch):
+    upsert_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_upsert_referral_saas_customer_product_line(**kwargs):
+        upsert_calls.append(kwargs)
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "commandStatus": "PRODUCT_LINE_RECORDED",
+                "idempotencyStatus": "NEW_REQUEST",
+                "resourceType": "PRODUCT_LINE",
+                "productLine": {
+                    "externalProductLineRef": "TRANSACTIONAL_BANKING",
+                    "productLineName": "Transactional Banking",
+                    "lifecycleStatus": "DRAFT",
+                },
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "upsert_referral_saas_customer_product_line",
+        fake_upsert_referral_saas_customer_product_line,
+    )
+
+    request_payload = {
+        "accountScope": {
+            "refType": "external_tenant_ref",
+            "externalRef": "fnb-referrals",
+            "context": "setup",
+        },
+        "productLineName": "Transactional Banking",
+        "productLineCategory": "Banking",
+        "operatingJurisdictionCode": "ZA",
+        "idempotencyKey": "product-line-key-1",
+    }
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/product-lines/TRANSACTIONAL_BANKING",
+            json=request_payload,
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["commandStatus"] == "PRODUCT_LINE_RECORDED"
+    assert body["noCampaignCreationConfirmed"] is True
+    assert body["noReferralCreationConfirmed"] is True
+    assert upsert_calls[0]["account_id"] == "acct-1"
+    assert upsert_calls[0]["product_line_ref"] == "TRANSACTIONAL_BANKING"
+    assert upsert_calls[0]["idempotency_key_hash"] != "product-line-key-1"
+    assert upsert_calls[0]["actor_ref"] == "ADMIN"
+
+
+async def test_referral_saas_admin_can_upsert_customer_product_offering(monkeypatch):
+    upsert_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_upsert_referral_saas_customer_product_offering(**kwargs):
+        upsert_calls.append(kwargs)
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "commandStatus": "PRODUCT_OFFERING_RECORDED",
+                "idempotencyStatus": "NEW_REQUEST",
+                "resourceType": "PRODUCT_OFFERING",
+                "productOffering": {
+                    "externalOfferingRef": "EASY_ACCOUNT",
+                    "offeringName": "Easy Account",
+                    "lifecycleStatus": "DRAFT",
+                },
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "upsert_referral_saas_customer_product_offering",
+        fake_upsert_referral_saas_customer_product_offering,
+    )
+
+    request_payload = {
+        "accountScope": {
+            "refType": "external_tenant_ref",
+            "externalRef": "fnb-referrals",
+            "context": "setup",
+        },
+        "offeringName": "Easy Account",
+        "offeringFamily": "Retail accounts",
+        "operatingJurisdictionCode": "ZA",
+        "idempotencyKey": "offering-key-1",
+    }
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/product-lines/TRANSACTIONAL_BANKING/offerings/EASY_ACCOUNT",
+            json=request_payload,
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["commandStatus"] == "PRODUCT_OFFERING_RECORDED"
+    assert body["noProgrammeBindingConfirmed"] is True
+    assert upsert_calls[0]["product_line_ref"] == "TRANSACTIONAL_BANKING"
+    assert upsert_calls[0]["offering_ref"] == "EASY_ACCOUNT"
+
+
+async def test_referral_saas_customer_product_catalogue_rejects_unsafe_payload(monkeypatch):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_upsert_referral_saas_customer_product_line(**kwargs):
+        raise referral_saas_accounts.CustomerProductCatalogueUnsafePayload(
+            "Raw account identifiers are not allowed."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "upsert_referral_saas_customer_product_line",
+        fake_upsert_referral_saas_customer_product_line,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/product-lines/TRANSACTIONAL_BANKING",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "productLineName": "Transactional Banking",
+                "productLineCategory": "Banking",
+                "operatingJurisdictionCode": "ZA",
+                "safeSummary": {"tenantCode": "internal"},
+                "idempotencyKey": "product-line-key-2",
+            },
+        )
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["detail"]["code"] == "REJECTED_UNSAFE_PAYLOAD"
+    assert body["detail"]["noCampaignActivationConfirmed"] is True
+    assert body["detail"]["noBillingPayoutSettlementOrMoneyMovementConfirmed"] is True
+
+
+async def test_referral_saas_customer_product_catalogue_idempotency_conflict(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_upsert_referral_saas_customer_product_offering(**kwargs):
+        raise referral_saas_accounts.CustomerProductCatalogueIdempotencyConflict(
+            "Idempotency key reused for different product offering content."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "upsert_referral_saas_customer_product_offering",
+        fake_upsert_referral_saas_customer_product_offering,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/product-lines/TRANSACTIONAL_BANKING/offerings/EASY_ACCOUNT",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "offeringName": "Easy Account",
+                "operatingJurisdictionCode": "ZA",
+                "idempotencyKey": "offering-key-1",
+            },
+        )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "IDEMPOTENCY_CONFLICT"
+
+
 async def test_referral_saas_admin_can_list_programme_incentive_bindings(
     monkeypatch,
 ):

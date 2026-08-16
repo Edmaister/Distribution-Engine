@@ -306,6 +306,20 @@ from services.referral_saas_programme_configuration_service import (
     submit_referral_saas_programme_draft_for_review,
     validate_referral_saas_programme_draft,
 )
+from services.referral_saas_customer_product_catalogue_service import (
+    CUSTOMER_PRODUCT_CATALOGUE_GUARDRAILS,
+    CUSTOMER_PRODUCT_CATALOGUE_REDACTIONS,
+    CustomerProductCatalogueIdempotencyConflict,
+    CustomerProductCatalogueNotFound,
+    CustomerProductCatalogueUnsafePayload,
+    CustomerProductCatalogueValidationError,
+    get_referral_saas_customer_product_line,
+    list_referral_saas_customer_product_catalogue,
+    retire_referral_saas_customer_product_line,
+    retire_referral_saas_customer_product_offering,
+    upsert_referral_saas_customer_product_line,
+    upsert_referral_saas_customer_product_offering,
+)
 from services.referral_saas_programme_analytics_service import (
     PROGRAMME_ANALYTICS_GUARDRAILS,
     PROGRAMME_ANALYTICS_REDACTIONS,
@@ -728,6 +742,39 @@ class ReferralSaasProgrammeDraftSaveRequest(BaseModel):
     commercialEntitlementSnapshot: dict[str, Any] = Field(default_factory=dict)
     effectiveFrom: str | None = Field(default=None)
     effectiveTo: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasCustomerProductLineSaveRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    productLineName: str = Field(min_length=1)
+    productLineCategory: str = Field(min_length=1)
+    operatingJurisdictionCode: str = Field(min_length=1)
+    lifecycleStatus: str = Field(default="DRAFT", min_length=1)
+    description: str | None = Field(default=None)
+    safeSummary: dict[str, Any] = Field(default_factory=dict)
+    governanceMetadata: dict[str, Any] = Field(default_factory=dict)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasCustomerProductOfferingSaveRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    offeringName: str = Field(min_length=1)
+    offeringFamily: str | None = Field(default=None)
+    operatingJurisdictionCode: str = Field(min_length=1)
+    lifecycleStatus: str = Field(default="DRAFT", min_length=1)
+    description: str | None = Field(default=None)
+    safeSummary: dict[str, Any] = Field(default_factory=dict)
+    governanceMetadata: dict[str, Any] = Field(default_factory=dict)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasCustomerProductCatalogueRetireRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    retirementReason: str = Field(min_length=1)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str = Field(min_length=1)
 
@@ -4907,6 +4954,372 @@ def _raise_programme_configuration_http_exception(exc: Exception) -> None:
             },
         ) from exc
     raise exc
+
+
+def _raise_customer_product_catalogue_http_exception(exc: Exception) -> None:
+    if isinstance(exc, CustomerProductCatalogueIdempotencyConflict):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "IDEMPOTENCY_CONFLICT",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_PRODUCT_CATALOGUE_GUARDRAILS),
+                "redactions": list(CUSTOMER_PRODUCT_CATALOGUE_REDACTIONS),
+            },
+        ) from exc
+    if isinstance(exc, CustomerProductCatalogueUnsafePayload):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "REJECTED_UNSAFE_PAYLOAD",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_PRODUCT_CATALOGUE_GUARDRAILS),
+                "redactions": list(CUSTOMER_PRODUCT_CATALOGUE_REDACTIONS),
+                "noProgrammePublishConfirmed": True,
+                "noCampaignActivationConfirmed": True,
+                "noReferralRuntimeSwitchConfirmed": True,
+                "noProviderDispatchConfirmed": True,
+                "noCredentialOrAuthMutationConfirmed": True,
+                "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+            },
+        ) from exc
+    if isinstance(exc, CustomerProductCatalogueValidationError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "VALIDATION_ERROR",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_PRODUCT_CATALOGUE_GUARDRAILS),
+                "redactions": list(CUSTOMER_PRODUCT_CATALOGUE_REDACTIONS),
+            },
+        ) from exc
+    if isinstance(exc, CustomerProductCatalogueNotFound):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "CUSTOMER_PRODUCT_CATALOGUE_NOT_FOUND",
+                "message": str(exc),
+                "guardrails": list(CUSTOMER_PRODUCT_CATALOGUE_GUARDRAILS),
+                "redactions": list(CUSTOMER_PRODUCT_CATALOGUE_REDACTIONS),
+            },
+        ) from exc
+    raise exc
+
+
+def _customer_product_catalogue_guardrail() -> str:
+    return (
+        "Selected-customer product and offering catalogue for the real "
+        "customer-owned products that programmes may later reference. This "
+        "does not bind programmes, create campaigns, create referrals, apply "
+        "incentives, dispatch providers, create credentials, change auth, "
+        "bill, settle, pay out, invoice, fund, or move money."
+    )
+
+
+def _customer_product_catalogue_no_side_effects() -> dict[str, bool]:
+    return {
+        "noProgrammeBindingConfirmed": True,
+        "noCampaignCreationConfirmed": True,
+        "noReferralCreationConfirmed": True,
+        "noIncentiveApplicationConfirmed": True,
+        "noProviderDispatchConfirmed": True,
+        "noCredentialOrAuthMutationConfirmed": True,
+        "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+    }
+
+
+@router.get("/accounts/{account_ref}/product-catalogue")
+async def get_referral_saas_customer_product_catalogue(
+    account_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(description="External reference type used to resolve the account."),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(description="External customer/account reference value."),
+    ],
+    context: Annotated[
+        str,
+        Query(description="setup or runtime account resolution context."),
+    ] = "setup",
+    limit: Annotated[
+        int,
+        Query(ge=1, le=100, description="Maximum number of product lines to return."),
+    ] = 50,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    reader_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=reader_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
+    _assert_account_path_scope(account_ref, account)
+    catalogue = await list_referral_saas_customer_product_catalogue(
+        account_id=account.account_id,
+        limit=limit,
+    )
+    catalogue.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "guardrail": _customer_product_catalogue_guardrail(),
+            "guardrails": list(CUSTOMER_PRODUCT_CATALOGUE_GUARDRAILS),
+            "redactions": list(CUSTOMER_PRODUCT_CATALOGUE_REDACTIONS),
+            **_customer_product_catalogue_no_side_effects(),
+        }
+    )
+    return catalogue
+
+
+@router.get("/accounts/{account_ref}/product-lines/{product_line_ref}")
+async def get_referral_saas_customer_product_line_route(
+    account_ref: str,
+    product_line_ref: str,
+    ref_type: Annotated[
+        str,
+        Query(description="External reference type used to resolve the account."),
+    ],
+    external_ref: Annotated[
+        str,
+        Query(description="External customer/account reference value."),
+    ],
+    context: Annotated[
+        str,
+        Query(description="setup or runtime account resolution context."),
+    ] = "setup",
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    reader_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=reader_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
+    _assert_account_path_scope(account_ref, account)
+    try:
+        line = await get_referral_saas_customer_product_line(
+            account_id=account.account_id,
+            product_line_ref=product_line_ref,
+        )
+    except CustomerProductCatalogueNotFound as exc:
+        _raise_customer_product_catalogue_http_exception(exc)
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "productLine": line.to_safe_dict(),
+        "guardrail": _customer_product_catalogue_guardrail(),
+        "guardrails": list(CUSTOMER_PRODUCT_CATALOGUE_GUARDRAILS),
+        "redactions": list(CUSTOMER_PRODUCT_CATALOGUE_REDACTIONS),
+        **_customer_product_catalogue_no_side_effects(),
+    }
+
+
+@router.put("/accounts/{account_ref}/product-lines/{product_line_ref}")
+async def upsert_referral_saas_customer_product_line_route(
+    account_ref: str,
+    product_line_ref: str,
+    request: ReferralSaasCustomerProductLineSaveRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_programme_configuration_account_context(
+        account_ref=account_ref,
+        account_scope=request.accountScope,
+        identity=admin_identity,
+    )
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await upsert_referral_saas_customer_product_line(
+            account_id=account.account_id,
+            product_line_ref=product_line_ref,
+            product_line_name=request.productLineName,
+            product_line_category=request.productLineCategory,
+            operating_jurisdiction_code=request.operatingJurisdictionCode,
+            lifecycle_status=request.lifecycleStatus,
+            description=request.description,
+            safe_summary=request.safeSummary,
+            governance_metadata=request.governanceMetadata,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except (
+        CustomerProductCatalogueIdempotencyConflict,
+        CustomerProductCatalogueUnsafePayload,
+        CustomerProductCatalogueValidationError,
+        CustomerProductCatalogueNotFound,
+    ) as exc:
+        _raise_customer_product_catalogue_http_exception(exc)
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "guardrail": _customer_product_catalogue_guardrail(),
+            **_customer_product_catalogue_no_side_effects(),
+        }
+    )
+    return body
+
+
+@router.put(
+    "/accounts/{account_ref}/product-lines/{product_line_ref}/offerings/{offering_ref}"
+)
+async def upsert_referral_saas_customer_product_offering_route(
+    account_ref: str,
+    product_line_ref: str,
+    offering_ref: str,
+    request: ReferralSaasCustomerProductOfferingSaveRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_programme_configuration_account_context(
+        account_ref=account_ref,
+        account_scope=request.accountScope,
+        identity=admin_identity,
+    )
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await upsert_referral_saas_customer_product_offering(
+            account_id=account.account_id,
+            product_line_ref=product_line_ref,
+            offering_ref=offering_ref,
+            offering_name=request.offeringName,
+            offering_family=request.offeringFamily,
+            operating_jurisdiction_code=request.operatingJurisdictionCode,
+            lifecycle_status=request.lifecycleStatus,
+            description=request.description,
+            safe_summary=request.safeSummary,
+            governance_metadata=request.governanceMetadata,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except (
+        CustomerProductCatalogueIdempotencyConflict,
+        CustomerProductCatalogueUnsafePayload,
+        CustomerProductCatalogueValidationError,
+        CustomerProductCatalogueNotFound,
+    ) as exc:
+        _raise_customer_product_catalogue_http_exception(exc)
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "guardrail": _customer_product_catalogue_guardrail(),
+            **_customer_product_catalogue_no_side_effects(),
+        }
+    )
+    return body
+
+
+@router.post("/accounts/{account_ref}/product-lines/{product_line_ref}/retire")
+async def retire_referral_saas_customer_product_line_route(
+    account_ref: str,
+    product_line_ref: str,
+    request: ReferralSaasCustomerProductCatalogueRetireRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_programme_configuration_account_context(
+        account_ref=account_ref,
+        account_scope=request.accountScope,
+        identity=admin_identity,
+    )
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await retire_referral_saas_customer_product_line(
+            account_id=account.account_id,
+            product_line_ref=product_line_ref,
+            retirement_reason=request.retirementReason,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except (
+        CustomerProductCatalogueIdempotencyConflict,
+        CustomerProductCatalogueUnsafePayload,
+        CustomerProductCatalogueValidationError,
+        CustomerProductCatalogueNotFound,
+    ) as exc:
+        _raise_customer_product_catalogue_http_exception(exc)
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "guardrail": _customer_product_catalogue_guardrail(),
+            **_customer_product_catalogue_no_side_effects(),
+        }
+    )
+    return body
+
+
+@router.post(
+    "/accounts/{account_ref}/product-lines/{product_line_ref}/offerings/{offering_ref}/retire"
+)
+async def retire_referral_saas_customer_product_offering_route(
+    account_ref: str,
+    product_line_ref: str,
+    offering_ref: str,
+    request: ReferralSaasCustomerProductCatalogueRetireRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    normalised_context, account = await _resolve_programme_configuration_account_context(
+        account_ref=account_ref,
+        account_scope=request.accountScope,
+        identity=admin_identity,
+    )
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await retire_referral_saas_customer_product_offering(
+            account_id=account.account_id,
+            product_line_ref=product_line_ref,
+            offering_ref=offering_ref,
+            retirement_reason=request.retirementReason,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except (
+        CustomerProductCatalogueIdempotencyConflict,
+        CustomerProductCatalogueUnsafePayload,
+        CustomerProductCatalogueValidationError,
+        CustomerProductCatalogueNotFound,
+    ) as exc:
+        _raise_customer_product_catalogue_http_exception(exc)
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "guardrail": _customer_product_catalogue_guardrail(),
+            **_customer_product_catalogue_no_side_effects(),
+        }
+    )
+    return body
 
 
 @router.post("/accounts/{account_ref}/programmes/drafts")

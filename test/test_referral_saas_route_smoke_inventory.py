@@ -37,6 +37,8 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/analytics"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/catalogue"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/product-catalogue"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/product-lines/{product_line_ref}"),
         (
             "GET",
             "/v1/referral-saas/accounts/{account_ref}/programmes/versions/{version_ref}/incentive-bindings",
@@ -131,6 +133,11 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("POST", "/referrals/referees/ucn"),
         ("POST", "/v1/referral-saas/accounts/from-draft"),
         ("PUT", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
+        ("PUT", "/v1/referral-saas/accounts/{account_ref}/product-lines/{product_line_ref}"),
+        (
+            "PUT",
+            "/v1/referral-saas/accounts/{account_ref}/product-lines/{product_line_ref}/offerings/{offering_ref}",
+        ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/programmes/drafts"),
         (
             "PUT",
@@ -151,6 +158,11 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/programmes/drafts/{draft_ref}/publish",
+        ),
+        ("POST", "/v1/referral-saas/accounts/{account_ref}/product-lines/{product_line_ref}/retire"),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/product-lines/{product_line_ref}/offerings/{offering_ref}/retire",
         ),
         (
             "POST",
@@ -323,6 +335,8 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/analytics"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/catalogue"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/product-catalogue"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/product-lines/{product_line_ref}"),
         (
             "GET",
             "/v1/referral-saas/accounts/{account_ref}/programmes/versions/{version_ref}/incentive-bindings",
@@ -404,6 +418,11 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("POST", "/v1/referral-saas/accounts/{account_ref}/reports/{report_type}/exports/validate"),
         ("POST", "/v1/referral-saas/accounts/from-draft"),
         ("PUT", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
+        ("PUT", "/v1/referral-saas/accounts/{account_ref}/product-lines/{product_line_ref}"),
+        (
+            "PUT",
+            "/v1/referral-saas/accounts/{account_ref}/product-lines/{product_line_ref}/offerings/{offering_ref}",
+        ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/programmes/drafts"),
         (
             "PUT",
@@ -424,6 +443,11 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/programmes/drafts/{draft_ref}/publish",
+        ),
+        ("POST", "/v1/referral-saas/accounts/{account_ref}/product-lines/{product_line_ref}/retire"),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/product-lines/{product_line_ref}/offerings/{offering_ref}/retire",
         ),
         (
             "POST",

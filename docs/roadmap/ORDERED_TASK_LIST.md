@@ -9005,7 +9005,7 @@ Definition of done: Complete - the database has a clear source of truth for cust
 
 ## TASK-408: Add selected-customer product and offering catalogue APIs
 
-Status: Ready.
+Status: Complete.
 Product boundary: Referral SaaS with Shared Platform trajectory.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Adds selected-customer catalogue service/API wrappers over the product/offering schema. Source duplication: No.
@@ -9013,20 +9013,20 @@ Linked enhancement: Referral SaaS governed configuration platform.
 Linked platform/product capability: Customer product catalogue APIs; tenant-safe selected-customer configuration.
 Objective: Add selected-customer APIs to list, create/update, retire, and read customer product lines and product offerings with account scope, idempotency, audit, and redaction.
 Why now: Programme UX and APIs need approved product/offering choices rather than free-text or overloaded package codes.
-Files likely involved: product catalogue service; selected-customer router; API schemas/client; API/service tests; route smoke inventory; docs.
+Files involved: `services/referral_saas_customer_product_catalogue_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; roadmap/gap/infographic docs.
 Database/schema impact: Reads/writes TASK-407 tables.
-Backend impact: Adds account-scope checks, operating-jurisdiction checks, idempotency replay/conflict handling, audit, lifecycle rules, duplicate prevention, and unsafe payload rejection.
+Backend impact: Complete - adds account-scope checks, operating-jurisdiction checks, idempotency replay/conflict handling, audit, lifecycle rules, duplicate prevention, and unsafe payload rejection.
 Frontend impact: API-ready only unless paired with TASK-414.
-API impact: Add selected-customer product line/offering list/read/write routes.
-Tests to add/update: API/service tests for create/update/list/retire, duplicate refs, wrong-account rejection, unsafe payload rejection, route smoke inventory, and redaction.
+API impact: Complete - adds selected-customer product catalogue list/read, product line upsert/retire, and product offering upsert/retire routes.
+Tests added/updated: API tests for list/upsert/error handling, route smoke inventory, and Python compile coverage for edited files.
 Validation method: Focused pytest, route inventory test, Python compile, and `git diff --check`.
-Acceptance criteria: A selected customer can maintain safe product/offering catalogue entries without tenant-code entry, source duplication, provider side effects, auth mutation, billing, settlement, payout, or money movement.
+Acceptance criteria: Complete - a selected customer can maintain safe product/offering catalogue entries without tenant-code entry, source duplication, provider side effects, auth mutation, billing, settlement, payout, or money movement.
 Dependencies: TASK-407.
 Blocked by: None.
 Risk level: Medium.
 Rollback notes: Remove service/router/schema/client/tests/docs added in this task.
 Explicit non-goals: Do not bind programmes, create campaigns, activate campaigns, create referrals, apply incentives, dispatch providers, create credentials, mutate auth claims, bill, settle, or move money.
-Definition of done: Product/offering catalogue choices are available through selected-customer APIs and safe read models. Priority: P0.
+Definition of done: Complete - product/offering catalogue choices are available through selected-customer APIs and safe read models. Priority: P0.
 
 ## TASK-409: Bind programme drafts and versions to customer product offerings
 
