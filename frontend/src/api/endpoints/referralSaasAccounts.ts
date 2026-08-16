@@ -470,6 +470,19 @@ export type ReferralSaasCampaignJourneyBindingRequest = {
   idempotencyKey: string;
 };
 
+export type ReferralSaasCampaignProgrammeBindingRequest = {
+  accountRef: string;
+  campaignCode: string;
+  accountScope: {
+    refType: "external_tenant_ref" | "organisation_ref";
+    externalRef: string;
+    context?: ReferralSaasAccountResolutionContext;
+  };
+  programmeVersionId: string;
+  correlationId?: string | null;
+  idempotencyKey: string;
+};
+
 export type ReferralSaasCampaignJourneyBindingResponse = {
   status: string;
   context: ReferralSaasAccountResolutionContext;
@@ -2524,6 +2537,7 @@ export type ReferralSaasAccountCampaignSetupCreateRequest = {
   campaign: {
     name: string;
     segment: string;
+    programmeVersionId?: string | null;
     startsAt?: string | null;
     endsAt?: string | null;
     maxUses?: number | null;
@@ -2552,6 +2566,7 @@ export type ReferralSaasAccountCampaignSetupCreateResponse = {
       startsAt?: string | null;
       endsAt?: string | null;
       maxUses?: number | null;
+      programmeBinding?: Record<string, unknown> | null;
     };
     idempotency: {
       status: string;
@@ -3788,6 +3803,30 @@ export function bindReferralSaasAccountCampaignJourneyVersion({
       body: {
         accountScope,
         customerJourneyVersionId,
+        correlationId,
+        idempotencyKey,
+      },
+    },
+  );
+}
+
+export function bindReferralSaasAccountCampaignProgrammeVersion({
+  accountRef,
+  campaignCode,
+  accountScope,
+  programmeVersionId,
+  correlationId,
+  idempotencyKey,
+}: ReferralSaasCampaignProgrammeBindingRequest): Promise<ReferralSaasAccountCampaignSetupCreateResponse> {
+  return apiRequest<ReferralSaasAccountCampaignSetupCreateResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/campaigns/${encodeURIComponent(
+      campaignCode.trim(),
+    )}/programme-binding`,
+    {
+      method: "PUT",
+      body: {
+        accountScope,
+        programmeVersionId,
         correlationId,
         idempotencyKey,
       },
