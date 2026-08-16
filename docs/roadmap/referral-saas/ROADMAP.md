@@ -395,7 +395,7 @@ UX, binding, and proof gaps:
   idempotency, audit evidence, and redacted no-side-effect responses without
   executing rewards, campaign activation, provider delivery, auth, billing,
   settlement, payout, funding, or money movement.
-- TASK-418 proves the full product line -> offering -> programme -> incentive
+- TASK-418 is complete and proves the full product line -> offering -> programme -> incentive
   binding -> campaign -> referral -> progress/outcome -> attribution/reporting/
   analytics path without source-code journey changes.
 - TASK-419 applies the final plain-language configuration UX readiness pass so
