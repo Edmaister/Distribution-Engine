@@ -20,6 +20,10 @@ first SaaS wedge and keep DLaaS expansion items clearly marked as deferrals.
 - `REFERRAL_SAAS_PROGRAMME_CONFIGURATION_CONTRACT.md` - TASK-396 simple
   Referral programme ownership, lifecycle, validation, command, redaction, and
   side-effect boundary contract.
+- `REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md` - TASK-406 domain
+  boundary contract separating customer product/offering, Amplifi service
+  packaging, Referral Programme, Campaign Management, campaign overrides,
+  runtime effective-rule snapshots, and reporting/UX proof.
 - `REFERRAL_SAAS_ACCOUNT_SETUP_CONTRACT.md` - TASK-134 account setup contract.
 - `REFERRAL_SAAS_ACCOUNT_SETUP_MAINTENANCE_WORKFLOW_ARCHITECTURE.md` -
   TASK-190 account setup, readiness, and maintenance workflow architecture.

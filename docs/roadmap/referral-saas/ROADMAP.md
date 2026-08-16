@@ -353,6 +353,8 @@ campaign, and override context can be understood without raw technical detail.
 This remains Referral SaaS work with Shared Platform trajectory; it must not
 pull in DLaaS marketplace, funding, fulfilment, settlement, sponsor billing,
 auth-claim mutation, provider dispatch, credential creation, or money movement.
+TASK-406 is complete; TASK-407 is the next implementation task and starts the
+durable customer product/offering catalogue schema foundation.
 
 ## Recommended Ordered Task Sequence
 

@@ -8955,7 +8955,7 @@ Priority: P0.
 
 ## TASK-406: Lock programme, campaign, product, and offering domain boundaries
 
-Status: Ready.
+Status: Complete (2026-08-16). Output: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/sa/referral-saas/README.md`.
 Product boundary: Referral SaaS with Shared Platform trajectory.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`.
 Shared primitive impact: Establishes naming and ownership controls across product catalogue, programme configuration, campaign management, runtime resolution, reporting, and UX. Source duplication: No.
@@ -8963,20 +8963,20 @@ Linked enhancement: Referral SaaS governed configuration platform.
 Linked platform/product capability: Customer product taxonomy; programme/campaign domain separation; configuration guardrails.
 Objective: Convert the architectural assessment into a reviewed implementation contract that clearly separates customer product/offering, Amplifi service packaging, referral programme, campaign, campaign overrides, and runtime effective rules.
 Why now: TASK-396 through TASK-405 prove programme configuration, but the next work must avoid overloading `product_code`/`sub_product_code` and must keep referral and campaign management as two separate domain services.
-Files likely involved: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; infographic.
+Files involved: `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/sa/referral-saas/README.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Database/schema impact: None.
 Backend impact: Contract only; no service behavior changes.
 Frontend impact: Contract only; defines future plain-language IA.
 API impact: Contract only.
-Tests to add/update: Documentation readback and route/service inventory notes only.
+Tests added/updated: Documentation readback only.
 Validation method: `git diff --check` and documentation readback.
-Acceptance criteria: The domain contract defines which service owns product/offering, programme, campaign, override, runtime snapshot, and reporting responsibilities; it lists forbidden overloads and no-side-effect controls; downstream tasks can cite it without re-debating terms.
+Acceptance criteria: Complete - the domain contract defines which service owns product/offering, programme, campaign, override, runtime snapshot, and reporting responsibilities; it lists forbidden overloads and no-side-effect controls; downstream tasks can cite it without re-debating terms.
 Dependencies: TASK-405.
 Blocked by: None.
 Risk level: Low.
 Rollback notes: Revert documentation updates only.
 Explicit non-goals: Do not add schema, routes, services, UI, provider dispatch, invite delivery, credential creation, auth-claim mutation, campaign activation, billing, payout, settlement, funding, wallet, treasury, invoice, commission, sponsor billing, DLaaS marketplace behavior, or money movement.
-Definition of done: The build framework has a single domain-boundary source of truth for customer product/offering, programme, campaign, override, runtime, and reporting work. Priority: P0.
+Definition of done: Complete - the build framework has a single domain-boundary source of truth for customer product/offering, programme, campaign, override, runtime, and reporting work. Priority: P0.
 
 ## TASK-407: Add customer product and offering catalogue schema foundation
 
