@@ -8896,7 +8896,7 @@ Priority: P1.
 
 ## TASK-403: Bind new referrals and runtime reads to published programme versions
 
-Status: Open.
+Status: Complete.
 Product boundary: Referral SaaS with Shared Platform trajectory.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CONFIGURATION_ROADMAP.md`.
 Shared primitive impact: Adds programme-version runtime identity for historical replay. Source duplication: No.
@@ -8909,6 +8909,7 @@ Frontend impact: Customer-safe programme/version labels in diagnostics only.
 API impact: Referral/progress/attribution/reporting responses may expose safe programme version metadata.
 Tests to add/update: New referral programme binding, legacy fallback, wrong-account rejection, historical replay stability, analytics consistency, no raw config leakage.
 Acceptance criteria: New referrals bind to a published programme version; existing referrals continue safely; progress, attribution, reporting, and replay can resolve the correct historical configuration without source-code journey changes or unsafe side effects.
+Completed output: Added referral-instance programme version identity and safe runtime context, bound new referral validation records to published campaign programme metadata when available, preserved legacy fallback behavior, exposed safe programme-version metadata in referral registry reads, and added migration/runtime read tests with no raw programme configuration leakage.
 Dependencies: TASK-401; TASK-402.
 Priority: P0.
 

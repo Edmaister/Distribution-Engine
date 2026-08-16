@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import random
 import re
 import uuid
@@ -28,6 +29,70 @@ def _identity_lookup_key(raw_value: str) -> str:
 def _generate_referral_code() -> str:
     alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     return "".join(random.choice(alphabet) for _ in range(10))
+
+
+def _campaign_programme_binding(attributes: Any) -> dict[str, Any] | None:
+    if isinstance(attributes, str):
+        try:
+            attributes = json.loads(attributes)
+        except json.JSONDecodeError:
+            return None
+    if not isinstance(attributes, dict):
+        return None
+    binding = attributes.get("referral_saas_programme_binding")
+    return binding if isinstance(binding, dict) else None
+
+
+def _safe_runtime_programme_context(binding: dict[str, Any] | None) -> dict[str, Any]:
+    if not binding:
+        return {}
+    context = {
+        "programmeVersionId": str(binding.get("programmeVersionId") or "").strip(),
+        "programmeCode": str(binding.get("programmeCode") or "").strip(),
+        "programmeName": str(binding.get("programmeName") or "").strip(),
+        "versionNumber": binding.get("versionNumber"),
+        "customerJourneyVersionId": str(
+            binding.get("customerJourneyVersionId") or ""
+        ).strip(),
+        "source": "CAMPAIGN_PUBLISHED_PROGRAMME_BINDING",
+        "capturedAt": _utcnow().isoformat().replace("+00:00", "Z"),
+    }
+    return {key: value for key, value in context.items() if value not in ("", None)}
+
+
+def _row_value(row: Any, key: str, default: Any = None) -> Any:
+    if hasattr(row, "get"):
+        return row.get(key, default)
+    try:
+        return row[key]
+    except (KeyError, IndexError, TypeError):
+        return default
+
+
+async def _fetch_campaign_programme_runtime_context(
+    conn: Any,
+    *,
+    tenant_code: str,
+    campaign_code: str,
+) -> tuple[str | None, dict[str, Any]]:
+    row = await conn.fetchrow(
+        """
+        SELECT attributes
+        FROM marketing_campaigns
+        WHERE UPPER(tenant_code) = UPPER($1)
+          AND UPPER(campaign_code) = UPPER($2)
+        LIMIT 1
+        """,
+        tenant_code,
+        campaign_code,
+    )
+    if not row:
+        return None, {}
+    attributes = _row_value(row, "attributes")
+    binding = _campaign_programme_binding(attributes)
+    context = _safe_runtime_programme_context(binding)
+    programme_version_id = str(context.get("programmeVersionId") or "").strip()
+    return programme_version_id or None, context
 
 
 def _generate_handle() -> str:
@@ -255,13 +320,14 @@ async def validate_referral_code(
 
     referral_track_id = None
     referrer_code_id = None
+    programme_version_id = None
 
     try:
         async with db_connection() as conn:
             async with conn.transaction():
                 row = await conn.fetchrow(
                     """
-                    SELECT referrer_code_id, referrer_ucn
+                    SELECT referrer_code_id, referrer_ucn, sticker
                     FROM referrer_codes
                     WHERE tenant_code = $1
                       AND referral_code = $2
@@ -285,10 +351,18 @@ async def validate_referral_code(
                         },
                     }, status.HTTP_404_NOT_FOUND
 
-                referrer_code_id = row["referrer_code_id"]
-                referrer_ucn = row["referrer_ucn"]
+                referrer_code_id = _row_value(row, "referrer_code_id")
+                referrer_ucn = _row_value(row, "referrer_ucn")
+                campaign_context_code = str(_row_value(row, "sticker") or "").strip()
                 referral_track_id = str(uuid.uuid4())
                 now = _utcnow()
+                programme_version_id, programme_context = (
+                    await _fetch_campaign_programme_runtime_context(
+                        conn,
+                        tenant_code=tenant_code,
+                        campaign_code=campaign_context_code,
+                    )
+                )
 
                 await conn.execute(
                     """
@@ -305,6 +379,8 @@ async def validate_referral_code(
                             accepted_terms_at,
                             referee_alias,
                             referee_alias_normalized,
+                            programme_version_id,
+                            programme_runtime_context,
                             created_at,
                             updated_at
                         )
@@ -315,7 +391,8 @@ async def validate_referral_code(
                             'VALIDATED', $6,
                             $7, $8,
                             $9, $10,
-                            $11, $12
+                            $11, $12::jsonb,
+                            $13, $14
                         )
                     """,
                     referral_track_id,
@@ -328,6 +405,8 @@ async def validate_referral_code(
                     now,
                     alias_value,
                     alias_normalized,
+                    programme_version_id,
+                    json.dumps(programme_context),
                     now,
                     now,
                 )
@@ -358,6 +437,10 @@ async def validate_referral_code(
                 "tenant_code": tenant_code,
                 "referrer_code_id": referrer_code_id,
                 "aliasSource": alias_source,
+                "programmeRuntimeBinding": {
+                    "bound": bool(programme_version_id),
+                    "programmeVersionId": programme_version_id,
+                },
             },
         }, status.HTTP_200_OK
 
@@ -372,6 +455,10 @@ async def validate_referral_code(
             "tenant_code": tenant_code,
             "referrer_code_id": referrer_code_id,
             "aliasSource": alias_source,
+            "programmeRuntimeBinding": {
+                "bound": bool(programme_version_id),
+                "programmeVersionId": programme_version_id,
+            },
         },
     }, status.HTTP_200_OK
 

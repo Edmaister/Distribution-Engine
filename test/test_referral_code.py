@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import json
 
 import pytest
 
@@ -10,6 +11,10 @@ os.environ.setdefault(
 )
 
 import services.referral_code as rc
+
+
+PROGRAMME_VERSION_ID = "11111111-1111-4111-8111-111111111111"
+CUSTOMER_JOURNEY_VERSION_ID = "22222222-2222-4222-8222-222222222222"
 
 
 # -----------------------
@@ -181,6 +186,7 @@ async def test_validate_referral_code_success(monkeypatch):
             {
                 "referrer_code_id": "code-id",
                 "referrer_ucn": "123",
+                "sticker": "CAMPAIGN-001",
             }
         ]
     )
@@ -197,6 +203,69 @@ async def test_validate_referral_code_success(monkeypatch):
 
     assert status == 200
     assert body["valid"] is True
+    assert body["attributes"]["programmeRuntimeBinding"] == {
+        "bound": False,
+        "programmeVersionId": None,
+    }
+
+
+@pytest.mark.asyncio
+async def test_validate_referral_code_binds_programme_runtime_context(monkeypatch):
+    conn = FakeAsyncConn(
+        fetchrow_values=[
+            {
+                "referrer_code_id": "code-id",
+                "referrer_ucn": "123",
+                "sticker": "CAMPAIGN-001",
+            },
+            {
+                "attributes": {
+                    "referral_saas_programme_binding": {
+                        "programmeVersionId": PROGRAMME_VERSION_ID,
+                        "programmeCode": "HOME_LOAN",
+                        "programmeName": "Home Loan Referral",
+                        "versionNumber": 2,
+                        "customerJourneyVersionId": CUSTOMER_JOURNEY_VERSION_ID,
+                        "rawConfig": {"must": "not leak"},
+                    }
+                }
+            },
+        ]
+    )
+    patch_async_db(monkeypatch, conn)
+
+    monkeypatch.setattr(rc, "_normalize_alias", lambda x: "Alias1")
+    monkeypatch.setattr(rc, "_validate_alias", lambda x: (True, None, "alias1"))
+
+    body, status = await rc.validate_referral_code(
+        tenant_code="FNB",
+        referral_code="ABC",
+        accepted_terms=True,
+    )
+
+    assert status == 200
+    assert body["attributes"]["programmeRuntimeBinding"] == {
+        "bound": True,
+        "programmeVersionId": PROGRAMME_VERSION_ID,
+    }
+    campaign_lookup = next(
+        call for call in conn.executed if "FROM marketing_campaigns" in call[0]
+    )
+    assert campaign_lookup[1] == ("FNB", "CAMPAIGN-001")
+    referral_insert = next(
+        call for call in conn.executed if "INSERT INTO referral_instances" in call[0]
+    )
+    assert "programme_version_id" in referral_insert[0]
+    assert "programme_runtime_context" in referral_insert[0]
+    assert referral_insert[1][10] == PROGRAMME_VERSION_ID
+    runtime_context = json.loads(referral_insert[1][11])
+    assert runtime_context["programmeVersionId"] == PROGRAMME_VERSION_ID
+    assert runtime_context["programmeCode"] == "HOME_LOAN"
+    assert runtime_context["programmeName"] == "Home Loan Referral"
+    assert runtime_context["versionNumber"] == 2
+    assert runtime_context["customerJourneyVersionId"] == CUSTOMER_JOURNEY_VERSION_ID
+    assert runtime_context["source"] == "CAMPAIGN_PUBLISHED_PROGRAMME_BINDING"
+    assert "rawConfig" not in runtime_context
 
 
 @pytest.mark.asyncio

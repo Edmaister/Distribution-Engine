@@ -158,9 +158,11 @@ programme-binding gap by validating same-account published programme versions
 on campaign setup and activation. TASK-402 now closes the programme incentive
 and engagement snapshot gap by binding approved reward policy, mission, badge,
 and leaderboard references to published programme versions with effective-date,
-idempotency, audit, and no-side-effect guardrails. Remaining work is TASK-403
-through TASK-405: runtime binding, analytics, and a simple customer Programme
-UX.
+idempotency, audit, and no-side-effect guardrails. TASK-403 now closes the
+runtime binding gap by storing the programme-version identity used when new
+referrals are created and exposing only safe runtime metadata on referral
+registry reads. Remaining work is TASK-404 through TASK-405: analytics and a
+simple customer Programme UX.
 
 ## TASK-357 H1 Scope And Release Gates
 

@@ -64,6 +64,11 @@ def _referral_row(**overrides):
         "last_progress_at": datetime(2026, 8, 2, tzinfo=timezone.utc),
         "progress_event_count": 2,
         "has_attribution_evidence": True,
+        "programme_version_id": None,
+        "programme_code": None,
+        "programme_name": None,
+        "programme_version_number": None,
+        "customer_journey_version_id": None,
     }
     row.update(overrides)
     return row
@@ -83,6 +88,7 @@ async def test_referral_registry_lists_safe_customer_scoped_projection(monkeypat
     assert safe_payload["referralCode"] == "REF-123"
     assert safe_payload["publicReferrerHandle"] == "edwin"
     assert safe_payload["missingEvidence"] == []
+    assert safe_payload["programmeVersion"] == {"bindingStatus": "LEGACY_OR_UNBOUND"}
     assert "tenantCode" not in safe_payload
     assert "referrerUcn" not in safe_payload
     assert "refereeUcn" not in safe_payload
@@ -125,6 +131,44 @@ async def test_referral_registry_marks_missing_evidence_without_raw_payloads(mon
         "ATTRIBUTION_EVIDENCE_MISSING",
     ]
     assert "raw_progress_payload" in safe_payload["redactions"]
+
+
+async def test_referral_registry_returns_safe_programme_runtime_metadata(monkeypatch):
+    programme_version_id = uuid4()
+    customer_journey_version_id = uuid4()
+    conn = FakeConnection(
+        fetch_results=[
+            [
+                _referral_row(
+                    programme_version_id=programme_version_id,
+                    programme_code="HOME_LOAN",
+                    programme_name="Home Loan Referral",
+                    programme_version_number=3,
+                    customer_journey_version_id=customer_journey_version_id,
+                    raw_programme_config={"must": "not leak"},
+                )
+            ]
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    referral = (
+        await svc.list_referral_saas_account_referrals(
+            tenant_code="FNB",
+            limit=50,
+        )
+    )[0]
+
+    safe_payload = referral.to_safe_dict()
+    assert safe_payload["programmeVersion"] == {
+        "bindingStatus": "BOUND_AT_REFERRAL_CREATION",
+        "programmeVersionId": str(programme_version_id),
+        "programmeCode": "HOME_LOAN",
+        "programmeName": "Home Loan Referral",
+        "versionNumber": 3,
+        "customerJourneyVersionId": str(customer_journey_version_id),
+    }
+    assert "raw_programme_config" not in safe_payload
 
 
 async def test_referral_detail_returns_safe_timeline(monkeypatch):
