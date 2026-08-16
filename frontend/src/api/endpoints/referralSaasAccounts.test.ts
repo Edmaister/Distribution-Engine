@@ -7,6 +7,9 @@ import {
   createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
   createReferralSaasAccountFromDraft,
+  createReferralSaasProgrammeDraft,
+  getReferralSaasAccountProgrammeAnalytics,
+  getReferralSaasAccountProgrammeCatalogue,
   getReferralSaasAccountCampaign,
   getReferralSaasAccountCampaignAttribution,
   getReferralSaasAccountCampaignReadiness,
@@ -23,7 +26,9 @@ import {
   listReferralSaasOperatorSupportQueue,
   listReferralSaasIntegrationCredentialRequests,
   listReferralSaasAccountCampaigns,
+  listReferralSaasAccountProgrammes,
   listReferralSaasAccounts,
+  publishReferralSaasProgrammeDraft,
   recordReferralSaasApiAccessVerification,
   recordReferralSaasIntegrationCredentialRequest,
   recordReferralSaasIntegrationCredentialExecutionCheck,
@@ -43,6 +48,7 @@ import {
   updateReferralSaasMembershipInvitationIntent,
   updateReferralSaasAccountCampaignPolicySettings,
   updateReferralSaasAccountProfile,
+  validateReferralSaasProgrammeDraft,
 } from "./referralSaasAccounts";
 
 vi.mock("../client", () => ({
@@ -225,6 +231,155 @@ describe("referralSaasAccounts endpoint client", () => {
         correlation_id: "referral-saas-account-setup-create",
       },
     });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /client_secret|wallet|settlement|money_movement/,
+    );
+  });
+
+  it("reads the selected-customer programme workspace through bounded product routes", async () => {
+    mockedApiRequest
+      .mockResolvedValueOnce({
+        status: "ok",
+        count: 1,
+        programmes: [{ programmeVersionId: "programme-version-1", programmeName: "FNB Referral Programme" }],
+      })
+      .mockResolvedValueOnce({
+        status: "ok",
+        productCode: "REFERRAL_SAAS",
+        subProductCodes: ["RMCA_BUNDLE"],
+        customerJourneyVersions: [{ customerJourneyVersionId: "journey-version-1" }],
+      })
+      .mockResolvedValueOnce({
+        status: "ok",
+        programmeAnalytics: {
+          versionCount: 1,
+          versions: [{ programmeVersionId: "programme-version-1", programmeName: "FNB Referral Programme" }],
+        },
+      });
+
+    await listReferralSaasAccountProgrammes({
+      accountRef: " acct-fnb ",
+      refType: "external_tenant_ref",
+      externalRef: " fnb-ref ",
+      context: "setup",
+      includeRetired: true,
+      limit: 10,
+    });
+    await getReferralSaasAccountProgrammeCatalogue({
+      accountRef: " acct-fnb ",
+      refType: "external_tenant_ref",
+      externalRef: " fnb-ref ",
+      context: "setup",
+      limit: 25,
+    });
+    await getReferralSaasAccountProgrammeAnalytics({
+      accountRef: " acct-fnb ",
+      refType: "external_tenant_ref",
+      externalRef: " fnb-ref ",
+      context: "setup",
+      limit: 5,
+    });
+
+    expect(mockedApiRequest).toHaveBeenNthCalledWith(1, "v1/referral-saas/accounts/acct-fnb/programmes", {
+      query: {
+        ref_type: "external_tenant_ref",
+        external_ref: "fnb-ref",
+        context: "setup",
+        includeRetired: true,
+        limit: 10,
+      },
+    });
+    expect(mockedApiRequest).toHaveBeenNthCalledWith(2, "v1/referral-saas/accounts/acct-fnb/programmes/catalogue", {
+      query: {
+        ref_type: "external_tenant_ref",
+        external_ref: "fnb-ref",
+        context: "setup",
+        limit: 25,
+      },
+    });
+    expect(mockedApiRequest).toHaveBeenNthCalledWith(3, "v1/referral-saas/accounts/acct-fnb/programmes/analytics", {
+      query: {
+        ref_type: "external_tenant_ref",
+        external_ref: "fnb-ref",
+        context: "setup",
+        limit: 5,
+      },
+    });
+    expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
+      /tenant_code|client_secret|wallet|settlement|money_movement/,
+    );
+  });
+
+  it("drives the selected-customer programme draft lifecycle without adjacent live actions", async () => {
+    mockedApiRequest
+      .mockResolvedValueOnce({ status: "ok", commandStatus: "DRAFT_SAVED", draft: { programmeDraftId: "draft-1" } })
+      .mockResolvedValueOnce({
+        status: "ok",
+        validation: {
+          validationStatus: "VALIDATION_PASSED",
+          publishAllowed: true,
+          blockers: [],
+          warnings: [],
+        },
+      })
+      .mockResolvedValueOnce({
+        status: "ok",
+        commandStatus: "PUBLISHED",
+        programmeVersion: { programmeVersionId: "programme-version-1" },
+      });
+    const accountScope = { refType: "external_tenant_ref", externalRef: "fnb-ref", context: "setup" };
+
+    await createReferralSaasProgrammeDraft({
+      accountRef: "acct-fnb",
+      body: {
+        accountScope,
+        programmeName: "FNB Referral Programme",
+        customerJourneyVersionId: "journey-version-1",
+        campaignDefaults: { attributionWindowDays: 30 },
+        idempotencyKey: "programme-draft-1",
+      },
+    });
+    await validateReferralSaasProgrammeDraft({
+      accountRef: "acct-fnb",
+      draftRef: "draft-1",
+      accountScope,
+      idempotencyKey: "programme-validate-1",
+    });
+    await publishReferralSaasProgrammeDraft({
+      accountRef: "acct-fnb",
+      draftRef: "draft-1",
+      accountScope,
+      publishReason: "Approved for campaign setup.",
+      idempotencyKey: "programme-publish-1",
+    });
+
+    expect(mockedApiRequest).toHaveBeenNthCalledWith(1, "v1/referral-saas/accounts/acct-fnb/programmes/drafts", {
+      method: "POST",
+      body: expect.objectContaining({
+        programmeName: "FNB Referral Programme",
+        idempotencyKey: "programme-draft-1",
+      }),
+    });
+    expect(mockedApiRequest).toHaveBeenNthCalledWith(
+      2,
+      "v1/referral-saas/accounts/acct-fnb/programmes/drafts/draft-1/validate",
+      {
+        method: "POST",
+        body: expect.objectContaining({ accountScope, idempotencyKey: "programme-validate-1" }),
+      },
+    );
+    expect(mockedApiRequest).toHaveBeenNthCalledWith(
+      3,
+      "v1/referral-saas/accounts/acct-fnb/programmes/drafts/draft-1/publish",
+      {
+        method: "POST",
+        body: expect.objectContaining({
+          accountScope,
+          publishReason: "Approved for campaign setup.",
+          idempotencyKey: "programme-publish-1",
+        }),
+      },
+    );
     expect(JSON.stringify(mockedApiRequest.mock.calls).toLowerCase()).not.toMatch(
       /client_secret|wallet|settlement|money_movement/,
     );

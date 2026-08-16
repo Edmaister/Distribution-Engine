@@ -31,6 +31,10 @@ import {
   createReferralSaasAccountSupportCase,
   createReferralSaasAccountCampaignSetup,
   bindReferralSaasAccountCampaignJourneyVersion,
+  createReferralSaasProgrammeDraft,
+  decideReferralSaasProgrammeDraftReview,
+  getReferralSaasAccountProgrammeAnalytics,
+  getReferralSaasAccountProgrammeCatalogue,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasAccountSupportCaseRepairReplayReadiness,
   getReferralSaasAccountMembershipPosture,
@@ -42,12 +46,14 @@ import {
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccountJourneyDrafts,
   listReferralSaasAccountJourneyVersions,
+  listReferralSaasAccountProgrammes,
   listReferralSaasIntegrationCredentialRequests,
   listReferralSaasAccountSupportCases,
   listReferralSaasAccountCampaigns,
   listReferralSaasAccounts,
   listReferralSaasJourneyTemplates,
   publishReferralSaasAccountJourneyDraft,
+  publishReferralSaasProgrammeDraft,
   recordReferralSaasAccountCampaignReviewDecision,
   recordReferralSaasApiAccessVerification,
   recordReferralSaasIntegrationCredentialRequest,
@@ -64,12 +70,15 @@ import {
   requestReferralSaasMembershipInvitationDelivery,
   saveReferralSaasAccountJourneyDraft,
   saveReferralSaasIntegrationConfiguration,
+  submitReferralSaasProgrammeDraftReview,
   submitReferralSaasAccountCampaignReview,
   cancelReferralSaasMembershipInvitationIntent,
   updateReferralSaasMembershipInvitationIntent,
   updateReferralSaasAccountCampaignPolicySettings,
   updateReferralSaasAccountProfile,
+  updateReferralSaasProgrammeDraft,
   validateReferralSaasAccountJourneyDraft,
+  validateReferralSaasProgrammeDraft,
   validateReferralSaasIntegrationConfiguration,
   type ReferralSaasAccountCampaignReviewResponse,
   type ReferralSaasAccountCampaignActivationResponse,
@@ -121,6 +130,10 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   createReferralSaasAccountSupportCase: vi.fn(),
   createReferralSaasAccountCampaignSetup: vi.fn(),
   getReferralSaasAccountCampaignReadiness: vi.fn(),
+  createReferralSaasProgrammeDraft: vi.fn(),
+  decideReferralSaasProgrammeDraftReview: vi.fn(),
+  getReferralSaasAccountProgrammeAnalytics: vi.fn(),
+  getReferralSaasAccountProgrammeCatalogue: vi.fn(),
   getReferralSaasAccountSupportCaseRepairReplayReadiness: vi.fn(),
   getReferralSaasAccountMembershipPosture: vi.fn(),
   getReferralSaasIntegrationConfiguration: vi.fn(),
@@ -131,12 +144,14 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   getReferralSaasTechnicalSetupReadiness: vi.fn(),
   listReferralSaasAccountJourneyDrafts: vi.fn(),
   listReferralSaasAccountJourneyVersions: vi.fn(),
+  listReferralSaasAccountProgrammes: vi.fn(),
   listReferralSaasIntegrationCredentialRequests: vi.fn(),
   listReferralSaasAccountSupportCases: vi.fn(),
   listReferralSaasAccountCampaigns: vi.fn(),
   listReferralSaasAccounts: vi.fn(),
   listReferralSaasJourneyTemplates: vi.fn(),
   publishReferralSaasAccountJourneyDraft: vi.fn(),
+  publishReferralSaasProgrammeDraft: vi.fn(),
   recordReferralSaasAccountCampaignReviewDecision: vi.fn(),
   recordReferralSaasApiAccessVerification: vi.fn(),
   recordReferralSaasIntegrationCredentialRequest: vi.fn(),
@@ -154,12 +169,15 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   requestReferralSaasMembershipActivation: vi.fn(),
   saveReferralSaasAccountJourneyDraft: vi.fn(),
   saveReferralSaasIntegrationConfiguration: vi.fn(),
+  submitReferralSaasProgrammeDraftReview: vi.fn(),
   submitReferralSaasAccountCampaignReview: vi.fn(),
   cancelReferralSaasMembershipInvitationIntent: vi.fn(),
   updateReferralSaasMembershipInvitationIntent: vi.fn(),
   updateReferralSaasAccountCampaignPolicySettings: vi.fn(),
   updateReferralSaasAccountProfile: vi.fn(),
+  updateReferralSaasProgrammeDraft: vi.fn(),
   validateReferralSaasAccountJourneyDraft: vi.fn(),
+  validateReferralSaasProgrammeDraft: vi.fn(),
   validateReferralSaasIntegrationConfiguration: vi.fn(),
 }));
 
@@ -191,6 +209,10 @@ const mockedCreateReferralSaasAccountCampaignSetup = vi.mocked(createReferralSaa
 const mockedBindReferralSaasAccountCampaignJourneyVersion = vi.mocked(
   bindReferralSaasAccountCampaignJourneyVersion,
 );
+const mockedCreateReferralSaasProgrammeDraft = vi.mocked(createReferralSaasProgrammeDraft);
+const mockedDecideReferralSaasProgrammeDraftReview = vi.mocked(decideReferralSaasProgrammeDraftReview);
+const mockedGetReferralSaasAccountProgrammeAnalytics = vi.mocked(getReferralSaasAccountProgrammeAnalytics);
+const mockedGetReferralSaasAccountProgrammeCatalogue = vi.mocked(getReferralSaasAccountProgrammeCatalogue);
 const mockedGetReferralSaasAccountCampaignReadiness = vi.mocked(getReferralSaasAccountCampaignReadiness);
 const mockedGetReferralSaasAccountSupportCaseRepairReplayReadiness = vi.mocked(
   getReferralSaasAccountSupportCaseRepairReplayReadiness,
@@ -204,12 +226,14 @@ const mockedGetReferralSaasMembershipActivationReadiness = vi.mocked(getReferral
 const mockedGetReferralSaasTechnicalSetupReadiness = vi.mocked(getReferralSaasTechnicalSetupReadiness);
 const mockedListReferralSaasAccountJourneyDrafts = vi.mocked(listReferralSaasAccountJourneyDrafts);
 const mockedListReferralSaasAccountJourneyVersions = vi.mocked(listReferralSaasAccountJourneyVersions);
+const mockedListReferralSaasAccountProgrammes = vi.mocked(listReferralSaasAccountProgrammes);
 const mockedListReferralSaasIntegrationCredentialRequests = vi.mocked(listReferralSaasIntegrationCredentialRequests);
 const mockedListReferralSaasAccountSupportCases = vi.mocked(listReferralSaasAccountSupportCases);
 const mockedListReferralSaasAccountCampaigns = vi.mocked(listReferralSaasAccountCampaigns);
 const mockedListReferralSaasAccounts = vi.mocked(listReferralSaasAccounts);
 const mockedListReferralSaasJourneyTemplates = vi.mocked(listReferralSaasJourneyTemplates);
 const mockedPublishReferralSaasAccountJourneyDraft = vi.mocked(publishReferralSaasAccountJourneyDraft);
+const mockedPublishReferralSaasProgrammeDraft = vi.mocked(publishReferralSaasProgrammeDraft);
 const mockedRecordReferralSaasAccountCampaignReviewDecision = vi.mocked(recordReferralSaasAccountCampaignReviewDecision);
 const mockedRecordReferralSaasApiAccessVerification = vi.mocked(recordReferralSaasApiAccessVerification);
 const mockedRecordReferralSaasIntegrationCredentialRequest = vi.mocked(recordReferralSaasIntegrationCredentialRequest);
@@ -230,12 +254,15 @@ const mockedRequestReferralSaasMembershipInvitationDelivery = vi.mocked(requestR
 const mockedRequestReferralSaasMembershipActivation = vi.mocked(requestReferralSaasMembershipActivation);
 const mockedSaveReferralSaasAccountJourneyDraft = vi.mocked(saveReferralSaasAccountJourneyDraft);
 const mockedSaveReferralSaasIntegrationConfiguration = vi.mocked(saveReferralSaasIntegrationConfiguration);
+const mockedSubmitReferralSaasProgrammeDraftReview = vi.mocked(submitReferralSaasProgrammeDraftReview);
 const mockedSubmitReferralSaasAccountCampaignReview = vi.mocked(submitReferralSaasAccountCampaignReview);
 const mockedCancelReferralSaasMembershipInvitationIntent = vi.mocked(cancelReferralSaasMembershipInvitationIntent);
 const mockedUpdateReferralSaasMembershipInvitationIntent = vi.mocked(updateReferralSaasMembershipInvitationIntent);
 const mockedUpdateReferralSaasAccountCampaignPolicySettings = vi.mocked(updateReferralSaasAccountCampaignPolicySettings);
 const mockedUpdateReferralSaasAccountProfile = vi.mocked(updateReferralSaasAccountProfile);
+const mockedUpdateReferralSaasProgrammeDraft = vi.mocked(updateReferralSaasProgrammeDraft);
 const mockedValidateReferralSaasAccountJourneyDraft = vi.mocked(validateReferralSaasAccountJourneyDraft);
+const mockedValidateReferralSaasProgrammeDraft = vi.mocked(validateReferralSaasProgrammeDraft);
 const mockedValidateReferralSaasIntegrationConfiguration = vi.mocked(validateReferralSaasIntegrationConfiguration);
 
 function renderWorkspace(ui: ReactElement, initialEntry = "/admin/referral-saas/account-maintenance") {
@@ -714,6 +741,192 @@ function mockJourneyVersionList(): ReferralSaasCustomerJourneyVersionListRespons
     noCampaignActivationConfirmed: true,
     noProviderDispatchConfirmed: true,
     noAuthBillingOrMoneyActionConfirmed: true,
+  };
+}
+
+function mockProgrammeCatalogue() {
+  return {
+    status: "ok",
+    context: "setup" as const,
+    account: {
+      accountId: "acct-gabs",
+      accountCode: "ACC-2201",
+      accountName: "Gaborone Partners",
+      accountStatus: "ACTIVE",
+      onboardingStatus: "APPROVED",
+    },
+    productCode: "REFERRAL_SAAS",
+    subProductCodes: ["RMCA_BUNDLE", "REFERRAL_ONLY"],
+    customerJourneyVersions: [
+      {
+        customerJourneyVersionId: "journey-version-001",
+        customerJourneyCode: "GABS_REFERRAL_STANDARD",
+        versionNumber: 1,
+        versionStatus: "PUBLISHED",
+        templateCode: "REFERRAL_STANDARD",
+        templateVersion: "1.0.0",
+        safeSummary: {},
+        governanceMetadata: {},
+        publishedAt: "2026-07-19T00:00:00",
+      },
+    ],
+    guardrail: "Approved building-block catalogue only.",
+    guardrails: ["NO_PROVIDER_DISPATCH"],
+    redactions: ["internal_tenant_identifier"],
+  };
+}
+
+function mockProgrammeDraftCommand() {
+  return {
+    status: "ok",
+    context: "setup" as const,
+    account: mockProgrammeCatalogue().account,
+    commandStatus: "DRAFT_SAVED",
+    idempotencyStatus: "NEW_REQUEST",
+    draft: {
+      programmeDraftId: "programme-draft-001",
+      accountId: "acct-gabs",
+      customerJourneyVersionId: "journey-version-001",
+      programmeName: "Gaborone Partners referral programme",
+      programmeDescription: "Referral management and campaign attribution programme.",
+      operatingJurisdictionCode: "BW",
+      productCode: "REFERRAL_SAAS",
+      subProductCode: "RMCA_BUNDLE",
+      programmeStatus: "DRAFT",
+      draftVersion: 1,
+      campaignDefaults: { campaignPurpose: "Customer referral acquisition", attributionWindowDays: 30 },
+      incentiveRefs: [],
+      engagementRefs: [],
+      integrationReadinessSnapshot: {},
+      commercialEntitlementSnapshot: {},
+      lastValidationStatus: "NOT_VALIDATED",
+      reviewStatus: "NOT_SUBMITTED",
+      effectiveFrom: null,
+      effectiveTo: null,
+      createdAt: "2026-08-16T00:00:00",
+      updatedAt: "2026-08-16T00:00:00",
+      archivedAt: null,
+      guardrails: ["NO_CAMPAIGN_ACTIVATION"],
+      redactions: ["internal_tenant_identifier"],
+    },
+    guardrail: "Programme draft only.",
+    guardrails: ["NO_CAMPAIGN_ACTIVATION"],
+    redactions: ["internal_tenant_identifier"],
+  };
+}
+
+function mockProgrammeValidation() {
+  return {
+    status: "ok",
+    context: "setup" as const,
+    account: mockProgrammeCatalogue().account,
+    validation: {
+      programmeValidationResultId: "programme-validation-001",
+      programmeDraftId: "programme-draft-001",
+      validationStatus: "VALIDATION_PASSED",
+      publishAllowed: true,
+      campaignBindingAllowed: true,
+      plainLanguageSummary: "Programme package is ready to publish.",
+      blockers: [],
+      warnings: [],
+      configurationSnapshot: {},
+      simulation: { simulatedMilestonePath: ["REFERRED", "QUALIFIED", "CONVERTED"] },
+      guardrails: ["NO_CAMPAIGN_ACTIVATION"],
+      redactions: ["internal_tenant_identifier"],
+    },
+    guardrail: "Programme validation only.",
+    guardrails: ["NO_CAMPAIGN_ACTIVATION"],
+    redactions: ["internal_tenant_identifier"],
+  };
+}
+
+function mockProgrammeLifecycle(commandStatus = "PUBLISHED") {
+  return {
+    status: "ok",
+    context: "setup" as const,
+    account: mockProgrammeCatalogue().account,
+    commandStatus,
+    idempotencyStatus: "NEW_REQUEST",
+    resource: {},
+    programmeVersion: {
+      programmeVersionId: "programme-version-001",
+      accountId: "acct-gabs",
+      programmeCode: "GABS_PROGRAMME_001",
+      programmeName: "Gaborone Partners referral programme",
+      programmeDescription: "Referral management and campaign attribution programme.",
+      operatingJurisdictionCode: "BW",
+      productCode: "REFERRAL_SAAS",
+      subProductCode: "RMCA_BUNDLE",
+      versionNumber: 1,
+      versionStatus: "PUBLISHED",
+      customerJourneyVersionId: "journey-version-001",
+      campaignDefaultsSnapshot: { campaignPurpose: "Customer referral acquisition", attributionWindowDays: 30 },
+      incentiveRefsSnapshot: [],
+      engagementRefsSnapshot: [],
+      integrationReadinessSnapshot: {},
+      commercialEntitlementSnapshot: {},
+      effectiveFrom: null,
+      effectiveTo: null,
+      safeSummary: {},
+      governanceMetadata: {},
+      publishedAt: "2026-08-16T00:00:00",
+      retiredAt: null,
+      guardrails: ["NO_CAMPAIGN_ACTIVATION"],
+      redactions: ["internal_tenant_identifier"],
+    },
+    plainLanguageSummary: "Programme version published for campaign setup.",
+    guardrail: "Programme lifecycle only.",
+    guardrails: ["NO_CAMPAIGN_ACTIVATION"],
+    redactions: ["internal_tenant_identifier"],
+  };
+}
+
+function mockProgrammeList() {
+  return {
+    status: "ok",
+    context: "setup" as const,
+    account: mockProgrammeCatalogue().account,
+    count: 1,
+    programmes: [mockProgrammeLifecycle().programmeVersion],
+    guardrail: "Read-only programme list.",
+    guardrails: ["READ_ONLY_PROGRAMME_LIST"],
+    redactions: ["internal_tenant_identifier"],
+  };
+}
+
+function mockProgrammeAnalytics() {
+  return {
+    status: "ok",
+    context: "setup" as const,
+    account: mockProgrammeCatalogue().account,
+    programmeAnalytics: {
+      versionCount: 1,
+      versions: [
+        {
+          programmeVersionId: "programme-version-001",
+          programmeCode: "GABS_PROGRAMME_001",
+          programmeName: "Gaborone Partners referral programme",
+          versionNumber: 1,
+          versionStatus: "PUBLISHED",
+          campaignCount: 1,
+          activeCampaignCount: 0,
+          referralCount: 12,
+          attributedReferralCount: 9,
+          completedReferralCount: 4,
+          attributionRate: 0.75,
+          completionRate: 0.33,
+          performanceSignal: "BASELINE",
+        },
+      ],
+      summary: {},
+      dataWindowStart: null,
+      dataWindowEnd: null,
+      guardrails: ["READ_ONLY_PROGRAMME_ANALYTICS"],
+      redactions: ["internal_tenant_identifier"],
+    },
+    guardrail: "Read-only programme analytics.",
+    guardrails: ["READ_ONLY_PROGRAMME_ANALYTICS"],
+    redactions: ["internal_tenant_identifier"],
   };
 }
 
@@ -2282,6 +2495,15 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedValidateReferralSaasAccountJourneyDraft.mockResolvedValue(mockJourneyValidationResponse());
     mockedPublishReferralSaasAccountJourneyDraft.mockResolvedValue(mockJourneyPublishResponse());
     mockedBindReferralSaasAccountCampaignJourneyVersion.mockResolvedValue(mockCampaignJourneyBindingResponse());
+    mockedGetReferralSaasAccountProgrammeCatalogue.mockResolvedValue(mockProgrammeCatalogue());
+    mockedListReferralSaasAccountProgrammes.mockResolvedValue(mockProgrammeList());
+    mockedGetReferralSaasAccountProgrammeAnalytics.mockResolvedValue(mockProgrammeAnalytics());
+    mockedCreateReferralSaasProgrammeDraft.mockResolvedValue(mockProgrammeDraftCommand());
+    mockedUpdateReferralSaasProgrammeDraft.mockResolvedValue(mockProgrammeDraftCommand());
+    mockedValidateReferralSaasProgrammeDraft.mockResolvedValue(mockProgrammeValidation());
+    mockedSubmitReferralSaasProgrammeDraftReview.mockResolvedValue(mockProgrammeLifecycle("READY_FOR_REVIEW"));
+    mockedDecideReferralSaasProgrammeDraftReview.mockResolvedValue(mockProgrammeLifecycle("APPROVED"));
+    mockedPublishReferralSaasProgrammeDraft.mockResolvedValue(mockProgrammeLifecycle("PUBLISHED"));
     mockedListReferralSaasIntegrationCredentialRequests.mockResolvedValue(mockIntegrationCredentialRequestList([]));
     mockedListReferralSaasAccountSupportCases.mockResolvedValue({
       status: "ok",
@@ -3687,6 +3909,46 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       limit: 50,
     });
     expect(mockedListReferralSaasAccountJourneyDrafts).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      refType: "external_tenant_ref",
+      externalRef: "gabs-platform",
+      context: "setup",
+      limit: 50,
+    });
+  });
+
+  it("opens Programmes as the simple customer-scoped configuration workspace", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/programmes");
+
+    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Programme workspace" })).toBeInTheDocument();
+    expect(screen.getByText(/A programme is the governed package a campaign uses/i)).toBeInTheDocument();
+    expect((await screen.findAllByText("Gaborone Partners referral programme")).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole("button", { name: "Save programme draft" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Validate programme" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Publish programme version" })).toBeDisabled();
+    expect(screen.getByText("Published programme versions")).toBeInTheDocument();
+    expect(screen.getByText("Programme performance")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Continue to Campaigns" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs/campaigns",
+    );
+    expect(mockedGetReferralSaasAccountProgrammeCatalogue).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      refType: "external_tenant_ref",
+      externalRef: "gabs-platform",
+      context: "setup",
+      limit: 50,
+    });
+    expect(mockedListReferralSaasAccountProgrammes).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      refType: "external_tenant_ref",
+      externalRef: "gabs-platform",
+      context: "setup",
+      includeRetired: true,
+      limit: 50,
+    });
+    expect(mockedGetReferralSaasAccountProgrammeAnalytics).toHaveBeenCalledWith({
       accountRef: "acct-gabs",
       refType: "external_tenant_ref",
       externalRef: "gabs-platform",
