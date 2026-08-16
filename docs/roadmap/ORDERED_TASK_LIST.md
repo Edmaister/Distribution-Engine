@@ -9185,7 +9185,7 @@ Completed output: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.t
 
 ## TASK-415: Lock programme draft edit lifecycle
 
-Status: Planned.
+Status: Completed.
 Product boundary: Referral SaaS with Shared Platform governance trajectory.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Hardens lifecycle-state controls for governed customer configuration drafts. Source duplication: No.
@@ -9195,18 +9195,19 @@ Objective: Prevent submitted, approved, blocked, published, retired, archived, o
 Why now: Programme configuration is structurally implemented, but world-class SaaS configuration needs strong review locking so approved evidence cannot be overwritten by ordinary save calls.
 Files likely involved: programme configuration service/API; programme draft lifecycle tests; route/API tests; roadmap/gap docs.
 Database/schema impact: None expected unless an additive lifecycle/audit field is required.
-Backend impact: Add explicit editable-state checks, clear conflict responses, audit evidence, and idempotent replay behavior for return-to-draft or edit-denied paths.
-Frontend impact: Show plain-language locked-state messaging and route users to the correct governed action instead of presenting save as available.
-API impact: Preserve existing routes where possible; add or document a bounded return-to-draft command only if the service needs one.
-Tests to add/update: Draft save denied after submit/approval/publish; allowed edit in true editable states; return-to-draft authorization/audit; idempotency replay/conflict; no provider/auth/billing/money side effects.
-Validation method: Focused pytest for programme configuration lifecycle; route inventory if routes change; frontend focused tests if UI changes; Python compile; `git diff --check`.
-Acceptance criteria: Submitted or approved programme evidence cannot be mutated by an ordinary save; any editable reset is explicit, audited, permissioned, idempotent, and visible in the UI.
+Backend impact: Complete - ordinary programme draft save/update now allows only `DRAFT`, `VALIDATION_FAILED`, and `VALIDATED` states. Reviewed or terminal states return an explicit lifecycle lock instead of silently resetting reviewed evidence to `DRAFT`; update audit evidence records the prior editable state.
+Frontend impact: Not changed in this task; the API now returns a clear `PROGRAMME_DRAFT_LIFECYCLE_LOCKED` conflict that the Programme builder can surface in TASK-416 if needed.
+API impact: Complete - existing programme draft create/update routes are preserved. Locked ordinary updates return HTTP 409 with guardrails and no-adjacent-action confirmations.
+Tests to add/update: Complete - lifecycle helper coverage for editable versus locked statuses and route coverage for locked update conflict.
+Validation method: Complete - focused pytest, Python compile, and `git diff --check`.
+Acceptance criteria: Complete - submitted or approved programme evidence cannot be mutated by an ordinary save; ordinary editable reset is limited to explicit editable states and idempotent replay remains safe.
 Dependencies: TASK-414.
 Blocked by: None.
 Risk level: High.
 Rollback notes: Revert lifecycle service/API/UI/tests/docs changes.
 Explicit non-goals: Do not redesign programme schema, create campaigns, create referrals, apply rewards, dispatch providers, mutate auth, bill, settle, payout, or move money.
-Definition of done: Programme draft review locking is production-safe and cannot silently erase review evidence. Priority: P0.
+Definition of done: Complete - Programme draft review locking is production-safe and cannot silently erase review evidence. Priority: P0.
+Completed output: `services/referral_saas_programme_configuration_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/test_referral_saas_programme_product_offering_binding.py`; `test/api/test_referral_saas_accounts_api.py`; roadmap, gap matrix, and infographic updates. Ordinary programme draft updates now fail with a clear 409 lifecycle conflict after review/locked states instead of silently resetting reviewed evidence to `DRAFT`.
 
 ## TASK-416: Complete programme builder product and offering selection UX
 

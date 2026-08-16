@@ -3,7 +3,9 @@ from __future__ import annotations
 import pytest
 
 from services.referral_saas_programme_configuration_service import (
+    ProgrammeConfigurationLifecycleLocked,
     ProgrammeConfigurationValidationError,
+    _ensure_programme_draft_editable,
     _get_active_customer_product_offering_binding,
 )
 
@@ -106,3 +108,30 @@ async def test_programme_product_binding_requires_line_and_offering_together() -
         )
 
     assert "needs both" in str(exc.value)
+
+
+@pytest.mark.parametrize("status", ["DRAFT", "VALIDATION_FAILED", "VALIDATED"])
+def test_programme_draft_lifecycle_allows_only_editable_statuses(status: str) -> None:
+    assert _ensure_programme_draft_editable(status) == status
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        "READY_FOR_REVIEW",
+        "APPROVED_FOR_PUBLISH",
+        "BLOCKED",
+        "DISCARDED",
+        "ARCHIVED",
+        "PUBLISHED",
+        "RETIRED",
+    ],
+)
+def test_programme_draft_lifecycle_locks_reviewed_and_terminal_statuses(
+    status: str,
+) -> None:
+    with pytest.raises(ProgrammeConfigurationLifecycleLocked) as exc:
+        _ensure_programme_draft_editable(status)
+
+    assert status in str(exc.value)
+    assert "return-to-draft" in str(exc.value)

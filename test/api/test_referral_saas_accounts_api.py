@@ -2138,6 +2138,52 @@ async def test_referral_saas_programme_draft_save_rejects_conflict(monkeypatch):
     assert "NO_CAMPAIGN_ACTIVATION" in body["guardrails"]
 
 
+async def test_referral_saas_programme_draft_update_rejects_locked_lifecycle(
+    monkeypatch,
+):
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_save_referral_saas_programme_draft(**kwargs):
+        raise referral_saas_accounts.ProgrammeConfigurationLifecycleLocked(
+            "Programme draft is locked in READY_FOR_REVIEW state."
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "save_referral_saas_programme_draft",
+        fake_save_referral_saas_programme_draft,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/programmes/drafts/programme-draft-1",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                },
+                "programmeName": "Programme",
+                "operatingJurisdictionCode": "ZA",
+                "subProductCode": "RMCA_BUNDLE",
+                "customerJourneyVersionId": "journey-version-1",
+                "idempotencyKey": "programme-draft-update-locked",
+            },
+        )
+
+    assert response.status_code == 409
+    body = response.json()["detail"]
+    assert body["code"] == "PROGRAMME_DRAFT_LIFECYCLE_LOCKED"
+    assert "READY_FOR_REVIEW" in body["message"]
+    assert body["noCampaignActivationConfirmed"] is True
+    assert body["noCredentialOrAuthMutationConfirmed"] is True
+
+
 async def test_referral_saas_programme_draft_save_rejects_unsafe_payload(
     monkeypatch,
 ):
