@@ -9081,7 +9081,7 @@ Definition of done: Campaigns have one authoritative product path: bind to a pub
 
 ## TASK-411: Add governed campaign-specific override controls
 
-Status: Ready.
+Status: Complete.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Adds bounded override semantics between programme defaults and campaign execution. Source duplication: No.
@@ -9102,6 +9102,7 @@ Blocked by: None.
 Risk level: High.
 Rollback notes: Revert override schema/service/API/tests/docs and restore previous campaign policy behavior.
 Explicit non-goals: Do not apply rewards, score missions/badges/leaderboards, create payouts, dispatch providers, mutate auth, activate campaigns outside existing gate, bill, settle, or move money.
+Completed output: `services/referral_saas_campaign_service.py`; `apps/api/routers/referral_saas_accounts.py`; `test/test_referral_saas_campaign_service.py`; `test/api/test_referral_saas_accounts_api.py`; `test/test_referral_saas_route_smoke_inventory.py`; roadmap, gap matrix, and infographic updates. Campaign-specific overrides are now recorded through an account-scoped route, validated against the published programme version's allowed override envelope, audited with idempotency evidence, and blocked from activation if stale or unapproved. The command confirms no campaign activation, link generation, validation track, webhook/provider dispatch, invite/seat/auth, billing, payout, settlement, or money movement.
 Definition of done: Campaign Management can vary from a Referral Programme only through explicit, bounded, reviewed, and audited campaign overrides. Priority: P0.
 
 ## TASK-412: Add effective-rule runtime resolver snapshots

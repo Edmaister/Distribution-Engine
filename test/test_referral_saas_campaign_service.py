@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+import json
 
 import pytest
 
@@ -118,6 +119,11 @@ def _published_programme_version_row() -> dict[str, object]:
         "effective_from": None,
         "effective_to": None,
         "retired_at": None,
+        "campaign_defaults_snapshot": {
+            "allowedCampaignOverrides": {
+                "allowedKeys": ["attributionWindowDays", "rewardPolicyRef"]
+            }
+        },
     }
 
 
@@ -731,6 +737,134 @@ async def test_campaign_review_submit_conflicts_on_idempotency_payload_mismatch(
         )
 
 
+async def test_campaign_override_records_approved_programme_bounded_override(
+    monkeypatch,
+):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "campaign_code": "CAMP001",
+                "is_active": False,
+                "attributes": {
+                    "referral_saas_programme_binding": _published_programme_binding()
+                },
+            },
+            _published_programme_version_row(),
+            {"campaign_code": "CAMP001", "attributes": {}},
+            {"account_audit_event_id": "audit-override-1"},
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    result = await svc.upsert_referral_saas_account_campaign_override(
+        account_id="acct-1",
+        tenant_code="FNB",
+        account_tenant_id="acct-tenant-1",
+        external_ref_id="external-ref-1",
+        campaign_code="CAMP001",
+        programme_version_id="programme-version-1",
+        override_payload={
+            "attributionWindowDays": 21,
+            "rewardPolicyRef": "reward-policy-1",
+        },
+        override_reason="Pilot-specific attribution window.",
+        override_status="APPROVED",
+        reason_code="CUSTOMER_PROFILE_CAMPAIGN_OVERRIDE",
+        correlation_id="corr-override-1",
+        idempotency_key_hash="idem-override",
+        command_payload_hash="payload-override",
+        command_actor_ref="operator-1",
+        command_actor_role="AMPLIFI_ADMIN",
+    )
+
+    assert result.command_status == "CAMPAIGN_OVERRIDE_RECORDED"
+    assert result.idempotency_status == "RECORDED"
+    assert result.override_keys == ["attributionWindowDays", "rewardPolicyRef"]
+    assert result.allowed_override_keys == [
+        "attributionWindowDays",
+        "rewardPolicyRef",
+    ]
+    update_payload = json.loads(conn.fetchrow_calls[3][1][2])
+    override_state = update_payload["referral_saas_campaign_override"]
+    assert override_state["programmeVersionId"] == "programme-version-1"
+    assert override_state["overrideStatus"] == "APPROVED"
+    assert override_state["noCampaignActivationConfirmed"] is True
+    assert override_state["noBillingOrMoneyMovementConfirmed"] is True
+
+
+async def test_campaign_override_rejects_disallowed_override_key(monkeypatch):
+    conn = FakeCommandConnection(
+        [
+            None,
+            {
+                "campaign_code": "CAMP001",
+                "is_active": False,
+                "attributes": {
+                    "referral_saas_programme_binding": _published_programme_binding()
+                },
+            },
+            _published_programme_version_row(),
+        ]
+    )
+    patch_db(monkeypatch, conn)
+
+    with pytest.raises(svc.CampaignOverrideValidationError) as exc_info:
+        await svc.upsert_referral_saas_account_campaign_override(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            programme_version_id="programme-version-1",
+            override_payload={"campaignCap": 100},
+            override_reason="Pilot-specific cap.",
+            override_status="APPROVED",
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_OVERRIDE",
+            correlation_id="corr-override-1",
+            idempotency_key_hash="idem-override",
+            command_payload_hash="payload-override",
+        )
+
+    assert "outside the published programme" in str(exc_info.value)
+
+
+async def test_campaign_override_conflicts_on_idempotency_payload_mismatch(
+    monkeypatch,
+):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                {
+                    "account_audit_event_id": "audit-override-1",
+                    "evidence_summary": {
+                        "campaign_code": "CAMP001",
+                        "command_payload_hash": "original-hash",
+                    },
+                }
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.CampaignOverrideIdempotencyConflict):
+        await svc.upsert_referral_saas_account_campaign_override(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            programme_version_id="programme-version-1",
+            override_payload={"attributionWindowDays": 21},
+            override_reason="Pilot-specific attribution window.",
+            override_status="APPROVED",
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_OVERRIDE",
+            correlation_id="corr-override-1",
+            idempotency_key_hash="idem-override",
+            command_payload_hash="new-hash",
+        )
+
+
 async def test_campaign_review_decision_records_approval_without_activation(monkeypatch):
     conn = FakeCommandConnection(
         [
@@ -1199,6 +1333,59 @@ async def test_campaign_activation_ignores_legacy_journey_binding_without_progra
         )
 
     assert "published programme version" in str(exc_info.value)
+
+
+async def test_campaign_activation_blocks_stale_campaign_override_programme(
+    monkeypatch,
+):
+    patch_db(
+        monkeypatch,
+        FakeCommandConnection(
+            [
+                None,
+                {
+                    "campaign_code": "CAMP001",
+                    "is_active": False,
+                    "starts_at": None,
+                    "ends_at": None,
+                    "attributes": {
+                        "referral_saas_review": _approved_review_state(),
+                        "referral_saas_programme_binding": _published_programme_binding(),
+                        "referral_saas_campaign_override": {
+                            "programmeVersionId": "stale-programme-version",
+                            "overrideStatus": "APPROVED",
+                        },
+                    },
+                },
+                {
+                    "active_policy_count": 1,
+                    "latest_policy_updated_at": datetime(
+                        2026, 7, 31, tzinfo=timezone.utc
+                    ),
+                },
+                _published_programme_version_row(),
+            ]
+        ),
+    )
+
+    with pytest.raises(svc.CampaignActivationNotReady) as exc_info:
+        await svc.request_referral_saas_account_campaign_activation(
+            account_id="acct-1",
+            tenant_code="FNB",
+            account_tenant_id="acct-tenant-1",
+            external_ref_id="external-ref-1",
+            campaign_code="CAMP001",
+            requested_lifecycle_status="ACTIVE",
+            review_status="REVIEW_APPROVED",
+            go_live_reason="Approved for referral campaign testing.",
+            reason_code="CUSTOMER_PROFILE_CAMPAIGN_ACTIVATION",
+            correlation_id="corr-1",
+            idempotency_key_hash="idem-hash",
+            command_payload_hash="payload-hash",
+            production_activation_decision=_allowed_production_activation_decision(),
+        )
+
+    assert "override must match" in str(exc_info.value)
 
 
 async def test_campaign_activation_replays_matching_idempotency(monkeypatch):

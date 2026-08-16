@@ -103,6 +103,8 @@ from services.referral_saas_campaign_service import (
     CAMPAIGN_ATTRIBUTION_REDACTIONS,
     CAMPAIGN_LIFECYCLE_GUARDRAILS,
     CAMPAIGN_LIFECYCLE_REDACTIONS,
+    CAMPAIGN_OVERRIDE_GUARDRAILS,
+    CAMPAIGN_OVERRIDE_REDACTIONS,
     CAMPAIGN_POLICY_SETTINGS_GUARDRAILS,
     CAMPAIGN_POLICY_SETTINGS_REDACTIONS,
     CAMPAIGN_REVIEW_GUARDRAILS,
@@ -118,6 +120,9 @@ from services.referral_saas_campaign_service import (
     CampaignLifecycleIdempotencyConflict,
     CampaignLifecycleInvalidTransition,
     CampaignLifecycleValidationError,
+    CampaignOverrideCampaignNotFound,
+    CampaignOverrideIdempotencyConflict,
+    CampaignOverrideValidationError,
     CampaignPolicySettingsAccountNotReady,
     CampaignPolicySettingsCampaignNotFound,
     CampaignPolicySettingsIdempotencyConflict,
@@ -142,6 +147,7 @@ from services.referral_saas_campaign_service import (
     record_referral_saas_account_campaign_review_decision,
     request_referral_saas_account_campaign_activation,
     submit_referral_saas_account_campaign_review,
+    upsert_referral_saas_account_campaign_override,
     upsert_referral_saas_account_campaign_policy_settings,
 )
 from services.referral_saas_referral_registry_service import (
@@ -1937,6 +1943,37 @@ def _campaign_policy_settings_error(
             "no_validation_track_created_confirmed": True,
             "no_webhook_delivery_confirmed": True,
             "no_money_movement_confirmed": True,
+        },
+    )
+
+
+def _campaign_override_error(
+    exc: ReferralSaasCampaignCommandError,
+) -> HTTPException:
+    if isinstance(exc, CampaignOverrideValidationError):
+        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    elif isinstance(exc, CampaignOverrideCampaignNotFound):
+        status_code = status.HTTP_404_NOT_FOUND
+    elif isinstance(exc, CampaignOverrideIdempotencyConflict):
+        status_code = status.HTTP_409_CONFLICT
+    else:
+        status_code = status.HTTP_400_BAD_REQUEST
+
+    return HTTPException(
+        status_code=status_code,
+        detail={
+            "code": exc.safe_code,
+            "message": str(exc),
+            "guardrails": list(CAMPAIGN_OVERRIDE_GUARDRAILS),
+            "redactions": list(CAMPAIGN_OVERRIDE_REDACTIONS),
+            "no_campaign_activation_confirmed": True,
+            "no_link_generation_confirmed": True,
+            "no_validation_track_created_confirmed": True,
+            "no_webhook_delivery_confirmed": True,
+            "no_provider_dispatch_confirmed": True,
+            "no_invite_or_seat_change_confirmed": True,
+            "no_credential_creation_confirmed": True,
+            "no_billing_or_money_movement_confirmed": True,
         },
     )
 
@@ -11587,6 +11624,148 @@ async def upsert_referral_saas_account_campaign_policy_settings_route(
         "no_validation_track_created_confirmed": True,
         "no_webhook_delivery_confirmed": True,
         "no_money_movement_confirmed": True,
+        "campaign_capability_enforced_confirmed": True,
+        "required_campaign_capability": REFERRAL_SAAS_CAMPAIGN_POLICY_WRITE_CAPABILITY,
+    }
+
+
+@router.put("/accounts/{account_ref}/campaigns/{campaign_code}/overrides")
+async def upsert_referral_saas_account_campaign_override_route(
+    account_ref: str,
+    campaign_code: str,
+    payload: dict[str, Any] = Body(default_factory=dict),
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+
+    account_scope = payload.get("accountScope") or {}
+    campaign_override = payload.get("campaignOverride") or {}
+    if not isinstance(account_scope, dict) or not isinstance(campaign_override, dict):
+        raise _campaign_override_error(
+            CampaignOverrideValidationError(
+                "accountScope and campaignOverride must be objects."
+            )
+        )
+
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    idempotency_key = _optional_text(payload.get("idempotencyKey"))
+    correlation_id = _optional_text(payload.get("correlationId"))
+    programme_version_id = _optional_text(campaign_override.get("programmeVersionId"))
+    override_reason = _optional_text(campaign_override.get("overrideReason"))
+    override_payload = campaign_override.get("overridePayload")
+    override_status = (
+        _optional_text(campaign_override.get("overrideStatus")) or "APPROVED"
+    )
+    reason_code = (
+        _optional_text(payload.get("reasonCode"))
+        or "CUSTOMER_PROFILE_CAMPAIGN_OVERRIDE"
+    )
+
+    if (
+        not ref_type
+        or not external_ref
+        or not idempotency_key
+        or not correlation_id
+        or not programme_version_id
+        or not override_reason
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, "
+                    "campaignOverride.programmeVersionId, "
+                    "campaignOverride.overrideReason, idempotencyKey, and "
+                    "correlationId are required."
+                ),
+                "guardrails": list(CAMPAIGN_OVERRIDE_GUARDRAILS),
+                "redactions": list(CAMPAIGN_OVERRIDE_REDACTIONS),
+                "no_campaign_activation_confirmed": True,
+                "no_provider_dispatch_confirmed": True,
+                "no_billing_or_money_movement_confirmed": True,
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    _enforce_referral_saas_account_boundary(
+        identity=admin_identity,
+        account=account,
+        required_capability=REFERRAL_SAAS_CAMPAIGN_POLICY_WRITE_CAPABILITY,
+    )
+
+    command_payload = {
+        "accountScope": {
+            "accountRef": _optional_text(account_ref),
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": normalised_context,
+        },
+        "campaignRef": _optional_text(campaign_code),
+        "campaignOverride": {
+            "programmeVersionId": programme_version_id,
+            "overrideStatus": override_status,
+            "overridePayload": override_payload or {},
+            "overrideReason": override_reason,
+        },
+        "reasonCode": reason_code,
+    }
+    try:
+        result = await upsert_referral_saas_account_campaign_override(
+            account_id=account.account_id,
+            tenant_code=account.tenant_code,
+            account_tenant_id=account.account_tenant_id,
+            external_ref_id=account.external_ref_id,
+            campaign_code=campaign_code,
+            programme_version_id=programme_version_id,
+            override_payload=override_payload,
+            override_reason=override_reason,
+            override_status=override_status,
+            reason_code=reason_code,
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_CAMPAIGN_OVERRIDE",
+                    "account_ref": _optional_text(account_ref),
+                    "campaign_ref": _optional_text(campaign_code),
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            command_payload_hash=hash_payload(command_payload),
+            command_actor_ref=_actor_ref(admin_identity),
+            command_actor_role=str(admin_identity.get("role") or "").upper(),
+        )
+    except ReferralSaasCampaignCommandError as exc:
+        raise _campaign_override_error(exc) from exc
+
+    return {
+        "status": "ok",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "campaignOverride": result.to_safe_dict(),
+        "guardrail": (
+            "Records an approved campaign-specific override only when the "
+            "published programme version allows those override fields. This "
+            "does not activate the campaign, generate links, dispatch providers, "
+            "change access, bill, settle, pay, or move money."
+        ),
+        "guardrails": list(CAMPAIGN_OVERRIDE_GUARDRAILS),
+        "redactions": list(CAMPAIGN_OVERRIDE_REDACTIONS),
+        "no_campaign_activation_confirmed": True,
+        "no_link_generation_confirmed": True,
+        "no_validation_track_created_confirmed": True,
+        "no_webhook_delivery_confirmed": True,
+        "no_provider_dispatch_confirmed": True,
+        "no_invite_or_seat_change_confirmed": True,
+        "no_credential_creation_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
         "campaign_capability_enforced_confirmed": True,
         "required_campaign_capability": REFERRAL_SAAS_CAMPAIGN_POLICY_WRITE_CAPABILITY,
     }

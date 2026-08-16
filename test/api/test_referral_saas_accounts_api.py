@@ -48,6 +48,7 @@ from services.referral_saas_campaign_service import (
     ReferralSaasCampaignAttributionProjection,
     ReferralSaasCampaignAttributionSummary,
     ReferralSaasCampaignActivationResult,
+    ReferralSaasCampaignOverrideResult,
     ReferralSaasCampaignPolicySettingsResult,
     ReferralSaasCampaignReviewResult,
     ReferralSaasCampaignSetupResult,
@@ -578,6 +579,25 @@ def _campaign_policy_settings_result(
     }
     values.update(overrides)
     return ReferralSaasCampaignPolicySettingsResult(**values)
+
+
+def _campaign_override_result(
+    **overrides,
+) -> ReferralSaasCampaignOverrideResult:
+    values = {
+        "command_status": "CAMPAIGN_OVERRIDE_RECORDED",
+        "account_id": "acct-1",
+        "campaign_code": "CAMP001",
+        "programme_version_id": "programme-version-1",
+        "override_status": "APPROVED",
+        "override_keys": ["attributionWindowDays", "rewardPolicyRef"],
+        "allowed_override_keys": ["attributionWindowDays", "rewardPolicyRef"],
+        "override_reason": "Pilot-specific attribution window.",
+        "idempotency_status": "RECORDED",
+        "audit_event_id": "audit-override-1",
+    }
+    values.update(overrides)
+    return ReferralSaasCampaignOverrideResult(**values)
 
 
 def _campaign_review_result(**overrides) -> ReferralSaasCampaignReviewResult:
@@ -9017,6 +9037,98 @@ async def test_referral_saas_account_campaign_policy_settings_requires_scope_fie
             json={
                 "accountScope": {"refType": "external_tenant_ref"},
                 "policySettings": {"version": 1, "attributionWindowDays": 30},
+            },
+        )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "validation_error"
+    assert "NO_CAMPAIGN_ACTIVATION" in detail["guardrails"]
+
+
+async def test_referral_saas_account_admin_can_save_campaign_override(monkeypatch):
+    command_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(
+            account_id="acct-1",
+            account_code="ACCT_FNB",
+            tenant_code="FNB",
+            account_status="ACTIVE",
+            tenant_link_status="ACTIVE",
+            reference_status="ACTIVE",
+        )
+
+    async def fake_upsert_campaign_override(**kwargs):
+        command_calls.append(kwargs)
+        return _campaign_override_result()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "upsert_referral_saas_account_campaign_override",
+        fake_upsert_campaign_override,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/overrides",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "campaignOverride": {
+                    "programmeVersionId": "programme-version-1",
+                    "overrideStatus": "APPROVED",
+                    "overridePayload": {
+                        "attributionWindowDays": 21,
+                        "rewardPolicyRef": "reward-policy-1",
+                    },
+                    "overrideReason": "Pilot-specific attribution window.",
+                },
+                "correlationId": "corr-override-1",
+                "idempotencyKey": "campaign-override-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["campaignOverride"]["commandStatus"] == "CAMPAIGN_OVERRIDE_RECORDED"
+    assert body["campaignOverride"]["campaignOverride"]["overrideStatus"] == "APPROVED"
+    assert body["no_campaign_activation_confirmed"] is True
+    assert body["no_link_generation_confirmed"] is True
+    assert body["no_webhook_delivery_confirmed"] is True
+    assert body["no_billing_or_money_movement_confirmed"] is True
+    assert "tenantCode" not in str(body)
+    assert command_calls[0]["tenant_code"] == "FNB"
+    assert command_calls[0]["campaign_code"] == "CAMP001"
+    assert command_calls[0]["programme_version_id"] == "programme-version-1"
+    assert command_calls[0]["override_payload"] == {
+        "attributionWindowDays": 21,
+        "rewardPolicyRef": "reward-policy-1",
+    }
+    assert command_calls[0]["idempotency_key_hash"]
+    assert command_calls[0]["command_payload_hash"]
+
+
+async def test_referral_saas_account_campaign_override_requires_scope_fields():
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put(
+            "/v1/referral-saas/accounts/acct-1/campaigns/CAMP001/overrides",
+            json={
+                "accountScope": {"refType": "external_tenant_ref"},
+                "campaignOverride": {
+                    "programmeVersionId": "programme-version-1",
+                    "overridePayload": {"attributionWindowDays": 21},
+                    "overrideReason": "Pilot-specific attribution window.",
+                },
             },
         )
 
