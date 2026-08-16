@@ -178,6 +178,10 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ),
         (
             "POST",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/versions/{version_ref}/incentive-bindings/{binding_ref}/retire",
+        ),
+        (
+            "POST",
             "/v1/referral-saas/accounts/{account_ref}/journey-drafts/{draft_ref}/validate",
         ),
         (
@@ -464,6 +468,10 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         (
             "POST",
             "/v1/referral-saas/accounts/{account_ref}/programmes/versions/{version_ref}/incentive-bindings",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/programmes/versions/{version_ref}/incentive-bindings/{binding_ref}/retire",
         ),
         (
             "POST",

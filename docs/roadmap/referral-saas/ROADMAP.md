@@ -390,8 +390,11 @@ UX, binding, and proof gaps:
 - TASK-416 is complete: the Programme builder now makes product line and
   offering selection explicit, required, and plain-language while keeping
   Amplifi package codes internal.
-- TASK-417 adds governed replacement, deactivation, effective dating, and audit
-  evidence for programme incentive and engagement bindings.
+- TASK-417 is complete: programme incentive and engagement bindings now support
+  explicit replacement, retire/deactivate, effective-date overlap protection,
+  idempotency, audit evidence, and redacted no-side-effect responses without
+  executing rewards, campaign activation, provider delivery, auth, billing,
+  settlement, payout, funding, or money movement.
 - TASK-418 proves the full product line -> offering -> programme -> incentive
   binding -> campaign -> referral -> progress/outcome -> attribution/reporting/
   analytics path without source-code journey changes.
