@@ -175,11 +175,14 @@ product taxonomy, campaigns do not silently own referral-programme rules, and
 campaign-specific reward or attribution differences are explicit approved
 overrides. The controlling artifact is
 `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`.
+TASK-406 is complete and locks the boundary vocabulary and ownership model.
+TASK-407 is the next implementation task and starts the durable customer
+product/offering catalogue.
 
 | Gap | Required task path | Close-out expectation |
 | --- | --- | --- |
-| Customer product/offering taxonomy is not separated from Amplifi service packaging. | TASK-406 to TASK-409 | Customer product line/offering is modelled, stored, read, and bound to programme drafts/versions without overloading Amplifi package codes. |
-| Programme and campaign services exist, but route/API semantics still allow journey/programme/campaign confusion. | TASK-406 and TASK-410 | Programme binding becomes the authoritative campaign activation path; legacy campaign journey-binding is deprecated, wrapped, or clearly marked as compatibility only. |
+| Customer product/offering taxonomy is not separated from Amplifi service packaging. | TASK-407 to TASK-409 | Customer product line/offering is modelled, stored, read, and bound to programme drafts/versions without overloading Amplifi package codes. |
+| Programme and campaign services exist, but route/API semantics still allow journey/programme/campaign confusion. | TASK-410 | Programme binding becomes the authoritative campaign activation path; legacy campaign journey-binding is deprecated, wrapped, or clearly marked as compatibility only. |
 | Campaign-specific reward, attribution, channel, date, and cap differences need a governed override model. | TASK-411 | Campaign overrides are explicit, approved, audited, idempotent, and bounded by the programme's allowed override envelope. |
 | Runtime referrals need one immutable effective-rule snapshot for historical replay. | TASK-412 | New referrals store customer, product/offering, programme version, campaign, default rules, override rules, and checksum metadata safely. |
 | Reporting must explain product/offering, programme, campaign, and override performance separately. | TASK-413 | Analytics dimensions distinguish product/offering, programme version, campaign, and override posture without raw payload, billing, payout, settlement, or money leakage. |
