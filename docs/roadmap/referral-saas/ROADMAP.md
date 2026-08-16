@@ -379,6 +379,31 @@ workspace now explain customer product, referral programme, campaign,
 campaign-specific changes, and reporting as separate plain-language layers with
 safe reporting-dimension labels and diagnostics kept behind disclosure.
 
+TASK-415 through TASK-419 are the remaining hardening path for a world-class
+SaaS configuration platform now that the structural product/programme/campaign
+model is in place. The work is not a redesign. It closes the final lifecycle,
+UX, binding, and proof gaps:
+
+- TASK-415 locks programme draft editing so submitted, approved, published, or
+  retired configuration evidence cannot be silently reset to draft by an
+  ordinary save.
+- TASK-416 completes the product line and offering selection experience in the
+  Programme builder so customers/admins select the customer's real offering in
+  plain language.
+- TASK-417 adds governed replacement, deactivation, effective dating, and audit
+  evidence for programme incentive and engagement bindings.
+- TASK-418 proves the full product line -> offering -> programme -> incentive
+  binding -> campaign -> referral -> progress/outcome -> attribution/reporting/
+  analytics path without source-code journey changes.
+- TASK-419 applies the final plain-language configuration UX readiness pass so
+  the model feels like a simple SaaS workflow rather than a technical console.
+
+This sequence keeps Referral Programme and Campaign Management as separate
+domain services. Campaigns may carry explicit approved overrides, but they do
+not own programme rules, reward defaults, or journey definitions. The tasks also
+preserve the no-provider-dispatch, no-credential, no-auth-mutation, no-billing,
+no-payout, no-settlement, no-funding, and no-money boundary.
+
 ## Recommended Ordered Task Sequence
 
 1. TASK-134: Define Referral SaaS account setup contract.

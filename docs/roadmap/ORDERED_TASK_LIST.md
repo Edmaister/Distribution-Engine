@@ -9183,6 +9183,131 @@ Explicit non-goals: Do not add new backend domain behavior, source forks, provid
 Definition of done: The selected-customer UX proves the domain model is simple enough to use and hard enough to misuse. Priority: P0.
 Completed output: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/styles/base.css`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; roadmap, gap matrix, and infographic updates. The selected-customer home and Programme workspace now explain the product/offering, referral programme, campaign, campaign-specific change, and reporting layers as separate business concepts while keeping diagnostics and raw runtime terminology out of the default path.
 
+## TASK-415: Lock programme draft edit lifecycle
+
+Status: Planned.
+Product boundary: Referral SaaS with Shared Platform governance trajectory.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Hardens lifecycle-state controls for governed customer configuration drafts. Source duplication: No.
+Linked enhancement: Referral SaaS governed configuration platform.
+Linked platform/product capability: Programme draft lifecycle governance; audit; idempotency.
+Objective: Prevent submitted, approved, blocked, published, retired, archived, or discarded programme drafts from being silently edited back to `DRAFT`; require explicit governed return-to-draft behavior where editing is allowed.
+Why now: Programme configuration is structurally implemented, but world-class SaaS configuration needs strong review locking so approved evidence cannot be overwritten by ordinary save calls.
+Files likely involved: programme configuration service/API; programme draft lifecycle tests; route/API tests; roadmap/gap docs.
+Database/schema impact: None expected unless an additive lifecycle/audit field is required.
+Backend impact: Add explicit editable-state checks, clear conflict responses, audit evidence, and idempotent replay behavior for return-to-draft or edit-denied paths.
+Frontend impact: Show plain-language locked-state messaging and route users to the correct governed action instead of presenting save as available.
+API impact: Preserve existing routes where possible; add or document a bounded return-to-draft command only if the service needs one.
+Tests to add/update: Draft save denied after submit/approval/publish; allowed edit in true editable states; return-to-draft authorization/audit; idempotency replay/conflict; no provider/auth/billing/money side effects.
+Validation method: Focused pytest for programme configuration lifecycle; route inventory if routes change; frontend focused tests if UI changes; Python compile; `git diff --check`.
+Acceptance criteria: Submitted or approved programme evidence cannot be mutated by an ordinary save; any editable reset is explicit, audited, permissioned, idempotent, and visible in the UI.
+Dependencies: TASK-414.
+Blocked by: None.
+Risk level: High.
+Rollback notes: Revert lifecycle service/API/UI/tests/docs changes.
+Explicit non-goals: Do not redesign programme schema, create campaigns, create referrals, apply rewards, dispatch providers, mutate auth, bill, settle, payout, or move money.
+Definition of done: Programme draft review locking is production-safe and cannot silently erase review evidence. Priority: P0.
+
+## TASK-416: Complete programme builder product and offering selection UX
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Uses selected-customer product/offering catalogue APIs without forking source. Source duplication: No.
+Linked enhancement: Referral SaaS governed configuration platform.
+Linked platform/product capability: Customer product catalogue UX; programme configuration UX.
+Objective: Make customer product line and product offering selection explicit, plain-language, and mandatory where required inside the selected-customer Programme workspace.
+Why now: Backend product/offering binding exists, but 10/10 SaaS requires users to configure the customer's real offering without confusing it with Amplifi service packaging or campaign details.
+Files likely involved: selected-customer Programme workspace; frontend API queries/client types; frontend tests; docs.
+Database/schema impact: None.
+Backend impact: None expected beyond small read-model shape fixes discovered during UI integration.
+Frontend impact: Add product line/offering pickers, empty states, helper copy, selected-customer scoping, and validation feedback in the Programme builder.
+API impact: Reuse TASK-408/TASK-409 routes and safe labels.
+Tests to add/update: Product/offering selector rendering, required-state validation, retired/missing offering handling, saved draft readback, no raw package-code leakage, and customer-scoped navigation.
+Validation method: `npm run lint`; focused frontend tests; `npm run build`; `git diff --check`.
+Acceptance criteria: A user can select the customer product/offering for a referral programme without seeing raw IDs as the main experience or mixing it with campaign configuration.
+Dependencies: TASK-415 can run in parallel if backend route behavior is stable; logically follows TASK-409 and TASK-414.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert frontend/API-client/test/docs changes.
+Explicit non-goals: Do not add new product catalogue schema, campaign activation behavior, provider dispatch, credential creation, auth mutation, billing, settlement, payout, or money movement.
+Definition of done: Programme UX exposes the product/offering binding clearly enough for customer/admin self-service. Priority: P0.
+
+## TASK-417: Add programme incentive and engagement binding lifecycle controls
+
+Status: Planned.
+Product boundary: Referral SaaS with Shared Platform governance trajectory.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Hardens lifecycle controls for reward policy, mission, badge, and leaderboard references without performing reward or money execution. Source duplication: No.
+Linked enhancement: Referral SaaS governed configuration platform.
+Linked platform/product capability: Incentive binding lifecycle; engagement catalogue binding; audit.
+Objective: Add replace, deactivate/retire, effective-date, and audit evidence for programme-version incentive and engagement bindings.
+Why now: Binding approved incentive references is implemented, but world-class SaaS needs governed replacement and deactivation rather than append-only ambiguity.
+Files likely involved: programme configuration service/API; incentive binding tests; route inventory; frontend Programme workspace if controls are exposed; docs.
+Database/schema impact: Use existing effective-date fields where possible; add lifecycle/audit metadata only if required.
+Backend impact: Enforce same-account/version scope, effective dating, overlap/duplicate rules, idempotency, audit, and no reward/payout/money side effects.
+Frontend impact: Show current binding, future binding, retired binding, and plain-language replacement/deactivation actions if exposed in UI.
+API impact: Add or extend selected-customer programme-version incentive binding routes for replace/deactivate/read lifecycle posture.
+Tests to add/update: Replace binding, deactivate binding, effective-date overlap rejection, stale/retired catalogue rejection, idempotency conflict, audit/redaction, no reward/payout/money behavior.
+Validation method: Focused pytest, route inventory if routes change, frontend tests if UI changes, Python compile, `git diff --check`.
+Acceptance criteria: A programme version can safely change incentive/engagement references over time with clear effective dates and audit evidence, without executing rewards or money movement.
+Dependencies: TASK-402; TASK-414.
+Blocked by: None.
+Risk level: High.
+Rollback notes: Revert binding lifecycle service/API/UI/tests/docs changes.
+Explicit non-goals: Do not calculate rewards, award badges, score leaderboards, create payouts, dispatch providers, mutate auth, activate campaigns, bill, settle, or move money.
+Definition of done: Incentive and engagement binding lifecycle is governed, explainable, and historically auditable. Priority: P0.
+
+## TASK-418: Prove full product-to-referral programme E2E path
+
+Status: Planned.
+Product boundary: Referral SaaS with Shared Platform proof trajectory.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds repeatable proof across selected-customer product, programme, campaign, referral, attribution, reporting, and analytics primitives. Source duplication: No.
+Linked enhancement: Referral SaaS governed configuration platform.
+Linked platform/product capability: End-to-end SaaS configuration proof; launch confidence.
+Objective: Add a repeatable proof that creates/selects product line and offering, configures/publishes a referral programme, binds incentives, binds a campaign, creates a referral, records progress/outcome evidence, and verifies attribution/reporting/analytics readback.
+Why now: Individual task tests pass, but the 10/10 claim needs one joined scenario that proves the whole business process works together without source-code journey changes.
+Files likely involved: E2E proof script/test; service/API tests; seed fixtures; docs/gap/roadmap.
+Database/schema impact: Test/proof data only.
+Backend impact: None expected except defects discovered by the proof.
+Frontend impact: Optional manual test notes; no UI change unless the proof reveals a blocking workflow gap.
+API impact: Exercise existing selected-customer APIs.
+Tests to add/update: Full golden-path proof plus failure-path checks for missing product/offering, invalid programme binding, stale campaign override, and no raw/billing/money leakage.
+Validation method: Focused E2E pytest/proof runner; Python compile; `git diff --check`; document manual local run if relevant.
+Acceptance criteria: One repeatable proof demonstrates product line -> offering -> programme -> incentive binding -> campaign -> referral -> progress/outcome -> attribution/reporting/analytics without deploying a new journey type.
+Dependencies: TASK-415; TASK-416; TASK-417.
+Blocked by: None locally; non-local repetition remains TASK-027/TASK-348.
+Risk level: High.
+Rollback notes: Revert proof tests/scripts/docs and any defect fixes made in the task.
+Explicit non-goals: Do not perform live provider delivery, create credentials, mutate auth claims, bill, payout, settle, fund, invoice, commission, or move money.
+Definition of done: The configurable Referral SaaS operating model is proven end-to-end in a repeatable local/test environment. Priority: P0.
+
+## TASK-419: Apply final plain-language configuration UX readiness pass
+
+Status: Planned.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_UX_CX_MATURITY_SCORECARD.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Uses shared selected-customer UI patterns and avoids product-specific forks. Source duplication: No.
+Linked enhancement: Referral SaaS governed configuration platform.
+Linked platform/product capability: Simple SaaS configuration UX; customer/admin self-service.
+Objective: Run a final UX/CX readiness pass over the customer product catalogue, Programme workspace, campaign binding/override flow, analytics labels, and handoff actions so the configuration model is simple to understand and hard to misuse.
+Why now: The architecture is strong, but the final mile is clarity: users must know what to do, why it matters, what is safe, what is blocked, and where to go next.
+Files likely involved: selected-customer frontend routes/pages/styles/tests; UX docs; roadmap/gap/infographic.
+Database/schema impact: None.
+Backend impact: None expected.
+Frontend impact: Plain-language labels, one primary next action, role/task framing, empty states, locked-state copy, RAG/action mapping, responsive alignment, and diagnostics behind disclosure.
+API impact: None expected.
+Tests to add/update: Frontend render tests for labels, blocked states, next actions, diagnostic disclosure, customer scoping, no raw technical labels by default, and mobile/desktop-safe layout where testable.
+Validation method: `npm run lint`; focused frontend tests; `npm run build`; `git diff --check`.
+Acceptance criteria: A non-technical operator can configure and understand customer product/offering, referral programme, campaign, campaign-specific changes, and reporting from the UI without needing backend vocabulary.
+Dependencies: TASK-416; should follow or pair with TASK-418 findings.
+Blocked by: None.
+Risk level: Medium.
+Rollback notes: Revert frontend/docs/test changes.
+Explicit non-goals: Do not add backend domain behavior, provider dispatch, credential creation, auth mutation, billing, settlement, payout, funding, fulfilment, sponsor billing, DLaaS marketplace behavior, or money movement.
+Definition of done: The governed configuration platform is understandable as a simple SaaS workflow, not a technical console. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

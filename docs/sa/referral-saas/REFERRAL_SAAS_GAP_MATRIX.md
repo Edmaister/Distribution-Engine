@@ -191,6 +191,19 @@ overloading Amplifi service package fields.
 | Reporting must explain product/offering, programme, campaign, and override performance separately. | TASK-413 | Complete - programme analytics now exposes safe aggregate product/offering, programme version, runtime campaign, approved override, effective snapshot, override-rate, and snapshot-coverage dimensions without raw payload, billing, payout, settlement, or money leakage. |
 | UX must keep the model simple despite the richer architecture. | TASK-414 | Complete - customer-scoped home and Programme workspace explain customer product, referral programme, campaign, campaign-specific changes, and reporting in plain language, with safe reporting-dimension labels and diagnostics by disclosure. |
 
+TASK-415 through TASK-419 capture the final contained gaps from the post-TASK-414
+configuration review. The implementation is no longer structurally misaligned;
+the remaining work is lifecycle hardening, UX completion, binding lifecycle, and
+joined proof:
+
+| Gap | Required task path | Close-out expectation |
+| --- | --- | --- |
+| Programme drafts can still risk ordinary save behavior after review states. | TASK-415 | Lock submitted/approved/published/retired draft states and require an explicit governed return-to-draft path with audit and idempotency. |
+| Product/offering binding exists in APIs but must be unmistakable in the Programme builder. | TASK-416 | Expose customer product line and offering selection in plain language with required-state feedback, empty states, and no package-code confusion. |
+| Incentive and engagement bindings need replacement/deactivation lifecycle controls. | TASK-417 | Add governed replace, retire/deactivate, effective-date, overlap, audit, and redaction behavior without reward, payout, settlement, or money execution. |
+| Individual task tests exist, but the full product-to-referral path needs one joined proof. | TASK-418 | Prove product line -> offering -> programme -> incentive binding -> campaign -> referral -> progress/outcome -> attribution/reporting/analytics in one repeatable path. |
+| The richer model still needs final plain-language UX polish. | TASK-419 | Apply final CX pass across product catalogue, Programme, campaign binding/overrides, analytics labels, and handoff actions so configuration is simple and hard to misuse. |
+
 ## TASK-357 H1 Scope And Release Gates
 
 TASK-357 locks the H1 Referral SaaS release promise before the remaining
