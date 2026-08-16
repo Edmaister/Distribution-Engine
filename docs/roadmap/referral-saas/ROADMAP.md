@@ -322,8 +322,14 @@ immutable account-scoped programme versions, retired explicitly, and checked for
 rollback readiness without mutating campaigns, referrals, providers, auth,
 billing, settlement, or money state. TASK-401 now binds campaigns to published
 programme versions through customer-scoped campaign setup and activation gates.
-Implementation now moves to TASK-402 for programme-scoped incentive and
-engagement version binding controls.
+TASK-402 now adds programme-scoped incentive and engagement version binding
+controls. Published programme versions can carry approved reward policy,
+mission, badge, and leaderboard references with effective-date and catalogue-
+version posture while reward application, mission progress, badge awards,
+leaderboard scoring, provider dispatch, auth, billing, settlement, payout,
+invoice, funding, wallet, commission, and money movement remain outside setup.
+Implementation now moves to TASK-403 for programme-version runtime binding and
+historical replay posture.
 
 ## Recommended Ordered Task Sequence
 

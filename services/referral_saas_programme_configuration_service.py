@@ -6,6 +6,10 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Mapping
 
+from services.referral_saas_journey_configuration_service import (
+    CustomerJourneyIncentiveBindingValidationError,
+    _find_approved_incentive_catalogue_record,
+)
 from utils.db import db_connection
 
 
@@ -30,6 +34,19 @@ PROGRAMME_LIFECYCLE_GUARDRAILS = (
     "IMMUTABLE_PROGRAMME_VERSION",
     "EXPLICIT_RETIREMENT_REQUIRED",
     "ROLLBACK_READINESS_ONLY",
+)
+
+PROGRAMME_INCENTIVE_BINDING_GUARDRAILS = (
+    *PROGRAMME_CONFIGURATION_GUARDRAILS,
+    "PUBLISHED_PROGRAMME_VERSION_REQUIRED",
+    "APPROVED_INCENTIVE_OR_ENGAGEMENT_CATALOGUE_REFERENCE_REQUIRED",
+    "PROGRAMME_EFFECTIVE_DATE_COMPATIBILITY_REQUIRED",
+    "IDEMPOTENT_PROGRAMME_INCENTIVE_BINDING_COMMANDS",
+    "IMMUTABLE_PROGRAMME_VERSION_SNAPSHOT",
+    "NO_REWARD_APPLICATION",
+    "NO_BADGE_AWARD",
+    "NO_MISSION_PROGRESS_MUTATION",
+    "NO_LEADERBOARD_SCORING",
 )
 
 PROGRAMME_CONFIGURATION_REDACTIONS = (
@@ -89,6 +106,12 @@ PROGRAMME_SUB_PRODUCT_CODES = frozenset(
 )
 
 MAX_PROGRAMME_LIMIT = 100
+MAX_PROGRAMME_INCENTIVE_BINDING_LIMIT = 100
+
+PROGRAMME_INCENTIVE_BINDING_TYPES = frozenset({"INCENTIVE", "ENGAGEMENT"})
+PROGRAMME_INCENTIVE_CATALOGUE_TYPES = frozenset(
+    {"REWARD_POLICY", "MISSION", "BADGE", "LEADERBOARD"}
+)
 
 
 class ProgrammeConfigurationValidationError(ValueError):
@@ -512,6 +535,90 @@ class ProgrammeLifecycleCommandResult:
 
 
 @dataclass(frozen=True)
+class ProgrammeIncentiveBinding:
+    programme_incentive_binding_id: str
+    account_id: str
+    programme_version_id: str
+    programme_code: str
+    programme_name: str
+    version_number: int
+    version_status: str
+    binding_type: str
+    catalogue_type: str
+    catalogue_ref: str
+    catalogue_version_ref: str | None
+    effective_from: date | str | None
+    effective_to: date | str | None
+    binding_status: str
+    binding_payload_hash: str
+    bound_by_ref: str
+    bound_at: datetime | str | None
+    archived_by_ref: str | None
+    archived_at: datetime | str | None
+    safe_summary: dict[str, Any]
+    governance_metadata: dict[str, Any]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "programmeIncentiveBindingId": self.programme_incentive_binding_id,
+            "accountId": self.account_id,
+            "programmeVersionId": self.programme_version_id,
+            "programmeCode": self.programme_code,
+            "programmeName": self.programme_name,
+            "versionNumber": self.version_number,
+            "versionStatus": self.version_status,
+            "bindingType": self.binding_type,
+            "catalogueType": self.catalogue_type,
+            "catalogueRef": self.catalogue_ref,
+            "catalogueVersionRef": self.catalogue_version_ref,
+            "effectiveFrom": _isoformat(self.effective_from),
+            "effectiveTo": _isoformat(self.effective_to),
+            "bindingStatus": self.binding_status,
+            "bindingPayloadHash": self.binding_payload_hash,
+            "boundByRef": self.bound_by_ref,
+            "boundAt": _isoformat(self.bound_at),
+            "archivedByRef": self.archived_by_ref,
+            "archivedAt": _isoformat(self.archived_at),
+            "safeSummary": _redact_json(self.safe_summary),
+            "governanceMetadata": _redact_json(self.governance_metadata),
+            "guardrails": list(PROGRAMME_INCENTIVE_BINDING_GUARDRAILS),
+            "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            "noRewardApplicationConfirmed": True,
+            "noBadgeAwardConfirmed": True,
+            "noMissionProgressMutationConfirmed": True,
+            "noLeaderboardScoringConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noProviderDispatchConfirmed": True,
+            "noCredentialOrAuthMutationConfirmed": True,
+            "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
+class ProgrammeIncentiveBindingCommandResult:
+    command_status: str
+    binding: ProgrammeIncentiveBinding
+    idempotency_status: str
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "commandStatus": self.command_status,
+            "idempotencyStatus": self.idempotency_status,
+            "binding": self.binding.to_safe_dict(),
+            "guardrails": list(PROGRAMME_INCENTIVE_BINDING_GUARDRAILS),
+            "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            "noRewardApplicationConfirmed": True,
+            "noBadgeAwardConfirmed": True,
+            "noMissionProgressMutationConfirmed": True,
+            "noLeaderboardScoringConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noProviderDispatchConfirmed": True,
+            "noCredentialOrAuthMutationConfirmed": True,
+            "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+        }
+
+
+@dataclass(frozen=True)
 class ProgrammeValidationResult:
     programme_validation_result_id: str
     account_id: str
@@ -653,6 +760,121 @@ def _version_from_row(row: Mapping[str, Any]) -> ProgrammeVersionSummary:
     )
 
 
+def _programme_incentive_binding_from_row(
+    row: Mapping[str, Any],
+) -> ProgrammeIncentiveBinding:
+    return ProgrammeIncentiveBinding(
+        programme_incentive_binding_id=str(
+            _row_value(row, "programme_incentive_binding_id")
+        ),
+        account_id=str(_row_value(row, "account_id")),
+        programme_version_id=str(_row_value(row, "programme_version_id")),
+        programme_code=str(_row_value(row, "programme_code")),
+        programme_name=str(_row_value(row, "programme_name")),
+        version_number=int(_row_value(row, "version_number") or 1),
+        version_status=str(_row_value(row, "version_status")),
+        binding_type=str(_row_value(row, "binding_type")),
+        catalogue_type=str(_row_value(row, "catalogue_type")),
+        catalogue_ref=str(_row_value(row, "catalogue_ref")),
+        catalogue_version_ref=_row_value(row, "catalogue_version_ref"),
+        effective_from=_row_value(row, "effective_from"),
+        effective_to=_row_value(row, "effective_to"),
+        binding_status=str(_row_value(row, "binding_status")),
+        binding_payload_hash=str(_row_value(row, "binding_payload_hash")),
+        bound_by_ref=str(_row_value(row, "bound_by_ref")),
+        bound_at=_row_value(row, "bound_at"),
+        archived_by_ref=_row_value(row, "archived_by_ref"),
+        archived_at=_row_value(row, "archived_at"),
+        safe_summary=_json_dict(_row_value(row, "safe_summary")),
+        governance_metadata=_json_dict(_row_value(row, "governance_metadata")),
+    )
+
+
+def _normalise_programme_binding_type(value: Any) -> str:
+    binding_type = _normalise_code(value, "binding_type", max_length=40)
+    if binding_type not in PROGRAMME_INCENTIVE_BINDING_TYPES:
+        raise ProgrammeConfigurationValidationError(
+            "binding_type must be INCENTIVE or ENGAGEMENT."
+        )
+    return binding_type
+
+
+def _normalise_programme_catalogue_type(value: Any) -> str:
+    catalogue_type = _normalise_code(value, "catalogue_type", max_length=40)
+    if catalogue_type not in PROGRAMME_INCENTIVE_CATALOGUE_TYPES:
+        raise ProgrammeConfigurationValidationError(
+            "catalogue_type must be REWARD_POLICY, MISSION, BADGE, or LEADERBOARD."
+        )
+    return catalogue_type
+
+
+def _safe_incentive_binding_limit(limit: int) -> int:
+    return max(1, min(int(limit), MAX_PROGRAMME_INCENTIVE_BINDING_LIMIT))
+
+
+async def _find_published_programme_version(
+    conn: Any,
+    *,
+    account_id: str,
+    programme_version_id: str,
+) -> Mapping[str, Any]:
+    row = await conn.fetchrow(
+        """
+        SELECT *
+        FROM referral_saas_programme_versions
+        WHERE account_id = $1
+          AND programme_version_id = $2
+        LIMIT 1
+        """,
+        account_id,
+        programme_version_id,
+    )
+    if not row:
+        raise ProgrammeConfigurationNotFound(programme_version_id)
+    if (
+        str(_row_value(row, "version_status")) != "PUBLISHED"
+        or _row_value(row, "retired_at") is not None
+    ):
+        raise ProgrammeConfigurationValidationError(
+            "Incentive and engagement bindings can attach only to published, unretired programme versions."
+        )
+    return row
+
+
+def _validate_programme_binding_effective_dates(
+    *,
+    programme_row: Mapping[str, Any],
+    effective_from: date | None,
+    effective_to: date | None,
+) -> tuple[date, date | None]:
+    programme_from = _row_value(programme_row, "effective_from")
+    programme_to = _row_value(programme_row, "effective_to")
+    if isinstance(programme_from, datetime):
+        programme_from = programme_from.date()
+    if isinstance(programme_to, datetime):
+        programme_to = programme_to.date()
+    if not isinstance(programme_from, date):
+        raise ProgrammeConfigurationValidationError(
+            "Programme version effective_from is required before binding incentives."
+        )
+
+    safe_from = effective_from or programme_from
+    safe_to = effective_to or programme_to
+    if safe_from < programme_from:
+        raise ProgrammeConfigurationValidationError(
+            "binding effective_from cannot be earlier than the programme version effective_from."
+        )
+    if safe_to is not None and safe_to <= safe_from:
+        raise ProgrammeConfigurationValidationError(
+            "binding effective_to must be after binding effective_from."
+        )
+    if programme_to is not None and safe_to is not None and safe_to > programme_to:
+        raise ProgrammeConfigurationValidationError(
+            "binding effective_to cannot be later than the programme version effective_to."
+        )
+    return safe_from, safe_to
+
+
 def _catalogue_item_from_row(row: Mapping[str, Any]) -> ProgrammeJourneyCatalogueItem:
     return ProgrammeJourneyCatalogueItem(
         customer_journey_version_id=str(_row_value(row, "customer_journey_version_id")),
@@ -690,6 +912,404 @@ async def list_referral_saas_programme_versions(
             _safe_limit(limit),
         )
     return tuple(_version_from_row(row) for row in rows)
+
+
+async def list_referral_saas_programme_incentive_bindings(
+    *,
+    account_id: str,
+    programme_version_id: str,
+    include_archived: bool = False,
+    limit: int = 50,
+) -> tuple[ProgrammeIncentiveBinding, ...]:
+    safe_account_id = _required_text(account_id, "account_id", max_length=80)
+    safe_version_id = _required_text(
+        programme_version_id, "programme_version_id", max_length=80
+    )
+    archived_filter = "" if include_archived else "AND b.binding_status = 'ACTIVE'"
+
+    async with db_connection() as conn:
+        rows = await conn.fetch(
+            f"""
+            SELECT
+                b.*,
+                v.programme_code,
+                v.programme_name,
+                v.version_number,
+                v.version_status
+            FROM referral_saas_programme_incentive_bindings b
+            JOIN referral_saas_programme_versions v
+                ON v.programme_version_id = b.programme_version_id
+            WHERE b.account_id = $1
+              AND b.programme_version_id = $2
+              {archived_filter}
+            ORDER BY b.bound_at DESC
+            LIMIT $3
+            """,
+            safe_account_id,
+            safe_version_id,
+            _safe_incentive_binding_limit(limit),
+        )
+    return tuple(_programme_incentive_binding_from_row(row) for row in rows)
+
+
+async def _programme_binding_snapshot(
+    conn: Any,
+    *,
+    account_id: str,
+    programme_version_id: str,
+    binding_type: str,
+) -> list[dict[str, Any]]:
+    rows = await conn.fetch(
+        """
+        SELECT
+            binding_type,
+            catalogue_type,
+            catalogue_ref,
+            catalogue_version_ref,
+            effective_from,
+            effective_to,
+            binding_status,
+            safe_summary,
+            governance_metadata,
+            bound_at
+        FROM referral_saas_programme_incentive_bindings
+        WHERE account_id = $1
+          AND programme_version_id = $2
+          AND binding_type = $3
+          AND binding_status = 'ACTIVE'
+        ORDER BY catalogue_type ASC, catalogue_ref ASC
+        """,
+        account_id,
+        programme_version_id,
+        binding_type,
+    )
+    return [
+        {
+            "bindingType": str(_row_value(row, "binding_type")),
+            "catalogueType": str(_row_value(row, "catalogue_type")),
+            "catalogueRef": str(_row_value(row, "catalogue_ref")),
+            "catalogueVersionRef": _row_value(row, "catalogue_version_ref"),
+            "effectiveFrom": _isoformat(_row_value(row, "effective_from")),
+            "effectiveTo": _isoformat(_row_value(row, "effective_to")),
+            "bindingStatus": str(_row_value(row, "binding_status")),
+            "safeSummary": _json_dict(_row_value(row, "safe_summary")),
+            "governanceMetadata": _redact_json(
+                _json_dict(_row_value(row, "governance_metadata"))
+            ),
+            "boundAt": _isoformat(_row_value(row, "bound_at")),
+        }
+        for row in rows
+    ]
+
+
+async def bind_referral_saas_programme_incentive(
+    *,
+    account_id: str,
+    programme_version_id: str,
+    binding_type: str,
+    catalogue_type: str,
+    catalogue_ref: str,
+    catalogue_version_ref: str | None,
+    effective_from: str | date | None,
+    effective_to: str | date | None,
+    idempotency_key_hash: str,
+    request_payload_hash: str,
+    actor_ref: str,
+    actor_role: str | None = None,
+    correlation_id: str | None = None,
+) -> ProgrammeIncentiveBindingCommandResult:
+    safe_account_id = _required_text(account_id, "account_id", max_length=80)
+    safe_version_id = _required_text(
+        programme_version_id, "programme_version_id", max_length=80
+    )
+    safe_binding_type = _normalise_programme_binding_type(binding_type)
+    safe_catalogue_type = _normalise_programme_catalogue_type(catalogue_type)
+    safe_catalogue_ref = _required_text(
+        catalogue_ref, "catalogue_ref", max_length=160
+    )
+    safe_catalogue_version_ref = _optional_text(catalogue_version_ref, max_length=120)
+    requested_from = _optional_iso_date(effective_from)
+    requested_to = _optional_iso_date(effective_to)
+    safe_idempotency_hash = _required_text(
+        idempotency_key_hash, "idempotency_key_hash", max_length=256
+    )
+    safe_request_hash = _required_text(
+        request_payload_hash, "request_payload_hash", max_length=256
+    )
+    safe_actor_ref = _required_text(actor_ref, "actor_ref", max_length=160)
+    safe_actor_role = _optional_text(actor_role, max_length=80)
+    safe_correlation_id = (
+        _optional_text(correlation_id, max_length=160)
+        or "programme-incentive-binding"
+    )
+
+    async with db_connection() as conn:
+        existing_idempotency = await conn.fetchrow(
+            """
+            SELECT resource_id, request_payload_hash
+            FROM referral_saas_programme_configuration_idempotency_keys
+            WHERE account_id = $1
+              AND operation_type = 'PROGRAMME_INCENTIVE_BIND'
+              AND idempotency_key_hash = $2
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_idempotency_hash,
+        )
+        if existing_idempotency:
+            if _row_value(existing_idempotency, "request_payload_hash") != safe_request_hash:
+                raise ProgrammeConfigurationIdempotencyConflict(
+                    "Idempotency key was reused with different programme incentive binding content."
+                )
+            binding_row = await conn.fetchrow(
+                """
+                SELECT
+                    b.*,
+                    v.programme_code,
+                    v.programme_name,
+                    v.version_number,
+                    v.version_status
+                FROM referral_saas_programme_incentive_bindings b
+                JOIN referral_saas_programme_versions v
+                    ON v.programme_version_id = b.programme_version_id
+                WHERE b.programme_incentive_binding_id = $1
+                  AND b.account_id = $2
+                LIMIT 1
+                """,
+                _row_value(existing_idempotency, "resource_id"),
+                safe_account_id,
+            )
+            if not binding_row:
+                raise ProgrammeConfigurationNotFound(
+                    str(_row_value(existing_idempotency, "resource_id"))
+                )
+            return ProgrammeIncentiveBindingCommandResult(
+                command_status="PROGRAMME_INCENTIVE_BOUND",
+                binding=_programme_incentive_binding_from_row(binding_row),
+                idempotency_status="REPLAY_SAME_PAYLOAD",
+            )
+
+        programme_row = await _find_published_programme_version(
+            conn,
+            account_id=safe_account_id,
+            programme_version_id=safe_version_id,
+        )
+        safe_effective_from, safe_effective_to = _validate_programme_binding_effective_dates(
+            programme_row=programme_row,
+            effective_from=requested_from,
+            effective_to=requested_to,
+        )
+        try:
+            catalogue_record = await _find_approved_incentive_catalogue_record(
+                conn,
+                incentive_type=safe_catalogue_type,
+                catalogue_ref=safe_catalogue_ref,
+            )
+        except CustomerJourneyIncentiveBindingValidationError as exc:
+            raise ProgrammeConfigurationValidationError(str(exc)) from exc
+
+        existing_active_row = await conn.fetchrow(
+            """
+            SELECT
+                b.*,
+                v.programme_code,
+                v.programme_name,
+                v.version_number,
+                v.version_status
+            FROM referral_saas_programme_incentive_bindings b
+            JOIN referral_saas_programme_versions v
+                ON v.programme_version_id = b.programme_version_id
+            WHERE b.account_id = $1
+              AND b.programme_version_id = $2
+              AND b.binding_type = $3
+              AND b.catalogue_type = $4
+              AND UPPER(b.catalogue_ref) = UPPER($5)
+              AND b.binding_status = 'ACTIVE'
+            LIMIT 1
+            """,
+            safe_account_id,
+            safe_version_id,
+            safe_binding_type,
+            safe_catalogue_type,
+            catalogue_record["catalogueRef"],
+        )
+
+        safe_summary = {
+            "bindingType": safe_binding_type,
+            "catalogueType": safe_catalogue_type,
+            "catalogueRef": catalogue_record["catalogueRef"],
+            "catalogueVersionRef": safe_catalogue_version_ref,
+            "catalogueLabel": catalogue_record.get("label"),
+            "programmeVersionId": safe_version_id,
+            "programmeCode": _row_value(programme_row, "programme_code"),
+            "programmeName": _row_value(programme_row, "programme_name"),
+            "versionNumber": int(_row_value(programme_row, "version_number") or 1),
+            "effectiveFrom": _isoformat(safe_effective_from),
+            "effectiveTo": _isoformat(safe_effective_to),
+            "bindingStatus": "ACTIVE",
+            "catalogueApproved": True,
+            "noRewardApplicationConfirmed": True,
+            "noBadgeAwardConfirmed": True,
+            "noMissionProgressMutationConfirmed": True,
+            "noLeaderboardScoringConfirmed": True,
+            "noCampaignActivationConfirmed": True,
+            "noProviderDispatchConfirmed": True,
+            "noCredentialOrAuthMutationConfirmed": True,
+            "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+        }
+        governance_metadata = {
+            "source": "TASK-402",
+            "bindingControl": "APPROVED_CATALOGUE_REFERENCE_REQUIRED",
+            "publishedProgrammeVersionRequired": True,
+            "effectiveDateCompatibleWithProgramme": True,
+            "catalogueRecord": catalogue_record,
+        }
+
+        async with conn.transaction():
+            if existing_active_row:
+                binding_row = existing_active_row
+                command_status = "PROGRAMME_INCENTIVE_ALREADY_BOUND"
+            else:
+                binding_row = await conn.fetchrow(
+                    """
+                    INSERT INTO referral_saas_programme_incentive_bindings (
+                        account_id,
+                        programme_version_id,
+                        binding_type,
+                        catalogue_type,
+                        catalogue_ref,
+                        catalogue_version_ref,
+                        effective_from,
+                        effective_to,
+                        binding_status,
+                        binding_payload_hash,
+                        idempotency_key_hash,
+                        correlation_id,
+                        bound_by_ref,
+                        safe_summary,
+                        governance_metadata
+                    )
+                    VALUES (
+                        $1, $2, $3, $4, $5, $6, $7, $8, 'ACTIVE',
+                        $9, $10, $11, $12, $13::jsonb, $14::jsonb
+                    )
+                    RETURNING *
+                    """,
+                    safe_account_id,
+                    safe_version_id,
+                    safe_binding_type,
+                    safe_catalogue_type,
+                    catalogue_record["catalogueRef"],
+                    safe_catalogue_version_ref,
+                    safe_effective_from,
+                    safe_effective_to,
+                    safe_request_hash,
+                    safe_idempotency_hash,
+                    safe_correlation_id,
+                    safe_actor_ref,
+                    _jsonb(safe_summary),
+                    _jsonb(governance_metadata),
+                )
+                command_status = "PROGRAMME_INCENTIVE_BOUND"
+
+            incentive_snapshot = await _programme_binding_snapshot(
+                conn,
+                account_id=safe_account_id,
+                programme_version_id=safe_version_id,
+                binding_type="INCENTIVE",
+            )
+            engagement_snapshot = await _programme_binding_snapshot(
+                conn,
+                account_id=safe_account_id,
+                programme_version_id=safe_version_id,
+                binding_type="ENGAGEMENT",
+            )
+            await conn.execute(
+                """
+                UPDATE referral_saas_programme_versions
+                SET incentive_refs_snapshot = $3::jsonb,
+                    engagement_refs_snapshot = $4::jsonb
+                WHERE account_id = $1
+                  AND programme_version_id = $2
+                """,
+                safe_account_id,
+                safe_version_id,
+                _jsonb(incentive_snapshot),
+                _jsonb(engagement_snapshot),
+            )
+
+            binding_id = str(_row_value(binding_row, "programme_incentive_binding_id"))
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_programme_configuration_idempotency_keys (
+                    account_id,
+                    operation_type,
+                    idempotency_key_hash,
+                    request_payload_hash,
+                    response_payload_hash,
+                    resource_type,
+                    resource_id,
+                    response_status
+                )
+                VALUES ($1, 'PROGRAMME_INCENTIVE_BIND', $2, $3, $4,
+                        'PROGRAMME_INCENTIVE_BINDING', $5, 'SUCCESS')
+                """,
+                safe_account_id,
+                safe_idempotency_hash,
+                safe_request_hash,
+                _payload_hash({"programmeIncentiveBindingId": binding_id}),
+                binding_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO referral_saas_programme_configuration_audit (
+                    account_id,
+                    programme_version_id,
+                    customer_journey_version_id,
+                    event_type,
+                    event_status,
+                    actor_ref,
+                    actor_role,
+                    previous_status,
+                    next_status,
+                    reason_code,
+                    correlation_id,
+                    idempotency_key_hash,
+                    evidence_summary,
+                    redactions
+                )
+                VALUES (
+                    $1, $2, $3, 'PROGRAMME_INCENTIVE_BOUND', 'RECORDED',
+                    $4, $5, NULL, 'ACTIVE', 'PROGRAMME_INCENTIVE_BIND',
+                    $6, $7, $8::jsonb, $9::jsonb
+                )
+                """,
+                safe_account_id,
+                safe_version_id,
+                _row_value(programme_row, "customer_journey_version_id"),
+                safe_actor_ref,
+                safe_actor_role,
+                safe_correlation_id,
+                safe_idempotency_hash,
+                _jsonb(safe_summary),
+                _jsonb(PROGRAMME_CONFIGURATION_REDACTIONS),
+            )
+            binding_row = dict(binding_row)
+            binding_row.update(
+                {
+                    "programme_code": _row_value(programme_row, "programme_code"),
+                    "programme_name": _row_value(programme_row, "programme_name"),
+                    "version_number": _row_value(programme_row, "version_number"),
+                    "version_status": _row_value(programme_row, "version_status"),
+                }
+            )
+
+    return ProgrammeIncentiveBindingCommandResult(
+        command_status=command_status,
+        binding=_programme_incentive_binding_from_row(binding_row),
+        idempotency_status="NEW_REQUEST",
+    )
 
 
 async def list_referral_saas_programme_drafts(
