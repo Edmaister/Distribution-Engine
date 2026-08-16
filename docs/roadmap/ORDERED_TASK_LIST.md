@@ -9055,7 +9055,7 @@ Definition of done: Referral programmes are commercially attached to customer pr
 
 ## TASK-410: Make programme binding the authoritative campaign activation path
 
-Status: Ready.
+Status: Complete.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Clarifies campaign service activation semantics while preserving compatibility where needed. Source duplication: No.
@@ -9065,17 +9065,18 @@ Objective: Deprecate, wrap, or clearly mark legacy campaign journey-binding beha
 Why now: Campaigns should not independently choose journey rules once programme versions exist.
 Files likely involved: campaign service, selected-customer campaign routes, route inventory, campaign readiness/activation tests, frontend copy where surfaced, docs.
 Database/schema impact: None expected; existing campaign attributes may continue carrying compatibility snapshots.
-Backend impact: Activation and readiness must prefer programme binding and derive journey context from programme version; legacy journey-binding routes must not create a competing activation path.
-Frontend impact: Plain-language campaign screens should say "Programme" rather than "Journey binding" for ordinary users; diagnostics may retain compatibility detail.
+Backend impact: Complete - campaign activation now requires a published programme binding, derives journey context from the programme version, and treats legacy journey-binding as compatibility rather than an activation authority.
+Frontend impact: Complete - selected-customer campaign setup uses published programme versions in plain language and no longer runs a hidden competing journey-binding command.
 API impact: Keep compatibility routes only if tests prove they are bounded and non-authoritative; update route docs/inventory as needed.
-Tests to add/update: Activation precedence tests, legacy journey-binding compatibility tests, route inventory tests, no competing binding path tests.
-Validation method: Focused campaign service/API pytest, route smoke inventory, Python compile, and `git diff --check`.
-Acceptance criteria: Campaign activation cannot bypass a valid published programme binding; legacy journey-binding cannot silently override programme configuration.
+Tests to add/update: Complete - activation precedence, missing programme binding, legacy journey-binding compatibility, review approval, stale policy blocker, and route inventory coverage.
+Validation method: Complete - focused campaign service pytest, route smoke inventory, frontend build/lint, Python compile, and `git diff --check`.
+Acceptance criteria: Complete - campaign activation cannot bypass a valid published programme binding; legacy journey-binding cannot silently override programme configuration.
 Dependencies: TASK-409.
 Blocked by: None.
 Risk level: High.
 Rollback notes: Revert service/API/frontend/docs changes and restore previous activation behavior.
 Explicit non-goals: Do not remove compatibility routes unless tests and docs explicitly allow it; do not change referral runtime behavior, provider dispatch, auth, billing, payout, settlement, or money movement.
+Completed output: `services/referral_saas_campaign_service.py`; `test/test_referral_saas_campaign_service.py`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; roadmap, gap matrix, programme boundary, and infographic updates. Campaign activation now has one authoritative product path: bind to a published programme version, derive journey context from that version, then activate through existing governed campaign controls.
 Definition of done: Campaigns have one authoritative product path: bind to a published programme version, then activate through existing governed campaign controls. Priority: P0.
 
 ## TASK-411: Add governed campaign-specific override controls

@@ -359,8 +359,12 @@ tables, jurisdiction, lifecycle status, idempotency, audit, redaction, and
 unsafe-column guardrails. TASK-408 is complete and exposes selected-customer
 API wrappers over that catalogue. TASK-409 is complete and binds programme
 drafts/versions to approved customer product/offering records without
-overloading Amplifi service package fields. TASK-410 is the next implementation
-task and makes programme binding the authoritative campaign activation path.
+overloading Amplifi service package fields. TASK-410 is complete and makes
+programme binding the authoritative campaign activation path: activation now
+requires a published programme version, derives journey context from that
+programme version, and keeps legacy campaign journey-binding as compatibility
+only. TASK-411 is the next implementation task and adds governed
+campaign-specific override controls.
 
 ## Recommended Ordered Task Sequence
 

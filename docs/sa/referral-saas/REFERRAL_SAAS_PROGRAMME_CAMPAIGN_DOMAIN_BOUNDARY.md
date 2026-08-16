@@ -87,6 +87,10 @@ The next tasks should make that separation clearer at the API and UX layer:
   campaign-specific overrides separately.
 - Legacy campaign journey-binding routes should be deprecated or wrapped so
   programme binding is the authoritative activation path.
+- TASK-410 closes this boundary: campaign activation now derives journey
+  context from the published programme version and legacy campaign
+  journey-binding remains compatibility-only. It must not satisfy activation
+  without a published programme binding.
 
 ## Build Parameters
 
