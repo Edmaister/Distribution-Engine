@@ -1852,8 +1852,156 @@ async def test_referral_saas_admin_can_bind_programme_incentive(monkeypatch):
     assert bind_calls[0]["catalogue_ref"] == "42"
     assert bind_calls[0]["catalogue_version_ref"] == "reward-v1"
     assert bind_calls[0]["effective_from"] == "2026-09-01"
+    assert bind_calls[0]["replace_existing"] is False
+    assert bind_calls[0]["replacement_reason"] is None
     assert bind_calls[0]["idempotency_key_hash"]
     assert bind_calls[0]["request_payload_hash"]
+
+
+async def test_referral_saas_admin_can_replace_programme_incentive_binding(
+    monkeypatch,
+):
+    bind_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_bind_referral_saas_programme_incentive(**kwargs):
+        bind_calls.append(kwargs)
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "commandStatus": "PROGRAMME_INCENTIVE_REPLACED",
+                "idempotencyStatus": "NEW_REQUEST",
+                "binding": {
+                    "programmeIncentiveBindingId": "programme-binding-2",
+                    "programmeVersionId": "programme-version-1",
+                    "bindingType": "INCENTIVE",
+                    "catalogueType": "REWARD_POLICY",
+                    "catalogueRef": "43",
+                    "bindingStatus": "ACTIVE",
+                },
+                "noRewardApplicationConfirmed": True,
+                "noCampaignActivationConfirmed": True,
+                "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "bind_referral_saas_programme_incentive",
+        fake_bind_referral_saas_programme_incentive,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/programmes/versions/programme-version-1/incentive-bindings",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "bindingType": "INCENTIVE",
+                "catalogueType": "REWARD_POLICY",
+                "catalogueRef": "43",
+                "replaceExisting": True,
+                "replacementReason": "Replace pilot reward before campaign launch.",
+                "idempotencyKey": "programme-incentive-binding-replace-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["commandStatus"] == "PROGRAMME_INCENTIVE_REPLACED"
+    assert body["noRewardApplicationConfirmed"] is True
+    assert body["noCampaignActivationConfirmed"] is True
+    assert bind_calls[0]["replace_existing"] is True
+    assert (
+        bind_calls[0]["replacement_reason"]
+        == "Replace pilot reward before campaign launch."
+    )
+
+
+async def test_referral_saas_admin_can_retire_programme_incentive_binding(
+    monkeypatch,
+):
+    retire_calls: list[dict] = []
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        return _context(account_id="acct-1", account_code="ACCT_FNB")
+
+    async def fake_retire_referral_saas_programme_incentive_binding(**kwargs):
+        retire_calls.append(kwargs)
+        return SimpleNamespace(
+            to_safe_dict=lambda: {
+                "commandStatus": "PROGRAMME_INCENTIVE_RETIRED",
+                "idempotencyStatus": "NEW_REQUEST",
+                "binding": {
+                    "programmeIncentiveBindingId": "programme-binding-1",
+                    "programmeVersionId": "programme-version-1",
+                    "bindingType": "ENGAGEMENT",
+                    "catalogueType": "MISSION",
+                    "catalogueRef": "WELCOME_MISSION",
+                    "bindingStatus": "ARCHIVED",
+                },
+                "noRewardApplicationConfirmed": True,
+                "noMissionProgressMutationConfirmed": True,
+                "noLeaderboardScoringConfirmed": True,
+                "noCampaignActivationConfirmed": True,
+                "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+            }
+        )
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "resolve_setup_account_by_external_reference",
+        fake_resolve_setup_account_by_external_reference,
+    )
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "retire_referral_saas_programme_incentive_binding",
+        fake_retire_referral_saas_programme_incentive_binding,
+    )
+
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            "/v1/referral-saas/accounts/acct-1/programmes/versions/programme-version-1/incentive-bindings/programme-binding-1/retire",
+            json={
+                "accountScope": {
+                    "refType": "external_tenant_ref",
+                    "externalRef": "fnb-referrals",
+                    "context": "setup",
+                },
+                "retirementReason": "Remove old engagement mission.",
+                "idempotencyKey": "programme-incentive-binding-retire-1",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["commandStatus"] == "PROGRAMME_INCENTIVE_RETIRED"
+    assert body["binding"]["bindingStatus"] == "ARCHIVED"
+    assert body["noMissionProgressMutationConfirmed"] is True
+    assert body["noCampaignActivationConfirmed"] is True
+    assert body["noBillingPayoutSettlementOrMoneyMovementConfirmed"] is True
+    assert retire_calls == [
+        {
+            "account_id": "acct-1",
+            "programme_version_id": "programme-version-1",
+            "programme_incentive_binding_id": "programme-binding-1",
+            "retirement_reason": "Remove old engagement mission.",
+            "idempotency_key_hash": retire_calls[0]["idempotency_key_hash"],
+            "request_payload_hash": retire_calls[0]["request_payload_hash"],
+            "actor_ref": retire_calls[0]["actor_ref"],
+            "actor_role": "ADMIN",
+            "correlation_id": None,
+        }
+    ]
 
 
 async def test_referral_saas_programme_incentive_binding_rejects_unapproved_catalogue(

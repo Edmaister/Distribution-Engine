@@ -308,6 +308,7 @@ from services.referral_saas_programme_configuration_service import (
     list_referral_saas_programme_versions,
     prepare_referral_saas_programme_rollback_readiness,
     publish_referral_saas_programme_version,
+    retire_referral_saas_programme_incentive_binding,
     retire_referral_saas_programme_version,
     save_referral_saas_programme_draft,
     submit_referral_saas_programme_draft_for_review,
@@ -796,6 +797,15 @@ class ReferralSaasProgrammeIncentiveBindingRequest(BaseModel):
     catalogueVersionRef: str | None = Field(default=None)
     effectiveFrom: str | None = Field(default=None)
     effectiveTo: str | None = Field(default=None)
+    replaceExisting: bool = Field(default=False)
+    replacementReason: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str = Field(min_length=1)
+
+
+class ReferralSaasProgrammeIncentiveBindingRetireRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    retirementReason: str = Field(min_length=1)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str = Field(min_length=1)
 
@@ -4683,6 +4693,8 @@ async def bind_referral_saas_programme_incentive_binding_route(
             actor_ref=_actor_ref(admin_identity),
             actor_role=str(admin_identity.get("role") or "").upper(),
             correlation_id=request.correlationId,
+            replace_existing=request.replaceExisting,
+            replacement_reason=request.replacementReason,
         )
     except ProgrammeConfigurationIdempotencyConflict as exc:
         raise HTTPException(
@@ -4728,6 +4740,105 @@ async def bind_referral_saas_programme_incentive_binding_route(
                 "mutate missions, score leaderboards, activate campaigns, "
                 "dispatch providers, create credentials, change auth, bill, "
                 "settle, pay out, invoice, fund, or move money."
+            ),
+        }
+    )
+    return body
+
+
+@router.post(
+    "/accounts/{account_ref}/programmes/versions/{version_ref}/"
+    "incentive-bindings/{binding_ref}/retire"
+)
+async def retire_referral_saas_programme_incentive_binding_route(
+    account_ref: str,
+    version_ref: str,
+    binding_ref: str,
+    request: ReferralSaasProgrammeIncentiveBindingRetireRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    account_scope = request.accountScope or {}
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    if not ref_type or not external_ref:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": "accountScope.refType and accountScope.externalRef are required.",
+                "guardrails": list(PROGRAMME_INCENTIVE_BINDING_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=admin_identity,
+        required_capability=REFERRAL_SAAS_CAMPAIGN_POLICY_WRITE_CAPABILITY,
+    )
+    _assert_account_path_scope(account_ref, account)
+
+    request_payload = request.model_dump(exclude_none=True)
+    try:
+        result = await retire_referral_saas_programme_incentive_binding(
+            account_id=account.account_id,
+            programme_version_id=version_ref,
+            programme_incentive_binding_id=binding_ref,
+            retirement_reason=request.retirementReason,
+            idempotency_key_hash=hash_idempotency_key(request.idempotencyKey),
+            request_payload_hash=hash_payload(request_payload),
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=request.correlationId,
+        )
+    except ProgrammeConfigurationIdempotencyConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "idempotency_conflict",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_INCENTIVE_BINDING_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+    except ProgrammeConfigurationNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "not_found",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_INCENTIVE_BINDING_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+    except ProgrammeConfigurationValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_INCENTIVE_BINDING_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+
+    body = result.to_safe_dict()
+    body.update(
+        {
+            "status": "ok",
+            "context": normalised_context,
+            "account": account.to_safe_dict(),
+            "guardrail": (
+                "Retires an active programme incentive or engagement binding "
+                "from the published programme version snapshot. This archives "
+                "the binding evidence only; it does not apply rewards, award "
+                "badges, mutate missions, score leaderboards, activate "
+                "campaigns, dispatch providers, create credentials, change "
+                "auth, bill, settle, pay out, invoice, fund, or move money."
             ),
         }
     )

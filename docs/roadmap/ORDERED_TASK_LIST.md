@@ -9237,7 +9237,7 @@ Definition of done: Complete - Programme UX exposes the product/offering binding
 
 ## TASK-417: Add programme incentive and engagement binding lifecycle controls
 
-Status: Planned.
+Status: Complete.
 Product boundary: Referral SaaS with Shared Platform governance trajectory.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Hardens lifecycle controls for reward policy, mission, badge, and leaderboard references without performing reward or money execution. Source duplication: No.
@@ -9248,7 +9248,7 @@ Why now: Binding approved incentive references is implemented, but world-class S
 Files likely involved: programme configuration service/API; incentive binding tests; route inventory; frontend Programme workspace if controls are exposed; docs.
 Database/schema impact: Use existing effective-date fields where possible; add lifecycle/audit metadata only if required.
 Backend impact: Enforce same-account/version scope, effective dating, overlap/duplicate rules, idempotency, audit, and no reward/payout/money side effects.
-Frontend impact: Show current binding, future binding, retired binding, and plain-language replacement/deactivation actions if exposed in UI.
+Frontend impact: Not changed in this task; lifecycle actions are API/service-ready for a later Programme workspace UX task.
 API impact: Add or extend selected-customer programme-version incentive binding routes for replace/deactivate/read lifecycle posture.
 Tests to add/update: Replace binding, deactivate binding, effective-date overlap rejection, stale/retired catalogue rejection, idempotency conflict, audit/redaction, no reward/payout/money behavior.
 Validation method: Focused pytest, route inventory if routes change, frontend tests if UI changes, Python compile, `git diff --check`.
@@ -9258,7 +9258,8 @@ Blocked by: None.
 Risk level: High.
 Rollback notes: Revert binding lifecycle service/API/UI/tests/docs changes.
 Explicit non-goals: Do not calculate rewards, award badges, score leaderboards, create payouts, dispatch providers, mutate auth, activate campaigns, bill, settle, or move money.
-Definition of done: Incentive and engagement binding lifecycle is governed, explainable, and historically auditable. Priority: P0.
+Completed output: Programme incentive and engagement bindings now support explicit replacement with a required reason, overlap rejection without replace intent, archive-on-replace behavior, explicit retire/deactivate, effective-date preservation, idempotency handling, audit evidence, route inventory coverage, and no reward, badge, mission, leaderboard, campaign activation, provider, credential, auth, billing, settlement, payout, funding, invoice, or money side effects.
+Definition of done: Complete - Incentive and engagement binding lifecycle is governed, explainable, and historically auditable. Priority: P0.
 
 ## TASK-418: Prove full product-to-referral programme E2E path
 
