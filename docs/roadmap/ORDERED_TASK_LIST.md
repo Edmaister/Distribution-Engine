@@ -9107,7 +9107,7 @@ Definition of done: Campaign Management can vary from a Referral Programme only 
 
 ## TASK-412: Add effective-rule runtime resolver snapshots
 
-Status: Ready.
+Status: Complete.
 Product boundary: Referral SaaS with Shared Platform trajectory.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Adds runtime effective-rule snapshots that future DLaaS can reuse for historical replay. Source duplication: No.
@@ -9128,6 +9128,7 @@ Blocked by: None.
 Risk level: High.
 Rollback notes: Revert resolver/schema/read-model/test/doc updates.
 Explicit non-goals: Do not rewrite historical referrals destructively, apply rewards, dispatch providers, mutate auth, bill, settle, payout, or move money.
+Completed output: `services/referral_code.py`; `test/test_referral_code.py`; roadmap, gap matrix, and infographic updates. New referral validation now freezes a safe effective-rule runtime snapshot when a campaign is bound to a published programme version, including customer product/offering labels, programme version evidence, campaign reference, redacted programme default rule keys/checksum, approved campaign override keys/checksum, and an effective checksum. The resolver fails closed when the programme binding cannot resolve to a valid published version and does not expose raw configuration, override payloads, provider dispatch, invite/seat/auth, billing, payout, settlement, or money movement.
 Definition of done: Runtime referral creation freezes the governed rule context it used without exposing raw configuration or unsafe adjacent behavior. Priority: P0.
 
 ## TASK-413: Add product, programme, campaign, and override reporting dimensions

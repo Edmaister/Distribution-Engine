@@ -367,8 +367,11 @@ only. TASK-411 is complete and adds governed campaign-specific override
 controls so reward, attribution, channel, date, cap, and audience differences
 are explicit, approved, audited, idempotent, bounded by the published
 programme version's allowed override envelope, and blocked from activation if
-stale or unapproved. TASK-412 through TASK-414 remain: immutable runtime
-effective-rule snapshots, reporting dimensions, and plain-language UX proof.
+stale or unapproved. TASK-412 is complete and freezes safe effective-rule
+runtime snapshots on new referral creation, including customer product/offering,
+programme version, campaign, approved override posture, and checksum evidence
+without exposing raw configuration or triggering adjacent side effects. TASK-413
+through TASK-414 remain: reporting dimensions and plain-language UX proof.
 
 ## Recommended Ordered Task Sequence
 

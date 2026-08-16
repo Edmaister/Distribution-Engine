@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 import re
@@ -43,6 +44,43 @@ def _campaign_programme_binding(attributes: Any) -> dict[str, Any] | None:
     return binding if isinstance(binding, dict) else None
 
 
+def _campaign_override(attributes: Any) -> dict[str, Any]:
+    if isinstance(attributes, str):
+        try:
+            attributes = json.loads(attributes)
+        except json.JSONDecodeError:
+            return {}
+    if not isinstance(attributes, dict):
+        return {}
+    override = attributes.get("referral_saas_campaign_override")
+    if isinstance(override, str):
+        try:
+            override = json.loads(override)
+        except json.JSONDecodeError:
+            return {}
+    return override if isinstance(override, dict) else {}
+
+
+def _json_dict(value: Any) -> dict[str, Any]:
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _canonical_hash(value: Any) -> str:
+    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _safe_rule_keys(value: Any) -> list[str]:
+    if isinstance(value, dict):
+        return sorted(str(key) for key in value.keys())
+    return []
+
+
 def _safe_runtime_programme_context(binding: dict[str, Any] | None) -> dict[str, Any]:
     if not binding:
         return {}
@@ -60,6 +98,120 @@ def _safe_runtime_programme_context(binding: dict[str, Any] | None) -> dict[str,
     return {key: value for key, value in context.items() if value not in ("", None)}
 
 
+def _safe_effective_rule_snapshot(
+    *,
+    tenant_code: str,
+    campaign_code: str,
+    programme_version: Any,
+    campaign_attributes: Any,
+) -> dict[str, Any]:
+    programme_defaults = _json_dict(
+        _row_value(programme_version, "campaign_defaults_snapshot")
+    )
+    safe_summary = _json_dict(_row_value(programme_version, "safe_summary"))
+    customer_product_binding = {
+        "customerProductLineId": str(
+            _row_value(programme_version, "customer_product_line_id") or ""
+        ).strip(),
+        "customerProductOfferingId": str(
+            _row_value(programme_version, "customer_product_offering_id") or ""
+        ).strip(),
+        "externalProductLineRef": str(
+            _row_value(programme_version, "external_product_line_ref") or ""
+        ).strip(),
+        "productLineName": str(
+            _row_value(programme_version, "product_line_name") or ""
+        ).strip(),
+        "productLineCategory": str(
+            _row_value(programme_version, "product_line_category") or ""
+        ).strip(),
+        "externalOfferingRef": str(
+            _row_value(programme_version, "external_offering_ref") or ""
+        ).strip(),
+        "offeringName": str(
+            _row_value(programme_version, "offering_name") or ""
+        ).strip(),
+        "offeringFamily": str(
+            _row_value(programme_version, "offering_family") or ""
+        ).strip(),
+        "operatingJurisdictionCode": str(
+            _row_value(
+                programme_version,
+                "product_offering_operating_jurisdiction_code",
+            )
+            or _row_value(programme_version, "operating_jurisdiction_code")
+            or ""
+        ).strip(),
+    }
+    customer_product_binding = {
+        key: value
+        for key, value in customer_product_binding.items()
+        if value not in ("", None)
+    }
+    override = _campaign_override(campaign_attributes)
+    override_payload = _json_dict(override.get("overridePayload"))
+    override_status = str(override.get("overrideStatus") or "").upper()
+    approved_override = (
+        override
+        if override_status == "APPROVED"
+        and str(override.get("programmeVersionId") or "").strip()
+        == str(_row_value(programme_version, "programme_version_id") or "").strip()
+        else {}
+    )
+    approved_override_payload = (
+        override_payload if approved_override else {}
+    )
+    effective_source = {
+        "programmeVersionId": str(_row_value(programme_version, "programme_version_id")),
+        "campaignCode": campaign_code,
+        "programmeDefaultsHash": _canonical_hash(programme_defaults),
+        "approvedOverrideHash": _canonical_hash(approved_override_payload),
+    }
+    return {
+        "snapshotVersion": 1,
+        "snapshotType": "REFERRAL_SAAS_EFFECTIVE_RULE_CONTEXT",
+        "source": "TASK-412_EFFECTIVE_RULE_RUNTIME_RESOLVER",
+        "tenantScopeHash": _canonical_hash({"tenant_code": tenant_code}),
+        "campaign": {"campaignCode": campaign_code},
+        "customerProductBinding": customer_product_binding,
+        "programme": {
+            "programmeVersionId": str(
+                _row_value(programme_version, "programme_version_id")
+            ),
+            "programmeCode": str(_row_value(programme_version, "programme_code")),
+            "programmeName": str(_row_value(programme_version, "programme_name")),
+            "versionNumber": int(_row_value(programme_version, "version_number") or 1),
+            "customerJourneyVersionId": str(
+                _row_value(programme_version, "customer_journey_version_id")
+            ),
+            "configurationChecksum": str(
+                _row_value(programme_version, "configuration_checksum") or ""
+            ).strip(),
+            "safeSummary": safe_summary,
+        },
+        "programmeDefaultRules": {
+            "present": bool(programme_defaults),
+            "ruleKeys": _safe_rule_keys(programme_defaults),
+            "checksum": _canonical_hash(programme_defaults),
+        },
+        "campaignOverrideRules": {
+            "present": bool(approved_override),
+            "approved": bool(approved_override),
+            "overrideKeys": _safe_rule_keys(approved_override_payload),
+            "overrideReasonPresent": bool(approved_override.get("overrideReason")),
+            "approvedAt": approved_override.get("approvedAt"),
+            "checksum": _canonical_hash(approved_override_payload),
+        },
+        "effectiveRulesChecksum": _canonical_hash(effective_source),
+        "capturedAt": _utcnow().isoformat().replace("+00:00", "Z"),
+        "configurationPayloadRedacted": True,
+        "noProviderDispatchConfirmed": True,
+        "noInviteOrSeatChangeConfirmed": True,
+        "noCredentialCreationConfirmed": True,
+        "noBillingOrMoneyMovementConfirmed": True,
+    }
+
+
 def _row_value(row: Any, key: str, default: Any = None) -> Any:
     if hasattr(row, "get"):
         return row.get(key, default)
@@ -75,9 +227,11 @@ async def _fetch_campaign_programme_runtime_context(
     tenant_code: str,
     campaign_code: str,
 ) -> tuple[str | None, dict[str, Any]]:
+    if not campaign_code:
+        return None, {}
     row = await conn.fetchrow(
         """
-        SELECT attributes
+        SELECT campaign_code, attributes
         FROM marketing_campaigns
         WHERE UPPER(tenant_code) = UPPER($1)
           AND UPPER(campaign_code) = UPPER($2)
@@ -92,6 +246,56 @@ async def _fetch_campaign_programme_runtime_context(
     binding = _campaign_programme_binding(attributes)
     context = _safe_runtime_programme_context(binding)
     programme_version_id = str(context.get("programmeVersionId") or "").strip()
+    if programme_version_id:
+        programme_row = await conn.fetchrow(
+            """
+            SELECT
+                v.programme_version_id,
+                v.programme_code,
+                v.programme_name,
+                v.version_number,
+                v.version_status,
+                v.customer_journey_version_id,
+                v.operating_jurisdiction_code,
+                v.customer_product_line_id,
+                v.customer_product_offering_id,
+                v.campaign_defaults_snapshot,
+                v.configuration_checksum,
+                v.safe_summary,
+                v.retired_at,
+                l.external_product_line_ref,
+                l.product_line_name,
+                l.product_line_category,
+                o.external_offering_ref,
+                o.offering_name,
+                o.offering_family,
+                o.operating_jurisdiction_code
+                    AS product_offering_operating_jurisdiction_code
+            FROM referral_saas_programme_versions v
+            LEFT JOIN referral_saas_customer_product_lines l
+                ON l.customer_product_line_id = v.customer_product_line_id
+               AND l.account_id = v.account_id
+            LEFT JOIN referral_saas_customer_product_offerings o
+                ON o.customer_product_offering_id = v.customer_product_offering_id
+               AND o.customer_product_line_id = v.customer_product_line_id
+               AND o.account_id = v.account_id
+            WHERE v.programme_version_id = $1
+            LIMIT 1
+            """,
+            programme_version_id,
+        )
+        if not programme_row:
+            raise ValueError("Campaign programme binding references a missing programme version.")
+        if str(_row_value(programme_row, "version_status") or "").upper() != "PUBLISHED":
+            raise ValueError("Campaign programme binding must resolve to a published programme version.")
+        if _row_value(programme_row, "retired_at") is not None:
+            raise ValueError("Campaign programme binding cannot resolve to a retired programme version.")
+        context["effectiveRuleSnapshot"] = _safe_effective_rule_snapshot(
+            tenant_code=tenant_code,
+            campaign_code=str(_row_value(row, "campaign_code") or campaign_code),
+            programme_version=programme_row,
+            campaign_attributes=attributes,
+        )
     return programme_version_id or None, context
 
 
