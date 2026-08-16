@@ -387,9 +387,9 @@ UX, binding, and proof gaps:
 - TASK-415 is complete: ordinary programme draft updates now only work in true
   editable states and reviewed/locked evidence returns an explicit lifecycle
   conflict instead of being silently reset to draft.
-- TASK-416 completes the product line and offering selection experience in the
-  Programme builder so customers/admins select the customer's real offering in
-  plain language.
+- TASK-416 is complete: the Programme builder now makes product line and
+  offering selection explicit, required, and plain-language while keeping
+  Amplifi package codes internal.
 - TASK-417 adds governed replacement, deactivation, effective dating, and audit
   evidence for programme incentive and engagement bindings.
 - TASK-418 proves the full product line -> offering -> programme -> incentive

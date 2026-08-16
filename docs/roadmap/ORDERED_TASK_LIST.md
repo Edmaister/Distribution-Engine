@@ -9211,7 +9211,7 @@ Completed output: `services/referral_saas_programme_configuration_service.py`; `
 
 ## TASK-416: Complete programme builder product and offering selection UX
 
-Status: Planned.
+Status: Complete.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Uses selected-customer product/offering catalogue APIs without forking source. Source duplication: No.
@@ -9221,18 +9221,19 @@ Objective: Make customer product line and product offering selection explicit, p
 Why now: Backend product/offering binding exists, but 10/10 SaaS requires users to configure the customer's real offering without confusing it with Amplifi service packaging or campaign details.
 Files likely involved: selected-customer Programme workspace; frontend API queries/client types; frontend tests; docs.
 Database/schema impact: None.
-Backend impact: None expected beyond small read-model shape fixes discovered during UI integration.
-Frontend impact: Add product line/offering pickers, empty states, helper copy, selected-customer scoping, and validation feedback in the Programme builder.
+Backend impact: Programme catalogue now returns account-scoped customer product lines and offerings through the existing product catalogue service so the UI can bind against real customer offerings.
+Frontend impact: Added product line/offering pickers, empty states, helper copy, selected-customer scoping, validation feedback, and read-only internal package context in the Programme builder.
 API impact: Reuse TASK-408/TASK-409 routes and safe labels.
 Tests to add/update: Product/offering selector rendering, required-state validation, retired/missing offering handling, saved draft readback, no raw package-code leakage, and customer-scoped navigation.
 Validation method: `npm run lint`; focused frontend tests; `npm run build`; `git diff --check`.
-Acceptance criteria: A user can select the customer product/offering for a referral programme without seeing raw IDs as the main experience or mixing it with campaign configuration.
+Acceptance criteria: Complete - a user can select the customer product/offering for a referral programme without seeing raw IDs as the main experience or mixing it with campaign configuration.
 Dependencies: TASK-415 can run in parallel if backend route behavior is stable; logically follows TASK-409 and TASK-414.
 Blocked by: None.
 Risk level: Medium.
 Rollback notes: Revert frontend/API-client/test/docs changes.
 Explicit non-goals: Do not add new product catalogue schema, campaign activation behavior, provider dispatch, credential creation, auth mutation, billing, settlement, payout, or money movement.
-Definition of done: Programme UX exposes the product/offering binding clearly enough for customer/admin self-service. Priority: P0.
+Completed output: The selected-customer Programme workspace now requires a clear customer product line and offering before save, keeps Amplifi package codes internal/read-only, persists the selected product/offering in draft payloads, and shows published programme product/offering labels.
+Definition of done: Complete - Programme UX exposes the product/offering binding clearly enough for customer/admin self-service. Priority: P0.
 
 ## TASK-417: Add programme incentive and engagement binding lifecycle controls
 

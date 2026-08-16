@@ -802,6 +802,28 @@ a {
   padding: 14px;
 }
 
+.warning-banner {
+  background: rgb(217 119 6 / 0.08);
+  border: 1px solid rgb(217 119 6 / 0.28);
+  border-radius: var(--radius-panel);
+  color: var(--color-ink);
+  padding: 14px;
+}
+
+.readonly-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-panel);
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.readonly-card p {
+  margin: 0;
+}
+
 .integrations-stage-card,
 .integrations-footnote,
 .integrations-check-row {

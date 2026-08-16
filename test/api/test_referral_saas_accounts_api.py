@@ -1395,6 +1395,22 @@ async def test_referral_saas_admin_can_get_programme_catalogue(monkeypatch):
         return {
             "productCode": "REFERRAL_SAAS",
             "subProductCodes": ["RMCA_BUNDLE"],
+            "customerProductLines": [
+                {
+                    "customerProductLineId": "line-1",
+                    "productLineName": "Transactional banking",
+                    "productLineCategory": "Banking and financial services",
+                    "lifecycleStatus": "ACTIVE",
+                    "offerings": [
+                        {
+                            "customerProductOfferingId": "offering-1",
+                            "customerProductLineId": "line-1",
+                            "offeringName": "Easy Account",
+                            "lifecycleStatus": "ACTIVE",
+                        }
+                    ],
+                }
+            ],
             "customerJourneyVersions": [
                 {
                     "customerJourneyVersionId": "journey-version-1",
@@ -1432,6 +1448,8 @@ async def test_referral_saas_admin_can_get_programme_catalogue(monkeypatch):
     body = response.json()
     assert body["status"] == "ok"
     assert body["productCode"] == "REFERRAL_SAAS"
+    assert body["customerProductLines"][0]["customerProductLineId"] == "line-1"
+    assert body["customerProductLines"][0]["offerings"][0]["customerProductOfferingId"] == "offering-1"
     assert body["customerJourneyVersions"][0]["customerJourneyVersionId"] == "journey-version-1"
     assert body["noCampaignActivationConfirmed"] is True
 
