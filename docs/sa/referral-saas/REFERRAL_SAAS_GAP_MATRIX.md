@@ -189,7 +189,7 @@ overloading Amplifi service package fields.
 | Campaign-specific reward, attribution, channel, date, and cap differences need a governed override model. | TASK-411 | Complete - campaign overrides are explicit, approved, audited, idempotent, bounded by the published programme's allowed override envelope, and blocked from activation when stale or unapproved. |
 | Runtime referrals need one immutable effective-rule snapshot for historical replay. | TASK-412 | Complete - new referrals freeze safe customer, product/offering, programme version, campaign, approved override posture, default/override rule-key checksums, and effective checksum metadata without raw payload, provider, auth, billing, payout, settlement, or money leakage. |
 | Reporting must explain product/offering, programme, campaign, and override performance separately. | TASK-413 | Complete - programme analytics now exposes safe aggregate product/offering, programme version, runtime campaign, approved override, effective snapshot, override-rate, and snapshot-coverage dimensions without raw payload, billing, payout, settlement, or money leakage. |
-| UX must keep the model simple despite the richer architecture. | TASK-414 | Customer-scoped UI explains Product, Programme, Campaign, and Override in plain language, with one next action per page and diagnostics by disclosure. |
+| UX must keep the model simple despite the richer architecture. | TASK-414 | Complete - customer-scoped home and Programme workspace explain customer product, referral programme, campaign, campaign-specific changes, and reporting in plain language, with safe reporting-dimension labels and diagnostics by disclosure. |
 
 ## TASK-357 H1 Scope And Release Gates
 

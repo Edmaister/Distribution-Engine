@@ -9159,7 +9159,7 @@ Definition of done: Customer-safe reporting separates product/offering performan
 
 ## TASK-414: Add simple UX proof for product, programme, campaign, and override separation
 
-Status: Ready.
+Status: Complete.
 Product boundary: Referral SaaS.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_UX_CX_MATURITY_SCORECARD.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Uses selected-customer API/client primitives and shared UI patterns without source duplication. Source duplication: No.
@@ -9170,17 +9170,18 @@ Why now: The architecture only becomes commercially useful if customer/admin use
 Files likely involved: selected-customer Account Maintenance page/routes; frontend API clients/queries; tests; UX docs; roadmap/gap/infographic.
 Database/schema impact: None.
 Backend impact: None expected beyond small API shape fixes discovered by UI tests.
-Frontend impact: Add or refine standalone pages/cards for product/offering catalogue, programme-to-product binding, campaign-specific override review, and reporting handoff with one next action per page.
+Frontend impact: Complete - selected-customer home and Programme workspace now show a plain-language configuration map for customer product, referral programme, campaign, campaign-specific changes, and reporting. Programme analytics turns reporting dimensions into safe business labels.
 API impact: Reuse TASK-408 through TASK-413 APIs.
-Tests to add/update: Frontend render/navigation tests, API-client tests, no raw-id/no-tenant-code/no-technical-jargon assertions where practical, responsive layout checks where available.
-Validation method: `npm run lint`; focused frontend tests; `npm run build`; `git diff --check`.
-Acceptance criteria: A user can see the difference between customer product, referral programme, campaign, and campaign-specific changes in plain language; no page presents raw configuration as the default; diagnostics remain behind disclosure; no provider/auth/billing/settlement/money workflows appear as ordinary Referral SaaS actions.
+Tests to add/update: Complete - frontend tests cover the plain-language configuration map, customer-scoped routing, reporting-dimension labels, and raw effective-rule terminology not appearing by default.
+Validation method: Complete - `npm run lint`; focused frontend tests; `npm run build`; `git diff --check`.
+Acceptance criteria: Complete - a user can see the difference between customer product, referral programme, campaign, campaign-specific changes, and reporting in plain language; no page presents raw configuration as the default; diagnostics remain behind disclosure; no provider/auth/billing/settlement/money workflows appear as ordinary Referral SaaS actions.
 Dependencies: TASK-413.
 Blocked by: None.
 Risk level: Medium.
 Rollback notes: Revert frontend/API-client/test/doc updates.
 Explicit non-goals: Do not add new backend domain behavior, source forks, provider dispatch, credential creation, invite delivery, auth mutation, billing, settlement, payout, or money movement.
 Definition of done: The selected-customer UX proves the domain model is simple enough to use and hard enough to misuse. Priority: P0.
+Completed output: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/api/endpoints/referralSaasAccounts.ts`; `frontend/src/styles/base.css`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; roadmap, gap matrix, and infographic updates. The selected-customer home and Programme workspace now explain the product/offering, referral programme, campaign, campaign-specific change, and reporting layers as separate business concepts while keeping diagnostics and raw runtime terminology out of the default path.
 
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
