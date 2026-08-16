@@ -384,9 +384,9 @@ SaaS configuration platform now that the structural product/programme/campaign
 model is in place. The work is not a redesign. It closes the final lifecycle,
 UX, binding, and proof gaps:
 
-- TASK-415 locks programme draft editing so submitted, approved, published, or
-  retired configuration evidence cannot be silently reset to draft by an
-  ordinary save.
+- TASK-415 is complete: ordinary programme draft updates now only work in true
+  editable states and reviewed/locked evidence returns an explicit lifecycle
+  conflict instead of being silently reset to draft.
 - TASK-416 completes the product line and offering selection experience in the
   Programme builder so customers/admins select the customer's real offering in
   plain language.

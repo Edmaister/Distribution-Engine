@@ -123,12 +123,32 @@ class ProgrammeConfigurationUnsafePayload(ProgrammeConfigurationValidationError)
     """Raised when a programme payload includes unsafe platform fields."""
 
 
+class ProgrammeConfigurationLifecycleLocked(Exception):
+    """Raised when a programme draft state blocks ordinary editing."""
+
+
 class ProgrammeConfigurationNotFound(Exception):
     """Raised when an account-scoped programme resource cannot be found."""
 
 
 class ProgrammeConfigurationIdempotencyConflict(Exception):
     """Raised when an idempotency key is reused with different content."""
+
+
+PROGRAMME_DRAFT_EDITABLE_STATUSES = frozenset(
+    {"DRAFT", "VALIDATION_FAILED", "VALIDATED"}
+)
+
+
+def _ensure_programme_draft_editable(programme_status: str) -> str:
+    safe_status = str(programme_status or "").strip().upper()
+    if safe_status not in PROGRAMME_DRAFT_EDITABLE_STATUSES:
+        raise ProgrammeConfigurationLifecycleLocked(
+            "Programme draft is locked in "
+            f"{safe_status or 'UNKNOWN'} state. Use a governed return-to-draft "
+            "action before editing reviewed programme evidence."
+        )
+    return safe_status
 
 
 def _row_value(row: Mapping[str, Any], key: str) -> Any:
@@ -1789,7 +1809,25 @@ async def save_referral_saas_programme_draft(
         )
 
         async with conn.transaction():
+            previous_status: str | None = None
             if safe_programme_draft_id:
+                existing_draft_row = await conn.fetchrow(
+                    """
+                    SELECT programme_status
+                    FROM referral_saas_programme_drafts
+                    WHERE programme_draft_id = $1
+                      AND account_id = $2
+                      AND archived_at IS NULL
+                    LIMIT 1
+                    """,
+                    safe_programme_draft_id,
+                    safe_account_id,
+                )
+                if not existing_draft_row:
+                    raise ProgrammeConfigurationNotFound(safe_programme_draft_id)
+                previous_status = _ensure_programme_draft_editable(
+                    str(_row_value(existing_draft_row, "programme_status"))
+                )
                 row = await conn.fetchrow(
                     """
                     UPDATE referral_saas_programme_drafts
@@ -1823,7 +1861,7 @@ async def save_referral_saas_programme_draft(
                     WHERE programme_draft_id = $1
                       AND account_id = $2
                       AND archived_at IS NULL
-                      AND programme_status NOT IN ('ARCHIVED', 'DISCARDED')
+                      AND programme_status IN ('DRAFT', 'VALIDATION_FAILED', 'VALIDATED')
                     RETURNING *
                     """,
                     safe_programme_draft_id,
@@ -1850,7 +1888,11 @@ async def save_referral_saas_programme_draft(
                     safe_actor_ref,
                 )
                 if not row:
-                    raise ProgrammeConfigurationNotFound(safe_programme_draft_id)
+                    raise ProgrammeConfigurationLifecycleLocked(
+                        "Programme draft state changed before the update could be "
+                        "recorded. Refresh the draft and use the governed lifecycle "
+                        "action before editing reviewed programme evidence."
+                    )
                 event_type = "PROGRAMME_DRAFT_UPDATED"
             else:
                 row = await conn.fetchrow(
@@ -1958,7 +2000,7 @@ async def save_referral_saas_programme_draft(
                     redactions
                 )
                 VALUES (
-                    $1, $2, $3, $4, 'RECORDED', $5, $6, NULL, 'DRAFT',
+                    $1, $2, $3, $4, 'RECORDED', $5, $6, $11, 'DRAFT',
                     'PROGRAMME_DRAFT_SAVE', $7, $8, $9::jsonb, $10::jsonb
                 )
                 """,
@@ -1977,9 +2019,11 @@ async def save_referral_saas_programme_draft(
                         "subProductCode": safe_sub_product_code,
                         "customerProductBinding": product_binding,
                         "configurationChecksum": payload_hash,
+                        "ordinarySaveAllowedFromStatus": previous_status,
                     }
                 ),
                 _jsonb(PROGRAMME_CONFIGURATION_REDACTIONS),
+                previous_status,
             )
 
     return ProgrammeDraftCommandResult(

@@ -296,6 +296,7 @@ from services.referral_saas_programme_configuration_service import (
     PROGRAMME_CONFIGURATION_REDACTIONS,
     PROGRAMME_INCENTIVE_BINDING_GUARDRAILS,
     ProgrammeConfigurationIdempotencyConflict,
+    ProgrammeConfigurationLifecycleLocked,
     ProgrammeConfigurationNotFound,
     ProgrammeConfigurationUnsafePayload,
     ProgrammeConfigurationValidationError,
@@ -4899,6 +4900,22 @@ async def _save_referral_saas_programme_draft_response(
                 "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
             },
         ) from exc
+    except ProgrammeConfigurationLifecycleLocked as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "PROGRAMME_DRAFT_LIFECYCLE_LOCKED",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+                "noProgrammePublishConfirmed": True,
+                "noCampaignActivationConfirmed": True,
+                "noReferralRuntimeSwitchConfirmed": True,
+                "noProviderDispatchConfirmed": True,
+                "noCredentialOrAuthMutationConfirmed": True,
+                "noBillingPayoutSettlementOrMoneyMovementConfirmed": True,
+            },
+        ) from exc
     except ProgrammeConfigurationUnsafePayload as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -4959,6 +4976,16 @@ def _raise_programme_configuration_http_exception(exc: Exception) -> None:
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "code": "IDEMPOTENCY_CONFLICT",
+                "message": str(exc),
+                "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
+                "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
+            },
+        ) from exc
+    if isinstance(exc, ProgrammeConfigurationLifecycleLocked):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "PROGRAMME_DRAFT_LIFECYCLE_LOCKED",
                 "message": str(exc),
                 "guardrails": list(PROGRAMME_CONFIGURATION_GUARDRAILS),
                 "redactions": list(PROGRAMME_CONFIGURATION_REDACTIONS),
