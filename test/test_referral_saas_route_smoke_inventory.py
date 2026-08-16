@@ -35,6 +35,7 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("GET", "/v1/referral-saas/accounts/resolve"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes"),
+        ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/analytics"),
         ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/catalogue"),
         (
             "GET",

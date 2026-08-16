@@ -328,10 +328,12 @@ mission, badge, and leaderboard references with effective-date and catalogue-
 version posture while reward application, mission progress, badge awards,
 leaderboard scoring, provider dispatch, auth, billing, settlement, payout,
 invoice, funding, wallet, commission, and money movement remain outside setup.
-TASK-403 now binds new referral runtime records to the published campaign
-programme version when available and keeps legacy referrals safely marked as
-unbound. Implementation now moves to TASK-404 for programme analytics and
-version-comparison read models.
+TASK-404 now adds aggregate-only programme analytics and version-comparison
+read models over published programme versions, campaign bindings,
+referral/progress evidence, and attribution/completion rates with customer-safe
+summaries, guardrails, redactions, and no provider/auth/billing/settlement/money
+side effects. Implementation now moves to TASK-405 for the simple customer
+Programme UX and end-to-end proof.
 
 ## Recommended Ordered Task Sequence
 
