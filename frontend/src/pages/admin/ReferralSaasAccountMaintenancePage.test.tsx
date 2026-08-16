@@ -757,6 +757,45 @@ function mockProgrammeCatalogue() {
     },
     productCode: "REFERRAL_SAAS",
     subProductCodes: ["RMCA_BUNDLE", "REFERRAL_ONLY"],
+    customerProductLines: [
+      {
+        customerProductLineId: "product-line-001",
+        accountId: "acct-gabs",
+        externalProductLineRef: "TRANSACTIONAL_BANKING",
+        productLineName: "Transactional banking",
+        productLineCategory: "Banking and financial services",
+        operatingJurisdictionCode: "BW",
+        lifecycleStatus: "ACTIVE",
+        description: "Everyday banking referral products.",
+        safeSummary: {},
+        governanceMetadata: {},
+        offerings: [
+          {
+            customerProductOfferingId: "offering-001",
+            accountId: "acct-gabs",
+            customerProductLineId: "product-line-001",
+            externalOfferingRef: "EASY_ACCOUNT",
+            offeringName: "Easy Account",
+            offeringFamily: "Current account",
+            operatingJurisdictionCode: "BW",
+            lifecycleStatus: "ACTIVE",
+            description: "Entry-level current account offering.",
+            safeSummary: {},
+            governanceMetadata: {},
+            createdAt: "2026-07-19T00:00:00",
+            updatedAt: "2026-07-19T00:00:00",
+            archivedAt: null,
+            guardrails: ["ACCOUNT_SCOPED_PRODUCT_CATALOGUE"],
+            redactions: ["internal_tenant_identifier"],
+          },
+        ],
+        createdAt: "2026-07-19T00:00:00",
+        updatedAt: "2026-07-19T00:00:00",
+        archivedAt: null,
+        guardrails: ["ACCOUNT_SCOPED_PRODUCT_CATALOGUE"],
+        redactions: ["internal_tenant_identifier"],
+      },
+    ],
     customerJourneyVersions: [
       {
         customerJourneyVersionId: "journey-version-001",
@@ -792,6 +831,21 @@ function mockProgrammeDraftCommand() {
       operatingJurisdictionCode: "BW",
       productCode: "REFERRAL_SAAS",
       subProductCode: "RMCA_BUNDLE",
+      customerProductLineId: "product-line-001",
+      customerProductOfferingId: "offering-001",
+      customerProductBinding: {
+        customerProductLineId: "product-line-001",
+        customerProductOfferingId: "offering-001",
+        externalProductLineRef: "TRANSACTIONAL_BANKING",
+        productLineName: "Transactional banking",
+        productLineCategory: "Banking and financial services",
+        externalOfferingRef: "EASY_ACCOUNT",
+        offeringName: "Easy Account",
+        offeringFamily: "Current account",
+        operatingJurisdictionCode: "BW",
+        productLineStatus: "ACTIVE",
+        offeringStatus: "ACTIVE",
+      },
       programmeStatus: "DRAFT",
       draftVersion: 1,
       campaignDefaults: { campaignPurpose: "Customer referral acquisition", attributionWindowDays: 30 },
@@ -857,6 +911,21 @@ function mockProgrammeLifecycle(commandStatus = "PUBLISHED") {
       operatingJurisdictionCode: "BW",
       productCode: "REFERRAL_SAAS",
       subProductCode: "RMCA_BUNDLE",
+      customerProductLineId: "product-line-001",
+      customerProductOfferingId: "offering-001",
+      customerProductBinding: {
+        customerProductLineId: "product-line-001",
+        customerProductOfferingId: "offering-001",
+        externalProductLineRef: "TRANSACTIONAL_BANKING",
+        productLineName: "Transactional banking",
+        productLineCategory: "Banking and financial services",
+        externalOfferingRef: "EASY_ACCOUNT",
+        offeringName: "Easy Account",
+        offeringFamily: "Current account",
+        operatingJurisdictionCode: "BW",
+        productLineStatus: "ACTIVE",
+        offeringStatus: "ACTIVE",
+      },
       versionNumber: 1,
       versionStatus: "PUBLISHED",
       customerJourneyVersionId: "journey-version-001",
@@ -3936,10 +4005,30 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText("Customer product")).toBeInTheDocument();
     expect(screen.getByText("Referral programme")).toBeInTheDocument();
     expect(screen.getByText("Campaign-specific changes")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Customer product and offering" })).toBeInTheDocument();
+    expect(screen.getByText(/Amplifi package codes stay behind the scenes/i)).toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText("Customer product line"), {
+      target: { value: "product-line-001" },
+    });
+    fireEvent.change(await screen.findByLabelText("Customer product offering"), {
+      target: { value: "offering-001" },
+    });
     expect((await screen.findAllByText("Gaborone Partners referral programme")).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByRole("button", { name: "Save programme draft" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Validate programme" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Publish programme version" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Save programme draft" }));
+    await waitFor(() => expect(mockedCreateReferralSaasProgrammeDraft).toHaveBeenCalledTimes(1));
+    expect(mockedCreateReferralSaasProgrammeDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountRef: "acct-gabs",
+        body: expect.objectContaining({
+          customerProductLineId: "product-line-001",
+          customerProductOfferingId: "offering-001",
+          productCode: "REFERRAL_SAAS",
+          subProductCode: "RMCA_BUNDLE",
+        }),
+      }),
+    );
     expect(screen.getByText("Published programme versions")).toBeInTheDocument();
     expect(screen.getByText("Programme performance")).toBeInTheDocument();
     expect(screen.getByText("Products measured")).toBeInTheDocument();

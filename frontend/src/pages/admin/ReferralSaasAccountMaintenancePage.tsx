@@ -112,6 +112,9 @@ import {
   type ReferralSaasCustomerJourneyDraft,
   type ReferralSaasCustomerJourneyDraftValidationResponse,
   type ReferralSaasCustomerJourneyPublishResponse,
+  type ReferralSaasCustomerProductBindingSummary,
+  type ReferralSaasCustomerProductLineSummary,
+  type ReferralSaasCustomerProductOfferingSummary,
   type ReferralSaasJourneyTemplateCatalogueItem,
   type ReferralSaasJourneyTemplateVersionSummary,
   type ReferralSaasProgrammeDraft,
@@ -7410,6 +7413,8 @@ type ProgrammeConfigurationDraft = {
   programmeName: string;
   programmeDescription: string;
   customerJourneyVersionId: string;
+  customerProductLineId: string;
+  customerProductOfferingId: string;
   subProductCode: string;
   campaignPurpose: string;
   defaultAttributionWindowDays: string;
@@ -7426,6 +7431,8 @@ const defaultProgrammeDraft: ProgrammeConfigurationDraft = {
   programmeName: "",
   programmeDescription: "Referral management and campaign attribution programme.",
   customerJourneyVersionId: "",
+  customerProductLineId: "",
+  customerProductOfferingId: "",
   subProductCode: "RMCA_BUNDLE",
   campaignPurpose: "Customer referral acquisition",
   defaultAttributionWindowDays: "30",
@@ -7436,6 +7443,32 @@ const defaultProgrammeDraft: ProgrammeConfigurationDraft = {
   reviewReason: "Programme package reviewed for customer-safe campaign setup.",
   publishReason: "Approved for customer-scoped campaign setup.",
 };
+
+function isActiveCustomerProductStatus(status?: string | null) {
+  return ["ACTIVE", "PUBLISHED"].includes(String(status || "").toUpperCase());
+}
+
+function productLineLabel(line: ReferralSaasCustomerProductLineSummary) {
+  const category = line.productLineCategory ? ` - ${formatDisplay(line.productLineCategory)}` : "";
+  return `${line.productLineName}${category}`;
+}
+
+function productOfferingLabel(offering: ReferralSaasCustomerProductOfferingSummary) {
+  const family = offering.offeringFamily ? ` - ${formatDisplay(offering.offeringFamily)}` : "";
+  return `${offering.offeringName}${family}`;
+}
+
+function programmeProductBindingLabel(binding?: ReferralSaasCustomerProductBindingSummary | null) {
+  if (!binding) {
+    return "Customer product not shown";
+  }
+  const productLine = binding.productLineName || binding.externalProductLineRef;
+  const offering = binding.offeringName || binding.externalOfferingRef;
+  if (productLine && offering) {
+    return `${productLine} - ${offering}`;
+  }
+  return productLine || offering || "Customer product not shown";
+}
 
 function CustomerProgrammesPage({
   customerName,
@@ -7502,6 +7535,9 @@ function CustomerProgrammesPage({
     retry: false,
   });
   const journeyVersions = catalogueQuery.data?.customerJourneyVersions || [];
+  const customerProductLines = (catalogueQuery.data?.customerProductLines || []).filter((line) =>
+    isActiveCustomerProductStatus(line.lifecycleStatus),
+  );
   const subProductCodes = catalogueQuery.data?.subProductCodes || ["RMCA_BUNDLE"];
   const publishedProgrammes = programmesQuery.data?.programmes || [];
   const activeProgrammes = publishedProgrammes.filter((programme) =>
@@ -7512,7 +7548,20 @@ function CustomerProgrammesPage({
   const selectedJourney =
     journeyVersions.find((version) => version.customerJourneyVersionId === draft.customerJourneyVersionId) ||
     journeyVersions[0];
-  const canSave = Boolean(accountRef && (draft.customerJourneyVersionId || selectedJourney?.customerJourneyVersionId));
+  const selectedProductLine = customerProductLines.find(
+    (line) => line.customerProductLineId === draft.customerProductLineId,
+  );
+  const availableProductOfferings = (selectedProductLine?.offerings || []).filter((offering) =>
+    isActiveCustomerProductStatus(offering.lifecycleStatus),
+  );
+  const selectedProductOffering = availableProductOfferings.find(
+    (offering) => offering.customerProductOfferingId === draft.customerProductOfferingId,
+  );
+  const hasProductCatalogue = customerProductLines.length > 0;
+  const productSelectionReady = Boolean(selectedProductLine && selectedProductOffering);
+  const canSave = Boolean(
+    accountRef && (draft.customerJourneyVersionId || selectedJourney?.customerJourneyVersionId) && productSelectionReady,
+  );
   const canValidate = Boolean(accountRef && draft.programmeDraftId);
   const publishAllowed = Boolean(latestValidation?.validation.publishAllowed);
   const canPublish = canValidate && publishAllowed;
@@ -7534,6 +7583,8 @@ function CustomerProgrammesPage({
       programmeName: savedDraft.programmeName,
       programmeDescription: savedDraft.programmeDescription || "",
       customerJourneyVersionId: savedDraft.customerJourneyVersionId,
+      customerProductLineId: savedDraft.customerProductLineId || "",
+      customerProductOfferingId: savedDraft.customerProductOfferingId || "",
       subProductCode: savedDraft.subProductCode,
       campaignPurpose: textValue(getNestedValue(campaignDefaults, ["campaignPurpose"]), "Customer referral acquisition"),
       defaultAttributionWindowDays: textValue(
@@ -7561,6 +7612,8 @@ function CustomerProgrammesPage({
       operatingJurisdictionCode: selectedAccount?.operatingJurisdictionCode || defaultOperatingMarket,
       productCode: catalogueQuery.data?.productCode || "REFERRAL_SAAS",
       subProductCode: draft.subProductCode || subProductCodes[0] || "RMCA_BUNDLE",
+      customerProductLineId: draft.customerProductLineId,
+      customerProductOfferingId: draft.customerProductOfferingId,
       customerJourneyVersionId: draft.customerJourneyVersionId || selectedJourney?.customerJourneyVersionId || "",
       campaignDefaults: {
         campaignPurpose: draft.campaignPurpose.trim() || "Customer referral acquisition",
@@ -7586,6 +7639,8 @@ function CustomerProgrammesPage({
         draft.programmeDraftId || "new",
         draft.programmeName,
         draft.customerJourneyVersionId || selectedJourney?.customerJourneyVersionId || "",
+        draft.customerProductLineId,
+        draft.customerProductOfferingId,
         draft.subProductCode,
       ),
     };
@@ -7609,6 +7664,8 @@ function CustomerProgrammesPage({
         programmeDraftId: response.draft.programmeDraftId,
         programmeName: response.draft.programmeName,
         customerJourneyVersionId: response.draft.customerJourneyVersionId,
+        customerProductLineId: response.draft.customerProductLineId || current.customerProductLineId,
+        customerProductOfferingId: response.draft.customerProductOfferingId || current.customerProductOfferingId,
         subProductCode: response.draft.subProductCode,
       }));
       setLatestValidation(null);
@@ -7784,9 +7841,95 @@ function CustomerProgrammesPage({
           <div className="settings-summary-header">
             <div>
               <h3 className="section-heading">1. Build the programme package</h3>
-              <p>Choose a published journey version, then add the plain defaults campaigns should inherit.</p>
+              <p>
+                First choose the customer's real product and offering, then choose the published journey and defaults
+                campaigns should inherit.
+              </p>
             </div>
             <StatusBadge label="No live action" tone="warning" />
+          </div>
+          <div className="panel-lite">
+            <div className="settings-summary-header">
+              <div>
+                <h4 className="section-heading">Customer product and offering</h4>
+                <p>
+                  This is the customer's market-facing product. Amplifi package codes stay behind the scenes and are not
+                  the product being sold or referred.
+                </p>
+              </div>
+              <StatusBadge label={productSelectionReady ? "Product selected" : "Required"} tone={productSelectionReady ? "success" : "warning"} />
+            </div>
+            {hasProductCatalogue ? (
+              <div className="grid-2">
+                <label htmlFor="programme-product-line-select">
+                  Customer product line
+                  <select
+                    aria-describedby="programme-product-line-help"
+                    id="programme-product-line-select"
+                    onChange={(event) =>
+                      setDraft({
+                        ...draft,
+                        customerProductLineId: event.target.value,
+                        customerProductOfferingId: "",
+                      })
+                    }
+                    value={draft.customerProductLineId}
+                  >
+                    <option value="">Choose the customer product line</option>
+                    {customerProductLines.map((line) => (
+                      <option key={line.customerProductLineId} value={line.customerProductLineId}>
+                        {productLineLabel(line)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label htmlFor="programme-product-offering-select">
+                  Customer product offering
+                  <select
+                    aria-describedby="programme-product-offering-help"
+                    disabled={!selectedProductLine || availableProductOfferings.length === 0}
+                    id="programme-product-offering-select"
+                    onChange={(event) => setDraft({ ...draft, customerProductOfferingId: event.target.value })}
+                    value={draft.customerProductOfferingId}
+                  >
+                    <option value="">
+                      {selectedProductLine ? "Choose the customer offering" : "Choose product line first"}
+                    </option>
+                    {availableProductOfferings.map((offering) => (
+                      <option key={offering.customerProductOfferingId} value={offering.customerProductOfferingId}>
+                        {productOfferingLabel(offering)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : (
+              <div className="empty-panel">
+                No customer product catalogue is ready for this account yet. Add a product line and offering in Customer
+                settings before saving a programme.
+              </div>
+            )}
+            <div className="configuration-proof-grid compact">
+              <div className="configuration-proof-card static" id="programme-product-line-help">
+                <span className="configuration-proof-index">1</span>
+                <div>
+                  <strong>Product line</strong>
+                  <p>Examples: Transactional banking, Insurance, Telco, or Automotive services.</p>
+                </div>
+              </div>
+              <div className="configuration-proof-card static" id="programme-product-offering-help">
+                <span className="configuration-proof-index">2</span>
+                <div>
+                  <strong>Offering</strong>
+                  <p>Examples: Easy Account, Funeral Plan, Fibre Upgrade, or Vehicle Service Plan.</p>
+                </div>
+              </div>
+            </div>
+            {selectedProductLine && !availableProductOfferings.length ? (
+              <div className="warning-banner">
+                Add an active offering under {selectedProductLine.productLineName} before this programme can be saved.
+              </div>
+            ) : null}
           </div>
           <div className="grid-2">
             <label>
@@ -7802,16 +7945,11 @@ function CustomerProgrammesPage({
                 ))}
               </select>
             </label>
-            <label>
-              Product package
-              <select onChange={(event) => setDraft({ ...draft, subProductCode: event.target.value })} value={draft.subProductCode}>
-                {subProductCodes.map((code) => (
-                  <option key={code} value={code}>
-                    {formatDisplay(code)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="readonly-card">
+              <strong>Amplifi package</strong>
+              <p>{formatDisplay(draft.subProductCode || subProductCodes[0] || "RMCA_BUNDLE")}</p>
+              <span className="table-subtext">Internal service packaging, not the customer's product.</span>
+            </div>
           </div>
           <label>
             Programme name
@@ -7869,6 +8007,11 @@ function CustomerProgrammesPage({
               {validateMutation.isPending ? "Validating" : "Validate programme"}
             </button>
           </div>
+          {!productSelectionReady ? (
+            <div className="warning-banner">
+              Choose a customer product line and offering before saving this programme.
+            </div>
+          ) : null}
         </form>
 
         <div className="panel-lite integrations-step-card">
@@ -7937,7 +8080,7 @@ function CustomerProgrammesPage({
                   <div>
                     <strong>{programme.programmeName}</strong>
                     <p>
-                      {formatDisplay(programme.subProductCode)} - version {programme.versionNumber}
+                      {programmeProductBindingLabel(programme.customerProductBinding)} - version {programme.versionNumber}
                     </p>
                     <span className="table-subtext">
                       Journey version: {programme.customerJourneyVersionId}

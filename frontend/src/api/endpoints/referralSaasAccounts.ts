@@ -269,11 +269,64 @@ export type ReferralSaasProgrammeJourneyCatalogueItem = {
   publishedAt?: string | null;
 };
 
+export type ReferralSaasCustomerProductOfferingSummary = {
+  customerProductOfferingId: string;
+  accountId?: string;
+  customerProductLineId: string;
+  externalOfferingRef: string;
+  offeringName: string;
+  offeringFamily?: string | null;
+  operatingJurisdictionCode: string;
+  lifecycleStatus: string;
+  description?: string | null;
+  safeSummary: Record<string, unknown>;
+  governanceMetadata: Record<string, unknown>;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  archivedAt?: string | null;
+  guardrails: string[];
+  redactions: string[];
+};
+
+export type ReferralSaasCustomerProductLineSummary = {
+  customerProductLineId: string;
+  accountId?: string;
+  externalProductLineRef: string;
+  productLineName: string;
+  productLineCategory: string;
+  operatingJurisdictionCode: string;
+  lifecycleStatus: string;
+  description?: string | null;
+  safeSummary: Record<string, unknown>;
+  governanceMetadata: Record<string, unknown>;
+  offerings: ReferralSaasCustomerProductOfferingSummary[];
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  archivedAt?: string | null;
+  guardrails: string[];
+  redactions: string[];
+};
+
+export type ReferralSaasCustomerProductBindingSummary = {
+  customerProductLineId?: string | null;
+  customerProductOfferingId?: string | null;
+  externalProductLineRef?: string | null;
+  productLineName?: string | null;
+  productLineCategory?: string | null;
+  externalOfferingRef?: string | null;
+  offeringName?: string | null;
+  offeringFamily?: string | null;
+  operatingJurisdictionCode?: string | null;
+  productLineStatus?: string | null;
+  offeringStatus?: string | null;
+};
+
 export type ReferralSaasProgrammeCatalogueResponse = {
   status: string;
   context: ReferralSaasAccountResolutionContext;
   account: ReferralSaasAccountSummary;
   customerJourneyVersions: ReferralSaasProgrammeJourneyCatalogueItem[];
+  customerProductLines: ReferralSaasCustomerProductLineSummary[];
   productCode: string;
   subProductCodes: string[];
   guardrail: string;
@@ -291,6 +344,9 @@ export type ReferralSaasProgrammeDraft = {
   operatingJurisdictionCode: string;
   productCode: string;
   subProductCode: string;
+  customerProductLineId?: string | null;
+  customerProductOfferingId?: string | null;
+  customerProductBinding?: ReferralSaasCustomerProductBindingSummary | null;
   programmeStatus: string;
   draftVersion: number;
   campaignDefaults: Record<string, unknown>;
@@ -318,6 +374,9 @@ export type ReferralSaasProgrammeVersion = {
   operatingJurisdictionCode: string;
   productCode: string;
   subProductCode: string;
+  customerProductLineId?: string | null;
+  customerProductOfferingId?: string | null;
+  customerProductBinding?: ReferralSaasCustomerProductBindingSummary | null;
   versionNumber: number;
   versionStatus: string;
   customerJourneyVersionId: string;

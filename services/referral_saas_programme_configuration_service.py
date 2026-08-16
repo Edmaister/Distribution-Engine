@@ -10,6 +10,9 @@ from services.referral_saas_journey_configuration_service import (
     CustomerJourneyIncentiveBindingValidationError,
     _find_approved_incentive_catalogue_record,
 )
+from services.referral_saas_customer_product_catalogue_service import (
+    list_referral_saas_customer_product_catalogue,
+)
 from utils.db import db_connection
 
 
@@ -1595,10 +1598,16 @@ async def get_referral_saas_programme_catalogue(
             safe_account_id,
             _safe_limit(limit),
         )
+    product_catalogue = await list_referral_saas_customer_product_catalogue(
+        account_id=safe_account_id,
+        include_retired=False,
+        limit=limit,
+    )
 
     return {
         "productCode": "REFERRAL_SAAS",
         "subProductCodes": sorted(PROGRAMME_SUB_PRODUCT_CODES),
+        "customerProductLines": product_catalogue["productLines"],
         "customerJourneyVersions": [
             _catalogue_item_from_row(row).to_safe_dict() for row in rows
         ],

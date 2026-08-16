@@ -199,7 +199,7 @@ joined proof:
 | Gap | Required task path | Close-out expectation |
 | --- | --- | --- |
 | Programme drafts can still risk ordinary save behavior after review states. | TASK-415 | Complete - ordinary programme draft updates are restricted to true editable states and reviewed/locked states return a 409 lifecycle conflict instead of silently resetting reviewed evidence to `DRAFT`; audit evidence records the prior editable state for allowed updates. |
-| Product/offering binding exists in APIs but must be unmistakable in the Programme builder. | TASK-416 | Expose customer product line and offering selection in plain language with required-state feedback, empty states, and no package-code confusion. |
+| Product/offering binding exists in APIs but must be unmistakable in the Programme builder. | TASK-416 | Complete - the Programme builder now exposes customer product line and offering selection in plain language with required-state feedback, empty states, and no package-code confusion. |
 | Incentive and engagement bindings need replacement/deactivation lifecycle controls. | TASK-417 | Add governed replace, retire/deactivate, effective-date, overlap, audit, and redaction behavior without reward, payout, settlement, or money execution. |
 | Individual task tests exist, but the full product-to-referral path needs one joined proof. | TASK-418 | Prove product line -> offering -> programme -> incentive binding -> campaign -> referral -> progress/outcome -> attribution/reporting/analytics in one repeatable path. |
 | The richer model still needs final plain-language UX polish. | TASK-419 | Apply final CX pass across product catalogue, Programme, campaign binding/overrides, analytics labels, and handoff actions so configuration is simple and hard to misuse. |
