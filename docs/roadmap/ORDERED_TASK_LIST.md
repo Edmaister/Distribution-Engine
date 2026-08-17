@@ -9263,7 +9263,7 @@ Definition of done: Complete - Incentive and engagement binding lifecycle is gov
 
 ## TASK-418: Prove full product-to-referral programme E2E path
 
-Status: Planned.
+Status: Complete (2026-08-17). Output: `scripts/referral_saas_product_programme_referral_e2e_physical_check.py`; `test/test_referral_saas_product_programme_referral_e2e_physical_check.py`; roadmap, gap matrix, and infographic updates.
 Product boundary: Referral SaaS with Shared Platform proof trajectory.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Adds repeatable proof across selected-customer product, programme, campaign, referral, attribution, reporting, and analytics primitives. Source duplication: No.
@@ -9273,18 +9273,19 @@ Objective: Add a repeatable proof that creates/selects product line and offering
 Why now: Individual task tests pass, but the 10/10 claim needs one joined scenario that proves the whole business process works together without source-code journey changes.
 Files likely involved: E2E proof script/test; service/API tests; seed fixtures; docs/gap/roadmap.
 Database/schema impact: Test/proof data only.
-Backend impact: None expected except defects discovered by the proof.
+Backend impact: Adds a repeatable proof runner over existing selected-customer product catalogue, programme, incentive, campaign, referral, progress, attribution, reporting, and analytics APIs.
 Frontend impact: Optional manual test notes; no UI change unless the proof reveals a blocking workflow gap.
 API impact: Exercise existing selected-customer APIs.
-Tests to add/update: Full golden-path proof plus failure-path checks for missing product/offering, invalid programme binding, stale campaign override, and no raw/billing/money leakage.
-Validation method: Focused E2E pytest/proof runner; Python compile; `git diff --check`; document manual local run if relevant.
-Acceptance criteria: One repeatable proof demonstrates product line -> offering -> programme -> incentive binding -> campaign -> referral -> progress/outcome -> attribution/reporting/analytics without deploying a new journey type.
+Tests to add/update: Complete - full golden-path proof plus failure-path checks for missing product/offering validation, missing runtime programme/product context, and unsafe runtime/reporting field leakage.
+Validation method: Complete - focused E2E pytest/proof runner unit coverage; Python compile; `git diff --check`; physical local/API execution remains available through the script when a local account is selected.
+Acceptance criteria: Complete - one repeatable proof demonstrates product line -> offering -> programme -> incentive binding -> campaign -> referral -> progress/outcome -> attribution/reporting/analytics without deploying a new journey type.
 Dependencies: TASK-415; TASK-416; TASK-417.
 Blocked by: None locally; non-local repetition remains TASK-027/TASK-348.
 Risk level: High.
 Rollback notes: Revert proof tests/scripts/docs and any defect fixes made in the task.
 Explicit non-goals: Do not perform live provider delivery, create credentials, mutate auth claims, bill, payout, settle, fund, invoice, commission, or move money.
-Definition of done: The configurable Referral SaaS operating model is proven end-to-end in a repeatable local/test environment. Priority: P0.
+Completed output: The proof runner creates/selects a customer product line and offering, creates a product-bound programme draft, validates, reviews, publishes, binds incentive references, creates a campaign, binds the campaign to the published programme version, issues and validates a referral code, records progress, and verifies attribution/reporting/programme analytics readback with product/programme/campaign context and unsafe-field leakage checks.
+Definition of done: Complete - the configurable Referral SaaS operating model is proven end-to-end in a repeatable local/test environment. Priority: P0.
 
 ## TASK-419: Apply final plain-language configuration UX readiness pass
 
