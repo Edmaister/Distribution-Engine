@@ -398,8 +398,10 @@ UX, binding, and proof gaps:
 - TASK-418 is complete and proves the full product line -> offering -> programme -> incentive
   binding -> campaign -> referral -> progress/outcome -> attribution/reporting/
   analytics path without source-code journey changes.
-- TASK-419 applies the final plain-language configuration UX readiness pass so
-  the model feels like a simple SaaS workflow rather than a technical console.
+- TASK-419 is complete: the Programme workspace now has one dynamic
+  plain-language next action, safer business-readable published-version labels,
+  and a clearer layer map for customer product, referral programme, campaign,
+  campaign-specific changes, and reporting.
 
 This sequence keeps Referral Programme and Campaign Management as separate
 domain services. Campaigns may carry explicit approved overrides, but they do

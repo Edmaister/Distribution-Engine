@@ -9289,7 +9289,7 @@ Definition of done: Complete - the configurable Referral SaaS operating model is
 
 ## TASK-419: Apply final plain-language configuration UX readiness pass
 
-Status: Planned.
+Status: Complete (2026-08-17).
 Product boundary: Referral SaaS.
 Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_UX_CX_MATURITY_SCORECARD.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROGRAMME_CAMPAIGN_DOMAIN_BOUNDARY.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Uses shared selected-customer UI patterns and avoids product-specific forks. Source duplication: No.
@@ -9300,17 +9300,18 @@ Why now: The architecture is strong, but the final mile is clarity: users must k
 Files likely involved: selected-customer frontend routes/pages/styles/tests; UX docs; roadmap/gap/infographic.
 Database/schema impact: None.
 Backend impact: None expected.
-Frontend impact: Plain-language labels, one primary next action, role/task framing, empty states, locked-state copy, RAG/action mapping, responsive alignment, and diagnostics behind disclosure.
+Frontend impact: Complete - Programme workspace now has a dynamic plain-language next action, clearer layer framing for customer product, referral programme, campaign, campaign-specific changes, and reporting, safer published-version labels, and diagnostics behind disclosure.
 API impact: None expected.
-Tests to add/update: Frontend render tests for labels, blocked states, next actions, diagnostic disclosure, customer scoping, no raw technical labels by default, and mobile/desktop-safe layout where testable.
-Validation method: `npm run lint`; focused frontend tests; `npm run build`; `git diff --check`.
-Acceptance criteria: A non-technical operator can configure and understand customer product/offering, referral programme, campaign, campaign-specific changes, and reporting from the UI without needing backend vocabulary.
+Tests to add/update: Complete - focused Programme workspace frontend tests cover the plain-language layer map, dynamic next action, customer-scoped routing, safe reporting labels, and hidden raw technical identifiers by default.
+Validation method: Complete - `git diff --check`; `npm --prefix frontend run lint`; `npm --prefix frontend test -- ReferralSaasAccountMaintenancePage`; `npm --prefix frontend run build`.
+Acceptance criteria: Complete - a non-technical operator can configure and understand customer product/offering, referral programme, campaign, campaign-specific changes, and reporting from the UI without needing backend vocabulary.
 Dependencies: TASK-416; should follow or pair with TASK-418 findings.
 Blocked by: None.
 Risk level: Medium.
 Rollback notes: Revert frontend/docs/test changes.
 Explicit non-goals: Do not add backend domain behavior, provider dispatch, credential creation, auth mutation, billing, settlement, payout, funding, fulfilment, sponsor billing, DLaaS marketplace behavior, or money movement.
-Definition of done: The governed configuration platform is understandable as a simple SaaS workflow, not a technical console. Priority: P0.
+Completed output: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; roadmap, gap matrix, and infographic updates. The governed configuration platform now presents Programme configuration as a simple SaaS workflow with one visible next action and business-readable published version evidence.
+Definition of done: Complete - the governed configuration platform is understandable as a simple SaaS workflow, not a technical console. Priority: P0.
 
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 

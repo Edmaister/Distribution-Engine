@@ -7565,6 +7565,60 @@ function CustomerProgrammesPage({
   const canValidate = Boolean(accountRef && draft.programmeDraftId);
   const publishAllowed = Boolean(latestValidation?.validation.publishAllowed);
   const canPublish = canValidate && publishAllowed;
+  const programmeNextAction = !productSelectionReady
+    ? {
+        title: "Choose the customer product first",
+        copy: "Pick the product line and offering this referral programme is for. This keeps customer products separate from Amplifi package codes.",
+        label: "Product required",
+        tone: "warning" as StatusTone,
+      }
+    : !draft.programmeDraftId
+      ? {
+          title: "Save the programme draft",
+          copy: "Create the safe draft before validation, review, or publishing. Nothing goes live from a draft save.",
+          label: "Save next",
+          tone: "warning" as StatusTone,
+        }
+      : !latestValidation
+        ? {
+            title: "Validate the programme",
+            copy: "Run the readiness check so blockers are clear before review and publish.",
+            label: "Validate next",
+            tone: "info" as StatusTone,
+          }
+        : !publishAllowed
+          ? {
+              title: "Fix validation blockers",
+              copy: "The programme is saved, but it is not ready to publish. Resolve blockers before campaign teams use it.",
+              label: "Needs work",
+              tone: "warning" as StatusTone,
+            }
+          : {
+              title: "Publish the programme version",
+              copy: "Publishing creates the immutable package campaigns can bind to. Campaigns still activate separately.",
+              label: "Publish next",
+              tone: "success" as StatusTone,
+            };
+
+  function journeyVersionLabel(customerJourneyVersionId: string) {
+    const version = journeyVersions.find((journeyVersion) => journeyVersion.customerJourneyVersionId === customerJourneyVersionId);
+    if (!version) {
+      return "Published journey";
+    }
+    const journeyName = programmeJourneyDisplayName(version.templateCode);
+    return `${journeyName} v${version.versionNumber}`;
+  }
+
+  function programmeJourneyDisplayName(templateCode: string) {
+    const parts = templateCode
+      .split("_")
+      .map((part) => part.toLowerCase())
+      .filter(Boolean);
+    if (parts.length > 1 && parts[parts.length - 1] === "standard") {
+      return `Standard ${parts.slice(0, -1).join(" ")}`;
+    }
+    return formatDisplay(templateCode);
+  }
 
   useEffect(() => {
     if (draft.customerJourneyVersionId || !selectedJourney) {
@@ -7794,22 +7848,22 @@ function CustomerProgrammesPage({
           />
         </div>
 
-        <div className="integrations-stage-card warning">
+        <div className={`integrations-stage-card ${programmeNextAction.tone === "success" ? "success" : "warning"}`}>
           <div>
-            <strong>Do this next</strong>
-            <p>
-              Create the programme package, validate it, approve it, then publish it. Campaigns can use the published
-              version after this page is done.
-            </p>
+            <strong>Do this next: {programmeNextAction.title}</strong>
+            <p>{programmeNextAction.copy}</p>
           </div>
-          <StatusBadge label={draft.programmeDraftId ? "Draft loaded" : "Start here"} tone={draft.programmeDraftId ? "info" : "warning"} />
+          <StatusBadge label={programmeNextAction.label} tone={programmeNextAction.tone} />
         </div>
 
         <div className="panel-lite integrations-step-card">
           <div className="settings-summary-header">
             <div>
               <h3 className="section-heading">How this stays simple</h3>
-              <p>Each layer has one job. Campaigns use a published programme; campaign-specific changes are visible and bounded.</p>
+              <p>
+                Build the reusable referral rules here. Campaigns only choose when, where, and how to run those rules;
+                approved campaign changes stay visible and bounded.
+              </p>
             </div>
             <StatusBadge label="No raw config" tone="success" />
           </div>
@@ -8083,7 +8137,7 @@ function CustomerProgrammesPage({
                       {programmeProductBindingLabel(programme.customerProductBinding)} - version {programme.versionNumber}
                     </p>
                     <span className="table-subtext">
-                      Journey version: {programme.customerJourneyVersionId}
+                      Journey: {journeyVersionLabel(programme.customerJourneyVersionId)}
                       {programme.publishedAt ? ` - published ${programme.publishedAt}` : ""}
                     </span>
                   </div>

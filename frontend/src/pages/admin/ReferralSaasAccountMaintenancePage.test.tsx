@@ -4001,10 +4001,13 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Programme workspace" })).toBeInTheDocument();
     expect(screen.getByText(/A programme is the governed package a campaign uses/i)).toBeInTheDocument();
+    expect(screen.getByText(/Do this next: Choose the customer product first/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "How this stays simple" })).toBeInTheDocument();
     expect(screen.getByText("Customer product")).toBeInTheDocument();
     expect(screen.getByText("Referral programme")).toBeInTheDocument();
+    expect(screen.getByText("Campaign")).toBeInTheDocument();
     expect(screen.getByText("Campaign-specific changes")).toBeInTheDocument();
+    expect(screen.getByText("Reporting")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Customer product and offering" })).toBeInTheDocument();
     expect(screen.getByText(/Amplifi package codes stay behind the scenes/i)).toBeInTheDocument();
     fireEvent.change(await screen.findByLabelText("Customer product line"), {
@@ -4031,6 +4034,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
     expect(screen.getByText("Published programme versions")).toBeInTheDocument();
     expect(screen.getByText("Programme performance")).toBeInTheDocument();
+    expect(screen.getByText(/Journey: Standard referral/i)).toBeInTheDocument();
+    expect(screen.queryByText(/journey-version-001/i)).not.toBeInTheDocument();
     expect(screen.getByText("Products measured")).toBeInTheDocument();
     expect(screen.getByText("Campaign changes measured")).toBeInTheDocument();
     expect(screen.queryByText("effectiveRuleSnapshot")).not.toBeInTheDocument();
