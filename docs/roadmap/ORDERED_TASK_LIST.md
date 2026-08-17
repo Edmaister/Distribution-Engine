@@ -9313,6 +9313,32 @@ Explicit non-goals: Do not add backend domain behavior, provider dispatch, crede
 Completed output: `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.tsx`; `frontend/src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx`; roadmap, gap matrix, and infographic updates. The governed configuration platform now presents Programme configuration as a simple SaaS workflow with one visible next action and business-readable published version evidence.
 Definition of done: Complete - the governed configuration platform is understandable as a simple SaaS workflow, not a technical console. Priority: P0.
 
+## TASK-420: Add non-local launch verification command pack
+
+Status: Complete (2026-08-17).
+Product boundary: Referral SaaS with Shared Platform proof trajectory.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_E2E_LIVE_VERIFICATION_PLAN.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Converts the remaining TASK-027/TASK-348 evidence blocker into a repeatable DB/API/proof command sequence without adding product-specific forks. Source duplication: No.
+Linked enhancement: Referral SaaS launch verification and production-confidence evidence.
+Linked platform/product capability: Non-local verification runbook; evidence capture; launch-hardening controls.
+Objective: Create a safe command pack for approved non-local DB/API verification so TASK-348 can execute without exposing secrets, inventing routes, or allowing accidental production writes.
+Why now: The product and configurable programme work are locally complete through TASK-419, but the score cannot honestly reach 10/10 until staging or production-like evidence is captured. The blocker should be operationalized instead of remaining vague.
+Files likely involved: `docs/sa/referral-saas/REFERRAL_SAAS_NON_LOCAL_LAUNCH_VERIFICATION_COMMAND_PACK.md`; roadmap/gap/infographic docs.
+Database/schema impact: None. Defines read-only non-local DB verification expectations only.
+Backend impact: None. Documents existing proof scripts and safety gates.
+Frontend impact: None. Updates roadmap/infographic status only.
+API impact: None. Uses existing selected-customer and route-smoke proof surfaces.
+Tests to add/update: Documentation/readback only.
+Validation method: `git diff --check`; readback/grep for TASK-420 references.
+Acceptance criteria: Complete - TASK-348 has an executable command/evidence pack covering required inputs, read-only DB checks, protected route smoke, selected-customer read-spine proof, optional staging-only seeded proof, redaction, and go/no-go decision criteria.
+Dependencies: TASK-027; TASK-348; TASK-419.
+Blocked by: None for the command pack. TASK-348 remains blocked by approved strict read-only non-local DB credentials, approved runtime/API base URL, approved test keys/tokens, and explicit permission for any non-read-only proof execution.
+Risk level: Low.
+Rollback notes: Revert the command-pack doc and roadmap/gap/infographic references.
+Explicit non-goals: Do not run non-local commands, store secrets, mutate production data, dispatch providers, create credentials, change auth claims, activate campaigns, bill, settle, fund, invoice, payout, or move money.
+Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_NON_LOCAL_LAUNCH_VERIFICATION_COMMAND_PACK.md`; roadmap, gap matrix, and infographic updates.
+Definition of done: Complete - non-local launch proof is now a controlled, repeatable runbook, while TASK-348 remains the evidence-execution task. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

@@ -582,12 +582,14 @@ Referral SaaS wedge. Remaining gaps are now mapped to explicit tasks:
 | Provider/vault execution readiness, command design, and adapter implementation plan | TASK-342 to TASK-344; TASK-349 to TASK-355 | TASK-342 provider/vault adapter contract, TASK-343 read-only readiness API, TASK-344 selected-customer Integrations UI visibility, TASK-349 provider/vault runtime execution command contract, TASK-350 guarded runtime execution API foundation, TASK-351 shared runtime adapter seam, TASK-352 first safe adapter implementation plan, TASK-353 platform-reference provider/vault adapters, TASK-354 vendor/managed provider-vault adapter contract, and TASK-355 vendor/managed provider-vault runtime adapters are complete. Repair/replay execution and non-local proof remain the final governed implementation track. |
 | Governed invitation delivery, acceptance, auth/login completion | TASK-345 to TASK-347; TASK-363; TASK-364 | TASK-345 contract, TASK-346 guarded API boundary, TASK-347 People and Access UI wiring, TASK-363 live provider-backed invite delivery, and TASK-364 expiring invitation acceptance are complete. Operators can send invite email through the approved shared channel provider after recipient/provider/template/idempotency/audit/redaction gates pass, invitees can accept through a time-bound hashed-token path, and the flow still keeps seats, login credentials, auth claims, campaign activation, billing, money, DLaaS, and source forks separated. |
 | Support assignment and recovery workspace | TASK-380 | Closed. Selected-customer Support now has assignment, owner visibility, audited/idempotent assignment evidence, safe recovery posture, and no unsafe repair/replay/provider/auth/campaign/billing/money side effects. |
-| Non-local launch verification | TASK-348 plus TASK-027 | Staging/production-like read-only verification and approved smoke/proof evidence. |
+| Non-local launch verification | TASK-348 plus TASK-027; TASK-420 | TASK-420 now supplies the approved command/evidence pack for staging/production-like read-only verification and optional staging-only seeded proof. TASK-348 remains the actual execution/evidence close-out once approved access exists. |
 
 TASK-027 remains blocked by approved non-local credentials and access. It is a
-production-confidence blocker, not a missing product feature. TASK-348 is the
-Referral SaaS launch-verification wrapper that should consume that access once
-available.
+production-confidence blocker, not a missing product feature. TASK-420 removes
+the runbook ambiguity by defining the safe command sequence, evidence template,
+redaction expectations, and production/no-write gates. TASK-348 is still the
+Referral SaaS launch-verification wrapper that should consume approved access
+once available.
 
 ## Explicit Deferrals
 

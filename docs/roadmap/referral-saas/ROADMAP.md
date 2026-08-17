@@ -402,6 +402,11 @@ UX, binding, and proof gaps:
   plain-language next action, safer business-readable published-version labels,
   and a clearer layer map for customer product, referral programme, campaign,
   campaign-specific changes, and reporting.
+- TASK-420 is complete: the remaining non-local launch-verification blocker now
+  has a controlled command/evidence pack covering approved inputs, read-only DB
+  checks, protected API smoke, selected-customer proof paths, optional
+  staging-only seeded proof, redaction rules, and go/no-go criteria. TASK-348
+  remains the execution task once approved non-local access exists.
 
 This sequence keeps Referral Programme and Campaign Management as separate
 domain services. Campaigns may carry explicit approved overrides, but they do
