@@ -2893,6 +2893,13 @@ journey changes or unsafe adjacent side effects.)
   product lines and offerings as business entities, keeps stable references
   secondary for traceability, reuses the governed catalogue APIs, and provides
   a clear continuation into Programme configuration.
+- **TASK-424 through TASK-430 - Amplifi Global Operations Workspace:** Ready and
+  ordered. This tranche separates global operations from selected-customer
+  work, establishes the permission-safe operational read model before any KPI
+  dashboard, then delivers the dashboard, work queue, customer portfolio,
+  governed destinations, and final E2E UX verification. Placeholder metrics,
+  cross-customer leakage, dead-end navigation, and duplicated domain state are
+  prohibited.
 
 ## Explicit Deferrals
 

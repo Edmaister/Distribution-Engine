@@ -45,6 +45,18 @@ permissions, audit controls, and tenant boundaries remain authoritative.
 | 12. Partner experience | Partner APIs/tokens and referral primitives exist; dedicated experience is limited. | Gap | Focused partner work queue and referral status experience. | Define partner personas, permissions, routes, and safe read/write surfaces before building UI. | Later vertical slice; contract and UX required. |
 | 13. Governance and audit | Review decisions, audit logs, idempotency, versioning, route guards, redaction. | Strong backend, scattered UX | Contextual governance evidence, approvals, audit history, and exception handling. | Surface governance where decisions occur and keep full evidence in dedicated history/details views. | Cross-cutting frontend pattern; existing controls. |
 
+## Amplifi Global Operations Workspace Tranche
+
+| Task | Outcome | Architectural gate |
+| --- | --- | --- |
+| TASK-424 | Prototype-aligned global navigation and operator shell. | Global and selected-customer contexts remain explicit and permission-aware. |
+| TASK-425 | Authoritative operations summary and work-item read model. | No synthetic frontend metrics or cross-account leakage. |
+| TASK-426 | Operations dashboard with customer search, KPIs, queue preview, and portfolio attention. | UI consumes TASK-425 evidence only. |
+| TASK-427 | Full operational work queue with filters and governed destinations. | One work-item model with server-side scope and stable pagination. |
+| TASK-428 | Customer portfolio and explainable attention view. | Explicit customer selection and jurisdiction-safe visibility. |
+| TASK-429 | Real destinations for approvals, exceptions, reporting, support, programme, and commercial governance. | No dead links, duplicated customer modules, or invented domain APIs. |
+| TASK-430 | E2E, responsive, accessibility, permission, and leakage verification. | Release gate with evidence across roles, markets, and degraded states. |
+
 ## Look And Feel Contract
 
 The production UI should adopt the prototype's design direction without
