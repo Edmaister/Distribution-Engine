@@ -9339,6 +9339,29 @@ Explicit non-goals: Do not run non-local commands, store secrets, mutate product
 Completed output: `docs/sa/referral-saas/REFERRAL_SAAS_NON_LOCAL_LAUNCH_VERIFICATION_COMMAND_PACK.md`; roadmap, gap matrix, and infographic updates.
 Definition of done: Complete - non-local launch proof is now a controlled, repeatable runbook, while TASK-348 remains the evidence-execution task. Priority: P0.
 
+## TASK-421: Map approved prototype journeys to the production frontend
+
+Status: Complete (2026-08-18). Output: `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`; roadmap and gap-matrix updates.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_CUSTOMER_JOURNEY_UX_IMPLEMENTATION_HANDOFF.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Defines reuse of the current selected-customer shell, routes, APIs, permissions, audit, and design primitives. Source duplication: No.
+Objective: Map every approved prototype journey to current production routes, components, services, APIs, maturity, gaps, permissions, tenant/jurisdiction rules, and an implementation sequence before frontend changes begin.
+Frontend impact: Documentation only; includes the binding look-and-feel contract for subsequent slices.
+Tests and validation: Documentation readback, reference checks, and `git diff --check`.
+Definition of done: Complete - the prototype is mapped to thirteen production journeys and the first safe vertical slice is bounded. Priority: P0.
+
+## TASK-422: Align customer discovery, duplicate-safe creation, and Customer Profile Overview
+
+Status: Ready.
+Product boundary: Referral SaaS with Shared Platform customer-context reuse.
+Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Refines the existing selected-customer shell and shared frontend patterns. Source duplication: No.
+Objective: Deliver the first prototype-aligned vertical slice from customer discovery through duplicate-safe account creation to a standalone selected-customer home.
+Frontend impact: Separate discovery and customer-home states; compact labelled customer context; clear empty/loading/error/success states; one primary action; prototype-aligned navigation, typography, spacing, colour semantics, responsive behavior, and accessibility.
+Backend/API impact: Reuse existing account registry, resolve, onboarding draft/review, foundation creation, and customer profile APIs. Do not invent endpoints or fields.
+Tests and docs expectation: Add focused route, interaction, duplicate/conflict, customer-context, responsive, and accessibility coverage; update roadmap, gap matrix, and infographic when complete.
+Definition of done: A user can find or safely create a customer and arrive at the correct customer-scoped overview without raw technical ambiguity, context leakage, or duplicate creation. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
