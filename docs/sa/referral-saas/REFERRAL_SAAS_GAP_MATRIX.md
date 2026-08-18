@@ -594,13 +594,14 @@ once available.
 ## Prototype UX Alignment Gap
 
 TASK-421 closes the planning gap between the approved prototype and the real
-application with a journey-by-journey production implementation matrix. The
-remaining gap is implementation, not backend reinvention: TASK-422 starts with
-customer discovery, duplicate-safe creation, and a standalone Customer Profile
-Overview while preserving tenant, jurisdiction, permission, audit,
-idempotency, and redaction controls. The prototype's look and feel is now an
-explicit acceptance contract covering hierarchy, navigation, status language,
-spacing, responsive behavior, accessibility, and progressive disclosure.
+application with a journey-by-journey production implementation matrix.
+TASK-422 completes the first implementation slice: jurisdiction-scoped customer
+discovery now supports search across safe business identifiers, presents one
+governed duplicate-safe Account Setup entry point, requires explicit customer
+selection, and continues into the standalone Customer Profile Overview. It
+reuses existing tenant, jurisdiction, permission, audit, idempotency, and
+redaction controls. Remaining prototype work is the ordered implementation of
+the later journeys, not backend reinvention.
 
 ## Explicit Deferrals
 

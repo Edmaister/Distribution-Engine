@@ -65,9 +65,9 @@ copying prototype-only data or bypassing the repository design system:
 - responsive desktop and mobile layouts with no horizontal overflow, clipped
   labels, translucent drawers, or layout shifts during input.
 
-## First Safe Vertical Slice
+## First Safe Vertical Slice - Complete
 
-TASK-422 should implement the connected acquisition path:
+TASK-422 implements the connected acquisition path:
 
 1. find a customer by operating jurisdiction and customer identity;
 2. clearly distinguish an existing customer from a new customer;
@@ -77,9 +77,11 @@ TASK-422 should implement the connected acquisition path:
 6. preserve account, tenant, jurisdiction, RBAC, audit, idempotency, and
    redaction boundaries.
 
-This slice is first because it establishes the navigation, customer context,
-page shell, status language, and visual foundation reused by every subsequent
-journey. It does not redesign backend domains or fork shared source code.
+The production slice now adds searchable jurisdiction-scoped discovery, one
+governed customer-creation entry point, explicit selection before navigation,
+clear result and empty states, and responsive controls. It retains the existing
+duplicate-safe Account Setup workflow and standalone selected-customer home.
+It does not redesign backend domains or fork shared source code.
 
 ## Explicit Non-Goals
 

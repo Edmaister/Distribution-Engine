@@ -9352,7 +9352,7 @@ Definition of done: Complete - the prototype is mapped to thirteen production jo
 
 ## TASK-422: Align customer discovery, duplicate-safe creation, and Customer Profile Overview
 
-Status: Ready.
+Status: Complete (2026-08-18). Output: searchable jurisdiction-scoped customer discovery, a single governed customer-creation route, explicit customer selection before navigation, responsive customer-directory controls, and focused frontend coverage.
 Product boundary: Referral SaaS with Shared Platform customer-context reuse.
 Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Refines the existing selected-customer shell and shared frontend patterns. Source duplication: No.
@@ -9360,7 +9360,7 @@ Objective: Deliver the first prototype-aligned vertical slice from customer disc
 Frontend impact: Separate discovery and customer-home states; compact labelled customer context; clear empty/loading/error/success states; one primary action; prototype-aligned navigation, typography, spacing, colour semantics, responsive behavior, and accessibility.
 Backend/API impact: Reuse existing account registry, resolve, onboarding draft/review, foundation creation, and customer profile APIs. Do not invent endpoints or fields.
 Tests and docs expectation: Add focused route, interaction, duplicate/conflict, customer-context, responsive, and accessibility coverage; update roadmap, gap matrix, and infographic when complete.
-Definition of done: A user can find or safely create a customer and arrive at the correct customer-scoped overview without raw technical ambiguity, context leakage, or duplicate creation. Priority: P0.
+Definition of done: Complete - a user can find or safely create a customer and arrive at the correct customer-scoped overview without raw technical ambiguity, context leakage, or duplicate creation. Priority: P0.
 
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
