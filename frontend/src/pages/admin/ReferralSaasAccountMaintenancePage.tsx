@@ -74,6 +74,7 @@ import {
   decideReferralSaasProgrammeDraftReview,
   getReferralSaasAccountProgrammeAnalytics,
   getReferralSaasAccountProgrammeCatalogue,
+  getReferralSaasCustomerProductCatalogue,
   getReferralSaasAccountSupportCaseRepairReplayReadiness,
   listReferralSaasAccountJourneyDrafts,
   listReferralSaasAccountProgrammes,
@@ -97,6 +98,8 @@ import {
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   saveReferralSaasAccountJourneyDraft,
+  saveReferralSaasCustomerProductLine,
+  saveReferralSaasCustomerProductOffering,
   saveReferralSaasIntegrationConfiguration,
   submitReferralSaasProgrammeDraftReview,
   submitReferralSaasAccountCampaignReview,
@@ -173,6 +176,7 @@ type CustomerModule =
   | "integrations"
   | "technical"
   | "journeys"
+  | "products"
   | "programmes"
   | "campaigns"
   | "referrals"
@@ -323,6 +327,15 @@ const customerFunctions = [
     tone: "warning" as StatusTone,
   },
   {
+    title: "Products and offerings",
+    copy: "Define what this customer offers before building referral programmes.",
+    letsYou: "Reuse the right business product across programmes and campaigns.",
+    route: "products",
+    icon: Building2,
+    status: "Needs setup",
+    tone: "warning" as StatusTone,
+  },
+  {
     title: "Programmes",
     copy: "Build the versioned package campaigns will use.",
     letsYou: "Combine a published journey with approved product, incentive, and setup defaults.",
@@ -436,8 +449,8 @@ const configurationProofSteps = [
   {
     title: "Customer product",
     copy: "What this customer sells or wants referrals for, such as an account, insurance product, or partner offer.",
-    route: "settings" as CustomerModule,
-    action: "Review customer settings",
+    route: "products" as CustomerModule,
+    action: "Open products and offerings",
   },
   {
     title: "Referral programme",
@@ -3225,6 +3238,15 @@ export function ReferralSaasAccountMaintenancePage() {
 
               {selectedModule === "journeys" ? (
                 <CustomerJourneysPage
+                  customerName={customerName}
+                  externalTenantRef={selectedExternalTenantRef}
+                  selectedAccount={selectedAccount}
+                  selectedCustomerPath={selectedCustomerPath}
+                />
+              ) : null}
+
+              {selectedModule === "products" ? (
+                <CustomerProductsPage
                   customerName={customerName}
                   externalTenantRef={selectedExternalTenantRef}
                   selectedAccount={selectedAccount}
@@ -7521,6 +7543,201 @@ function programmeProductBindingLabel(binding?: ReferralSaasCustomerProductBindi
   return productLine || offering || "Customer product not shown";
 }
 
+function CustomerProductsPage({
+  customerName,
+  externalTenantRef,
+  selectedAccount,
+  selectedCustomerPath,
+}: {
+  customerName: string;
+  externalTenantRef: string;
+  selectedAccount?: AccountRegistryItem;
+  selectedCustomerPath: string;
+}) {
+  const accountRef = selectedAccount?.accountId || "";
+  const jurisdiction = selectedAccount?.operatingJurisdictionCode || "";
+  const accountScope = {
+    refType: "external_tenant_ref",
+    externalRef: externalTenantRef,
+    context: "setup",
+  };
+  const [lineDraft, setLineDraft] = useState({
+    externalRef: "",
+    name: "",
+    category: "",
+    description: "",
+  });
+  const [offeringDraft, setOfferingDraft] = useState({
+    productLineRef: "",
+    externalRef: "",
+    name: "",
+    family: "",
+    description: "",
+  });
+  const [message, setMessage] = useState<string | null>(null);
+  const catalogueQuery = useQuery({
+    queryKey: ["referral-saas", "customer-products", accountRef, externalTenantRef],
+    queryFn: () =>
+      getReferralSaasCustomerProductCatalogue({
+        accountRef,
+        refType: "external_tenant_ref",
+        externalRef: externalTenantRef,
+        context: "setup",
+      }),
+    enabled: Boolean(accountRef && externalTenantRef),
+    retry: false,
+  });
+  const productLines = catalogueQuery.data?.productLines || [];
+  const activeOfferings = productLines.flatMap((line) => line.offerings || []);
+  const lineMutation = useMutation({
+    mutationFn: () =>
+      saveReferralSaasCustomerProductLine({
+        accountRef,
+        productLineRef: lineDraft.externalRef,
+        body: {
+          accountScope,
+          productLineName: lineDraft.name,
+          productLineCategory: lineDraft.category,
+          operatingJurisdictionCode: jurisdiction,
+          lifecycleStatus: "ACTIVE",
+          description: lineDraft.description || undefined,
+          idempotencyKey: safeIdempotencyKey(
+            "save-customer-product-line",
+            accountRef,
+            lineDraft.externalRef,
+            lineDraft.name,
+            lineDraft.category,
+          ),
+        },
+      }),
+    onSuccess: async () => {
+      setMessage(`${lineDraft.name} is ready for offerings.`);
+      setLineDraft({ externalRef: "", name: "", category: "", description: "" });
+      await catalogueQuery.refetch();
+    },
+  });
+  const offeringMutation = useMutation({
+    mutationFn: () =>
+      saveReferralSaasCustomerProductOffering({
+        accountRef,
+        productLineRef: offeringDraft.productLineRef,
+        offeringRef: offeringDraft.externalRef,
+        body: {
+          accountScope,
+          offeringName: offeringDraft.name,
+          offeringFamily: offeringDraft.family || undefined,
+          operatingJurisdictionCode: jurisdiction,
+          lifecycleStatus: "ACTIVE",
+          description: offeringDraft.description || undefined,
+          idempotencyKey: safeIdempotencyKey(
+            "save-customer-product-offering",
+            accountRef,
+            offeringDraft.productLineRef,
+            offeringDraft.externalRef,
+            offeringDraft.name,
+          ),
+        },
+      }),
+    onSuccess: async () => {
+      setMessage(`${offeringDraft.name} is ready for programme configuration.`);
+      setOfferingDraft({ productLineRef: "", externalRef: "", name: "", family: "", description: "" });
+      await catalogueQuery.refetch();
+    },
+  });
+
+  return (
+    <section className="panel customer-module-page" id="products">
+      <div className="panel-header">
+        <div>
+          <div className="page-kicker">Referral SaaS &gt; {customerName} &gt; Products</div>
+          <h2 className="panel-title">Products and offerings</h2>
+          <div className="panel-subtitle">
+            Define what this customer offers. Programmes reuse these business products without changing them.
+          </div>
+        </div>
+        <StatusBadge label="Customer scoped" tone="success" />
+      </div>
+      <div className="panel-body route-list">
+        {catalogueQuery.isLoading ? <LoadingState label="Loading products and offerings" /> : null}
+        {catalogueQuery.error ? <ErrorPanel error={catalogueQuery.error} /> : null}
+        {lineMutation.error ? <ErrorPanel error={lineMutation.error} /> : null}
+        {offeringMutation.error ? <ErrorPanel error={offeringMutation.error} /> : null}
+        {message ? <div className="success-banner"><strong>Catalogue updated.</strong> {message}</div> : null}
+
+        <div className="kpi-grid">
+          <KpiCard label="Product lines" value={productLines.length} footnote="Customer business categories" icon={Building2} />
+          <KpiCard label="Offerings" value={activeOfferings.length} footnote="Products programmes can use" icon={ListChecks} />
+          <KpiCard label="Operating market" value={formatDisplay(jurisdiction)} footnote="Inherited from this customer" icon={ShieldCheck} />
+        </div>
+
+        <div className="panel-lite integrations-step-card">
+          <div className="settings-summary-header">
+            <div>
+              <h3 className="section-heading">Customer catalogue</h3>
+              <p>Product lines group related offerings. Business names are primary; references are shown only for traceability.</p>
+            </div>
+            <StatusBadge label={productLines.length ? "Catalogue started" : "Start here"} tone={productLines.length ? "success" : "warning"} />
+          </div>
+          <div className="route-list">
+            {productLines.map((line) => (
+              <div className="wizard-status-card" key={line.customerProductLineId}>
+                <div>
+                  <strong>{line.productLineName}</strong>
+                  <p>{formatDisplay(line.productLineCategory)}{line.description ? ` - ${line.description}` : ""}</p>
+                  <span className="table-subtext">Reference: {line.externalProductLineRef}</span>
+                </div>
+                <div className="action-cell">
+                  <StatusBadge label={formatDisplay(line.lifecycleStatus)} tone={statusTone(line.lifecycleStatus)} />
+                  <span className="table-subtext">{line.offerings.length} offerings</span>
+                </div>
+                <div className="product-offering-list">
+                  {line.offerings.map((offering) => (
+                    <div className="readonly-card" key={offering.customerProductOfferingId}>
+                      <strong>{offering.offeringName}</strong>
+                      <p>{offering.offeringFamily ? formatDisplay(offering.offeringFamily) : "Customer offering"}</p>
+                      <span className="table-subtext">Reference: {offering.externalOfferingRef}</span>
+                    </div>
+                  ))}
+                  {!line.offerings.length ? <div className="empty-panel">No offerings yet. Add the first offering below.</div> : null}
+                </div>
+              </div>
+            ))}
+            {!productLines.length && !catalogueQuery.isLoading ? (
+              <div className="empty-panel">No customer products yet. Add the first product line below.</div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="grid-2 customer-product-forms">
+          <form className="panel-lite integrations-step-card" onSubmit={(event) => { event.preventDefault(); lineMutation.mutate(); }}>
+            <div><h3 className="section-heading">Add product line</h3><p>Use a broad business category such as Transactional banking, Insurance, Telco, or Automotive.</p></div>
+            <label>Product line name<input required value={lineDraft.name} onChange={(event) => setLineDraft({ ...lineDraft, name: event.target.value })} /></label>
+            <label>Business category<input required value={lineDraft.category} onChange={(event) => setLineDraft({ ...lineDraft, category: event.target.value })} /></label>
+            <label>Product line reference<input required placeholder="Example: TRANSACTIONAL_BANKING" value={lineDraft.externalRef} onChange={(event) => setLineDraft({ ...lineDraft, externalRef: event.target.value })} /><span className="field-help">A stable customer-facing reference used by integrations and audit history.</span></label>
+            <label>Description<textarea value={lineDraft.description} onChange={(event) => setLineDraft({ ...lineDraft, description: event.target.value })} /></label>
+            <button className="button primary" disabled={lineMutation.isPending} type="submit">{lineMutation.isPending ? "Saving" : "Add product line"}</button>
+          </form>
+
+          <form className="panel-lite integrations-step-card" onSubmit={(event) => { event.preventDefault(); offeringMutation.mutate(); }}>
+            <div><h3 className="section-heading">Add offering</h3><p>Add the specific product a referral programme will promote.</p></div>
+            <label>Product line<select required value={offeringDraft.productLineRef} onChange={(event) => setOfferingDraft({ ...offeringDraft, productLineRef: event.target.value })}><option value="">Choose product line</option>{productLines.map((line) => <option key={line.customerProductLineId} value={line.externalProductLineRef}>{line.productLineName}</option>)}</select></label>
+            <label>Offering name<input required value={offeringDraft.name} onChange={(event) => setOfferingDraft({ ...offeringDraft, name: event.target.value })} /></label>
+            <label>Offering family<input placeholder="Example: Current account" value={offeringDraft.family} onChange={(event) => setOfferingDraft({ ...offeringDraft, family: event.target.value })} /></label>
+            <label>Offering reference<input required placeholder="Example: EASY_ACCOUNT" value={offeringDraft.externalRef} onChange={(event) => setOfferingDraft({ ...offeringDraft, externalRef: event.target.value })} /><span className="field-help">A stable customer-facing reference used by programmes and reporting.</span></label>
+            <label>Description<textarea value={offeringDraft.description} onChange={(event) => setOfferingDraft({ ...offeringDraft, description: event.target.value })} /></label>
+            <button className="button primary" disabled={!productLines.length || offeringMutation.isPending} type="submit">{offeringMutation.isPending ? "Saving" : "Add offering"}</button>
+          </form>
+        </div>
+
+        <div className="integrations-footnote">
+          <div><strong>What happens next</strong><p>Use an offering in a referral programme. Adding catalogue records does not create or activate a campaign.</p></div>
+          <Link className="button primary" to={`${selectedCustomerPath}/programmes`}>Continue to Programmes</Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function CustomerProgrammesPage({
   customerName,
   externalTenantRef,
@@ -10740,6 +10957,7 @@ function isCustomerModule(value: string | undefined): value is CustomerModule {
     "integrations",
     "technical",
     "journeys",
+    "products",
     "programmes",
     "campaigns",
     "referrals",

@@ -2888,6 +2888,11 @@ journey changes or unsafe adjacent side effects.)
   selection before profile navigation, responsive empty and result states, and
   continuity into the existing standalone customer home without new backend
   fields, endpoints, or source duplication.
+- **TASK-423 - Customer products and offerings workspace:** Complete. A
+  standalone selected-customer Products page now presents the customer's real
+  product lines and offerings as business entities, keeps stable references
+  secondary for traceability, reuses the governed catalogue APIs, and provides
+  a clear continuation into Programme configuration.
 
 ## Explicit Deferrals
 

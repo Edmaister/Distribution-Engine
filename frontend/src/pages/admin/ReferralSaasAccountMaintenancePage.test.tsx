@@ -35,6 +35,7 @@ import {
   decideReferralSaasProgrammeDraftReview,
   getReferralSaasAccountProgrammeAnalytics,
   getReferralSaasAccountProgrammeCatalogue,
+  getReferralSaasCustomerProductCatalogue,
   getReferralSaasAccountCampaignReadiness,
   getReferralSaasAccountSupportCaseRepairReplayReadiness,
   getReferralSaasAccountMembershipPosture,
@@ -69,6 +70,8 @@ import {
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
   saveReferralSaasAccountJourneyDraft,
+  saveReferralSaasCustomerProductLine,
+  saveReferralSaasCustomerProductOffering,
   saveReferralSaasIntegrationConfiguration,
   submitReferralSaasProgrammeDraftReview,
   submitReferralSaasAccountCampaignReview,
@@ -134,6 +137,7 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   decideReferralSaasProgrammeDraftReview: vi.fn(),
   getReferralSaasAccountProgrammeAnalytics: vi.fn(),
   getReferralSaasAccountProgrammeCatalogue: vi.fn(),
+  getReferralSaasCustomerProductCatalogue: vi.fn(),
   getReferralSaasAccountSupportCaseRepairReplayReadiness: vi.fn(),
   getReferralSaasAccountMembershipPosture: vi.fn(),
   getReferralSaasIntegrationConfiguration: vi.fn(),
@@ -168,6 +172,8 @@ vi.mock("../../api/endpoints/referralSaasAccounts", () => ({
   requestReferralSaasMembershipInvitationDelivery: vi.fn(),
   requestReferralSaasMembershipActivation: vi.fn(),
   saveReferralSaasAccountJourneyDraft: vi.fn(),
+  saveReferralSaasCustomerProductLine: vi.fn(),
+  saveReferralSaasCustomerProductOffering: vi.fn(),
   saveReferralSaasIntegrationConfiguration: vi.fn(),
   submitReferralSaasProgrammeDraftReview: vi.fn(),
   submitReferralSaasAccountCampaignReview: vi.fn(),
@@ -213,6 +219,9 @@ const mockedCreateReferralSaasProgrammeDraft = vi.mocked(createReferralSaasProgr
 const mockedDecideReferralSaasProgrammeDraftReview = vi.mocked(decideReferralSaasProgrammeDraftReview);
 const mockedGetReferralSaasAccountProgrammeAnalytics = vi.mocked(getReferralSaasAccountProgrammeAnalytics);
 const mockedGetReferralSaasAccountProgrammeCatalogue = vi.mocked(getReferralSaasAccountProgrammeCatalogue);
+const mockedGetReferralSaasCustomerProductCatalogue = vi.mocked(getReferralSaasCustomerProductCatalogue);
+const mockedSaveReferralSaasCustomerProductLine = vi.mocked(saveReferralSaasCustomerProductLine);
+const mockedSaveReferralSaasCustomerProductOffering = vi.mocked(saveReferralSaasCustomerProductOffering);
 const mockedGetReferralSaasAccountCampaignReadiness = vi.mocked(getReferralSaasAccountCampaignReadiness);
 const mockedGetReferralSaasAccountSupportCaseRepairReplayReadiness = vi.mocked(
   getReferralSaasAccountSupportCaseRepairReplayReadiness,
@@ -2574,6 +2583,27 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedPublishReferralSaasAccountJourneyDraft.mockResolvedValue(mockJourneyPublishResponse());
     mockedBindReferralSaasAccountCampaignJourneyVersion.mockResolvedValue(mockCampaignJourneyBindingResponse());
     mockedGetReferralSaasAccountProgrammeCatalogue.mockResolvedValue(mockProgrammeCatalogue());
+    mockedGetReferralSaasCustomerProductCatalogue.mockResolvedValue({
+      ...mockProgrammeCatalogue(),
+      productLines: mockProgrammeCatalogue().customerProductLines,
+      count: 1,
+    });
+    mockedSaveReferralSaasCustomerProductLine.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: mockProgrammeCatalogue().account,
+      commandStatus: "SAVED",
+      idempotencyStatus: "NEW_REQUEST",
+      guardrail: "Customer product catalogue only.",
+    });
+    mockedSaveReferralSaasCustomerProductOffering.mockResolvedValue({
+      status: "ok",
+      context: "setup",
+      account: mockProgrammeCatalogue().account,
+      commandStatus: "SAVED",
+      idempotencyStatus: "NEW_REQUEST",
+      guardrail: "Customer product catalogue only.",
+    });
     mockedListReferralSaasAccountProgrammes.mockResolvedValue(mockProgrammeList());
     mockedGetReferralSaasAccountProgrammeAnalytics.mockResolvedValue(mockProgrammeAnalytics());
     mockedCreateReferralSaasProgrammeDraft.mockResolvedValue(mockProgrammeDraftCommand());
@@ -4089,6 +4119,28 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       externalRef: "gabs-platform",
       context: "setup",
       limit: 50,
+    });
+  });
+
+  it("opens Products as a business-facing customer catalogue workspace", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/products");
+
+    expect(await screen.findByRole("heading", { name: "Products and offerings" })).toBeInTheDocument();
+    expect((await screen.findAllByText("Transactional banking")).length).toBeGreaterThan(0);
+    expect(screen.getByText("Easy Account")).toBeInTheDocument();
+    expect(screen.getByText("Reference: TRANSACTIONAL_BANKING")).toBeInTheDocument();
+    expect(screen.getByText("Reference: EASY_ACCOUNT")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Add product line" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Add offering" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Continue to Programmes" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs/programmes",
+    );
+    expect(mockedGetReferralSaasCustomerProductCatalogue).toHaveBeenCalledWith({
+      accountRef: "acct-gabs",
+      refType: "external_tenant_ref",
+      externalRef: "gabs-platform",
+      context: "setup",
     });
   });
 

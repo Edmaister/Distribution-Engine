@@ -9362,6 +9362,18 @@ Backend/API impact: Reuse existing account registry, resolve, onboarding draft/r
 Tests and docs expectation: Add focused route, interaction, duplicate/conflict, customer-context, responsive, and accessibility coverage; update roadmap, gap matrix, and infographic when complete.
 Definition of done: Complete - a user can find or safely create a customer and arrive at the correct customer-scoped overview without raw technical ambiguity, context leakage, or duplicate creation. Priority: P0.
 
+## TASK-423: Add the selected-customer product catalogue workspace
+
+Status: Complete (2026-08-19). Output: standalone selected-customer Products and Offerings workspace, existing catalogue API client bindings, business-facing hierarchy, guarded create controls, and focused frontend coverage.
+Product boundary: Referral SaaS.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the selected-customer shell, API client, account scope, idempotency, status, and form primitives. Source duplication: No.
+Objective: Present customer product lines and offerings as understandable business entities and provide a direct, customer-scoped path into programme configuration.
+Frontend impact: Add a standalone Products route with catalogue summary, product hierarchy, empty/loading/error/success states, product-line and offering controls, secondary traceability references, and a clear continuation to Programmes.
+Backend/API impact: None. Reuse the existing account-scoped product catalogue read and product-line/offering write APIs without schema, service, router, or domain changes.
+Tests and docs expectation: Cover endpoint paths, selected-customer scope, rendered hierarchy, traceability labels, and programme continuation; update roadmap, UX matrix, gap matrix, and infographic.
+Definition of done: Complete - an operator can view and maintain a customer's product hierarchy without confusing Amplifi packaging codes with the customer's real products, while all writes remain account-scoped, idempotent, and programme-bounded. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
