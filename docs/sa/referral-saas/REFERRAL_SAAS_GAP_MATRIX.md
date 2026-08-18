@@ -609,6 +609,14 @@ product-information, pricing, inventory, fulfilment, schema, or router scope
 was introduced. Remaining prototype work is ordered frontend implementation,
 not backend reinvention.
 
+The Amplifi Global Operations Workspace shown in the approved design is not yet
+implemented as an authoritative production surface. TASK-424 through TASK-430
+now close that gap in order: global shell; permission-safe operational read
+model; dashboard; work queue; customer portfolio; governed global
+destinations; and E2E UX verification. The read-model task is a hard dependency
+for KPI and queue UI so counts, service targets, priorities, incidents, and
+destinations cannot be invented or recomputed inconsistently in the frontend.
+
 ## Explicit Deferrals
 
 These are not blockers for the 10/10 Referral SaaS wedge:

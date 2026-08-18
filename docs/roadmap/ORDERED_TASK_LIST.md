@@ -9374,6 +9374,90 @@ Backend/API impact: None. Reuse the existing account-scoped product catalogue re
 Tests and docs expectation: Cover endpoint paths, selected-customer scope, rendered hierarchy, traceability labels, and programme continuation; update roadmap, UX matrix, gap matrix, and infographic.
 Definition of done: Complete - an operator can view and maintain a customer's product hierarchy without confusing Amplifi packaging codes with the customer's real products, while all writes remain account-scoped, idempotent, and programme-bounded. Priority: P0.
 
+## TASK-424: Align the Amplifi Global navigation shell
+
+Status: Ready.
+Product boundary: Referral SaaS with Shared Platform navigation and session-context reuse.
+Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
+Shared primitive impact: Extend the existing application shell, route metadata, session identity, permission-aware navigation, and responsive layout. Source duplication: No.
+Objective: Make Amplifi Global operations visibly distinct from selected-customer work while retaining one application and one source of truth.
+Frontend impact: Prototype-aligned global navigation, operator identity, customer switch/find entry point, global section grouping, selected state, responsive behavior, and accessible keyboard navigation.
+Backend/API impact: None expected; use current session and permission contracts. Do not expose links that the active role cannot use.
+Tests and docs expectation: Shell route, role visibility, active navigation, context-switch, responsive, overflow, and accessibility coverage; update roadmap, gap matrix, UX matrix, and infographic.
+Definition of done: An operator can always tell whether they are in Amplifi Global or a selected customer, reach customer discovery, and navigate only to permitted global functions. Priority: P0.
+
+## TASK-425: Add the authoritative Amplifi Global operations read model
+
+Status: Planned. Dependencies: TASK-424.
+Product boundary: Referral SaaS with Shared Platform tenant, permission, audit, and observability primitives.
+Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
+Shared primitive impact: Compose existing account, programme, campaign, integration, support, audit, and operational evidence behind one permission-filtered read model. Source duplication: No.
+Objective: Provide authoritative metrics and work items for awaiting action, customers needing attention, service-target performance, incidents, jurisdiction, priority, owner, and governed destination.
+Backend/API impact: Add a read-only aggregation service and bounded router contract; preserve tenant/account isolation, jurisdiction permissions, redaction, stable pagination, audit context, and deterministic metric definitions. No synthetic frontend calculations.
+Frontend impact: Typed API client only; no dashboard composition before this contract is verified.
+Tests and docs expectation: Cross-account leakage, role/jurisdiction filtering, metric semantics, empty/error/degraded states, pagination, destination allow-list, and database-backed contract coverage.
+Definition of done: Every Operations Workspace number and queue row has an authoritative, explainable, permission-safe backend source. Priority: P0.
+
+## TASK-426: Build the Amplifi Global Operations Workspace dashboard
+
+Status: Planned. Dependencies: TASK-424; TASK-425.
+Product boundary: Referral SaaS.
+Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
+Shared primitive impact: Reuse global shell, read-model client, status, table, empty/error/loading, and navigation primitives. Source duplication: No.
+Objective: Deliver the prototype-aligned global dashboard with one customer-search action, authoritative KPI strip, prioritised work queue, and customer portfolio attention summary.
+Frontend impact: Quiet operational composition, plain-language status, meaningful RAG semantics, one dominant next action, progressive disclosure, and no raw payloads or placeholder metrics.
+Backend/API impact: Consume TASK-425 only; no page-specific shadow calculations.
+Tests and docs expectation: KPI and queue rendering, degraded evidence, destination routing, permissions, accessibility, responsive layouts, and no horizontal overflow.
+Definition of done: An Amplifi operator can understand what requires attention and open the correct governed workflow without first selecting a customer or interpreting technical codes. Priority: P0.
+
+## TASK-427: Add the global work queue and operational filters
+
+Status: Planned. Dependencies: TASK-425; TASK-426.
+Product boundary: Referral SaaS.
+Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
+Shared primitive impact: Reuse authoritative work-item contracts, customer context transfer, filter/query-state, tables, and permission guards. Source duplication: No.
+Objective: Let operators triage all permitted work by urgency, service target, operational risk, jurisdiction, customer, type, status, and ownership.
+Frontend impact: Dedicated queue route with URL-backed filters, sorting, pagination, empty states, saved context, and safe links to source workflows.
+Backend/API impact: Extend TASK-425 only where server-side filtering or pagination is required; do not create a second work-item model.
+Tests and docs expectation: Filter combinations, stable pagination, role/jurisdiction boundaries, stale destinations, keyboard/table accessibility, and context handoff.
+Definition of done: Operators can reliably find, prioritise, and enter governed work without cross-customer leakage. Priority: P1.
+
+## TASK-428: Add customer portfolio and operational-attention views
+
+Status: Planned. Dependencies: TASK-425; TASK-426.
+Product boundary: Referral SaaS.
+Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
+Shared primitive impact: Reuse customer registry, jurisdiction filters, attention summaries, selected-customer transition, and permission guards. Source duplication: No.
+Objective: Present the permitted customer portfolio with explainable attention counts and an explicit transition into the selected-customer home.
+Frontend impact: Searchable/filterable portfolio, attention reasons, clear customer identity, empty/error/loading states, and explicit selection before customer-scoped navigation.
+Backend/API impact: Reuse account registry and TASK-425 summaries; add fields only when backed by authoritative evidence.
+Tests and docs expectation: Jurisdiction and role filtering, identity labels, attention explanations, customer selection, responsive layout, and accessibility.
+Definition of done: Operators can identify which customer needs attention, understand why, and open the correct customer without ambiguous identifiers. Priority: P1.
+
+## TASK-429: Align global governance and operational destinations
+
+Status: Planned. Dependencies: TASK-424; TASK-425; TASK-427.
+Product boundary: Referral SaaS with Shared Platform governance primitives.
+Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
+Shared primitive impact: Reuse review, approval, exception, audit, reporting, support, permission, and route-guard contracts. Source duplication: No.
+Objective: Connect Programme Governance, Global Approvals, Global Exceptions, Global Reporting, Support Operations, and Commercial Governance to focused, permission-safe destinations.
+Frontend impact: Remove dead-end navigation; provide clear landing states and contextual governance evidence without duplicating selected-customer modules.
+Backend/API impact: Reuse existing domain APIs and TASK-425 destinations; any missing contract requires a separately bounded follow-up rather than mock data.
+Tests and docs expectation: Route inventory, permission visibility, deep-link recovery, empty/error/loading states, audit context, and no money-action leakage.
+Definition of done: Every visible global navigation item has a real, bounded, permission-safe destination or is deliberately hidden. Priority: P1.
+
+## TASK-430: Verify the Operations Workspace end to end
+
+Status: Planned. Dependencies: TASK-424 through TASK-429.
+Product boundary: Referral SaaS with Shared Platform verification.
+Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
+Shared primitive impact: Validate global shell, permissions, tenant/account context, read models, route destinations, accessibility, and observability as one workflow. Source duplication: No.
+Objective: Prove the Operations Workspace with representative roles, jurisdictions, customers, work types, degraded dependencies, and desktop/mobile viewports.
+Backend/API impact: Verification only unless a separately reviewed defect is found.
+Frontend impact: Final evidence-led UX corrections only; no unbounded redesign.
+Tests and docs expectation: Automated contract/component/E2E coverage, local physical test, screenshots, keyboard and screen-reader checks, no-overflow checks, cross-account negative tests, and evidence-pack updates.
+Definition of done: The global workspace is understandable, responsive, accessible, permission-safe, evidence-backed, and routes every supported action to its authoritative workflow. Priority: P0 release gate.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
