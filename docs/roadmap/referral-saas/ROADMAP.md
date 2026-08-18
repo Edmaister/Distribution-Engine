@@ -2875,6 +2875,18 @@ journey changes or unsafe adjacent side effects.)
   UX/CX clarity while non-local proof repetition remains the final evidence
   gap.
 
+## Prototype UX Alignment
+
+- **TASK-421 - Approved prototype implementation matrix:** Complete. The thirteen
+  journeys in the external UX handoff are mapped to current production routes,
+  services, maturity, controls, gaps, and bounded implementation slices in
+  `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
+  The matrix also establishes the production look-and-feel contract.
+- **TASK-422 - Customer acquisition and profile-home slice:** Ready. This is the
+  first implementation slice because customer discovery, duplicate-safe
+  creation, selected-customer context, and the customer home establish the
+  reusable navigation and visual foundation for all later journeys.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:
