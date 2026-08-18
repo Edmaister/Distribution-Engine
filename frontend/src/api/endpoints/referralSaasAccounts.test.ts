@@ -10,6 +10,7 @@ import {
   createReferralSaasProgrammeDraft,
   getReferralSaasAccountProgrammeAnalytics,
   getReferralSaasAccountProgrammeCatalogue,
+  getReferralSaasCustomerProductCatalogue,
   getReferralSaasAccountCampaign,
   getReferralSaasAccountCampaignAttribution,
   getReferralSaasAccountCampaignReadiness,
@@ -43,6 +44,8 @@ import {
   recordReferralSaasMembershipInvitationIntent,
   requestReferralSaasMembershipActivation,
   requestReferralSaasMembershipInvitationDelivery,
+  saveReferralSaasCustomerProductLine,
+  saveReferralSaasCustomerProductOffering,
   resolveReferralSaasAccount,
   submitReferralSaasAccountCampaignReview,
   updateReferralSaasMembershipInvitationIntent,
@@ -60,6 +63,41 @@ const mockedApiRequest = vi.mocked(apiRequest);
 describe("referralSaasAccounts endpoint client", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("uses the selected-customer product catalogue contracts", async () => {
+    mockedApiRequest.mockResolvedValue({ status: "ok", productLines: [], count: 0 });
+
+    await getReferralSaasCustomerProductCatalogue({
+      accountRef: " acct-1 ",
+      refType: "external_tenant_ref",
+      externalRef: " customer-1 ",
+    });
+    expect(mockedApiRequest).toHaveBeenLastCalledWith(
+      "v1/referral-saas/accounts/acct-1/product-catalogue",
+      { query: { ref_type: "external_tenant_ref", external_ref: "customer-1", context: "setup", limit: 50 } },
+    );
+
+    await saveReferralSaasCustomerProductLine({
+      accountRef: "acct-1",
+      productLineRef: "TRANSACTIONAL_BANKING",
+      body: { productLineName: "Transactional banking" },
+    });
+    expect(mockedApiRequest).toHaveBeenLastCalledWith(
+      "v1/referral-saas/accounts/acct-1/product-lines/TRANSACTIONAL_BANKING",
+      { method: "PUT", body: { productLineName: "Transactional banking" } },
+    );
+
+    await saveReferralSaasCustomerProductOffering({
+      accountRef: "acct-1",
+      productLineRef: "TRANSACTIONAL_BANKING",
+      offeringRef: "EASY_ACCOUNT",
+      body: { offeringName: "Easy Account" },
+    });
+    expect(mockedApiRequest).toHaveBeenLastCalledWith(
+      "v1/referral-saas/accounts/acct-1/product-lines/TRANSACTIONAL_BANKING/offerings/EASY_ACCOUNT",
+      { method: "PUT", body: { offeringName: "Easy Account" } },
+    );
   });
 
   it("resolves a Referral SaaS account through the product account wrapper", async () => {

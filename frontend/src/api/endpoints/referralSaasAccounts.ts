@@ -307,6 +307,28 @@ export type ReferralSaasCustomerProductLineSummary = {
   redactions: string[];
 };
 
+export type ReferralSaasCustomerProductCatalogueResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  productLines: ReferralSaasCustomerProductLineSummary[];
+  count: number;
+  guardrail: string;
+  guardrails: string[];
+  redactions: string[];
+};
+
+export type ReferralSaasCustomerProductCatalogueCommandResponse = {
+  status: string;
+  context: ReferralSaasAccountResolutionContext;
+  account: ReferralSaasAccountSummary;
+  commandStatus: string;
+  idempotencyStatus: string;
+  productLine?: ReferralSaasCustomerProductLineSummary;
+  offering?: ReferralSaasCustomerProductOfferingSummary;
+  guardrail: string;
+};
+
 export type ReferralSaasCustomerProductBindingSummary = {
   customerProductLineId?: string | null;
   customerProductOfferingId?: string | null;
@@ -3647,6 +3669,56 @@ export function getReferralSaasAccountProgrammeCatalogue({
         limit,
       },
     },
+  );
+}
+
+export function getReferralSaasCustomerProductCatalogue({
+  accountRef,
+  refType,
+  externalRef,
+  context = "setup",
+  limit = 50,
+}: ReferralSaasAccountResolutionRequest & {
+  accountRef: string;
+  limit?: number;
+}): Promise<ReferralSaasCustomerProductCatalogueResponse> {
+  return apiRequest<ReferralSaasCustomerProductCatalogueResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/product-catalogue`,
+    {
+      query: { ref_type: refType, external_ref: externalRef.trim(), context, limit },
+    },
+  );
+}
+
+export function saveReferralSaasCustomerProductLine({
+  accountRef,
+  productLineRef,
+  body,
+}: {
+  accountRef: string;
+  productLineRef: string;
+  body: Record<string, unknown>;
+}): Promise<ReferralSaasCustomerProductCatalogueCommandResponse> {
+  return apiRequest<ReferralSaasCustomerProductCatalogueCommandResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/product-lines/${encodeURIComponent(productLineRef.trim())}`,
+    { method: "PUT", body },
+  );
+}
+
+export function saveReferralSaasCustomerProductOffering({
+  accountRef,
+  productLineRef,
+  offeringRef,
+  body,
+}: {
+  accountRef: string;
+  productLineRef: string;
+  offeringRef: string;
+  body: Record<string, unknown>;
+}): Promise<ReferralSaasCustomerProductCatalogueCommandResponse> {
+  return apiRequest<ReferralSaasCustomerProductCatalogueCommandResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/product-lines/${encodeURIComponent(productLineRef.trim())}/offerings/${encodeURIComponent(offeringRef.trim())}`,
+    { method: "PUT", body },
   );
 }
 

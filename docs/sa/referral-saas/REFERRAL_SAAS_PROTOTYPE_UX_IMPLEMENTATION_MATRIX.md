@@ -34,7 +34,7 @@ permissions, audit controls, and tenant boundaries remain authoritative.
 | 1. Customer discovery | Account registry and customer selection in Account Maintenance; account list/resolve APIs. | Partial | Country/market first, then searchable customer list, then open customer home. | Separate discovery from the selected-customer home; add labelled identity fields, useful empty/error states, and preserve explicit selection. | UX plus frontend composition; reuse APIs. |
 | 2. Duplicate-safe customer creation | Account Setup wizard, onboarding drafts, account resolve, foundation creation and conflict handling. | Strong backend, partial UX | A short create flow that checks duplicates before creation and lands in the created customer. | Keep duplicate-safe backend rules; simplify wording and redirect successful creation to Customer Profile Overview. | Frontend first; no schema change expected. |
 | 3. Customer Profile Overview | Selected-customer home inside `ReferralSaasAccountMaintenancePage`. | Implemented but dense | Quiet customer home with identity, health, next best actions, and scoped service entry points. | Remove raw/duplicated diagnostics from the primary view; use named fields, plain-language status, task-focused routes, and progressive disclosure. | Frontend refactor over existing read models. |
-| 4. Customer products and offerings | Customer product catalogue and offering APIs plus programme bindings. | Strong | Customer-owned product catalogue with offering hierarchy and clear use in programmes. | Present product lines and offerings as business entities; keep technical identifiers secondary. | Frontend completion; existing APIs. |
+| 4. Customer products and offerings | Customer product catalogue and offering APIs plus programme bindings. | Implemented via TASK-423 | Customer-owned product catalogue with offering hierarchy and clear use in programmes. | Product lines and offerings are business-first, technical references are secondary, and the selected customer continues directly to Programmes. | Complete; existing APIs reused. |
 | 5. Programme configuration | Governed drafts, validation, review, publish, version, incentive bindings, and analytics. | Strong | Simple guided builder with one next action and visible lifecycle. | Split overview, edit, validation, review, and version history into focused states without weakening review locks. | Frontend composition; existing governed APIs. |
 | 6. Campaign management | Customer-scoped campaign create/list/readiness, programme binding, policy settings, and activation gates. | Strong | Campaign workspace separate from referral programme design, with inherited settings and explicit overrides. | Clarify programme inheritance versus campaign-specific changes; keep campaign activation authoritative and gated. | Frontend refinement; existing APIs. |
 | 7. Referral operations | Referral code creation/validation, terms, progress, rewards and customer-scoped referral services. | Strong backend, fragmented UX | Operational referral list and referral detail with clear state and next action. | Consolidate entry, status, evidence, and allowed actions under the selected customer without exposing raw payloads. | New focused frontend routes over existing APIs. |
@@ -82,6 +82,17 @@ governed customer-creation entry point, explicit selection before navigation,
 clear result and empty states, and responsive controls. It retains the existing
 duplicate-safe Account Setup workflow and standalone selected-customer home.
 It does not redesign backend domains or fork shared source code.
+
+## Second Safe Vertical Slice - Complete
+
+TASK-423 implements the customer product catalogue journey:
+
+1. open Products from the selected customer context;
+2. review product lines and their offerings as business entities;
+3. add account-scoped product lines and offerings through existing APIs;
+4. retain stable references as secondary integration and audit evidence;
+5. continue to Programmes without mixing customer products with Amplifi package codes;
+6. preserve account scope, idempotency, jurisdiction, audit, and activation boundaries.
 
 ## Explicit Non-Goals
 

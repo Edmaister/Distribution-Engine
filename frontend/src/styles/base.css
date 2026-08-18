@@ -1796,6 +1796,23 @@ a {
   margin-top: 6px;
 }
 
+.product-offering-list {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  width: 100%;
+}
+
+.customer-product-forms {
+  align-items: start;
+}
+
+.customer-product-forms form {
+  display: grid;
+  gap: 12px;
+}
+
 .form-grid-span {
   grid-column: 1 / -1;
 }

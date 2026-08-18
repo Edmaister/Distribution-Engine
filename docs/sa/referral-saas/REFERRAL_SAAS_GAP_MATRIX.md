@@ -600,8 +600,14 @@ discovery now supports search across safe business identifiers, presents one
 governed duplicate-safe Account Setup entry point, requires explicit customer
 selection, and continues into the standalone Customer Profile Overview. It
 reuses existing tenant, jurisdiction, permission, audit, idempotency, and
-redaction controls. Remaining prototype work is the ordered implementation of
-the later journeys, not backend reinvention.
+redaction controls. TASK-423 completes the next bounded journey: customer
+product lines and offerings now have a standalone selected-customer workspace
+backed by the existing catalogue APIs. Business names and hierarchy are
+primary, stable references remain secondary audit/integration evidence, and
+the operator can continue directly into programme configuration. No
+product-information, pricing, inventory, fulfilment, schema, or router scope
+was introduced. Remaining prototype work is ordered frontend implementation,
+not backend reinvention.
 
 ## Explicit Deferrals
 
