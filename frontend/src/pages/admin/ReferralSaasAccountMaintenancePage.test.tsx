@@ -3356,7 +3356,12 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByRole("button", { name: /Botswana/ })).toHaveTextContent("1 account");
     expect(screen.getByRole("button", { name: /Zambia/ })).toHaveTextContent("0 accounts");
     expect(await screen.findByRole("heading", { name: "2. Which customer?" })).toBeInTheDocument();
-    expect(screen.getByText(/Only accounts in South Africa/)).toBeInTheDocument();
+    expect(screen.getByText(/permitted to support in South Africa/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Create customer" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-setup",
+    );
+    expect(screen.getByRole("searchbox", { name: "Search customers" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: /FNB Referral SaaS/ })).toBeInTheDocument();
     expect(screen.getAllByText("Customer reference")[0]).toBeInTheDocument();
     expect(screen.getAllByText("Organisation reference")[0]).toBeInTheDocument();
@@ -3372,11 +3377,31 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
   });
 
+  it("searches customers using business-facing identifiers", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />);
+
+    const search = await screen.findByRole("searchbox", { name: "Search customers" });
+    fireEvent.change(search, { target: { value: "cape" } });
+
+    expect(screen.getByText("1 customer")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Cape Commerce Hub/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /FNB Referral SaaS/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Select a customer to continue")).toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: "not-a-customer" } });
+    expect(screen.getByText("No matching customers")).toBeInTheDocument();
+    expect(screen.getByText(/Try another name or reference in South Africa/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(screen.getByText("2 customers")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /FNB Referral SaaS/ })).toBeInTheDocument();
+  });
+
   it("filters customers by jurisdiction and opens the selected customer home", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
 
     fireEvent.click(await screen.findByRole("button", { name: /Botswana/ }));
-    expect(screen.getByText(/Only accounts in Botswana/)).toBeInTheDocument();
+    expect(screen.getByText(/permitted to support in Botswana/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Gaborone Partners/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /FNB Referral SaaS/ })).not.toBeInTheDocument();
 

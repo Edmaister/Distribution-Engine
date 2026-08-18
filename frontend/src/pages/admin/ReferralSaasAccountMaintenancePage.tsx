@@ -672,6 +672,7 @@ export function ReferralSaasAccountMaintenancePage() {
   const [appliedExternalTenantRef, setAppliedExternalTenantRef] = useState(defaultExternalTenantRef);
   const [appliedOrganisationRef, setAppliedOrganisationRef] = useState(defaultOrganisationRef);
   const [selectedOperatingMarket, setSelectedOperatingMarket] = useState(defaultOperatingMarket);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
   const [pendingAccountId, setPendingAccountId] = useState<string | null>(null);
   const [accessDisplayName, setAccessDisplayName] = useState("");
   const [accessEmail, setAccessEmail] = useState("");
@@ -1160,9 +1161,22 @@ export function ReferralSaasAccountMaintenancePage() {
   });
   const pendingAccount = accountItems.find((account) => account.accountId === pendingAccountId);
   const operatingMarkets = getOperatingMarkets(accountItems);
-  const accountsForMarket = accountItems.filter(
-    (account) => operatingMarketFromAccount(account).name === selectedOperatingMarket,
-  );
+  const normalizedCustomerSearchQuery = customerSearchQuery.trim().toLowerCase();
+  const accountsForMarket = accountItems.filter((account) => {
+    if (operatingMarketFromAccount(account).name !== selectedOperatingMarket) {
+      return false;
+    }
+    if (!normalizedCustomerSearchQuery) {
+      return true;
+    }
+    const externalTenantRef =
+      account.primaryExternalTenantRef ||
+      findAccountExternalRef(account.externalReferences, "external_tenant_ref");
+    const organisationRef = findAccountExternalRef(account.externalReferences, "organisation_ref");
+    return [account.accountName, account.accountCode, externalTenantRef, organisationRef].some(
+      (value) => value?.toLowerCase().includes(normalizedCustomerSearchQuery) ?? false,
+    );
+  });
   const readiness = data?.readiness;
   const summary = readiness?.summary;
   const categories = asArray(readiness?.categories || []);
@@ -1329,6 +1343,7 @@ export function ReferralSaasAccountMaintenancePage() {
 
   function selectOperatingMarket(marketName: string) {
     setSelectedOperatingMarket(marketName);
+    setCustomerSearchQuery("");
     setPendingAccountId(null);
   }
 
@@ -2061,15 +2076,22 @@ export function ReferralSaasAccountMaintenancePage() {
           ) : null}
         </div>
         <div className="customer-header-actions">
+          {!accountId ? (
+            <Link className="button" to="/admin/referral-saas/account-setup">
+              Create customer
+            </Link>
+          ) : null}
           {accountId && selectedAccount && selectedModule !== "home" ? (
             <Link className="button secondary" to={selectedCustomerPath}>
               Customer home
             </Link>
           ) : null}
-          <Link className="button secondary" to="/admin/referral-saas/account-maintenance">
-            Switch customer
-          </Link>
-          <StatusBadge label="View only where noted" tone="warning" />
+          {accountId ? (
+            <Link className="button secondary" to="/admin/referral-saas/account-maintenance">
+              Switch customer
+            </Link>
+          ) : null}
+          {accountId ? <StatusBadge label="View only where noted" tone="warning" /> : null}
         </div>
       </section>
 
@@ -2079,7 +2101,7 @@ export function ReferralSaasAccountMaintenancePage() {
       {!isLoading && !error ? (
         <>
           {!accountId ? (
-          <section className="panel" id="customer-selector">
+          <section className="panel customer-directory" id="customer-selector">
             <div className="panel-header">
               <div>
                 <h2 className="panel-title">1. Where do you operate?</h2>
@@ -2093,8 +2115,12 @@ export function ReferralSaasAccountMaintenancePage() {
               {isAccountRegistryLoading ? <LoadingState label="Loading customers" /> : null}
               {accountRegistryError ? <ErrorPanel error={accountRegistryError} /> : null}
               {!isAccountRegistryLoading && !accountRegistryError && accountItems.length === 0 ? (
-                <div className="empty-state">
-                  No customers exist yet. Use Account Setup to create the first customer foundation.
+                <div className="empty-state customer-directory-empty">
+                  <strong>No customers yet</strong>
+                  <span>Create the first customer account using the governed Account Setup flow.</span>
+                  <Link className="button" to="/admin/referral-saas/account-setup">
+                    Create customer
+                  </Link>
                 </div>
               ) : null}
               {!isAccountRegistryLoading && !accountRegistryError && accountItems.length > 0 ? (
@@ -2118,14 +2144,48 @@ export function ReferralSaasAccountMaintenancePage() {
                   </div>
 
                   <div className="customer-picker-step">
-                    <h2 className="panel-title">2. Which customer?</h2>
-                    <div className="panel-subtitle">
-                      Only accounts in {selectedOperatingMarket}. Each card labels the customer reference,
-                      organisation reference, and support account code.
+                    <div>
+                      <h2 className="panel-title">2. Which customer?</h2>
+                      <div className="panel-subtitle">
+                        Search the customers you are permitted to support in {selectedOperatingMarket}.
+                      </div>
                     </div>
+                    <span className="customer-directory-result-count">
+                      {formatAreaCount(accountsForMarket.length, "customer")}
+                    </span>
                   </div>
+                  <label className="customer-directory-search">
+                    <Search aria-hidden="true" size={19} />
+                    <span className="sr-only">Search customers</span>
+                    <input
+                      onChange={(event) => {
+                        setCustomerSearchQuery(event.target.value);
+                        setPendingAccountId(null);
+                      }}
+                      placeholder="Search by customer name, reference, organisation, or account code"
+                      type="search"
+                      value={customerSearchQuery}
+                    />
+                    {customerSearchQuery ? (
+                      <button onClick={() => setCustomerSearchQuery("")} type="button">
+                        Clear
+                      </button>
+                    ) : null}
+                  </label>
                   {accountsForMarket.length === 0 ? (
-                    <div className="empty-state">No customers exist in {selectedOperatingMarket} yet.</div>
+                    <div className="empty-state customer-directory-empty">
+                      <strong>{customerSearchQuery ? "No matching customers" : "No customers in this market"}</strong>
+                      <span>
+                        {customerSearchQuery
+                          ? `Try another name or reference in ${selectedOperatingMarket}.`
+                          : `Create a customer account for ${selectedOperatingMarket} when you are ready.`}
+                      </span>
+                      {!customerSearchQuery ? (
+                        <Link className="button secondary" to="/admin/referral-saas/account-setup">
+                          Create customer
+                        </Link>
+                      ) : null}
+                    </div>
                   ) : (
                     <div className="customer-selector-grid">
                       {accountsForMarket.map((account) => {
@@ -2175,7 +2235,12 @@ export function ReferralSaasAccountMaintenancePage() {
                       })}
                     </div>
                   )}
-                  <div className="customer-open-row">
+                  <div className="customer-open-row" aria-live="polite">
+                    <span>
+                      {pendingAccount
+                        ? `${pendingAccount.accountName || pendingAccount.accountCode} selected`
+                        : "Select a customer to continue"}
+                    </span>
                     <Link
                       aria-disabled={!pendingAccount}
                       className={`button ${pendingAccount ? "" : "disabled"}`}
@@ -3376,21 +3441,7 @@ export function ReferralSaasAccountMaintenancePage() {
               </section>
               ) : null}
             </>
-          ) : (
-            <section className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">No customer selected yet</h2>
-                  <div className="panel-subtitle">
-                    Select a customer above, or create one if the list is empty.
-                  </div>
-                </div>
-                <Link className="button" to="/admin/referral-saas/account-setup">
-                  Create customer
-                </Link>
-              </div>
-            </section>
-          )}
+          ) : null}
 
           {!accountId ? (
           <section className="panel">

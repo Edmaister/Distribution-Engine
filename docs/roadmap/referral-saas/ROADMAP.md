@@ -2882,10 +2882,12 @@ journey changes or unsafe adjacent side effects.)
   services, maturity, controls, gaps, and bounded implementation slices in
   `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
   The matrix also establishes the production look-and-feel contract.
-- **TASK-422 - Customer acquisition and profile-home slice:** Ready. This is the
-  first implementation slice because customer discovery, duplicate-safe
-  creation, selected-customer context, and the customer home establish the
-  reusable navigation and visual foundation for all later journeys.
+- **TASK-422 - Customer acquisition and profile-home slice:** Complete. The
+  production directory now provides jurisdiction-scoped customer search across
+  safe business identifiers, one governed Account Setup entry point, explicit
+  selection before profile navigation, responsive empty and result states, and
+  continuity into the existing standalone customer home without new backend
+  fields, endpoints, or source duplication.
 
 ## Explicit Deferrals
 
