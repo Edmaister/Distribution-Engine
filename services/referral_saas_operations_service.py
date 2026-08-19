@@ -71,6 +71,13 @@ async def read_referral_saas_operations(
     *,
     jurisdictions: Iterable[str] | None,
     priority: str | None = None,
+    customer: str | None = None,
+    category: str | None = None,
+    status: str | None = None,
+    owner: str | None = None,
+    work_type: str | None = None,
+    service_target: str | None = None,
+    sort: str = "PRIORITY",
     limit: int = 25,
     cursor: str | None = None,
 ) -> OperationsPage:
@@ -78,6 +85,26 @@ async def read_referral_saas_operations(
     safe_priority = str(priority).strip().upper() if priority else None
     if safe_priority not in {None, "LOW", "MEDIUM", "HIGH", "CRITICAL"}:
         raise ReferralSaasOperationsReadError("Priority filter is invalid.")
+    safe_customer = str(customer).strip() if customer else None
+    safe_category = str(category).strip().upper() if category else None
+    safe_status = str(status).strip().upper() if status else None
+    if safe_status not in {None, "OPEN", "INVESTIGATING", "WAITING"}:
+        raise ReferralSaasOperationsReadError("Status filter is invalid.")
+    safe_owner = str(owner).strip() if owner else None
+    safe_work_type = str(work_type).strip().upper() if work_type else None
+    if safe_work_type not in {None, "SUPPORT_CASE"}:
+        raise ReferralSaasOperationsReadError("Work type filter is invalid.")
+    safe_service_target = str(service_target).strip().upper() if service_target else None
+    if safe_service_target not in {None, "AVAILABLE", "UNAVAILABLE"}:
+        raise ReferralSaasOperationsReadError("Service-target filter is invalid.")
+    safe_sort = str(sort or "PRIORITY").strip().upper()
+    order_by = {
+        "PRIORITY": "CASE support_case.priority WHEN 'CRITICAL' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END, support_case.updated_at, support_case.support_case_id",
+        "UPDATED_ASC": "support_case.updated_at ASC, support_case.support_case_id ASC",
+        "UPDATED_DESC": "support_case.updated_at DESC, support_case.support_case_id DESC",
+    }.get(safe_sort)
+    if order_by is None:
+        raise ReferralSaasOperationsReadError("Sort option is invalid.")
     safe_limit = _safe_limit(limit)
     offset = _safe_cursor(cursor)
 
@@ -98,12 +125,25 @@ async def read_referral_saas_operations(
             WHERE support_case.archived_at IS NULL
               AND ($1::text[] IS NULL OR account.operating_jurisdiction_code = ANY($1::text[]))
               AND ($2::text IS NULL OR support_case.priority = $2)
+              AND ($3::text IS NULL OR account.account_name ILIKE '%' || $3 || '%'
+                   OR account.account_code ILIKE '%' || $3 || '%'
+                   OR account.account_id::text = $3)
+              AND ($4::text IS NULL OR support_case.category = $4)
+              AND ($5::text IS NULL OR support_case.status = $5)
+              AND ($6::text IS NULL OR ($6 = 'UNASSIGNED' AND support_case.assignee_ref IS NULL)
+                   OR support_case.assignee_ref = $6)
+              AND ($7::text IS NULL OR $7 = 'UNAVAILABLE')
             """,
             safe_jurisdictions,
             safe_priority,
+            safe_customer,
+            safe_category,
+            safe_status,
+            safe_owner,
+            safe_service_target,
         )
         rows = await conn.fetch(
-            """
+            f"""
             SELECT
                 support_case.support_case_id,
                 support_case.account_id,
@@ -122,14 +162,24 @@ async def read_referral_saas_operations(
               AND support_case.status IN ('OPEN', 'INVESTIGATING', 'WAITING')
               AND ($1::text[] IS NULL OR account.operating_jurisdiction_code = ANY($1::text[]))
               AND ($2::text IS NULL OR support_case.priority = $2)
-            ORDER BY
-                CASE support_case.priority WHEN 'CRITICAL' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END,
-                support_case.updated_at,
-                support_case.support_case_id
-            LIMIT $3 OFFSET $4
+              AND ($3::text IS NULL OR account.account_name ILIKE '%' || $3 || '%'
+                   OR account.account_code ILIKE '%' || $3 || '%'
+                   OR account.account_id::text = $3)
+              AND ($4::text IS NULL OR support_case.category = $4)
+              AND ($5::text IS NULL OR support_case.status = $5)
+              AND ($6::text IS NULL OR ($6 = 'UNASSIGNED' AND support_case.assignee_ref IS NULL)
+                   OR support_case.assignee_ref = $6)
+              AND ($7::text IS NULL OR $7 = 'UNAVAILABLE')
+            ORDER BY {order_by}
+            LIMIT $8 OFFSET $9
             """,
             safe_jurisdictions,
             safe_priority,
+            safe_customer,
+            safe_category,
+            safe_status,
+            safe_owner,
+            safe_service_target,
             safe_limit + 1,
             offset,
         )
@@ -172,5 +222,16 @@ async def read_referral_saas_operations(
         },
         work_items=work_items,
         next_cursor=str(offset + safe_limit) if len(rows) > safe_limit else None,
-        filters={"jurisdictions": safe_jurisdictions, "priority": safe_priority, "limit": safe_limit},
+        filters={
+            "jurisdictions": safe_jurisdictions,
+            "priority": safe_priority,
+            "customer": safe_customer,
+            "category": safe_category,
+            "status": safe_status,
+            "owner": safe_owner,
+            "workType": safe_work_type,
+            "serviceTarget": safe_service_target,
+            "sort": safe_sort,
+            "limit": safe_limit,
+        },
     )

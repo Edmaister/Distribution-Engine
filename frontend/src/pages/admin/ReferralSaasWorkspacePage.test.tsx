@@ -24,7 +24,7 @@ const response = {
       priority: "HIGH" as const, status: "OPEN", category: "REFERRAL_EVIDENCE", ownerRef: null, updatedAt: "2026-08-19T08:00:00Z",
       serviceTarget: { status: "UNAVAILABLE" as const, dueAt: null }, destination: "/admin/referral-saas/account-maintenance/account-1/support?case=case-1",
     }],
-    nextCursor: null, filters: { jurisdictions: ["ZA"], priority: null, limit: 8 }, metricDefinitions: {}, guardrails: [], redactions: [],
+    nextCursor: null, filters: { jurisdictions: ["ZA"], priority: null, customer: null, category: null, status: null, owner: null, workType: null, serviceTarget: null, sort: "PRIORITY", limit: 8 }, metricDefinitions: {}, guardrails: [], redactions: [],
   },
   noCrossJurisdictionAccessConfirmed: true, noSyntheticFrontendMetricsConfirmed: true,
 };
@@ -53,6 +53,12 @@ describe("ReferralSaasWorkspacePage", () => {
     mockOverview.mockReturnValue({ data: response, isLoading: false, error: null } as unknown as ReturnType<typeof useReferralSaasOperationsOverview>);
     renderWorkspace();
     expect(screen.getAllByRole("link", { name: /Find or create customer|Find a customer/ })[0]).toHaveAttribute("href", "/admin/referral-saas/account-maintenance");
+  });
+
+  it("links the summary to the complete operational queue", () => {
+    mockOverview.mockReturnValue({ data: response, isLoading: false, error: null } as unknown as ReturnType<typeof useReferralSaasOperationsOverview>);
+    renderWorkspace();
+    expect(screen.getByRole("link", { name: /View all work/ })).toHaveAttribute("href", "/admin/referral-saas/operations/work-queue");
   });
 
   it("shows a plain-language degraded state", () => {

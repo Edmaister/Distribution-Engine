@@ -10371,6 +10371,48 @@ async def test_operator_operations_overview_uses_identity_jurisdictions(
     assert captured["jurisdictions"] == {"ZA"}
 
 
+async def test_operator_operations_overview_forwards_filters_and_denies_hidden_jurisdiction(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    captured = {}
+
+    class _Overview:
+        def to_safe_dict(self):
+            return {"metrics": {}, "workItems": [], "nextCursor": None}
+
+    async def _read(**kwargs):
+        captured.update(kwargs)
+        return _Overview()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "_require_referral_saas_account_reader",
+        lambda identity: identity.update({"allowed_jurisdictions": ["ZA"]}) or identity,
+    )
+    monkeypatch.setattr(referral_saas_accounts, "read_referral_saas_operations", _read)
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/operator/operations-overview",
+            params={
+                "jurisdiction": "BW",
+                "customer": "Northstar",
+                "status": "WAITING",
+                "owner": "UNASSIGNED",
+                "workType": "SUPPORT_CASE",
+                "serviceTarget": "UNAVAILABLE",
+                "sort": "UPDATED_DESC",
+            },
+        )
+    assert response.status_code == 200
+    assert captured["jurisdictions"] == []
+    assert captured["customer"] == "Northstar"
+    assert captured["status"] == "WAITING"
+    assert captured["owner"] == "UNASSIGNED"
+    assert captured["work_type"] == "SUPPORT_CASE"
+    assert captured["service_target"] == "UNAVAILABLE"
+    assert captured["sort"] == "UPDATED_DESC"
+
+
 async def test_referral_saas_membership_posture_rejects_missing_account_capability(
     monkeypatch,
 ):

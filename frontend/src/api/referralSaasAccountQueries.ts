@@ -111,6 +111,31 @@ export function useReferralSaasOperationsOverview(limit = 8, refreshKey = 0) {
   });
 }
 
+export type ReferralSaasOperationsQueueFilters = {
+  priority?: string;
+  jurisdiction?: string;
+  customer?: string;
+  category?: string;
+  status?: string;
+  owner?: string;
+  workType?: string;
+  serviceTarget?: string;
+  sort?: string;
+  limit: number;
+  cursor?: string;
+};
+
+export function useReferralSaasOperationsQueue(
+  filters: ReferralSaasOperationsQueueFilters,
+  refreshKey = 0,
+) {
+  return useQuery({
+    queryKey: queryKeys.referralSaasOperationsQueue(filters, refreshKey),
+    queryFn: () => getReferralSaasOperationsOverview(filters),
+    retry: false,
+  });
+}
+
 export function useReferralSaasOperatorSupportQueue(
   filters: {
     status?: string;

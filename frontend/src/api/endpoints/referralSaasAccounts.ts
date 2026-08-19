@@ -5495,7 +5495,18 @@ export interface ReferralSaasOperationsOverviewResponse {
       destination: string;
     }>;
     nextCursor: string | null;
-    filters: { jurisdictions: string[] | null; priority: string | null; limit: number };
+    filters: {
+      jurisdictions: string[] | null;
+      priority: string | null;
+      customer: string | null;
+      category: string | null;
+      status: string | null;
+      owner: string | null;
+      workType: string | null;
+      serviceTarget: string | null;
+      sort: string;
+      limit: number;
+    };
     metricDefinitions: Record<string, string>;
     guardrails: string[];
     redactions: string[];
@@ -5506,15 +5517,45 @@ export interface ReferralSaasOperationsOverviewResponse {
 
 export function getReferralSaasOperationsOverview({
   priority,
+  jurisdiction,
+  customer,
+  category,
+  status,
+  owner,
+  workType,
+  serviceTarget,
+  sort,
   limit = 25,
   cursor,
 }: {
   priority?: string;
+  jurisdiction?: string;
+  customer?: string;
+  category?: string;
+  status?: string;
+  owner?: string;
+  workType?: string;
+  serviceTarget?: string;
+  sort?: string;
   limit?: number;
   cursor?: string;
 } = {}): Promise<ReferralSaasOperationsOverviewResponse> {
   return apiRequest<ReferralSaasOperationsOverviewResponse>(
     "v1/referral-saas/operator/operations-overview",
-    { query: { priority, limit, cursor } },
+    {
+      query: {
+        priority,
+        jurisdiction,
+        customer,
+        category,
+        status,
+        owner,
+        workType,
+        serviceTarget,
+        sort,
+        limit,
+        cursor,
+      },
+    },
   );
 }

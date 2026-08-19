@@ -73,7 +73,7 @@ export function ReferralSaasWorkspacePage() {
                   <h2 className="panel-title">Your work queue</h2>
                   <div className="panel-subtitle">Ordered by operational priority using persisted support evidence.</div>
                 </div>
-                <StatusBadge label={`${operations.workItems.length} shown`} tone={operations.workItems.length ? "info" : "success"} />
+                <Link className="operations-inline-link" to="/admin/referral-saas/operations/work-queue">View all work <ArrowRight size={14} /></Link>
               </div>
               <div className="operations-queue-list">
                 {operations.workItems.length
