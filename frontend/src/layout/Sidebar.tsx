@@ -59,6 +59,7 @@ const referralSaasGlobalSections = [
     label: "Amplifi Internal",
     links: [
       { to: "/admin/referral-saas", label: "Operations", icon: Gauge, sub: "Home" },
+      { to: "/admin/referral-saas/operations/work-queue", label: "Work queue", icon: ListChecks, sub: "Open" },
       { to: "/admin/referral-saas/account-setup", label: "Customer accounts", icon: Building2, sub: "New" },
       {
         to: "/admin/referral-saas/account-maintenance",

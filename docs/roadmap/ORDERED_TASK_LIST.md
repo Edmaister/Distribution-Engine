@@ -9416,7 +9416,7 @@ Completed output: Replaced the placeholder workspace with a responsive Amplifi G
 
 ## TASK-427: Add the global work queue and operational filters
 
-Status: Planned. Dependencies: TASK-425; TASK-426.
+Status: Complete (2026-08-19). Dependencies: TASK-425; TASK-426.
 Product boundary: Referral SaaS.
 Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
 Shared primitive impact: Reuse authoritative work-item contracts, customer context transfer, filter/query-state, tables, and permission guards. Source duplication: No.
@@ -9424,7 +9424,9 @@ Objective: Let operators triage all permitted work by urgency, service target, o
 Frontend impact: Dedicated queue route with URL-backed filters, sorting, pagination, empty states, saved context, and safe links to source workflows.
 Backend/API impact: Extend TASK-425 only where server-side filtering or pagination is required; do not create a second work-item model.
 Tests and docs expectation: Filter combinations, stable pagination, role/jurisdiction boundaries, stale destinations, keyboard/table accessibility, and context handoff.
-Definition of done: Operators can reliably find, prioritise, and enter governed work without cross-customer leakage. Priority: P1.
+Definition of done: Complete - operators can reliably find, prioritise, and enter governed work without cross-customer leakage. Priority: P1.
+
+Completed output: Added a dedicated global Work queue route over the TASK-425 operations read model, with server-side customer, category, status, owner, work-type, service-target, priority, and permitted-jurisdiction filters; allow-listed sorting; stable cursor pagination; URL-backed filter and page state; explicit filtered empty/error states; and persisted governed destination links. Added typed frontend query contracts, global navigation, dashboard continuation, responsive queue composition, and focused backend/API/frontend coverage without a second work-item model or synthetic service evidence.
 
 ## TASK-428: Add customer portfolio and operational-attention views
 

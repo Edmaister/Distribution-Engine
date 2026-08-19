@@ -10289,6 +10289,14 @@ async def list_referral_saas_operator_support_cases(
 @router.get("/operator/operations-overview")
 async def read_referral_saas_operator_operations_overview(
     priority: Annotated[str | None, Query()] = None,
+    jurisdiction: Annotated[str | None, Query()] = None,
+    customer: Annotated[str | None, Query()] = None,
+    category: Annotated[str | None, Query()] = None,
+    work_status: Annotated[str | None, Query(alias="status")] = None,
+    owner: Annotated[str | None, Query()] = None,
+    work_type: Annotated[str | None, Query(alias="workType")] = None,
+    service_target: Annotated[str | None, Query(alias="serviceTarget")] = None,
+    sort: Annotated[str, Query()] = "PRIORITY",
     limit: Annotated[int, Query(ge=1, le=100)] = 25,
     cursor: Annotated[str | None, Query()] = None,
     identity: dict = Depends(require_session_key),
@@ -10305,10 +10313,25 @@ async def read_referral_saas_operator_operations_overview(
         "allowed_jurisdictions",
         "allowedJurisdictions",
     )
+    requested_jurisdiction = str(jurisdiction or "").strip().upper()
+    visible_jurisdictions = jurisdictions
+    if requested_jurisdiction:
+        visible_jurisdictions = (
+            {requested_jurisdiction}
+            if not jurisdictions or requested_jurisdiction in jurisdictions
+            else set()
+        )
     try:
         overview = await read_referral_saas_operations(
-            jurisdictions=jurisdictions or None,
+            jurisdictions=visible_jurisdictions or ([] if requested_jurisdiction else None),
             priority=priority,
+            customer=customer,
+            category=category,
+            status=work_status,
+            owner=owner,
+            work_type=work_type,
+            service_target=service_target,
+            sort=sort,
             limit=limit,
             cursor=cursor,
         )

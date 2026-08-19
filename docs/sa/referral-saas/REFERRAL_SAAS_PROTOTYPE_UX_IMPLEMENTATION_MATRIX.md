@@ -52,7 +52,7 @@ permissions, audit controls, and tenant boundaries remain authoritative.
 | TASK-424 | Complete - prototype-aligned global navigation and operator shell. | Global and selected-customer contexts are explicit; only real supported global destinations are exposed. |
 | TASK-425 | Complete - authoritative operations summary and support work-item read model. | Jurisdiction-filtered persisted evidence; no synthetic frontend metrics or cross-account leakage. |
 | TASK-426 | Complete - operations dashboard with customer search, authoritative KPIs, queue preview, portfolio attention, and degraded states. | UI consumes TASK-425 evidence only; no synthetic metrics or page-specific domain state. |
-| TASK-427 | Full operational work queue with filters and governed destinations. | One work-item model with server-side scope and stable pagination. |
+| TASK-427 | Complete - full operational work queue with URL-backed filters, stable pagination, filtered empty states, and governed destinations. | One TASK-425 work-item model with server-side scope, permitted-jurisdiction intersection, allow-listed sorting, and no synthetic queue state. |
 | TASK-428 | Customer portfolio and explainable attention view. | Explicit customer selection and jurisdiction-safe visibility. |
 | TASK-429 | Real destinations for approvals, exceptions, reporting, support, programme, and commercial governance. | No dead links, duplicated customer modules, or invented domain APIs. |
 | TASK-430 | E2E, responsive, accessibility, permission, and leakage verification. | Release gate with evidence across roles, markets, and degraded states. |

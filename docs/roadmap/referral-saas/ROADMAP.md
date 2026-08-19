@@ -2894,14 +2894,16 @@ journey changes or unsafe adjacent side effects.)
   secondary for traceability, reuses the governed catalogue APIs, and provides
   a clear continuation into Programme configuration.
 - **TASK-424 through TASK-430 - Amplifi Global Operations Workspace:** TASK-424
-  through TASK-426 complete; TASK-427 through TASK-430 ordered. The shell now separates global
+  through TASK-427 complete; TASK-428 through TASK-430 ordered. The shell now separates global
   operations from selected-customer work and exposes only supported global
   destinations. The authoritative read model now exposes jurisdiction-filtered
   persisted support work and metrics while marking SLA performance unavailable
   until governed source evidence exists. The global dashboard now consumes that evidence for customer
   discovery, authoritative KPIs, a prioritised queue preview, and explainable customer attention without
-  synthetic frontend metrics. Next comes the full work queue, customer portfolio,
-  governed destinations, and final E2E UX verification. Placeholder metrics,
+  synthetic frontend metrics. The dedicated global work queue now adds authoritative server-side
+  triage filters, URL-restorable query state, stable cursor pagination, filtered empty states, and
+  governed source-workflow links without duplicating the work-item model. Next comes the customer
+  portfolio, governed destinations, and final E2E UX verification. Placeholder metrics,
   cross-customer leakage, dead-end navigation, and duplicated domain state are
   prohibited.
 

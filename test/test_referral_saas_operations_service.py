@@ -9,12 +9,33 @@ from services import referral_saas_operations_service as service
 
 
 class _Connection:
-    async def fetchrow(self, _query, jurisdictions, priority):
+    async def fetchrow(
+        self, _query, jurisdictions, priority, customer, category, status, owner, service_target
+    ):
         assert jurisdictions == ["BW", "ZA"]
         assert priority == "HIGH"
+        assert (customer, category, status, owner, service_target) == (
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
         return {"awaiting_action": 2, "customers_needing_attention": 1, "production_incidents": 0}
 
-    async def fetch(self, _query, jurisdictions, priority, limit, offset):
+    async def fetch(
+        self,
+        _query,
+        jurisdictions,
+        priority,
+        customer,
+        category,
+        status,
+        owner,
+        service_target,
+        limit,
+        offset,
+    ):
         assert (jurisdictions, priority, limit, offset) == (["BW", "ZA"], "HIGH", 2, 0)
         return [
             {
@@ -55,3 +76,18 @@ async def test_operations_read_model_is_permission_filtered_and_explainable(monk
 async def test_operations_read_model_rejects_invalid_cursor():
     with pytest.raises(service.ReferralSaasOperationsReadError):
         await service.read_referral_saas_operations(jurisdictions=None, cursor="bad")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("filters", "message"),
+    [
+        ({"status": "CLOSED"}, "Status"),
+        ({"work_type": "CAMPAIGN"}, "Work type"),
+        ({"service_target": "LATE"}, "Service-target"),
+        ({"sort": "TITLE"}, "Sort"),
+    ],
+)
+async def test_operations_read_model_rejects_unsupported_filters(filters, message):
+    with pytest.raises(service.ReferralSaasOperationsReadError, match=message):
+        await service.read_referral_saas_operations(jurisdictions=None, **filters)
