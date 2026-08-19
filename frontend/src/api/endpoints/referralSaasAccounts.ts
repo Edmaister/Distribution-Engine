@@ -5559,3 +5559,60 @@ export function getReferralSaasOperationsOverview({
     },
   );
 }
+
+export interface ReferralSaasCustomerPortfolioResponse {
+  status: "ok";
+  operatorScope: { role: string; jurisdictions: string[] };
+  portfolio: {
+    customers: Array<{
+      accountRef: string;
+      accountCode: string;
+      accountName: string;
+      accountType: string;
+      accountStatus: "PENDING_ONBOARDING" | "ACTIVE" | "SUSPENDED";
+      onboardingStatus: string;
+      jurisdiction: string;
+      customerReference: string | null;
+      organisationReference: string | null;
+      updatedAt: string | null;
+      attention: {
+        needsAttention: boolean;
+        openCaseCount: number;
+        criticalCaseCount: number;
+        highestPriority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | null;
+        reasons: string[];
+      };
+      destination: string;
+    }>;
+    nextCursor: string | null;
+    filters: Record<string, string | string[] | number | null>;
+    summary: { visibleCustomers: number; needingAttention: number; criticalAttention: number };
+    guardrails: string[];
+    redactions: string[];
+  };
+  noCrossJurisdictionAccessConfirmed: boolean;
+  noSyntheticFrontendMetricsConfirmed: boolean;
+}
+
+export function getReferralSaasCustomerPortfolio({
+  search,
+  jurisdiction,
+  accountStatus,
+  attention,
+  sort,
+  limit = 25,
+  cursor,
+}: {
+  search?: string;
+  jurisdiction?: string;
+  accountStatus?: string;
+  attention?: string;
+  sort?: string;
+  limit?: number;
+  cursor?: string;
+} = {}): Promise<ReferralSaasCustomerPortfolioResponse> {
+  return apiRequest<ReferralSaasCustomerPortfolioResponse>(
+    "v1/referral-saas/operator/customer-portfolio",
+    { query: { search, jurisdiction, accountStatus, attention, sort, limit, cursor } },
+  );
+}

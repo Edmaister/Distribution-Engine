@@ -9430,7 +9430,7 @@ Completed output: Added a dedicated global Work queue route over the TASK-425 op
 
 ## TASK-428: Add customer portfolio and operational-attention views
 
-Status: Planned. Dependencies: TASK-425; TASK-426.
+Status: Complete (2026-08-19). Dependencies: TASK-425; TASK-426.
 Product boundary: Referral SaaS.
 Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
 Shared primitive impact: Reuse customer registry, jurisdiction filters, attention summaries, selected-customer transition, and permission guards. Source duplication: No.
@@ -9438,7 +9438,9 @@ Objective: Present the permitted customer portfolio with explainable attention c
 Frontend impact: Searchable/filterable portfolio, attention reasons, clear customer identity, empty/error/loading states, and explicit selection before customer-scoped navigation.
 Backend/API impact: Reuse account registry and TASK-425 summaries; add fields only when backed by authoritative evidence.
 Tests and docs expectation: Jurisdiction and role filtering, identity labels, attention explanations, customer selection, responsive layout, and accessibility.
-Definition of done: Operators can identify which customer needs attention, understand why, and open the correct customer without ambiguous identifiers. Priority: P1.
+Definition of done: Complete - operators can identify which customer needs attention, understand why, and open the correct customer without ambiguous identifiers. Priority: P1.
+
+Completed output: Added a standalone Amplifi Internal Customer portfolio backed by the authoritative account registry with persisted open-support attention aggregates. The permission-safe API applies role and jurisdiction scope before search, account-status and attention filters, allow-listed sorting, and stable pagination. The responsive frontend labels customer identity, references, jurisdiction, lifecycle status, and plain-language attention reasons; preserves URL state; provides explicit server-owned customer destinations; and includes loading, error, filtered-empty, accessibility, route-inventory, backend, and component coverage without duplicating customer or work-item state.
 
 ## TASK-429: Align global governance and operational destinations
 

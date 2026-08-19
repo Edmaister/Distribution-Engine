@@ -40,7 +40,7 @@ describe("Sidebar", () => {
     );
     expect(screen.getByRole("link", { name: /Customer portfolio/ })).toHaveAttribute(
       "href",
-      "/admin/referral-saas/account-maintenance",
+      "/admin/referral-saas/operations/customer-portfolio",
     );
     expect(screen.getByRole("link", { name: /Find or create customer/ })).toHaveAttribute(
       "href", "/admin/referral-saas/account-maintenance",

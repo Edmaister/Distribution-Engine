@@ -62,7 +62,7 @@ const referralSaasGlobalSections = [
       { to: "/admin/referral-saas/operations/work-queue", label: "Work queue", icon: ListChecks, sub: "Open" },
       { to: "/admin/referral-saas/account-setup", label: "Customer accounts", icon: Building2, sub: "New" },
       {
-        to: "/admin/referral-saas/account-maintenance",
+        to: "/admin/referral-saas/operations/customer-portfolio",
         label: "Customer portfolio",
         icon: BriefcaseBusiness,
         sub: "Open",
