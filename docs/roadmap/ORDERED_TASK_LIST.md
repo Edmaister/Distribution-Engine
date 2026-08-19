@@ -9402,7 +9402,7 @@ Completed output: Added the read-only `/v1/referral-saas/operator/operations-ove
 
 ## TASK-426: Build the Amplifi Global Operations Workspace dashboard
 
-Status: Planned. Dependencies: TASK-424; TASK-425.
+Status: Complete (2026-08-19). Dependencies: TASK-424; TASK-425.
 Product boundary: Referral SaaS.
 Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
 Shared primitive impact: Reuse global shell, read-model client, status, table, empty/error/loading, and navigation primitives. Source duplication: No.
@@ -9410,7 +9410,9 @@ Objective: Deliver the prototype-aligned global dashboard with one customer-sear
 Frontend impact: Quiet operational composition, plain-language status, meaningful RAG semantics, one dominant next action, progressive disclosure, and no raw payloads or placeholder metrics.
 Backend/API impact: Consume TASK-425 only; no page-specific shadow calculations.
 Tests and docs expectation: KPI and queue rendering, degraded evidence, destination routing, permissions, accessibility, responsive layouts, and no horizontal overflow.
-Definition of done: An Amplifi operator can understand what requires attention and open the correct governed workflow without first selecting a customer or interpreting technical codes. Priority: P0.
+Definition of done: Complete - an Amplifi operator can understand what requires attention and open the correct governed workflow without first selecting a customer or interpreting technical codes. Priority: P0.
+
+Completed output: Replaced the placeholder workspace with a responsive Amplifi Global Operations dashboard that consumes the TASK-425 read model without frontend shadow calculations. Added clear customer discovery, authoritative KPI definitions, persisted work-item destinations, queue-page customer attention, plain-language SLA-unavailable handling, loading/error/empty states, accessible customer labels, and focused frontend coverage.
 
 ## TASK-427: Add the global work queue and operational filters
 

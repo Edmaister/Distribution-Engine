@@ -1,109 +1,64 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { useReferralSaasOperationsOverview } from "../../api/referralSaasAccountQueries";
 import { ReferralSaasWorkspacePage } from "./ReferralSaasWorkspacePage";
 
-function renderWorkspace() {
-  const router = createMemoryRouter([
-    {
-      path: "/admin/referral-saas",
-      element: <ReferralSaasWorkspacePage />,
-    },
-  ], {
-    initialEntries: ["/admin/referral-saas"],
-  });
+vi.mock("../../api/referralSaasAccountQueries", () => ({ useReferralSaasOperationsOverview: vi.fn() }));
+const mockOverview = vi.mocked(useReferralSaasOperationsOverview);
 
+function renderWorkspace() {
+  const router = createMemoryRouter([{ path: "/admin/referral-saas", element: <ReferralSaasWorkspacePage /> }], { initialEntries: ["/admin/referral-saas"] });
   return render(<RouterProvider router={router} />);
 }
 
+const response = {
+  status: "ok" as const,
+  operatorScope: { role: "AMPLIFI_ADMIN", jurisdictions: ["ZA"] },
+  operations: {
+    metrics: { awaitingYourAction: 2, customersNeedingAttention: 1, withinServiceTargetPercent: null, serviceTargetStatus: "UNAVAILABLE" as const, productionIncidents: 0 },
+    workItems: [{
+      workItemRef: "case-1", workItemType: "SUPPORT_CASE" as const, title: "Referral evidence exception",
+      customer: { accountRef: "account-1", accountCode: "ACC-100", label: "Northstar Financial" }, jurisdiction: "ZA",
+      priority: "HIGH" as const, status: "OPEN", category: "REFERRAL_EVIDENCE", ownerRef: null, updatedAt: "2026-08-19T08:00:00Z",
+      serviceTarget: { status: "UNAVAILABLE" as const, dueAt: null }, destination: "/admin/referral-saas/account-maintenance/account-1/support?case=case-1",
+    }],
+    nextCursor: null, filters: { jurisdictions: ["ZA"], priority: null, limit: 8 }, metricDefinitions: {}, guardrails: [], redactions: [],
+  },
+  noCrossJurisdictionAccessConfirmed: true, noSyntheticFrontendMetricsConfirmed: true,
+};
+
 describe("ReferralSaasWorkspacePage", () => {
-  afterEach(() => {
-    cleanup();
+  afterEach(() => cleanup());
+
+  it("renders authoritative operations metrics without a synthetic SLA", () => {
+    mockOverview.mockReturnValue({ data: response, isLoading: false, error: null } as unknown as ReturnType<typeof useReferralSaasOperationsOverview>);
+    renderWorkspace();
+    expect(screen.getByRole("heading", { name: "Operations workspace" })).toBeInTheDocument();
+    expect(screen.getByText("Awaiting your action")).toBeInTheDocument();
+    expect(screen.getByText("Not configured")).toBeInTheDocument();
+    expect(screen.getByText("No governed SLA source yet")).toBeInTheDocument();
+    expect(screen.queryByText("96%")).not.toBeInTheDocument();
   });
 
-  it("renders the focused Referral SaaS workspace", () => {
+  it("opens persisted queue destinations and visible customers", () => {
+    mockOverview.mockReturnValue({ data: response, isLoading: false, error: null } as unknown as ReturnType<typeof useReferralSaasOperationsOverview>);
     renderWorkspace();
-
-    expect(screen.getByRole("heading", { name: "Start testing Referral SaaS" })).toBeInTheDocument();
-    expect(screen.getByText("Referral Management and Campaign Attribution SaaS")).toBeInTheDocument();
-    expect(screen.getByText("Ringfenced")).toBeInTheDocument();
-    expect(screen.getByText("Core areas to test")).toBeInTheDocument();
-    expect(screen.getByText("DLaaS items shown")).toBeInTheDocument();
-    expect(screen.getByText("Money actions available")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Referral evidence exception/ })).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/account-1/support?case=case-1");
+    expect(screen.getByRole("link", { name: /Northstar Financial ACC-100/ })).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/account-1");
   });
 
-  it("explains the screen purpose, available actions, and first call to action", () => {
+  it("uses a clear customer-directory action", () => {
+    mockOverview.mockReturnValue({ data: response, isLoading: false, error: null } as unknown as ReturnType<typeof useReferralSaasOperationsOverview>);
     renderWorkspace();
-
-    expect(screen.getByRole("heading", { name: "What this screen is for" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "What you can do here" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "What to do first" })).toBeInTheDocument();
-    expect(screen.getByText(/If setup is blocked, fix that first/)).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Find or create customer|Find a customer/ })[0]).toHaveAttribute("href", "/admin/referral-saas/account-maintenance");
   });
 
-  it("shows a recommended local testing path", () => {
+  it("shows a plain-language degraded state", () => {
+    mockOverview.mockReturnValue({ data: undefined, isLoading: false, error: new Error("Evidence store unavailable") } as unknown as ReturnType<typeof useReferralSaasOperationsOverview>);
     renderWorkspace();
-
-    expect(screen.getByRole("heading", { name: "Recommended test path" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /1. Check account setup/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-setup",
-    );
-    expect(screen.getByRole("link", { name: /2. Review account maintenance/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-maintenance",
-    );
-    expect(screen.getByRole("link", { name: /3. Check campaign readiness/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/campaigns",
-    );
-    expect(screen.getByRole("link", { name: /4. Test links and codes/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/link-codes",
-    );
-    expect(screen.getByRole("link", { name: /5. Prove attribution and reporting/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/support",
-    );
-  });
-
-  it("links only to Referral SaaS product surfaces", () => {
-    renderWorkspace();
-
-    const expectedLinks = [
-      ["/admin/referral-saas/account-setup", /Account setup/],
-      ["/admin/referral-saas/account-maintenance", /Account maintenance/],
-      ["/admin/referral-saas/campaigns", /Campaign readiness/],
-      ["/admin/referral-saas/link-codes", /Links and codes/],
-      ["/admin/referral-saas/reports", /Reports/],
-      ["/admin/referral-saas/support", /Support hub/],
-      ["/admin/referral-saas/operator-links", /Link inspection/],
-      ["/admin/referral-saas/attribution-trace", /Attribution trace/],
-      ["/admin/referral-saas/progress-status", /Progress status/],
-    ] as const;
-
-    for (const [href, name] of expectedLinks) {
-      expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
-    }
-
-    expect(screen.queryByRole("link", { name: /Distribution/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Settlement/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Wallet/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Billing/i })).not.toBeInTheDocument();
-  });
-
-  it("states the product boundary guardrails", () => {
-    renderWorkspace();
-
-    expect(
-      screen.getByText("Focused on referral management and campaign attribution only"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("No distributor marketplace, wallet, settlement, funding, billing, or treasury controls"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("No repair, replay, retry, reward, payout, invoice, or money movement actions"),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Operations evidence is unavailable");
+    expect(screen.getByRole("alert")).toHaveTextContent("Evidence store unavailable");
   });
 });

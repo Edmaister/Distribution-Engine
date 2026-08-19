@@ -17,6 +17,7 @@ import {
   getReferralSaasLoginCompletionReadiness,
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasAccountMembershipPosture,
+  getReferralSaasOperationsOverview,
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccounts,
   listReferralSaasOperatorSupportQueue,
@@ -99,6 +100,14 @@ export function useReferralSaasAccountRegistry(limit = 50, refreshKey = 0) {
   return useQuery({
     queryKey: queryKeys.referralSaasAccountRegistry(limit, refreshKey),
     queryFn: () => listReferralSaasAccounts(limit),
+  });
+}
+
+export function useReferralSaasOperationsOverview(limit = 8, refreshKey = 0) {
+  return useQuery({
+    queryKey: queryKeys.referralSaasOperationsOverview(limit, refreshKey),
+    queryFn: () => getReferralSaasOperationsOverview({ limit }),
+    retry: false,
   });
 }
 
