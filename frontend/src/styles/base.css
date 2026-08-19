@@ -2435,6 +2435,16 @@ a {
 .operations-filter-grid label > span:first-child { color: var(--color-ink-soft); font-size: 12px; font-weight: 700; }
 .operations-filter-grid input, .operations-filter-grid select { min-width: 0; width: 100%; }
 .operations-filter-search { grid-column: span 2; }
+.customer-portfolio-filters { grid-template-columns: minmax(280px, 2fr) repeat(4, minmax(150px, 1fr)); }
+.customer-portfolio-list { display: grid; }
+.customer-portfolio-row { align-items: center; border-bottom: 1px solid var(--color-rule); display: grid; gap: 16px; grid-template-columns: 42px minmax(220px, 1.35fr) minmax(250px, 1fr) minmax(220px, 1fr) auto; padding: 16px; }
+.customer-portfolio-row:last-child { border-bottom: 0; }
+.customer-portfolio-identity, .customer-portfolio-attention { display: grid; gap: 4px; min-width: 0; }
+.customer-portfolio-identity span, .customer-portfolio-identity small, .customer-portfolio-attention span, .customer-portfolio-attention small { overflow-wrap: anywhere; }
+.customer-portfolio-context { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.customer-portfolio-context > span { display: grid; gap: 5px; }
+.customer-portfolio-context small, .customer-portfolio-attention > small { color: var(--color-ink-soft); }
+.customer-portfolio-open { white-space: nowrap; }
 .input-with-icon { align-items: center; display: flex; position: relative; }
 .input-with-icon svg { color: var(--color-ink-soft); left: 10px; pointer-events: none; position: absolute; }
 .input-with-icon input { padding-left: 34px; }
@@ -5817,6 +5827,10 @@ textarea.input {
 }
 
 @media (max-width: 520px) {
+  .customer-portfolio-filters, .customer-portfolio-row, .customer-portfolio-context { grid-template-columns: 1fr; }
+  .customer-portfolio-row { align-items: start; }
+  .customer-portfolio-row .operations-customer-monogram, .customer-portfolio-identity, .customer-portfolio-context, .customer-portfolio-attention, .customer-portfolio-open { grid-column: 1; grid-row: auto; }
+  .customer-portfolio-open { justify-content: center; justify-self: stretch; }
   .operations-customer-search { align-items: start; grid-template-columns: auto 1fr; }
   .operations-search-link { grid-column: 2; }
   .operations-kpi-strip { grid-template-columns: 1fr; }

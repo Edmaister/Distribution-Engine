@@ -44,6 +44,7 @@ const titles: Record<string, [string, string]> = {
     "Referral management and campaign attribution workspace",
   ],
   "/admin/referral-saas/operations/work-queue": ["Referral SaaS Work Queue", "Global operational work across permitted customers and jurisdictions"],
+  "/admin/referral-saas/operations/customer-portfolio": ["Referral SaaS Customer Portfolio", "Customers and operational attention across permitted jurisdictions"],
   "/admin/referral-saas/account-setup": ["Referral SaaS Account Setup", "External-reference setup readiness and membership guardrails"],
   "/admin/referral-saas/campaigns": ["Referral SaaS Campaigns", "Campaign setup readiness and launch guardrails"],
   "/admin/referral-saas/link-codes": ["Referral SaaS Links & Codes", "Issue, validation, and identity-capture guardrails"],

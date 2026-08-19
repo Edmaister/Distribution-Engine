@@ -91,3 +91,44 @@ async def test_operations_read_model_rejects_invalid_cursor():
 async def test_operations_read_model_rejects_unsupported_filters(filters, message):
     with pytest.raises(service.ReferralSaasOperationsReadError, match=message):
         await service.read_referral_saas_operations(jurisdictions=None, **filters)
+
+
+class _PortfolioConnection:
+    async def fetch(self, _query, jurisdictions, search, account_status, attention, limit, offset):
+        assert (jurisdictions, search, account_status, attention, limit, offset) == (
+            ["BW", "ZA"], "North", "ACTIVE", "NEEDS_ATTENTION", 2, 0
+        )
+        return [{
+            "account_id": "account-1", "account_code": "ACC-1", "account_name": "Northstar",
+            "account_type": "ENTERPRISE", "account_status": "ACTIVE", "onboarding_status": "COMPLETE",
+            "jurisdiction": "ZA", "customer_reference": "northstar", "organisation_reference": "northstar-org",
+            "updated_at": datetime(2026, 8, 19, tzinfo=timezone.utc), "open_case_count": 2,
+            "critical_case_count": 1, "priority_rank": 0, "attention_categories": ["REFERRAL_EVIDENCE"],
+        }]
+
+
+@pytest.mark.asyncio
+async def test_customer_portfolio_keeps_registry_identity_and_explains_attention(monkeypatch):
+    @asynccontextmanager
+    async def _db():
+        yield _PortfolioConnection()
+
+    monkeypatch.setattr(service, "db_connection", _db)
+    result = await service.read_referral_saas_customer_portfolio(
+        jurisdictions=["za", "BW"], search="North", account_status="active",
+        attention="needs_attention", limit=1,
+    )
+    payload = result.to_safe_dict()
+    assert payload["customers"][0]["accountName"] == "Northstar"
+    assert payload["customers"][0]["attention"]["highestPriority"] == "CRITICAL"
+    assert payload["customers"][0]["destination"].endswith("/account-1")
+    assert "ACCOUNT_REGISTRY_SOURCE" in payload["guardrails"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("filters", [
+    {"account_status": "CLOSED"}, {"attention": "CRITICAL_ONLY"}, {"sort": "CODE"},
+])
+async def test_customer_portfolio_rejects_unsupported_filters(filters):
+    with pytest.raises(service.ReferralSaasOperationsReadError):
+        await service.read_referral_saas_customer_portfolio(jurisdictions=None, **filters)

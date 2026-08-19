@@ -244,6 +244,7 @@ from services.referral_saas_journey_configuration_service import (
 )
 from services.referral_saas_operations_service import (
     ReferralSaasOperationsReadError,
+    read_referral_saas_customer_portfolio,
     read_referral_saas_operations,
 )
 from services.referral_saas_programme_analytics_service import (
@@ -10347,6 +10348,64 @@ async def read_referral_saas_operator_operations_overview(
             "jurisdictions": sorted(jurisdictions),
         },
         "operations": overview.to_safe_dict(),
+        "noCrossJurisdictionAccessConfirmed": True,
+        "noSyntheticFrontendMetricsConfirmed": True,
+    }
+
+
+@router.get("/operator/customer-portfolio")
+async def read_referral_saas_operator_customer_portfolio(
+    search: Annotated[str | None, Query()] = None,
+    jurisdiction: Annotated[str | None, Query()] = None,
+    account_status: Annotated[str | None, Query(alias="accountStatus")] = None,
+    attention: Annotated[str | None, Query()] = None,
+    sort: Annotated[str, Query()] = "ATTENTION",
+    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+    cursor: Annotated[str | None, Query()] = None,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    _require_referral_saas_account_reader(identity)
+    jurisdictions = _identity_claim_values(
+        identity,
+        "jurisdiction",
+        "jurisdiction_code",
+        "jurisdictionCode",
+        "operating_jurisdiction_code",
+        "operatingJurisdictionCode",
+        "jurisdictions",
+        "allowed_jurisdictions",
+        "allowedJurisdictions",
+    )
+    requested_jurisdiction = str(jurisdiction or "").strip().upper()
+    visible_jurisdictions = jurisdictions
+    if requested_jurisdiction:
+        visible_jurisdictions = (
+            {requested_jurisdiction}
+            if not jurisdictions or requested_jurisdiction in jurisdictions
+            else set()
+        )
+    try:
+        portfolio = await read_referral_saas_customer_portfolio(
+            jurisdictions=visible_jurisdictions or ([] if requested_jurisdiction else None),
+            search=search,
+            account_status=account_status,
+            attention=attention,
+            sort=sort,
+            limit=limit,
+            cursor=cursor,
+        )
+    except ReferralSaasOperationsReadError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": exc.safe_code, "message": str(exc)},
+        ) from exc
+    return {
+        "status": "ok",
+        "operatorScope": {
+            "role": str(identity.get("role") or ""),
+            "jurisdictions": sorted(jurisdictions),
+        },
+        "portfolio": portfolio.to_safe_dict(),
         "noCrossJurisdictionAccessConfirmed": True,
         "noSyntheticFrontendMetricsConfirmed": True,
     }

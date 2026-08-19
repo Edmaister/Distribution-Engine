@@ -44,6 +44,24 @@ class OperationsPage:
         }
 
 
+@dataclass(frozen=True)
+class CustomerPortfolioPage:
+    customers: list[dict[str, Any]]
+    next_cursor: str | None
+    filters: dict[str, Any]
+    summary: dict[str, int]
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "customers": self.customers,
+            "nextCursor": self.next_cursor,
+            "filters": self.filters,
+            "summary": self.summary,
+            "guardrails": OPERATIONS_GUARDRAILS + ["ACCOUNT_REGISTRY_SOURCE"],
+            "redactions": OPERATIONS_REDACTIONS,
+        }
+
+
 def _safe_limit(value: int) -> int:
     return max(1, min(int(value or 25), 100))
 
@@ -65,6 +83,156 @@ def _normalise_jurisdictions(values: Iterable[str] | None) -> list[str] | None:
         return None
     result = sorted({str(value).strip().upper() for value in values if str(value).strip()})
     return result or []
+
+
+async def read_referral_saas_customer_portfolio(
+    *,
+    jurisdictions: Iterable[str] | None,
+    search: str | None = None,
+    account_status: str | None = None,
+    attention: str | None = None,
+    sort: str = "ATTENTION",
+    limit: int = 25,
+    cursor: str | None = None,
+) -> CustomerPortfolioPage:
+    safe_jurisdictions = _normalise_jurisdictions(jurisdictions)
+    safe_search = str(search).strip() if search else None
+    safe_status = str(account_status).strip().upper() if account_status else None
+    if safe_status not in {None, "PENDING_ONBOARDING", "ACTIVE", "SUSPENDED"}:
+        raise ReferralSaasOperationsReadError("Account-status filter is invalid.")
+    safe_attention = str(attention).strip().upper() if attention else None
+    if safe_attention not in {None, "NEEDS_ATTENTION", "NO_OPEN_WORK"}:
+        raise ReferralSaasOperationsReadError("Attention filter is invalid.")
+    safe_sort = str(sort or "ATTENTION").strip().upper()
+    order_by = {
+        "ATTENTION": "open_case_count DESC, priority_rank ASC, account_name ASC, account_id ASC",
+        "NAME_ASC": "account_name ASC, account_id ASC",
+        "UPDATED_DESC": "updated_at DESC, account_id DESC",
+    }.get(safe_sort)
+    if order_by is None:
+        raise ReferralSaasOperationsReadError("Sort option is invalid.")
+    safe_limit = _safe_limit(limit)
+    offset = _safe_cursor(cursor)
+
+    async with db_connection() as conn:
+        rows = await conn.fetch(
+            f"""
+            WITH customer_portfolio AS (
+                SELECT
+                    account.account_id,
+                    account.account_code,
+                    account.account_name,
+                    account.account_type,
+                    account.status AS account_status,
+                    account.onboarding_status,
+                    COALESCE(account.operating_jurisdiction_code, 'ZA') AS jurisdiction,
+                    account.primary_external_tenant_ref AS customer_reference,
+                    MAX(external_ref.external_ref) FILTER (
+                        WHERE external_ref.ref_type = 'organisation_ref'
+                    ) AS organisation_reference,
+                    account.updated_at,
+                    COUNT(DISTINCT support_case.support_case_id) FILTER (
+                        WHERE support_case.status IN ('OPEN', 'INVESTIGATING', 'WAITING')
+                    ) AS open_case_count,
+                    COUNT(DISTINCT support_case.support_case_id) FILTER (
+                        WHERE support_case.status IN ('OPEN', 'INVESTIGATING', 'WAITING')
+                          AND support_case.priority = 'CRITICAL'
+                    ) AS critical_case_count,
+                    MIN(CASE support_case.priority
+                        WHEN 'CRITICAL' THEN 0 WHEN 'HIGH' THEN 1
+                        WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 3 ELSE 4 END
+                    ) FILTER (WHERE support_case.status IN ('OPEN', 'INVESTIGATING', 'WAITING')) AS priority_rank,
+                    ARRAY_AGG(DISTINCT support_case.category) FILTER (
+                        WHERE support_case.status IN ('OPEN', 'INVESTIGATING', 'WAITING')
+                    ) AS attention_categories
+                FROM platform_accounts account
+                LEFT JOIN platform_external_tenant_refs external_ref
+                    ON external_ref.account_id = account.account_id
+                   AND external_ref.status = 'ACTIVE'
+                LEFT JOIN referral_saas_support_cases support_case
+                    ON support_case.account_id = account.account_id
+                   AND support_case.archived_at IS NULL
+                WHERE account.status IN ('PENDING_ONBOARDING', 'ACTIVE', 'SUSPENDED')
+                  AND account.archived_at IS NULL
+                  AND ($1::text[] IS NULL OR account.operating_jurisdiction_code = ANY($1::text[]))
+                  AND ($2::text IS NULL OR account.account_name ILIKE '%' || $2 || '%'
+                       OR account.account_code ILIKE '%' || $2 || '%'
+                       OR account.account_id::text = $2
+                       OR account.primary_external_tenant_ref ILIKE '%' || $2 || '%'
+                       OR external_ref.external_ref ILIKE '%' || $2 || '%')
+                  AND ($3::text IS NULL OR account.status = $3)
+                GROUP BY account.account_id
+            )
+            SELECT * FROM customer_portfolio
+            WHERE ($4::text IS NULL
+                OR ($4 = 'NEEDS_ATTENTION' AND open_case_count > 0)
+                OR ($4 = 'NO_OPEN_WORK' AND open_case_count = 0))
+            ORDER BY {order_by}
+            LIMIT $5 OFFSET $6
+            """,
+            safe_jurisdictions,
+            safe_search,
+            safe_status,
+            safe_attention,
+            safe_limit + 1,
+            offset,
+        )
+
+    visible = rows[:safe_limit]
+    customers: list[dict[str, Any]] = []
+    for raw in visible:
+        row = dict(raw)
+        open_cases = int(row.get("open_case_count") or 0)
+        critical_cases = int(row.get("critical_case_count") or 0)
+        categories = sorted(str(value) for value in (row.get("attention_categories") or []) if value)
+        reasons: list[str] = []
+        if critical_cases:
+            reasons.append(f"{critical_cases} critical operational case{'s' if critical_cases != 1 else ''}")
+        if open_cases:
+            reasons.append(f"{open_cases} open operational case{'s' if open_cases != 1 else ''}")
+        if categories:
+            reasons.append("Areas: " + ", ".join(value.replace("_", " ").lower() for value in categories[:3]))
+        priority_rank = row.get("priority_rank")
+        highest_priority = {0: "CRITICAL", 1: "HIGH", 2: "MEDIUM", 3: "LOW"}.get(priority_rank)
+        account_ref = str(row["account_id"])
+        customers.append({
+            "accountRef": account_ref,
+            "accountCode": str(row["account_code"]),
+            "accountName": str(row["account_name"]),
+            "accountType": str(row["account_type"]),
+            "accountStatus": str(row["account_status"]),
+            "onboardingStatus": str(row["onboarding_status"]),
+            "jurisdiction": str(row["jurisdiction"]),
+            "customerReference": str(row["customer_reference"]) if row.get("customer_reference") else None,
+            "organisationReference": str(row["organisation_reference"]) if row.get("organisation_reference") else None,
+            "updatedAt": row["updated_at"].isoformat() if row.get("updated_at") else None,
+            "attention": {
+                "needsAttention": open_cases > 0,
+                "openCaseCount": open_cases,
+                "criticalCaseCount": critical_cases,
+                "highestPriority": highest_priority,
+                "reasons": reasons,
+            },
+            "destination": f"{OPERATIONS_DESTINATION_PREFIX}/{account_ref}",
+        })
+
+    return CustomerPortfolioPage(
+        customers=customers,
+        next_cursor=str(offset + safe_limit) if len(rows) > safe_limit else None,
+        filters={
+            "jurisdictions": safe_jurisdictions,
+            "search": safe_search,
+            "accountStatus": safe_status,
+            "attention": safe_attention,
+            "sort": safe_sort,
+            "limit": safe_limit,
+        },
+        summary={
+            "visibleCustomers": len(customers),
+            "needingAttention": sum(1 for customer in customers if customer["attention"]["needsAttention"]),
+            "criticalAttention": sum(1 for customer in customers if customer["attention"]["criticalCaseCount"] > 0),
+        },
+    )
 
 
 async def read_referral_saas_operations(

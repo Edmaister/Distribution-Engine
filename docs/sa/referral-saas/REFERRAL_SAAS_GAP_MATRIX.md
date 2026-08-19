@@ -616,8 +616,10 @@ operational read model without synthetic SLA values, TASK-426 delivered the
 authoritative global dashboard with customer discovery, KPIs, queue preview,
 customer attention, and degraded states, and TASK-427 delivered the full global
 work queue with permission-safe server filters, URL-backed state, stable pagination,
-and governed destinations. TASK-428 through TASK-430 close the remaining gap in
-order: customer portfolio; governed global destinations; and E2E UX verification. The read-model task is a hard dependency
+and governed destinations. TASK-428 delivered the jurisdiction-safe customer portfolio with
+authoritative registry identity, explainable persisted attention, URL-backed filters, and explicit
+customer selection. TASK-429 through TASK-430 close the remaining gap in order: governed global
+destinations and E2E UX verification. The read-model task is a hard dependency
 for KPI and queue UI so counts, service targets, priorities, incidents, and
 destinations cannot be invented or recomputed inconsistently in the frontend.
 

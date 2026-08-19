@@ -18,6 +18,7 @@ import {
   getReferralSaasMembershipActivationReadiness,
   getReferralSaasAccountMembershipPosture,
   getReferralSaasOperationsOverview,
+  getReferralSaasCustomerPortfolio,
   getReferralSaasTechnicalSetupReadiness,
   listReferralSaasAccounts,
   listReferralSaasOperatorSupportQueue,
@@ -132,6 +133,27 @@ export function useReferralSaasOperationsQueue(
   return useQuery({
     queryKey: queryKeys.referralSaasOperationsQueue(filters, refreshKey),
     queryFn: () => getReferralSaasOperationsOverview(filters),
+    retry: false,
+  });
+}
+
+export type ReferralSaasCustomerPortfolioFilters = {
+  search?: string;
+  jurisdiction?: string;
+  accountStatus?: string;
+  attention?: string;
+  sort?: string;
+  limit: number;
+  cursor?: string;
+};
+
+export function useReferralSaasCustomerPortfolio(
+  filters: ReferralSaasCustomerPortfolioFilters,
+  refreshKey = 0,
+) {
+  return useQuery({
+    queryKey: queryKeys.referralSaasCustomerPortfolio(filters, refreshKey),
+    queryFn: () => getReferralSaasCustomerPortfolio(filters),
     retry: false,
   });
 }
