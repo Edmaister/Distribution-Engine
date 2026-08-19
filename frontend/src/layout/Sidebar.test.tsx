@@ -43,10 +43,17 @@ describe("Sidebar", () => {
       "/admin/referral-saas/operations/customer-portfolio",
     );
     expect(screen.getByRole("link", { name: /Find or create customer/ })).toHaveAttribute(
-      "href", "/admin/referral-saas/account-maintenance",
+      "href", "/admin/referral-saas/operations/customer-portfolio",
     );
     expect(screen.queryByRole("link", { name: /^Campaigns/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Programme governance/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Programme governance/ })).toHaveAttribute(
+      "href", "/admin/referral-saas/operations/customer-portfolio?destination=programmes",
+    );
+    expect(screen.getByRole("link", { name: /Commercial governance/ })).toHaveAttribute(
+      "href", "/admin/referral-saas/operations/customer-portfolio?destination=commercial",
+    );
+    expect(screen.queryByRole("link", { name: /Global approvals/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Global exceptions/ })).not.toBeInTheDocument();
 
     expect(screen.queryByRole("link", { name: /Demo Home/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Demand Marketplace/ })).not.toBeInTheDocument();
