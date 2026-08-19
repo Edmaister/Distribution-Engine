@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Sidebar } from "./Sidebar";
 
@@ -13,6 +13,8 @@ vi.mock("../auth/useBackendSession", () => ({
   workspaceForPath: () => null,
 }));
 
+afterEach(cleanup);
+
 function renderSidebar(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -22,46 +24,48 @@ function renderSidebar(path: string) {
 }
 
 describe("Sidebar", () => {
-  it("ringfences Referral SaaS navigation inside the product workspace", () => {
+  it("presents the Amplifi Global shell outside selected-customer context", () => {
     renderSidebar("/admin/referral-saas");
 
     expect(screen.getAllByText("Referral SaaS").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Management & Attribution")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Workspace Home/ })).toHaveAttribute(
+    expect(screen.getByLabelText("Amplifi Global workspace")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Operations/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas",
     );
-    expect(screen.getByRole("link", { name: /Campaigns/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/campaigns",
-    );
-    expect(screen.getByText("Customers")).toBeInTheDocument();
-    expect(screen.getByText("Global")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Account Setup/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Customer accounts/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/account-setup",
     );
-    expect(screen.getByRole("link", { name: /Customer profile/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Customer portfolio/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/account-maintenance",
     );
-
-    const accountSetup = screen.getByRole("link", { name: /Account Setup/ });
-    const customerProfile = screen.getByRole("link", { name: /Customer profile/ });
-    expect(
-      accountSetup.compareDocumentPosition(customerProfile) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-
-    expect(screen.getByRole("link", { name: /Attribution Trace/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/attribution-trace",
+    expect(screen.getByRole("link", { name: /Find or create customer/ })).toHaveAttribute(
+      "href", "/admin/referral-saas/account-maintenance",
     );
+    expect(screen.queryByRole("link", { name: /^Campaigns/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Programme governance/ })).not.toBeInTheDocument();
 
     expect(screen.queryByRole("link", { name: /Demo Home/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Demand Marketplace/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Funding Spine/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Settlement Rail/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /My Wallet/ })).not.toBeInTheDocument();
+  });
+
+  it("shows customer-scoped navigation only after an account is selected", () => {
+    renderSidebar("/admin/referral-saas/account-maintenance/account-123/people");
+
+    expect(screen.getByLabelText("Selected customer workspace")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Campaigns/ })).toHaveAttribute(
+      "href", "/admin/referral-saas/campaigns",
+    );
+    expect(screen.getByRole("link", { name: /Amplifi Global/ })).toHaveAttribute(
+      "href", "/admin/referral-saas",
+    );
+    expect(screen.queryByRole("link", { name: /Customer accounts/ })).not.toBeInTheDocument();
   });
 
   it("keeps the broader platform navigation outside the Referral SaaS workspace", () => {

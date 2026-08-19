@@ -11,10 +11,19 @@ type Props = {
 export function TopBar({ title, subtitle, onRefresh }: Props) {
   const location = useLocation();
   const role = getRoleLabel(location.pathname);
+  const isReferralSaas = location.pathname.startsWith("/admin/referral-saas");
+  const isSelectedCustomer = /^\/admin\/referral-saas\/account-maintenance\/[^/]+/.test(
+    location.pathname,
+  );
 
   return (
     <header className="topbar">
       <div>
+        {isReferralSaas ? (
+          <div className="topbar-context">
+            {isSelectedCustomer ? "Selected customer" : "Amplifi Global"}
+          </div>
+        ) : null}
         <div className="topbar-title-row">
           <div className="topbar-title">{title}</div>
           <span className="role-pill">{role}</span>

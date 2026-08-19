@@ -1,5 +1,6 @@
 import {
   Activity,
+  BriefcaseBusiness,
   BadgeDollarSign,
   Building2,
   CheckCircle2,
@@ -11,6 +12,7 @@ import {
   Landmark,
   Link2,
   ListChecks,
+  Search,
   RadioTower,
   ChartNoAxesColumn,
   ShieldCheck,
@@ -24,7 +26,7 @@ import {
 import { NavLink, useLocation } from "react-router-dom";
 import { useBackendSession, workspaceForPath } from "../auth/useBackendSession";
 
-const referralSaasSections = [
+const referralSaasCustomerSections = [
   {
     label: "Customers",
     links: [
@@ -47,7 +49,25 @@ const referralSaasSections = [
   {
     label: "Global",
     links: [
-      { to: "/admin/referral-saas", label: "Workspace Home", icon: Gauge, sub: "Home" },
+      { to: "/admin/referral-saas", label: "Amplifi Global", icon: Gauge, sub: "Exit" },
+    ],
+  },
+];
+
+const referralSaasGlobalSections = [
+  {
+    label: "Amplifi Internal",
+    links: [
+      { to: "/admin/referral-saas", label: "Operations", icon: Gauge, sub: "Home" },
+      { to: "/admin/referral-saas/account-setup", label: "Customer accounts", icon: Building2, sub: "New" },
+      {
+        to: "/admin/referral-saas/account-maintenance",
+        label: "Customer portfolio",
+        icon: BriefcaseBusiness,
+        sub: "Open",
+      },
+      { to: "/admin/referral-saas/reports", label: "Global reporting", icon: ChartNoAxesColumn, sub: "Reports" },
+      { to: "/admin/referral-saas/support", label: "Support operations", icon: ShieldCheck, sub: "Queue" },
     ],
   },
 ];
@@ -109,7 +129,14 @@ export function Sidebar() {
   const location = useLocation();
   const inReferralSaasWorkspace = location.pathname === "/admin/referral-saas" ||
     location.pathname.startsWith("/admin/referral-saas/");
-  const sections = inReferralSaasWorkspace ? referralSaasSections : platformSections;
+  const inSelectedCustomerContext = /^\/admin\/referral-saas\/account-maintenance\/[^/]+/.test(
+    location.pathname,
+  );
+  const sections = inReferralSaasWorkspace
+    ? inSelectedCustomerContext
+      ? referralSaasCustomerSections
+      : referralSaasGlobalSections
+    : platformSections;
 
   return (
     <aside className="sidebar">
@@ -126,6 +153,23 @@ export function Sidebar() {
           </div>
         </div>
       </div>
+      {inReferralSaasWorkspace ? (
+        <div className="workspace-identity" aria-label={inSelectedCustomerContext ? "Selected customer workspace" : "Amplifi Global workspace"}>
+          <span className="workspace-identity-glyph" aria-hidden="true">
+            {inSelectedCustomerContext ? <Building2 size={17} /> : <span>AI</span>}
+          </span>
+          <span>
+            <strong>{inSelectedCustomerContext ? "Customer workspace" : "Amplifi Internal"}</strong>
+            <small>{inSelectedCustomerContext ? "Customer-scoped operations" : "Customer operations"}</small>
+          </span>
+        </div>
+      ) : null}
+      {inReferralSaasWorkspace && !inSelectedCustomerContext ? (
+        <NavLink className="global-customer-entry" to="/admin/referral-saas/account-maintenance">
+          <Search size={15} />
+          <span>Find or create customer</span>
+        </NavLink>
+      ) : null}
       {sections.map((section) => (
         <nav className="nav-section" key={section.label}>
           <p className="nav-heading">{section.label}</p>

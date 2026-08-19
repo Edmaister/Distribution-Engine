@@ -84,7 +84,7 @@ a {
 
 .brand-glyph {
   align-items: center;
-  background: linear-gradient(145deg, var(--color-signal), #8b5cff);
+  background: var(--color-signal);
   border: 1px solid rgb(255 255 255 / 0.18);
   border-radius: 14px;
   box-shadow: 0 12px 30px rgb(84 104 255 / 0.28);
@@ -93,6 +93,57 @@ a {
   height: 38px;
   justify-content: center;
   width: 38px;
+}
+
+.workspace-identity {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 0 6px;
+}
+
+.workspace-identity-glyph {
+  align-items: center;
+  background: var(--color-signal);
+  border-radius: var(--radius-control);
+  display: inline-flex;
+  flex: 0 0 36px;
+  font-size: 14px;
+  font-weight: 700;
+  height: 36px;
+  justify-content: center;
+}
+
+.workspace-identity strong,
+.workspace-identity small {
+  display: block;
+}
+
+.workspace-identity strong {
+  font-size: 13px;
+}
+
+.workspace-identity small {
+  color: rgb(255 255 255 / 0.62);
+  font-size: 11px;
+  margin-top: 3px;
+}
+
+.global-customer-entry {
+  align-items: center;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: var(--radius-control);
+  display: flex;
+  font-size: 12px;
+  gap: 8px;
+  margin-top: 20px;
+  min-height: 40px;
+  padding: 9px 10px;
+}
+
+.global-customer-entry:hover {
+  border-color: rgb(255 255 255 / 0.42);
 }
 
 .brand-title {
@@ -223,6 +274,14 @@ a {
   font-family: var(--font-mono);
   font-size: 12px;
   margin-top: 4px;
+}
+
+.topbar-context {
+  color: var(--color-signal);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  margin-bottom: 5px;
+  text-transform: uppercase;
 }
 
 .topbar-actions {
