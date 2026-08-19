@@ -2894,7 +2894,7 @@ journey changes or unsafe adjacent side effects.)
   secondary for traceability, reuses the governed catalogue APIs, and provides
   a clear continuation into Programme configuration.
 - **TASK-424 through TASK-430 - Amplifi Global Operations Workspace:** TASK-424
-  through TASK-429 complete; TASK-430 ordered. The shell now separates global
+  through TASK-429 complete; TASK-430 automated verification in progress. The shell now separates global
   operations from selected-customer work and exposes only supported global
   destinations. The authoritative read model now exposes jurisdiction-filtered
   persisted support work and metrics while marking SLA performance unavailable
@@ -2907,7 +2907,9 @@ journey changes or unsafe adjacent side effects.)
   customer identity, URL-backed search and filters, and explicit selected-customer transitions. Programme
   and Commercial Governance now use that permission-safe selector before opening their existing
   customer-scoped modules; Reporting and Support retain bounded global destinations, while unsupported
-  aggregate Approvals and Exceptions remain deliberately hidden. Next comes final E2E UX verification. Placeholder metrics,
+  aggregate Approvals and Exceptions remain deliberately hidden. Cross-page routing, accessibility contracts,
+  permission filtering, degraded states, and leakage negatives now have consolidated automated evidence;
+  physical desktop/mobile, keyboard, screen-reader, and no-overflow evidence remains. Placeholder metrics,
   cross-customer leakage, dead-end navigation, and duplicated domain state are
   prohibited.
 
