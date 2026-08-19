@@ -620,8 +620,9 @@ and governed destinations. TASK-428 delivered the jurisdiction-safe customer por
 authoritative registry identity, explainable persisted attention, URL-backed filters, and explicit
 customer selection. TASK-429 closes the global destination gap by routing Programme and Commercial
 Governance through permission-safe customer selection, retaining real Reporting and Support destinations,
-and deliberately hiding unsupported aggregate Approvals and Exceptions. TASK-430 remains as the E2E UX
-verification release gate. The read-model task is a hard dependency
+and deliberately hiding unsupported aggregate Approvals and Exceptions. TASK-430 automated cross-page,
+accessibility, permission, degraded-state, and leakage verification is in progress; physical desktop/mobile,
+keyboard, screen-reader, and no-overflow evidence remains the release gate. The read-model task is a hard dependency
 for KPI and queue UI so counts, service targets, priorities, incidents, and
 destinations cannot be invented or recomputed inconsistently in the frontend.
 

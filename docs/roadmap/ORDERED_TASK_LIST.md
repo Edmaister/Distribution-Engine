@@ -9458,7 +9458,7 @@ Completed output: Aligned the Amplifi Global navigation to authoritative destina
 
 ## TASK-430: Verify the Operations Workspace end to end
 
-Status: Planned. Dependencies: TASK-424 through TASK-429.
+Status: In Progress (2026-08-19). Dependencies: TASK-424 through TASK-429. Automated output: cross-page Operations -> Customer portfolio -> governed customer-workflow coverage plus consolidated permission, accessibility, degraded-state, and leakage evidence in `docs/sa/referral-saas/REFERRAL_SAAS_OPERATIONS_WORKSPACE_E2E_VERIFICATION.md`. Physical desktop/mobile screenshots, keyboard and screen-reader spot checks, and no-overflow evidence remain before completion.
 Product boundary: Referral SaaS with Shared Platform verification.
 Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
 Shared primitive impact: Validate global shell, permissions, tenant/account context, read models, route destinations, accessibility, and observability as one workflow. Source duplication: No.
