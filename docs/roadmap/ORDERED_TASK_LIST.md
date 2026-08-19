@@ -9388,7 +9388,7 @@ Definition of done: Complete - an operator can always tell whether they are in A
 
 ## TASK-425: Add the authoritative Amplifi Global operations read model
 
-Status: Planned. Dependencies: TASK-424.
+Status: Complete (2026-08-19). Dependencies: TASK-424.
 Product boundary: Referral SaaS with Shared Platform tenant, permission, audit, and observability primitives.
 Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
 Shared primitive impact: Compose existing account, programme, campaign, integration, support, audit, and operational evidence behind one permission-filtered read model. Source duplication: No.
@@ -9396,7 +9396,9 @@ Objective: Provide authoritative metrics and work items for awaiting action, cus
 Backend/API impact: Add a read-only aggregation service and bounded router contract; preserve tenant/account isolation, jurisdiction permissions, redaction, stable pagination, audit context, and deterministic metric definitions. No synthetic frontend calculations.
 Frontend impact: Typed API client only; no dashboard composition before this contract is verified.
 Tests and docs expectation: Cross-account leakage, role/jurisdiction filtering, metric semantics, empty/error/degraded states, pagination, destination allow-list, and database-backed contract coverage.
-Definition of done: Every Operations Workspace number and queue row has an authoritative, explainable, permission-safe backend source. Priority: P0.
+Definition of done: Complete - every exposed Operations Workspace number and queue row has an authoritative, explainable, permission-safe backend source. Persisted support evidence supplies current work and attention counts; SLA percentage remains explicitly unavailable until a governed service-target source exists. Priority: P0.
+
+Completed output: Added the read-only `/v1/referral-saas/operator/operations-overview` contract over persisted account and support-case evidence, with identity-jurisdiction filtering, deterministic priority ordering, stable cursor pagination, allow-listed customer destinations, metric definitions, and redactions. Added a typed frontend client and focused service, API, and route-inventory coverage. No synthetic SLA value is returned.
 
 ## TASK-426: Build the Amplifi Global Operations Workspace dashboard
 
