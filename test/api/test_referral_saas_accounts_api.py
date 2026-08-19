@@ -8,8 +8,8 @@ from httpx import AsyncClient
 from apps.api.main import app
 from apps.api.routers import referral_saas_accounts
 from services.referral_saas_account_foundation_service import (
-    AccountFoundationContext,
     AccountFoundationActivationResult,
+    AccountFoundationContext,
     AccountFoundationListItem,
     AccountNotResolvable,
     AccountProfileMaintenanceResult,
@@ -45,23 +45,23 @@ from services.referral_saas_account_setup_service import (
     DurableAccountSetupResult,
 )
 from services.referral_saas_campaign_service import (
+    ReferralSaasCampaignActivationResult,
     ReferralSaasCampaignAttributionProjection,
     ReferralSaasCampaignAttributionSummary,
-    ReferralSaasCampaignActivationResult,
     ReferralSaasCampaignOverrideResult,
     ReferralSaasCampaignPolicySettingsResult,
     ReferralSaasCampaignReviewResult,
     ReferralSaasCampaignSetupResult,
     ReferralSaasCampaignSummary,
 )
+from services.referral_saas_integrations_configuration_service import (
+    IntegrationConfigurationIdempotencyConflict,
+    IntegrationCredentialRequestNotFound,
+)
 from services.referral_saas_referral_attribution_service import (
     ReferralSaasReferralAttributionSummary,
     ReferralSaasReferralCreditProjection,
     ReferralSaasReferrerCreditProjection,
-)
-from services.referral_saas_integrations_configuration_service import (
-    IntegrationConfigurationIdempotencyConflict,
-    IntegrationCredentialRequestNotFound,
 )
 from services.referral_saas_support_case_service import (
     SupportCaseIdempotencyConflict,
@@ -10336,6 +10336,39 @@ async def test_referral_saas_account_resolver_rejects_cross_jurisdiction_identit
     assert "SERVER_SIDE_ACCOUNT_JURISDICTION_ENFORCEMENT" in detail["guardrails"]
     assert detail["no_cross_jurisdiction_access_confirmed"] is True
     assert "tenantCode" not in str(detail)
+
+
+async def test_operator_operations_overview_uses_identity_jurisdictions(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    captured = {}
+
+    class _Overview:
+        def to_safe_dict(self):
+            return {
+                "metrics": {"awaitingYourAction": 0},
+                "workItems": [],
+                "nextCursor": None,
+            }
+
+    async def _read(**kwargs):
+        captured.update(kwargs)
+        return _Overview()
+
+    monkeypatch.setattr(
+        referral_saas_accounts,
+        "_require_referral_saas_account_reader",
+        lambda identity: identity.update({"allowed_jurisdictions": ["ZA"]}) or identity,
+    )
+    monkeypatch.setattr(referral_saas_accounts, "read_referral_saas_operations", _read)
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.get(
+            "/v1/referral-saas/operator/operations-overview?limit=10"
+        )
+    assert response.status_code == 200
+    assert response.json()["noSyntheticFrontendMetricsConfirmed"] is True
+    assert captured["limit"] == 10
+    assert captured["jurisdictions"] == {"ZA"}
 
 
 async def test_referral_saas_membership_posture_rejects_missing_account_capability(

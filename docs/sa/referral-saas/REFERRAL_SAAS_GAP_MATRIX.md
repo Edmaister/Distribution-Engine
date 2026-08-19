@@ -610,10 +610,10 @@ was introduced. Remaining prototype work is ordered frontend implementation,
 not backend reinvention.
 
 The Amplifi Global Operations Workspace shown in the approved design is not yet
-implemented as a complete authoritative production surface. TASK-424 has closed
-the global-versus-customer shell and navigation gap. TASK-425 through TASK-430
-close the remaining gap in order: permission-safe operational read
-model; dashboard; work queue; customer portfolio; governed global
+implemented as a complete authoritative production surface. TASK-424 closed
+the global-versus-customer shell and TASK-425 added the permission-safe
+operational read model without synthetic SLA values. TASK-426 through TASK-430
+close the remaining gap in order: dashboard; work queue; customer portfolio; governed global
 destinations; and E2E UX verification. The read-model task is a hard dependency
 for KPI and queue UI so counts, service targets, priorities, incidents, and
 destinations cannot be invented or recomputed inconsistently in the frontend.

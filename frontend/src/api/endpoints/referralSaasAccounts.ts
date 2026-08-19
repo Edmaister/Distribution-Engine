@@ -5468,3 +5468,53 @@ function normaliseIntegrationConfigurationPayload(
     idempotencyKey: payload.idempotencyKey?.trim() || undefined,
   };
 }
+
+export interface ReferralSaasOperationsOverviewResponse {
+  status: "ok";
+  operatorScope: { role: string; jurisdictions: string[] };
+  operations: {
+    metrics: {
+      awaitingYourAction: number;
+      customersNeedingAttention: number;
+      withinServiceTargetPercent: number | null;
+      serviceTargetStatus: "UNAVAILABLE" | "AVAILABLE";
+      productionIncidents: number;
+    };
+    workItems: Array<{
+      workItemRef: string;
+      workItemType: "SUPPORT_CASE";
+      title: string;
+      customer: { accountRef: string; accountCode: string; label: string };
+      jurisdiction: string;
+      priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+      status: string;
+      category: string;
+      ownerRef: string | null;
+      updatedAt: string | null;
+      serviceTarget: { status: "UNAVAILABLE" | "AVAILABLE"; dueAt: string | null };
+      destination: string;
+    }>;
+    nextCursor: string | null;
+    filters: { jurisdictions: string[] | null; priority: string | null; limit: number };
+    metricDefinitions: Record<string, string>;
+    guardrails: string[];
+    redactions: string[];
+  };
+  noCrossJurisdictionAccessConfirmed: boolean;
+  noSyntheticFrontendMetricsConfirmed: boolean;
+}
+
+export function getReferralSaasOperationsOverview({
+  priority,
+  limit = 25,
+  cursor,
+}: {
+  priority?: string;
+  limit?: number;
+  cursor?: string;
+} = {}): Promise<ReferralSaasOperationsOverviewResponse> {
+  return apiRequest<ReferralSaasOperationsOverviewResponse>(
+    "v1/referral-saas/operator/operations-overview",
+    { query: { priority, limit, cursor } },
+  );
+}
