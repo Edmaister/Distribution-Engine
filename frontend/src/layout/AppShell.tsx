@@ -68,7 +68,10 @@ const titles: Record<string, [string, string]> = {
 
 export function AppShell({ refreshKey, onRefresh }: { refreshKey: number; onRefresh: () => void }) {
   const location = useLocation();
-  const [title, subtitle] = titles[location.pathname] || titles["/admin"];
+  const titlePath = Object.keys(titles)
+    .filter((path) => location.pathname === path || location.pathname.startsWith(`${path}/`))
+    .sort((left, right) => right.length - left.length)[0];
+  const [title, subtitle] = titles[titlePath] || titles["/admin"];
   const immersiveProducerWorkspace = location.pathname === "/sponsor";
   const shellClass =
     location.pathname === "/admin/referral-saas" || location.pathname.startsWith("/admin/referral-saas/")

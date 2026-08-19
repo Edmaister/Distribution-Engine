@@ -49,7 +49,7 @@ permissions, audit controls, and tenant boundaries remain authoritative.
 
 | Task | Outcome | Architectural gate |
 | --- | --- | --- |
-| TASK-424 | Prototype-aligned global navigation and operator shell. | Global and selected-customer contexts remain explicit and permission-aware. |
+| TASK-424 | Complete - prototype-aligned global navigation and operator shell. | Global and selected-customer contexts are explicit; only real supported global destinations are exposed. |
 | TASK-425 | Authoritative operations summary and work-item read model. | No synthetic frontend metrics or cross-account leakage. |
 | TASK-426 | Operations dashboard with customer search, KPIs, queue preview, and portfolio attention. | UI consumes TASK-425 evidence only. |
 | TASK-427 | Full operational work queue with filters and governed destinations. | One work-item model with server-side scope and stable pagination. |

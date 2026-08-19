@@ -9376,7 +9376,7 @@ Definition of done: Complete - an operator can view and maintain a customer's pr
 
 ## TASK-424: Align the Amplifi Global navigation shell
 
-Status: Ready.
+Status: Complete (2026-08-19). Output: Amplifi Global and selected-customer navigation contexts, operator identity, customer discovery entry point, nested-route title resolution, responsive shell styling, and focused shell tests.
 Product boundary: Referral SaaS with Shared Platform navigation and session-context reuse.
 Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
 Shared primitive impact: Extend the existing application shell, route metadata, session identity, permission-aware navigation, and responsive layout. Source duplication: No.
@@ -9384,7 +9384,7 @@ Objective: Make Amplifi Global operations visibly distinct from selected-custome
 Frontend impact: Prototype-aligned global navigation, operator identity, customer switch/find entry point, global section grouping, selected state, responsive behavior, and accessible keyboard navigation.
 Backend/API impact: None expected; use current session and permission contracts. Do not expose links that the active role cannot use.
 Tests and docs expectation: Shell route, role visibility, active navigation, context-switch, responsive, overflow, and accessibility coverage; update roadmap, gap matrix, UX matrix, and infographic.
-Definition of done: An operator can always tell whether they are in Amplifi Global or a selected customer, reach customer discovery, and navigate only to permitted global functions. Priority: P0.
+Definition of done: Complete - an operator can always tell whether they are in Amplifi Global or a selected customer, reach customer discovery, and navigate only to real supported global functions. Unsupported prototype destinations remain hidden until their governed workflows exist. Priority: P0.
 
 ## TASK-425: Add the authoritative Amplifi Global operations read model
 
