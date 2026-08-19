@@ -9444,7 +9444,7 @@ Completed output: Added a standalone Amplifi Internal Customer portfolio backed 
 
 ## TASK-429: Align global governance and operational destinations
 
-Status: Planned. Dependencies: TASK-424; TASK-425; TASK-427.
+Status: Complete (2026-08-19). Dependencies: TASK-424; TASK-425; TASK-427.
 Product boundary: Referral SaaS with Shared Platform governance primitives.
 Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`.
 Shared primitive impact: Reuse review, approval, exception, audit, reporting, support, permission, and route-guard contracts. Source duplication: No.
@@ -9452,7 +9452,9 @@ Objective: Connect Programme Governance, Global Approvals, Global Exceptions, Gl
 Frontend impact: Remove dead-end navigation; provide clear landing states and contextual governance evidence without duplicating selected-customer modules.
 Backend/API impact: Reuse existing domain APIs and TASK-425 destinations; any missing contract requires a separately bounded follow-up rather than mock data.
 Tests and docs expectation: Route inventory, permission visibility, deep-link recovery, empty/error/loading states, audit context, and no money-action leakage.
-Definition of done: Every visible global navigation item has a real, bounded, permission-safe destination or is deliberately hidden. Priority: P1.
+Definition of done: Complete - every visible global navigation item has a real, bounded, permission-safe destination or is deliberately hidden. Priority: P1.
+
+Completed output: Aligned the Amplifi Global navigation to authoritative destinations without adding cross-customer mock state. Programme Governance and Commercial Governance now enter through the existing jurisdiction-safe Customer Portfolio and continue only after an operator selects a permitted customer; Global Reporting and Support Operations retain their existing bounded destinations. The unsupported Global Approvals and Global Exceptions destinations remain deliberately hidden until authoritative aggregate contracts exist. Customer discovery now consistently opens the portfolio, destination intent remains URL-restorable through filtering and pagination, and focused component coverage proves both selected-customer governance transitions and the absence of unsupported global links.
 
 ## TASK-430: Verify the Operations Workspace end to end
 

@@ -67,8 +67,20 @@ const referralSaasGlobalSections = [
         icon: BriefcaseBusiness,
         sub: "Open",
       },
+      {
+        to: "/admin/referral-saas/operations/customer-portfolio?destination=programmes",
+        label: "Programme governance",
+        icon: GitBranch,
+        sub: "Select",
+      },
       { to: "/admin/referral-saas/reports", label: "Global reporting", icon: ChartNoAxesColumn, sub: "Reports" },
       { to: "/admin/referral-saas/support", label: "Support operations", icon: ShieldCheck, sub: "Queue" },
+      {
+        to: "/admin/referral-saas/operations/customer-portfolio?destination=commercial",
+        label: "Commercial governance",
+        icon: BadgeDollarSign,
+        sub: "Select",
+      },
     ],
   },
 ];
@@ -166,7 +178,7 @@ export function Sidebar() {
         </div>
       ) : null}
       {inReferralSaasWorkspace && !inSelectedCustomerContext ? (
-        <NavLink className="global-customer-entry" to="/admin/referral-saas/account-maintenance">
+        <NavLink className="global-customer-entry" to="/admin/referral-saas/operations/customer-portfolio">
           <Search size={15} />
           <span>Find or create customer</span>
         </NavLink>

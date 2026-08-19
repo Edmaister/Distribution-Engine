@@ -54,7 +54,7 @@ permissions, audit controls, and tenant boundaries remain authoritative.
 | TASK-426 | Complete - operations dashboard with customer search, authoritative KPIs, queue preview, portfolio attention, and degraded states. | UI consumes TASK-425 evidence only; no synthetic metrics or page-specific domain state. |
 | TASK-427 | Complete - full operational work queue with URL-backed filters, stable pagination, filtered empty states, and governed destinations. | One TASK-425 work-item model with server-side scope, permitted-jurisdiction intersection, allow-listed sorting, and no synthetic queue state. |
 | TASK-428 | Complete - customer portfolio and explainable persisted attention view. | Explicit customer selection, labelled customer identity, URL-backed filters, and jurisdiction-safe visibility. |
-| TASK-429 | Real destinations for approvals, exceptions, reporting, support, programme, and commercial governance. | No dead links, duplicated customer modules, or invented domain APIs. |
+| TASK-429 | Complete - real global Reporting and Support destinations plus customer-selected Programme and Commercial Governance; unsupported aggregate Approvals and Exceptions remain hidden. | No dead links, duplicated customer modules, invented domain APIs, or unscoped customer transitions. |
 | TASK-430 | E2E, responsive, accessibility, permission, and leakage verification. | Release gate with evidence across roles, markets, and degraded states. |
 
 ## Look And Feel Contract

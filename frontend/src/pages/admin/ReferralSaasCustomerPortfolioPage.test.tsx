@@ -35,4 +35,16 @@ describe("ReferralSaasCustomerPortfolioPage", () => {
     fireEvent.change(screen.getByLabelText("Customer"), { target: { value: "Northstar" } });
     await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("search=Northstar"));
   });
+  it("opens programme governance only after a permitted customer is selected", () => {
+    mockPortfolio.mockReturnValue({ data: response, isLoading: false, error: null } as unknown as ReturnType<typeof useReferralSaasCustomerPortfolio>);
+    renderPage("/admin/referral-saas/operations/customer-portfolio?destination=programmes");
+    expect(screen.getByRole("heading", { name: "Select a customer for programme governance" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open programmes/ })).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/account-1/programmes");
+  });
+  it("opens commercial governance only after a permitted customer is selected", () => {
+    mockPortfolio.mockReturnValue({ data: response, isLoading: false, error: null } as unknown as ReturnType<typeof useReferralSaasCustomerPortfolio>);
+    renderPage("/admin/referral-saas/operations/customer-portfolio?destination=commercial");
+    expect(screen.getByRole("heading", { name: "Select a customer for commercial governance" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open commercial governance/ })).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/account-1/commercial");
+  });
 });
