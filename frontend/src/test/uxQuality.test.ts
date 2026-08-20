@@ -41,10 +41,15 @@ describe("frontend UX quality gates", () => {
   });
 
   it("protects tablet layouts from horizontal overflow and crowded controls", () => {
-    const tablet = mediaBlock(css, "@media (max-width: 920px)");
+    const tablet = mediaBlock(css, "@media (max-width: 1100px)");
 
     expect(tablet).toContain(".app-shell");
     expect(tablet).toContain(".topbar");
+    expect(tablet).toContain(".topbar-actions");
+    expect(tablet).toContain(".topbar-actions .api-session-row");
+    expect(tablet).toContain("grid-template-columns: minmax(0, 1fr)");
+    expect(tablet).toContain("max-width: 100vw");
+    expect(tablet).toContain("overflow-x: auto");
     expect(tablet).toContain(".page-header");
     expect(tablet).toContain(".form-row");
     expect(tablet).toContain("grid-template-columns: 1fr");
@@ -53,7 +58,7 @@ describe("frontend UX quality gates", () => {
   });
 
   it("keeps dense data readable on small screens", () => {
-    const tablet = mediaBlock(css, "@media (max-width: 920px)");
+    const tablet = mediaBlock(css, "@media (max-width: 1100px)");
     const mobile = mediaBlock(css, "@media (max-width: 520px)");
 
     expect(tablet).toContain("table-layout: fixed");
