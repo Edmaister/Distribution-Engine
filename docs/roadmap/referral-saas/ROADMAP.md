@@ -2913,6 +2913,15 @@ journey changes or unsafe adjacent side effects.)
   cross-customer leakage, dead-end navigation, and duplicated domain state are
   prohibited.
 
+- **TASK-431 - Governed operational service-target contract:** Complete. The
+  Operations Workspace service-target gap is now bounded by an explicit Referral
+  SaaS contract covering effective-dated policy resolution, server-owned clocks,
+  pause/resume evidence, business calendars, immutable policy versions, audit,
+  permissions, safe aggregation, and degraded/unavailable behavior. Current runtime
+  behavior remains honestly unavailable until separately reviewed persistence,
+  clock, read-model, UI, and end-to-end tasks are implemented. DLaaS provider and
+  fulfilment SLA metrics are explicitly excluded.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:
