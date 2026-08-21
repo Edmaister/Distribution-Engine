@@ -359,7 +359,7 @@ assert(
 );
 assert(
   "tablet layouts collapse dense workspaces",
-  css.includes("@media (max-width: 920px)") &&
+  css.includes("@media (max-width: 1100px)") &&
     css.includes(".app-shell") &&
     css.includes(".topbar") &&
     css.includes(".page-header") &&

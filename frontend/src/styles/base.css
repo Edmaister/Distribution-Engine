@@ -288,6 +288,7 @@ a {
   align-items: center;
   display: flex;
   gap: 10px;
+  min-width: 0;
 }
 
 .role-pill {
@@ -5547,7 +5548,7 @@ textarea.input {
   margin-top: 10px;
 }
 
-@media (max-width: 920px) {
+@media (max-width: 1100px) {
   .operations-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .operations-main-grid { grid-template-columns: 1fr; }
   .operations-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -5569,7 +5570,9 @@ textarea.input {
   }
 
   .app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 100vw;
+    overflow-x: hidden;
   }
 
   .side-drawer-backdrop {
@@ -5606,7 +5609,93 @@ textarea.input {
   }
 
   .sidebar {
+    align-items: center;
+    flex-direction: row;
+    gap: 12px;
     min-height: auto;
+    min-width: 0;
+    overflow-x: auto;
+    padding: 12px 16px;
+    width: 100%;
+  }
+
+  .brand-mark {
+    border-bottom: 0;
+    border-right: 1px solid rgb(255 255 255 / 0.14);
+    flex: 0 0 auto;
+    padding: 0 16px 0 0;
+  }
+
+  .brand-glyph {
+    border-radius: var(--radius-control);
+    height: 34px;
+    width: 34px;
+  }
+
+  .brand-title {
+    font-size: 16px;
+  }
+
+  .brand-subtitle,
+  .workspace-identity small,
+  .nav-heading,
+  .nav-sub {
+    display: none;
+  }
+
+  .workspace-identity,
+  .global-customer-entry,
+  .nav-section {
+    flex: 0 0 auto;
+    margin-top: 0;
+  }
+
+  .workspace-identity {
+    padding: 0;
+  }
+
+  .workspace-identity-glyph {
+    flex-basis: 34px;
+    height: 34px;
+  }
+
+  .global-customer-entry,
+  .nav-section {
+    display: flex;
+    gap: 6px;
+  }
+
+  .global-customer-entry {
+    min-height: 36px;
+    white-space: nowrap;
+  }
+
+  .nav-link {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 8px 10px;
+    white-space: nowrap;
+  }
+
+  .topbar > div,
+  .topbar-actions,
+  .topbar-actions .api-session-row {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .topbar-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .topbar-actions .api-session-row {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-actions .icon-button {
+    align-self: end;
+    flex: 0 0 auto;
   }
 
   .grid-3,
@@ -5823,6 +5912,31 @@ textarea.input {
 
   .session-role-link {
     margin-left: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    align-items: stretch;
+    padding: 14px 16px;
+  }
+
+  .content {
+    padding: 20px 16px 28px;
+  }
+
+  .topbar-title-row,
+  .banner {
+    align-items: flex-start;
+  }
+
+  .banner {
+    flex-wrap: wrap;
+  }
+
+  .banner .muted {
+    flex: 1 1 180px;
+    min-width: 0;
   }
 }
 
