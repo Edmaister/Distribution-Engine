@@ -2,11 +2,11 @@
 
 ## Verification status
 
-TASK-430 is **in progress**. The automated contract, permission, routing, state,
+TASK-430 is **Complete (2026-08-21)**. The automated contract, permission, routing, state,
 and accessibility evidence passes. Physical desktop, tablet, and mobile
 inspection is recorded below and the responsive defects it exposed have been
-corrected. Keyboard traversal and screen-reader spot checks remain the final
-manual release evidence.
+corrected. Manual keyboard traversal and screen-reader spot checks were
+confirmed on 2026-08-21.
 
 Product boundary: Referral SaaS with Shared Platform verification. Shared
 primitives remain single-source; this task adds no product fork, schema, API, or
@@ -68,11 +68,12 @@ record screenshots at desktop and mobile widths.
    page overflow, clipped text, overlapping controls, or layout shifts.
    Completed for the Operations entry surface; evidence is recorded above.
 6. Traverse each page using keyboard only. Confirm visible focus, logical order,
-   named actions, and no keyboard trap.
+   named actions, and no keyboard trap. Confirmed on 2026-08-21.
 7. Spot-check headings, landmarks, status text, and form labels with a screen
-   reader.
+   reader. Confirmed on 2026-08-21.
 8. Simulate an unavailable overview dependency and an empty filtered queue;
    confirm both states explain the problem and preserve a recovery path.
 
-TASK-430 can move to Complete only after this physical evidence is attached or
-recorded in this document.
+Manual keyboard traversal and screen-reader spot checks were confirmed on
+2026-08-21. With the responsive screenshots and no-overflow checks recorded
+above, TASK-430 moved to Complete on 2026-08-21.
