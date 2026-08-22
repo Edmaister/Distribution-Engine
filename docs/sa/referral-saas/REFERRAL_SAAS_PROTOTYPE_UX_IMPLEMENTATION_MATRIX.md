@@ -57,6 +57,7 @@ permissions, audit controls, and tenant boundaries remain authoritative.
 | TASK-429 | Complete - real global Reporting and Support destinations plus customer-selected Programme and Commercial Governance; unsupported aggregate Approvals and Exceptions remain hidden. | No dead links, duplicated customer modules, invented domain APIs, or unscoped customer transitions. |
 | TASK-430 | Complete - automated E2E routing, accessibility, permission, degraded-state, and leakage evidence passes; physical desktop, tablet, mobile, no-overflow, keyboard, and screen-reader evidence is recorded. | Closed release gate with evidence across roles, markets, degraded states, responsive viewports, keyboard traversal, and screen-reader spot checks. |
 | TASK-431 | Complete - governed Referral SaaS operational service-target contract. | No synthetic SLA: effective policy, server clock, pause, calendar, audit, permission, aggregation, and unavailable-state semantics are defined before runtime or UI enablement; DLaaS provider SLAs remain separate. |
+| TASK-432 | Complete - effective policy, resolved support-case clock, pause-event, and audit schema foundation. | No seeded targets or premature UI enablement; persisted version, account, time, idempotency, audit, and redaction evidence precedes runtime calculation. |
 
 ## Look And Feel Contract
 

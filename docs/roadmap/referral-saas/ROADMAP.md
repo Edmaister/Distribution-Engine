@@ -2922,6 +2922,14 @@ journey changes or unsafe adjacent side effects.)
   clock, read-model, UI, and end-to-end tasks are implemented. DLaaS provider and
   fulfilment SLA metrics are explicitly excluded.
 
+- **TASK-432 - Governed operational service-target schema:** Complete. Migration
+  `101_referral_saas_operational_service_targets.sql` adds effective-dated policy
+  versions, one resolved support-case clock, pause/resume evidence, and a bounded
+  audit ledger with account, actor, correlation, idempotency, payload-hash, and
+  redaction controls. It seeds no service targets, does not reuse DLaaS provider
+  SLA evidence, and deliberately leaves the Operations read model in its honest
+  `UNAVAILABLE` state until policy resolution and clock lifecycle are implemented.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:
