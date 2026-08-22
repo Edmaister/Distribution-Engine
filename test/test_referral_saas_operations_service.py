@@ -70,6 +70,7 @@ async def test_operations_read_model_is_permission_filtered_and_explainable(monk
     assert payload["workItems"][0]["destination"].endswith("/account-1/support?case=case-1")
     assert payload["filters"]["jurisdictions"] == ["BW", "ZA"]
     assert "NO_SYNTHETIC_SERVICE_TARGET" in payload["guardrails"]
+    assert "SERVER_OWNED_SERVICE_TARGET_EVIDENCE" in payload["guardrails"]
 
 
 @pytest.mark.asyncio
@@ -91,6 +92,58 @@ async def test_operations_read_model_rejects_invalid_cursor():
 async def test_operations_read_model_rejects_unsupported_filters(filters, message):
     with pytest.raises(service.ReferralSaasOperationsReadError, match=message):
         await service.read_referral_saas_operations(jurisdictions=None, **filters)
+
+
+class _ServiceTargetConnection:
+    async def fetchrow(self, _query, *_args):
+        return {
+            "awaiting_action": 1,
+            "customers_needing_attention": 1,
+            "production_incidents": 0,
+            "service_target_eligible": 4,
+            "service_target_within": 3,
+            "service_target_excluded": 2,
+            "service_target_window_cases": 6,
+            "service_target_covered_cases": 5,
+            "service_target_window_start": datetime(2026, 7, 23, tzinfo=timezone.utc),
+            "service_target_window_end": datetime(2026, 8, 22, tzinfo=timezone.utc),
+        }
+
+    async def fetch(self, _query, *_args):
+        return [{
+            "support_case_id": "case-1", "account_id": "account-1",
+            "account_code": "ACC-1", "account_name": "Customer One", "jurisdiction": "ZA",
+            "title": "Review attribution evidence", "category": "ATTRIBUTION_REVIEW",
+            "priority": "HIGH", "status": "OPEN", "assignee_ref": "operator-1",
+            "updated_at": datetime(2026, 8, 22, tzinfo=timezone.utc),
+            "service_target_clock_status": "RUNNING",
+            "service_target_state": "APPROACHING_TARGET",
+            "service_target_warning_at": datetime(2026, 8, 22, 9, tzinfo=timezone.utc),
+            "service_target_due_at": datetime(2026, 8, 22, 10, tzinfo=timezone.utc),
+        }]
+
+
+@pytest.mark.asyncio
+async def test_operations_read_model_aggregates_authoritative_clock_evidence(monkeypatch):
+    @asynccontextmanager
+    async def _db():
+        yield _ServiceTargetConnection()
+
+    monkeypatch.setattr(service, "db_connection", _db)
+    payload = (await service.read_referral_saas_operations(
+        jurisdictions=["ZA"], service_target="APPROACHING_TARGET", sort="DUE_ASC"
+    )).to_safe_dict()
+
+    assert payload["metrics"]["withinServiceTargetPercent"] == 75
+    assert payload["metrics"]["serviceTargetStatus"] == "AVAILABLE"
+    assert payload["metrics"]["serviceTargetEvidence"]["eligibleCount"] == 4
+    assert payload["metrics"]["serviceTargetEvidence"]["excludedCount"] == 2
+    assert payload["metrics"]["serviceTargetEvidence"]["policyCoverage"]["percent"] == 83
+    assert payload["workItems"][0]["serviceTarget"] == {
+        "status": "APPROACHING_TARGET",
+        "dueAt": "2026-08-22T10:00:00+00:00",
+        "warningAt": "2026-08-22T09:00:00+00:00",
+    }
 
 
 class _PortfolioConnection:

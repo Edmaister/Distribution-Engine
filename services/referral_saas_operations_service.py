@@ -11,6 +11,7 @@ OPERATIONS_GUARDRAILS = [
     "JURISDICTION_FILTERED",
     "DESTINATION_ALLOW_LISTED",
     "NO_SYNTHETIC_SERVICE_TARGET",
+    "SERVER_OWNED_SERVICE_TARGET_EVIDENCE",
     "NO_PRODUCT_STATE_MUTATION",
 ]
 OPERATIONS_REDACTIONS = ["tenant_code", "internal_tenant_identifier", "raw_secret"]
@@ -36,7 +37,7 @@ class OperationsPage:
             "metricDefinitions": {
                 "awaitingYourAction": "Open, investigating, or waiting persisted support cases.",
                 "customersNeedingAttention": "Distinct visible customers with an open operational case.",
-                "withinServiceTargetPercent": "Unavailable until a persisted service-target contract exists.",
+                "withinServiceTargetPercent": "Completed support-case clocks within target during the rolling 30-day reporting window.",
                 "productionIncidents": "Visible open CRITICAL support cases.",
             },
             "guardrails": OPERATIONS_GUARDRAILS,
@@ -263,13 +264,17 @@ async def read_referral_saas_operations(
     if safe_work_type not in {None, "SUPPORT_CASE"}:
         raise ReferralSaasOperationsReadError("Work type filter is invalid.")
     safe_service_target = str(service_target).strip().upper() if service_target else None
-    if safe_service_target not in {None, "AVAILABLE", "UNAVAILABLE"}:
+    if safe_service_target not in {
+        None, "AVAILABLE", "UNAVAILABLE", "ON_TRACK", "APPROACHING_TARGET",
+        "OVERDUE", "PAUSED",
+    }:
         raise ReferralSaasOperationsReadError("Service-target filter is invalid.")
     safe_sort = str(sort or "PRIORITY").strip().upper()
     order_by = {
         "PRIORITY": "CASE support_case.priority WHEN 'CRITICAL' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END, support_case.updated_at, support_case.support_case_id",
         "UPDATED_ASC": "support_case.updated_at ASC, support_case.support_case_id ASC",
         "UPDATED_DESC": "support_case.updated_at DESC, support_case.support_case_id DESC",
+        "DUE_ASC": "clock.due_at ASC NULLS LAST, support_case.updated_at ASC, support_case.support_case_id ASC",
     }.get(safe_sort)
     if order_by is None:
         raise ReferralSaasOperationsReadError("Sort option is invalid.")
@@ -287,9 +292,35 @@ async def read_referral_saas_operations(
                 COUNT(*) FILTER (
                     WHERE support_case.status IN ('OPEN', 'INVESTIGATING', 'WAITING')
                       AND support_case.priority = 'CRITICAL'
-                ) AS production_incidents
+                ) AS production_incidents,
+                COUNT(*) FILTER (
+                    WHERE clock.completed_at >= NOW() - INTERVAL '30 days'
+                      AND clock.completion_outcome IN ('WITHIN_TARGET', 'LATE')
+                ) AS service_target_eligible,
+                COUNT(*) FILTER (
+                    WHERE clock.completed_at >= NOW() - INTERVAL '30 days'
+                      AND clock.completion_outcome = 'WITHIN_TARGET'
+                ) AS service_target_within,
+                COUNT(*) FILTER (
+                    WHERE support_case.updated_at >= NOW() - INTERVAL '30 days'
+                      AND NOT (
+                        clock.completed_at >= NOW() - INTERVAL '30 days'
+                        AND clock.completion_outcome IN ('WITHIN_TARGET', 'LATE')
+                      )
+                ) AS service_target_excluded,
+                COUNT(*) FILTER (
+                    WHERE support_case.updated_at >= NOW() - INTERVAL '30 days'
+                ) AS service_target_window_cases,
+                COUNT(*) FILTER (
+                    WHERE support_case.updated_at >= NOW() - INTERVAL '30 days'
+                      AND clock.service_target_clock_id IS NOT NULL
+                ) AS service_target_covered_cases,
+                NOW() - INTERVAL '30 days' AS service_target_window_start,
+                NOW() AS service_target_window_end
             FROM referral_saas_support_cases support_case
             JOIN platform_accounts account ON account.account_id = support_case.account_id
+            LEFT JOIN referral_saas_operational_service_target_clocks clock
+              ON clock.support_case_id = support_case.support_case_id
             WHERE support_case.archived_at IS NULL
               AND ($1::text[] IS NULL OR account.operating_jurisdiction_code = ANY($1::text[]))
               AND ($2::text IS NULL OR support_case.priority = $2)
@@ -300,7 +331,14 @@ async def read_referral_saas_operations(
               AND ($5::text IS NULL OR support_case.status = $5)
               AND ($6::text IS NULL OR ($6 = 'UNASSIGNED' AND support_case.assignee_ref IS NULL)
                    OR support_case.assignee_ref = $6)
-              AND ($7::text IS NULL OR $7 = 'UNAVAILABLE')
+              AND ($7::text IS NULL
+                OR ($7 = 'AVAILABLE' AND clock.service_target_clock_id IS NOT NULL)
+                OR ($7 = 'UNAVAILABLE' AND clock.service_target_clock_id IS NULL)
+                OR ($7 = 'PAUSED' AND clock.clock_status = 'PAUSED')
+                OR ($7 = 'OVERDUE' AND clock.clock_status = 'RUNNING' AND clock.due_at <= NOW())
+                OR ($7 = 'APPROACHING_TARGET' AND clock.clock_status = 'RUNNING'
+                    AND clock.warning_at <= NOW() AND clock.due_at > NOW())
+                OR ($7 = 'ON_TRACK' AND clock.clock_status = 'RUNNING' AND clock.warning_at > NOW()))
             """,
             safe_jurisdictions,
             safe_priority,
@@ -323,9 +361,22 @@ async def read_referral_saas_operations(
                 support_case.priority,
                 support_case.status,
                 support_case.assignee_ref,
-                support_case.updated_at
+                support_case.updated_at,
+                clock.clock_status AS service_target_clock_status,
+                clock.warning_at AS service_target_warning_at,
+                clock.due_at AS service_target_due_at,
+                CASE
+                    WHEN clock.service_target_clock_id IS NULL THEN 'UNAVAILABLE'
+                    WHEN clock.clock_status = 'PAUSED' THEN 'PAUSED'
+                    WHEN clock.clock_status = 'RUNNING' AND clock.due_at <= NOW() THEN 'OVERDUE'
+                    WHEN clock.clock_status = 'RUNNING' AND clock.warning_at <= NOW() THEN 'APPROACHING_TARGET'
+                    WHEN clock.clock_status = 'RUNNING' THEN 'ON_TRACK'
+                    ELSE 'UNAVAILABLE'
+                END AS service_target_state
             FROM referral_saas_support_cases support_case
             JOIN platform_accounts account ON account.account_id = support_case.account_id
+            LEFT JOIN referral_saas_operational_service_target_clocks clock
+              ON clock.support_case_id = support_case.support_case_id
             WHERE support_case.archived_at IS NULL
               AND support_case.status IN ('OPEN', 'INVESTIGATING', 'WAITING')
               AND ($1::text[] IS NULL OR account.operating_jurisdiction_code = ANY($1::text[]))
@@ -337,7 +388,14 @@ async def read_referral_saas_operations(
               AND ($5::text IS NULL OR support_case.status = $5)
               AND ($6::text IS NULL OR ($6 = 'UNASSIGNED' AND support_case.assignee_ref IS NULL)
                    OR support_case.assignee_ref = $6)
-              AND ($7::text IS NULL OR $7 = 'UNAVAILABLE')
+              AND ($7::text IS NULL
+                OR ($7 = 'AVAILABLE' AND clock.service_target_clock_id IS NOT NULL)
+                OR ($7 = 'UNAVAILABLE' AND clock.service_target_clock_id IS NULL)
+                OR ($7 = 'PAUSED' AND clock.clock_status = 'PAUSED')
+                OR ($7 = 'OVERDUE' AND clock.clock_status = 'RUNNING' AND clock.due_at <= NOW())
+                OR ($7 = 'APPROACHING_TARGET' AND clock.clock_status = 'RUNNING'
+                    AND clock.warning_at <= NOW() AND clock.due_at > NOW())
+                OR ($7 = 'ON_TRACK' AND clock.clock_status = 'RUNNING' AND clock.warning_at > NOW()))
             ORDER BY {order_by}
             LIMIT $8 OFFSET $9
             """,
@@ -358,6 +416,9 @@ async def read_referral_saas_operations(
         row = dict(raw)
         account_id = str(row["account_id"])
         case_ref = str(row["support_case_id"])
+        warning_at = row.get("service_target_warning_at")
+        due_at = row.get("service_target_due_at")
+        service_target_status = str(row.get("service_target_state") or "UNAVAILABLE")
         work_items.append(
             {
                 "workItemRef": case_ref,
@@ -374,18 +435,42 @@ async def read_referral_saas_operations(
                 "category": str(row["category"]),
                 "ownerRef": str(row["assignee_ref"]) if row.get("assignee_ref") else None,
                 "updatedAt": row["updated_at"].isoformat() if row.get("updated_at") else None,
-                "serviceTarget": {"status": "UNAVAILABLE", "dueAt": None},
+                "serviceTarget": {
+                    "status": service_target_status,
+                    "dueAt": due_at.isoformat() if due_at else None,
+                    "warningAt": warning_at.isoformat() if warning_at else None,
+                },
                 "destination": f"{OPERATIONS_DESTINATION_PREFIX}/{account_id}/support?case={case_ref}",
             }
         )
 
     metrics = dict(metrics_row or {})
+    eligible = int(metrics.get("service_target_eligible") or 0)
+    within = int(metrics.get("service_target_within") or 0)
+    window_cases = int(metrics.get("service_target_window_cases") or 0)
+    covered_cases = int(metrics.get("service_target_covered_cases") or 0)
+    within_percent = round((within / eligible) * 100) if eligible else None
     return OperationsPage(
         metrics={
             "awaitingYourAction": int(metrics.get("awaiting_action") or 0),
             "customersNeedingAttention": int(metrics.get("customers_needing_attention") or 0),
-            "withinServiceTargetPercent": None,
-            "serviceTargetStatus": "UNAVAILABLE",
+            "withinServiceTargetPercent": within_percent,
+            "serviceTargetStatus": "AVAILABLE" if eligible else "UNAVAILABLE",
+            "serviceTargetEvidence": {
+                "reportingWindow": {
+                    "startAt": metrics["service_target_window_start"].isoformat() if metrics.get("service_target_window_start") else None,
+                    "endAt": metrics["service_target_window_end"].isoformat() if metrics.get("service_target_window_end") else None,
+                    "basis": "ROLLING_30_DAYS_COMPLETED_AT",
+                },
+                "eligibleCount": eligible,
+                "withinTargetCount": within,
+                "excludedCount": int(metrics.get("service_target_excluded") or 0),
+                "policyCoverage": {
+                    "coveredCount": covered_cases,
+                    "visibleWindowCount": window_cases,
+                    "percent": round((covered_cases / window_cases) * 100) if window_cases else None,
+                },
+            },
             "productionIncidents": int(metrics.get("production_incidents") or 0),
         },
         work_items=work_items,

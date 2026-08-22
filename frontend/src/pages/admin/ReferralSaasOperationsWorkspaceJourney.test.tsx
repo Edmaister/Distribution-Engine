@@ -37,6 +37,11 @@ const operationsResponse = {
       customersNeedingAttention: 1,
       withinServiceTargetPercent: null,
       serviceTargetStatus: "UNAVAILABLE" as const,
+      serviceTargetEvidence: {
+        reportingWindow: { startAt: null, endAt: null, basis: "ROLLING_30_DAYS_COMPLETED_AT" as const },
+        eligibleCount: 0, withinTargetCount: 0, excludedCount: 1,
+        policyCoverage: { coveredCount: 0, visibleWindowCount: 1, percent: 0 },
+      },
       productionIncidents: 0,
     },
     workItems: [],

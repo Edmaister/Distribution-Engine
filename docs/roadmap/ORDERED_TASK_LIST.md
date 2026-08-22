@@ -9518,6 +9518,20 @@ Definition of done: Complete - eligible support cases use persisted server-owned
 
 Completed output: Added the operational service-target clock service and bounded support-case integration. Ordinary elapsed-time policies can start clocks, calculate warning and due timestamps, complete within-target/late outcomes, preserve prior outcomes on reopen, and apply approved pause/resume evidence. Policies requiring a business-calendar engine remain unavailable rather than using unsafe elapsed-time approximations.
 
+## TASK-435: Add authoritative service-target Operations read model and UI
+
+Status: Complete (2026-08-22). Dependencies: TASK-431; TASK-432; TASK-433; TASK-434.
+Product boundary: Referral SaaS with Shared Platform read-model, time, permission, observability, and audit primitives.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATIONAL_SERVICE_TARGET_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Extends the existing Operations read model with server-owned service-target evidence; no second work-item model or browser timer is introduced. Source duplication: No.
+Objective: Aggregate persisted service-target clocks into jurisdiction-safe performance metrics and due-time queue evidence without synthetic frontend calculations.
+Backend/API impact: The existing Operations overview and work-queue read model now returns rolling 30-day completed-clock performance, its denominator, exclusions, policy coverage, reporting-window evidence, semantic open-clock states, persisted warning/due timestamps, service-target filters, and due-time sorting. Jurisdiction filtering remains inside the database query and missing evidence remains `UNAVAILABLE`.
+Frontend impact: The global dashboard now distinguishes measured performance from unavailable evidence and explains the completed-case denominator. Dashboard and queue rows show server-owned service-target state and due time, and the queue exposes semantic service-target filters and due-soonest sorting.
+Tests and docs expectation: Aggregation, denominator, exclusion, coverage, semantic clock projection, dashboard measured/unavailable states, queue filters, typing, build, roadmap, gap matrix, and infographic evidence are covered. Database-backed lifecycle and cross-jurisdiction release proof remains TASK-436.
+Definition of done: Complete - every exposed service-target number and due-state row is derived from persisted governed clock evidence, remains permission-safe and explainable, and fails closed when evidence is unavailable. Priority: P0.
+
+Completed output: Added authoritative rolling 30-day service-target aggregation and semantic due-state projection to the single Operations read model, then enabled plain-language dashboard and queue presentation without browser-owned timers or percentages.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

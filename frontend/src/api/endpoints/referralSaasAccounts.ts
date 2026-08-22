@@ -5478,6 +5478,13 @@ export interface ReferralSaasOperationsOverviewResponse {
       customersNeedingAttention: number;
       withinServiceTargetPercent: number | null;
       serviceTargetStatus: "UNAVAILABLE" | "AVAILABLE";
+      serviceTargetEvidence: {
+        reportingWindow: { startAt: string | null; endAt: string | null; basis: "ROLLING_30_DAYS_COMPLETED_AT" };
+        eligibleCount: number;
+        withinTargetCount: number;
+        excludedCount: number;
+        policyCoverage: { coveredCount: number; visibleWindowCount: number; percent: number | null };
+      };
       productionIncidents: number;
     };
     workItems: Array<{
@@ -5491,7 +5498,11 @@ export interface ReferralSaasOperationsOverviewResponse {
       category: string;
       ownerRef: string | null;
       updatedAt: string | null;
-      serviceTarget: { status: "UNAVAILABLE" | "AVAILABLE"; dueAt: string | null };
+      serviceTarget: {
+        status: "UNAVAILABLE" | "ON_TRACK" | "APPROACHING_TARGET" | "OVERDUE" | "PAUSED";
+        dueAt: string | null;
+        warningAt: string | null;
+      };
       destination: string;
     }>;
     nextCursor: string | null;

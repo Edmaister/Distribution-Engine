@@ -2951,6 +2951,16 @@ journey changes or unsafe adjacent side effects.)
   into the permission-safe Operations read model before due times or within-target
   performance are enabled in the UI.
 
+- **TASK-435 - Authoritative service-target Operations read model and UI:**
+  Complete. The existing jurisdiction-safe Operations read model now aggregates
+  persisted completed-clock evidence over a rolling 30-day window, returns the
+  eligible denominator, exclusions, policy coverage, and reporting window, and
+  projects open clocks as on-track, approaching-target, overdue, paused, or
+  unavailable. The dashboard and work queue render those server-owned values,
+  due times, filters, and due-soonest sorting without calculating timers or
+  percentages in the browser. TASK-436 remains the database-backed lifecycle,
+  cross-jurisdiction, and release-evidence proof.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:

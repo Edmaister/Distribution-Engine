@@ -83,8 +83,8 @@ export function ReferralSaasOperationsQueuePage() {
           <label><span>Category</span><input aria-label="Category" onChange={(event) => setFilter("category", event.target.value)} placeholder="For example: attribution review" value={filters.category || ""} /></label>
           <label><span>Owner</span><input aria-label="Owner" onChange={(event) => setFilter("owner", event.target.value)} placeholder="Owner reference or UNASSIGNED" value={filters.owner || ""} /></label>
           <FilterSelect label="Work type" name="workType" value={filters.workType} onChange={setFilter} options={[["SUPPORT_CASE", "Support case"]]} />
-          <FilterSelect label="Service target" name="serviceTarget" value={filters.serviceTarget} onChange={setFilter} options={[["UNAVAILABLE", "Not configured"], ["AVAILABLE", "Configured"]]} />
-          <FilterSelect label="Order" name="sort" value={filters.sort} onChange={setFilter} includeAll={false} options={[["PRIORITY", "Priority"], ["UPDATED_DESC", "Newest updated"], ["UPDATED_ASC", "Oldest updated"]]} />
+          <FilterSelect label="Service target" name="serviceTarget" value={filters.serviceTarget} onChange={setFilter} options={[["OVERDUE", "Overdue"], ["APPROACHING_TARGET", "Approaching target"], ["ON_TRACK", "On track"], ["PAUSED", "Paused"], ["UNAVAILABLE", "Not configured"], ["AVAILABLE", "Configured"]]} />
+          <FilterSelect label="Order" name="sort" value={filters.sort} onChange={setFilter} includeAll={false} options={[["PRIORITY", "Priority"], ["DUE_ASC", "Due soonest"], ["UPDATED_DESC", "Newest updated"], ["UPDATED_ASC", "Oldest updated"]]} />
           <FilterSelect label="Rows" name="limit" value={String(limit)} onChange={setFilter} includeAll={false} options={[["10", "10"], ["25", "25"], ["50", "50"]]} />
         </div>
       </section>
@@ -116,7 +116,7 @@ function QueueItem({ item }: { item: WorkItem }) {
     <span className="operations-work-copy"><strong>{item.title}</strong><small>{formatCode(item.category)} · {formatCode(item.status)}</small></span>
     <span className="operations-work-customer"><strong>{item.customer.label}</strong><small>{item.customer.accountCode} · {item.jurisdiction}</small></span>
     <span className="operations-owner"><small>Owner</small><strong>{item.ownerRef || "Unassigned"}</strong></span>
-    <StatusBadge label={item.priority} tone={priorityTone[item.priority]} />
+    <span className="operations-work-target"><StatusBadge label={formatCode(item.serviceTarget.status)} tone={serviceTargetTone(item.serviceTarget.status)} /><small>{formatDueAt(item.serviceTarget.dueAt)}</small></span>
     <span className="operations-open-action">Open <ArrowRight size={14} /></span>
   </Link>;
 }
@@ -129,3 +129,13 @@ function OperationsError({ error }: { error: unknown }) {
 function value(params: URLSearchParams, key: string) { return params.get(key)?.trim() || undefined; }
 function safeNumber(value: string | null | undefined, fallback: number) { const parsed = Number(value); return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback; }
 function formatCode(value: string) { return value.replace(/_/g, " ").toLowerCase(); }
+function serviceTargetTone(status: WorkItem["serviceTarget"]["status"]) {
+  if (status === "OVERDUE") return "danger" as const;
+  if (status === "APPROACHING_TARGET" || status === "PAUSED") return "warning" as const;
+  if (status === "ON_TRACK") return "success" as const;
+  return "info" as const;
+}
+function formatDueAt(value: string | null) {
+  if (!value) return "No governed target";
+  return `Due ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))}`;
+}

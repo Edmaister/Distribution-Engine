@@ -17,12 +17,12 @@ const response = {
   status: "ok" as const,
   operatorScope: { role: "AMPLIFI_ADMIN", jurisdictions: ["ZA"] },
   operations: {
-    metrics: { awaitingYourAction: 2, customersNeedingAttention: 1, withinServiceTargetPercent: null, serviceTargetStatus: "UNAVAILABLE" as const, productionIncidents: 0 },
+    metrics: { awaitingYourAction: 2, customersNeedingAttention: 1, withinServiceTargetPercent: null, serviceTargetStatus: "UNAVAILABLE" as const, serviceTargetEvidence: { reportingWindow: { startAt: null, endAt: null, basis: "ROLLING_30_DAYS_COMPLETED_AT" as const }, eligibleCount: 0, withinTargetCount: 0, excludedCount: 2, policyCoverage: { coveredCount: 0, visibleWindowCount: 2, percent: 0 } }, productionIncidents: 0 },
     workItems: [{
       workItemRef: "case-1", workItemType: "SUPPORT_CASE" as const, title: "Referral evidence exception",
       customer: { accountRef: "account-1", accountCode: "ACC-100", label: "Northstar Financial" }, jurisdiction: "ZA",
       priority: "HIGH" as const, status: "OPEN", category: "REFERRAL_EVIDENCE", ownerRef: null, updatedAt: "2026-08-19T08:00:00Z",
-      serviceTarget: { status: "UNAVAILABLE" as const, dueAt: null }, destination: "/admin/referral-saas/account-maintenance/account-1/support?case=case-1",
+      serviceTarget: { status: "UNAVAILABLE" as const, dueAt: null, warningAt: null }, destination: "/admin/referral-saas/account-maintenance/account-1/support?case=case-1",
     }],
     nextCursor: null, filters: { jurisdictions: ["ZA"], priority: null, customer: null, category: null, status: null, owner: null, workType: null, serviceTarget: null, sort: "PRIORITY", limit: 8 }, metricDefinitions: {}, guardrails: [], redactions: [],
   },
@@ -38,8 +38,33 @@ describe("ReferralSaasWorkspacePage", () => {
     expect(screen.getByRole("heading", { name: "Operations workspace" })).toBeInTheDocument();
     expect(screen.getByText("Awaiting your action")).toBeInTheDocument();
     expect(screen.getByText("Not configured")).toBeInTheDocument();
-    expect(screen.getByText("No governed SLA source yet")).toBeInTheDocument();
+    expect(screen.getByText("No completed governed clocks in the last 30 days")).toBeInTheDocument();
     expect(screen.queryByText("96%")).not.toBeInTheDocument();
+  });
+
+  it("renders the backend-owned service-target result and denominator", () => {
+    const measuredResponse = {
+      ...response,
+      operations: {
+        ...response.operations,
+        metrics: {
+          ...response.operations.metrics,
+          withinServiceTargetPercent: 75,
+          serviceTargetStatus: "AVAILABLE" as const,
+          serviceTargetEvidence: {
+            reportingWindow: { startAt: "2026-07-20T00:00:00Z", endAt: "2026-08-19T00:00:00Z", basis: "ROLLING_30_DAYS_COMPLETED_AT" as const },
+            eligibleCount: 4,
+            withinTargetCount: 3,
+            excludedCount: 1,
+            policyCoverage: { coveredCount: 5, visibleWindowCount: 6, percent: 83 },
+          },
+        },
+      },
+    };
+    mockOverview.mockReturnValue({ data: measuredResponse, isLoading: false, error: null } as unknown as ReturnType<typeof useReferralSaasOperationsOverview>);
+    renderWorkspace();
+    expect(screen.getByText("75%")).toBeInTheDocument();
+    expect(screen.getByText("3 of 4 completed cases")).toBeInTheDocument();
   });
 
   it("opens persisted queue destinations and visible customers", () => {

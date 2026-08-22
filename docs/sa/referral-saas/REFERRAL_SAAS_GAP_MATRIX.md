@@ -661,9 +661,13 @@ server-owned warning/due times, policy-aware completion, within-target/late outc
 reopen evidence, and approved pause/resume commands with idempotency, audit, and
 redaction. Missing/ambiguous policy matches and policies that require an unsupported
 business-calendar engine remain explicitly unavailable rather than being guessed.
-Operations aggregation, jurisdiction-safe performance metrics, due-time queue
-evidence, UI enablement, and end-to-end database proof remain TASK-435/TASK-436
-gaps; the global percentage must remain null until TASK-435 is complete.
+TASK-435 closes the Operations aggregation and UI-enablement portion of the gap.
+The existing read model now returns jurisdiction-safe rolling 30-day completed-
+clock performance with its denominator, exclusions, policy coverage, reporting
+window, semantic due state, warning/due timestamps, filters, and due sorting.
+The frontend renders only those server-owned values and retains `UNAVAILABLE`
+when governed evidence is absent. Database-backed lifecycle, cross-jurisdiction,
+and release-environment proof remains the TASK-436 gap.
 
 ## Explicit Deferrals
 
