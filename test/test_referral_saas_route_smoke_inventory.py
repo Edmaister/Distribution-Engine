@@ -515,6 +515,10 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("POST", "/v1/referral-saas/accounts/{account_ref}/support-cases"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}/notes"),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}/status"),
+        (
+            "POST",
+            "/v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}/service-target-clock/pause-state",
+        ),
         ("POST", "/v1/referral-saas/accounts/{account_ref}/support-cases/{case_ref}/assignment"),
         (
             "PUT",

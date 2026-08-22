@@ -2941,6 +2941,16 @@ journey changes or unsafe adjacent side effects.)
   resolution are enforced. No clock is started and no service-target metric is
   enabled until TASK-434 and TASK-435 provide authoritative runtime evidence.
 
+- **TASK-434 - Server-owned service-target clock lifecycle:** Complete. Eligible
+  support cases now resolve and pin one approved effective policy, persist
+  server-owned warning and due timestamps, complete against the policy's configured
+  support-case event, preserve prior outcome evidence before reopening, and accept
+  only policy-approved pause/resume reasons through an account-scoped idempotent
+  command. Missing or ambiguous policies and policies requiring an unavailable
+  business-calendar engine fail closed. TASK-435 must still aggregate this evidence
+  into the permission-safe Operations read model before due times or within-target
+  performance are enabled in the UI.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:
