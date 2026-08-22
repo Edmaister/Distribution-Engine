@@ -47,6 +47,15 @@ def test_add_working_minutes_skips_non_working_time_and_weekend() -> None:
     )
 
 
+def test_add_working_seconds_supports_pause_resume_without_wall_clock_drift() -> None:
+    calculator = BusinessCalendarCalculator(_calendar())
+    started = datetime(2026, 8, 21, 14, 59, 30, tzinfo=UTC)
+
+    assert calculator.add_working_seconds(started, 90) == datetime(
+        2026, 8, 24, 7, 1, tzinfo=UTC
+    )
+
+
 def test_working_seconds_between_uses_half_open_intervals() -> None:
     calculator = BusinessCalendarCalculator(_calendar())
 
@@ -171,5 +180,9 @@ def test_naive_timestamps_and_negative_minutes_are_rejected() -> None:
         calculator.is_working_instant(datetime(2026, 8, 17, 9))
     with pytest.raises(BusinessCalendarValidationError, match="non-negative"):
         calculator.add_working_minutes(
+            datetime(2026, 8, 17, 9, tzinfo=UTC), -1
+        )
+    with pytest.raises(BusinessCalendarValidationError, match="non-negative"):
+        calculator.add_working_seconds(
             datetime(2026, 8, 17, 9, tzinfo=UTC), -1
         )

@@ -698,6 +698,15 @@ window overlap, prefers account-scoped evidence before global fallback, and keep
 idempotency, audit, and redaction evidence. The remaining gap is immutable clock
 pinning, safe administration UX and calculation preview, and migrated PostgreSQL
 lifecycle proof across DST, exceptions, isolation, replay, and cleanup.
+TASK-441 closes immutable runtime pinning. Calendar-backed clocks now resolve one
+approved effective account-first/global-fallback version at start and persist its
+identifier, code, version, and timezone with the policy pin. Warning/due and
+pause/resume calculations use the shared working-time calculator and the same
+pinned version, so later versions cannot rewrite historical clock evidence.
+Missing, ambiguous, invalid, and policy/calendar timezone-mismatched evidence
+continues to fail closed. The remaining business-calendar gap is safe governance
+and calculation-preview UX plus migrated PostgreSQL lifecycle proof across DST,
+closures, exceptional hours, pause/resume, replay, isolation, and cleanup.
 
 ## Explicit Deferrals
 

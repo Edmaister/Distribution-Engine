@@ -197,6 +197,23 @@ def _validate_schedule(
     weekly_intervals: Sequence[WeeklyInterval],
     date_exceptions: Sequence[DateException],
 ) -> None:
+    try:
+        _calculation_calendar_version(
+            calendar_code=calendar_code,
+            version_number=version_number,
+            business_timezone=business_timezone,
+            weekly_intervals=weekly_intervals,
+            date_exceptions=date_exceptions,
+        )
+    except BusinessCalendarValidationError as exc:
+        raise ServiceTargetCalendarValidationError(str(exc)) from exc
+
+
+def _calculation_calendar_version(
+    *, calendar_code: str, version_number: int, business_timezone: str,
+    weekly_intervals: Sequence[WeeklyInterval],
+    date_exceptions: Sequence[DateException],
+) -> CalculationCalendarVersion:
     weekly: dict[int, list[LocalWorkingInterval]] = {}
     closed_dates: set[date] = set()
     exceptional: dict[date, list[LocalWorkingInterval]] = {}
@@ -221,15 +238,32 @@ def _validate_schedule(
             )
         else:
             raise ServiceTargetCalendarValidationError("exceptionType is invalid.")
+    return CalculationCalendarVersion(
+        calendar_code=calendar_code,
+        version_number=version_number,
+        business_timezone=business_timezone,
+        lifecycle_status="APPROVED",
+        weekly_intervals={key: tuple(value) for key, value in weekly.items()},
+        closed_dates=frozenset(closed_dates),
+        exceptional_working_intervals={key: tuple(value) for key, value in exceptional.items()},
+    )
+
+
+def calculation_calendar_version(
+    calendar: ServiceTargetCalendarVersion,
+) -> CalculationCalendarVersion:
+    """Return the validated calculator input for one pinned approved version."""
+    if calendar.lifecycle_status != "APPROVED":
+        raise ServiceTargetCalendarValidationError(
+            "Only approved calendar versions can be pinned to clocks."
+        )
     try:
-        CalculationCalendarVersion(
-            calendar_code=calendar_code,
-            version_number=version_number,
-            business_timezone=business_timezone,
-            lifecycle_status="APPROVED",
-            weekly_intervals={key: tuple(value) for key, value in weekly.items()},
-            closed_dates=frozenset(closed_dates),
-            exceptional_working_intervals={key: tuple(value) for key, value in exceptional.items()},
+        return _calculation_calendar_version(
+            calendar_code=calendar.calendar_code,
+            version_number=calendar.version_number,
+            business_timezone=calendar.business_timezone,
+            weekly_intervals=calendar.weekly_intervals,
+            date_exceptions=calendar.date_exceptions,
         )
     except BusinessCalendarValidationError as exc:
         raise ServiceTargetCalendarValidationError(str(exc)) from exc

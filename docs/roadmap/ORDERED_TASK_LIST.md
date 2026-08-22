@@ -9608,7 +9608,7 @@ Completed output: Added `services/referral_saas_service_target_calendar_service.
 
 ## TASK-441: Pin approved business calendars to service-target clocks
 
-Status: Pending. Dependencies: TASK-440.
+Status: Complete (2026-08-22). Dependencies: TASK-440.
 Product boundary: Referral SaaS with Shared Platform time, audit, idempotency, and tenant-isolation primitives.
 Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATIONAL_SERVICE_TARGET_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SERVICE_TARGET_BUSINESS_CALENDAR_CONTRACT.md`.
 Shared primitive impact: Connects the existing approved-version resolver and calculator to the single service-target clock lifecycle. Source duplication: No.
@@ -9617,6 +9617,8 @@ Backend/database impact: Add explicit calendar-version pinning to eligible clock
 Frontend/API impact: Existing safe clock/read models may expose the pinned version and degraded reason; no browser-owned deadline calculation.
 Tests and docs expectation: Cover account-first/global-fallback resolution, immutable pinning, policy/calendar mismatch, missing and ambiguous evidence, DST, closures, exceptions, pause/resume, completion, reopen, replay, and tenant isolation.
 Definition of done: Calendar-backed service-target clocks calculate only from one persisted approved version and remain reproducible after future calendar changes. Priority: P1 enhancement.
+
+Completed output: Added migration 103 clock pin evidence and connected the existing approved calendar resolver and shared calculator to the single operational clock lifecycle. Calendar-backed clocks now resolve account-first/global-fallback evidence at start, persist the exact approved calendar version/code/timezone, calculate warning and due timestamps in working time, reuse that pinned version during pause/resume, and fail closed on missing, ambiguous, invalid, or timezone-mismatched evidence. Existing elapsed-time clocks remain compatible and no browser timer or second clock implementation was introduced.
 
 ## TASK-442: Add safe business-calendar administration and calculation preview UX
 
