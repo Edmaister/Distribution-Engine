@@ -626,6 +626,15 @@ keyboard, screen-reader, and no-overflow release evidence. The read-model task i
 for KPI and queue UI so counts, service targets, priorities, incidents, and
 destinations cannot be invented or recomputed inconsistently in the frontend.
 
+TASK-431 now defines the missing governed Referral SaaS operational service-target
+contract. It separates customer-support operational clocks from DLaaS provider and
+fulfilment SLAs and specifies effective policy versions, jurisdiction/category/
+priority resolution, business calendars, pause evidence, server-owned timing,
+audit, permissions, safe aggregation, and degraded behavior. Runtime persistence,
+calculation, read-model integration, UI enablement, and E2E proof remain ordered
+implementation gaps; until then `UNAVAILABLE` and a null percentage remain the
+correct production response.
+
 ## Explicit Deferrals
 
 These are not blockers for the 10/10 Referral SaaS wedge:

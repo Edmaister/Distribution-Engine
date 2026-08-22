@@ -9468,6 +9468,18 @@ Frontend impact: Final evidence-led UX corrections only; no unbounded redesign.
 Tests and docs expectation: Automated contract/component/E2E coverage, local physical test, screenshots, keyboard and screen-reader checks, no-overflow checks, cross-account negative tests, and evidence-pack updates.
 Definition of done: The global workspace is understandable, responsive, accessible, permission-safe, evidence-backed, and routes every supported action to its authoritative workflow. Priority: P0 release gate.
 
+## TASK-431: Define governed Referral SaaS operational service targets
+
+Status: Complete (2026-08-21). Output: `docs/sa/referral-saas/REFERRAL_SAAS_OPERATIONAL_SERVICE_TARGET_CONTRACT.md`.
+Product boundary: Referral SaaS with Shared Platform time, audit, idempotency, permission, and observability primitives.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_PROTOTYPE_UX_IMPLEMENTATION_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Defines server-owned clocks, effective policy versions, pause evidence, audit, permissions, and explainable aggregation for the existing Operations Workspace read model. Source duplication: No.
+Objective: Define the authoritative Referral SaaS service-target policy and clock contract required before the global operations dashboard can expose due times or within-target performance.
+Backend/API impact: Contract only. Preserve the current `UNAVAILABLE` response until separately reviewed schema, policy-resolution, clock-lifecycle, and read-model tasks provide persisted evidence. Do not reuse provider/fulfilment SLA metrics.
+Frontend impact: None. The dashboard continues to explain that governed service-target evidence is unavailable; no synthetic percentage or browser-owned timer is permitted.
+Tests and docs expectation: Readback and documentation consistency validation. Downstream implementation must cover policy resolution, effective dating, calendars, pause/resume, reopen, boundary times, idempotency, audit, jurisdiction/account leakage, degraded evidence, and end-to-end aggregation.
+Definition of done: Complete - current evidence, product boundary, policy dimensions, server-owned clock lifecycle, pause rules, versioning, audit, permissions, safe read semantics, aggregation rules, and implementation sequence are explicit without claiming runtime support. Priority: P0 contract gate.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
