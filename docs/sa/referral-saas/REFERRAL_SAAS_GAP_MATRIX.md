@@ -682,6 +682,13 @@ audit/idempotency/redaction evidence. It seeds no calendar data and does not ena
 runtime calculation. The remaining gap is the shared timezone-aware calculator,
 governed administration and resolution, clock version pinning, safe UX and preview,
 and PostgreSQL proof across DST, exceptions, isolation, replay, and cleanup.
+TASK-439 closes the standalone calculation slice. The shared pure service now
+validates approved schedules and deterministically calculates working instants,
+working seconds, and future working-minute deadlines across closures, exceptional
+intervals, weekends, and DST transitions. It is intentionally not connected to
+database resolution or clocks yet. The remaining gap is governed administration
+and deterministic version resolution, immutable clock pinning, safe UX and preview,
+and migrated PostgreSQL lifecycle proof.
 
 ## Explicit Deferrals
 

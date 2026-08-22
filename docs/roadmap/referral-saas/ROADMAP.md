@@ -2985,6 +2985,15 @@ journey changes or unsafe adjacent side effects.)
   the shared calculator, administration/resolution, clock integration, safe UX,
   and PostgreSQL release proof are complete.
 
+- **TASK-439 - Shared timezone-aware business-calendar calculator:** Complete.
+  One pure calculator now validates approved immutable calendar inputs and provides
+  working-instant, working-seconds, and add-working-minutes operations. It handles
+  weekly schedules, closures, exceptional working intervals, half-open boundaries,
+  weekends, IANA timezones, nonexistent spring-forward times, and ambiguous fall-
+  back times deterministically. It does not resolve persisted versions or alter
+  clocks; calendar-backed runtime remains fail-closed until governed administration,
+  resolution, version pinning, UX, and PostgreSQL proof are complete.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:
