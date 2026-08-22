@@ -9504,6 +9504,20 @@ Frontend impact: None. Policy administration remains API-first; the Operations W
 Tests and docs expectation: Policy validation, canonical request hashing, safe resolved projection, missing-policy failure, permission denial, route inventory, docs, and infographic status are covered. Clock mutation, support-case attachment, due-time calculation, pause/resume, reporting aggregation, and UI enablement remain downstream.
 Definition of done: Complete - approved effective policy selection is deterministic, independently governed, auditable, idempotent, redacted, and fail-closed without changing support cases, campaigns, credentials, billing, or money. Priority: P0.
 
+## TASK-434: Add server-owned operational service-target clock lifecycle
+
+Status: Complete (2026-08-22). Dependencies: TASK-431; TASK-432; TASK-433.
+Product boundary: Referral SaaS with Shared Platform time, audit, idempotency, permission, and redaction primitives.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATIONAL_SERVICE_TARGET_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Activates one server-owned support-case clock from the approved policy resolver and existing support lifecycle. Source duplication: No.
+Objective: Start and advance persisted support-case service-target clocks without browser timers, guessed policies, or unrelated product side effects.
+Backend/API impact: Support-case creation now attaches exactly one approved effective policy where available; status changes complete the clock using its pinned completion event, preserve prior outcomes before reopening, and expose the current safe clock projection. One account-scoped command pauses or resumes a running clock only for policy-approved reasons, with replay-safe idempotency and server-owned elapsed-time adjustment. Missing/ambiguous policy and unsupported business-calendar calculations remain explicitly unavailable.
+Frontend impact: None. TASK-435 must add safe read-model aggregation before the Operations Workspace exposes due times or within-target performance.
+Tests and docs expectation: Missing policy, unsupported calendar, pinned projection, route boundary, policy-resolution regression, syntax, docs, and infographic evidence are covered. Database-backed lifecycle and aggregation proof remains part of TASK-435/TASK-436.
+Definition of done: Complete - eligible support cases use persisted server-owned elapsed-time clocks with pinned policy versions, policy-aware completion, reopen evidence, approved pause/resume, idempotency, audit, redaction, and fail-closed degraded behavior. No service-target dashboard metric is enabled prematurely. Priority: P0.
+
+Completed output: Added the operational service-target clock service and bounded support-case integration. Ordinary elapsed-time policies can start clocks, calculate warning and due timestamps, complete within-target/late outcomes, preserve prior outcomes on reopen, and apply approved pause/resume evidence. Policies requiring a business-calendar engine remain unavailable rather than using unsafe elapsed-time approximations.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

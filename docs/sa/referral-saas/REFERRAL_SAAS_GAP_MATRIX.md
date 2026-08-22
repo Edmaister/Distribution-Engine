@@ -655,6 +655,16 @@ and separation of duties are enforced. Support-case clocks are still not attache
 or advanced, and the Operations Workspace must continue returning `UNAVAILABLE`
 until clock lifecycle and read-model aggregation are complete.
 
+TASK-434 closes the ordinary elapsed-time clock-lifecycle portion of the gap.
+Eligible support cases now pin one approved effective policy and use persisted,
+server-owned warning/due times, policy-aware completion, within-target/late outcome,
+reopen evidence, and approved pause/resume commands with idempotency, audit, and
+redaction. Missing/ambiguous policy matches and policies that require an unsupported
+business-calendar engine remain explicitly unavailable rather than being guessed.
+Operations aggregation, jurisdiction-safe performance metrics, due-time queue
+evidence, UI enablement, and end-to-end database proof remain TASK-435/TASK-436
+gaps; the global percentage must remain null until TASK-435 is complete.
+
 ## Explicit Deferrals
 
 These are not blockers for the 10/10 Referral SaaS wedge:

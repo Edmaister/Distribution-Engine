@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
@@ -338,6 +338,14 @@ from services.referral_saas_support_case_service import (
     list_referral_saas_operator_support_queue,
     list_referral_saas_support_cases,
 )
+from services.referral_saas_operational_service_clock_service import (
+    ServiceTargetClockConflict,
+    ServiceTargetClockNotFound,
+    ServiceTargetClockValidationError,
+    apply_support_case_status_to_service_target_clock,
+    change_service_target_pause_state,
+    start_support_case_service_target_clock,
+)
 from services.referral_saas_technical_setup_service import (
     build_referral_saas_technical_setup_readiness,
 )
@@ -594,6 +602,14 @@ class ReferralSaasSupportCaseStatusRequest(BaseModel):
     status: str | None = Field(default=None)
     transitionReason: str | None = Field(default=None)
     reasonCode: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str | None = Field(default=None)
+
+
+class ReferralSaasSupportCaseServiceTargetPauseRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    action: str | None = Field(default=None)
+    pauseReasonCode: str | None = Field(default=None)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str | None = Field(default=None)
 
@@ -9802,11 +9818,42 @@ async def create_referral_saas_account_support_case(
     except ReferralSaasSupportCaseCommandError as exc:
         raise _support_case_error(exc) from exc
 
+    service_target_clock = None
+    service_target_status = "CLOCK_UNAVAILABLE"
+    if getattr(result, "command_status", None) != "SUPPORT_CASE_REPLAYED":
+        try:
+            service_target_clock, service_target_status = (
+                await start_support_case_service_target_clock(
+                    account_id=account.account_id,
+                    support_case_id=result.support_case.case_ref,
+                    operating_jurisdiction_code=account.operating_jurisdiction_code,
+                    work_category=result.support_case.category,
+                    priority=result.support_case.priority,
+                    started_at=datetime.fromisoformat(result.support_case.created_at)
+                    if result.support_case.created_at
+                    else datetime.now(timezone.utc),
+                    actor_ref=_actor_ref(admin_identity),
+                    actor_role=str(admin_identity.get("role") or "").upper(),
+                    correlation_id=correlation_id,
+                    idempotency_key_hash=hash_payload(
+                        {"operation": "REFERRAL_SAAS_SERVICE_TARGET_CLOCK_START",
+                         "support_case_ref": result.support_case.case_ref}
+                    ),
+                    request_payload_hash=hash_payload(command_payload),
+                )
+            )
+        except Exception:
+            service_target_status = "CLOCK_UNAVAILABLE"
+
     return {
         "status": "accepted",
         "context": normalised_context,
         "account": account.to_safe_dict(),
         "supportCase": _redact_customer_report_payload(result.to_safe_dict()),
+        "serviceTargetClock": (
+            service_target_clock.to_dict() if service_target_clock else None
+        ),
+        "serviceTargetStatus": service_target_status,
         "account_scope": _customer_report_account_scope(account),
         "guardrail": (
             "Support case recorded for the selected customer. This creates "
@@ -10036,11 +10083,40 @@ async def change_referral_saas_account_support_case_status(
     except ReferralSaasSupportCaseCommandError as exc:
         raise _support_case_error(exc) from exc
 
+    service_target_clock = None
+    service_target_status = "CLOCK_UNAVAILABLE"
+    try:
+        service_target_clock, service_target_status = (
+            await apply_support_case_status_to_service_target_clock(
+                account_id=account.account_id,
+                support_case_id=case_ref,
+                from_status=result.status_event.from_status,
+                to_status=result.status_event.to_status,
+                changed_at=datetime.fromisoformat(result.status_event.created_at)
+                if result.status_event.created_at
+                else datetime.now(timezone.utc),
+                actor_ref=_actor_ref(admin_identity),
+                actor_role=str(admin_identity.get("role") or "").upper(),
+                correlation_id=correlation_id,
+                idempotency_key_hash=hash_payload(
+                    {"operation": "REFERRAL_SAAS_SERVICE_TARGET_CLOCK_STATUS",
+                     "status_event_ref": result.status_event.status_event_ref}
+                ),
+                request_payload_hash=hash_payload(command_payload),
+            )
+        )
+    except Exception:
+        service_target_status = "CLOCK_UNAVAILABLE"
+
     return {
         "status": "accepted",
         "context": normalised_context,
         "account": account.to_safe_dict(),
         "supportCaseLifecycle": _redact_customer_report_payload(result.to_safe_dict()),
+        "serviceTargetClock": (
+            service_target_clock.to_dict() if service_target_clock else None
+        ),
+        "serviceTargetStatus": service_target_status,
         "account_scope": _customer_report_account_scope(account),
         "guardrail": (
             "Support case status recorded for the selected customer. This "
@@ -10057,6 +10133,109 @@ async def change_referral_saas_account_support_case_status(
         "no_invite_delivery_confirmed": True,
         "no_credential_or_auth_claim_change_confirmed": True,
         "no_tenant_code_exposure_confirmed": True,
+        "no_billing_or_money_movement_confirmed": True,
+    }
+
+
+@router.post(
+    "/accounts/{account_ref}/support-cases/{case_ref}/service-target-clock/pause-state"
+)
+async def change_referral_saas_support_case_service_target_pause_state(
+    account_ref: str,
+    case_ref: str,
+    request: ReferralSaasSupportCaseServiceTargetPauseRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    request_payload = request.model_dump(exclude_none=True)
+    _reject_unsafe_support_case_payload(request_payload)
+    account_scope = request.accountScope or {}
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = _support_case_resolution_context(account_scope.get("context"))
+    action = _optional_text(request.action)
+    pause_reason = _optional_text(request.pauseReasonCode)
+    correlation_id = _optional_text(request.correlationId)
+    idempotency_key = _optional_text(request.idempotencyKey)
+    if not all(
+        (ref_type, external_ref, action, pause_reason, correlation_id, idempotency_key)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "validation_error",
+                "message": (
+                    "accountScope.refType, accountScope.externalRef, action, "
+                    "pauseReasonCode, correlationId, and idempotencyKey are required."
+                ),
+                "guardrails": sorted(SUPPORT_CASE_ROUTE_GUARDRAILS),
+                "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
+            },
+        )
+
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+    )
+    _assert_account_path_scope(account_ref, account)
+    event_at = datetime.now(timezone.utc)
+    command_payload = {
+        "accountScope": {
+            "accountRef": _optional_text(account_ref),
+            "refType": ref_type,
+            "externalRef": external_ref,
+            "context": normalised_context,
+        },
+        "supportCaseRef": _optional_text(case_ref),
+        "action": action,
+        "pauseReasonCode": pause_reason,
+        "eventAt": event_at.isoformat(),
+    }
+    try:
+        clock, command_status = await change_service_target_pause_state(
+            account_id=account.account_id,
+            support_case_id=case_ref,
+            action=action,
+            pause_reason_code=pause_reason,
+            event_at=event_at,
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload(
+                {
+                    "operation": "REFERRAL_SAAS_SERVICE_TARGET_CLOCK_PAUSE_STATE",
+                    "account_ref": _optional_text(account_ref),
+                    "case_ref": _optional_text(case_ref),
+                    "idempotency_key": idempotency_key,
+                }
+            ),
+            request_payload_hash=hash_payload(command_payload),
+        )
+    except ServiceTargetClockNotFound as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ServiceTargetClockConflict as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except ServiceTargetClockValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+
+    return {
+        "status": "accepted",
+        "context": normalised_context,
+        "account": account.to_safe_dict(),
+        "serviceTargetClock": clock.to_dict(),
+        "serviceTargetStatus": command_status,
+        "account_scope": _customer_report_account_scope(account),
+        "guardrail": (
+            "The server-owned support service clock was updated using an "
+            "approved policy pause reason. No browser timer, support-case "
+            "status, credential, billing, or money state was changed."
+        ),
+        "guardrails": sorted(SUPPORT_CASE_ROUTE_GUARDRAILS),
+        "redactions": sorted(SUPPORT_CASE_ROUTE_REDACTIONS),
+        "no_support_case_status_changed_confirmed": True,
         "no_billing_or_money_movement_confirmed": True,
     }
 
