@@ -671,7 +671,11 @@ gap with a migrated PostgreSQL check covering independently approved policies,
 clock replay, pause/resume, completion, audit evidence, unsupported evidence,
 two-jurisdiction isolation, Operations aggregation, and cleanup. The controlled
 physical run passed without cross-jurisdiction leakage. Business-calendar
-calculation remains an explicit deferral and therefore fails closed where required.
+calculation remains an explicit enhancement and therefore fails closed where
+required. TASK-437 now defines its target contract and ordered implementation path:
+versioned schedule persistence, shared timezone-aware calculation, governed
+administration/resolution, existing-clock integration, safe UX, and PostgreSQL
+release proof. No calendar schedule, holiday, or due time is inferred prematurely.
 
 ## Explicit Deferrals
 

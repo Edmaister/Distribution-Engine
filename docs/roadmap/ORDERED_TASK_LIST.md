@@ -9546,6 +9546,21 @@ Definition of done: Complete - PostgreSQL-backed release evidence proves the com
 
 Completed output: Added a CI and locally runnable PostgreSQL release check that creates isolated Namibia and Zambia evidence, independently approves effective policies, starts and replays clocks, pauses and resumes one clock, completes another within target, verifies unsupported evidence remains unavailable, proves jurisdiction-safe Operations aggregation, verifies audit records, and removes all temporary evidence. The physical proof returned `PASS`, `crossJurisdictionLeakage: false`, `unsupportedEvidence: UNAVAILABLE`, and `withinServiceTargetPercent: 100` for its controlled eligible denominator.
 
+## TASK-437: Define governed service-target business calendars
+
+Status: Complete (2026-08-22). Dependencies: TASK-431; TASK-432; TASK-433; TASK-434; TASK-435; TASK-436.
+Product boundary: Referral SaaS with Shared Platform time, audit, idempotency, permission, redaction, and observability primitives.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/roadmap/ENHANCEMENT_BACKLOG.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATIONAL_SERVICE_TARGET_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Defines one reusable versioned business-calendar calculator for the existing service-target clock; no second clock or browser timer is introduced. Source duplication: No.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails.
+Objective: Define the calendar ownership, versioning, schedules, holidays, exceptions, timezone/DST semantics, deterministic calculation, policy resolution, clock pinning, administration, audit, and degraded behavior required before business-calendar policies can start clocks.
+Backend/database impact: Documentation only. Defines the bounded schema and service contracts for later implementation without adding tables, routes, statuses, seeded schedules, or runtime calculation in this task.
+Frontend/API impact: Documentation only. Defines a future Amplifi-admin configuration and calculation-preview boundary; no UI or API is enabled prematurely.
+Tests and docs expectation: Contract must be checked against the current policy schema and fail-closed clock service and must define downstream schema, calculator, administration, integration, UX, and PostgreSQL proof slices. Roadmap, gap matrix, and infographic must distinguish the implemented elapsed-time path from this ordered enhancement.
+Definition of done: Complete - downstream implementation can add governed business calendars without inventing schedule defaults, duplicating clocks, recalculating historical evidence, or exposing frontend-owned deadlines. Priority: P1 enhancement.
+
+Completed output: Added `docs/sa/referral-saas/REFERRAL_SAAS_SERVICE_TARGET_BUSINESS_CALENDAR_CONTRACT.md`, preserving the existing `BUSINESS_CALENDAR_UNAVAILABLE` fail-closed runtime until versioned calendar persistence, calculator, administration, clock integration, UX, and database proof are implemented in separate reviewed tasks.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

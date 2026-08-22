@@ -2968,6 +2968,15 @@ journey changes or unsafe adjacent side effects.)
   evidence, jurisdiction-safe Operations aggregation, and dependency-ordered
   cleanup. The controlled physical run passed with no cross-jurisdiction leakage.
 
+- **TASK-437 - Governed service-target business-calendar contract:** Complete.
+  The next service-target enhancement is now bounded without weakening the proven
+  elapsed-time path. The contract defines immutable calendar versions, working
+  intervals, holidays and exceptions, timezone/DST behavior, deterministic working-
+  minute calculation, policy resolution, clock pinning, permissions, independent
+  approval, idempotency, audit, redaction, degraded behavior, plain-language future
+  UX, and the ordered implementation path. Runtime remains fail-closed for calendar-
+  backed policies until those implementation slices are complete.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:
