@@ -52,6 +52,9 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: /Commercial governance/ })).toHaveAttribute(
       "href", "/admin/referral-saas/operations/customer-portfolio?destination=commercial",
     );
+    expect(screen.getByRole("link", { name: /Service calendars/ })).toHaveAttribute(
+      "href", "/admin/referral-saas/service-calendars",
+    );
     expect(screen.queryByRole("link", { name: /Global approvals/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Global exceptions/ })).not.toBeInTheDocument();
 

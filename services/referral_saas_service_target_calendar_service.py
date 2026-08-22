@@ -10,6 +10,8 @@ from hashlib import sha256
 from typing import Any, Mapping, Sequence
 
 from services.referral_saas_service_target_business_calendar import (
+    BusinessCalendarCalculationUnavailable,
+    BusinessCalendarCalculator,
     BusinessCalendarValidationError,
     BusinessCalendarVersion as CalculationCalendarVersion,
     LocalWorkingInterval,
@@ -457,6 +459,55 @@ async def create_service_target_calendar(
 async def get_service_target_calendar(calendar_ref: str) -> ServiceTargetCalendarVersion:
     async with db_connection() as conn:
         return await _load_calendar(conn, calendar_ref)
+
+
+async def preview_service_target_calendar(
+    *, calendar_ref: str, started_at: datetime, warning_threshold_minutes: int,
+    target_duration_minutes: int,
+) -> dict[str, Any]:
+    """Calculate example deadlines without creating or changing an operational clock."""
+    start = _normalise_datetime(started_at, "startedAt")
+    if warning_threshold_minutes < 0:
+        raise ServiceTargetCalendarValidationError(
+            "warningThresholdMinutes must be a non-negative integer."
+        )
+    if target_duration_minutes <= 0:
+        raise ServiceTargetCalendarValidationError(
+            "targetDurationMinutes must be a positive integer."
+        )
+    if warning_threshold_minutes > target_duration_minutes:
+        raise ServiceTargetCalendarValidationError(
+            "warningThresholdMinutes cannot exceed targetDurationMinutes."
+        )
+    calendar = await get_service_target_calendar(calendar_ref)
+    try:
+        calculator = BusinessCalendarCalculator(
+            _calculation_calendar_version(
+                calendar_code=calendar.calendar_code,
+                version_number=calendar.version_number,
+                business_timezone=calendar.business_timezone,
+                weekly_intervals=calendar.weekly_intervals,
+                date_exceptions=calendar.date_exceptions,
+            )
+        )
+        warning_at = calculator.add_working_minutes(start, warning_threshold_minutes)
+        due_at = calculator.add_working_minutes(start, target_duration_minutes)
+    except (BusinessCalendarValidationError, BusinessCalendarCalculationUnavailable) as exc:
+        raise ServiceTargetCalendarValidationError(str(exc)) from exc
+    return {
+        "calendarRef": calendar.calendar_version_id,
+        "calendarCode": calendar.calendar_code,
+        "versionNumber": calendar.version_number,
+        "lifecycleStatus": calendar.lifecycle_status,
+        "businessTimezone": calendar.business_timezone,
+        "startedAt": start,
+        "warningAt": warning_at,
+        "dueAt": due_at,
+        "warningThresholdMinutes": warning_threshold_minutes,
+        "targetDurationMinutes": target_duration_minutes,
+        "calculationMode": "BUSINESS_TIME_PREVIEW",
+        "clockCreated": False,
+    }
 
 
 async def list_service_target_calendars(
