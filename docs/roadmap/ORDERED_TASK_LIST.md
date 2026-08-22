@@ -9576,6 +9576,21 @@ Definition of done: Complete - the database can retain governed calendar definit
 
 Completed output: Added migration `102_referral_saas_service_target_business_calendars.sql` with immutable version, weekly schedule, dated exception, and audit persistence plus focused structural coverage. Existing calendar-backed service-target clocks continue returning `BUSINESS_CALENDAR_UNAVAILABLE` until the shared calculator, governed administration/resolution, clock integration, UX, and PostgreSQL release proof are completed.
 
+## TASK-439: Implement the shared service-target business-calendar calculator
+
+Status: Complete (2026-08-22). Dependencies: TASK-437; TASK-438.
+Product boundary: Referral SaaS with Shared Platform timezone and deterministic time-calculation primitives.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATIONAL_SERVICE_TARGET_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SERVICE_TARGET_BUSINESS_CALENDAR_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds one pure calculator for approved immutable calendar versions; existing policies and clocks can consume it later without introducing a second clock or browser-owned deadline. Source duplication: No.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails.
+Objective: Implement deterministic `is_working_instant`, `working_seconds_between`, and `add_working_minutes` operations over validated weekly schedules, closures, exceptional working intervals, and IANA timezones.
+Backend/database impact: Adds a database-independent shared service that validates approved calendar inputs, rejects overlapping or conflicting evidence, uses half-open intervals, keeps UTC authoritative, advances nonexistent DST boundaries to the first valid local minute, and preserves full approved intervals across repeated DST times. It does not resolve database versions or mutate persisted evidence.
+Frontend/API impact: None. No route, browser calculation, or UI is introduced.
+Tests and docs expectation: Unit coverage must prove ordinary working windows, weekends, full-day closures, exceptional working intervals, half-open boundaries, spring-forward gaps, fall-back repeats, invalid timezones, unapproved versions, conflicting/overlapping schedules, timezone-aware inputs, and invalid durations. Existing calendar-backed clocks must remain fail-closed until governed resolution and version pinning are integrated.
+Definition of done: Complete - one deterministic, timezone-aware calculator implements the approved contract operations without database, API, UI, policy, clock, campaign, credential, billing, or money side effects. Priority: P1 enhancement.
+
+Completed output: Added `services/referral_saas_service_target_business_calendar.py` and focused calculator tests. The pure service calculates working instants and durations across weekly schedules, closures, exceptional intervals, weekends, and DST boundaries. Runtime clock integration remains deliberately unavailable pending governed administration/resolution and immutable version pinning.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
