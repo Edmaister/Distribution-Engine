@@ -21,6 +21,7 @@ from services.referral_saas_service_target_calendar_service import (
     hash_command_value,
     hash_request_payload,
     list_service_target_calendars,
+    preview_service_target_calendar,
     resolve_service_target_calendar,
     transition_service_target_calendar,
 )
@@ -67,6 +68,12 @@ class CalendarActionRequest(BaseModel):
     reason: str = Field(min_length=1)
     correlationId: str | None = None
     idempotencyKey: str = Field(min_length=1)
+
+
+class CalendarPreviewRequest(BaseModel):
+    startedAt: datetime
+    warningThresholdMinutes: int = Field(ge=0)
+    targetDurationMinutes: int = Field(gt=0)
 
 
 def _admin(identity: dict[str, Any]) -> dict[str, Any]:
@@ -196,6 +203,30 @@ async def get_calendar(calendar_ref: str, identity: dict = Depends(require_sessi
     _admin(identity)
     try:
         return _response(await get_service_target_calendar(calendar_ref))
+    except (ServiceTargetCalendarValidationError, ServiceTargetCalendarNotFound) as exc:
+        raise _translate(exc) from exc
+
+
+@router.post("/{calendar_ref}/calculation-preview")
+async def preview_calendar(
+    calendar_ref: str,
+    request: CalendarPreviewRequest,
+    identity: dict = Depends(require_session_key),
+):
+    _admin(identity)
+    try:
+        preview = await preview_service_target_calendar(
+            calendar_ref=calendar_ref,
+            started_at=request.startedAt,
+            warning_threshold_minutes=request.warningThresholdMinutes,
+            target_duration_minutes=request.targetDurationMinutes,
+        )
+        return {
+            "status": "ok",
+            "preview": preview,
+            "guardrails": [*CALENDAR_GUARDRAILS, "PREVIEW_ONLY_NO_CLOCK_CREATED"],
+            "redactions": list(CALENDAR_REDACTIONS),
+        }
     except (ServiceTargetCalendarValidationError, ServiceTargetCalendarNotFound) as exc:
         raise _translate(exc) from exc
 

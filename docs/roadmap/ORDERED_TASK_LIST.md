@@ -9622,7 +9622,7 @@ Completed output: Added migration 103 clock pin evidence and connected the exist
 
 ## TASK-442: Add safe business-calendar administration and calculation preview UX
 
-Status: Pending. Dependencies: TASK-440.
+Status: Complete (2026-08-22). Dependencies: TASK-440.
 Product boundary: Referral SaaS with Shared Platform administration UX.
 Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SERVICE_TARGET_BUSINESS_CALENDAR_CONTRACT.md`.
 Shared primitive impact: Adds an Amplifi Global administration surface over the existing calendar API and server calculator. Source duplication: No.
@@ -9631,6 +9631,8 @@ Backend/API impact: Add only the bounded preview endpoint needed by the UX; it m
 Frontend impact: Add accessible schedule, closure, exception, effective-window, review, approval, retirement, conflict, and degraded states with explicit customer/global scope and next actions.
 Tests and docs expectation: Cover permissions, independent review, invalid and overlapping schedules, DST preview, account/global scope clarity, keyboard and screen-reader behavior, responsive layout, and no browser-owned calculation.
 Definition of done: Administrators can safely govern calendar versions and understand their effects without raw schema exposure or hidden side effects. Priority: P1 enhancement.
+
+Completed output: Added an Amplifi Global `Service calendars` workspace over the single governed calendar API, with global/customer scope clarity, version lifecycle actions, effective windows, weekly schedules, closures and exceptions, responsive states, and plain-language safeguards. Added an admin-only server calculation-preview route that reuses the shared business-calendar calculator, returns warning/due evidence, and explicitly creates no operational clock. Frontend and backend tests protect navigation, scope rendering, API delegation, route inventory, and no-clock calculation behavior.
 
 ## TASK-443: Prove business-calendar lifecycle and clocks on migrated PostgreSQL
 

@@ -704,9 +704,12 @@ identifier, code, version, and timezone with the policy pin. Warning/due and
 pause/resume calculations use the shared working-time calculator and the same
 pinned version, so later versions cannot rewrite historical clock evidence.
 Missing, ambiguous, invalid, and policy/calendar timezone-mismatched evidence
-continues to fail closed. The remaining business-calendar gap is safe governance
-and calculation-preview UX plus migrated PostgreSQL lifecycle proof across DST,
-closures, exceptional hours, pause/resume, replay, isolation, and cleanup.
+continues to fail closed. TASK-442 closes the safe governance and preview UX gap:
+Amplifi administrators can govern account/global calendar versions and inspect
+server-calculated example deadlines without creating a clock or duplicating timing
+logic in the browser. The remaining business-calendar gap is migrated PostgreSQL
+lifecycle proof across DST, closures, exceptional hours, pause/resume, replay,
+isolation, and cleanup under TASK-443.
 
 ## Explicit Deferrals
 

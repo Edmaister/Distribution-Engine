@@ -3013,6 +3013,15 @@ journey changes or unsafe adjacent side effects.)
   prohibited. Safe administration UX/preview and migrated PostgreSQL lifecycle
   proof remain TASK-442 and TASK-443.
 
+- **TASK-442 - Safe business-calendar administration and calculation preview:**
+  Complete. Amplifi administrators now have a dedicated global service-calendar
+  workspace for creating and inspecting account/global versions, governing review,
+  approval and retirement, and understanding effective windows, weekly hours,
+  closures and exceptional hours in plain language. Deadline preview calls the
+  shared server-owned calculator and explicitly creates no operational clock, so
+  the browser does not become a second timing authority. Migrated PostgreSQL
+  lifecycle and immutable-clock release proof remains TASK-443.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:

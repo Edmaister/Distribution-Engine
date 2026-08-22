@@ -125,3 +125,34 @@ async def test_calendar_approval_forwards_independent_governance_command(monkeyp
     assert response.json()["calendar"]["lifecycle_status"] == "APPROVED"
     assert captured["action"] == "APPROVE"
     assert captured["idempotency_key_hash"] != "approve-1"
+
+
+async def test_calendar_preview_is_server_owned_and_does_not_create_a_clock(monkeypatch):
+    captured = {}
+
+    async def fake_preview(**kwargs):
+        captured.update(kwargs)
+        return {
+            "calendarRef": kwargs["calendar_ref"],
+            "businessTimezone": "Africa/Johannesburg",
+            "startedAt": kwargs["started_at"],
+            "warningAt": datetime(2026, 8, 24, 10, tzinfo=timezone.utc),
+            "dueAt": datetime(2026, 8, 24, 14, tzinfo=timezone.utc),
+            "clockCreated": False,
+        }
+
+    monkeypatch.setattr(router, "preview_service_target_calendar", fake_preview)
+    calendar_ref = "11111111-1111-4111-8111-111111111111"
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.post(
+            f"/v1/referral-saas/service-target-calendars/{calendar_ref}/calculation-preview",
+            json={
+                "startedAt": "2026-08-23T16:00:00Z",
+                "warningThresholdMinutes": 120,
+                "targetDurationMinutes": 360,
+            },
+        )
+    assert response.status_code == 200
+    assert response.json()["preview"]["clockCreated"] is False
+    assert "PREVIEW_ONLY_NO_CLOCK_CREATED" in response.json()["guardrails"]
+    assert captured["target_duration_minutes"] == 360

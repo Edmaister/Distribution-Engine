@@ -1,6 +1,7 @@
 import {
   Activity,
   BriefcaseBusiness,
+  CalendarClock,
   BadgeDollarSign,
   Building2,
   CheckCircle2,
@@ -73,6 +74,7 @@ const referralSaasGlobalSections = [
         icon: GitBranch,
         sub: "Select",
       },
+      { to: "/admin/referral-saas/service-calendars", label: "Service calendars", icon: CalendarClock, sub: "Govern" },
       { to: "/admin/referral-saas/reports", label: "Global reporting", icon: ChartNoAxesColumn, sub: "Reports" },
       { to: "/admin/referral-saas/support", label: "Support operations", icon: ShieldCheck, sub: "Queue" },
       {
