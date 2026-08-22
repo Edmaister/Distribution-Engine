@@ -644,6 +644,17 @@ policies or advance clocks. Policy resolution, lifecycle calculation, read-model
 aggregation, UI enablement, and end-to-end proof remain the ordered runtime gaps;
 `UNAVAILABLE` remains correct until those are complete.
 
+TASK-433 closes the policy-administration and deterministic-resolution portion of
+the runtime gap. Amplifi administrators can now create immutable policy versions,
+submit them for independent review, approve or return them, retire approved
+versions, and list their safe evidence. The resolver selects exactly one approved,
+effective policy for operating jurisdiction, work type, category, priority, and
+server time; missing or overlapping matches fail closed. IANA timezone validation,
+effective-window overlap prevention, hashed idempotency, audit evidence, redaction,
+and separation of duties are enforced. Support-case clocks are still not attached
+or advanced, and the Operations Workspace must continue returning `UNAVAILABLE`
+until clock lifecycle and read-model aggregation are complete.
+
 ## Explicit Deferrals
 
 These are not blockers for the 10/10 Referral SaaS wedge:

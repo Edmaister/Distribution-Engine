@@ -31,6 +31,8 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("GET", "/v1/referral-saas/operator/referrals/{referral_track_id}/progress-status"),
         ("GET", "/v1/referral-saas/workspace/overview"),
         ("GET", "/v1/referral-saas/workspace/account-context"),
+        ("GET", "/v1/referral-saas/service-target-policies"),
+        ("GET", "/v1/referral-saas/service-target-policies/resolution"),
         ("GET", "/v1/referral-saas/journey-templates"),
         ("GET", "/v1/referral-saas/journey-templates/{template_code}"),
         ("GET", "/v1/referral-saas/accounts"),
@@ -134,6 +136,11 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("POST", "/referrals/codes"),
         ("POST", "/referrals/referees/ucn"),
         ("POST", "/v1/referral-saas/accounts/from-draft"),
+        ("POST", "/v1/referral-saas/service-target-policies"),
+        ("POST", "/v1/referral-saas/service-target-policies/{policy_ref}/submit-review"),
+        ("POST", "/v1/referral-saas/service-target-policies/{policy_ref}/approve"),
+        ("POST", "/v1/referral-saas/service-target-policies/{policy_ref}/return-to-draft"),
+        ("POST", "/v1/referral-saas/service-target-policies/{policy_ref}/retire"),
         ("PUT", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
         ("PUT", "/v1/referral-saas/accounts/{account_ref}/product-lines/{product_line_ref}"),
         (
@@ -331,6 +338,8 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
     }
     expected_referral_saas_routes = {
         ("GET", "/v1/referral-saas/reports/{report_type}"),
+        ("GET", "/v1/referral-saas/service-target-policies"),
+        ("GET", "/v1/referral-saas/service-target-policies/resolution"),
         ("GET", "/v1/referral-saas/operator/links/inspect"),
         ("GET", "/v1/referral-saas/operator/support-cases"),
         ("GET", "/v1/referral-saas/operator/operations-overview"),
@@ -616,6 +625,23 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("POST", "/v1/referral-saas/referral-codes"),
         ("POST", "/v1/referral-saas/public/referrals/validate"),
         ("POST", "/v1/referral-saas/referrals/{referral_track_id}/referee-ucn"),
+        ("POST", "/v1/referral-saas/service-target-policies"),
+        (
+            "POST",
+            "/v1/referral-saas/service-target-policies/{policy_ref}/submit-review",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/service-target-policies/{policy_ref}/approve",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/service-target-policies/{policy_ref}/return-to-draft",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/service-target-policies/{policy_ref}/retire",
+        ),
     }
     expected_referral_saas_routes.add(
         ("GET", "/v1/referral-saas/accounts/{account_ref}/programmes/analytics")

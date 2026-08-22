@@ -9492,6 +9492,18 @@ Frontend/API impact: None. Existing Operations APIs continue returning `serviceT
 Tests and docs expectation: Structural migration coverage proves ordering, table/field presence, version/effective-date evidence, support-case/account boundaries, idempotency/audit evidence, no seeded policies, no provider-SLA reuse, and no money/DLaaS leakage.
 Definition of done: Complete - the database can persist governed Referral SaaS service-target evidence while remaining inert until separately reviewed runtime tasks activate it. Priority: P0.
 
+## TASK-433: Add governed service-target policy administration and resolution
+
+Status: Complete (2026-08-22). Dependencies: TASK-431; TASK-432.
+Product boundary: Referral SaaS with Shared Platform policy-governance, time, audit, idempotency, permission, and redaction primitives.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATIONAL_SERVICE_TARGET_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds one governed policy-version lifecycle and deterministic resolver for later Referral SaaS operational clocks. Source duplication: No.
+Objective: Let Amplifi administrators create immutable policy versions, submit them for independent review, approve or return them, retire approved versions, and resolve exactly one effective policy by jurisdiction, work type, category, priority, and server time.
+Backend/API impact: Adds Amplifi-admin-only create/list/lifecycle/resolution routes, strict policy and timezone validation, hashed idempotency evidence, separation of duties, approved-window overlap protection, audit writes, and fail-closed missing or ambiguous resolution. No customer or tenant override is introduced.
+Frontend impact: None. Policy administration remains API-first; the Operations Workspace retains `UNAVAILABLE` service-target metrics until clock lifecycle and read-model tasks are complete.
+Tests and docs expectation: Policy validation, canonical request hashing, safe resolved projection, missing-policy failure, permission denial, route inventory, docs, and infographic status are covered. Clock mutation, support-case attachment, due-time calculation, pause/resume, reporting aggregation, and UI enablement remain downstream.
+Definition of done: Complete - approved effective policy selection is deterministic, independently governed, auditable, idempotent, redacted, and fail-closed without changing support cases, campaigns, credentials, billing, or money. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
