@@ -676,6 +676,12 @@ required. TASK-437 now defines its target contract and ordered implementation pa
 versioned schedule persistence, shared timezone-aware calculation, governed
 administration/resolution, existing-clock integration, safe UX, and PostgreSQL
 release proof. No calendar schedule, holiday, or due time is inferred prematurely.
+TASK-438 closes the persistence slice with append-safe account/global calendar
+versions, weekly intervals, dated closures and exceptional working intervals, and
+audit/idempotency/redaction evidence. It seeds no calendar data and does not enable
+runtime calculation. The remaining gap is the shared timezone-aware calculator,
+governed administration and resolution, clock version pinning, safe UX and preview,
+and PostgreSQL proof across DST, exceptions, isolation, replay, and cleanup.
 
 ## Explicit Deferrals
 
