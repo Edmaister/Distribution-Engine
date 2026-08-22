@@ -3003,6 +3003,16 @@ journey changes or unsafe adjacent side effects.)
   idempotent and audited, and missing or ambiguous evidence fails closed. Existing
   clocks remain disconnected until TASK-441 adds immutable version pinning.
 
+- **TASK-441 - Approved business-calendar pinning for operational clocks:**
+  Complete. Eligible calendar-backed clocks now resolve and persist exactly one
+  approved effective account/global calendar version at start. Warning and due
+  timestamps use the shared working-time calculator, pause/resume reuses the
+  immutable pinned version, later calendar versions remain prospective, and
+  missing, ambiguous, invalid, or timezone-mismatched evidence fails closed.
+  Existing elapsed-time clocks remain compatible and browser-owned timing remains
+  prohibited. Safe administration UX/preview and migrated PostgreSQL lifecycle
+  proof remain TASK-442 and TASK-443.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:

@@ -145,8 +145,15 @@ class BusinessCalendarCalculator:
             raise BusinessCalendarValidationError(
                 "Working minutes must be a non-negative integer."
             )
+        return self.add_working_seconds(started_at, minutes * 60)
+
+    def add_working_seconds(self, started_at: datetime, seconds: int) -> datetime:
+        if isinstance(seconds, bool) or not isinstance(seconds, int) or seconds < 0:
+            raise BusinessCalendarValidationError(
+                "Working seconds must be a non-negative integer."
+            )
         cursor = _aware_utc(started_at)
-        remaining_seconds = minutes * 60
+        remaining_seconds = seconds
         if remaining_seconds == 0:
             return cursor
 

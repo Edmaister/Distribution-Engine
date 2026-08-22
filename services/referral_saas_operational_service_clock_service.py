@@ -12,12 +12,23 @@ from services.referral_saas_operational_service_target_service import (
     ServiceTargetPolicyResolutionUnavailable,
     resolve_service_target_policy,
 )
+from services.referral_saas_service_target_business_calendar import (
+    BusinessCalendarCalculator,
+    BusinessCalendarError,
+)
+from services.referral_saas_service_target_calendar_service import (
+    ServiceTargetCalendarError,
+    calculation_calendar_version,
+    get_service_target_calendar,
+    resolve_service_target_calendar,
+)
 from utils.db import db_connection
 
 
 CLOCK_GUARDRAILS = (
     "SERVER_OWNED_CLOCK",
     "APPROVED_POLICY_VERSION_PINNED",
+    "APPROVED_CALENDAR_VERSION_PINNED",
     "APPROVED_PAUSE_REASON_REQUIRED",
     "NO_BROWSER_TIMER",
     "NO_BILLING_OR_MONEY_MOVEMENT",
@@ -49,6 +60,10 @@ class ServiceTargetClock:
     policy_id: str
     policy_code: str
     policy_version_number: int
+    calendar_version_id: str | None
+    calendar_code: str | None
+    calendar_version_number: int | None
+    calendar_timezone: str | None
     clock_status: str
     started_at: datetime
     warning_at: datetime
@@ -77,6 +92,16 @@ def _clock(row: Mapping[str, Any]) -> ServiceTargetClock:
         policy_id=str(_value(row, "service_target_policy_id")),
         policy_code=str(_value(row, "policy_code")),
         policy_version_number=int(_value(row, "policy_version_number")),
+        calendar_version_id=(
+            str(_value(row, "service_target_calendar_version_id"))
+            if _value(row, "service_target_calendar_version_id") else None
+        ),
+        calendar_code=_value(row, "calendar_code"),
+        calendar_version_number=(
+            int(_value(row, "calendar_version_number"))
+            if _value(row, "calendar_version_number") is not None else None
+        ),
+        calendar_timezone=_value(row, "calendar_timezone"),
         clock_status=str(_value(row, "clock_status")),
         started_at=_value(row, "started_at"),
         warning_at=_value(row, "warning_at"),
@@ -107,6 +132,18 @@ def _clock_window(
         start,
         start + timedelta(minutes=warning_threshold_minutes),
         start + timedelta(minutes=target_duration_minutes),
+    )
+
+
+def _calendar_clock_window(
+    *, started_at: datetime, warning_threshold_minutes: int,
+    target_duration_minutes: int, calculator: BusinessCalendarCalculator,
+) -> tuple[datetime, datetime, datetime]:
+    start = started_at.astimezone(timezone.utc)
+    return (
+        start,
+        calculator.add_working_minutes(start, warning_threshold_minutes),
+        calculator.add_working_minutes(start, target_duration_minutes),
     )
 
 
@@ -150,13 +187,33 @@ async def start_support_case_service_target_clock(
         return None, "POLICY_UNAVAILABLE"
     if policy.start_event != "SUPPORT_CASE_CREATED":
         return None, "START_EVENT_UNAVAILABLE"
+    calendar = None
     if policy.business_calendar_ref:
-        return None, "BUSINESS_CALENDAR_UNAVAILABLE"
-    start, warning_at, due_at = _clock_window(
-        started_at=started_at,
-        warning_threshold_minutes=policy.warning_threshold_minutes,
-        target_duration_minutes=policy.target_duration_minutes,
-    )
+        try:
+            calendar = await resolve_service_target_calendar(
+                calendar_code=policy.business_calendar_ref,
+                effective_at=started_at,
+                account_id=account_id,
+            )
+            if calendar.business_timezone != policy.business_timezone:
+                return None, "BUSINESS_CALENDAR_TIMEZONE_MISMATCH"
+            calculator = BusinessCalendarCalculator(
+                calculation_calendar_version(calendar)
+            )
+            start, warning_at, due_at = _calendar_clock_window(
+                started_at=started_at,
+                warning_threshold_minutes=policy.warning_threshold_minutes,
+                target_duration_minutes=policy.target_duration_minutes,
+                calculator=calculator,
+            )
+        except (ServiceTargetCalendarError, BusinessCalendarError):
+            return None, "BUSINESS_CALENDAR_UNAVAILABLE"
+    else:
+        start, warning_at, due_at = _clock_window(
+            started_at=started_at,
+            warning_threshold_minutes=policy.warning_threshold_minutes,
+            target_duration_minutes=policy.target_duration_minutes,
+        )
     async with db_connection() as conn:
         async with conn.transaction():
             existing = await conn.fetchrow(
@@ -171,18 +228,29 @@ async def start_support_case_service_target_clock(
                 INSERT INTO referral_saas_operational_service_target_clocks (
                     service_target_clock_id, support_case_id, account_id,
                     service_target_policy_id, policy_code, policy_version_number,
+                    service_target_calendar_version_id, calendar_code,
+                    calendar_version_number, calendar_timezone,
                     clock_status, started_at, warning_at, due_at, correlation_id,
                     idempotency_key_hash, request_payload_hash, created_by_ref,
                     updated_by_ref, metadata, redactions
-                ) VALUES ($1, $2, $3, $4, $5, $6, 'RUNNING', $7, $8, $9,
-                          $10, $11, $12, $13, $13, $14::jsonb, $15::jsonb)
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                          'RUNNING', $11, $12, $13, $14, $15, $16, $17,
+                          $17, $18::jsonb, $19::jsonb)
                 RETURNING *
                 """,
                 clock_id, uuid.UUID(support_case_id), uuid.UUID(account_id),
                 uuid.UUID(policy.policy_id), policy.policy_code,
-                policy.version_number, start, warning_at, due_at, correlation_id,
+                policy.version_number,
+                uuid.UUID(calendar.calendar_version_id) if calendar else None,
+                calendar.calendar_code if calendar else None,
+                calendar.version_number if calendar else None,
+                calendar.business_timezone if calendar else None,
+                start, warning_at, due_at, correlation_id,
                 idempotency_key_hash, request_payload_hash, actor_ref,
-                json.dumps({"businessTimezone": policy.business_timezone}),
+                json.dumps({
+                    "businessTimezone": policy.business_timezone,
+                    "calculationMode": "BUSINESS_CALENDAR" if calendar else "ELAPSED_TIME",
+                }),
                 json.dumps(list(CLOCK_REDACTIONS)),
             )
             await _audit(
@@ -194,6 +262,8 @@ async def start_support_case_service_target_clock(
                 request_payload_hash=request_payload_hash,
                 evidence={"policyCode": policy.policy_code,
                           "policyVersionNumber": policy.version_number,
+                          "calendarCode": calendar.calendar_code if calendar else None,
+                          "calendarVersionNumber": calendar.version_number if calendar else None,
                           "startedAt": start.isoformat(), "dueAt": due_at.isoformat()},
             )
             return _clock(row), "CLOCK_STARTED"
@@ -343,14 +413,48 @@ async def change_service_target_pause_state(
                     )
                 paused_at = datetime.fromisoformat(str(paused_at_value))
                 seconds = max(0, int((at - paused_at).total_seconds()))
-                updated = await conn.fetchrow(
-                    """UPDATE referral_saas_operational_service_target_clocks
-                       SET clock_status='RUNNING', accumulated_paused_seconds=accumulated_paused_seconds+$3,
-                           warning_at=warning_at+($3 * interval '1 second'),
-                           due_at=due_at+($3 * interval '1 second'),
-                           metadata=$4::jsonb, updated_by_ref=$5, updated_at=NOW()
-                       WHERE account_id=$1 AND support_case_id=$2 RETURNING *""",
-                    uuid.UUID(account_id), uuid.UUID(support_case_id), seconds,
-                    json.dumps(metadata), actor_ref,
-                )
+                calendar_version_id = _value(row, "service_target_calendar_version_id")
+                if calendar_version_id:
+                    try:
+                        pinned = await get_service_target_calendar(str(calendar_version_id))
+                        calculator = BusinessCalendarCalculator(
+                            calculation_calendar_version(pinned)
+                        )
+                        paused_working_seconds = calculator.working_seconds_between(
+                            paused_at, at
+                        )
+                        warning_at = _value(row, "warning_at")
+                        shifted_warning = (
+                            calculator.add_working_seconds(
+                                warning_at, paused_working_seconds
+                            )
+                            if warning_at > paused_at else warning_at
+                        )
+                        shifted_due = calculator.add_working_seconds(
+                            _value(row, "due_at"), paused_working_seconds
+                        )
+                    except (ServiceTargetCalendarError, BusinessCalendarError) as exc:
+                        raise ServiceTargetClockConflict(
+                            "The pinned business calendar is unavailable for resume."
+                        ) from exc
+                    updated = await conn.fetchrow(
+                        """UPDATE referral_saas_operational_service_target_clocks
+                           SET clock_status='RUNNING', accumulated_paused_seconds=accumulated_paused_seconds+$3,
+                               warning_at=$4, due_at=$5, metadata=$6::jsonb,
+                               updated_by_ref=$7, updated_at=NOW()
+                           WHERE account_id=$1 AND support_case_id=$2 RETURNING *""",
+                        uuid.UUID(account_id), uuid.UUID(support_case_id), seconds,
+                        shifted_warning, shifted_due, json.dumps(metadata), actor_ref,
+                    )
+                else:
+                    updated = await conn.fetchrow(
+                        """UPDATE referral_saas_operational_service_target_clocks
+                           SET clock_status='RUNNING', accumulated_paused_seconds=accumulated_paused_seconds+$3,
+                               warning_at=warning_at+($3 * interval '1 second'),
+                               due_at=due_at+($3 * interval '1 second'),
+                               metadata=$4::jsonb, updated_by_ref=$5, updated_at=NOW()
+                           WHERE account_id=$1 AND support_case_id=$2 RETURNING *""",
+                        uuid.UUID(account_id), uuid.UUID(support_case_id), seconds,
+                        json.dumps(metadata), actor_ref,
+                    )
             return _clock(updated), f"CLOCK_{action}D"
