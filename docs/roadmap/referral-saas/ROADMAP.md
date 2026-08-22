@@ -2977,6 +2977,14 @@ journey changes or unsafe adjacent side effects.)
   UX, and the ordered implementation path. Runtime remains fail-closed for calendar-
   backed policies until those implementation slices are complete.
 
+- **TASK-438 - Governed service-target business-calendar persistence:** Complete.
+  The approved contract now has inert, append-safe persistence for account/global
+  calendar versions, weekly local-time intervals, dated closures and exceptional
+  working intervals, and audit evidence. The schema seeds no schedules and does
+  not alter policies or clocks. Calendar-backed runtime remains fail-closed until
+  the shared calculator, administration/resolution, clock integration, safe UX,
+  and PostgreSQL release proof are complete.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:

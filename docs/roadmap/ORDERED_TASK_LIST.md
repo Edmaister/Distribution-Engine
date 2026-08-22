@@ -9561,6 +9561,21 @@ Definition of done: Complete - downstream implementation can add governed busine
 
 Completed output: Added `docs/sa/referral-saas/REFERRAL_SAAS_SERVICE_TARGET_BUSINESS_CALENDAR_CONTRACT.md`, preserving the existing `BUSINESS_CALENDAR_UNAVAILABLE` fail-closed runtime until versioned calendar persistence, calculator, administration, clock integration, UX, and database proof are implemented in separate reviewed tasks.
 
+## TASK-438: Persist governed service-target business calendars
+
+Status: Complete (2026-08-22). Dependencies: TASK-437.
+Product boundary: Referral SaaS with Shared Platform database, time, audit, idempotency, permission, redaction, and observability primitives.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/roadmap/ENHANCEMENT_BACKLOG.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATIONAL_SERVICE_TARGET_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SERVICE_TARGET_BUSINESS_CALENDAR_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds one inert, versioned persistence model for calendar schedules and governance evidence; it does not introduce a second clock, calculator, policy resolver, route, or frontend timer. Source duplication: No.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails.
+Objective: Persist the immutable calendar versions, weekly local-time intervals, dated closures and exceptional working intervals, and append-oriented audit evidence required by the approved business-calendar contract.
+Backend/database impact: Adds account/global scoped calendar-version, weekly-interval, date-exception, and audit tables with lifecycle, effective dating, timezone, idempotency, correlation, payload-hash, approval, redaction, and historical-evidence constraints. No calendar, holiday, weekend, or working-hour data is seeded.
+Frontend/API impact: None. Calendar administration, resolution, calculation preview, and runtime clock integration remain later tasks.
+Tests and docs expectation: Structural tests must prove migration order, bounded tables, scope/lifecycle constraints, interval and exception semantics, audit/idempotency/redaction evidence, no cascading historical deletion, no seeded schedules, and no mutation of existing clocks or adjacent money/provider domains. Roadmap, gap matrix, and infographic must retain the fail-closed runtime distinction.
+Definition of done: Complete - the database can retain governed calendar definitions and evidence without enabling unproven calendar calculations or altering elapsed-time service-target behavior. Priority: P1 enhancement.
+
+Completed output: Added migration `102_referral_saas_service_target_business_calendars.sql` with immutable version, weekly schedule, dated exception, and audit persistence plus focused structural coverage. Existing calendar-backed service-target clocks continue returning `BUSINESS_CALENDAR_UNAVAILABLE` until the shared calculator, governed administration/resolution, clock integration, UX, and PostgreSQL release proof are completed.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.
