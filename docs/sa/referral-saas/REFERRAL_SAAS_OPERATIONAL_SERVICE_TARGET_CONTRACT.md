@@ -128,6 +128,16 @@ calculate or repair this metric.
 Each implementation step requires its own ordered task and reviewed schema/API
 contract. TASK-431 defines the boundary only; it does not claim runtime SLA support.
 
+## Implementation Status
+
+- TASK-432 implements the persistence foundation without seeded target values.
+- TASK-433 implements Amplifi-admin policy lifecycle commands and deterministic,
+  fail-closed approved-policy resolution.
+- Support-case clock creation and lifecycle, due-time calculation, read-model
+  aggregation, UI enablement, and end-to-end proof remain downstream work.
+- `UNAVAILABLE` with a null percentage remains the required Operations Workspace
+  response until those runtime evidence steps are complete.
+
 ## Acceptance Criteria
 
 - Current and target state are explicitly separated.

@@ -2930,6 +2930,17 @@ journey changes or unsafe adjacent side effects.)
   SLA evidence, and deliberately leaves the Operations read model in its honest
   `UNAVAILABLE` state until policy resolution and clock lifecycle are implemented.
 
+- **TASK-433 - Governed service-target policy administration and resolution:**
+  Complete. Amplifi-admin-only APIs now create versioned policies, submit them for
+  independent review, approve or return them, retire approved versions, list safe
+  policy evidence, and resolve exactly one approved effective policy by operating
+  jurisdiction, work type, category, priority, and server time. Validation covers
+  IANA business timezones, duration and warning thresholds, effective windows, and
+  pause reasons. Hashed idempotency, separation of duties, overlap protection,
+  append-oriented audit evidence, redactions, and fail-closed missing or ambiguous
+  resolution are enforced. No clock is started and no service-target metric is
+  enabled until TASK-434 and TASK-435 provide authoritative runtime evidence.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:

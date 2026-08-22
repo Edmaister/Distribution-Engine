@@ -35,6 +35,7 @@ from apps.api.routers import admin_outcomes
 from apps.api.routers import referral_saas_accounts
 from apps.api.routers import referral_saas_links
 from apps.api.routers import referral_saas_reports
+from apps.api.routers import referral_saas_service_targets
 from apps.api.routers import admin_webhook_catalog
 from apps.api.routers import admin_dlq_replay
 from apps.api.routers.admin_fulfilment import router as admin_fulfilment_router
@@ -526,6 +527,7 @@ app.include_router(admin_outcomes.router)
 app.include_router(referral_saas_accounts.router)
 app.include_router(referral_saas_links.router)
 app.include_router(referral_saas_reports.router)
+app.include_router(referral_saas_service_targets.router)
 app.include_router(admin_webhook_catalog.router)
 app.add_middleware(RateLimitMiddleware)
 app.include_router(admin_dlq_replay.router)
