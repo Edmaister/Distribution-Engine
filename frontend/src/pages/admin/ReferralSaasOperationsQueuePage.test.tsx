@@ -12,12 +12,12 @@ const response = {
   status: "ok" as const,
   operatorScope: { role: "AMPLIFI_ADMIN", jurisdictions: ["BW", "ZA"] },
   operations: {
-    metrics: { awaitingYourAction: 3, customersNeedingAttention: 2, withinServiceTargetPercent: null, serviceTargetStatus: "UNAVAILABLE" as const, productionIncidents: 0 },
+    metrics: { awaitingYourAction: 3, customersNeedingAttention: 2, withinServiceTargetPercent: null, serviceTargetStatus: "UNAVAILABLE" as const, serviceTargetEvidence: { reportingWindow: { startAt: null, endAt: null, basis: "ROLLING_30_DAYS_COMPLETED_AT" as const }, eligibleCount: 0, withinTargetCount: 0, excludedCount: 3, policyCoverage: { coveredCount: 0, visibleWindowCount: 3, percent: 0 } }, productionIncidents: 0 },
     workItems: [{
       workItemRef: "case-1", workItemType: "SUPPORT_CASE" as const, title: "Review referral evidence",
       customer: { accountRef: "account-1", accountCode: "ACC-100", label: "Northstar Financial" }, jurisdiction: "ZA",
       priority: "HIGH" as const, status: "OPEN", category: "REFERRAL_EVIDENCE", ownerRef: null, updatedAt: "2026-08-19T08:00:00Z",
-      serviceTarget: { status: "UNAVAILABLE" as const, dueAt: null }, destination: "/admin/referral-saas/account-maintenance/account-1/support?case=case-1",
+      serviceTarget: { status: "UNAVAILABLE" as const, dueAt: null, warningAt: null }, destination: "/admin/referral-saas/account-maintenance/account-1/support?case=case-1",
     }],
     nextCursor: "25", filters: { jurisdictions: ["ZA"], priority: null, customer: null, category: null, status: null, owner: null, workType: null, serviceTarget: null, sort: "PRIORITY", limit: 25 }, metricDefinitions: {}, guardrails: [], redactions: [],
   },

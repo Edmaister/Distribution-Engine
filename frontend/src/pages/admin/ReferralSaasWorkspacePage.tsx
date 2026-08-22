@@ -55,7 +55,9 @@ export function ReferralSaasWorkspacePage() {
             <OperationsMetric
               label="Within service target"
               value={operations.metrics.withinServiceTargetPercent === null ? "Not configured" : `${operations.metrics.withinServiceTargetPercent}%`}
-              note={operations.metrics.serviceTargetStatus === "UNAVAILABLE" ? "No governed SLA source yet" : "Current measured performance"}
+              note={operations.metrics.serviceTargetStatus === "UNAVAILABLE"
+                ? "No completed governed clocks in the last 30 days"
+                : `${operations.metrics.serviceTargetEvidence.withinTargetCount} of ${operations.metrics.serviceTargetEvidence.eligibleCount} completed cases`}
               icon={CheckCircle2}
             />
             <OperationsMetric
@@ -120,7 +122,10 @@ function WorkQueueRow({ item }: { item: WorkItem }) {
       <span className={`operations-priority-marker ${item.priority.toLowerCase()}`} aria-hidden="true" />
       <span className="operations-work-copy"><strong>{item.title}</strong><small>{formatCode(item.category)} · {formatCode(item.status)}</small></span>
       <span className="operations-work-customer"><strong>{item.customer.label}</strong><small>{item.jurisdiction}</small></span>
-      <StatusBadge label={item.priority} tone={priorityTone[item.priority]} />
+      <span className="operations-work-target">
+        <StatusBadge label={formatCode(item.serviceTarget.status)} tone={serviceTargetTone(item.serviceTarget.status)} />
+        <small>{formatDueAt(item.serviceTarget.dueAt)}</small>
+      </span>
       <span className="operations-open-action">Open <ArrowRight size={14} /></span>
     </Link>
   );
@@ -133,6 +138,18 @@ function OperationsError({ error }: { error: unknown }) {
 
 function formatCode(value: string) {
   return value.replace(/_/g, " ");
+}
+
+function serviceTargetTone(status: WorkItem["serviceTarget"]["status"]) {
+  if (status === "OVERDUE") return "danger" as const;
+  if (status === "APPROACHING_TARGET" || status === "PAUSED") return "warning" as const;
+  if (status === "ON_TRACK") return "success" as const;
+  return "info" as const;
+}
+
+function formatDueAt(value: string | null) {
+  if (!value) return "No governed target";
+  return `Due ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))}`;
 }
 
 function uniqueVisibleCustomers(items: WorkItem[]) {
