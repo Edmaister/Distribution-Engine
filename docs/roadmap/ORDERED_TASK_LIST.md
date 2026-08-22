@@ -9480,6 +9480,18 @@ Frontend impact: None. The dashboard continues to explain that governed service-
 Tests and docs expectation: Readback and documentation consistency validation. Downstream implementation must cover policy resolution, effective dating, calendars, pause/resume, reopen, boundary times, idempotency, audit, jurisdiction/account leakage, degraded evidence, and end-to-end aggregation.
 Definition of done: Complete - current evidence, product boundary, policy dimensions, server-owned clock lifecycle, pause rules, versioning, audit, permissions, safe read semantics, aggregation rules, and implementation sequence are explicit without claiming runtime support. Priority: P0 contract gate.
 
+## TASK-432: Add governed operational service-target schema foundation
+
+Status: Complete (2026-08-22). Dependencies: TASK-431.
+Product boundary: Referral SaaS with Shared Platform time, audit, idempotency, and redaction primitives.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATIONAL_SERVICE_TARGET_CONTRACT.md`.
+Shared primitive impact: Adds durable effective policy versions, resolved server-owned clocks, pause/resume evidence, and an append-oriented audit boundary. Source duplication: No.
+Objective: Create the persistence foundation required by the TASK-431 contract without inventing target values or changing current runtime/read-model behavior.
+Backend/database impact: Adds `101_referral_saas_operational_service_targets.sql` with effective-dated policy, support-case clock, pause-event, and audit tables. Policies carry governance and effective windows; each support case can retain one resolved policy version and clock; pause and audit records retain actor, correlation, idempotency, payload-hash, metadata, and redaction evidence.
+Frontend/API impact: None. Existing Operations APIs continue returning `serviceTargetStatus=UNAVAILABLE`, null within-target percentage, and no due time until policy resolution and clock-lifecycle tasks supply authoritative evidence.
+Tests and docs expectation: Structural migration coverage proves ordering, table/field presence, version/effective-date evidence, support-case/account boundaries, idempotency/audit evidence, no seeded policies, no provider-SLA reuse, and no money/DLaaS leakage.
+Definition of done: Complete - the database can persist governed Referral SaaS service-target evidence while remaining inert until separately reviewed runtime tasks activate it. Priority: P0.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

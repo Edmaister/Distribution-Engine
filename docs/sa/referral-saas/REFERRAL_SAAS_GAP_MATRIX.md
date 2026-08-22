@@ -635,6 +635,15 @@ calculation, read-model integration, UI enablement, and E2E proof remain ordered
 implementation gaps; until then `UNAVAILABLE` and a null percentage remain the
 correct production response.
 
+TASK-432 closes the persistence-foundation portion of that gap. The schema can now
+store reviewed effective policy versions, immutable support-case policy resolution,
+server-owned timestamps, accumulated pause duration, pause/resume actor evidence,
+completion/breach outcomes, idempotency hashes, correlation evidence, and audit
+records. It intentionally contains no seeded target values and does not yet select
+policies or advance clocks. Policy resolution, lifecycle calculation, read-model
+aggregation, UI enablement, and end-to-end proof remain the ordered runtime gaps;
+`UNAVAILABLE` remains correct until those are complete.
+
 ## Explicit Deferrals
 
 These are not blockers for the 10/10 Referral SaaS wedge:
