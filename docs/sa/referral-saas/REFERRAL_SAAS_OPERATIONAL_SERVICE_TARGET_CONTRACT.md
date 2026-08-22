@@ -18,9 +18,10 @@ reusing DLaaS provider and fulfilment SLA evidence.
 - Out of scope: provider fulfilment SLAs, distributor routing, funding, settlement,
   billing, payouts, wallets, commissions, treasury, and other DLaaS operations.
 
-## Current-State Evidence
+## TASK-431 Baseline Evidence
 
-The current operations read model uses `referral_saas_support_cases` for work-item,
+At the TASK-431 baseline, the operations read model used
+`referral_saas_support_cases` for work-item,
 priority, status, owner, customer, jurisdiction, and update-time evidence. The table
 has `created_at`, `updated_at`, and `closed_at`, but no governed target policy,
 effective policy version, due time, pause ledger, elapsed service time, or breach
@@ -33,9 +34,9 @@ evidence. Consequently the API correctly returns:
 `provider_sla_metrics` is not an acceptable substitute because it belongs to the
 provider/fulfilment boundary rather than customer-support operations.
 
-## Target-State Policy Contract
+## Governed Policy Contract
 
-A future implementation must persist an effective-dated policy selected from the
+The implementation persists an effective-dated policy selected from the
 work item's permitted jurisdiction, work type/category, and priority. Policy
 resolution must be deterministic, account-safe, and explainable. A policy must
 define:
@@ -76,10 +77,10 @@ sufficient evidence. Reopening completed work must either continue the original
 clock or start a linked clock according to an explicit policy rule; it must never
 erase the original outcome.
 
-## Target-State Read Semantics
+## Read Semantics
 
-The future backend may expose plain-language service-target outcomes after the
-schema and clock implementation are approved. The canonical concepts are:
+The backend exposes plain-language service-target outcomes from approved schema
+and persisted clock evidence. The canonical concepts are:
 
 - on track;
 - approaching target;
@@ -89,9 +90,8 @@ schema and clock implementation are approved. The canonical concepts are:
 - completed after target; and
 - unavailable when no valid policy or clock evidence exists.
 
-These are target-state semantic concepts, not current implemented status values.
-Exact API enums and schema names must be introduced only by the implementation
-task and verified against its database migration and service contract.
+These concepts are represented by the implemented service-target projection and
+remain governed by its database migration and service contract.
 
 The Operations Workspace percentage must be calculated by the backend from a
 declared reporting window and an explicit eligible denominator. Unavailable,
@@ -120,23 +120,32 @@ calculate or repair this metric.
 2. Add policy resolution and clock lifecycle services with deterministic tests.
 3. Extend the existing Operations Workspace read model and filters; do not create a
    second work-item model.
-4. Replace the current unavailable UI only after database-backed API evidence is
-   proven.
+4. Replace the blanket unavailable UI only after database-backed API evidence is
+   proven while retaining `UNAVAILABLE` for individual missing or unsupported
+   evidence.
 5. Run account/jurisdiction leakage, calendar, pause/resume, reopen, boundary-time,
    idempotency, audit, degraded-state, and end-to-end verification.
 
 Each implementation step requires its own ordered task and reviewed schema/API
-contract. TASK-431 defines the boundary only; it does not claim runtime SLA support.
+contract. TASK-431 defined the boundary; TASK-432 through TASK-436 implement and
+prove the bounded capability.
 
 ## Implementation Status
 
 - TASK-432 implements the persistence foundation without seeded target values.
 - TASK-433 implements Amplifi-admin policy lifecycle commands and deterministic,
   fail-closed approved-policy resolution.
-- Support-case clock creation and lifecycle, due-time calculation, read-model
-  aggregation, UI enablement, and end-to-end proof remain downstream work.
-- `UNAVAILABLE` with a null percentage remains the required Operations Workspace
-  response until those runtime evidence steps are complete.
+- TASK-434 implements policy-pinned, server-owned support-case clock lifecycle,
+  ordinary elapsed-time due calculation, completion, reopen evidence, and approved
+  pause/resume commands. Unsupported business-calendar calculation fails closed.
+- TASK-435 implements jurisdiction-safe rolling 30-day aggregation and server-owned
+  due-state presentation in the existing Operations read model and UI.
+- TASK-436 proves the complete policy-to-clock-to-Operations path on migrated
+  PostgreSQL across Namibia and Zambia, including replay, pause/resume, completion,
+  audit evidence, unsupported evidence, jurisdiction isolation, and cleanup.
+- `UNAVAILABLE` remains required for missing, ambiguous, or unsupported evidence;
+  measured percentages are returned only when an eligible persisted denominator
+  exists.
 
 ## Acceptance Criteria
 
@@ -144,7 +153,10 @@ contract. TASK-431 defines the boundary only; it does not claim runtime SLA supp
 - Referral SaaS operational targets are not conflated with DLaaS provider SLAs.
 - Policy, clock, pause, versioning, audit, permission, and aggregation semantics are
   defined before implementation.
-- The existing `UNAVAILABLE` behavior remains the only honest runtime response until
-  authoritative persistence and calculation exist.
+- `UNAVAILABLE` remains the honest response whenever authoritative persistence or
+  supported calculation evidence does not exist.
 - Downstream work can be implemented without frontend-owned timing or duplicated
   operational state.
+- A migrated PostgreSQL release check proves policy governance, clock lifecycle,
+  Operations aggregation, jurisdiction isolation, idempotency, audit, degraded
+  behavior, and cleanup.

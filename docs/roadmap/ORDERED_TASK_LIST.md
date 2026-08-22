@@ -9532,6 +9532,20 @@ Definition of done: Complete - every exposed service-target number and due-state
 
 Completed output: Added authoritative rolling 30-day service-target aggregation and semantic due-state projection to the single Operations read model, then enabled plain-language dashboard and queue presentation without browser-owned timers or percentages.
 
+## TASK-436: Prove service-target lifecycle and jurisdiction isolation on PostgreSQL
+
+Status: Complete (2026-08-22). Dependencies: TASK-431; TASK-432; TASK-433; TASK-434; TASK-435.
+Product boundary: Referral SaaS with Shared Platform database, time, audit, idempotency, permission, observability, and release-evidence primitives.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATIONAL_SERVICE_TARGET_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds reusable release verification for the existing policy, clock, audit, and Operations read-model path; no runtime source fork or second clock implementation is introduced. Source duplication: No.
+Objective: Prove against a migrated PostgreSQL database that governed policies resolve by jurisdiction, eligible support cases persist and advance server-owned clocks, Operations metrics use the same clock evidence, and jurisdiction filters prevent cross-market leakage.
+Backend/database impact: Adds an isolated release check that creates uniquely scoped temporary accounts, support cases, and policy versions; exercises create/review/approve, clock start, pause/resume, completion, replay, unavailable-policy, and Operations aggregation paths; verifies audit evidence; and removes all temporary evidence in dependency order.
+Frontend/API impact: No new route or UI behavior. TASK-435 remains the authoritative presentation; this task proves its backing evidence in a release-like database.
+Tests and docs expectation: The check must run after clean migration replay in CI and locally through `APP_DB_DSN`, prove at least two jurisdictions, fail closed for unsupported evidence, verify no cross-jurisdiction work-item leakage, and leave no temporary records. Unit coverage must protect its command contract and cleanup behavior. Roadmap, gap matrix, contract, and infographic status must be updated from implementation facts only.
+Definition of done: Complete - PostgreSQL-backed release evidence proves the complete governed policy-to-clock-to-Operations chain, including isolation, idempotency, audit, degraded behavior, and cleanup, without seeded production targets or unrelated side effects. Priority: P0 release gate.
+
+Completed output: Added a CI and locally runnable PostgreSQL release check that creates isolated Namibia and Zambia evidence, independently approves effective policies, starts and replays clocks, pauses and resumes one clock, completes another within target, verifies unsupported evidence remains unavailable, proves jurisdiction-safe Operations aggregation, verifies audit records, and removes all temporary evidence. The physical proof returned `PASS`, `crossJurisdictionLeakage: false`, `unsupportedEvidence: UNAVAILABLE`, and `withinServiceTargetPercent: 100` for its controlled eligible denominator.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

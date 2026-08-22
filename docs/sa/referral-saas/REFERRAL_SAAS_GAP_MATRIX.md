@@ -666,8 +666,12 @@ The existing read model now returns jurisdiction-safe rolling 30-day completed-
 clock performance with its denominator, exclusions, policy coverage, reporting
 window, semantic due state, warning/due timestamps, filters, and due sorting.
 The frontend renders only those server-owned values and retains `UNAVAILABLE`
-when governed evidence is absent. Database-backed lifecycle, cross-jurisdiction,
-and release-environment proof remains the TASK-436 gap.
+when governed evidence is absent. TASK-436 closes the remaining release-proof
+gap with a migrated PostgreSQL check covering independently approved policies,
+clock replay, pause/resume, completion, audit evidence, unsupported evidence,
+two-jurisdiction isolation, Operations aggregation, and cleanup. The controlled
+physical run passed without cross-jurisdiction leakage. Business-calendar
+calculation remains an explicit deferral and therefore fails closed where required.
 
 ## Explicit Deferrals
 

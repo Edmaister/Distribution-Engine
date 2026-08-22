@@ -2958,8 +2958,15 @@ journey changes or unsafe adjacent side effects.)
   projects open clocks as on-track, approaching-target, overdue, paused, or
   unavailable. The dashboard and work queue render those server-owned values,
   due times, filters, and due-soonest sorting without calculating timers or
-  percentages in the browser. TASK-436 remains the database-backed lifecycle,
-  cross-jurisdiction, and release-evidence proof.
+  percentages in the browser.
+
+- **TASK-436 - PostgreSQL service-target lifecycle and jurisdiction-isolation
+  proof:** Complete. A release check now runs after migration replay in CI and can
+  run locally through `APP_DB_DSN`. It creates temporary Namibia and Zambia
+  accounts, independently governs effective policies, proves clock start and
+  replay, pause/resume, completion, audit evidence, fail-closed unsupported
+  evidence, jurisdiction-safe Operations aggregation, and dependency-ordered
+  cleanup. The controlled physical run passed with no cross-jurisdiction leakage.
 
 ## Explicit Deferrals
 
