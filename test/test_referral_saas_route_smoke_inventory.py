@@ -33,6 +33,9 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("GET", "/v1/referral-saas/workspace/account-context"),
         ("GET", "/v1/referral-saas/service-target-policies"),
         ("GET", "/v1/referral-saas/service-target-policies/resolution"),
+        ("GET", "/v1/referral-saas/service-target-calendars"),
+        ("GET", "/v1/referral-saas/service-target-calendars/resolution"),
+        ("GET", "/v1/referral-saas/service-target-calendars/{calendar_ref}"),
         ("GET", "/v1/referral-saas/journey-templates"),
         ("GET", "/v1/referral-saas/journey-templates/{template_code}"),
         ("GET", "/v1/referral-saas/accounts"),
@@ -141,6 +144,11 @@ def test_referral_saas_current_smoke_routes_are_mounted():
         ("POST", "/v1/referral-saas/service-target-policies/{policy_ref}/approve"),
         ("POST", "/v1/referral-saas/service-target-policies/{policy_ref}/return-to-draft"),
         ("POST", "/v1/referral-saas/service-target-policies/{policy_ref}/retire"),
+        ("POST", "/v1/referral-saas/service-target-calendars"),
+        ("POST", "/v1/referral-saas/service-target-calendars/{calendar_ref}/submit-review"),
+        ("POST", "/v1/referral-saas/service-target-calendars/{calendar_ref}/approve"),
+        ("POST", "/v1/referral-saas/service-target-calendars/{calendar_ref}/return-to-draft"),
+        ("POST", "/v1/referral-saas/service-target-calendars/{calendar_ref}/retire"),
         ("PUT", "/v1/referral-saas/accounts/{account_ref}/journey-drafts"),
         ("PUT", "/v1/referral-saas/accounts/{account_ref}/product-lines/{product_line_ref}"),
         (
@@ -340,6 +348,9 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         ("GET", "/v1/referral-saas/reports/{report_type}"),
         ("GET", "/v1/referral-saas/service-target-policies"),
         ("GET", "/v1/referral-saas/service-target-policies/resolution"),
+        ("GET", "/v1/referral-saas/service-target-calendars"),
+        ("GET", "/v1/referral-saas/service-target-calendars/resolution"),
+        ("GET", "/v1/referral-saas/service-target-calendars/{calendar_ref}"),
         ("GET", "/v1/referral-saas/operator/links/inspect"),
         ("GET", "/v1/referral-saas/operator/support-cases"),
         ("GET", "/v1/referral-saas/operator/operations-overview"),
@@ -645,6 +656,23 @@ def test_referral_saas_product_wrapper_route_surface_is_bounded():
         (
             "POST",
             "/v1/referral-saas/service-target-policies/{policy_ref}/retire",
+        ),
+        ("POST", "/v1/referral-saas/service-target-calendars"),
+        (
+            "POST",
+            "/v1/referral-saas/service-target-calendars/{calendar_ref}/submit-review",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/service-target-calendars/{calendar_ref}/approve",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/service-target-calendars/{calendar_ref}/return-to-draft",
+        ),
+        (
+            "POST",
+            "/v1/referral-saas/service-target-calendars/{calendar_ref}/retire",
         ),
     }
     expected_referral_saas_routes.add(

@@ -689,6 +689,15 @@ intervals, weekends, and DST transitions. It is intentionally not connected to
 database resolution or clocks yet. The remaining gap is governed administration
 and deterministic version resolution, immutable clock pinning, safe UX and preview,
 and migrated PostgreSQL lifecycle proof.
+TASK-440 closes governed administration and deterministic resolution. Amplifi
+administrators can create prospective immutable account/global versions, inspect
+safe schedules, independently review and approve them, return review evidence to
+draft, retire approved versions, and resolve exactly one approved effective version.
+The service reuses the shared calculator for schedule validation, prevents approved
+window overlap, prefers account-scoped evidence before global fallback, and keeps
+idempotency, audit, and redaction evidence. The remaining gap is immutable clock
+pinning, safe administration UX and calculation preview, and migrated PostgreSQL
+lifecycle proof across DST, exceptions, isolation, replay, and cleanup.
 
 ## Explicit Deferrals
 

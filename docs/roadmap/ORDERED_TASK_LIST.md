@@ -9591,6 +9591,57 @@ Definition of done: Complete - one deterministic, timezone-aware calculator impl
 
 Completed output: Added `services/referral_saas_service_target_business_calendar.py` and focused calculator tests. The pure service calculates working instants and durations across weekly schedules, closures, exceptional intervals, weekends, and DST boundaries. Runtime clock integration remains deliberately unavailable pending governed administration/resolution and immutable version pinning.
 
+## TASK-440: Add governed service-target calendar administration and resolution
+
+Status: Complete (2026-08-22). Dependencies: TASK-437; TASK-438; TASK-439.
+Product boundary: Referral SaaS with Shared Platform time, account scope, audit, idempotency, permission, redaction, and observability primitives.
+Required boundary docs checked: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATIONAL_SERVICE_TARGET_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SERVICE_TARGET_BUSINESS_CALENDAR_CONTRACT.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds one governed repository/service and API over the existing calendar schema and calculator. Existing policies and clocks remain single-source and disconnected until TASK-441. Source duplication: No.
+Linked enhancement: DLaaS-002: Platform state, idempotency, and live verification guardrails.
+Objective: Allow Amplifi administrators to create immutable account/global calendar versions, independently review and approve them, retire them prospectively, inspect safe schedule evidence, and deterministically resolve exactly one approved effective version.
+Backend/API impact: Adds Amplifi-admin-only create, list, detail, submit-review, approve, return-to-draft, retire, and resolution routes. Creation and approval validate the complete schedule through the TASK-439 calculator. Commands use canonical payload hashes, idempotent replay, append-oriented audit, redactions, effective-window conflict checks, and creator/reviewer separation. Resolution prefers an effective account-scoped version and otherwise uses an effective global version; missing or ambiguous evidence fails closed.
+Frontend impact: None. Safe administration UX and calculation preview remain TASK-442; no browser-owned calculation is introduced.
+Tests and docs expectation: Focused schedule, API authorization, lifecycle command, fail-closed resolution, route inventory, compilation, roadmap, gap matrix, and infographic coverage. Clock pinning and PostgreSQL lifecycle proof remain separately ordered.
+Definition of done: Complete - persisted business-calendar versions have a governed administration and deterministic resolution boundary without altering policies, clocks, cases, campaigns, credentials, billing, or money. Priority: P1 enhancement.
+
+Completed output: Added `services/referral_saas_service_target_calendar_service.py` and `/v1/referral-saas/service-target-calendars` administration routes over migration 102 and the shared calculator. The service validates schedules, preserves prospective immutable versions, enforces independent approval and non-overlapping approved windows, and resolves account-first/global-fallback evidence fail closed. Runtime clock integration remains unavailable until TASK-441.
+
+## TASK-441: Pin approved business calendars to service-target clocks
+
+Status: Pending. Dependencies: TASK-440.
+Product boundary: Referral SaaS with Shared Platform time, audit, idempotency, and tenant-isolation primitives.
+Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATIONAL_SERVICE_TARGET_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SERVICE_TARGET_BUSINESS_CALENDAR_CONTRACT.md`.
+Shared primitive impact: Connects the existing approved-version resolver and calculator to the single service-target clock lifecycle. Source duplication: No.
+Objective: Resolve and immutably pin one approved effective calendar version when a calendar-backed clock starts, then use that pinned version for warning, due, pause/resume, completion, reopen, and replay calculations.
+Backend/database impact: Add explicit calendar-version pinning to eligible clocks, fail closed when approved evidence is missing or ambiguous, preserve historical calculations after later calendar changes, and retain append-only audit and idempotent replay evidence.
+Frontend/API impact: Existing safe clock/read models may expose the pinned version and degraded reason; no browser-owned deadline calculation.
+Tests and docs expectation: Cover account-first/global-fallback resolution, immutable pinning, policy/calendar mismatch, missing and ambiguous evidence, DST, closures, exceptions, pause/resume, completion, reopen, replay, and tenant isolation.
+Definition of done: Calendar-backed service-target clocks calculate only from one persisted approved version and remain reproducible after future calendar changes. Priority: P1 enhancement.
+
+## TASK-442: Add safe business-calendar administration and calculation preview UX
+
+Status: Pending. Dependencies: TASK-440.
+Product boundary: Referral SaaS with Shared Platform administration UX.
+Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SERVICE_TARGET_BUSINESS_CALENDAR_CONTRACT.md`.
+Shared primitive impact: Adds an Amplifi Global administration surface over the existing calendar API and server calculator. Source duplication: No.
+Objective: Let authorized Amplifi administrators create, inspect, review, approve, and retire calendar versions in plain language and preview server-calculated working-time outcomes before approval.
+Backend/API impact: Add only the bounded preview endpoint needed by the UX; it must call the shared calculator and must not persist clocks or mutate approved evidence.
+Frontend impact: Add accessible schedule, closure, exception, effective-window, review, approval, retirement, conflict, and degraded states with explicit customer/global scope and next actions.
+Tests and docs expectation: Cover permissions, independent review, invalid and overlapping schedules, DST preview, account/global scope clarity, keyboard and screen-reader behavior, responsive layout, and no browser-owned calculation.
+Definition of done: Administrators can safely govern calendar versions and understand their effects without raw schema exposure or hidden side effects. Priority: P1 enhancement.
+
+## TASK-443: Prove business-calendar lifecycle and clocks on migrated PostgreSQL
+
+Status: Pending. Dependencies: TASK-441; TASK-442.
+Product boundary: Referral SaaS with Shared Platform live-state verification.
+Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATIONAL_SERVICE_TARGET_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SERVICE_TARGET_BUSINESS_CALENDAR_CONTRACT.md`.
+Shared primitive impact: Adds release evidence for the existing calendar, policy, clock, audit, and tenant primitives. Source duplication: No.
+Objective: Prove the complete governed calendar lifecycle and pinned service-target calculations against a migrated PostgreSQL database before production enablement.
+Backend/database impact: No new business capability unless verification exposes a defect; use isolated fixtures and deterministic cleanup.
+Frontend/API impact: Exercise administration, preview, resolution, and clock read models through supported routes where applicable.
+Tests and docs expectation: Prove two jurisdictions, account override/global fallback, independent approval, overlap rejection, DST transitions, closures, exceptional hours, immutable pinning, pause/resume, completion, reopen, replay, audit, redaction, tenant isolation, cleanup, and fail-closed degraded states.
+Definition of done: Repeatable release evidence demonstrates migrated PostgreSQL correctness and no cross-tenant, clock-history, or calculation drift. Priority: P1 release proof.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

@@ -2994,6 +2994,15 @@ journey changes or unsafe adjacent side effects.)
   clocks; calendar-backed runtime remains fail-closed until governed administration,
   resolution, version pinning, UX, and PostgreSQL proof are complete.
 
+- **TASK-440 - Governed business-calendar administration and resolution:**
+  Complete. Amplifi-admin-only routes now create immutable account/global calendar
+  versions, expose safe list/detail evidence, govern independent review, approval,
+  return-to-draft and retirement, and deterministically resolve approved effective
+  versions with account-first/global-fallback semantics. Schedule validation reuses
+  the shared calculator, approved effective windows cannot overlap, commands are
+  idempotent and audited, and missing or ambiguous evidence fails closed. Existing
+  clocks remain disconnected until TASK-441 adds immutable version pinning.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:
