@@ -13,6 +13,7 @@ import {
 } from "../../api/endpoints/adminOnboarding";
 import {
   createReferralSaasAccountFromDraft,
+  resolveReferralSaasAccount,
   type ReferralSaasAccountCreateFromDraftResponse,
   type ReferralSaasAccountSummary,
 } from "../../api/endpoints/referralSaasAccounts";
@@ -135,6 +136,7 @@ export function ReferralSaasAccountSetupPage({ embedded = false, compact = false
   const [createState, setCreateState] = useState<SetupActionState>("idle");
   const [createResponse, setCreateResponse] = useState<ReferralSaasAccountCreateFromDraftResponse | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [compactExistingAccount, setCompactExistingAccount] = useState<ReferralSaasAccountSummary | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfileForm>({
     organisationName: "",
     country: "South Africa",
@@ -549,6 +551,80 @@ export function ReferralSaasAccountSetupPage({ embedded = false, compact = false
     }
   }
 
+  async function handleCompactCreate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const externalTenantRef = draftExternalTenantRef.trim();
+    const organisationRef = draftOrganisationRef.trim();
+    if (!externalTenantRef || !organisationRef || !companyProfileComplete || createState === "loading") return;
+
+    resetSetupActionState();
+    setCompactExistingAccount(null);
+    setCreateState("loading");
+    try {
+      const existing = await resolveReferralSaasAccount({
+        refType: "external_tenant_ref",
+        externalRef: externalTenantRef,
+        context: "setup",
+      });
+      setCompactExistingAccount(existing.account);
+      setCreateState("success");
+      return;
+    } catch (error) {
+      if (asRecord(error).status !== 404) {
+        setCreateError("We could not check for an existing customer. Nothing was created. Try again when the check is available.");
+        setCreateState("error");
+        return;
+      }
+    }
+
+    try {
+      const sections = buildReferralSaasSetupSections(externalTenantRef, organisationRef, companyProfile);
+      const savedDraft = await saveAdminOnboardingDraft({
+        external_tenant_ref: externalTenantRef,
+        organisation_ref: organisationRef,
+        idempotency_key: ["referral-saas-account-setup-draft", externalTenantRef, organisationRef].join(":"),
+        correlation_id: "referral-saas-account-setup-draft",
+        sections,
+      });
+      setDraftResponse(savedDraft);
+      setDraftState("success");
+
+      const submittedDraft = await submitAdminOnboardingDraftForReview(savedDraft.draft_ref, {
+        external_tenant_ref: externalTenantRef,
+        organisation_ref: organisationRef,
+        expected_version: savedDraft.draft_version ?? 1,
+        idempotency_key: ["referral-saas-account-setup-submit", savedDraft.draft_ref].join(":"),
+        correlation_id: "referral-saas-account-setup-submit-review",
+      });
+      setSubmitResponse(submittedDraft);
+
+      const reviewedDraft = await recordAdminOnboardingReviewDecision(submittedDraft.draft_ref, {
+        external_tenant_ref: externalTenantRef,
+        organisation_ref: organisationRef,
+        expected_version: submittedDraft.draft_version ?? 1,
+        idempotency_key: ["referral-saas-account-setup-review", submittedDraft.draft_ref, submittedDraft.draft_version ?? "missing-version", "APPROVED_FOR_INTERNAL_REVIEW"].join(":"),
+        review_outcome: "APPROVED_FOR_INTERNAL_REVIEW",
+        reason_category: "OPERATOR_REVIEW",
+        reason: guidedReviewReason,
+        correlation_id: "referral-saas-account-setup-review-decision",
+      });
+      setReviewResponse(reviewedDraft);
+
+      const response = await createReferralSaasAccountFromDraft({
+        draftRef: reviewedDraft.draft_ref,
+        internalTenantCode: deriveInternalSetupTenantScope(externalTenantRef, organisationRef),
+        idempotencyKey: ["referral-saas-account-setup-create", reviewedDraft.draft_ref].join(":"),
+      });
+      setAppliedExternalTenantRef(externalTenantRef);
+      setAppliedOrganisationRef(organisationRef);
+      setScopeCheckConfirmed(true);
+      setCreateResponse(response);
+      setCreateState("success");
+    } catch (error) {
+      setCreateError(safeAccountCreateError(error));
+      setCreateState("error");
+    }
+  }
   const readinessEvidenceLabel = resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE")?.status || "Pending";
   const readinessEvidenceCopy =
     resolvedRows.find((row) => row.code === "ACCOUNT_PROFILE")?.evidence ||
@@ -584,6 +660,96 @@ export function ReferralSaasAccountSetupPage({ embedded = false, compact = false
         .join(" - ")
     : null;
 
+  if (compact) {
+    const resolvedAccount = compactExistingAccount || createResponse?.account || null;
+    const resolvedAccountId = resolvedAccount?.accountId || null;
+    const resolvedAccountName = resolvedAccount?.accountName || resolvedAccount?.externalRef || "Customer";
+
+    return (
+      <section className="customer-create-direct" aria-labelledby="customer-create-heading">
+        <header className="customer-create-direct-heading">
+          <span aria-hidden="true" className="customer-create-step">1</span>
+          <div>
+            <div className="page-kicker">Account foundation</div>
+            <h2 id="customer-create-heading">Start with the customer identity</h2>
+            <p>Enter the customer details once. When you create the customer, Amplifi checks for an existing account before creating a new governed workspace.</p>
+          </div>
+        </header>
+
+        <form className="customer-create-direct-form" onSubmit={handleCompactCreate}>
+          <div className="customer-create-direct-grid">
+            <label className="field">
+              <span>Organisation name</span>
+              <input className="input" autoComplete="organization" onChange={(event) => updateCompanyProfile("organisationName", event.target.value)} placeholder="Example: FNB South Africa" required value={companyProfile.organisationName} />
+            </label>
+            <label className="field">
+              <span>Operating jurisdiction</span>
+              <select className="input" onChange={(event) => updateCompanyProfile("country", event.target.value)} required value={companyProfile.country}>
+                {companyJurisdictionOptions.map((jurisdiction) => <option key={jurisdiction} value={jurisdiction}>{jurisdiction}</option>)}
+              </select>
+            </label>
+            <div className="field">
+              <label htmlFor="compact-customer-reference">Customer reference <InfoTooltip text="A customer-facing reference used to find and scope this customer across Amplifi workflows." /></label>
+              <input className="input" id="compact-customer-reference" onChange={(event) => setDraftExternalTenantRef(event.target.value)} placeholder="Example: fnb-sa-referrals" required value={draftExternalTenantRef} />
+            </div>
+            <div className="field">
+              <label htmlFor="compact-organisation-reference">Organisation reference <InfoTooltip text="A stable organisation reference supplied by your business or source system. It keeps customer records correctly scoped." /></label>
+              <input className="input" id="compact-organisation-reference" onChange={(event) => setDraftOrganisationRef(event.target.value)} placeholder="Example: fnb-retail-bank" required value={draftOrganisationRef} />
+            </div>
+            <div className="field">
+              <label htmlFor="compact-customer-type">Customer type <InfoTooltip text="Describes the customer's relationship to this account setup. Product package and billing plan are configured separately." /></label>
+              <select className="input" id="compact-customer-type" onChange={(event) => updateCompanyProfile("organisationType", event.target.value)} value={companyProfile.organisationType}>
+                <option value="Direct customer">Direct customer</option>
+                <option value="Enterprise customer">Enterprise customer</option>
+                <option value="Agency / implementation partner">Agency / implementation partner</option>
+                <option value="Producer / sponsor">Producer / sponsor</option>
+                <option value="Partner operator">Partner operator</option>
+              </select>
+            </div>
+            <label className="field">
+              <span>Industry</span>
+              <select className="input" onChange={(event) => updateCompanyProfile("industry", event.target.value)} value={companyProfile.industry}>
+                {companyIndustryOptions.map((industry) => <option key={industry} value={industry}>{industry}</option>)}
+              </select>
+            </label>
+            <label className="field">
+              <span>Admin contact</span>
+              <input className="input" autoComplete="email" onChange={(event) => updateCompanyProfile("adminContact", event.target.value)} placeholder="name@customer.com" required type="email" value={companyProfile.adminContact} />
+            </label>
+            <div className="field">
+              <label htmlFor="compact-contact-responsibility">Contact responsibility <InfoTooltip text="Describes why this contact is involved in setup. Users, access roles, and permissions are managed later in Account Maintenance." /></label>
+              <select className="input" id="compact-contact-responsibility" onChange={(event) => updateCompanyProfile("intendedRole", event.target.value)} value={companyProfile.intendedRole}>
+                <option value="Account owner">Account owner</option>
+                <option value="Implementation lead">Implementation lead</option>
+                <option value="Campaign manager">Campaign manager</option>
+                <option value="Technical integration lead">Technical integration lead</option>
+                <option value="Reporting lead">Reporting lead</option>
+                <option value="Support lead">Support lead</option>
+              </select>
+            </div>
+          </div>
+
+          {createState === "error" && createError ? <div className="customer-create-direct-message"><ErrorPanel error={createError} /></div> : null}
+          {createState === "success" && resolvedAccount ? (
+            <div className="customer-create-direct-message success-panel" role="status">
+              <div>
+                <strong>{compactExistingAccount ? "Customer already exists." : "Customer created."}</strong>
+                <p>{resolvedAccountName} is ready to open. No duplicate customer was created.</p>
+              </div>
+              {resolvedAccountId ? <Link className="button" to={`/admin/referral-saas/account-maintenance/${resolvedAccountId}`}>Open customer profile</Link> : null}
+            </div>
+          ) : null}
+
+          <footer className="customer-create-direct-actions">
+            <Link className="button secondary" to="/admin/referral-saas/operations/customer-accounts">Cancel</Link>
+            <button className="button" disabled={!companyProfileComplete || !canCheckScope || createState === "loading"} type="submit">
+              {createState === "loading" ? "Checking and creating..." : "Create customer"}
+            </button>
+          </footer>
+        </form>
+      </section>
+    );
+  }
   return (
     <>
       {!embedded ? <section className="page-header">

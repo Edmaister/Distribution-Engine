@@ -3063,3 +3063,6 @@ Physical comparison with the approved Amplifi Customer Accounts prototype expose
 - TASK-450 is complete: the compact creation surface now presents one numbered active step with a plain-language purpose, removes the remaining nested-wizard framing and duplicate step introduction, and leaves the standalone governed Account Setup lifecycle unchanged.
 
 No task may fork account registry/onboarding services, invent absent prototype fields, weaken jurisdiction scope, or move campaign, credential, billing, money, or DLaaS behavior into Customer Accounts.
+
+- TASK-451 is complete: compact Create customer now captures supported customer evidence once, performs account resolution automatically behind the primary action, returns existing customers without duplicate writes, and reuses the governed onboarding and durable-account chain for genuine new customers.
+
