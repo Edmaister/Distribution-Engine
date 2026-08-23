@@ -9753,3 +9753,16 @@ Tests and docs expectation: Focused Customer Accounts tests, lint, production bu
 Definition of done: Complete - Create customer presents one focused governed workflow aligned to the approved composition while preserving all existing lifecycle controls and single-source commands. Priority: P1 UX alignment.
 
 Completed output: Added a compact Account Setup composition inside Customer Accounts, removed the duplicate intro and full embedded wizard rail, retained server-backed steps and supported fields, and placed plain-language lifecycle guardrails beside the workflow. Frontend lint completed without errors, the production build passed, and focused Customer Accounts tests passed (3 tests).
+## TASK-450: Complete the focused Customer Accounts creation surface
+
+Status: Complete (2026-08-23). Dependencies: TASK-449.
+Product boundary: Referral SaaS frontend with Shared Platform design-system and accessibility primitives.
+Required boundary docs checked: AGENTS.md; docs/product/referral-saas/PRODUCT_BRIEF.md; docs/roadmap/referral-saas/ROADMAP.md; docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md; docs/roadmap/ORDERED_TASK_LIST.md; approved Customer Accounts prototype handoff.
+Shared primitive impact: Refines the compact presentation mode of the existing governed Account Setup component; no account registry, onboarding command, field, status, route, or lifecycle is forked. Source duplication: No.
+Objective: Remove the final nested-wizard visual layer from Create customer so the active governed step is the single focus beside the lifecycle guardrail.
+Backend/database impact: None. Existing duplicate resolution, onboarding drafts, review decisions, durable account creation, audit, and idempotency remain authoritative.
+Frontend/API impact: Gives each compact lifecycle step one numbered heading and plain-language purpose, removes duplicated step introductions and nested card framing, and leaves the standalone Account Setup workflow unchanged.
+Tests and docs expectation: Focused Customer Accounts and Account Setup tests, lint, production build, responsive visual QA, roadmap, gap matrix, and infographic alignment.
+Definition of done: Complete - Create customer presents one focused active step without duplicate wizard chrome while retaining the complete governed lifecycle and supported data contract. Priority: P1 UX alignment.
+
+Completed output: Added focused compact-step metadata and composition to the shared Account Setup component, removed duplicate embedded step introductions and nested framing, and retained the standalone Account Setup presentation and every server-backed command. Frontend lint, focused tests, and the production build passed.
