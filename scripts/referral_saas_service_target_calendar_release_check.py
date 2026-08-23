@@ -86,11 +86,12 @@ async def _fixture(conn: asyncpg.Connection, run_ref: str, jurisdiction: str) ->
     )
     await conn.execute(
         """INSERT INTO platform_accounts (
-               account_id, account_code, account_name, account_type, status,
+               account_id, account_code, account_name, legal_organisation_name,
+               trading_name, registration_number, account_type, status,
                onboarding_status, operating_jurisdiction_code, created_by_ref, updated_by_ref
-           ) VALUES ($1,$2,$3,'ORGANISATION','ACTIVE','APPROVED',$4,$5,$5)""",
+           ) VALUES ($1,$2,$3,$3,$3,$4,'ORGANISATION','ACTIVE','APPROVED',$5,$6,$6)""",
         account_id, f"T443_{run_ref}_{jurisdiction}", f"TASK-443 {jurisdiction}",
-        jurisdiction, RUN_PREFIX,
+        f"T443-{run_ref}-{jurisdiction}", jurisdiction, RUN_PREFIX,
     )
     await conn.execute(
         """INSERT INTO referral_saas_support_cases (
