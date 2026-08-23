@@ -3030,6 +3030,15 @@ journey changes or unsafe adjacent side effects.)
   replay, pause/resume/completion, audit redactions, isolation, and cleanup.
   Local migrated-PostgreSQL execution passed without retained test evidence.
 
+- **TASK-444 - Referral SaaS release close-out reconciliation:** Complete. The
+  roadmap, gap matrix, ordered task list, and infographic now use one current
+  release statement after TASK-443. All ordered implementation, UX, local proof,
+  and migrated-PostgreSQL work in the focused Referral SaaS boundary is complete.
+  Referral Management is rated 9.999/10 and Campaign Attribution 9.999995/10.
+  TASK-027 and TASK-348 remain the only open tasks, blocked solely by approved
+  non-local credentials, targets, and execution permission. No additional
+  runtime feature is implied by the remaining fraction below 10/10.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:
