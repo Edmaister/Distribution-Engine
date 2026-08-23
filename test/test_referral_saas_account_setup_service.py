@@ -122,7 +122,14 @@ def patch_draft(monkeypatch, draft):
         return [
             {
                 "section_key": "company",
-                "section_payload": json.dumps({"country": "South Africa"}),
+                "section_payload": json.dumps(
+                    {
+                        "country": "South Africa",
+                        "legal_organisation_name": "First National Bank Limited",
+                        "trading_name": "FNB",
+                        "registration_number": "1929/001225/06",
+                    }
+                ),
             }
         ]
 
@@ -155,19 +162,30 @@ async def test_create_durable_account_from_ready_draft(monkeypatch):
 
     account_query, account_params = conn.fetchrow_calls[2]
     assert "INSERT INTO platform_accounts" in account_query
-    assert account_params[2] == "ORGANISATION"
-    assert account_params[3] == "PENDING_ONBOARDING"
-    assert account_params[4] == "READY_FOR_REVIEW"
-    assert account_params[5] == "ZA"
-    assert account_params[6] == "fnb-referrals"
-    assert json.loads(account_params[7])["draft_ref"] == "draft_001"
-    assert json.loads(account_params[7])["operating_jurisdiction_code"] == "ZA"
+    assert account_params[1] == "FNB"
+    assert account_params[2] == "First National Bank Limited"
+    assert account_params[3] == "FNB"
+    assert account_params[4] == "1929/001225/06"
+    assert account_params[5] == "ORGANISATION"
+    assert account_params[6] == "PENDING_ONBOARDING"
+    assert account_params[7] == "READY_FOR_REVIEW"
+    assert account_params[8] == "ZA"
+    assert account_params[9] == "fnb-referrals"
+    assert json.loads(account_params[10])["draft_ref"] == "draft_001"
+    assert json.loads(account_params[10])["legal_organisation_name"] == "First National Bank Limited"
 
     tenant_seed_query, tenant_seed_params = conn.fetchrow_calls[3]
     assert "INSERT INTO tenants" in tenant_seed_query
     assert tenant_seed_params[0] == "FNB"
-    assert tenant_seed_params[1] == "FNB Referral SaaS"
+    assert tenant_seed_params[1] == "FNB"
     assert tenant_seed_params[2] == "Referral management and campaign attribution"
+
+    organisation_query, organisation_params = conn.fetchrow_calls[4]
+    assert "INSERT INTO platform_organisations" in organisation_query
+    assert organisation_params[2] == "FNB"
+    assert organisation_params[3] == "First National Bank Limited"
+    assert organisation_params[4] == "FNB"
+    assert organisation_params[5] == "1929/001225/06"
 
     tenant_query, tenant_params = conn.fetchrow_calls[5]
     assert "INSERT INTO platform_account_tenants" in tenant_query

@@ -9779,3 +9779,14 @@ Tests and docs expectation: Cover existing-customer resolution, no-result govern
 Definition of done: Complete - operators enter supported customer details once and select Create customer; Amplifi silently checks for an existing account before creating, then opens the authoritative customer profile without weakening governance. Priority: P1 UX alignment.
 
 Completed output: Added a prototype-aligned direct customer form to compact Customer Accounts creation, moved duplicate resolution behind the primary action, reused the full governed onboarding and durable-account chain for genuine new customers, returned existing customers without duplicate writes, and retained the standalone Account Setup workflow. Focused frontend coverage passed (20 tests).
+
+## TASK-452: Persist governed customer legal identity in Account Setup
+
+Status: Complete (2026-08-23). Dependencies: TASK-451.
+Product boundary: Referral SaaS account-creation UX with Shared Platform account-registry, onboarding-draft, audit, and schema primitives.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; approved Customer Accounts prototype handoff.
+Shared primitive impact: Extends the single authoritative account and organisation records with governed legal identity attributes while retaining `account_name` and `organisation_name` as compatible display-name fields.
+Source duplication: No.
+Tests and docs update expectations: Migration contract, draft-to-account service coverage, focused frontend workflow tests, lint/build, gap matrix, roadmap, and infographic alignment.
+
+Completed output: Account Setup now captures legal organisation name, optional trading name, and registration number in the prototype-aligned creation experience. The values persist through the governed onboarding draft into the authoritative account and organisation records, legacy `organisation_name` drafts remain readable, and duplicate resolution continues behind the single Create customer action.
