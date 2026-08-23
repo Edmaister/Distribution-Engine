@@ -6,6 +6,7 @@ import { useReferralSaasCustomerPortfolio } from "../../api/referralSaasAccountQ
 import { ReferralSaasCustomerAccountsPage } from "./ReferralSaasCustomerAccountsPage";
 
 vi.mock("../../api/referralSaasAccountQueries", () => ({ useReferralSaasCustomerPortfolio: vi.fn() }));
+vi.mock("./ReferralSaasAccountSetupPage", () => ({ ReferralSaasAccountSetupPage: ({ embedded }: { embedded?: boolean }) => <div data-testid="account-setup">{embedded ? "Embedded account setup" : "Account setup"}</div> }));
 const mockDirectory = vi.mocked(useReferralSaasCustomerPortfolio);
 const response = {
   status: "ok" as const,
@@ -28,9 +29,18 @@ describe("ReferralSaasCustomerAccountsPage", () => {
     renderPage();
     expect(screen.getByRole("heading", { name: "Customer accounts" })).toBeInTheDocument();
     expect(screen.getByText("Results are permission-scoped")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Create customer|Create new customer/ })[0]).toHaveAttribute("href", "/admin/referral-saas/account-setup");
+    expect(screen.getAllByRole("link", { name: /Create customer|Create new customer/ })[0]).toHaveAttribute("href", "/admin/referral-saas/operations/customer-accounts?mode=create");
     expect(screen.getByRole("link", { name: /Open profile/ })).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/account-1");
     expect(mockDirectory).toHaveBeenCalledWith(expect.objectContaining({ sort: "NAME_ASC", limit: 50 }), 0);
+  });
+  it("keeps governed customer creation inside the Customer Accounts workspace", () => {
+    mockDirectory.mockReturnValue({ data: response, isLoading: false, error: null } as unknown as ReturnType<typeof useReferralSaasCustomerPortfolio>);
+    const router = createMemoryRouter([{ path: "/admin/referral-saas/operations/customer-accounts", element: <ReferralSaasCustomerAccountsPage /> }], { initialEntries: ["/admin/referral-saas/operations/customer-accounts?mode=create"] });
+    render(<RouterProvider router={router} />);
+    expect(screen.getByRole("heading", { name: "Start with the customer identity" })).toBeInTheDocument();
+    expect(screen.getByTestId("account-setup")).toHaveTextContent("Embedded account setup");
+    expect(screen.getByRole("link", { name: "Find customer" })).toHaveAttribute("href", "/admin/referral-saas/operations/customer-accounts?mode=find");
+    expect(screen.queryByText("Results are permission-scoped")).not.toBeInTheDocument();
   });
   it("keeps customer search in the URL", async () => {
     mockDirectory.mockReturnValue({ data: response, isLoading: false, error: null } as unknown as ReturnType<typeof useReferralSaasCustomerPortfolio>);
