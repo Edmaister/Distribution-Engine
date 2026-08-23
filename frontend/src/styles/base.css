@@ -2519,6 +2519,11 @@ a {
 .customer-account-boundary dt { color: var(--color-ink-soft); }
 .customer-account-boundary dd { font-weight: 700; margin: 0; }
 .customer-account-boundary .button { justify-content: center; margin-top: 8px; width: 100%; }
+.customer-create-workspace { padding-top: 24px; }
+.customer-create-intro { margin-bottom: 18px; }
+.customer-create-intro h2 { margin: 6px 0; }
+.customer-create-intro p { color: var(--color-ink-soft); margin: 0; max-width: 760px; }
+.customer-create-workspace .account-wizard { margin-top: 0; }
 .input-with-icon { align-items: center; display: flex; position: relative; }
 .input-with-icon svg { color: var(--color-ink-soft); left: 10px; pointer-events: none; position: absolute; }
 .input-with-icon input { padding-left: 34px; }

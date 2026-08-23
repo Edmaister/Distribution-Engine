@@ -9700,7 +9700,7 @@ Completed output: Added the dedicated permission-scoped Customer Accounts direct
 
 ## TASK-446: Unify duplicate-safe Find and Create customer UX
 
-Status: Pending. Dependencies: TASK-445.
+Status: Complete (2026-08-23). Dependencies: TASK-445.
 Product boundary: Referral SaaS with Shared Platform account-creation, permission, audit, and duplicate-detection primitives.
 Required boundary docs to check: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; approved Customer Accounts prototype handoff.
 Shared primitive impact: Presents the existing governed Account Setup lifecycle inside the Customer Accounts information architecture. Source duplication: No.
@@ -9708,7 +9708,9 @@ Objective: Make Find customer and Create customer two clear states of one worksp
 Backend/database impact: No new fields or lifecycle may be invented. Prototype fields absent from the authoritative schema must be omitted, mapped to an existing governed concept, or separately contracted.
 Frontend/API impact: Align the Create state to the approved prototype while reusing existing Account Setup commands, review evidence, idempotency, and persisted destinations.
 Tests and docs expectation: Cover duplicate prevention, permission scope, validation, state restoration, governed outcomes, accessibility, and responsive visual QA.
-Definition of done: Operators can search first and create only when needed without leaving Customer Accounts or bypassing the existing lifecycle. Priority: P1 UX alignment.
+Definition of done: Complete - operators can switch between Find and Create states without leaving Customer Accounts, while creation reuses the authoritative governed Account Setup lifecycle. Priority: P1 UX alignment.
+
+Completed output: Added URL-restorable Find/Create workspace states, embedded the existing duplicate-safe Account Setup workflow without duplicating its header or commands, retained permission-scoped discovery, and preserved governed review, idempotency, and persisted destinations. Focused frontend coverage passed (18 tests); production build passed; lint completed with no errors.
 
 ## TASK-447: Complete Customer Accounts prototype visual and access-boundary alignment
 

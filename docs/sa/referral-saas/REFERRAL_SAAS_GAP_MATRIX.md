@@ -754,7 +754,7 @@ rescoped as a separate task with money/audit/live-state guardrails.
 | Gap | Current evidence | Ordered resolution | State |
 | --- | --- | --- | --- |
 | Customer discovery and operational attention shared one route | The permission-safe portfolio API is sound, but the UI conflated lookup with prioritisation | TASK-445 separates Customer Accounts discovery from Customer Portfolio | Closed |
-| Create customer leaves the Customer Accounts mental model | Governed Account Setup exists but is a separate wizard | TASK-446 composes it into unified duplicate-safe Find/Create UX | Open |
+| Create customer leaves the Customer Accounts mental model | Customer Accounts now presents URL-restorable Find/Create states and embeds the governed Account Setup lifecycle | TASK-446 composes it into unified duplicate-safe Find/Create UX | Closed |
 | Visual/accessibility parity is unproven | Core shell and directory primitives exist | TASK-447 completes prototype, responsive, and accessibility alignment | Open |
 | New information architecture lacks lifecycle proof | Prior backend proof exists but not the combined route | TASK-448 runs UI/API/PostgreSQL discovery-to-profile proof | Open |
 

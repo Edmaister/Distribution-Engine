@@ -115,7 +115,7 @@ const accountChecklist = [
   },
 ];
 
-export function ReferralSaasAccountSetupPage() {
+export function ReferralSaasAccountSetupPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { refreshKey } = useRefreshContext();
   const [activeWizardStep, setActiveWizardStep] = useState(1);
   const [scopeCheckConfirmed, setScopeCheckConfirmed] = useState(false);
@@ -563,7 +563,7 @@ export function ReferralSaasAccountSetupPage() {
 
   return (
     <>
-      <section className="page-header">
+      {!embedded ? <section className="page-header">
         <div>
           <div className="page-kicker">Referral SaaS - Account Setup</div>
           <h1 className="page-title">Account setup wizard</h1>
@@ -575,7 +575,7 @@ export function ReferralSaasAccountSetupPage() {
           </p>
         </div>
         <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
-      </section>
+      </section> : null}
 
       {isLoading ? <LoadingState label="Loading Referral SaaS account setup" /> : null}
       {error ? <ErrorPanel error={error} /> : null}

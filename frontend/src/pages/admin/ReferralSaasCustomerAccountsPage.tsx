@@ -9,12 +9,14 @@ import {
 import { EmptyState } from "../../components/EmptyState";
 import { LoadingState } from "../../components/LoadingState";
 import { StatusBadge } from "../../components/StatusBadge";
+import { ReferralSaasAccountSetupPage } from "./ReferralSaasAccountSetupPage";
 
 type Customer = ReferralSaasCustomerPortfolioResponse["portfolio"]["customers"][number];
 
 export function ReferralSaasCustomerAccountsPage() {
   const outletContext = useOutletContext<{ refreshKey?: number } | undefined>();
   const [params, setParams] = useSearchParams();
+  const mode = params.get("mode") === "create" ? "create" : "find";
   const filters: ReferralSaasCustomerPortfolioFilters = {
     search: value(params, "search"),
     jurisdiction: value(params, "jurisdiction"),
@@ -43,15 +45,15 @@ export function ReferralSaasCustomerAccountsPage() {
         <h1 className="page-title">Customer accounts</h1>
         <p className="page-copy">Find an existing customer before creating a new governed customer account.</p>
       </div>
-      <Link className="button primary" to="/admin/referral-saas/account-setup"><Plus size={16} /> Create customer</Link>
+      {mode === "find" ? <Link className="button primary" to="?mode=create"><Plus size={16} /> Create customer</Link> : null}
     </section>
 
     <nav className="customer-accounts-tabs" aria-label="Customer account actions">
-      <span aria-current="page"><Search size={16} /> Find customer</span>
-      <Link to="/admin/referral-saas/account-setup"><Plus size={16} /> Create customer</Link>
+      {mode === "find" ? <span aria-current="page"><Search size={16} /> Find customer</span> : <Link to="?mode=find"><Search size={16} /> Find customer</Link>}
+      {mode === "create" ? <span aria-current="page"><Plus size={16} /> Create customer</span> : <Link to="?mode=create"><Plus size={16} /> Create customer</Link>}
     </nav>
 
-    <div className="customer-accounts-layout">
+    {mode === "create" ? <CustomerCreateWorkspace /> : <div className="customer-accounts-layout">
       <section className="customer-accounts-main">
         <div className="customer-accounts-heading">
           <div className="page-kicker">Find an existing customer</div>
@@ -95,9 +97,20 @@ export function ReferralSaasCustomerAccountsPage() {
         </dl>
         <strong>Customer not found?</strong>
         <p>Create only after checking for an existing account.</p>
-        <Link className="button secondary" to="/admin/referral-saas/account-setup"><Plus size={15} /> Create new customer</Link>
+        <Link className="button secondary" to="?mode=create"><Plus size={15} /> Create new customer</Link>
       </aside>
-    </div>
+    </div>}
+  </div>;
+}
+
+function CustomerCreateWorkspace() {
+  return <div className="customer-create-workspace">
+    <section className="customer-create-intro">
+      <div className="page-kicker">Create a governed customer</div>
+      <h2>Start with the customer identity</h2>
+      <p>Check the visible customer references first. If no workspace exists, continue through company evidence, setup review, and customer workspace creation.</p>
+    </section>
+    <ReferralSaasAccountSetupPage embedded />
   </div>;
 }
 
