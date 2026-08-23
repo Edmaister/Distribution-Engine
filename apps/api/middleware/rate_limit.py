@@ -91,6 +91,10 @@ def _rate_limit_for_tenant(tenant: str) -> int:
     return DEFAULT_RATE_LIMIT_PER_MINUTE
 
 
+def _current_rate_limit_window() -> int:
+    return int(time.time() // 60)
+
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.url.path in {"/healthz", "/readyz", "/metrics"}:
@@ -113,7 +117,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         client_subject = _resolve_client_from_request(request)
         limit = _rate_limit_for_tenant(tenant)
 
-        window = int(time.time() // 60)
+        window = _current_rate_limit_window()
         key = f"rate-limit:{tenant}:{client_subject}:{window}"
 
         try:
