@@ -115,7 +115,7 @@ const accountChecklist = [
   },
 ];
 
-export function ReferralSaasAccountSetupPage({ embedded = false }: { embedded?: boolean } = {}) {
+export function ReferralSaasAccountSetupPage({ embedded = false, compact = false }: { embedded?: boolean; compact?: boolean } = {}) {
   const { refreshKey } = useRefreshContext();
   const [activeWizardStep, setActiveWizardStep] = useState(1);
   const [scopeCheckConfirmed, setScopeCheckConfirmed] = useState(false);
@@ -581,8 +581,8 @@ export function ReferralSaasAccountSetupPage({ embedded = false }: { embedded?: 
       {error ? <ErrorPanel error={error} /> : null}
       {!isLoading && !error ? (
         <>
-          <section className="account-wizard" aria-labelledby="account-setup-wizard-heading">
-            <aside className="account-wizard-rail" aria-label="Account setup progress">
+          <section className={`account-wizard${compact ? " account-wizard--compact" : ""}`} aria-labelledby="account-setup-wizard-heading">
+            {!compact ? <aside className="account-wizard-rail" aria-label="Account setup progress">
               <div className="rail-title">Progress</div>
               {wizardSteps.map((step) => {
                 const state = getWizardRailState(step.id);
@@ -600,14 +600,14 @@ export function ReferralSaasAccountSetupPage({ embedded = false }: { embedded?: 
                   </button>
                 );
               })}
-            </aside>
+            </aside> : null}
 
             <div className="account-wizard-main">
-              <div className="account-wizard-topbar">
+              <div className={`account-wizard-topbar${compact ? " account-wizard-topbar--compact" : ""}`}>
                 <div>
-                  <div className="page-kicker">Step {activeWizardStep} of {wizardSteps.length}</div>
-                  <h2 className="panel-title" id="account-setup-wizard-heading">Guided account setup</h2>
-                  <div className="panel-subtitle">Create the customer workspace before campaign and attribution testing.</div>
+                  <div className="page-kicker">Step {activeWizardStep} of {wizardSteps.length} · Account foundation</div>
+                  <h2 className="panel-title" id="account-setup-wizard-heading">{compact ? wizardSteps[activeWizardStep - 1]?.label : "Guided account setup"}</h2>
+                  <div className="panel-subtitle">{compact ? "Complete this governed step before moving forward." : "Create the customer workspace before campaign and attribution testing."}</div>
                 </div>
                 <StatusBadge label="Safe mode: no go-live / money / credentials" tone="warning" />
               </div>

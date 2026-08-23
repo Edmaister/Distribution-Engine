@@ -105,13 +105,10 @@ export function ReferralSaasCustomerAccountsPage() {
 
 function CustomerCreateWorkspace() {
   return <div className="customer-create-workspace">
-    <section className="customer-create-intro" aria-labelledby="customer-create-title">
-      <div>
-        <div className="page-kicker">Create a governed customer</div>
-        <h2 id="customer-create-title">Start with the customer identity</h2>
-        <p>Check the visible customer references first. If no workspace exists, continue through company evidence, setup review, and customer workspace creation.</p>
-        <Link className="customer-create-back" to="?mode=find">Back to customer search</Link>
-      </div>
+    <div className="customer-create-layout">
+      <section className="customer-create-main" aria-label="Create customer account">
+        <ReferralSaasAccountSetupPage compact embedded />
+      </section>
       <aside className="customer-create-guardrail" aria-label="What happens next">
         <div className="page-kicker">Creation guardrails</div>
         <h3>What happens next</h3>
@@ -121,12 +118,12 @@ function CustomerCreateWorkspace() {
           <li><span>3</span><div><strong>Governed review</strong><small>Validate and approve the setup evidence.</small></div></li>
           <li><span>4</span><div><strong>Workspace creation</strong><small>Create the customer foundation and open its profile.</small></div></li>
         </ol>
+        <div className="customer-create-evidence"><ShieldCheck size={18} /><span>Every decision is retained as governed evidence.</span></div>
+        <Link className="customer-create-back" to="?mode=find">Back to customer search</Link>
       </aside>
-    </section>
-    <ReferralSaasAccountSetupPage embedded />
+    </div>
   </div>;
 }
-
 function CustomerAccountRow({ customer }: { customer: Customer }) {
   const statusTone = customer.accountStatus === "ACTIVE" ? "success" : customer.accountStatus === "SUSPENDED" ? "danger" : "warning";
   return <article className="customer-account-row" role="row">

@@ -6,7 +6,7 @@ import { useReferralSaasCustomerPortfolio } from "../../api/referralSaasAccountQ
 import { ReferralSaasCustomerAccountsPage } from "./ReferralSaasCustomerAccountsPage";
 
 vi.mock("../../api/referralSaasAccountQueries", () => ({ useReferralSaasCustomerPortfolio: vi.fn() }));
-vi.mock("./ReferralSaasAccountSetupPage", () => ({ ReferralSaasAccountSetupPage: ({ embedded }: { embedded?: boolean }) => <div data-testid="account-setup">{embedded ? "Embedded account setup" : "Account setup"}</div> }));
+vi.mock("./ReferralSaasAccountSetupPage", () => ({ ReferralSaasAccountSetupPage: ({ embedded, compact }: { embedded?: boolean; compact?: boolean }) => <div data-compact={compact ? "true" : "false"} data-testid="account-setup">{embedded ? "Embedded account setup" : "Account setup"}</div> }));
 const mockDirectory = vi.mocked(useReferralSaasCustomerPortfolio);
 const response = {
   status: "ok" as const,
@@ -40,12 +40,13 @@ describe("ReferralSaasCustomerAccountsPage", () => {
     mockDirectory.mockReturnValue({ data: response, isLoading: false, error: null } as unknown as ReturnType<typeof useReferralSaasCustomerPortfolio>);
     const router = createMemoryRouter([{ path: "/admin/referral-saas/operations/customer-accounts", element: <ReferralSaasCustomerAccountsPage /> }], { initialEntries: ["/admin/referral-saas/operations/customer-accounts?mode=create"] });
     render(<RouterProvider router={router} />);
-    expect(screen.getByRole("heading", { name: "Start with the customer identity" })).toBeInTheDocument();
     expect(screen.getByTestId("account-setup")).toHaveTextContent("Embedded account setup");
+    expect(screen.getByTestId("account-setup")).toHaveAttribute("data-compact", "true");
     expect(screen.getByRole("complementary", { name: "What happens next" })).toHaveTextContent("Duplicate check");
     expect(screen.getByRole("link", { name: "Create customer" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Back to customer search" })).toHaveAttribute("href", "/admin/referral-saas/operations/customer-accounts?mode=find");
     expect(screen.getByRole("link", { name: "Find customer" })).toHaveAttribute("href", "/admin/referral-saas/operations/customer-accounts?mode=find");
+    expect(screen.queryByText("Create a governed customer")).not.toBeInTheDocument();
     expect(screen.queryByText("Results are permission-scoped")).not.toBeInTheDocument();
   });
   it("keeps customer search in the URL", async () => {
