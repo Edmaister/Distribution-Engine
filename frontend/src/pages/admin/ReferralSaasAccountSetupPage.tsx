@@ -236,6 +236,29 @@ export function ReferralSaasAccountSetupPage({ embedded = false, compact = false
     { id: 3, label: "Setup checkpoint" },
     { id: 4, label: "Review & create" },
   ];
+  const compactStepContent = [
+    {
+      kicker: "Customer identity",
+      title: "Find or start the customer workspace",
+      copy: "Check the visible customer references before creating a new governed workspace.",
+    },
+    {
+      kicker: "Company evidence",
+      title: "Capture the customer profile",
+      copy: "Save the supported organisation details that will evidence this customer workspace.",
+    },
+    {
+      kicker: "Setup checkpoint",
+      title: "Confirm setup can continue",
+      copy: "Verify the customer references and saved company evidence before review.",
+    },
+    {
+      kicker: "Governed creation",
+      title: "Review and create the customer workspace",
+      copy: "Confirm the evidence and create the durable customer foundation without enabling go-live or money movement.",
+    },
+  ];
+  const activeCompactStep = compactStepContent[activeWizardStep - 1];
   const resolvedRows = accountChecklist.map((item) => {
     const matchingCategory = categories.find((category) => categoryMatches(category, item));
     const status = formatDisplay(
@@ -603,16 +626,27 @@ export function ReferralSaasAccountSetupPage({ embedded = false, compact = false
             </aside> : null}
 
             <div className="account-wizard-main">
-              <div className={`account-wizard-topbar${compact ? " account-wizard-topbar--compact" : ""}`}>
-                <div>
-                  <div className="page-kicker">Step {activeWizardStep} of {wizardSteps.length} · Account foundation</div>
-                  <h2 className="panel-title" id="account-setup-wizard-heading">{compact ? wizardSteps[activeWizardStep - 1]?.label : "Guided account setup"}</h2>
-                  <div className="panel-subtitle">{compact ? "Complete this governed step before moving forward." : "Create the customer workspace before campaign and attribution testing."}</div>
+              {compact ? (
+                <div className="customer-create-step-heading">
+                  <span className="customer-create-step-number" aria-hidden="true">{activeWizardStep}</span>
+                  <div>
+                    <div className="page-kicker">{activeCompactStep.kicker}</div>
+                    <h2 className="panel-title" id="account-setup-wizard-heading">{activeCompactStep.title}</h2>
+                    <div className="panel-subtitle">{activeCompactStep.copy}</div>
+                  </div>
                 </div>
-                <StatusBadge label="Safe mode: no go-live / money / credentials" tone="warning" />
-              </div>
+              ) : (
+                <div className="account-wizard-topbar">
+                  <div>
+                    <div className="page-kicker">Step {activeWizardStep} of {wizardSteps.length} · Account foundation</div>
+                    <h2 className="panel-title" id="account-setup-wizard-heading">Guided account setup</h2>
+                    <div className="panel-subtitle">Create the customer workspace before campaign and attribution testing.</div>
+                  </div>
+                  <StatusBadge label="Safe mode: no go-live / money / credentials" tone="warning" />
+                </div>
+              )}
 
-              <div className="account-wizard-step">
+              <div className={`account-wizard-step${compact ? " account-wizard-step--compact" : ""}`}>
                 {activeWizardStep === 1 ? (
                   <>
                     <div>

@@ -2534,9 +2534,14 @@ a {
 .customer-create-workspace .account-wizard { margin-top: 0; }
 .customer-create-evidence { align-items: flex-start; background: var(--color-info-soft); border-radius: var(--radius-control); color: var(--color-ink-soft); display: flex; gap: 10px; margin-top: 24px; padding: 14px; }
 .customer-create-evidence svg { color: var(--color-primary); flex: 0 0 auto; }
-.account-wizard--compact { border-radius: var(--radius-panel); grid-template-columns: 1fr; }
-.account-wizard--compact .account-wizard-topbar { background: transparent; }
-.account-wizard--compact .account-wizard-step { padding-top: 26px; }
+.account-wizard--compact { border-radius: var(--radius-panel); grid-template-columns: 1fr; min-height: 0; }
+.customer-create-step-heading { align-items: flex-start; border-bottom: 1px solid var(--color-rule); display: grid; gap: 16px; grid-template-columns: 34px minmax(0, 1fr); padding: 26px; }
+.customer-create-step-heading > div { display: grid; gap: 5px; }
+.customer-create-step-number { align-items: center; background: var(--color-primary); border-radius: 50%; color: white; display: inline-flex; font-size: .85rem; font-weight: 800; height: 34px; justify-content: center; width: 34px; }
+.account-wizard--compact .account-wizard-step { padding: 26px; }
+.account-wizard--compact .account-wizard-step--compact > div:first-child { display: none; }
+.account-wizard--compact .wizard-card { border: 0; border-radius: 0; padding: 0; }
+.account-wizard--compact .account-wizard-footer { background: var(--color-surface-muted); padding: 16px 26px; }
 .input-with-icon { align-items: center; display: flex; position: relative; }
 .input-with-icon svg { color: var(--color-ink-soft); left: 10px; pointer-events: none; position: absolute; }
 .input-with-icon input { padding-left: 34px; }
