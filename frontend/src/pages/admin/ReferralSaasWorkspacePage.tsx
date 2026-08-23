@@ -9,13 +9,6 @@ import { StatusBadge } from "../../components/StatusBadge";
 
 type WorkItem = ReferralSaasOperationsOverviewResponse["operations"]["workItems"][number];
 
-const priorityTone = {
-  CRITICAL: "danger",
-  HIGH: "danger",
-  MEDIUM: "warning",
-  LOW: "info",
-} as const;
-
 export function ReferralSaasWorkspacePage() {
   const outletContext = useOutletContext<{ refreshKey?: number } | undefined>();
   const refreshKey = outletContext?.refreshKey ?? 0;
@@ -33,12 +26,12 @@ export function ReferralSaasWorkspacePage() {
             Prioritise governed work across the customers and jurisdictions you are permitted to support.
           </p>
         </div>
-        <Link className="button primary operations-primary-action" to="/admin/referral-saas/operations/customer-portfolio">
+        <Link className="button primary operations-primary-action" to="/admin/referral-saas/operations/customer-accounts">
           <Search size={16} /> Find or create customer
         </Link>
       </section>
 
-      <Link className="operations-customer-search" to="/admin/referral-saas/operations/customer-portfolio">
+      <Link className="operations-customer-search" to="/admin/referral-saas/operations/customer-accounts">
         <Search aria-hidden="true" size={21} />
         <span><strong>Find a customer</strong><small>Search by customer name, reference, or account code.</small></span>
         <span className="operations-search-link">Open directory <ArrowRight size={15} /></span>
@@ -101,7 +94,7 @@ export function ReferralSaasWorkspacePage() {
                   </Link>
                 )) : <p className="operations-empty-copy">No customers currently need operational attention.</p>}
               </div>
-              <Link className="operations-inline-link" to="/admin/referral-saas/operations/customer-portfolio">
+              <Link className="operations-inline-link" to="/admin/referral-saas/operations/customer-accounts">
                 Open customer directory <ArrowRight size={14} />
               </Link>
             </aside>

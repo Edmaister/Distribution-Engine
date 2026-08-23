@@ -3050,3 +3050,14 @@ The following are DLaaS expansion work, not blockers for this SaaS roadmap:
 - settlement batches
 - sponsor billing
 - white-label/embed
+
+## Customer Accounts UX Alignment After Release Close-Out
+
+Physical comparison with the approved Amplifi Customer Accounts prototype exposed an information-architecture gap after TASK-444: Customer Portfolio covered both operational attention and customer discovery, while Customer Accounts linked directly to the standalone creation wizard. This does not reopen the backend capability close-out, but it requires a bounded UX tranche.
+
+- TASK-445 completes the Customer Accounts directory and preserves Customer Portfolio as a separate operational-attention surface.
+- TASK-446 is pending for unified, duplicate-safe Find/Create UX over the existing governed Account Setup lifecycle.
+- TASK-447 is pending for final prototype visual, responsive, and accessibility alignment.
+- TASK-448 is pending for repeatable discovery-to-profile lifecycle proof.
+
+No task may fork account registry/onboarding services, invent absent prototype fields, weaken jurisdiction scope, or move campaign, credential, billing, money, or DLaaS behavior into Customer Accounts.

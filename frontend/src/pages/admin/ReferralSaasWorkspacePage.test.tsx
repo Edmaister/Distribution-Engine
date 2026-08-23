@@ -77,7 +77,7 @@ describe("ReferralSaasWorkspacePage", () => {
   it("uses a clear customer-directory action", () => {
     mockOverview.mockReturnValue({ data: response, isLoading: false, error: null } as unknown as ReturnType<typeof useReferralSaasOperationsOverview>);
     renderWorkspace();
-    expect(screen.getAllByRole("link", { name: /Find or create customer|Find a customer/ })[0]).toHaveAttribute("href", "/admin/referral-saas/operations/customer-portfolio");
+    expect(screen.getAllByRole("link", { name: /Find or create customer|Find a customer/ })[0]).toHaveAttribute("href", "/admin/referral-saas/operations/customer-accounts");
   });
 
   it("links the summary to the complete operational queue", () => {

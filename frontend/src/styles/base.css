@@ -2489,6 +2489,36 @@ a {
 .customer-portfolio-context > span { display: grid; gap: 5px; }
 .customer-portfolio-context small, .customer-portfolio-attention > small { color: var(--color-ink-soft); }
 .customer-portfolio-open { white-space: nowrap; }
+
+.customer-accounts-tabs { align-items: center; border-bottom: 1px solid var(--color-rule); display: flex; gap: 28px; margin-top: 10px; }
+.customer-accounts-tabs a, .customer-accounts-tabs span { align-items: center; color: var(--color-ink-soft); display: inline-flex; gap: 8px; padding: 13px 2px; text-decoration: none; }
+.customer-accounts-tabs [aria-current="page"] { border-bottom: 2px solid var(--color-primary); color: var(--color-primary); font-weight: 700; }
+.customer-accounts-layout { display: grid; gap: 30px; grid-template-columns: minmax(0, 1fr) minmax(250px, 300px); padding-top: 24px; }
+.customer-accounts-main { min-width: 0; }
+.customer-accounts-heading { margin-bottom: 18px; }
+.customer-accounts-heading h2 { margin: 6px 0; }
+.customer-accounts-heading p, .customer-account-boundary p { color: var(--color-ink-soft); }
+.customer-account-search { align-items: center; display: flex; gap: 12px; padding: 12px; }
+.customer-account-search-input { align-items: center; display: flex; flex: 1; gap: 10px; min-width: 0; }
+.customer-account-search-input svg { color: var(--color-primary); flex: none; }
+.customer-account-search-input input { border: 0; font-size: 1rem; min-width: 0; outline: 0; width: 100%; }
+.customer-account-filters { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 0; }
+.customer-account-filters label { min-width: 180px; }
+.customer-account-filters > span { color: var(--color-ink-soft); margin-left: auto; }
+.customer-account-table-head, .customer-account-row { align-items: center; display: grid; gap: 16px; grid-template-columns: minmax(220px, 1.5fr) minmax(135px, .8fr) minmax(120px, .7fr) minmax(130px, .7fr) auto; }
+.customer-account-table-head { background: var(--color-surface-muted); color: var(--color-ink-soft); font-size: .78rem; padding: 12px 16px; }
+.customer-account-row { border-top: 1px solid var(--color-rule); padding: 14px 16px; }
+.customer-account-row:first-of-type { border-top: 0; }
+.customer-account-name { align-items: center; display: flex; gap: 12px; min-width: 0; }
+.customer-account-open { align-items: center; color: var(--color-primary); display: inline-flex; font-weight: 700; gap: 5px; text-decoration: none; white-space: nowrap; }
+.customer-account-boundary { border-left: 1px solid var(--color-rule); padding: 26px 0 0 28px; }
+.customer-account-boundary > svg { color: var(--color-primary); margin-bottom: 18px; }
+.customer-account-boundary h2 { margin: 12px 0; }
+.customer-account-boundary dl { margin: 22px 0; }
+.customer-account-boundary dl div { border-top: 1px solid var(--color-rule); display: grid; gap: 5px; padding: 14px 0; }
+.customer-account-boundary dt { color: var(--color-ink-soft); }
+.customer-account-boundary dd { font-weight: 700; margin: 0; }
+.customer-account-boundary .button { justify-content: center; margin-top: 8px; width: 100%; }
 .input-with-icon { align-items: center; display: flex; position: relative; }
 .input-with-icon svg { color: var(--color-ink-soft); left: 10px; pointer-events: none; position: absolute; }
 .input-with-icon input { padding-left: 34px; }
@@ -5988,6 +6018,11 @@ textarea.input {
   .customer-portfolio-row { align-items: start; }
   .customer-portfolio-row .operations-customer-monogram, .customer-portfolio-identity, .customer-portfolio-context, .customer-portfolio-attention, .customer-portfolio-open { grid-column: 1; grid-row: auto; }
   .customer-portfolio-open { justify-content: center; justify-self: stretch; }
+  .customer-accounts-layout { grid-template-columns: 1fr; }
+  .customer-account-boundary { border-left: 0; border-top: 1px solid var(--color-rule); padding: 24px 0 0; }
+  .customer-account-table-head { display: none; }
+  .customer-account-row { align-items: start; grid-template-columns: 1fr; }
+  .customer-account-open { justify-content: flex-start; }
   .operations-customer-search { align-items: start; grid-template-columns: auto 1fr; }
   .operations-search-link { grid-column: 2; }
   .operations-kpi-strip { grid-template-columns: 1fr; }
