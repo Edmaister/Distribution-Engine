@@ -49,8 +49,8 @@ export function ReferralSaasCustomerAccountsPage() {
     </section>
 
     <nav className="customer-accounts-tabs" aria-label="Customer account actions">
-      {mode === "find" ? <span aria-current="page"><Search size={16} /> Find customer</span> : <Link to="?mode=find"><Search size={16} /> Find customer</Link>}
-      {mode === "create" ? <span aria-current="page"><Plus size={16} /> Create customer</span> : <Link to="?mode=create"><Plus size={16} /> Create customer</Link>}
+      <Link aria-current={mode === "find" ? "page" : undefined} to="?mode=find"><Search size={16} /> Find customer</Link>
+      <Link aria-current={mode === "create" ? "page" : undefined} to="?mode=create"><Plus size={16} /> Create customer</Link>
     </nav>
 
     {mode === "create" ? <CustomerCreateWorkspace /> : <div className="customer-accounts-layout">
@@ -70,10 +70,10 @@ export function ReferralSaasCustomerAccountsPage() {
           {hasFilters ? <button className="button secondary" onClick={() => setParams({})} type="button"><X size={15} /> Clear</button> : null}
         </section>
 
-        <div className="customer-account-filters">
+        <div className="customer-account-filters" aria-label="Customer account filters">
           <FilterSelect label="Jurisdiction" name="jurisdiction" value={filters.jurisdiction} onChange={setFilter} options={(query.data?.operatorScope.jurisdictions || []).map((item) => [item, item])} />
           <FilterSelect label="Account status" name="accountStatus" value={filters.accountStatus} onChange={setFilter} options={[["ACTIVE", "Active"], ["PENDING_ONBOARDING", "Pending onboarding"], ["SUSPENDED", "Suspended"]]} />
-          <span>{customers?.length ?? 0} customer {customers?.length === 1 ? "profile" : "profiles"}</span>
+          <span aria-live="polite">{customers?.length ?? 0} customer {customers?.length === 1 ? "profile" : "profiles"}</span>
         </div>
 
         {query.isLoading ? <LoadingState label="Loading customer accounts" /> : null}
@@ -92,7 +92,7 @@ export function ReferralSaasCustomerAccountsPage() {
         <h2>Results are permission-scoped</h2>
         <p>Name, customer-number, and reference matching only happens within the jurisdictions your role permits.</p>
         <dl>
-          <div><dt>Permitted jurisdictions</dt><dd>{query.data?.operatorScope.jurisdictions.join(" · ") || "Loading"}</dd></div>
+          <div><dt>Permitted jurisdictions</dt><dd>{query.isLoading ? "Loading permitted scope" : query.error ? "Scope unavailable" : query.data?.operatorScope.jurisdictions.join(" · ") || "No permitted jurisdictions"}</dd></div>
           <div><dt>Your capability</dt><dd>Customer Operations</dd></div>
         </dl>
         <strong>Customer not found?</strong>
@@ -105,10 +105,23 @@ export function ReferralSaasCustomerAccountsPage() {
 
 function CustomerCreateWorkspace() {
   return <div className="customer-create-workspace">
-    <section className="customer-create-intro">
-      <div className="page-kicker">Create a governed customer</div>
-      <h2>Start with the customer identity</h2>
-      <p>Check the visible customer references first. If no workspace exists, continue through company evidence, setup review, and customer workspace creation.</p>
+    <section className="customer-create-intro" aria-labelledby="customer-create-title">
+      <div>
+        <div className="page-kicker">Create a governed customer</div>
+        <h2 id="customer-create-title">Start with the customer identity</h2>
+        <p>Check the visible customer references first. If no workspace exists, continue through company evidence, setup review, and customer workspace creation.</p>
+        <Link className="customer-create-back" to="?mode=find">Back to customer search</Link>
+      </div>
+      <aside className="customer-create-guardrail" aria-label="What happens next">
+        <div className="page-kicker">Creation guardrails</div>
+        <h3>What happens next</h3>
+        <ol>
+          <li><span>1</span><div><strong>Duplicate check</strong><small>Confirm that this customer does not already exist.</small></div></li>
+          <li><span>2</span><div><strong>Customer evidence</strong><small>Capture the company and visible reference details.</small></div></li>
+          <li><span>3</span><div><strong>Governed review</strong><small>Validate and approve the setup evidence.</small></div></li>
+          <li><span>4</span><div><strong>Workspace creation</strong><small>Create the customer foundation and open its profile.</small></div></li>
+        </ol>
+      </aside>
     </section>
     <ReferralSaasAccountSetupPage embedded />
   </div>;
@@ -118,15 +131,15 @@ function CustomerAccountRow({ customer }: { customer: Customer }) {
   const statusTone = customer.accountStatus === "ACTIVE" ? "success" : customer.accountStatus === "SUSPENDED" ? "danger" : "warning";
   return <article className="customer-account-row" role="row">
     <div className="customer-account-name" role="cell"><span className="operations-customer-monogram" aria-hidden="true">{customer.accountName.slice(0, 2).toUpperCase()}</span><strong>{customer.accountName}</strong></div>
-    <span role="cell">{customer.accountCode}</span>
-    <span role="cell">{customer.jurisdiction}</span>
-    <span role="cell"><StatusBadge label={formatCode(customer.accountStatus)} tone={statusTone} /></span>
-    <Link className="customer-account-open" to={customer.destination}>Open profile <ArrowRight size={14} /></Link>
+    <span data-label="Customer number" role="cell">{customer.accountCode}</span>
+    <span data-label="Jurisdiction" role="cell">{customer.jurisdiction}</span>
+    <span data-label="Status" role="cell"><StatusBadge label={formatCode(customer.accountStatus)} tone={statusTone} /></span>
+    <Link aria-label={`Open ${customer.accountName} profile`} className="customer-account-open" to={customer.destination}>Open profile <ArrowRight size={14} /></Link>
   </article>;
 }
 
 function FilterSelect({ label, name, value: selected, onChange, options }: { label: string; name: string; value?: string; onChange: (name: string, value: string) => void; options: string[][] }) {
-  return <label><span className="sr-only">{label}</span><select aria-label={label} onChange={(event) => onChange(name, event.target.value)} value={selected || ""}><option value="">All</option>{options.map(([option, text]) => <option key={option} value={option}>{text}</option>)}</select></label>;
+  return <label><span>{label}</span><select aria-label={label} onChange={(event) => onChange(name, event.target.value)} value={selected || ""}><option value="">All</option>{options.map(([option, text]) => <option key={option} value={option}>{text}</option>)}</select></label>;
 }
 
 function DirectoryError({ error }: { error: unknown }) {

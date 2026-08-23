@@ -9714,7 +9714,7 @@ Completed output: Added URL-restorable Find/Create workspace states, embedded th
 
 ## TASK-447: Complete Customer Accounts prototype visual and access-boundary alignment
 
-Status: Pending. Dependencies: TASK-446.
+Status: Complete (2026-08-23). Dependencies: TASK-446.
 Product boundary: Referral SaaS frontend with Shared Platform design-system and accessibility primitives.
 Required boundary docs to check: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; approved Customer Accounts prototype handoff.
 Shared primitive impact: Extends existing Amplifi Global layout, typography, icon, table, status, focus, and responsive primitives. Source duplication: No.
@@ -9723,6 +9723,8 @@ Backend/database impact: None.
 Frontend/API impact: Refine spacing, responsive table/list behavior, selected navigation, guardrail panel, and loading/error/empty states.
 Tests and docs expectation: Desktop/mobile screenshots, keyboard/screen-reader checks, non-overlap checks, lint/build/tests, and design QA.
 Definition of done: Customer Accounts is visually coherent with the approved Amplifi Global experience across supported states and viewports. Priority: P1 UX alignment.
+
+Completed output: Refined the unified Customer Accounts Find/Create workspace with selected-state navigation, visible search filters, permission-scope loading/error/empty states, responsive labelled results, customer-specific accessible profile actions, and a plain-language creation guardrail. Frontend lint completed with no errors (59 existing warnings), production build passed, and the complete frontend suite passed (41 files, 305 tests).
 
 ## TASK-448: Prove Customer Accounts discovery-to-profile lifecycle end to end
 
