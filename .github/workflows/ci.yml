@@ -47,6 +47,8 @@ jobs:
           coverage xml
       - name: Prove service-target lifecycle and jurisdiction isolation
         run: python scripts/referral_saas_service_target_release_check.py
+      - name: Prove governed business-calendar lifecycle and clock pinning
+        run: python scripts/referral_saas_service_target_calendar_release_check.py
       - name: Upload coverage to Codecov (optional)
         if: ${{ vars.CODECOV_TOKEN != '' }}
         uses: codecov/codecov-action@v4

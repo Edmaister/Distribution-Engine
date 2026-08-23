@@ -9636,7 +9636,7 @@ Completed output: Added an Amplifi Global `Service calendars` workspace over the
 
 ## TASK-443: Prove business-calendar lifecycle and clocks on migrated PostgreSQL
 
-Status: Pending. Dependencies: TASK-441; TASK-442.
+Status: Complete (2026-08-22). Dependencies: TASK-441; TASK-442.
 Product boundary: Referral SaaS with Shared Platform live-state verification.
 Required boundary docs to check: `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/product/README.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/sa/referral-saas/REFERRAL_SAAS_OPERATIONAL_SERVICE_TARGET_CONTRACT.md`; `docs/sa/referral-saas/REFERRAL_SAAS_SERVICE_TARGET_BUSINESS_CALENDAR_CONTRACT.md`.
 Shared primitive impact: Adds release evidence for the existing calendar, policy, clock, audit, and tenant primitives. Source duplication: No.
@@ -9645,6 +9645,8 @@ Backend/database impact: No new business capability unless verification exposes 
 Frontend/API impact: Exercise administration, preview, resolution, and clock read models through supported routes where applicable.
 Tests and docs expectation: Prove two jurisdictions, account override/global fallback, independent approval, overlap rejection, DST transitions, closures, exceptional hours, immutable pinning, pause/resume, completion, reopen, replay, audit, redaction, tenant isolation, cleanup, and fail-closed degraded states.
 Definition of done: Repeatable release evidence demonstrates migrated PostgreSQL correctness and no cross-tenant, clock-history, or calculation drift. Priority: P1 release proof.
+
+Completed output: Added a repeatable PostgreSQL release check to CI using isolated ZA and BW account fixtures. The proof exercises independent calendar approval, account override/global fallback, overlap rejection, closure and exceptional-hour calculations, Europe/London DST behavior, approved calendar-version pinning, clock replay, pause/resume/completion, audit redactions, jurisdiction isolation, and FK-safe cleanup. Local execution passed after applying migrations 102 and 103, and no temporary evidence remained.
 
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 

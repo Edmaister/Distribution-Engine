@@ -3022,6 +3022,14 @@ journey changes or unsafe adjacent side effects.)
   the browser does not become a second timing authority. Migrated PostgreSQL
   lifecycle and immutable-clock release proof remains TASK-443.
 
+- **TASK-443 - Migrated PostgreSQL business-calendar release proof:**
+  Complete. A repeatable CI release check now proves the governed calendar
+  lifecycle with isolated ZA/BW accounts, account override/global fallback,
+  independent approval, overlap rejection, closure and exceptional-hour
+  calculations, Europe/London DST behavior, immutable clock version pinning,
+  replay, pause/resume/completion, audit redactions, isolation, and cleanup.
+  Local migrated-PostgreSQL execution passed without retained test evidence.
+
 ## Explicit Deferrals
 
 The following are DLaaS expansion work, not blockers for this SaaS roadmap:
