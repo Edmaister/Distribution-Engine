@@ -9728,7 +9728,7 @@ Completed output: Refined the unified Customer Accounts Find/Create workspace wi
 
 ## TASK-448: Prove Customer Accounts discovery-to-profile lifecycle end to end
 
-Status: Pending. Dependencies: TASK-446; TASK-447.
+Status: Complete (2026-08-23). Dependencies: TASK-446; TASK-447.
 Product boundary: Referral SaaS with Shared Platform account, permission, audit, idempotency, and live-state verification primitives.
 Required boundary docs to check: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
 Shared primitive impact: Adds proof over existing discovery, creation, review, persistence, and selected-customer routing. Source duplication: No.
@@ -9737,3 +9737,5 @@ Backend/database impact: No new capability unless proof exposes a defect; use is
 Frontend/API impact: Exercise the completed Find/Create states and persisted profile destinations.
 Tests and docs expectation: Repeatable local/migrated-PostgreSQL proof, responsive UI evidence, no cross-jurisdiction visibility, duplicate conflicts, and no adjacent side effects.
 Definition of done: Customer Operations can complete the full Customer Accounts lifecycle with authoritative persisted evidence and no hidden manual step. Priority: P1 release proof.
+
+Completed output: Added repeatable Customer Accounts API/PostgreSQL lifecycle proof for no-result discovery, governed account-foundation creation, exact idempotent replay, genuine duplicate rejection, permission-scoped portfolio refresh, persisted profile destination, authoritative account/external-reference/audit evidence, and deterministic cleanup. The proof exposed and fixed duplicate-check ordering so an exact replay returns the original durable account before duplicate-scope rejection. Focused service/API tests passed and the live local proof returned `status: passed`, one account, two external references, one creation audit event, no cross-jurisdiction leakage, and completed fixture cleanup.

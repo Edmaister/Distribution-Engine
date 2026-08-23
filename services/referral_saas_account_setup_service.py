@@ -169,7 +169,7 @@ async def create_durable_account_from_onboarding_draft(
     async with db_connection() as conn:
         duplicate_ref = await conn.fetchrow(
             """
-            SELECT external_ref_id
+            SELECT external_ref_id, account_id
             FROM platform_external_tenant_refs
             WHERE ref_type = $1
               AND external_ref = $2
@@ -180,6 +180,14 @@ async def create_durable_account_from_onboarding_draft(
             external_tenant_ref,
         )
         if duplicate_ref:
+            replay = await _find_account_creation_replay(
+                conn=conn,
+                account_id=str(duplicate_ref["account_id"]),
+                draft_ref=safe_draft_ref,
+                idempotency_key_hash=idempotency_key_hash,
+            )
+            if replay:
+                return replay
             raise AccountSetupDuplicateReference(
                 "External tenant reference is already attached to an account."
             )
@@ -379,6 +387,68 @@ async def create_durable_account_from_onboarding_draft(
         guardrails=list(NO_LIVE_ACTION_GUARDRAILS),
     )
 
+
+async def _find_account_creation_replay(
+    *,
+    conn: Any,
+    account_id: str,
+    draft_ref: str,
+    idempotency_key_hash: str | None,
+) -> DurableAccountSetupResult | None:
+    safe_hash = _safe_text(idempotency_key_hash)
+    if not safe_hash:
+        return None
+    row = await conn.fetchrow(
+        """
+        SELECT
+            account.account_id,
+            account.account_code,
+            account.account_name,
+            account.status AS account_status,
+            account.onboarding_status,
+            account_tenant.account_tenant_id,
+            account_tenant.status AS tenant_link_status,
+            external_ref.external_ref_id,
+            organisation_ref.external_ref_id AS organisation_ref_id,
+            audit.account_audit_event_id
+        FROM platform_account_audit_events audit
+        JOIN platform_accounts account
+          ON account.account_id = audit.account_id
+        JOIN platform_account_tenants account_tenant
+          ON account_tenant.account_tenant_id = audit.account_tenant_id
+        JOIN platform_external_tenant_refs external_ref
+          ON external_ref.external_ref_id = audit.external_ref_id
+        JOIN platform_external_tenant_refs organisation_ref
+          ON organisation_ref.account_id = account.account_id
+         AND organisation_ref.ref_type = 'organisation_ref'
+         AND organisation_ref.status = 'ACTIVE'
+        WHERE audit.account_id = $1
+          AND audit.event_type = $2
+          AND audit.idempotency_key_hash = $3
+          AND audit.evidence_summary ->> 'draft_ref' = $4
+        LIMIT 1
+        """,
+        account_id,
+        EVENT_ACCOUNT_FOUNDATION_CREATED,
+        safe_hash,
+        draft_ref,
+    )
+    if not row:
+        return None
+    return DurableAccountSetupResult(
+        account_id=str(row["account_id"]),
+        account_code=str(row["account_code"]),
+        account_name=str(row["account_name"]),
+        account_status=str(row["account_status"]),
+        onboarding_status=str(row["onboarding_status"]),
+        account_tenant_id=str(row["account_tenant_id"]),
+        tenant_link_status=str(row["tenant_link_status"]),
+        external_ref_id=str(row["external_ref_id"]),
+        organisation_ref_id=str(row["organisation_ref_id"]),
+        draft_ref=draft_ref,
+        audit_event_id=str(row["account_audit_event_id"]),
+        guardrails=list(NO_LIVE_ACTION_GUARDRAILS),
+    )
 
 async def _insert_external_ref(
     *,

@@ -38,9 +38,10 @@ class FakeTransaction:
 
 
 class FakeConnection:
-    def __init__(self, *, duplicate_ref=None, duplicate_owner_link=None):
+    def __init__(self, *, duplicate_ref=None, duplicate_owner_link=None, replay=None):
         self.duplicate_ref = duplicate_ref
         self.duplicate_owner_link = duplicate_owner_link
+        self.replay = replay
         self.fetchrow_calls = []
         self.transaction_entered = False
         self.transaction_exited = False
@@ -80,6 +81,8 @@ class FakeConnection:
         self.fetchrow_calls.append((query, params))
         if "SELECT external_ref_id" in query:
             return self.duplicate_ref
+        if "FROM platform_account_audit_events audit" in query:
+            return self.replay
         if "SELECT account_tenant_id" in query:
             return self.duplicate_owner_link
         if "INSERT INTO platform_accounts" in query:
@@ -232,7 +235,9 @@ async def test_rejects_draft_not_ready_for_review(monkeypatch):
 
 
 async def test_rejects_duplicate_external_reference_before_transaction(monkeypatch):
-    conn = FakeConnection(duplicate_ref={"external_ref_id": "existing-ref"})
+    conn = FakeConnection(
+        duplicate_ref={"external_ref_id": "existing-ref", "account_id": "existing-account"}
+    )
     patch_db(monkeypatch, conn)
     patch_draft(monkeypatch, _draft())
 
@@ -247,6 +252,46 @@ async def test_rejects_duplicate_external_reference_before_transaction(monkeypat
     assert len(conn.fetchrow_calls) == 1
     assert conn.transaction_entered is False
 
+
+async def test_exact_account_creation_replay_returns_original_account(monkeypatch):
+    replay = {
+        "account_id": "existing-account",
+        "account_code": "ACCT_EXISTING",
+        "account_name": "FNB Referral SaaS",
+        "account_status": "PENDING_ONBOARDING",
+        "onboarding_status": "READY_FOR_REVIEW",
+        "account_tenant_id": "existing-account-tenant",
+        "tenant_link_status": "PENDING_SETUP",
+        "external_ref_id": "existing-ref",
+        "organisation_ref_id": "existing-org-ref",
+        "account_audit_event_id": "existing-audit",
+    }
+    conn = FakeConnection(
+        duplicate_ref={"external_ref_id": "existing-ref", "account_id": "existing-account"},
+        replay=replay,
+    )
+    patch_db(monkeypatch, conn)
+    patch_draft(monkeypatch, _draft())
+
+    result = await service.create_durable_account_from_onboarding_draft(
+        draft_ref="draft_001",
+        tenant_code="FNB",
+        actor_ref="ops-user",
+        actor_role="ADMIN",
+        idempotency_key_hash="idem-hash",
+    )
+
+    assert result.account_id == "existing-account"
+    assert result.audit_event_id == "existing-audit"
+    assert conn.transaction_entered is False
+    replay_query, replay_params = conn.fetchrow_calls[1]
+    assert "FROM platform_account_audit_events audit" in replay_query
+    assert replay_params == (
+        "existing-account",
+        "ACCOUNT_FOUNDATION_CREATED",
+        "idem-hash",
+        "draft_001",
+    )
 
 async def test_rejects_duplicate_internal_tenant_owner_before_transaction(monkeypatch):
     conn = FakeConnection(duplicate_owner_link={"account_tenant_id": "existing-link"})
