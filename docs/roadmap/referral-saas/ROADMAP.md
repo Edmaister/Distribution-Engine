@@ -3059,5 +3059,6 @@ Physical comparison with the approved Amplifi Customer Accounts prototype expose
 - TASK-446 completes unified, duplicate-safe Find/Create UX over the existing governed Account Setup lifecycle without source duplication.
 - TASK-447 is complete: Customer Accounts now has prototype-aligned Find/Create states, permission-boundary guidance, responsive result presentation, and accessible customer-specific actions.
 - TASK-448 is complete: repeatable API/PostgreSQL proof now covers no-result discovery, governed creation, exact replay, duplicate rejection, permission-scoped refresh, persisted profile routing, audit evidence, and deterministic cleanup.
+- TASK-449 is complete: Create customer now uses one focused compact Account Setup composition with adjacent lifecycle guardrails, no duplicate introduction, and no embedded standalone wizard rail.
 
 No task may fork account registry/onboarding services, invent absent prototype fields, weaken jurisdiction scope, or move campaign, credential, billing, money, or DLaaS behavior into Customer Accounts.

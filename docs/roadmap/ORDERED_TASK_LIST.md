@@ -9739,3 +9739,17 @@ Tests and docs expectation: Repeatable local/migrated-PostgreSQL proof, responsi
 Definition of done: Customer Operations can complete the full Customer Accounts lifecycle with authoritative persisted evidence and no hidden manual step. Priority: P1 release proof.
 
 Completed output: Added repeatable Customer Accounts API/PostgreSQL lifecycle proof for no-result discovery, governed account-foundation creation, exact idempotent replay, genuine duplicate rejection, permission-scoped portfolio refresh, persisted profile destination, authoritative account/external-reference/audit evidence, and deterministic cleanup. The proof exposed and fixed duplicate-check ordering so an exact replay returns the original durable account before duplicate-scope rejection. Focused service/API tests passed and the live local proof returned `status: passed`, one account, two external references, one creation audit event, no cross-jurisdiction leakage, and completed fixture cleanup.
+
+## TASK-449: Align governed customer creation with the approved focused composition
+
+Status: Complete (2026-08-23). Dependencies: TASK-446; TASK-447; TASK-448.
+Product boundary: Referral SaaS frontend with Shared Platform account-creation, audit, idempotency, design-system, and accessibility primitives.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; approved Customer Accounts prototype handoff.
+Shared primitive impact: Adds a compact presentation mode to the existing governed Account Setup component; no account registry, onboarding command, field, status, route, or lifecycle is forked. Source duplication: No.
+Objective: Make Create customer a focused Customer Accounts composition with one primary workflow and one adjacent guardrail column, rather than duplicating an introduction and embedding the full standalone wizard navigation below it.
+Backend/database impact: None. Existing duplicate resolution, onboarding drafts, review decisions, durable account creation, audit, and idempotency remain authoritative.
+Frontend/API impact: Removes the duplicate creation introduction, suppresses the embedded progress rail, retains the current governed step and supported fields, places the lifecycle guardrails beside the workflow, and collapses the composition responsively without inventing unsupported prototype fields.
+Tests and docs expectation: Focused Customer Accounts tests, lint, production build, responsive visual QA, roadmap, gap matrix, and infographic alignment.
+Definition of done: Complete - Create customer presents one focused governed workflow aligned to the approved composition while preserving all existing lifecycle controls and single-source commands. Priority: P1 UX alignment.
+
+Completed output: Added a compact Account Setup composition inside Customer Accounts, removed the duplicate intro and full embedded wizard rail, retained server-backed steps and supported fields, and placed plain-language lifecycle guardrails beside the workflow. Frontend lint completed without errors, the production build passed, and focused Customer Accounts tests passed (3 tests).
