@@ -707,9 +707,11 @@ Missing, ambiguous, invalid, and policy/calendar timezone-mismatched evidence
 continues to fail closed. TASK-442 closes the safe governance and preview UX gap:
 Amplifi administrators can govern account/global calendar versions and inspect
 server-calculated example deadlines without creating a clock or duplicating timing
-logic in the browser. The remaining business-calendar gap is migrated PostgreSQL
-lifecycle proof across DST, closures, exceptional hours, pause/resume, replay,
-isolation, and cleanup under TASK-443.
+logic in the browser. TASK-443 closes the remaining business-calendar release-proof
+gap with repeatable CI and local migrated-PostgreSQL evidence across independent
+approval, account override/global fallback, overlap rejection, DST, closures,
+exceptional hours, immutable clock pinning, pause/resume/completion, replay, audit
+redactions, jurisdiction isolation, and deterministic cleanup.
 
 ## Explicit Deferrals
 
