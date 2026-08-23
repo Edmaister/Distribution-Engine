@@ -156,7 +156,7 @@ describe("Referral SaaS Operations Workspace journey", () => {
       expectAccessibleSurface(view.container);
 
       const destinationLink = screen.getByRole("link", {
-        name: "Open profile",
+        name: "Open Northstar Financial profile",
       });
       expect(destinationLink).toHaveAttribute(
         "href",

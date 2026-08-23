@@ -3057,7 +3057,7 @@ Physical comparison with the approved Amplifi Customer Accounts prototype expose
 
 - TASK-445 completes the Customer Accounts directory and preserves Customer Portfolio as a separate operational-attention surface.
 - TASK-446 completes unified, duplicate-safe Find/Create UX over the existing governed Account Setup lifecycle without source duplication.
-- TASK-447 is pending for final prototype visual, responsive, and accessibility alignment.
+- TASK-447 is complete: Customer Accounts now has prototype-aligned Find/Create states, permission-boundary guidance, responsive result presentation, and accessible customer-specific actions.
 - TASK-448 is pending for repeatable discovery-to-profile lifecycle proof.
 
 No task may fork account registry/onboarding services, invent absent prototype fields, weaken jurisdiction scope, or move campaign, credential, billing, money, or DLaaS behavior into Customer Accounts.

@@ -29,8 +29,11 @@ describe("ReferralSaasCustomerAccountsPage", () => {
     renderPage();
     expect(screen.getByRole("heading", { name: "Customer accounts" })).toBeInTheDocument();
     expect(screen.getByText("Results are permission-scoped")).toBeInTheDocument();
+    expect(screen.getByLabelText("Jurisdiction")).toBeInTheDocument();
+    expect(screen.getByLabelText("Account status")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Find customer" })).toHaveAttribute("aria-current", "page");
     expect(screen.getAllByRole("link", { name: /Create customer|Create new customer/ })[0]).toHaveAttribute("href", "/admin/referral-saas/operations/customer-accounts?mode=create");
-    expect(screen.getByRole("link", { name: /Open profile/ })).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/account-1");
+    expect(screen.getByRole("link", { name: "Open Northstar Financial profile" })).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/account-1");
     expect(mockDirectory).toHaveBeenCalledWith(expect.objectContaining({ sort: "NAME_ASC", limit: 50 }), 0);
   });
   it("keeps governed customer creation inside the Customer Accounts workspace", () => {
@@ -39,6 +42,9 @@ describe("ReferralSaasCustomerAccountsPage", () => {
     render(<RouterProvider router={router} />);
     expect(screen.getByRole("heading", { name: "Start with the customer identity" })).toBeInTheDocument();
     expect(screen.getByTestId("account-setup")).toHaveTextContent("Embedded account setup");
+    expect(screen.getByRole("complementary", { name: "What happens next" })).toHaveTextContent("Duplicate check");
+    expect(screen.getByRole("link", { name: "Create customer" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Back to customer search" })).toHaveAttribute("href", "/admin/referral-saas/operations/customer-accounts?mode=find");
     expect(screen.getByRole("link", { name: "Find customer" })).toHaveAttribute("href", "/admin/referral-saas/operations/customer-accounts?mode=find");
     expect(screen.queryByText("Results are permission-scoped")).not.toBeInTheDocument();
   });
