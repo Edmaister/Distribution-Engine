@@ -9683,3 +9683,53 @@ Blocked by: None.
 Risk level: Medium.
 Rollback notes: Revert migration compatibility changes and this roadmap entry.
 Definition of done: Backend and clean-db-readiness CI can replay migrations past 024 without `referral_track_id` undefined-column failure. Priority: P0.
+
+## TASK-445: Separate Customer Accounts discovery from Customer Portfolio
+
+Status: Complete (2026-08-23). Dependencies: TASK-421; TASK-422; TASK-428; TASK-444.
+Product boundary: Referral SaaS with Shared Platform account-scope, permission, and customer-context primitives.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reuses the authoritative permission-scoped customer portfolio query and persisted customer destinations; no account registry, customer search service, or account-creation flow is forked. Source duplication: No.
+Objective: Give Amplifi Customer Operations a dedicated Customer Accounts directory for finding an existing customer before creation, while retaining Customer Portfolio as the operational-attention workspace.
+Backend/database impact: None. The existing jurisdiction-safe account registry read model remains authoritative.
+Frontend/API impact: Adds `/admin/referral-saas/operations/customer-accounts`, routes Operations and global Find/Create entry points to it, exposes permitted-jurisdiction boundaries, links governed creation to the existing Account Setup workflow, and preserves Customer Portfolio for attention management.
+Tests and docs expectation: Cover route/sidebar semantics, permission-boundary copy, URL-restorable search, persisted profile destinations, responsive layout, and continued Customer Portfolio behavior.
+Definition of done: Complete - Customer Accounts and Customer Portfolio have distinct jobs, discovery remains jurisdiction-safe, and creation continues through the existing governed lifecycle without source duplication. Priority: P1 UX alignment.
+
+Completed output: Added the dedicated permission-scoped Customer Accounts directory, moved global Find/Create entry points to it, retained Customer Portfolio as the operational-attention surface, and kept Create customer on the existing governed Account Setup lifecycle. Focused frontend coverage passed (15 tests).
+
+## TASK-446: Unify duplicate-safe Find and Create customer UX
+
+Status: Pending. Dependencies: TASK-445.
+Product boundary: Referral SaaS with Shared Platform account-creation, permission, audit, and duplicate-detection primitives.
+Required boundary docs to check: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; approved Customer Accounts prototype handoff.
+Shared primitive impact: Presents the existing governed Account Setup lifecycle inside the Customer Accounts information architecture. Source duplication: No.
+Objective: Make Find customer and Create customer two clear states of one workspace, with duplicate-safe creation, legal/customer identity clarity, and plain-language guardrails.
+Backend/database impact: No new fields or lifecycle may be invented. Prototype fields absent from the authoritative schema must be omitted, mapped to an existing governed concept, or separately contracted.
+Frontend/API impact: Align the Create state to the approved prototype while reusing existing Account Setup commands, review evidence, idempotency, and persisted destinations.
+Tests and docs expectation: Cover duplicate prevention, permission scope, validation, state restoration, governed outcomes, accessibility, and responsive visual QA.
+Definition of done: Operators can search first and create only when needed without leaving Customer Accounts or bypassing the existing lifecycle. Priority: P1 UX alignment.
+
+## TASK-447: Complete Customer Accounts prototype visual and access-boundary alignment
+
+Status: Pending. Dependencies: TASK-446.
+Product boundary: Referral SaaS frontend with Shared Platform design-system and accessibility primitives.
+Required boundary docs to check: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; approved Customer Accounts prototype handoff.
+Shared primitive impact: Extends existing Amplifi Global layout, typography, icon, table, status, focus, and responsive primitives. Source duplication: No.
+Objective: Complete same-viewport visual and interaction-state alignment for Customer Accounts Find/Create without inventing synthetic data.
+Backend/database impact: None.
+Frontend/API impact: Refine spacing, responsive table/list behavior, selected navigation, guardrail panel, and loading/error/empty states.
+Tests and docs expectation: Desktop/mobile screenshots, keyboard/screen-reader checks, non-overlap checks, lint/build/tests, and design QA.
+Definition of done: Customer Accounts is visually coherent with the approved Amplifi Global experience across supported states and viewports. Priority: P1 UX alignment.
+
+## TASK-448: Prove Customer Accounts discovery-to-profile lifecycle end to end
+
+Status: Pending. Dependencies: TASK-446; TASK-447.
+Product boundary: Referral SaaS with Shared Platform account, permission, audit, idempotency, and live-state verification primitives.
+Required boundary docs to check: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Adds proof over existing discovery, creation, review, persistence, and selected-customer routing. Source duplication: No.
+Objective: Prove find existing, no-result, duplicate-safe create, account foundation creation, directory refresh, profile open, permission isolation, audit, idempotent replay, and cleanup.
+Backend/database impact: No new capability unless proof exposes a defect; use isolated fixtures and deterministic cleanup.
+Frontend/API impact: Exercise the completed Find/Create states and persisted profile destinations.
+Tests and docs expectation: Repeatable local/migrated-PostgreSQL proof, responsive UI evidence, no cross-jurisdiction visibility, duplicate conflicts, and no adjacent side effects.
+Definition of done: Customer Operations can complete the full Customer Accounts lifecycle with authoritative persisted evidence and no hidden manual step. Priority: P1 release proof.

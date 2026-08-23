@@ -17,6 +17,7 @@ import {
   expectNoPositiveTabIndex,
   expectValidAriaReferences,
 } from "../../test/accessibility";
+import { ReferralSaasCustomerAccountsPage } from "./ReferralSaasCustomerAccountsPage";
 import { ReferralSaasCustomerPortfolioPage } from "./ReferralSaasCustomerPortfolioPage";
 import { ReferralSaasWorkspacePage } from "./ReferralSaasWorkspacePage";
 
@@ -107,8 +108,8 @@ function renderJourney() {
     [
       { path: "/admin/referral-saas", element: <ReferralSaasWorkspacePage /> },
       {
-        path: "/admin/referral-saas/operations/customer-portfolio",
-        element: <ReferralSaasCustomerPortfolioPage />,
+        path: "/admin/referral-saas/operations/customer-accounts",
+        element: <ReferralSaasCustomerAccountsPage />,
       },
       {
         path: "/admin/referral-saas/account-maintenance/:accountId/:module",
@@ -151,11 +152,11 @@ describe("Referral SaaS Operations Workspace journey", () => {
       fireEvent.click(
         screen.getByRole("link", { name: "Find or create customer" }),
       );
-      await screen.findByRole("heading", { name: "Customer portfolio" });
+      await screen.findByRole("heading", { name: "Customer accounts" });
       expectAccessibleSurface(view.container);
 
       const destinationLink = screen.getByRole("link", {
-        name: "Open customer",
+        name: "Open profile",
       });
       expect(destinationLink).toHaveAttribute(
         "href",

@@ -36,14 +36,14 @@ describe("Sidebar", () => {
     );
     expect(screen.getByRole("link", { name: /Customer accounts/ })).toHaveAttribute(
       "href",
-      "/admin/referral-saas/account-setup",
+      "/admin/referral-saas/operations/customer-accounts",
     );
     expect(screen.getByRole("link", { name: /Customer portfolio/ })).toHaveAttribute(
       "href",
       "/admin/referral-saas/operations/customer-portfolio",
     );
     expect(screen.getByRole("link", { name: /Find or create customer/ })).toHaveAttribute(
-      "href", "/admin/referral-saas/operations/customer-portfolio",
+      "href", "/admin/referral-saas/operations/customer-accounts",
     );
     expect(screen.queryByRole("link", { name: /^Campaigns/ })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Programme governance/ })).toHaveAttribute(

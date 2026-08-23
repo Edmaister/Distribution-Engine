@@ -61,7 +61,7 @@ const referralSaasGlobalSections = [
     links: [
       { to: "/admin/referral-saas", label: "Operations", icon: Gauge, sub: "Home" },
       { to: "/admin/referral-saas/operations/work-queue", label: "Work queue", icon: ListChecks, sub: "Open" },
-      { to: "/admin/referral-saas/account-setup", label: "Customer accounts", icon: Building2, sub: "New" },
+      { to: "/admin/referral-saas/operations/customer-accounts", label: "Customer accounts", icon: Building2, sub: "Find" },
       {
         to: "/admin/referral-saas/operations/customer-portfolio",
         label: "Customer portfolio",
@@ -180,7 +180,7 @@ export function Sidebar() {
         </div>
       ) : null}
       {inReferralSaasWorkspace && !inSelectedCustomerContext ? (
-        <NavLink className="global-customer-entry" to="/admin/referral-saas/operations/customer-portfolio">
+        <NavLink className="global-customer-entry" to="/admin/referral-saas/operations/customer-accounts">
           <Search size={15} />
           <span>Find or create customer</span>
         </NavLink>
