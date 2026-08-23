@@ -9648,6 +9648,21 @@ Definition of done: Repeatable release evidence demonstrates migrated PostgreSQL
 
 Completed output: Added a repeatable PostgreSQL release check to CI using isolated ZA and BW account fixtures. The proof exercises independent calendar approval, account override/global fallback, overlap rejection, closure and exceptional-hour calculations, Europe/London DST behavior, approved calendar-version pinning, clock replay, pause/resume/completion, audit redactions, jurisdiction isolation, and FK-safe cleanup. Local execution passed after applying migrations 102 and 103, and no temporary evidence remained.
 
+## TASK-444: Reconcile Referral SaaS release close-out evidence
+
+Status: Complete (2026-08-23). Dependencies: TASK-420; TASK-430; TASK-436; TASK-443.
+Product boundary: Referral SaaS with Shared Platform release-evidence primitives.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/roadmap/README.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`.
+Shared primitive impact: Reconciles existing capability, UX, PostgreSQL proof, and non-local verification evidence without changing runtime primitives. Source duplication: No.
+Linked enhancement: Referral Management and Campaign Attribution SaaS release close-out.
+Objective: Establish one authoritative post-TASK-443 statement of completed product capability, current rating, residual blockers, and explicitly deferred DLaaS scope so stale historical wording cannot create unnecessary implementation work.
+Backend/database impact: None. No schema, migration, service, route, status, seed, or runtime behavior changes.
+Frontend/API impact: None. No route, component, API contract, browser calculation, or user-visible product behavior changes.
+Tests and docs expectation: Reconcile the Referral SaaS roadmap, gap matrix, ordered task list, and infographic; preserve historical task evidence; distinguish completed local/migrated-PostgreSQL proof from blocked non-local verification; confirm no new product feature is required for the current Referral SaaS boundary.
+Definition of done: The release documents agree that all ordered implementation work through TASK-443 is complete, Referral Management is rated 9.999/10 and Campaign Attribution 9.999995/10, and only TASK-027/TASK-348 remain open because approved non-local access and execution evidence are unavailable. Priority: P0 release governance.
+
+Completed output: Reconciled the Referral SaaS roadmap, gap matrix, ordered task list, and infographic. Removed obsolete next-implementation implications, retained completed historical evidence, and made the remaining non-local proof blocker explicit without inventing another runtime feature or widening into DLaaS.
+
 ## TASK-039: Fix clean DB migration failure for referral_track_id
 
 Status: Complete (2026-06-21). Output: `dp/migrations/024_mission_and_reward_summary.sql`.

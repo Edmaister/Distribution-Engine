@@ -34,6 +34,7 @@ def _client(monkeypatch, fake_redis=None):
         return {"status": "ok"}
 
     monkeypatch.setattr(rl, "get_cache", lambda: fake_redis)
+    monkeypatch.setattr(rl, "_current_rate_limit_window", lambda: 123456)
 
     return TestClient(app)
 

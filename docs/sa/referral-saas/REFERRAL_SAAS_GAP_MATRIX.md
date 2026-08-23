@@ -713,6 +713,26 @@ approval, account override/global fallback, overlap rejection, DST, closures,
 exceptional hours, immutable clock pinning, pause/resume/completion, replay, audit
 redactions, jurisdiction isolation, and deterministic cleanup.
 
+## TASK-444 Release Close-Out Reconciliation
+
+TASK-444 reconciles the current state after the completed business-calendar
+release proof. All ordered Referral SaaS implementation, UX, local proof, and
+migrated-PostgreSQL tasks through TASK-443 are complete. Historical sections
+remain as delivery evidence, but they must not be interpreted as new open
+implementation gaps where a later task already closed the capability.
+
+| Current release measure | Authoritative position |
+| --- | --- |
+| Referral Management rating | 9.999/10. Product capability is implemented and locally proven inside the focused SaaS boundary. |
+| Campaign Attribution rating | 9.999995/10. Product capability is implemented and locally proven inside the focused SaaS boundary. |
+| Open implementation tasks | None. Do not create another feature task solely to move the displayed rating. |
+| Open evidence tasks | TASK-027 and TASK-348 only. Both require approved non-local credentials, targets, and execution permission. |
+| Next executable action | Run the TASK-420 command/evidence pack when approved non-local access exists, then close TASK-027 and TASK-348 from recorded evidence. |
+| Explicitly deferred scope | DLaaS marketplace, funding, fulfilment, settlement, sponsor billing, broad white-label/embed, and other separately contracted expansion remain outside this Referral SaaS close-out. |
+
+The remaining fraction below 10/10 is therefore an environment-confidence
+holdback, not evidence of another missing local backend or frontend feature.
+
 ## Explicit Deferrals
 
 These are not blockers for the 10/10 Referral SaaS wedge:
