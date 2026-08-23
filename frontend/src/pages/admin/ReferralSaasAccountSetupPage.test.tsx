@@ -206,6 +206,7 @@ function mockDraftSelectorResponse() {
         draft_sections: {
           company: {
             organisation_name: "Saved Referral Company",
+            registration_number: "2018/123456/07",
             external_tenant_ref: "demo-platform-operator",
             organisation_ref: "demo-organisation",
             country: "South Africa",
@@ -347,8 +348,14 @@ async function validateSetup() {
 }
 
 function fillRequiredCompanyProfile() {
-  fireEvent.change(screen.getByLabelText("Organisation name"), {
+  fireEvent.change(screen.getByLabelText("Legal organisation name"), {
+    target: { value: "First National Bank Limited" },
+  });
+  fireEvent.change(screen.getByLabelText("Trading name"), {
     target: { value: "FNB Referral Programme" },
+  });
+  fireEvent.change(screen.getByLabelText("Registration number"), {
+    target: { value: "1929/001225/06" },
   });
   fireEvent.change(screen.getByLabelText("Admin contact"), {
     target: { value: "referrals-admin@example.test" },
@@ -505,8 +512,14 @@ describe("ReferralSaasAccountSetupPage", () => {
     await confirmAccountScope();
     fireEvent.click(screen.getByRole("button", { name: "Company profile" }));
 
-    fireEvent.change(screen.getByLabelText("Organisation name"), {
+    fireEvent.change(screen.getByLabelText("Legal organisation name"), {
+      target: { value: "First National Bank Limited" },
+    });
+    fireEvent.change(screen.getByLabelText("Trading name"), {
       target: { value: "FNB Referral Programme" },
+    });
+    fireEvent.change(screen.getByLabelText("Registration number"), {
+      target: { value: "1929/001225/06" },
     });
     fireEvent.change(screen.getByRole("combobox", { name: "Operating jurisdiction" }), {
       target: { value: "South Africa" },
@@ -532,6 +545,9 @@ describe("ReferralSaasAccountSetupPage", () => {
       correlation_id: "referral-saas-account-setup-draft",
       sections: {
         company: {
+          legal_organisation_name: "First National Bank Limited",
+          trading_name: "FNB Referral Programme",
+          registration_number: "1929/001225/06",
           organisation_name: "FNB Referral Programme",
           external_tenant_ref: "demo-platform-operator",
           organisation_ref: "demo-organisation",
@@ -569,7 +585,7 @@ describe("ReferralSaasAccountSetupPage", () => {
     expect(screen.queryByText(/draft_saved_company_profile/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
 
-    fireEvent.change(screen.getByLabelText("Organisation name"), {
+    fireEvent.change(screen.getByLabelText("Legal organisation name"), {
       target: { value: "Saved Referral Company Updated" },
     });
 
@@ -902,7 +918,9 @@ describe("ReferralSaasAccountSetupPage", () => {
 
     expect(await screen.findByRole("heading", { name: "Start with the customer identity" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Find account" })).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Organisation name"), { target: { value: "FNB Referral Programme" } });
+    fireEvent.change(screen.getByLabelText("Legal organisation name"), { target: { value: "First National Bank Limited" } });
+    fireEvent.change(screen.getByLabelText("Trading name"), { target: { value: "FNB Referral Programme" } });
+    fireEvent.change(screen.getByLabelText("Registration number"), { target: { value: "1929/001225/06" } });
     fireEvent.change(document.querySelector("#compact-customer-reference")!, { target: { value: "fnb-sa-referrals" } });
     fireEvent.change(document.querySelector("#compact-organisation-reference")!, { target: { value: "fnb-retail-bank" } });
     fireEvent.change(screen.getByLabelText("Admin contact"), { target: { value: "owner@fnb.test" } });
@@ -928,7 +946,9 @@ describe("ReferralSaasAccountSetupPage", () => {
     renderWorkspace(<ReferralSaasAccountSetupPage embedded compact />);
 
     await screen.findByRole("heading", { name: "Start with the customer identity" });
-    fireEvent.change(screen.getByLabelText("Organisation name"), { target: { value: "FNB Referral Programme" } });
+    fireEvent.change(screen.getByLabelText("Legal organisation name"), { target: { value: "First National Bank Limited" } });
+    fireEvent.change(screen.getByLabelText("Trading name"), { target: { value: "FNB Referral Programme" } });
+    fireEvent.change(screen.getByLabelText("Registration number"), { target: { value: "1929/001225/06" } });
     fireEvent.change(document.querySelector("#compact-customer-reference")!, { target: { value: "demo-platform-operator" } });
     fireEvent.change(document.querySelector("#compact-organisation-reference")!, { target: { value: "demo-organisation" } });
     fireEvent.change(screen.getByLabelText("Admin contact"), { target: { value: "owner@fnb.test" } });

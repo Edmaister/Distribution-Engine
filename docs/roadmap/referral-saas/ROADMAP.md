@@ -3066,3 +3066,6 @@ No task may fork account registry/onboarding services, invent absent prototype f
 
 - TASK-451 is complete: compact Create customer now captures supported customer evidence once, performs account resolution automatically behind the primary action, returns existing customers without duplicate writes, and reuses the governed onboarding and durable-account chain for genuine new customers.
 
+
+- TASK-452 is complete: prototype-aligned legal organisation name, optional trading name, and registration number now persist through the governed Account Setup draft into the authoritative account and organisation foundation without forking account services or exposing internal tenancy identifiers.
+

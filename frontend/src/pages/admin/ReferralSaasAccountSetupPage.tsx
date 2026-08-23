@@ -47,7 +47,9 @@ const internalScopeAlreadyUsedMessage =
 const guidedReviewReason = "Account setup reviewed through the guided Referral SaaS account setup flow.";
 type SetupActionState = "idle" | "loading" | "success" | "error";
 type CompanyProfileForm = {
-  organisationName: string;
+  legalOrganisationName: string;
+  tradingName: string;
+  registrationNumber: string;
   country: string;
   organisationType: string;
   industry: string;
@@ -138,7 +140,9 @@ export function ReferralSaasAccountSetupPage({ embedded = false, compact = false
   const [createError, setCreateError] = useState<string | null>(null);
   const [compactExistingAccount, setCompactExistingAccount] = useState<ReferralSaasAccountSummary | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfileForm>({
-    organisationName: "",
+    legalOrganisationName: "",
+    tradingName: "",
+    registrationNumber: "",
     country: "South Africa",
     organisationType: "Direct customer",
     industry: "Banking and financial services",
@@ -205,7 +209,8 @@ export function ReferralSaasAccountSetupPage({ embedded = false, compact = false
     savedCompanyProfile && !companyProfilesEqual(companyProfile, savedCompanyProfile),
   );
   const companyProfileComplete = Boolean(
-    companyProfile.organisationName.trim() &&
+    companyProfile.legalOrganisationName.trim() &&
+      companyProfile.registrationNumber.trim() &&
       companyProfile.country.trim() &&
       companyProfile.organisationType.trim() &&
       companyProfile.industry.trim() &&
@@ -344,7 +349,7 @@ export function ReferralSaasAccountSetupPage({ embedded = false, compact = false
     setAppliedOrganisationRef(nextOrganisationRef);
     setCompanyProfile((current) => ({
       ...current,
-      organisationName: current.organisationName.trim() || `${nextOrganisationRef} Referral SaaS setup`,
+      legalOrganisationName: current.legalOrganisationName.trim(),
     }));
     setSavedCompanyProfile(null);
     setLoadedCompanyDraftRef(null);
@@ -679,8 +684,16 @@ export function ReferralSaasAccountSetupPage({ embedded = false, compact = false
         <form className="customer-create-direct-form" onSubmit={handleCompactCreate}>
           <div className="customer-create-direct-grid">
             <label className="field">
-              <span>Organisation name</span>
-              <input className="input" autoComplete="organization" onChange={(event) => updateCompanyProfile("organisationName", event.target.value)} placeholder="Example: FNB South Africa" required value={companyProfile.organisationName} />
+              <span>Legal organisation name</span>
+              <input className="input" autoComplete="organization" onChange={(event) => updateCompanyProfile("legalOrganisationName", event.target.value)} placeholder="Example: First National Bank Limited" required value={companyProfile.legalOrganisationName} />
+            </label>
+            <label className="field">
+              <span>Trading name</span>
+              <input className="input" onChange={(event) => updateCompanyProfile("tradingName", event.target.value)} placeholder="Example: FNB" value={companyProfile.tradingName} />
+            </label>
+            <label className="field">
+              <span>Registration number</span>
+              <input className="input" onChange={(event) => updateCompanyProfile("registrationNumber", event.target.value)} placeholder="Example: 1929/001225/06" required value={companyProfile.registrationNumber} />
             </label>
             <label className="field">
               <span>Operating jurisdiction</span>
@@ -893,8 +906,16 @@ export function ReferralSaasAccountSetupPage({ embedded = false, compact = false
                       </div>
                       <div className="form-grid">
                         <label className="field">
-                          <span>Organisation name</span>
-                          <input className="input" onChange={(event) => updateCompanyProfile("organisationName", event.target.value)} value={companyProfile.organisationName} />
+                          <span>Legal organisation name</span>
+                          <input className="input" onChange={(event) => updateCompanyProfile("legalOrganisationName", event.target.value)} required value={companyProfile.legalOrganisationName} />
+                        </label>
+                        <label className="field">
+                          <span>Trading name</span>
+                          <input className="input" onChange={(event) => updateCompanyProfile("tradingName", event.target.value)} value={companyProfile.tradingName} />
+                        </label>
+                        <label className="field">
+                          <span>Registration number</span>
+                          <input className="input" onChange={(event) => updateCompanyProfile("registrationNumber", event.target.value)} required value={companyProfile.registrationNumber} />
                         </label>
                         <label className="field">
                           <span>Operating jurisdiction</span>
@@ -1317,7 +1338,11 @@ function buildReferralSaasSetupSections(
 
   return {
     company: {
-      organisation_name: companyProfile.organisationName.trim(),
+      legal_organisation_name: companyProfile.legalOrganisationName.trim(),
+      trading_name: companyProfile.tradingName.trim(),
+      registration_number: companyProfile.registrationNumber.trim(),
+      organisation_name:
+        companyProfile.tradingName.trim() || companyProfile.legalOrganisationName.trim(),
       external_tenant_ref: externalTenantRef,
       organisation_ref: organisationRef,
       country: companyProfile.country.trim(),
@@ -1393,17 +1418,22 @@ function companyProfileFromDraftSection(section: Record<string, unknown> | undef
   if (!section) {
     return null;
   }
-  const organisationName = asText(section.organisation_name);
+  const legalOrganisationName =
+    asText(section.legal_organisation_name) || asText(section.organisation_name);
+  const tradingName = asText(section.trading_name);
+  const registrationNumber = asText(section.registration_number);
   const country = asText(section.country);
   const organisationType = asText(section.organisation_type);
   const industry = asText(section.industry);
   const adminContact = asText(section.admin_contact);
   const intendedRole = asText(section.intended_role);
-  if (!organisationName || !country || !organisationType || !industry || !adminContact || !intendedRole) {
+  if (!legalOrganisationName || !country || !organisationType || !industry || !adminContact || !intendedRole) {
     return null;
   }
   return {
-    organisationName,
+    legalOrganisationName,
+    tradingName,
+    registrationNumber,
     country,
     organisationType,
     industry,
@@ -1414,7 +1444,9 @@ function companyProfileFromDraftSection(section: Record<string, unknown> | undef
 
 function companyProfilesEqual(left: CompanyProfileForm, right: CompanyProfileForm) {
   return (
-    left.organisationName.trim() === right.organisationName.trim() &&
+    left.legalOrganisationName.trim() === right.legalOrganisationName.trim() &&
+    left.tradingName.trim() === right.tradingName.trim() &&
+    left.registrationNumber.trim() === right.registrationNumber.trim() &&
     left.country.trim() === right.country.trim() &&
     left.organisationType.trim() === right.organisationType.trim() &&
     left.industry.trim() === right.industry.trim() &&

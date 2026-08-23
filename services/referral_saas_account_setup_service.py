@@ -149,13 +149,20 @@ async def create_durable_account_from_onboarding_draft(
         )
 
     account_code = _account_code(external_tenant_ref, organisation_ref)
-    account_name = _account_name(draft, organisation_ref)
+    customer_identity = await _customer_identity_from_draft(draft, organisation_ref)
+    account_name = (
+        customer_identity["trading_name"]
+        or customer_identity["legal_organisation_name"]
+    )
     operating_jurisdiction_code = await _operating_jurisdiction_code_from_draft(draft)
     tenant_seed_industry = await _tenant_seed_industry_from_draft(draft)
     safe_summary = {
         "draft_ref": safe_draft_ref,
         "external_tenant_ref": external_tenant_ref,
         "organisation_ref": organisation_ref,
+        "legal_organisation_name": customer_identity["legal_organisation_name"],
+        "trading_name": customer_identity["trading_name"],
+        "registration_number": customer_identity["registration_number"],
         "operating_jurisdiction_code": operating_jurisdiction_code,
         "source": "referral_saas_account_setup",
         "no_live_action_confirmed": True,
@@ -215,6 +222,9 @@ async def create_durable_account_from_onboarding_draft(
                 INSERT INTO platform_accounts (
                     account_code,
                     account_name,
+                    legal_organisation_name,
+                    trading_name,
+                    registration_number,
                     account_type,
                     status,
                     onboarding_status,
@@ -225,11 +235,14 @@ async def create_durable_account_from_onboarding_draft(
                     created_by_ref,
                     updated_by_ref
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $10)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $13)
                 RETURNING account_id, account_code, account_name, status, onboarding_status
                 """,
                 account_code,
                 account_name,
+                customer_identity["legal_organisation_name"],
+                customer_identity["trading_name"] or None,
+                customer_identity["registration_number"] or None,
                 ACCOUNT_TYPE_ORGANISATION,
                 ACCOUNT_STATUS_PENDING,
                 ACCOUNT_ONBOARDING_STATUS,
@@ -261,17 +274,23 @@ async def create_durable_account_from_onboarding_draft(
                     account_id,
                     organisation_ref,
                     organisation_name,
+                    legal_organisation_name,
+                    trading_name,
+                    registration_number,
                     organisation_type,
                     status,
                     safe_summary,
                     metadata
                 )
-                VALUES ($1, $2, $3, $4, 'ACTIVE', $5::jsonb, $6::jsonb)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE', $8::jsonb, $9::jsonb)
                 RETURNING organisation_id
                 """,
                 account_id,
                 organisation_ref,
                 account_name,
+                customer_identity["legal_organisation_name"],
+                customer_identity["trading_name"] or None,
+                customer_identity["registration_number"] or None,
                 ORGANISATION_TYPE_CUSTOMER,
                 _jsonb(safe_summary),
                 _jsonb(metadata),
@@ -496,15 +515,44 @@ def _account_code(external_tenant_ref: str, organisation_ref: str) -> str:
     return f"ACCT_{digest[:20].upper()}"
 
 
-def _account_name(draft: Mapping[str, Any], organisation_ref: str) -> str:
+async def _customer_identity_from_draft(
+    draft: Mapping[str, Any], organisation_ref: str
+) -> dict[str, str]:
+    draft_id = _safe_text(draft.get("draft_id"))
+    if draft_id:
+        section_rows = await draft_repo.get_draft_sections(draft_id)
+        for row in section_rows:
+            if _safe_text(row.get("section_key")) != "company":
+                continue
+            payload = _mapping_from_jsonb(row.get("section_payload"))
+            legal_name = _safe_text(
+                payload.get("legal_organisation_name") or payload.get("organisation_name")
+            )
+            if legal_name:
+                return {
+                    "legal_organisation_name": legal_name,
+                    "trading_name": _safe_text(payload.get("trading_name")),
+                    "registration_number": _safe_text(payload.get("registration_number")),
+                }
+
     safe_summary = draft.get("safe_summary")
     if isinstance(safe_summary, Mapping):
-        candidate = _safe_text(
-            safe_summary.get("organisation_name") or safe_summary.get("account_name")
+        legal_name = _safe_text(
+            safe_summary.get("legal_organisation_name")
+            or safe_summary.get("organisation_name")
+            or safe_summary.get("account_name")
         )
-        if candidate:
-            return candidate
-    return organisation_ref
+        if legal_name:
+            return {
+                "legal_organisation_name": legal_name,
+                "trading_name": _safe_text(safe_summary.get("trading_name")),
+                "registration_number": _safe_text(safe_summary.get("registration_number")),
+            }
+    return {
+        "legal_organisation_name": organisation_ref,
+        "trading_name": "",
+        "registration_number": "",
+    }
 
 
 async def _operating_jurisdiction_code_from_draft(draft: Mapping[str, Any]) -> str:
