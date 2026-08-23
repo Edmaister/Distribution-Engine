@@ -2542,6 +2542,16 @@ a {
 .account-wizard--compact .account-wizard-step--compact > div:first-child { display: none; }
 .account-wizard--compact .wizard-card { border: 0; border-radius: 0; padding: 0; }
 .account-wizard--compact .account-wizard-footer { background: var(--color-surface-muted); padding: 16px 26px; }
+.customer-create-direct { background: var(--color-surface); border: 1px solid var(--color-rule); border-radius: var(--radius-panel); overflow: hidden; }
+.customer-create-direct-heading { align-items: start; border-bottom: 1px solid var(--color-rule); display: grid; gap: 16px; grid-template-columns: 34px minmax(0, 1fr); padding: 26px; }
+.customer-create-direct-heading > div { display: grid; gap: 5px; }
+.customer-create-direct-heading h2,
+.customer-create-direct-heading p { margin: 0; }
+.customer-create-step { align-items: center; background: var(--color-primary); border-radius: 50%; color: white; display: inline-flex; font-size: .85rem; font-weight: 800; height: 34px; justify-content: center; width: 34px; }
+.customer-create-direct-grid { display: grid; gap: 18px 22px; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 26px; }
+.customer-create-direct-message { align-items: center; display: flex; gap: 20px; justify-content: space-between; margin: 0 26px 20px; }
+.customer-create-direct-message p { margin: 3px 0 0; }
+.customer-create-direct-actions { align-items: center; background: var(--color-surface-muted); border-top: 1px solid var(--color-rule); display: flex; justify-content: space-between; padding: 16px 26px; }
 .input-with-icon { align-items: center; display: flex; position: relative; }
 .input-with-icon svg { color: var(--color-ink-soft); left: 10px; pointer-events: none; position: absolute; }
 .input-with-icon input { padding-left: 34px; }
@@ -6055,6 +6065,11 @@ textarea.input {
   .customer-account-open { justify-content: center; width: 100%; }
   .customer-create-layout { grid-template-columns: 1fr; }
   .customer-create-guardrail { border-left: 0; border-top: 1px solid var(--color-rule); padding-left: 0; padding-top: 20px; }
+  .customer-create-direct-grid { grid-template-columns: 1fr; padding: 20px; }
+  .customer-create-direct-heading { padding: 20px; }
+  .customer-create-direct-message { align-items: stretch; flex-direction: column; margin: 0 20px 18px; }
+  .customer-create-direct-message .button { justify-content: center; width: 100%; }
+  .customer-create-direct-actions { padding: 14px 20px; }
   .operations-customer-search { align-items: start; grid-template-columns: auto 1fr; }
   .operations-search-link { grid-column: 2; }
   .operations-kpi-strip { grid-template-columns: 1fr; }

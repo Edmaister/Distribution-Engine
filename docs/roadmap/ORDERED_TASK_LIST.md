@@ -9766,3 +9766,16 @@ Tests and docs expectation: Focused Customer Accounts and Account Setup tests, l
 Definition of done: Complete - Create customer presents one focused active step without duplicate wizard chrome while retaining the complete governed lifecycle and supported data contract. Priority: P1 UX alignment.
 
 Completed output: Added focused compact-step metadata and composition to the shared Account Setup component, removed duplicate embedded step introductions and nested framing, and retained the standalone Account Setup presentation and every server-backed command. Frontend lint, focused tests, and the production build passed.
+## TASK-451: Make compact customer creation seamless and duplicate-safe
+
+Status: Complete (2026-08-23). Dependencies: TASK-448; TASK-449; TASK-450.
+Product boundary: Referral SaaS frontend with Shared Platform account-registry, onboarding, idempotency, audit, design-system, and accessibility primitives.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; approved Customer Accounts prototype handoff.
+Shared primitive impact: Composes the existing account resolver and governed onboarding command chain behind one customer-creation action; no account registry, onboarding command, field, status, route, or lifecycle is forked. Source duplication: No.
+Objective: Align compact Create customer with the approved prototype by capturing supported customer identity and profile evidence once, performing duplicate detection automatically on submit, and returning either the existing customer or the newly created durable customer workspace.
+Backend/database impact: None. Existing account resolution, onboarding drafts, review decisions, durable account creation, audit, duplicate rejection, and idempotent replay remain authoritative.
+Frontend/API impact: Replaces the explicit Find account step in compact mode with one responsive customer identity form and one Create customer action; runs the existing resolver before creation; shows plain-language existing/new outcomes with persisted profile destinations; leaves standalone Account Setup unchanged.
+Tests and docs expectation: Cover existing-customer resolution, no-result governed creation, no duplicate command, validation, accessibility, responsive visual QA, lint, build, roadmap, gap matrix, and infographic alignment.
+Definition of done: Complete - operators enter supported customer details once and select Create customer; Amplifi silently checks for an existing account before creating, then opens the authoritative customer profile without weakening governance. Priority: P1 UX alignment.
+
+Completed output: Added a prototype-aligned direct customer form to compact Customer Accounts creation, moved duplicate resolution behind the primary action, reused the full governed onboarding and durable-account chain for genuine new customers, returned existing customers without duplicate writes, and retained the standalone Account Setup workflow. Focused frontend coverage passed (20 tests).

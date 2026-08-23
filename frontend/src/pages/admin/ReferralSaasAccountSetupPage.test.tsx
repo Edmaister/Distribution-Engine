@@ -895,4 +895,51 @@ describe("ReferralSaasAccountSetupPage", () => {
       "/admin/referral-saas/campaigns",
     );
   });
+  it("creates from the compact form while checking duplicates behind the primary action", async () => {
+    mockedResolveReferralSaasAccount.mockRejectedValue({ status: 404, message: "Not found" });
+
+    renderWorkspace(<ReferralSaasAccountSetupPage embedded compact />);
+
+    expect(await screen.findByRole("heading", { name: "Start with the customer identity" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Find account" })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Organisation name"), { target: { value: "FNB Referral Programme" } });
+    fireEvent.change(document.querySelector("#compact-customer-reference")!, { target: { value: "fnb-sa-referrals" } });
+    fireEvent.change(document.querySelector("#compact-organisation-reference")!, { target: { value: "fnb-retail-bank" } });
+    fireEvent.change(screen.getByLabelText("Admin contact"), { target: { value: "owner@fnb.test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create customer" }));
+
+    await waitFor(() => expect(mockedResolveReferralSaasAccount).toHaveBeenCalledWith({
+      refType: "external_tenant_ref",
+      externalRef: "fnb-sa-referrals",
+      context: "setup",
+    }));
+    await screen.findByText("Customer created.");
+    expect(mockedSaveAdminOnboardingDraft).toHaveBeenCalledTimes(1);
+    expect(mockedSubmitAdminOnboardingDraftForReview).toHaveBeenCalledTimes(1);
+    expect(mockedRecordAdminOnboardingReviewDecision).toHaveBeenCalledTimes(1);
+    expect(mockedCreateReferralSaasAccountFromDraft).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("link", { name: "Open customer profile" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acc_created",
+    );
+  });
+
+  it("opens an existing customer from the compact create action without creating a duplicate", async () => {
+    renderWorkspace(<ReferralSaasAccountSetupPage embedded compact />);
+
+    await screen.findByRole("heading", { name: "Start with the customer identity" });
+    fireEvent.change(screen.getByLabelText("Organisation name"), { target: { value: "FNB Referral Programme" } });
+    fireEvent.change(document.querySelector("#compact-customer-reference")!, { target: { value: "demo-platform-operator" } });
+    fireEvent.change(document.querySelector("#compact-organisation-reference")!, { target: { value: "demo-organisation" } });
+    fireEvent.change(screen.getByLabelText("Admin contact"), { target: { value: "owner@fnb.test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create customer" }));
+
+    expect(await screen.findByText("Customer already exists.")).toBeInTheDocument();
+    expect(mockedSaveAdminOnboardingDraft).not.toHaveBeenCalled();
+    expect(mockedCreateReferralSaasAccountFromDraft).not.toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: "Open customer profile" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acc_fnb",
+    );
+  });
 });
