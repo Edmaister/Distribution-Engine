@@ -113,10 +113,10 @@ function CustomerCreateWorkspace() {
         <div className="page-kicker">Creation guardrails</div>
         <h3>What happens next</h3>
         <ol>
-          <li><span>1</span><div><strong>Duplicate check</strong><small>Confirm that this customer does not already exist.</small></div></li>
-          <li><span>2</span><div><strong>Customer evidence</strong><small>Capture the company and visible reference details.</small></div></li>
-          <li><span>3</span><div><strong>Governed review</strong><small>Validate and approve the setup evidence.</small></div></li>
-          <li><span>4</span><div><strong>Workspace creation</strong><small>Create the customer foundation and open its profile.</small></div></li>
+          <li><span>1</span><div><strong>Duplicate check</strong><small>Legal identity and customer references are checked automatically.</small></div></li>
+          <li><span>2</span><div><strong>Jurisdiction check</strong><small>Your permitted operating scope is verified.</small></div></li>
+          <li><span>3</span><div><strong>Governed evidence</strong><small>Customer setup decisions are retained for review.</small></div></li>
+          <li><span>4</span><div><strong>Customer workspace</strong><small>The durable foundation is created and its profile can be opened.</small></div></li>
         </ol>
         <div className="customer-create-evidence"><ShieldCheck size={18} /><span>Every decision is retained as governed evidence.</span></div>
         <Link className="customer-create-back" to="?mode=find">Back to customer search</Link>

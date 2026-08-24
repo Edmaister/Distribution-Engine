@@ -916,7 +916,9 @@ describe("ReferralSaasAccountSetupPage", () => {
 
     renderWorkspace(<ReferralSaasAccountSetupPage embedded compact />);
 
-    expect(await screen.findByRole("heading", { name: "Start with the customer identity" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Start with the legal customer identity" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Legal customer identity" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Governed account setup" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Find account" })).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Legal organisation name"), { target: { value: "First National Bank Limited" } });
     fireEvent.change(screen.getByLabelText("Trading name"), { target: { value: "FNB Referral Programme" } });
@@ -945,7 +947,7 @@ describe("ReferralSaasAccountSetupPage", () => {
   it("opens an existing customer from the compact create action without creating a duplicate", async () => {
     renderWorkspace(<ReferralSaasAccountSetupPage embedded compact />);
 
-    await screen.findByRole("heading", { name: "Start with the customer identity" });
+    await screen.findByRole("heading", { name: "Start with the legal customer identity" });
     fireEvent.change(screen.getByLabelText("Legal organisation name"), { target: { value: "First National Bank Limited" } });
     fireEvent.change(screen.getByLabelText("Trading name"), { target: { value: "FNB Referral Programme" } });
     fireEvent.change(screen.getByLabelText("Registration number"), { target: { value: "1929/001225/06" } });

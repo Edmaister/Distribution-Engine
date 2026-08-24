@@ -43,6 +43,8 @@ describe("ReferralSaasCustomerAccountsPage", () => {
     expect(screen.getByTestId("account-setup")).toHaveTextContent("Embedded account setup");
     expect(screen.getByTestId("account-setup")).toHaveAttribute("data-compact", "true");
     expect(screen.getByRole("complementary", { name: "What happens next" })).toHaveTextContent("Duplicate check");
+    expect(screen.getByRole("complementary", { name: "What happens next" })).toHaveTextContent("checked automatically");
+    expect(screen.getByRole("complementary", { name: "What happens next" })).toHaveTextContent("Jurisdiction check");
     expect(screen.getByRole("link", { name: "Create customer" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Back to customer search" })).toHaveAttribute("href", "/admin/referral-saas/operations/customer-accounts?mode=find");
     expect(screen.getByRole("link", { name: "Find customer" })).toHaveAttribute("href", "/admin/referral-saas/operations/customer-accounts?mode=find");
