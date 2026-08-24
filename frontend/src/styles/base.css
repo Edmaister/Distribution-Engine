@@ -2514,7 +2514,7 @@ a {
 .customer-accounts-heading { margin-bottom: 22px; }
 .customer-accounts-heading h2 { font-size: 20px; line-height: 1.25; margin: 8px 0; }
 .customer-accounts-heading p, .customer-account-boundary p { color: var(--color-ink-soft); }
-.operations-workspace.customer-accounts-page { max-width: 1374px; }
+.operations-workspace.customer-accounts-page { margin-inline: 0; max-width: none; }
 .customer-account-search { align-items: center; display: grid; gap: 0; grid-template-columns: minmax(0, 1fr) auto auto; min-height: 54px; overflow: hidden; padding: 0; }
 .customer-account-search-input { align-items: center; display: flex; gap: 10px; min-width: 0; padding: 10px 16px; }
 .customer-account-search-input svg { color: var(--color-primary); flex: none; }
