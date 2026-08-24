@@ -2551,10 +2551,15 @@ a {
 .customer-create-direct-heading h2,
 .customer-create-direct-heading p { margin: 0; }
 .customer-create-step { align-items: center; background: var(--color-primary); border-radius: 50%; color: white; display: inline-flex; font-size: .85rem; font-weight: 800; height: 34px; justify-content: center; width: 34px; }
-.customer-create-direct-grid { display: grid; gap: 22px 24px; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 28px; }
+.customer-create-direct-section { border: 0; margin: 0; min-width: 0; padding: 28px; }
+.customer-create-direct-section + .customer-create-direct-section { border-top: 1px solid var(--color-rule); }
+.customer-create-direct-section legend { font-size: 18px; font-weight: 800; padding: 0; }
+.customer-create-direct-section-copy { color: var(--color-ink-soft); margin: 5px 0 22px; max-width: 680px; }
+.customer-create-direct-section--setup { background: var(--color-surface-muted); }
+.customer-create-direct-grid { display: grid; gap: 22px 24px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .customer-create-direct-message { align-items: center; display: flex; gap: 20px; justify-content: space-between; margin: 0 26px 20px; }
 .customer-create-direct-message p { margin: 3px 0 0; }
-.customer-create-direct-actions { align-items: center; background: var(--color-surface-muted); border-top: 1px solid var(--color-rule); display: flex; justify-content: space-between; padding: 18px 28px; }
+.customer-create-direct-actions { align-items: center; background: var(--color-surface); border-top: 1px solid var(--color-rule); display: flex; justify-content: space-between; padding: 18px 28px; }
 .input-with-icon { align-items: center; display: flex; position: relative; }
 .input-with-icon svg { color: var(--color-ink-soft); left: 10px; pointer-events: none; position: absolute; }
 .input-with-icon input { padding-left: 34px; }
@@ -6068,7 +6073,8 @@ textarea.input {
   .customer-account-open { justify-content: center; width: 100%; }
   .customer-create-layout { grid-template-columns: 1fr; }
   .customer-create-guardrail { border-left: 0; border-top: 1px solid var(--color-rule); padding-left: 0; padding-top: 20px; }
-  .customer-create-direct-grid { grid-template-columns: 1fr; padding: 20px; }
+  .customer-create-direct-section { padding: 20px; }
+  .customer-create-direct-grid { grid-template-columns: 1fr; }
   .customer-create-direct-heading { padding: 20px; }
   .customer-create-direct-message { align-items: stretch; flex-direction: column; margin: 0 20px 18px; }
   .customer-create-direct-message .button { justify-content: center; width: 100%; }

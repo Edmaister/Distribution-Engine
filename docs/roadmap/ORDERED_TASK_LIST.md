@@ -9804,3 +9804,17 @@ Tests and docs update expectations: Frontend lint, focused Customer Accounts and
 Definition of done: Complete - Amplifi Global operator surfaces use a consistent prototype-aligned content measure, heading hierarchy, and spacing rhythm with responsive fallbacks and no behavioral change. Priority: P1 UX alignment.
 
 Completed output: Added shared Amplifi Global layout and type tokens, centered the desktop operator workspace at the approved content measure, aligned Customer Accounts headings, tabs, form density, lifecycle guardrails, and responsive title treatment, and retained all existing governed behavior.
+
+## TASK-454: Make Customer Accounts creation visibly match the legal-identity composition
+
+Status: Complete (2026-08-24). Dependencies: TASK-452; TASK-453.
+Product boundary: Referral SaaS frontend with Shared Platform account-registry, onboarding, design-system, and accessibility primitives.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; approved Customer Accounts prototype handoff.
+Shared primitive impact: Refines the compact presentation of the existing governed Account Setup form; no account schema, command, status, route, or lifecycle is forked. Source duplication: No.
+Objective: Make the legal identity work visibly distinct from governed account setup so operators can immediately see the prototype-aligned change and understand why each field is required.
+Backend/database impact: None. TASK-452 legal identity persistence, automatic duplicate resolution, onboarding review, audit, and idempotency remain authoritative.
+Frontend/API impact: Groups legal organisation name, trading name, registration number, and operating jurisdiction as the primary identity section; groups customer references, classification, industry, and setup contact as governed account setup; clarifies automatic duplicate checking and creation guardrails; preserves every existing API command.
+Tests and docs expectation: Focused Customer Accounts and Account Setup tests, lint, production build, desktop/mobile visual QA, roadmap, gap matrix, and infographic alignment.
+Definition of done: Complete - Create customer visibly follows the approved legal-identity composition while preserving all supported fields and the single governed customer-creation action. Priority: P1 UX alignment.
+
+Completed output: Re-composed compact Create customer into clearly labelled Legal customer identity and Governed account setup sections, clarified automatic duplicate checking and lifecycle guardrails, retained the authoritative Account Setup command chain, and corrected responsive section spacing.

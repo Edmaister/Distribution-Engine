@@ -676,13 +676,16 @@ export function ReferralSaasAccountSetupPage({ embedded = false, compact = false
           <span aria-hidden="true" className="customer-create-step">1</span>
           <div>
             <div className="page-kicker">Account foundation</div>
-            <h2 id="customer-create-heading">Start with the customer identity</h2>
-            <p>Enter the customer details once. When you create the customer, Amplifi checks for an existing account before creating a new governed workspace.</p>
+            <h2 id="customer-create-heading">Start with the legal customer identity</h2>
+            <p>Enter the authoritative organisation details. Amplifi checks for an existing customer automatically when you create the workspace.</p>
           </div>
         </header>
 
         <form className="customer-create-direct-form" onSubmit={handleCompactCreate}>
-          <div className="customer-create-direct-grid">
+          <fieldset className="customer-create-direct-section">
+            <legend>Legal customer identity</legend>
+            <p className="customer-create-direct-section-copy">These details identify the registered organisation and the market in which this customer operates.</p>
+            <div className="customer-create-direct-grid">
             <label className="field">
               <span>Legal organisation name</span>
               <input className="input" autoComplete="organization" onChange={(event) => updateCompanyProfile("legalOrganisationName", event.target.value)} placeholder="Example: First National Bank Limited" required value={companyProfile.legalOrganisationName} />
@@ -701,6 +704,13 @@ export function ReferralSaasAccountSetupPage({ embedded = false, compact = false
                 {companyJurisdictionOptions.map((jurisdiction) => <option key={jurisdiction} value={jurisdiction}>{jurisdiction}</option>)}
               </select>
             </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="customer-create-direct-section customer-create-direct-section--setup">
+            <legend>Governed account setup</legend>
+            <p className="customer-create-direct-section-copy">Add the references and setup contact used to keep this customer correctly scoped across Amplifi.</p>
+            <div className="customer-create-direct-grid">
             <div className="field">
               <label htmlFor="compact-customer-reference">Customer reference <InfoTooltip text="A customer-facing reference used to find and scope this customer across Amplifi workflows." /></label>
               <input className="input" id="compact-customer-reference" onChange={(event) => setDraftExternalTenantRef(event.target.value)} placeholder="Example: fnb-sa-referrals" required value={draftExternalTenantRef} />
@@ -740,7 +750,8 @@ export function ReferralSaasAccountSetupPage({ embedded = false, compact = false
                 <option value="Support lead">Support lead</option>
               </select>
             </div>
-          </div>
+            </div>
+          </fieldset>
 
           {createState === "error" && createError ? <div className="customer-create-direct-message"><ErrorPanel error={createError} /></div> : null}
           {createState === "success" && resolvedAccount ? (
