@@ -3073,4 +3073,5 @@ No task may fork account registry/onboarding services, invent absent prototype f
 
 
 - TASK-455 is complete: Customer Accounts and Create customer now use the approved prototype's content measure, title and copy scale, tab density, form hierarchy, and responsive spacing without changing any governed command or lifecycle.
+- TASK-456 is complete: Customer Accounts discovery now uses the quiet Amplifi Global operations shell, explicit URL-restorable search, compact prototype-aligned guidance, stable real-data result columns, and responsive labels without changing the permission-safe portfolio API or customer lifecycle.
 
