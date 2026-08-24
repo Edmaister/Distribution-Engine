@@ -3071,3 +3071,6 @@ No task may fork account registry/onboarding services, invent absent prototype f
 - TASK-453 is complete: Amplifi Global operator surfaces now use the approved prototype content measure, heading hierarchy, and spacing rhythm with responsive fallbacks and no lifecycle or API change.
 - TASK-454 is complete: compact Create customer now visibly separates authoritative legal identity from governed account setup, explains automatic duplicate checking, and retains the single existing Account Setup command chain.
 
+
+- TASK-455 is complete: Customer Accounts and Create customer now use the approved prototype's content measure, title and copy scale, tab density, form hierarchy, and responsive spacing without changing any governed command or lifecycle.
+

@@ -9818,3 +9818,16 @@ Tests and docs expectation: Focused Customer Accounts and Account Setup tests, l
 Definition of done: Complete - Create customer visibly follows the approved legal-identity composition while preserving all supported fields and the single governed customer-creation action. Priority: P1 UX alignment.
 
 Completed output: Re-composed compact Create customer into clearly labelled Legal customer identity and Governed account setup sections, clarified automatic duplicate checking and lifecycle guardrails, retained the authoritative Account Setup command chain, and corrected responsive section spacing.
+## TASK-455: Complete Customer Accounts typography and density parity
+
+Status: Complete (2026-08-24). Dependencies: TASK-453; TASK-454.
+Product boundary: Referral SaaS frontend with Shared Platform design-system and accessibility primitives.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; approved Customer Accounts prototype handoff.
+Shared primitive impact: Calibrates existing Amplifi Global layout and typography tokens and scopes Customer Accounts creation styles to the current product shell. Source duplication: No.
+Objective: Close the remaining visible difference between the approved Customer Accounts prototype and the primary application by matching content measure, title scale, supporting copy, tabs, form labels, controls, guardrail text, and section rhythm.
+Backend/database impact: None. Account resolution, legal identity persistence, onboarding review, audit, idempotency, and account creation remain unchanged.
+Frontend/API impact: Refines the Referral SaaS shell padding and Customer Accounts/Create customer type hierarchy and density at desktop and mobile breakpoints without changing fields, actions, routes, commands, or state.
+Tests and docs expectation: Frontend lint, focused Customer Accounts/Account Setup/UX-quality tests, production build, desktop/mobile visual QA, roadmap, gap matrix, and infographic alignment.
+Definition of done: Complete - Customer Accounts and Create customer use the approved prototype's calm content width, typography hierarchy, and spacing while retaining responsive behavior and the authoritative governed lifecycle. Priority: P1 UX alignment.
+
+Completed output: Calibrated shared Amplifi Global dimensions and Referral SaaS content padding, reduced oversized page and supporting typography, aligned Customer Accounts tabs and legal-identity form density, refined guardrail hierarchy, and preserved the existing governed creation behavior.
