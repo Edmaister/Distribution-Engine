@@ -3068,4 +3068,5 @@ No task may fork account registry/onboarding services, invent absent prototype f
 
 
 - TASK-452 is complete: prototype-aligned legal organisation name, optional trading name, and registration number now persist through the governed Account Setup draft into the authoritative account and organisation foundation without forking account services or exposing internal tenancy identifiers.
+- TASK-453 is complete: Amplifi Global operator surfaces now use the approved prototype content measure, heading hierarchy, and spacing rhythm with responsive fallbacks and no lifecycle or API change.
 

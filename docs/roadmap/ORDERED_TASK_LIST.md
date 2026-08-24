@@ -9790,3 +9790,17 @@ Source duplication: No.
 Tests and docs update expectations: Migration contract, draft-to-account service coverage, focused frontend workflow tests, lint/build, gap matrix, roadmap, and infographic alignment.
 
 Completed output: Account Setup now captures legal organisation name, optional trading name, and registration number in the prototype-aligned creation experience. The values persist through the governed onboarding draft into the authoritative account and organisation records, legacy `organisation_name` drafts remain readable, and duplicate resolution continues behind the single Create customer action.
+
+## TASK-453: Calibrate Amplifi Global typography, spacing, and density
+
+Status: Complete (2026-08-23). Dependencies: TASK-452.
+Product boundary: Referral SaaS frontend with Shared Platform design-system and accessibility primitives.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; approved Customer Accounts prototype handoff.
+Shared primitive impact: Adds bounded Amplifi Global content-width, typography, and spacing tokens reused by operator surfaces; no product data, command, route, or lifecycle is forked. Source duplication: No.
+Objective: Match the approved prototype's calm desktop hierarchy and density across Customer Accounts while retaining the established responsive shell and governed customer lifecycle.
+Backend/database impact: None.
+Frontend/API impact: Constrains wide-screen content width, aligns page-title and supporting-copy scale, increases deliberate section spacing, and refines Customer Accounts tabs, creation form, and guardrail rhythm without changing fields, commands, routes, or state.
+Tests and docs update expectations: Frontend lint, focused Customer Accounts and UX-quality tests, production build, responsive visual QA, roadmap, gap matrix, and infographic alignment.
+Definition of done: Complete - Amplifi Global operator surfaces use a consistent prototype-aligned content measure, heading hierarchy, and spacing rhythm with responsive fallbacks and no behavioral change. Priority: P1 UX alignment.
+
+Completed output: Added shared Amplifi Global layout and type tokens, centered the desktop operator workspace at the approved content measure, aligned Customer Accounts headings, tabs, form density, lifecycle guardrails, and responsive title treatment, and retained all existing governed behavior.

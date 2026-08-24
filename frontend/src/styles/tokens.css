@@ -22,4 +22,8 @@
   --radius-panel: 8px;
   --radius-control: 6px;
   --sidebar-width: 272px;
+  --global-content-max: 1374px;
+  --global-section-gap: 30px;
+  --global-page-title-size: 42px;
+  --global-page-copy-size: 16px;
 }
