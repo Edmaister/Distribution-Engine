@@ -9831,3 +9831,17 @@ Tests and docs expectation: Frontend lint, focused Customer Accounts/Account Set
 Definition of done: Complete - Customer Accounts and Create customer use the approved prototype's calm content width, typography hierarchy, and spacing while retaining responsive behavior and the authoritative governed lifecycle. Priority: P1 UX alignment.
 
 Completed output: Calibrated shared Amplifi Global dimensions and Referral SaaS content padding, reduced oversized page and supporting typography, aligned Customer Accounts tabs and legal-identity form density, refined guardrail hierarchy, and preserved the existing governed creation behavior.
+
+## TASK-456: Complete Customer Accounts discovery fidelity and responsive result hierarchy
+
+Status: Complete (2026-08-24). Dependencies: TASK-453; TASK-455.
+Product boundary: Referral SaaS frontend with Shared Platform shell, design-system, permission-boundary, and accessibility primitives.
+Required boundary docs checked: `AGENTS.md`; `docs/product/referral-saas/PRODUCT_BRIEF.md`; `docs/roadmap/referral-saas/ROADMAP.md`; `docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md`; `docs/roadmap/ORDERED_TASK_LIST.md`; approved Customer Accounts prototype handoff.
+Shared primitive impact: Refines the existing Amplifi Global operator shell only on global Referral SaaS operations routes and reuses the current customer portfolio read model. Source duplication: No.
+Objective: Close the remaining same-viewport difference on Customer Accounts discovery by matching the prototype's quiet global shell, bounded content measure, explicit search action, compact guidance, stable result columns, and responsive hierarchy with authoritative real data.
+Backend/database impact: None. Permission-scoped customer discovery, legal identity, account status, jurisdiction boundaries, and profile routing remain authoritative.
+Frontend/API impact: Adds a URL-restorable explicit Search/Clear interaction, compact search guidance, non-overlapping result columns, responsive labels, and scoped Amplifi Global shell treatment without changing routes, fields, commands, or lifecycle state.
+Tests and docs expectation: Frontend lint, focused Customer Accounts and Sidebar tests, production build, desktop/mobile visual QA, roadmap, gap matrix, and infographic alignment.
+Definition of done: Complete - Customer Accounts discovery matches the approved prototype's information hierarchy and density while long real identifiers remain readable and the governed Create customer flow remains unchanged. Priority: P1 UX alignment.
+
+Completed output: Scoped the quiet Amplifi Global shell to global Referral SaaS operations routes, aligned discovery width and typography, added explicit Search/Clear behavior with compact field guidance, stabilised real-data result columns, and retained permission-safe customer profile destinations. Frontend lint and production build passed; focused Customer Accounts and Sidebar coverage passed (6 tests).

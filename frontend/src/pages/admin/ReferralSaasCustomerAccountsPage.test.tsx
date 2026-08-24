@@ -55,6 +55,7 @@ describe("ReferralSaasCustomerAccountsPage", () => {
     mockDirectory.mockReturnValue({ data: response, isLoading: false, error: null } as unknown as ReturnType<typeof useReferralSaasCustomerPortfolio>);
     renderPage();
     fireEvent.change(screen.getByLabelText("Customer name or number"), { target: { value: "Northstar" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
     await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("search=Northstar"));
   });
 });

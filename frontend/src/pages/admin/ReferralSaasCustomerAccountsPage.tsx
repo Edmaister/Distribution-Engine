@@ -1,3 +1,4 @@
+import { type FormEvent, useEffect, useState } from "react";
 import { AlertTriangle, ArrowRight, Plus, Search, ShieldCheck, X } from "lucide-react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 
@@ -17,6 +18,7 @@ export function ReferralSaasCustomerAccountsPage() {
   const outletContext = useOutletContext<{ refreshKey?: number } | undefined>();
   const [params, setParams] = useSearchParams();
   const mode = params.get("mode") === "create" ? "create" : "find";
+  const [searchDraft, setSearchDraft] = useState(value(params, "search") || "");
   const filters: ReferralSaasCustomerPortfolioFilters = {
     search: value(params, "search"),
     jurisdiction: value(params, "jurisdiction"),
@@ -28,6 +30,8 @@ export function ReferralSaasCustomerAccountsPage() {
   const customers = query.data?.portfolio.customers;
   const hasFilters = Boolean(filters.search || filters.jurisdiction || filters.accountStatus);
 
+  useEffect(() => setSearchDraft(filters.search || ""), [filters.search]);
+
   function setFilter(name: string, selected: string) {
     const next = new URLSearchParams(params);
     if (selected) {
@@ -38,6 +42,15 @@ export function ReferralSaasCustomerAccountsPage() {
     setParams(next);
   }
 
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFilter("search", searchDraft.trim());
+  }
+
+  function clearFilters() {
+    setSearchDraft("");
+    setParams({ mode: "find" });
+  }
   return <div className="operations-workspace customer-accounts-page">
     <section className="page-header operations-hero">
       <div>
@@ -61,14 +74,20 @@ export function ReferralSaasCustomerAccountsPage() {
           <p>Use the customer name, customer number, or visible reference, then narrow the permitted results by jurisdiction.</p>
         </div>
 
-        <section className="panel customer-account-search" aria-label="Search customer accounts">
+        <form className="panel customer-account-search" aria-label="Search customer accounts" onSubmit={submitSearch}>
           <label className="customer-account-search-input">
             <span className="sr-only">Customer name or number</span>
             <Search size={19} />
-            <input aria-label="Customer name or number" onChange={(event) => setFilter("search", event.target.value)} placeholder="Customer name or number, e.g. Northstar or ACC-NSF-008" value={filters.search || ""} />
+            <input aria-label="Customer name or number" onChange={(event) => setSearchDraft(event.target.value)} placeholder="Customer name or number, e.g. Northstar or ACC-NSF-008" value={searchDraft} />
           </label>
-          {hasFilters ? <button className="button secondary" onClick={() => setParams({})} type="button"><X size={15} /> Clear</button> : null}
-        </section>
+          <button className="button primary customer-account-search-submit" type="submit">Search</button>
+          {hasFilters || searchDraft ? <button className="button secondary customer-account-search-clear" onClick={clearFilters} type="button"><X size={15} /> Clear</button> : null}
+          <div className="customer-account-search-guide" aria-hidden="true">
+            <span><strong>Customer name</strong><small>Legal or trading name</small></span>
+            <span><strong>Customer number</strong><small>Amplifi account reference</small></span>
+            <span><strong>Jurisdiction</strong><small>Permission-scoped filter</small></span>
+          </div>
+        </form>
 
         <div className="customer-account-filters" aria-label="Customer account filters">
           <FilterSelect label="Jurisdiction" name="jurisdiction" value={filters.jurisdiction} onChange={setFilter} options={(query.data?.operatorScope.jurisdictions || []).map((item) => [item, item])} />
@@ -80,7 +99,7 @@ export function ReferralSaasCustomerAccountsPage() {
         {query.error ? <DirectoryError error={query.error} /> : null}
         {customers ? <section className="panel customer-account-results" aria-label="Customer account results">
           {customers.length ? <div className="customer-account-table" role="table">
-            <div className="customer-account-table-head" role="row"><span>Customer</span><span>Customer number</span><span>Jurisdiction</span><span>Status</span><span className="sr-only">Action</span></div>
+            <div className="customer-account-table-head" role="row"><span>Customer</span><span>Customer number</span><span>Jurisdiction</span><span>Status</span><span>Action</span></div>
             {customers.map((customer) => <CustomerAccountRow customer={customer} key={customer.accountRef} />)}
           </div> : <EmptyState label={hasFilters ? "No customer accounts match your search. Change or clear the filters before creating a new customer." : "No customer accounts are available in your permitted scope."} />}
         </section> : null}
@@ -128,9 +147,9 @@ function CustomerAccountRow({ customer }: { customer: Customer }) {
   const statusTone = customer.accountStatus === "ACTIVE" ? "success" : customer.accountStatus === "SUSPENDED" ? "danger" : "warning";
   return <article className="customer-account-row" role="row">
     <div className="customer-account-name" role="cell"><span className="operations-customer-monogram" aria-hidden="true">{customer.accountName.slice(0, 2).toUpperCase()}</span><strong>{customer.accountName}</strong></div>
-    <span data-label="Customer number" role="cell">{customer.accountCode}</span>
-    <span data-label="Jurisdiction" role="cell">{customer.jurisdiction}</span>
-    <span data-label="Status" role="cell"><StatusBadge label={formatCode(customer.accountStatus)} tone={statusTone} /></span>
+    <span className="customer-account-code" data-label="Customer number" role="cell">{customer.accountCode}</span>
+    <span className="customer-account-jurisdiction" data-label="Jurisdiction" role="cell">{customer.jurisdiction}</span>
+    <span className="customer-account-status" data-label="Status" role="cell"><StatusBadge label={formatCode(customer.accountStatus)} tone={statusTone} /></span>
     <Link aria-label={`Open ${customer.accountName} profile`} className="customer-account-open" to={customer.destination}>Open profile <ArrowRight size={14} /></Link>
   </article>;
 }

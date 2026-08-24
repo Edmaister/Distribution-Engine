@@ -144,6 +144,7 @@ export function Sidebar() {
   const location = useLocation();
   const inReferralSaasWorkspace = location.pathname === "/admin/referral-saas" ||
     location.pathname.startsWith("/admin/referral-saas/");
+  const inReferralSaasGlobalOperations = location.pathname.startsWith("/admin/referral-saas/operations/");
   const inSelectedCustomerContext = /^\/admin\/referral-saas\/account-maintenance\/[^/]+/.test(
     location.pathname,
   );
@@ -161,9 +162,9 @@ export function Sidebar() {
             <Sparkles size={18} />
           </span>
           <div>
-            <div className="brand-title">{inReferralSaasWorkspace ? "Referral SaaS" : "Amplifi"}</div>
+            <div className="brand-title">{inReferralSaasGlobalOperations ? "Amplifi." : inReferralSaasWorkspace ? "Referral SaaS" : "Amplifi"}</div>
             <div className="brand-subtitle">
-              {inReferralSaasWorkspace ? "Management & Attribution" : "Distribution OS"}
+              {inReferralSaasGlobalOperations ? "" : inReferralSaasWorkspace ? "Management & Attribution" : "Distribution OS"}
             </div>
           </div>
         </div>

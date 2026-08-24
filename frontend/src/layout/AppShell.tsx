@@ -71,6 +71,7 @@ const titles: Record<string, [string, string]> = {
 
 export function AppShell({ refreshKey, onRefresh }: { refreshKey: number; onRefresh: () => void }) {
   const location = useLocation();
+  const referralSaasGlobalOperations = location.pathname.startsWith("/admin/referral-saas/operations/");
   const titlePath = Object.keys(titles)
     .filter((path) => location.pathname === path || location.pathname.startsWith(`${path}/`))
     .sort((left, right) => right.length - left.length)[0];
@@ -78,7 +79,7 @@ export function AppShell({ refreshKey, onRefresh }: { refreshKey: number; onRefr
   const immersiveProducerWorkspace = location.pathname === "/sponsor";
   const shellClass =
     location.pathname === "/admin/referral-saas" || location.pathname.startsWith("/admin/referral-saas/")
-      ? "app-shell referral-saas-app-shell"
+      ? `app-shell referral-saas-app-shell${referralSaasGlobalOperations ? " referral-saas-global-shell" : ""}`
       : location.pathname === "/sponsor" || location.pathname === "/sponsor/operations"
       ? "app-shell producer-app-shell"
       : location.pathname === "/distributor" ||
