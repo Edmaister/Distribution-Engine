@@ -39,6 +39,9 @@ describe("ReferralSaasWorkspacePage", () => {
     expect(screen.getByText("Awaiting your action")).toBeInTheDocument();
     expect(screen.getByText("Not configured")).toBeInTheDocument();
     expect(screen.getByText("No completed governed clocks in the last 30 days")).toBeInTheDocument();
+    expect(screen.getByText("Work item")).toBeInTheDocument();
+    expect(screen.getByText("Priority")).toBeInTheDocument();
+    expect(screen.getByText("HIGH")).toBeInTheDocument();
     expect(screen.queryByText("96%")).not.toBeInTheDocument();
   });
 

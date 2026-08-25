@@ -8,7 +8,6 @@ import {
   Link as LinkIcon,
   ListChecks,
   PlugZap,
-  Route,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -298,153 +297,6 @@ const integrationChannelOptions = [
   { value: "USSD", label: "USSD" },
 ];
 
-const customerFunctions = [
-  {
-    title: "Account health",
-    copy: "See what is OK, what is stopping you, and what can wait.",
-    letsYou: "Know if this customer is ready to test referrals.",
-    route: "health",
-    icon: ShieldCheck,
-    status: "Needs attention",
-    tone: "warning" as StatusTone,
-  },
-  {
-    title: "Customer settings",
-    copy: "Review company details, customer identifiers, and operating market.",
-    letsYou: "Keep profile work inside this customer context.",
-    route: "settings",
-    icon: Building2,
-    status: "Needs attention",
-    tone: "warning" as StatusTone,
-  },
-  {
-    title: "Plan and entitlement",
-    copy: "Review whether this customer is allowed for production Referral SaaS use.",
-    letsYou: "Keep setup, launch approval, billing, and money boundaries clear.",
-    route: "commercial",
-    icon: SlidersHorizontal,
-    status: "Needs attention",
-    tone: "warning" as StatusTone,
-  },
-  {
-    title: "Products and offerings",
-    copy: "Define what this customer offers before building referral programmes.",
-    letsYou: "Reuse the right business product across programmes and campaigns.",
-    route: "products",
-    icon: Building2,
-    status: "Needs setup",
-    tone: "warning" as StatusTone,
-  },
-  {
-    title: "Programmes",
-    copy: "Build the versioned package campaigns will use.",
-    letsYou: "Combine a published journey with approved product, incentive, and setup defaults.",
-    route: "programmes",
-    icon: FileJson,
-    status: "Needs setup",
-    tone: "warning" as StatusTone,
-  },
-  {
-    title: "Campaigns",
-    copy: "Set up or review referral campaigns for this customer.",
-    letsYou: "Create campaign tests once blockers are clear.",
-    route: "campaigns",
-    icon: Target,
-    status: "Ready",
-    tone: "success" as StatusTone,
-  },
-  {
-    title: "Referrals",
-    copy: "Inspect referral journeys for this customer.",
-    letsYou: "See referral status, missing evidence, and safe timeline anchors.",
-    route: "referrals",
-    icon: ListChecks,
-    status: "Ready",
-    tone: "success" as StatusTone,
-  },
-  {
-    title: "Referrers",
-    copy: "See who is driving referrals without exposing raw identity.",
-    letsYou: "Group referral activity by safe referrer labels and dimensions.",
-    route: "referrers",
-    icon: Users,
-    status: "Ready",
-    tone: "success" as StatusTone,
-  },
-  {
-    title: "Links and codes",
-    copy: "Issue, share, and validate referral codes.",
-    letsYou: "Run real referral entry tests for this customer.",
-    route: "links",
-    icon: LinkIcon,
-    status: "Ready",
-    tone: "success" as StatusTone,
-  },
-  {
-    title: "Reports",
-    copy: "View referral and campaign performance.",
-    letsYou: "See results once reporting setup is finished.",
-    route: "reports",
-    icon: BarChart3,
-    status: "Can wait",
-    tone: "warning" as StatusTone,
-  },
-  {
-    title: "People and access",
-    copy: "See who can manage this customer account.",
-    letsYou: "Put the right owner or campaign manager in place.",
-    route: "people",
-    icon: Users,
-    status: "Needs attention",
-    tone: "warning" as StatusTone,
-  },
-  {
-    title: "Integrations",
-    copy: "Set up the customer's API, webhook, and message-provider readiness.",
-    letsYou: "Know what technical connections are still needed before live invites or message testing.",
-    route: "integrations",
-    icon: PlugZap,
-    status: "Needs attention",
-    tone: "warning" as StatusTone,
-  },
-  {
-    title: "Journeys",
-    copy: "Choose an approved journey template and prepare this customer's version.",
-    letsYou: "Configure milestones, evidence, rewards, and attribution before campaign binding.",
-    route: "journeys",
-    icon: Route,
-    status: "Needs setup",
-    tone: "warning" as StatusTone,
-  },
-  {
-    title: "Support hub",
-    copy: "Investigate problems for this customer.",
-    letsYou: "Trace issues without losing customer context.",
-    route: "support",
-    icon: ShieldCheck,
-    status: "Ready",
-    tone: "success" as StatusTone,
-  },
-  {
-    title: "Attribution",
-    copy: "Explain why a referral or outcome was attributed.",
-    letsYou: "Answer who got credit for this customer.",
-    route: "attribution",
-    icon: Search,
-    status: "Ready",
-    tone: "success" as StatusTone,
-  },
-  {
-    title: "Progress status",
-    copy: "Check journey milestones for referrals.",
-    letsYou: "See how far referred customers have got.",
-    route: "progress",
-    icon: ListChecks,
-    status: "Ready",
-    tone: "success" as StatusTone,
-  },
-];
-
 const configurationProofSteps = [
   {
     title: "Customer product",
@@ -477,20 +329,6 @@ const configurationProofSteps = [
     action: "Open reports",
   },
 ];
-
-function customerFunctionActionLabel(tone: StatusTone, status: string): string {
-  const normalizedStatus = status.toLowerCase();
-  if (tone === "success" || normalizedStatus === "ready") {
-    return "Ready to use";
-  }
-  if (normalizedStatus.includes("can wait")) {
-    return "Review when ready";
-  }
-  if (normalizedStatus.includes("needs")) {
-    return "Fix this";
-  }
-  return "Open page";
-}
 
 const readinessCategoryMap = [
   { code: "ACCOUNT_PROFILE", label: "Account profile" },
@@ -1193,7 +1031,6 @@ export function ReferralSaasAccountMaintenancePage() {
   const readiness = data?.readiness;
   const summary = readiness?.summary;
   const categories = asArray(readiness?.categories || []);
-  const readyCount = toCount(summary?.ready_count);
   const blockedCount = toCount(summary?.blocked_count);
   const missingEvidenceCount = toCount(summary?.missing_evidence_count);
   const goLiveDisabledCount = toCount(summary?.go_live_disabled_count);
@@ -1267,7 +1104,6 @@ export function ReferralSaasAccountMaintenancePage() {
     0,
     missingEvidenceCount - (hasAcceptedRequiredAccess && missingEvidenceCount > 0 ? 1 : 0),
   );
-  const effectiveWaitingCount = Math.max(0, effectiveMissingEvidenceCount - effectiveBlockedCount);
   const doNext = getCustomerNextActions({
     blockedCount: effectiveBlockedCount,
     missingEvidenceCount: effectiveMissingEvidenceCount,
@@ -1280,7 +1116,31 @@ export function ReferralSaasAccountMaintenancePage() {
     ),
   });
   const stoppingAction = doNext[0];
-  const waitingAction = doNext.find((action) => action.priority === "Later") || doNext[doNext.length - 1];
+  const customerReadinessAreas = readinessCategoryMap.map((area) => ({
+    ...resolveReadinessArea(area, categories),
+    route: area.code === "ACCOUNT_PROFILE" ? "settings" : area.code === "TENANT_LINK" ? "integrations" : area.code === "MEMBERSHIP" ? "people" : area.code === "CAMPAIGN_READINESS" ? "campaigns" : "reports",
+  }));
+  const commercialActivationBlocked = Boolean(commercialEntitlement?.commercialEntitlement.productionActivationBlocked);
+  const technicalReadinessStatus = technicalSetupReadiness?.technicalSetupReadiness.overallStatus || "NOT_RETURNED";
+  const productionDecisionStatus = productionActivation?.productionActivation.decisionStatus || "NOT_RETURNED";
+  const customerReadinessStages = [
+    { label: "Account foundation", complete: isAccountFoundationActive, status: formatDisplay(selectedAccount?.accountStatus || "Not returned"), route: "health" },
+    { label: "People & access", complete: hasAcceptedRequiredAccess, status: formatDisplay(activationReadiness?.activationReadiness.overallStatus || "Not returned"), route: "people" },
+    { label: "Commercial entitlement", complete: Boolean(commercialEntitlement) && !commercialActivationBlocked, status: formatDisplay(commercialEntitlement?.commercialEntitlement.overallStatus || "Not returned"), route: "commercial" },
+    { label: "Production credentials", complete: technicalReadinessStatus.toUpperCase().includes("READY"), status: formatDisplay(technicalReadinessStatus), route: "integrations" },
+    { label: "Launch approval", complete: Boolean(productionActivation?.productionActivation.launchAllowed), status: formatDisplay(productionDecisionStatus), route: "campaigns" },
+  ];
+  const firstIncompleteStage = customerReadinessStages.findIndex((stage) => !stage.complete);
+  const priorityAction = !isAccountFoundationActive
+    ? { title: "Activate the customer foundation", copy: "This moves the selected customer from pending setup to an active account and tenant-link posture, then creates bounded platform seat capacity. It does not assign seats, send invites, create credentials, change auth claims, activate campaigns, bill, or move money.", route: "health" }
+    : stoppingAction;
+  const customerWorkspaceDestinations = [
+    { eyebrow: "Configure", title: "Products & programmes", copy: "Connect this customer's offering to a governed referral journey, reward, and engagement model.", route: "programmes", icon: FileJson },
+    { eyebrow: "Launch", title: "Campaigns", copy: "Create and review campaigns within this customer context and its current readiness controls.", route: "campaigns", icon: Target },
+    { eyebrow: "Operate", title: "Referral operations", copy: "Follow referral progress, resolve exceptions, and preserve customer-scoped evidence.", route: "referrals", icon: ListChecks },
+    { eyebrow: "Understand", title: "Attribution & reporting", copy: "Explore campaign contribution, referrer attribution, and governed reporting evidence.", route: "attribution", icon: BarChart3 },
+  ];
+
   const peopleAccessStatus =
     missingAccessRoleCount > 0
       ? `Still need ${formatList(missingAccessRoleRows.map((row) => roleOptionForFamily(getValue(row, ["roleFamily"], "")).label))}.`
@@ -2052,62 +1912,31 @@ export function ReferralSaasAccountMaintenancePage() {
 
   return (
     <>
-      <section className="page-header customer-profile-header">
+      <section className={"page-header customer-profile-header" + (accountId && selectedAccount ? " prototype-customer-header" : "")}>
         <div>
-          <div className="page-kicker">
-            {selectedAccount ? "Referral SaaS > Customer profile" : "Referral SaaS > Open a customer"}
-          </div>
+          <div className="page-kicker">{selectedAccount ? "Amplifi Internal · Customer Operations" : "Referral SaaS · Open a customer"}</div>
           <h1 className="page-title">{accountId && selectedAccount ? customerName : "Find the customer to work on"}</h1>
           <p className="page-copy">
             {accountId && selectedAccount
-              ? "This is the customer home. Campaigns, links, reports, attribution, and support stay inside this customer context."
+              ? effectiveBlockedCount || effectiveMissingEvidenceCount
+                ? "This customer has " + (effectiveBlockedCount || effectiveMissingEvidenceCount) + " readiness item" + ((effectiveBlockedCount || effectiveMissingEvidenceCount) === 1 ? "" : "s") + " requiring attention."
+                : "This customer has no visible readiness blockers."
               : "Country first, then account, then open their profile."}
           </p>
           {accountId && selectedAccount ? (
-            <div className="customer-context-chips" aria-label="Selected customer context">
-              <span className="customer-context-chip">
-                <span className="customer-context-label">Operating jurisdiction</span>
-                <span className="customer-context-value">{operatingMarketFromAccount(selectedAccount).name}</span>
-              </span>
-              <span className="customer-context-chip status">
-                <span className="customer-context-label">Account status</span>
-                <StatusBadge label={formatDisplay(selectedAccount.accountStatus)} tone="success" />
-              </span>
-              <span className="customer-context-chip">
-                <span className="customer-context-label">Account code</span>
-                <span className="customer-context-value">{selectedAccount.accountCode}</span>
-              </span>
-              <span className="customer-context-chip">
-                <span className="customer-context-label">Customer reference</span>
-                <span className="customer-context-value">{selectedExternalTenantRef}</span>
-              </span>
-              <span className="customer-context-chip">
-                <span className="customer-context-label">Organisation reference</span>
-                <span className="customer-context-value">{selectedOrganisationRef}</span>
-              </span>
+            <div className="prototype-customer-context" aria-label="Selected customer context">
+              <span><strong>{selectedAccount.accountCode}</strong></span>
+              <span>{operatingMarketFromAccount(selectedAccount).name}</span>
+              <StatusBadge label={formatDisplay(selectedAccount.accountStatus)} tone={statusTone(selectedAccount.accountStatus)} />
             </div>
           ) : null}
         </div>
         <div className="customer-header-actions">
-          {!accountId ? (
-            <Link className="button" to="/admin/referral-saas/account-setup">
-              Create customer
-            </Link>
-          ) : null}
-          {accountId && selectedAccount && selectedModule !== "home" ? (
-            <Link className="button secondary" to={selectedCustomerPath}>
-              Customer home
-            </Link>
-          ) : null}
-          {accountId ? (
-            <Link className="button secondary" to="/admin/referral-saas/account-maintenance">
-              Switch customer
-            </Link>
-          ) : null}
-          {accountId ? <StatusBadge label="View only where noted" tone="warning" /> : null}
+          {!accountId ? <Link className="button" to="/admin/referral-saas/account-setup">Create customer</Link> : null}
+          {accountId && selectedAccount && selectedModule !== "home" ? <Link className="button secondary" to={selectedCustomerPath}>Customer home</Link> : null}
+          {accountId ? <Link className="button secondary" to="/admin/referral-saas/account-maintenance">Switch customer</Link> : null}
         </div>
       </section>
-
       {isLoading ? <LoadingState label="Loading Referral SaaS customer workspace" /> : null}
       {error ? <ErrorPanel error={error} /> : null}
 
@@ -2295,220 +2124,79 @@ export function ReferralSaasAccountMaintenancePage() {
 
           {accountId && selectedAccount ? (
             <>
-              {selectedModule === "home" && (accountFoundationActivationPanel || accountFoundationActivationResultPanel) ? (
-                <section className="panel account-foundation-panel">
-                  <div className="panel-header">
-                    <div>
-                      <h2 className="panel-title">Account foundation</h2>
-                      <div className="panel-subtitle">
-                        Activate the customer foundation before provisioning platform seats.
-                      </div>
-                    </div>
-                    <StatusBadge label={formatDisplay(selectedAccount.accountStatus)} tone={statusTone(selectedAccount.accountStatus)} />
-                  </div>
-                  <div className="panel-body">
-                    {accountFoundationActivationPanel}
-                    {accountFoundationActivationResultPanel}
-                  </div>
-                </section>
-              ) : null}
-
               {selectedModule === "home" ? (
-                <section className="customer-overview-grid">
-                  <div className="panel">
-                    <div className="panel-header">
-                      <div>
-                        <h2 className="panel-title">Customer readiness</h2>
-                        <div className="panel-subtitle">
-                          Green is ready, red blocks safe testing, and amber can wait. Each red or amber item links to the page that resolves it.
-                        </div>
-                      </div>
-                      <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
-                    </div>
-                    <div className="panel-body">
-                      <div className="customer-health-strip">
-                        <div className="customer-health-card good" aria-label={`${readyCount} green checks looking fine`}>
-                          <div className="customer-health-card-top">
-                            <span className="customer-rag-dot green" aria-hidden="true" />
-                            <span className="customer-health-rag">Green</span>
-                          </div>
-                          <strong>{readyCount}</strong>
-                          <span className="customer-health-label">Looking fine</span>
-                          <span className="customer-health-action">No action needed</span>
-                        </div>
-                        <div className="customer-health-card bad" aria-label={`${effectiveBlockedCount} red blockers stopping referral testing`}>
-                          <div className="customer-health-card-top">
-                            <span className="customer-rag-dot red" aria-hidden="true" />
-                            <span className="customer-health-rag">Red</span>
-                          </div>
-                          <strong>{effectiveBlockedCount}</strong>
-                          <span className="customer-health-label">Stopping you</span>
-                          {effectiveBlockedCount > 0 ? (
-                            <Link
-                              className="customer-health-action-link"
-                              to={buildCustomerModuleRoute(selectedCustomerPath, stoppingAction.route, customerQuery)}
-                            >
-                              Fix first: {stoppingAction.title}
-                            </Link>
-                          ) : (
-                            <span className="customer-health-action">No blocker</span>
-                          )}
-                        </div>
-                        <div className="customer-health-card wait" aria-label={`${effectiveWaitingCount} amber items can wait`}>
-                          <div className="customer-health-card-top">
-                            <span className="customer-rag-dot amber" aria-hidden="true" />
-                            <span className="customer-health-rag">Amber</span>
-                          </div>
-                          <strong>{effectiveWaitingCount}</strong>
-                          <span className="customer-health-label">Can wait</span>
-                          <Link
-                            className="customer-health-action-link"
-                            to={buildCustomerModuleRoute(selectedCustomerPath, waitingAction.route, customerQuery)}
-                          >
-                            Review later: {waitingAction.title}
-                          </Link>
-                        </div>
-                      </div>
-                      <div className={`wizard-summary-strip ${effectiveBlockedCount || effectiveMissingEvidenceCount ? "warning" : "success"}`}>
-                        <div>
-                          <strong>In plain English:</strong>{" "}
-                          {effectiveBlockedCount || effectiveMissingEvidenceCount
-                            ? `Most of ${customerName} is ready. Fix the red item before safe referral testing; amber items can be reviewed after the blocker is clear.`
-                            : `${customerName} has no visible setup blocker count. Continue with campaign, link/code, attribution, or reporting tests.`}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="panel">
-                    <div className="panel-header">
-                      <div>
-                        <h2 className="panel-title">Do this next</h2>
-                        <div className="panel-subtitle">Start with the first item. Each action opens its own customer-scoped page.</div>
-                      </div>
-                    </div>
-                    <div className="panel-body route-list">
-                      {doNext.map((action) => (
-                        <Link
-                          className="route-item route-link"
-                          key={action.title}
-                          to={buildCustomerModuleRoute(selectedCustomerPath, action.route, customerQuery)}
-                        >
-                          <div>
-                            <div className="route-name">{action.title}</div>
-                            <div className="route-path">{action.copy}</div>
-                          </div>
-                          <div className="route-action-stack">
-                            <StatusBadge label={action.priority} tone={action.tone} />
-                            <span className="route-action">Open page</span>
-                          </div>
+                <div className="selected-customer-home">
+                  <section className="customer-readiness-progression" aria-labelledby="readiness-progression-title">
+                    <h2 className="visually-hidden" id="readiness-progression-title">Readiness progression</h2>
+                    <div className="customer-readiness-track">
+                      {customerReadinessStages.map((stage, index) => (
+                        <Link className={"customer-readiness-stage " + (stage.complete ? "complete" : index === firstIncompleteStage ? "current" : "pending")} key={stage.label} to={buildCustomerModuleRoute(selectedCustomerPath, stage.route, customerQuery)}>
+                          <span className="customer-readiness-marker">{stage.complete ? <CheckCircle2 size={20} /> : index + 1}</span>
+                          <strong>{stage.label}</strong>
+                          <small>{stage.status}</small>
                         </Link>
                       ))}
                     </div>
-                  </div>
-                </section>
-              ) : null}
+                  </section>
 
-              {selectedModule === "home" ? (
-                <section className="panel">
-                  <div className="panel-header">
-                    <div>
-                      <h2 className="panel-title">What you can do for this customer</h2>
-                      <div className="panel-subtitle">
-                        Choose a service page for {customerName}. The badge tells you whether to use it now, fix it first, or leave it for later.
+                  <section className="customer-priority-action">
+                    <span className="customer-priority-icon" aria-hidden="true"><AlertCircle size={22} /></span>
+                    <div><h2>{priorityAction.title}</h2><p>{priorityAction.copy}</p></div>
+                    {!isAccountFoundationActive ? (
+                      <div className="customer-priority-control">
+                        <button className="button" disabled={!canActivateAccountFoundation || accountFoundationActivationMutation.isPending} onClick={activateAccountFoundation} type="button">
+                          {accountFoundationActivationMutation.isPending ? "Activating foundation" : "Activate foundation"}
+                        </button>
+                        {!isAmplifiAdmin ? <small>Only Amplifi Admin can activate the customer foundation.</small> : null}
                       </div>
+                    ) : (
+                      <Link className="button" to={buildCustomerModuleRoute(selectedCustomerPath, priorityAction.route, customerQuery)}>Open priority action</Link>
+                    )}
+                  </section>
+
+                  {accountFoundationActivationResultPanel}
+
+                  <section className="customer-workspace-section">
+                    <div className="customer-section-heading"><div>
+                      <span className="page-kicker">Your service workspace</span>
+                      <h2>Continue in this customer context</h2>
+                      <p>Each area is designed for its task; customer and permission context stays with you.</p>
+                    </div></div>
+                    <div className="customer-workspace-grid">
+                      {customerWorkspaceDestinations.map((destination) => {
+                        const Icon = destination.icon;
+                        return (
+                          <Link className="customer-workspace-card" key={destination.title} to={buildCustomerModuleRoute(selectedCustomerPath, destination.route, customerQuery)}>
+                            <span className="customer-workspace-icon"><Icon size={21} /></span>
+                            <span><small>{destination.eyebrow}</small><strong>{destination.title}</strong><p>{destination.copy}</p></span>
+                            <span className="customer-workspace-arrow" aria-hidden="true">›</span>
+                          </Link>
+                        );
+                      })}
                     </div>
-                    <StatusBadge label="Customer scoped" tone="success" />
-                  </div>
-                  <div className="panel-body customer-function-grid">
-                    {customerFunctions.map((item) => {
-                      const displayItem =
-                        item.route === "people" && hasAcceptedRequiredAccess
-                          ? {
-                              ...item,
-                              status: "Ready",
-                              tone: "success" as StatusTone,
-                              copy: "Required customer managers are confirmed.",
-                              letsYou: "Move into referral setup while platform login stays optional.",
-                            }
-                          : item;
-                      const Icon = item.icon;
-                      const href = buildCustomerModuleRoute(selectedCustomerPath, displayItem.route, customerQuery);
-                      const actionLabel = customerFunctionActionLabel(displayItem.tone, displayItem.status);
-                      return (
-                        <Link
-                          className="customer-function-card"
-                          key={displayItem.title}
-                          to={href}
-                        >
-                          <div className="customer-function-card-header">
-                            <span className="customer-function-title">
-                              <Icon size={16} />
-                              {displayItem.title}
-                            </span>
-                            <StatusBadge label={displayItem.status} tone={displayItem.tone} />
-                          </div>
-                          <p>{displayItem.copy}</p>
-                          <div className="customer-function-help">
-                            <strong>This lets you:</strong> {displayItem.letsYou}
-                          </div>
-                          <div className="customer-function-open">{actionLabel} - open page</div>
+                  </section>
+
+                  <section className="customer-readiness-summary">
+                    <div className="customer-section-heading">
+                      <div><h2>Readiness summary</h2><p>Your current backend-governed readiness evidence.</p></div>
+                      <StatusBadge label={overallStatus} tone={statusTone(overallStatus)} />
+                    </div>
+                    <div className="customer-readiness-table" role="table" aria-label="Customer readiness summary">
+                      <div className="customer-readiness-row customer-readiness-table-head" role="row">
+                        <span role="columnheader">Area</span><span role="columnheader">Status</span><span role="columnheader">Evidence</span><span role="columnheader">Action</span>
+                      </div>
+                      {customerReadinessAreas.map((area) => (
+                        <Link className="customer-readiness-row" key={area.label} role="row" to={buildCustomerModuleRoute(selectedCustomerPath, area.route, customerQuery)}>
+                          <strong role="cell">{area.label}</strong>
+                          <span role="cell"><StatusBadge label={area.status} tone={statusTone(area.status)} /></span>
+                          <span role="cell">{area.evidence}</span>
+                          <span className="customer-readiness-open" role="cell">Open ›</span>
                         </Link>
-                      );
-                    })}
-                  </div>
-                </section>
-              ) : null}
-
-              {selectedModule === "home" ? (
-                <section className="panel">
-                  <div className="panel-header">
-                    <div>
-                      <h2 className="panel-title">How configuration fits together</h2>
-                      <div className="panel-subtitle">
-                        Keep the customer product, referral programme, campaign, campaign-specific changes, and reporting separate.
-                      </div>
+                      ))}
                     </div>
-                    <StatusBadge label="Plain language" tone="success" />
-                  </div>
-                  <div className="panel-body configuration-proof-grid">
-                    {configurationProofSteps.map((step, index) => (
-                      <Link
-                        className="configuration-proof-card"
-                        key={step.title}
-                        to={buildCustomerModuleRoute(selectedCustomerPath, step.route, customerQuery)}
-                      >
-                        <span className="configuration-proof-index">{index + 1}</span>
-                        <div>
-                          <strong>{step.title}</strong>
-                          <p>{step.copy}</p>
-                          <span>{step.action}</span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </section>
+                  </section>
+                </div>
               ) : null}
-
-              {selectedModule === "home" ? (
-                <section className="panel">
-                  <div className="panel-header">
-                    <div>
-                      <h2 className="panel-title">People snapshot</h2>
-                      <div className="panel-subtitle">Summary only. Open People and access to manage responsibilities.</div>
-                    </div>
-                    <Link className="button secondary" to={buildCustomerModuleRoute(selectedCustomerPath, "people", customerQuery)}>
-                      Open People and access
-                    </Link>
-                  </div>
-                  <div className="panel-body grid-3">
-                    <KpiCard label="Active users" value={String(membershipPosture?.membershipPosture.activeCount ?? 0)} footnote="Activated people on this customer" icon={Users} />
-                    <KpiCard label="Named or invited" value={String(membershipPosture?.membershipPosture.invitedCount ?? 0)} footnote="Intent recorded without email delivery" icon={CheckCircle2} />
-                    <KpiCard label="Roles still missing" value={String(missingAccessRoleCount)} footnote="Owner or campaign manager still needs attention" icon={AlertCircle} />
-                  </div>
-                </section>
-              ) : null}
-
               {selectedModule === "settings" ? (
               <section className="panel" id="customer-settings">
                 <div className="panel-header">
@@ -3457,11 +3145,7 @@ export function ReferralSaasAccountMaintenancePage() {
                 />
               ) : null}
 
-              {selectedModule === "home" ? (
-              <section className="customer-context-note">
-                Not on this page: customer settings form, people invite form, or full health table. Those live on their own customer routes so the home stays short.
-              </section>
-              ) : null}
+
             </>
           ) : null}
 

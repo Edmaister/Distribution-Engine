@@ -28,34 +28,45 @@ import { NavLink, useLocation } from "react-router-dom";
 import amplifiMark from "../assets/amplifi-mark.svg";
 import { useBackendSession, workspaceForPath } from "../auth/useBackendSession";
 
-const referralSaasCustomerSections = [
-  {
-    label: "Customers",
-    links: [
-      { to: "/admin/referral-saas/account-setup", label: "Account Setup", icon: Building2, sub: "New" },
-      { to: "/admin/referral-saas/account-maintenance", label: "Customer profile", icon: ShieldCheck, sub: "Home" },
-      { to: "/admin/referral-saas/campaigns", label: "Campaigns", icon: Target, sub: "Scoped" },
-      { to: "/admin/referral-saas/link-codes", label: "Links & Codes", icon: Link2, sub: "Scoped" },
-      { to: "/admin/referral-saas/reports", label: "Reports", icon: ChartNoAxesColumn, sub: "Scoped" },
-      { to: "/admin/referral-saas/support", label: "Support", icon: ShieldCheck, sub: "Queue" },
-    ],
-  },
-  {
-    label: "Diagnostics",
-    links: [
-      { to: "/admin/referral-saas/operator-links", label: "Link Inspection", icon: ShieldCheck, sub: "Inspect" },
-      { to: "/admin/referral-saas/attribution-trace", label: "Attribution Trace", icon: Split, sub: "Trace" },
-      { to: "/admin/referral-saas/progress-status", label: "Progress Status", icon: ListChecks, sub: "Status" },
-    ],
-  },
-  {
-    label: "Global",
-    links: [
-      { to: "/admin/referral-saas", label: "Amplifi Global", icon: Gauge, sub: "Exit" },
-    ],
-  },
-];
-
+function referralSaasCustomerSections(basePath: string) {
+  return [
+    {
+      label: "Get operational",
+      links: [
+        { to: basePath, label: "Customer overview", icon: Gauge, sub: "Home" },
+        { to: `${basePath}/settings`, label: "Customer profile", icon: Building2, sub: "Profile" },
+        { to: `${basePath}/people`, label: "People & access", icon: Users, sub: "Access" },
+        { to: `${basePath}/integrations`, label: "Workspace entry", icon: KeyRound, sub: "Setup" },
+        { to: `${basePath}/technical`, label: "Integrations", icon: RadioTower, sub: "Connect" },
+      ],
+    },
+    {
+      label: "Configure & launch",
+      links: [
+        { to: `${basePath}/programmes`, label: "Products & programmes", icon: BriefcaseBusiness, sub: "Configure" },
+        { to: `${basePath}/campaigns`, label: "Campaigns", icon: Target, sub: "Launch" },
+        { to: `${basePath}/links`, label: "Links & codes", icon: Link2, sub: "Issue" },
+      ],
+    },
+    { label: "Operate", links: [{ to: `${basePath}/referrals`, label: "Referrals", icon: ListChecks, sub: "Operate" }] },
+    {
+      label: "Understand",
+      links: [
+        { to: `${basePath}/attribution`, label: "Attribution", icon: ChartNoAxesColumn, sub: "Trace" },
+        { to: `${basePath}/referrers`, label: "Referral attribution", icon: Split, sub: "Explain" },
+        { to: `${basePath}/reports`, label: "Customer reports", icon: ChartNoAxesColumn, sub: "Report" },
+      ],
+    },
+    {
+      label: "Service & commercial",
+      links: [
+        { to: `${basePath}/support`, label: "Customer support", icon: ShieldCheck, sub: "Support" },
+        { to: `${basePath}/commercial`, label: "Commercial", icon: BadgeDollarSign, sub: "Govern" },
+      ],
+    },
+    { label: "Global", links: [{ to: "/admin/referral-saas", label: "Amplifi Global", icon: Globe2, sub: "Exit" }] },
+  ];
+}
 const referralSaasGlobalSections = [
   {
     label: "Amplifi Internal",
@@ -145,13 +156,14 @@ export function Sidebar() {
   const location = useLocation();
   const inReferralSaasWorkspace = location.pathname === "/admin/referral-saas" ||
     location.pathname.startsWith("/admin/referral-saas/");
-  const inReferralSaasGlobalOperations = location.pathname.startsWith("/admin/referral-saas/operations/");
-  const inSelectedCustomerContext = /^\/admin\/referral-saas\/account-maintenance\/[^/]+/.test(
-    location.pathname,
-  );
+  const inReferralSaasGlobalOperations = location.pathname === "/admin/referral-saas" ||
+    location.pathname.startsWith("/admin/referral-saas/operations/");
+  const selectedCustomerMatch = location.pathname.match(/^\/admin\/referral-saas\/account-maintenance\/[^/]+/);
+  const inSelectedCustomerContext = Boolean(selectedCustomerMatch);
+  const selectedCustomerBase = selectedCustomerMatch?.[0] || "/admin/referral-saas/account-maintenance";
   const sections = inReferralSaasWorkspace
     ? inSelectedCustomerContext
-      ? referralSaasCustomerSections
+      ? referralSaasCustomerSections(selectedCustomerBase)
       : referralSaasGlobalSections
     : platformSections;
 
@@ -159,7 +171,7 @@ export function Sidebar() {
     <aside className="sidebar">
       <div className="brand-mark">
         <div className="brand-lockup">
-          {inReferralSaasGlobalOperations ? (
+          {inReferralSaasGlobalOperations || inSelectedCustomerContext ? (
             <img className="brand-logo-image" src={amplifiMark} alt="" />
           ) : (
             <span className="brand-glyph">
@@ -167,9 +179,9 @@ export function Sidebar() {
             </span>
           )}
           <div>
-            <div className="brand-title">{inReferralSaasGlobalOperations ? "Amplifi." : inReferralSaasWorkspace ? "Referral SaaS" : "Amplifi"}</div>
+            <div className="brand-title">{inReferralSaasGlobalOperations || inSelectedCustomerContext ? "Amplifi." : inReferralSaasWorkspace ? "Referral SaaS" : "Amplifi"}</div>
             <div className="brand-subtitle">
-              {inReferralSaasGlobalOperations ? "" : inReferralSaasWorkspace ? "Management & Attribution" : "Distribution OS"}
+              {inReferralSaasGlobalOperations || inSelectedCustomerContext ? "" : inReferralSaasWorkspace ? "Management & Attribution" : "Distribution OS"}
             </div>
           </div>
         </div>
@@ -180,12 +192,12 @@ export function Sidebar() {
             {inSelectedCustomerContext ? <Building2 size={17} /> : <span>AI</span>}
           </span>
           <span>
-            <strong>{inSelectedCustomerContext ? "Customer workspace" : "Amplifi Internal"}</strong>
-            <small>{inSelectedCustomerContext ? "Customer-scoped operations" : "Customer operations"}</small>
+            <strong>Amplifi Internal</strong>
+            <small>Customer operations</small>
           </span>
         </div>
       ) : null}
-      {inReferralSaasWorkspace && !inSelectedCustomerContext ? (
+      {inReferralSaasWorkspace ? (
         <NavLink className="global-customer-entry" to="/admin/referral-saas/operations/customer-accounts">
           <Search size={15} />
           <span>Find or create customer</span>

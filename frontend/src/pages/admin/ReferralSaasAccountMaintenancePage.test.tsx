@@ -3429,71 +3429,25 @@ describe("ReferralSaasAccountMaintenancePage", () => {
 
   it("filters customers by jurisdiction and opens the selected customer home", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
-
     fireEvent.click(await screen.findByRole("button", { name: /Botswana/ }));
-    expect(screen.getByText(/permitted to support in Botswana/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Gaborone Partners/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /FNB Referral SaaS/ })).not.toBeInTheDocument();
-
     fireEvent.click(screen.getByRole("button", { name: /Gaborone Partners/ }));
-    expect(screen.getByRole("link", { name: "Open customer profile" })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-maintenance/acct-gabs",
-    );
     fireEvent.click(screen.getByRole("link", { name: "Open customer profile" }));
 
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
     expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Botswana");
-    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Operating jurisdiction");
-    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Account status");
-    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Account code");
-    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Customer reference");
-    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Organisation reference");
-    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("gabs-platform");
-    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("gabs-org");
-    expect(screen.getByText("This is the customer home. Campaigns, links, reports, attribution, and support stay inside this customer context.")).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "Customer readiness" })).toBeInTheDocument();
-    expect(
-      screen.getByText(/Green is ready, red blocks safe testing, and amber can wait/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Green")).toBeInTheDocument();
-    expect(screen.getByText("Red")).toBeInTheDocument();
-    expect(screen.getByText("Amber")).toBeInTheDocument();
-    expect(screen.getByText("No action needed")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Fix first: Add who can manage this account/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-maintenance/acct-gabs/people",
-    );
-    expect(screen.getByRole("link", { name: /Review later: Open Campaigns/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-maintenance/acct-gabs/campaigns",
-    );
-    expect(screen.getByRole("heading", { name: "Do this next" })).toBeInTheDocument();
-    expect(screen.getByText(/Start with the first item/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Add who can manage this account/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-maintenance/acct-gabs/people",
-    );
-    expect(screen.getByRole("link", { name: /Check integrations/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-maintenance/acct-gabs/integrations",
-    );
-    expect(screen.queryByRole("heading", { name: "People and access" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Open Campaigns/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-maintenance/acct-gabs/campaigns",
-    );
-    expect(await screen.findByText(/Choose a service page for Gaborone Partners/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Fix this - open page/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Not on this page: customer settings form, people invite form, or full health table/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("ACC-2201");
+    expect(await screen.findByRole("heading", { name: "Readiness progression" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Continue in this customer context" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Readiness summary" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Products & programmes/ })).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/acct-gabs/programmes");
+    expect(screen.getByRole("link", { name: /Referral operations/ })).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/acct-gabs/referrals");
   });
 
   it("exposes guarded customer foundation activation before seat provisioning", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-fnb");
 
     expect(await screen.findByRole("heading", { name: "FNB Referral SaaS" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Account foundation" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Activate customer foundation" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Activate the customer foundation" })).toBeInTheDocument();
     expect(screen.getByText(/creates bounded platform seat capacity/i)).toBeInTheDocument();
     expect(screen.getByText(/does not assign seats, send invites, create credentials/i)).toBeInTheDocument();
 
@@ -3580,42 +3534,24 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.queryByText(/Test FNB RMCA 002 foundation/i)).not.toBeInTheDocument();
   });
 
-  it("opens People and Access as its own customer page from the next-best action", async () => {
+  it("opens People and Access as its own customer page from readiness progression", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs");
-
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("link", { name: /^Add who can manage this account/ }));
-
+    fireEvent.click(screen.getByRole("link", { name: /People & access/ }));
     expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Customer home" })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-maintenance/acct-gabs",
-    );
-    expect(screen.queryByRole("heading", { name: "Customer readiness" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Customer home" })).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/acct-gabs");
+    expect(screen.queryByRole("heading", { name: "Readiness summary" })).not.toBeInTheDocument();
   });
 
-  it("does not keep people access as the customer-home blocker after required access is accepted", async () => {
+  it("marks People and Access complete after required access is accepted", async () => {
     mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockAcceptedRequiredMembershipPosture());
-    mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(
-      mockAcceptedRequiredMembershipActivationReadiness(),
-    );
-
+    mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockAcceptedRequiredMembershipActivationReadiness());
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs");
-
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Fix first: Add who can manage this account/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Add who can manage this account/ })).not.toBeInTheDocument();
-    expect(screen.getByText("No blocker")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Check integrations/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-maintenance/acct-gabs/integrations",
-    );
-    expect(screen.getByText("People and access").closest(".customer-function-card")).toHaveTextContent("Ready");
-    expect(screen.getByText("People and access").closest(".customer-function-card")).toHaveTextContent(
-      "Required customer managers are confirmed.",
-    );
-    expect(screen.getByText("Roles still missing").closest(".kpi-card")).toHaveTextContent("0");
+    const peopleStage = screen.getByRole("link", { name: /People & access/ });
+    expect(peopleStage).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/acct-gabs/people");
+    expect(peopleStage).toHaveTextContent("ACCESS_READY");
+    expect(peopleStage).toHaveClass("complete");
   });
 
   it("records customer-scoped people access intent without leaving Customer Profile", async () => {
@@ -5696,46 +5632,17 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
   });
 
-  it("keeps customer functions scoped to the selected customer context", async () => {
+  it("keeps prototype workspace destinations scoped to the selected customer context", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
-
     fireEvent.click(await screen.findByRole("button", { name: /FNB Referral SaaS/ }));
     fireEvent.click(screen.getByRole("link", { name: "Open customer profile" }));
-    expect(await screen.findByRole("heading", { name: "What you can do for this customer" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "How configuration fits together" })).toBeInTheDocument();
-    expect(screen.getByText(/Keep the customer product, referral programme, campaign, campaign-specific changes, and reporting separate/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Customer settings/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-maintenance/acct-fnb/settings",
-    );
-    expect(
-      screen
-        .getAllByRole("link", { name: /People and access/ })
-        .some((link) => link.getAttribute("href") === "/admin/referral-saas/account-maintenance/acct-fnb/people"),
-    ).toBe(true);
-    expect(screen.queryByRole("link", { name: /^Account setup$/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Links and codes/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-maintenance/acct-fnb/links",
-    );
-    expect(screen.getByRole("link", { name: /Reports/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-maintenance/acct-fnb/reports",
-    );
-    expect(screen.getByRole("link", { name: /Integrations/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-maintenance/acct-fnb/integrations",
-    );
-    expect(
-      screen
-        .getAllByRole("link", { name: /Campaigns/ })
-        .some((link) => link.getAttribute("href") === "/admin/referral-saas/account-maintenance/acct-fnb/campaigns"),
-    ).toBe(true);
-    expect(screen.getByRole("link", { name: /Attribution/ })).toHaveAttribute(
-      "href",
-      "/admin/referral-saas/account-maintenance/acct-fnb/attribution",
-    );
-    expect(screen.getByText(/Those live on their own customer routes so the home stays short/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Continue in this customer context" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Products & programmes/ })).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/acct-fnb/programmes");
+    expect(screen.getByRole("link", { name: /Referral operations/ })).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/acct-fnb/referrals");
+    expect(screen.getByRole("link", { name: /Attribution & reporting/ })).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/acct-fnb/attribution");
+    expect(screen.getAllByRole("link", { name: /Campaigns/ }).some((link) => link.getAttribute("href") === "/admin/referral-saas/account-maintenance/acct-fnb/campaigns")).toBe(true);
+    expect(screen.queryByRole("heading", { name: "What you can do for this customer" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Readiness summary" })).toBeInTheDocument();
   });
 
   it("keeps manual lookup local until the tester checks the customer", async () => {
