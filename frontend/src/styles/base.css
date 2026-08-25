@@ -2421,6 +2421,13 @@ a {
 .referral-saas-global-shell .brand-mark { padding-bottom: 24px; }
 .referral-saas-global-shell .brand-title { font-size: 26px; }
 .referral-saas-global-shell .brand-subtitle:empty { display: none; }
+.referral-saas-global-shell { font-family: "Sora", Arial, sans-serif; grid-template-columns: 268px minmax(0, 1fr); }
+.referral-saas-global-shell .sidebar { padding: 0 16px 24px; }
+.referral-saas-global-shell .brand-mark { min-height: 90px; padding: 25px 8px; }
+.referral-saas-global-shell .brand-lockup { gap: 11px; }
+.referral-saas-global-shell .brand-title { font-size: 25px; letter-spacing: 0; }
+.referral-saas-global-shell .brand-logo-image { display: block; flex: 0 0 auto; height: 34px; width: 34px; }
+.referral-saas-global-shell .operations-workspace { max-width: 1374px; }
 .referral-saas-global-shell .topbar { min-height: 68px; padding: 0 36px; }
 .referral-saas-global-shell .topbar-title-row,
 .referral-saas-global-shell .topbar-meta,
@@ -2514,7 +2521,7 @@ a {
 .customer-accounts-heading { margin-bottom: 22px; }
 .customer-accounts-heading h2 { font-size: 20px; line-height: 1.25; margin: 8px 0; }
 .customer-accounts-heading p, .customer-account-boundary p { color: var(--color-ink-soft); }
-.operations-workspace.customer-accounts-page { margin-inline: 0; max-width: none; }
+.operations-workspace.customer-accounts-page { margin-inline: auto; max-width: 1374px; }
 .customer-account-search { align-items: center; display: grid; gap: 0; grid-template-columns: minmax(0, 1fr) auto auto; min-height: 54px; overflow: hidden; padding: 0; }
 .customer-account-search-input { align-items: center; display: flex; gap: 10px; min-width: 0; padding: 10px 16px; }
 .customer-account-search-input svg { color: var(--color-primary); flex: none; }
@@ -2565,7 +2572,7 @@ a {
 .account-wizard--compact { border-radius: var(--radius-panel); grid-template-columns: 1fr; min-height: 0; }
 .customer-create-step-heading { align-items: flex-start; border-bottom: 1px solid var(--color-rule); display: grid; gap: 16px; grid-template-columns: 34px minmax(0, 1fr); padding: 26px; }
 .customer-create-step-heading > div { display: grid; gap: 5px; }
-.customer-create-step-number { align-items: center; background: var(--color-primary); border-radius: 50%; color: white; display: inline-flex; font-size: .85rem; font-weight: 800; height: 34px; justify-content: center; width: 34px; }
+.customer-create-step-number { align-items: center; background: var(--color-signal); border-radius: 50%; color: white; display: inline-flex; font-size: .85rem; font-weight: 800; height: 34px; justify-content: center; width: 34px; }
 .account-wizard--compact .account-wizard-step { padding: 26px; }
 .account-wizard--compact .account-wizard-step--compact > div:first-child { display: none; }
 .account-wizard--compact .wizard-card { border: 0; border-radius: 0; padding: 0; }
@@ -2577,7 +2584,7 @@ a {
 .customer-create-direct-heading p { margin: 0; }
 .customer-create-direct-heading h2 { font-size: 18px; }
 .customer-create-direct-heading p { font-size: 12px; }
-.customer-create-step { align-items: center; background: var(--color-primary); border-radius: 50%; color: white; display: inline-flex; font-size: .85rem; font-weight: 800; height: 34px; justify-content: center; width: 34px; }
+.customer-create-step { align-items: center; background: var(--color-signal); border-radius: 50%; color: white; display: inline-flex; font-size: .85rem; font-weight: 800; height: 34px; justify-content: center; width: 34px; }
 .customer-create-direct-section { border: 0; margin: 0; min-width: 0; padding: 26px; }
 .customer-create-direct-section + .customer-create-direct-section { border-top: 1px solid var(--color-rule); }
 .customer-create-direct-section legend { font-size: 15px; font-weight: 800; padding: 0; }

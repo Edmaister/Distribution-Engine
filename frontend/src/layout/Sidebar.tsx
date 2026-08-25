@@ -25,6 +25,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
+import amplifiMark from "../assets/amplifi-mark.svg";
 import { useBackendSession, workspaceForPath } from "../auth/useBackendSession";
 
 const referralSaasCustomerSections = [
@@ -158,9 +159,13 @@ export function Sidebar() {
     <aside className="sidebar">
       <div className="brand-mark">
         <div className="brand-lockup">
-          <span className="brand-glyph">
-            <Sparkles size={18} />
-          </span>
+          {inReferralSaasGlobalOperations ? (
+            <img className="brand-logo-image" src={amplifiMark} alt="" />
+          ) : (
+            <span className="brand-glyph">
+              <Sparkles size={18} />
+            </span>
+          )}
           <div>
             <div className="brand-title">{inReferralSaasGlobalOperations ? "Amplifi." : inReferralSaasWorkspace ? "Referral SaaS" : "Amplifi"}</div>
             <div className="brand-subtitle">
