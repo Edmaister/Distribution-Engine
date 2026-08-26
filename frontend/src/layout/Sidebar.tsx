@@ -34,7 +34,7 @@ function referralSaasCustomerSections(basePath: string) {
       label: "Get operational",
       links: [
         { to: basePath, label: "Partner overview", icon: Gauge, sub: "Home" },
-        { to: `${basePath}/settings`, label: "Customer profile", icon: Building2, sub: "Profile" },
+        { to: `${basePath}/settings`, label: "Account establishment", icon: Building2, sub: "Profile" },
         { to: `${basePath}/people`, label: "People & access", icon: Users, sub: "Access" },
         { to: `${basePath}/integrations`, label: "Workspace entry", icon: KeyRound, sub: "Setup" },
         { to: `${basePath}/technical`, label: "Integrations", icon: RadioTower, sub: "Connect" },

@@ -3437,7 +3437,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Botswana");
     expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("ACC-2201");
     expect(await screen.findByRole("heading", { name: "Readiness progression" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Account foundation/ })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: /Account establishment/ })).not.toHaveAttribute("aria-current");
     expect(screen.getByRole("link", { name: /People & access/ })).toHaveAttribute("aria-current", "step");
     expect(screen.getByRole("heading", { name: "Continue in this customer context" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Readiness summary" })).toBeInTheDocument();

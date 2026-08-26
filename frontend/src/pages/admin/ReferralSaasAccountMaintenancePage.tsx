@@ -1124,7 +1124,7 @@ export function ReferralSaasAccountMaintenancePage() {
   const technicalReadinessStatus = technicalSetupReadiness?.technicalSetupReadiness.overallStatus || "NOT_RETURNED";
   const productionDecisionStatus = productionActivation?.productionActivation.decisionStatus || "NOT_RETURNED";
   const customerReadinessStages = [
-    { label: "Account foundation", complete: isAccountFoundationActive, status: formatDisplay(selectedAccount?.accountStatus || "Not returned"), route: "health" },
+    { label: "Account establishment", complete: isAccountFoundationActive, status: formatDisplay(selectedAccount?.accountStatus || "Not returned"), route: "health" },
     { label: "People & access", complete: hasAcceptedRequiredAccess, status: formatDisplay(activationReadiness?.activationReadiness.overallStatus || "Not returned"), route: "people" },
     { label: "Commercial entitlement", complete: Boolean(commercialEntitlement) && !commercialActivationBlocked, status: formatDisplay(commercialEntitlement?.commercialEntitlement.overallStatus || "Not returned"), route: "commercial" },
     { label: "Production credentials", complete: technicalReadinessStatus.toUpperCase().includes("READY"), status: formatDisplay(technicalReadinessStatus), route: "integrations" },

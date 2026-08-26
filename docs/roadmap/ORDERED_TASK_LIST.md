@@ -9896,3 +9896,16 @@ Frontend impact: Changes only the selected-customer Sidebar label from Customer 
 Tests and docs expectation: Focused Sidebar test, roadmap, gap matrix, production build, and visual comparison.
 Validation method: npm test -- src/layout/Sidebar.test.tsx; npm run build; git diff --check.
 Definition of done: The selected-customer landing link reads Partner overview and still targets the selected account home. Priority: P1 UX alignment.
+
+## TASK-461: Align account-establishment terminology across customer context
+
+Status: Implementation complete; visual QA blocked (2026-08-26). Dependencies: TASK-458; TASK-460.
+Product boundary: Referral SaaS frontend.
+Required boundary docs checked: AGENTS.md; docs/product/referral-saas/PRODUCT_BRIEF.md; docs/roadmap/referral-saas/ROADMAP.md; docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md; docs/roadmap/ORDERED_TASK_LIST.md; approved selected-customer prototype.
+Shared primitive impact: Reuses the existing readiness progression and selected-customer Sidebar navigation primitives. Source duplication: No.
+Objective: Preserve the prototype's golden thread by naming both the first readiness stage and its corresponding selected-customer menu destination Account establishment.
+Backend/database/API impact: None. Existing ACCOUNT_PROFILE evidence, account status, readiness logic, permissions, settings and health routes, and activation behavior remain authoritative.
+Frontend impact: Changes the visible Account foundation readiness label and Customer profile menu label to Account establishment without changing their existing destinations or behavior.
+Tests and docs expectation: Focused selected-customer and Sidebar tests, roadmap, gap matrix, production build, and visual comparison.
+Validation method: npm test -- src/layout/Sidebar.test.tsx src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx; npm run build; git diff --check.
+Definition of done: Account establishment is the consistent visible term from readiness progression into selected-customer navigation while backend concepts and routes remain unchanged. Priority: P1 UX alignment.
