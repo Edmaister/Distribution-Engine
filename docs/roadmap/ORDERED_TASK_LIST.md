@@ -9872,3 +9872,27 @@ Tests and docs expectation: Focused selected-customer and Sidebar tests, lint, p
 Definition of done: The selected-customer home presents authoritative readiness and the next permitted action in the approved composition while every destination stays customer-scoped and no backend state or action is duplicated. Priority: P1 UX alignment.
 
 Implementation output: Applied the Amplifi customer-context shell and local Sora/DM Mono typography to selected-account routes; added task-oriented, account-scoped navigation; replaced the diagnostic-heavy home with the approved five-stage readiness progression, single governed priority action, four workspace destinations, and readiness evidence summary. Existing account-foundation permissions, mutation guardrails, backend statuses, readiness categories, commercial/technical/production signals, and customer-scoped routes remain authoritative. Focused selected-customer and Sidebar tests passed (2 files, 49 tests); full lint passed at the existing 60-warning baseline with no errors; production build passed; git diff --check passed. Desktop/mobile browser-rendered evidence remains blocked because the in-app browser Node process exits while the Windows sandbox helper reports setup refresh errors. Follow-up calibration matches the approved customer-context sidebar with a 12px Sora navigation scale, 8px mono group/status labels, 36px rows, 15px icons, and tighter section rhythm.
+## TASK-459: Distinguish the active incomplete readiness step
+
+Status: Implementation complete; visual QA blocked (2026-08-26). Dependencies: TASK-458.
+Product boundary: Referral SaaS frontend with Shared Platform readiness and accessibility primitives.
+Required boundary docs checked: AGENTS.md; docs/product/referral-saas/PRODUCT_BRIEF.md; docs/roadmap/referral-saas/ROADMAP.md; docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md; docs/roadmap/ORDERED_TASK_LIST.md; supplied selected-customer readiness screenshot.
+Shared primitive impact: Reuses the existing backend-derived readiness ordering and stage classes. Source duplication: No.
+Objective: Make the first incomplete, current readiness step visually and semantically distinct from both completed and future steps.
+Backend/database/API impact: None. Backend statuses, completion logic, readiness order, permissions, and actions remain authoritative.
+Frontend impact: Completed steps remain blue, the first incomplete current step becomes accessible amber with aria-current=step, and later incomplete steps remain neutral grey.
+Tests and docs expectation: Focused selected-customer test, production build, UX quality test, roadmap, gap matrix, and visual comparison.
+Validation method: npm test -- src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx src/test/uxQuality.test.ts; npm run build; git diff --check.
+Definition of done: The active incomplete stage is unmistakable without changing readiness semantics, and assistive technology can identify the current step. Priority: P1 UX accessibility.
+## TASK-460: Align selected-customer overview terminology
+
+Status: Implementation complete; visual QA blocked (2026-08-26). Dependencies: TASK-458.
+Product boundary: Referral SaaS frontend.
+Required boundary docs checked: AGENTS.md; docs/product/referral-saas/PRODUCT_BRIEF.md; docs/roadmap/referral-saas/ROADMAP.md; docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md; docs/roadmap/ORDERED_TASK_LIST.md; approved selected-customer menu prototype.
+Shared primitive impact: Reuses the existing selected-customer route and Sidebar navigation primitive. Source duplication: No.
+Objective: Match the approved customer-context menu terminology by naming the landing destination Partner overview.
+Backend/database/API impact: None.
+Frontend impact: Changes only the selected-customer Sidebar label from Customer overview to Partner overview; the account-scoped route, active state, permissions, and destination remain unchanged.
+Tests and docs expectation: Focused Sidebar test, roadmap, gap matrix, production build, and visual comparison.
+Validation method: npm test -- src/layout/Sidebar.test.tsx; npm run build; git diff --check.
+Definition of done: The selected-customer landing link reads Partner overview and still targets the selected account home. Priority: P1 UX alignment.

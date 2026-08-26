@@ -6392,20 +6392,24 @@ textarea.input {
   justify-content: center;
   width: 36px;
 }
-.customer-readiness-stage.complete .customer-readiness-marker,
-.customer-readiness-stage.current .customer-readiness-marker {
+.customer-readiness-stage.complete .customer-readiness-marker {
   background: var(--color-brand);
   border-color: var(--color-brand);
   color: white;
 }
-.customer-readiness-stage strong { font-size: 12px; line-height: 1.35; }
+.customer-readiness-stage.current .customer-readiness-marker {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 4px rgb(245 158 11 / 0.18);
+  color: #3b2200;
+}.customer-readiness-stage strong { font-size: 12px; line-height: 1.35; }
 .customer-readiness-stage small {
   color: var(--color-ink-soft);
   font-family: var(--font-mono);
   font-size: 9px;
   line-height: 1.35;
 }
-.customer-readiness-stage.current small { color: var(--color-brand); }
+.customer-readiness-stage.current small { color: #a34d08; font-weight: 500; }
 .customer-priority-action {
   align-items: center;
   background: #eef3ff;

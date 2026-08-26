@@ -69,6 +69,9 @@ describe("Sidebar", () => {
     renderSidebar("/admin/referral-saas/account-maintenance/account-123/people");
 
     expect(screen.getByLabelText("Selected customer workspace")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Partner overview/ })).toHaveAttribute(
+      "href", "/admin/referral-saas/account-maintenance/account-123",
+    );
     expect(screen.getByRole("link", { name: /Campaigns/ })).toHaveAttribute(
       "href", "/admin/referral-saas/account-maintenance/account-123/campaigns",
     );

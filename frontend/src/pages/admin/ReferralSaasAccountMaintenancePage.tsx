@@ -2130,7 +2130,12 @@ export function ReferralSaasAccountMaintenancePage() {
                     <h2 className="visually-hidden" id="readiness-progression-title">Readiness progression</h2>
                     <div className="customer-readiness-track">
                       {customerReadinessStages.map((stage, index) => (
-                        <Link className={"customer-readiness-stage " + (stage.complete ? "complete" : index === firstIncompleteStage ? "current" : "pending")} key={stage.label} to={buildCustomerModuleRoute(selectedCustomerPath, stage.route, customerQuery)}>
+                        <Link
+                          aria-current={!stage.complete && index === firstIncompleteStage ? "step" : undefined}
+                          className={"customer-readiness-stage " + (stage.complete ? "complete" : index === firstIncompleteStage ? "current" : "pending")}
+                          key={stage.label}
+                          to={buildCustomerModuleRoute(selectedCustomerPath, stage.route, customerQuery)}
+                        >
                           <span className="customer-readiness-marker">{stage.complete ? <CheckCircle2 size={20} /> : index + 1}</span>
                           <strong>{stage.label}</strong>
                           <small>{stage.status}</small>
