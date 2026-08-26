@@ -9909,3 +9909,16 @@ Frontend impact: Changes the visible Account foundation readiness label and Cust
 Tests and docs expectation: Focused selected-customer and Sidebar tests, roadmap, gap matrix, production build, and visual comparison.
 Validation method: npm test -- src/layout/Sidebar.test.tsx src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx; npm run build; git diff --check.
 Definition of done: Account establishment is the consistent visible term from readiness progression into selected-customer navigation while backend concepts and routes remain unchanged. Priority: P1 UX alignment.
+
+## TASK-462: Align Account establishment with the approved evidence journey
+
+Status: Implementation complete; visual QA blocked (2026-08-26). Dependencies: TASK-458; TASK-461.
+Product boundary: Referral SaaS frontend with Shared Platform account, entitlement, activation, routing, permission, audit, and accessibility primitives.
+Required boundary docs checked: AGENTS.md; docs/product/referral-saas/PRODUCT_BRIEF.md; docs/roadmap/referral-saas/ROADMAP.md; docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md; docs/roadmap/ORDERED_TASK_LIST.md; supplied four-state Account establishment prototype screenshots.
+Shared primitive impact: Re-composes the existing account registry, readiness, commercial entitlement, production activation, profile-maintenance command, selected-customer shell, typography, and route primitives. Source duplication: No.
+Objective: Match the approved Account establishment experience with a focused header, four-stage evidence navigator, authoritative evidence cards, governed-action rail, prototype typography and spacing, and responsive reflow.
+Backend/database/API impact: None. Existing account registry, ACCOUNT_PROFILE readiness, external references, commercial entitlement, production activation, account-foundation activation, permissions, idempotency, audit, and profile-maintenance commands remain authoritative.
+Frontend impact: Replaces the generic Customer settings panel with Organisation, Jurisdiction & environment, Agreement, and Activation evidence stages; uses bundled Sora and DM Mono typography; retains the guarded profile update behind Maintain organisation; links each later stage to the existing governed customer-scoped destination.
+Tests and docs expectation: Focused selected-customer and Sidebar tests, production build, diff check, desktop/mobile visual QA, roadmap, and gap matrix.
+Validation method: npm test -- src/layout/Sidebar.test.tsx src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx; npm run build; git diff --check. Browser comparison remains blocked because the trusted in-app browser process exits during startup.
+Definition of done: The Account establishment route follows the prototype hierarchy and interaction model using authoritative backend evidence, preserves protected commands and immutable references, and reflows without losing stage navigation or actions. Priority: P1 UX alignment.

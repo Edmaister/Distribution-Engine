@@ -5599,9 +5599,13 @@ describe("ReferralSaasAccountMaintenancePage", () => {
   it("saves selected customer profile settings through the maintenance command", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/settings");
 
-    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Customer settings" })).toBeInTheDocument();
-    expect(screen.getByText(/Changing them is reference rotation, not profile maintenance/i)).toBeInTheDocument();
+    expect(await screen.findByRole("navigation", { name: "Account establishment stages" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Account establishment" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Organisation/ }));
+    expect(screen.getByRole("button", { name: /Organisation/ })).toHaveAttribute("aria-current", "step");
+    expect(screen.getByText("ACC-2201")).toBeInTheDocument();
+    expect(screen.getByText(/immutable references remain controlled/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Maintain organisation" }));
 
     fireEvent.change(screen.getByLabelText("Customer name"), {
       target: { value: "Gaborone Partners Updated" },
@@ -5612,7 +5616,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     fireEvent.change(screen.getByLabelText("Industry"), {
       target: { value: "AUTOMOTIVE" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save customer profile" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save organisation" }));
 
     await waitFor(() => expect(mockedUpdateReferralSaasAccountProfile).toHaveBeenCalledTimes(1));
     expect(mockedUpdateReferralSaasAccountProfile.mock.calls[0][0]).toEqual({
@@ -5634,6 +5638,30 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
   });
 
+  it("moves through backend-grounded Account establishment evidence stages", async () => {
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/settings");
+
+    expect(await screen.findByRole("navigation", { name: "Account establishment stages" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Account establishment" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Jurisdiction & environment/ }));
+    expect(screen.getByRole("heading", { name: "Jurisdiction and environment" })).toBeInTheDocument();
+    expect(screen.getByText("Botswana")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Agreement/ }));
+    expect(screen.getByRole("heading", { name: "Effective commercial agreement" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open entitlement evidence" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs/commercial",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Activation/ }));
+    expect(screen.getByRole("heading", { name: /Partner account/ })).toBeInTheDocument();
+    expect(screen.getByText("Production decision")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /View activation decision|Review activation/ })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs/health",
+    );
+  });
   it("keeps prototype workspace destinations scoped to the selected customer context", async () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />);
     fireEvent.click(await screen.findByRole("button", { name: /FNB Referral SaaS/ }));

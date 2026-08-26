@@ -545,6 +545,8 @@ export function ReferralSaasAccountMaintenancePage() {
     useState<ScopedAccountActivationResult | null>(null);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
   const [profileResult, setProfileResult] = useState<string | null>(null);
+  const [establishmentStepOverride, setEstablishmentStepOverride] = useState<number | null>(null);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [campaignSetupDraft, setCampaignSetupDraft] = useState<CampaignSetupDraft>({
     name: "",
     segment: "Referral acquisition",
@@ -1131,6 +1133,71 @@ export function ReferralSaasAccountMaintenancePage() {
     { label: "Launch approval", complete: Boolean(productionActivation?.productionActivation.launchAllowed), status: formatDisplay(productionDecisionStatus), route: "campaigns" },
   ];
   const firstIncompleteStage = customerReadinessStages.findIndex((stage) => !stage.complete);
+  const establishmentStages = [
+    {
+      label: "Organisation",
+      complete: Boolean(selectedAccount?.accountName && selectedAccount.accountCode && selectedExternalTenantRef && selectedOrganisationRef),
+      title: "Verified organisation",
+      copy: "The legal account identity and customer references come from the selected account registry.",
+      fields: [
+        { label: "Legal organisation", value: selectedAccount?.accountName || "Not returned", meta: "Persisted" },
+        { label: "Customer number", value: selectedAccount?.accountCode || "Not returned", meta: "Immutable" },
+        { label: "Organisation reference", value: selectedOrganisationRef || "Not returned", meta: "Governed" },
+        { label: "Customer reference", value: selectedExternalTenantRef || "Not returned", meta: "Immutable" },
+      ],
+      actionLabel: "Maintain organisation",
+      actionRoute: "settings",
+    },
+    {
+      label: "Jurisdiction & environment",
+      complete: Boolean(selectedAccount?.operatingJurisdictionCode),
+      title: "Jurisdiction and environment",
+      copy: "Customer operations remain bounded to the persisted jurisdiction and returned environment posture.",
+      fields: [
+        { label: "Operating jurisdiction", value: selectedAccount ? operatingMarketFromAccount(selectedAccount).name : "Not returned", meta: "Persisted" },
+        { label: "Environment status", value: formatDisplay(commercialEntitlement?.commercialEntitlement.environmentStatus || "Not returned"), meta: "Backend evidence" },
+        { label: "Account type", value: formatDisplay(selectedAccount?.accountType || "Not returned"), meta: "Persisted" },
+        { label: "Tenant link", value: customerReadinessAreas.find((area) => area.label === "Tenant link")?.status || "Not returned", meta: "Backend evidence" },
+      ],
+      actionLabel: "Open integrations",
+      actionRoute: "technical",
+    },
+    {
+      label: "Agreement",
+      complete: Boolean(commercialEntitlement) && !commercialActivationBlocked,
+      title: "Effective commercial agreement",
+      copy: "The current Referral SaaS entitlement is shown without creating billing, invoices, or money movement.",
+      fields: [
+        { label: "Service package", value: commercialEntitlement?.commercialEntitlement.plan.planName || "Not returned", meta: "Entitlement" },
+        { label: "Plan code", value: commercialEntitlement?.commercialEntitlement.plan.planCode || "Not returned", meta: "Governed" },
+        { label: "Commercial status", value: formatDisplay(commercialEntitlement?.commercialEntitlement.commercialStatus || "Not returned"), meta: "Current" },
+        { label: "Contract source", value: formatDisplay(commercialEntitlement?.commercialEntitlement.plan.contractSource || "Not returned"), meta: "Source" },
+      ],
+      actionLabel: "Open entitlement evidence",
+      actionRoute: "commercial",
+    },
+    {
+      label: "Activation",
+      complete: isAccountFoundationActive,
+      title: isAccountFoundationActive ? "Partner account activated" : "Partner account activation",
+      copy: isAccountFoundationActive
+        ? "Organisation, jurisdiction, and account-foundation gates have passed the governed activation command."
+        : "Activation remains controlled by account-foundation readiness, permissions, and the existing governed command.",
+      fields: [
+        { label: "Account establishment", value: isAccountFoundationActive ? "Complete" : formatDisplay(selectedAccount?.accountStatus || "Not returned"), meta: "Backend state" },
+        { label: "Production decision", value: formatDisplay(productionDecisionStatus), meta: "Independent gate" },
+        { label: "Launch allowed", value: productionActivation?.productionActivation.launchAllowed ? "Yes" : "No", meta: "Backend decision" },
+        { label: "Blocked gates", value: String(productionActivation?.productionActivation.blockedGateCount ?? 0), meta: "Current evidence" },
+      ],
+      actionLabel: isAccountFoundationActive ? "View activation decision" : "Review activation",
+      actionRoute: "health",
+    },
+  ];
+  const firstIncompleteEstablishmentStage = establishmentStages.findIndex((stage) => !stage.complete);
+  const selectedEstablishmentStep =
+    establishmentStepOverride ??
+    (firstIncompleteEstablishmentStage === -1 ? establishmentStages.length - 1 : firstIncompleteEstablishmentStage);
+  const establishmentStage = establishmentStages[selectedEstablishmentStep];
   const priorityAction = !isAccountFoundationActive
     ? { title: "Activate the customer foundation", copy: "This moves the selected customer from pending setup to an active account and tenant-link posture, then creates bounded platform seat capacity. It does not assign seats, send invites, create credentials, change auth claims, activate campaigns, bill, or move money.", route: "health" }
     : stoppingAction;
@@ -1914,16 +1981,21 @@ export function ReferralSaasAccountMaintenancePage() {
     <>
       <section className={"page-header customer-profile-header" + (accountId && selectedAccount ? " prototype-customer-header" : "")}>
         <div>
-          <div className="page-kicker">{selectedAccount ? "Amplifi Internal · Customer Operations" : "Referral SaaS · Open a customer"}</div>
-          <h1 className="page-title">{accountId && selectedAccount ? customerName : "Find the customer to work on"}</h1>
+          {selectedModule === "settings" ? (
+            <div className="account-establishment-breadcrumb"><Link to={selectedCustomerPath}>Workspace</Link><span>/</span><span>Account establishment</span></div>
+          ) : null}
+          <div className="page-kicker">{selectedModule === "settings" ? "Partner setup · Establish the partner account" : selectedAccount ? "Amplifi Internal · Customer Operations" : "Referral SaaS · Open a customer"}</div>
+          <h1 className="page-title">{selectedModule === "settings" ? "Account establishment" : accountId && selectedAccount ? customerName : "Find the customer to work on"}</h1>
           <p className="page-copy">
-            {accountId && selectedAccount
+            {selectedModule === "settings"
+              ? "Complete and review the organisation, jurisdiction, agreement and activation evidence for this partner account."
+              : accountId && selectedAccount
               ? effectiveBlockedCount || effectiveMissingEvidenceCount
                 ? "This customer has " + (effectiveBlockedCount || effectiveMissingEvidenceCount) + " readiness item" + ((effectiveBlockedCount || effectiveMissingEvidenceCount) === 1 ? "" : "s") + " requiring attention."
                 : "This customer has no visible readiness blockers."
               : "Country first, then account, then open their profile."}
           </p>
-          {accountId && selectedAccount ? (
+          {accountId && selectedAccount && selectedModule !== "settings" ? (
             <div className="prototype-customer-context" aria-label="Selected customer context">
               <span><strong>{selectedAccount.accountCode}</strong></span>
               <span>{operatingMarketFromAccount(selectedAccount).name}</span>
@@ -1933,8 +2005,8 @@ export function ReferralSaasAccountMaintenancePage() {
         </div>
         <div className="customer-header-actions">
           {!accountId ? <Link className="button" to="/admin/referral-saas/account-setup">Create customer</Link> : null}
-          {accountId && selectedAccount && selectedModule !== "home" ? <Link className="button secondary" to={selectedCustomerPath}>Customer home</Link> : null}
-          {accountId ? <Link className="button secondary" to="/admin/referral-saas/account-maintenance">Switch customer</Link> : null}
+          {accountId && selectedAccount && selectedModule !== "home" && selectedModule !== "settings" ? <Link className="button secondary" to={selectedCustomerPath}>Customer home</Link> : null}
+          {accountId && selectedModule !== "settings" ? <Link className="button secondary" to="/admin/referral-saas/account-maintenance">Switch customer</Link> : null}
         </div>
       </section>
       {isLoading ? <LoadingState label="Loading Referral SaaS customer workspace" /> : null}
@@ -2203,111 +2275,133 @@ export function ReferralSaasAccountMaintenancePage() {
                 </div>
               ) : null}
               {selectedModule === "settings" ? (
-              <section className="panel" id="customer-settings">
-                <div className="panel-header">
-                  <div>
-                    <h2 className="panel-title">Customer settings</h2>
-                    <div className="panel-subtitle">
-                      Maintain profile context from the selected customer home, not from Account Setup.
-                    </div>
-                  </div>
-                  <StatusBadge label="Customer scoped" tone="success" />
-                </div>
-                <div className="panel-body route-list">
-                  <div className="wizard-status-card">
-                    <div>
-                      <strong>Customer identifiers</strong>
-                      <p>
-                        {operatingMarketFromAccount(selectedAccount).name} - {selectedExternalTenantRef} / {selectedOrganisationRef}
-                      </p>
-                      <span className="table-subtext">
-                        These references stay read-only here. Changing them is reference rotation, not profile maintenance.
-                      </span>
-                    </div>
-                    <StatusBadge label="Read only" tone="info" />
-                  </div>
-                  <form className="account-setup-scope-form" onSubmit={submitProfileSettings}>
-                    <label className="field">
-                      <span>Customer name</span>
-                      <input
-                        className="input"
-                        onChange={(event) => updateProfileDraft({ accountName: event.target.value })}
-                        value={selectedProfileDraft.accountName}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Operating jurisdiction</span>
-                      <select
-                        className="input"
-                        onChange={(event) => updateProfileDraft({ operatingJurisdictionCode: event.target.value })}
-                        value={selectedProfileDraft.operatingJurisdictionCode}
-                      >
-                        {jurisdictionOptions.map((option) => (
-                          <option key={option.code} value={option.code}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="field">
-                      <span>Customer type</span>
-                      <select
-                        className="input"
-                        onChange={(event) => updateProfileDraft({ customerType: event.target.value })}
-                        value={selectedProfileDraft.customerType}
-                      >
-                        {customerTypeOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="wizard-status-card">
-                      <div>
-                        <strong>
-                          {customerTypeOptions.find((option) => option.value === selectedProfileDraft.customerType)
-                            ?.label}
-                        </strong>
-                        <p>
-                          {customerTypeOptions.find((option) => option.value === selectedProfileDraft.customerType)
-                            ?.copy}
-                        </p>
-                      </div>
-                      <StatusBadge label="Billing-ready category" tone="info" />
-                    </div>
-                    <label className="field">
-                      <span>Industry</span>
-                      <select
-                        className="input"
-                        onChange={(event) => updateProfileDraft({ industry: event.target.value })}
-                        value={selectedProfileDraft.industry}
-                      >
-                        {industryOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button
-                      className="button"
-                      disabled={!selectedProfileDraft.accountName.trim() || profileMutation.isPending}
-                      type="submit"
-                    >
-                      {profileMutation.isPending ? "Saving customer profile" : "Save customer profile"}
-                    </button>
-                  </form>
-                  {profileMutation.error ? <ErrorPanel error={profileMutation.error} /> : null}
-                  {profileResult ? (
-                    <div className="wizard-summary-strip success">
-                      <strong>Customer profile saved.</strong> {profileResult}
-                    </div>
-                  ) : null}
-                </div>
-              </section>
-              ) : null}
+                <section className="account-establishment" aria-labelledby="account-establishment-title">
+                  <h2 className="visually-hidden" id="account-establishment-title">Account establishment evidence</h2>
+                  <nav className="account-establishment-steps" aria-label="Account establishment stages">
+                    {establishmentStages.map((stage, index) => {
+                      const selected = index === selectedEstablishmentStep;
+                      return (
+                        <button
+                          aria-current={selected ? "step" : undefined}
+                          className={"account-establishment-step " + (selected ? "selected " : "") + (stage.complete ? "complete" : "")}
+                          key={stage.label}
+                          onClick={() => {
+                            setEstablishmentStepOverride(index);
+                            setShowProfileEditor(false);
+                          }}
+                          type="button"
+                        >
+                          <span className="account-establishment-step-marker">
+                            {stage.complete && !selected ? <CheckCircle2 size={17} /> : index + 1}
+                          </span>
+                          <span>
+                            <strong>{stage.label}</strong>
+                            <small>{selected ? "Selected" : stage.complete ? "Complete" : "Available"}</small>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </nav>
 
+                  <div className="account-establishment-main">
+                    <header className="account-establishment-stage-header">
+                      <span className="account-establishment-stage-icon" aria-hidden="true"><Building2 size={23} /></span>
+                      <div>
+                        <span className="page-kicker">Step {selectedEstablishmentStep + 1} of {establishmentStages.length}</span>
+                        <h2>{establishmentStage.title}</h2>
+                        <p>{establishmentStage.copy}</p>
+                      </div>
+                    </header>
+
+                    <div className="account-establishment-evidence-grid">
+                      {establishmentStage.fields.map((field) => (
+                        <div className="account-establishment-evidence" key={field.label}>
+                          <span>{field.label}</span>
+                          <div>
+                            <strong>{field.value}</strong>
+                            <small>{field.meta}</small>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {selectedEstablishmentStep === 0 && showProfileEditor ? (
+                      <form className="account-establishment-editor" onSubmit={submitProfileSettings}>
+                        <div className="account-establishment-editor-heading">
+                          <div>
+                            <h3>Maintain organisation details</h3>
+                            <p>Customer and organisation references remain immutable. This command changes profile fields only.</p>
+                          </div>
+                          <StatusBadge label="Governed update" tone="info" />
+                        </div>
+                        <div className="account-establishment-editor-grid">
+                          <label className="field">
+                            <span>Customer name</span>
+                            <input className="input" onChange={(event) => updateProfileDraft({ accountName: event.target.value })} value={selectedProfileDraft.accountName} />
+                          </label>
+                          <label className="field">
+                            <span>Operating jurisdiction</span>
+                            <select className="input" onChange={(event) => updateProfileDraft({ operatingJurisdictionCode: event.target.value })} value={selectedProfileDraft.operatingJurisdictionCode}>
+                              {jurisdictionOptions.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}
+                            </select>
+                          </label>
+                          <label className="field">
+                            <span>Customer type</span>
+                            <select className="input" onChange={(event) => updateProfileDraft({ customerType: event.target.value })} value={selectedProfileDraft.customerType}>
+                              {customerTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                            </select>
+                          </label>
+                          <label className="field">
+                            <span>Industry</span>
+                            <select className="input" onChange={(event) => updateProfileDraft({ industry: event.target.value })} value={selectedProfileDraft.industry}>
+                              {industryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                            </select>
+                          </label>
+                        </div>
+                        <div className="account-establishment-editor-actions">
+                          <button className="button secondary" onClick={() => setShowProfileEditor(false)} type="button">Cancel</button>
+                          <button className="button" disabled={!selectedProfileDraft.accountName.trim() || profileMutation.isPending} type="submit">
+                            {profileMutation.isPending ? "Saving organisation" : "Save organisation"}
+                          </button>
+                        </div>
+                        {profileMutation.error ? <ErrorPanel error={profileMutation.error} /> : null}
+                        {profileResult ? <div className="wizard-summary-strip success"><strong>Customer profile saved.</strong> {profileResult}</div> : null}
+                      </form>
+                    ) : null}
+
+                    {selectedEstablishmentStep === 3 && !isAccountFoundationActive ? accountFoundationActivationPanel : null}
+                    {selectedEstablishmentStep === 3 ? accountFoundationActivationResultPanel : null}
+
+                    <footer className="account-establishment-stage-actions">
+                      {selectedEstablishmentStep === 0 ? (
+                        <Link className="button secondary" to={selectedCustomerPath}>Return to overview</Link>
+                      ) : (
+                        <button className="button secondary" onClick={() => {
+                          setEstablishmentStepOverride(selectedEstablishmentStep - 1);
+                          setShowProfileEditor(false);
+                        }} type="button">Previous step</button>
+                      )}
+                      {selectedEstablishmentStep === 0 ? (
+                        <button className="button" onClick={() => setShowProfileEditor((visible) => !visible)} type="button">
+                          {showProfileEditor ? "Close organisation details" : establishmentStage.actionLabel}
+                        </button>
+                      ) : (
+                        <Link className="button" to={buildCustomerModuleRoute(selectedCustomerPath, establishmentStage.actionRoute, customerQuery)}>
+                          {establishmentStage.actionLabel}
+                        </Link>
+                      )}
+                    </footer>
+                  </div>
+
+                  <aside className="account-establishment-governance">
+                    <ShieldCheck aria-hidden="true" size={30} />
+                    <span className="page-kicker">Governed evidence</span>
+                    <h2>Your account, your responsibilities.</h2>
+                    <p>Amplifi decisions are visible here, but protected commands and immutable references remain controlled.</p>
+                    <Link to={buildCustomerModuleRoute(selectedCustomerPath, "health", customerQuery)}>View governed evidence</Link>
+                  </aside>
+                </section>
+              ) : null}
               {selectedModule === "people" ? (
               <section className="panel" id="people-access">
                 <div className="panel-header">
