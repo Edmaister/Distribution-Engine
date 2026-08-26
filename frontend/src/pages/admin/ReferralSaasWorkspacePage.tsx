@@ -17,7 +17,7 @@ export function ReferralSaasWorkspacePage() {
   const visibleCustomers = uniqueVisibleCustomers(operations?.workItems || []);
 
   return (
-    <div className="operations-workspace">
+    <div className="operations-workspace operations-landing-page">
       <section className="page-header operations-hero">
         <div>
           <div className="page-kicker">Amplifi Internal · Customer Operations</div>
@@ -71,6 +71,15 @@ export function ReferralSaasWorkspacePage() {
                 <Link className="operations-inline-link" to="/admin/referral-saas/operations/work-queue">View all work <ArrowRight size={14} /></Link>
               </div>
               <div className="operations-queue-list">
+                {operations.workItems.length ? (
+                  <div aria-hidden="true" className="operations-work-head">
+                    <span>Work item</span>
+                    <span>Customer</span>
+                    <span>Jurisdiction</span>
+                    <span>Service target</span>
+                    <span>Priority</span>
+                  </div>
+                ) : null}
                 {operations.workItems.length
                   ? operations.workItems.map((item) => <WorkQueueRow item={item} key={item.workItemRef} />)
                   : <EmptyState label="No operational work needs attention in your permitted scope." />}
@@ -112,14 +121,17 @@ function OperationsMetric({ label, value, note, icon: Icon }: { label: string; v
 function WorkQueueRow({ item }: { item: WorkItem }) {
   return (
     <Link className="operations-work-row" to={item.destination}>
-      <span className={`operations-priority-marker ${item.priority.toLowerCase()}`} aria-hidden="true" />
-      <span className="operations-work-copy"><strong>{item.title}</strong><small>{formatCode(item.category)} · {formatCode(item.status)}</small></span>
-      <span className="operations-work-customer"><strong>{item.customer.label}</strong><small>{item.jurisdiction}</small></span>
-      <span className="operations-work-target">
+      <span className="operations-work-copy" data-label="Work item">
+        <span className={`operations-priority-marker ${item.priority.toLowerCase()}`} aria-hidden="true" />
+        <span><strong>{item.title}</strong><small>{formatCode(item.category)} · {formatCode(item.status)}</small></span>
+      </span>
+      <span className="operations-work-customer" data-label="Customer"><strong>{item.customer.label}</strong><small>{item.customer.accountCode}</small></span>
+      <span className="operations-work-jurisdiction" data-label="Jurisdiction">{item.jurisdiction}</span>
+      <span className="operations-work-target" data-label="Service target">
         <StatusBadge label={formatCode(item.serviceTarget.status)} tone={serviceTargetTone(item.serviceTarget.status)} />
         <small>{formatDueAt(item.serviceTarget.dueAt)}</small>
       </span>
-      <span className="operations-open-action">Open <ArrowRight size={14} /></span>
+      <span className={`operations-work-priority ${item.priority.toLowerCase()}`} data-label="Priority">{formatCode(item.priority)}</span>
     </Link>
   );
 }

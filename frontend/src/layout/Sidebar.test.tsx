@@ -27,8 +27,8 @@ describe("Sidebar", () => {
   it("presents the Amplifi Global shell outside selected-customer context", () => {
     renderSidebar("/admin/referral-saas");
 
-    expect(screen.getAllByText("Referral SaaS").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Management & Attribution")).toBeInTheDocument();
+    expect(screen.getByText("Amplifi.")).toBeInTheDocument();
+    expect(screen.queryByText("Management & Attribution")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Amplifi Global workspace")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Operations/ })).toHaveAttribute(
       "href",
@@ -70,7 +70,7 @@ describe("Sidebar", () => {
 
     expect(screen.getByLabelText("Selected customer workspace")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Campaigns/ })).toHaveAttribute(
-      "href", "/admin/referral-saas/campaigns",
+      "href", "/admin/referral-saas/account-maintenance/account-123/campaigns",
     );
     expect(screen.getByRole("link", { name: /Amplifi Global/ })).toHaveAttribute(
       "href", "/admin/referral-saas",
