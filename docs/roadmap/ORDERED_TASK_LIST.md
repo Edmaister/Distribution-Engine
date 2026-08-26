@@ -9884,3 +9884,15 @@ Frontend impact: Completed steps remain blue, the first incomplete current step 
 Tests and docs expectation: Focused selected-customer test, production build, UX quality test, roadmap, gap matrix, and visual comparison.
 Validation method: npm test -- src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx src/test/uxQuality.test.ts; npm run build; git diff --check.
 Definition of done: The active incomplete stage is unmistakable without changing readiness semantics, and assistive technology can identify the current step. Priority: P1 UX accessibility.
+## TASK-460: Align selected-customer overview terminology
+
+Status: Implementation complete; visual QA blocked (2026-08-26). Dependencies: TASK-458.
+Product boundary: Referral SaaS frontend.
+Required boundary docs checked: AGENTS.md; docs/product/referral-saas/PRODUCT_BRIEF.md; docs/roadmap/referral-saas/ROADMAP.md; docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md; docs/roadmap/ORDERED_TASK_LIST.md; approved selected-customer menu prototype.
+Shared primitive impact: Reuses the existing selected-customer route and Sidebar navigation primitive. Source duplication: No.
+Objective: Match the approved customer-context menu terminology by naming the landing destination Partner overview.
+Backend/database/API impact: None.
+Frontend impact: Changes only the selected-customer Sidebar label from Customer overview to Partner overview; the account-scoped route, active state, permissions, and destination remain unchanged.
+Tests and docs expectation: Focused Sidebar test, roadmap, gap matrix, production build, and visual comparison.
+Validation method: npm test -- src/layout/Sidebar.test.tsx; npm run build; git diff --check.
+Definition of done: The selected-customer landing link reads Partner overview and still targets the selected account home. Priority: P1 UX alignment.
