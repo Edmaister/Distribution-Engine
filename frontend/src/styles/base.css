@@ -6521,3 +6521,34 @@ textarea.input {
   .customer-priority-action { padding: 20px; }
   .customer-workspace-card { min-height: 0; padding: 20px 16px; }
 }
+/* TASK-458 follow-up: match the approved compact customer-context menu type scale. */
+.referral-saas-customer-shell .nav-section { margin-top: 14px; }
+.referral-saas-customer-shell .nav-heading {
+  font-size: 8px;
+  letter-spacing: .06em;
+  margin: 0 6px 5px;
+}
+.referral-saas-customer-shell .nav-link {
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 400;
+  gap: 10px;
+  line-height: 1.25;
+  min-height: 36px;
+  padding: 7px 8px;
+}
+.referral-saas-customer-shell .nav-link > span:first-of-type {
+  overflow: visible;
+  text-overflow: clip;
+}
+.referral-saas-customer-shell .nav-link svg {
+  height: 15px;
+  width: 15px;
+}
+.referral-saas-customer-shell .nav-sub {
+  font-size: 8px;
+  max-width: 42px;
+}
+.referral-saas-customer-shell .workspace-identity strong { font-size: 12px; }
+.referral-saas-customer-shell .workspace-identity small { font-size: 10px; }
+.referral-saas-customer-shell .global-customer-entry { font-size: 12px; min-height: 38px; }
