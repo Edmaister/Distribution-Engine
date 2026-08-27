@@ -5649,6 +5649,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByText("Botswana")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Agreement/ }));
+    expect(screen.getByRole("button", { name: /Agreement/ })).toHaveClass("selected");
+    expect(screen.getByRole("button", { name: /Organisation/ })).toHaveClass("complete");
     expect(screen.getByRole("heading", { name: "Effective commercial agreement" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open entitlement evidence" })).toHaveAttribute(
       "href",

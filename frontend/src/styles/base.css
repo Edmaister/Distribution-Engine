@@ -11,6 +11,16 @@
   box-sizing: border-box;
 }
 
+.sr-only {
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
 .service-calendar-layout { display: grid; grid-template-columns: minmax(280px, 0.7fr) minmax(0, 1.6fr); gap: 16px; align-items: start; }
 .service-calendar-list { display: grid; }
 .service-calendar-list > button { background: #fff; border: 0; border-top: 1px solid var(--border); padding: 14px; text-align: left; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; }
@@ -6617,7 +6627,7 @@ textarea.input {
 }
 .account-establishment-step + .account-establishment-step { margin-top: 2px; }
 .account-establishment-step:hover { background: #f7f9fd; }
-.account-establishment-step.selected { background: #eef3ff; }
+.account-establishment-step.selected { background: #fff4df; }
 .account-establishment-step-marker {
   align-items: center;
   border: 1px solid #aebbd0;
@@ -6630,12 +6640,18 @@ textarea.input {
   justify-content: center;
   width: 30px;
 }
-.account-establishment-step.complete .account-establishment-step-marker,
-.account-establishment-step.selected .account-establishment-step-marker {
+.account-establishment-step.complete:not(.selected) .account-establishment-step-marker {
   background: var(--color-brand);
   border-color: var(--color-brand);
   color: white;
 }
+.account-establishment-step.selected .account-establishment-step-marker {
+  background: #d97706;
+  border-color: #d97706;
+  color: white;
+}
+.account-establishment-step.selected strong { color: #92400e; }
+.account-establishment-step.selected small { color: #b45309; }
 .account-establishment-step strong {
   display: block;
   font-size: 12px;

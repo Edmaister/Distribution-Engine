@@ -62,4 +62,8 @@ Comparison history:
 - P0/P1/P2 visual comparison could not start because implementation capture failed.
 - No screenshot-driven visual fixes were claimed.
 
+- User capture C:/Users/Carla/AppData/Local/Temp/codex-clipboard-1ff0bcf8-34cf-4b39-bba3-5d93816361d3.png confirmed the corrected column layout but exposed two progression-state issues: completed and current markers were both blue, and the referenced sr-only utility was not actually defined, leaving the accessibility heading visible.
+- Corrected the visible semantics to blue for completed stages, amber for the selected stage, and neutral for future stages; implemented the shared sr-only utility so the accessibility heading is removed from the visual layout.
+- Post-correction visual comparison remains blocked until a refreshed implementation capture is available.
+
 final result: blocked
