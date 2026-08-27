@@ -72,4 +72,7 @@ Comparison history:
 - Prototype captures codex-clipboard-4ce5781e-9f05-4269-93b6-f01e8e456cc1.png through codex-clipboard-b2884d34-7a11-4fc5-9cee-8b25ed43e42c.png establish the stage-action pattern: secondary Previous/evidence controls grouped left and one primary progression or governed final action aligned right. The implementation now follows that interaction model without changing backend commands or permissions.
 - Post-change rendered comparison remains blocked pending a new local capture.
 
+- User captures codex-clipboard-1544d314-8dcd-4790-8dd5-fc933df7887f.png and codex-clipboard-aafdc3f7-0242-42d4-92f0-157670c91fda.png exposed two P1 issues: Agreement incorrectly depended on the later production gate and remained Available after advancing, while the activation-result heading wrapped character-by-character and included unwanted punctuation. Both are corrected while preserving the returned backend message.
+- Refreshed rendered comparison remains pending.
+
 final result: blocked

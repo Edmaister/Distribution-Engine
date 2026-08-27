@@ -1949,6 +1949,20 @@ a {
   border-color: rgb(13 158 114 / 0.22);
 }
 
+.account-foundation-activation-result {
+  justify-content: flex-start;
+}
+
+.account-foundation-activation-result strong {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.account-foundation-activation-result span {
+  margin: 0;
+  min-width: 0;
+}
+
 .wizard-details {
   border-top: 1px solid var(--color-rule);
   padding-top: 12px;
@@ -6846,4 +6860,5 @@ textarea.input {
   .account-establishment-stage-actions { align-items: stretch; flex-direction: column-reverse; gap: 10px; }
   .account-establishment-stage-secondary { align-items: stretch; flex-direction: column; }
   .account-establishment-stage-actions .button { justify-content: center; width: 100%; }
+  .account-foundation-activation-result { flex-direction: column; }
 }

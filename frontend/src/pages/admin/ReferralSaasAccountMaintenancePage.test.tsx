@@ -3470,7 +3470,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       correlationId: "customer-profile-account-foundation-activation-acct-fnb",
       idempotencyKey: "customer-profile-account-foundation-activation-acct-fnb-v1",
     });
-    expect(await screen.findByText("Customer foundation activated.")).toBeInTheDocument();
+    expect(await screen.findByText("Customer foundation activated")).toBeInTheDocument();
+    expect(screen.getByText("Customer foundation activated").closest(".wizard-summary-strip")).toHaveClass("account-foundation-activation-result");
     expect(screen.getByText(/seat.*available for later provisioning/i)).toBeInTheDocument();
     expect(JSON.stringify(mockedRequestReferralSaasAccountFoundationActivation.mock.calls)).not.toMatch(
       /tenantCode|tenant_code|membershipWrite|seatAssignment|sendInvite|credential|authClaim|campaignActivation|goLive|billing|money/i,
@@ -3531,7 +3532,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
 
     await waitFor(() => expect(mockedRequestReferralSaasAccountFoundationActivation).toHaveBeenCalledTimes(1));
     await waitFor(() =>
-      expect(screen.queryByText("Customer foundation activated.")).not.toBeInTheDocument(),
+      expect(screen.queryByText("Customer foundation activated")).not.toBeInTheDocument(),
     );
     expect(screen.queryByText(/Test FNB RMCA 002 foundation/i)).not.toBeInTheDocument();
   });

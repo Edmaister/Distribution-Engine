@@ -1164,7 +1164,7 @@ export function ReferralSaasAccountMaintenancePage() {
     },
     {
       label: "Agreement",
-      complete: Boolean(commercialEntitlement) && !commercialActivationBlocked,
+      complete: Boolean(commercialEntitlement),
       title: "Effective commercial agreement",
       copy: "The current Referral SaaS entitlement is shown without creating billing, invoices, or money movement.",
       fields: [
@@ -1973,8 +1973,9 @@ export function ReferralSaasAccountMaintenancePage() {
       ? accountActivationResult
       : null;
   const accountFoundationActivationResultPanel = scopedAccountActivationResult ? (
-    <div className="wizard-summary-strip success">
-      <strong>Customer foundation activated.</strong> {scopedAccountActivationResult.message}
+    <div className="wizard-summary-strip success account-foundation-activation-result">
+      <strong>Customer foundation activated</strong>
+      <span>{scopedAccountActivationResult.message}</span>
     </div>
   ) : null;
 
