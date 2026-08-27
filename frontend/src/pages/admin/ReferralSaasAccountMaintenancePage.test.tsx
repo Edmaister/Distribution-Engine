@@ -5648,7 +5648,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByRole("heading", { name: "Jurisdiction and environment" })).toBeInTheDocument();
     expect(screen.getByText("Botswana")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Agreement/ }));
+    expect(screen.getByRole("link", { name: "Open integrations" })).toHaveClass("secondary");
+    fireEvent.click(screen.getByRole("button", { name: "Continue to Agreement" }));
     expect(screen.getByRole("button", { name: /Agreement/ })).toHaveClass("selected");
     expect(screen.getByRole("button", { name: /Organisation/ })).toHaveClass("complete");
     expect(screen.getByRole("heading", { name: "Effective commercial agreement" })).toBeInTheDocument();
@@ -5657,7 +5658,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       "/admin/referral-saas/account-maintenance/acct-gabs/commercial",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Activation/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue to Activation" }));
     expect(screen.getByRole("heading", { name: /Partner account/ })).toBeInTheDocument();
     expect(screen.getByText("Production decision")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /View activation decision|Review activation/ })).toHaveAttribute(

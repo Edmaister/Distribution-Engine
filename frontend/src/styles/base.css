@@ -6743,6 +6743,11 @@ textarea.input {
   padding-top: 22px;
 }
 .account-establishment-stage-actions .button { min-height: 44px; }
+.account-establishment-stage-secondary {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
 .account-establishment-governance {
   border-left: 1px solid var(--color-rule);
   grid-area: governance;
@@ -6839,5 +6844,6 @@ textarea.input {
   .account-establishment-stage-header { align-items: start; }
   .account-establishment-evidence-grid { gap: 16px; }
   .account-establishment-stage-actions { align-items: stretch; flex-direction: column-reverse; gap: 10px; }
+  .account-establishment-stage-secondary { align-items: stretch; flex-direction: column; }
   .account-establishment-stage-actions .button { justify-content: center; width: 100%; }
 }

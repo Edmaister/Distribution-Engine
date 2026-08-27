@@ -1198,6 +1198,7 @@ export function ReferralSaasAccountMaintenancePage() {
     establishmentStepOverride ??
     (firstIncompleteEstablishmentStage === -1 ? establishmentStages.length - 1 : firstIncompleteEstablishmentStage);
   const establishmentStage = establishmentStages[selectedEstablishmentStep];
+  const nextEstablishmentStage = establishmentStages[selectedEstablishmentStep + 1];
   const priorityAction = !isAccountFoundationActive
     ? { title: "Activate the customer foundation", copy: "This moves the selected customer from pending setup to an active account and tenant-link posture, then creates bounded platform seat capacity. It does not assign seats, send invites, create credentials, change auth claims, activate campaigns, bill, or move money.", route: "health" }
     : stoppingAction;
@@ -2373,21 +2374,42 @@ export function ReferralSaasAccountMaintenancePage() {
                     {selectedEstablishmentStep === 3 ? accountFoundationActivationResultPanel : null}
 
                     <footer className="account-establishment-stage-actions">
-                      {selectedEstablishmentStep === 0 ? (
-                        <Link className="button secondary" to={selectedCustomerPath}>Return to overview</Link>
-                      ) : (
-                        <button className="button secondary" onClick={() => {
-                          setEstablishmentStepOverride(selectedEstablishmentStep - 1);
+                      <div className="account-establishment-stage-secondary">
+                        {selectedEstablishmentStep === 0 ? (
+                          <Link className="button secondary" to={selectedCustomerPath}>Return to overview</Link>
+                        ) : (
+                          <button className="button secondary" onClick={() => {
+                            setEstablishmentStepOverride(selectedEstablishmentStep - 1);
+                            setShowProfileEditor(false);
+                          }} type="button">Previous step</button>
+                        )}
+                        {selectedEstablishmentStep === 0 ? (
+                          <button className="button secondary" onClick={() => setShowProfileEditor((visible) => !visible)} type="button">
+                            {showProfileEditor ? "Close organisation details" : establishmentStage.actionLabel}
+                          </button>
+                        ) : selectedEstablishmentStep < establishmentStages.length - 1 || !isAccountFoundationActive ? (
+                          <Link className="button secondary" to={buildCustomerModuleRoute(selectedCustomerPath, establishmentStage.actionRoute, customerQuery)}>
+                            {establishmentStage.actionLabel}
+                          </Link>
+                        ) : null}
+                      </div>
+                      {nextEstablishmentStage ? (
+                        <button className="button" onClick={() => {
+                          setEstablishmentStepOverride(selectedEstablishmentStep + 1);
                           setShowProfileEditor(false);
-                        }} type="button">Previous step</button>
-                      )}
-                      {selectedEstablishmentStep === 0 ? (
-                        <button className="button" onClick={() => setShowProfileEditor((visible) => !visible)} type="button">
-                          {showProfileEditor ? "Close organisation details" : establishmentStage.actionLabel}
+                        }} type="button">Continue to {nextEstablishmentStage.label.replace(" & environment", "")}</button>
+                      ) : !isAccountFoundationActive ? (
+                        <button
+                          className="button"
+                          disabled={!canActivateAccountFoundation || accountFoundationActivationMutation.isPending}
+                          onClick={activateAccountFoundation}
+                          type="button"
+                        >
+                          {accountFoundationActivationMutation.isPending ? "Activating foundation" : "Activate foundation"}
                         </button>
                       ) : (
-                        <Link className="button" to={buildCustomerModuleRoute(selectedCustomerPath, establishmentStage.actionRoute, customerQuery)}>
-                          {establishmentStage.actionLabel}
+                        <Link className="button" to={buildCustomerModuleRoute(selectedCustomerPath, "health", customerQuery)}>
+                          View activation decision
                         </Link>
                       )}
                     </footer>

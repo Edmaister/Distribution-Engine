@@ -69,4 +69,7 @@ Comparison history:
 - Latest user capture showed completed markers still invisible. Root cause: color-brand was undefined, so CSS discarded the completed marker background and border while its white check remained. The shared brand alias now maps to the established signal-blue token.
 - Refreshed visual comparison remains pending.
 
+- Prototype captures codex-clipboard-4ce5781e-9f05-4269-93b6-f01e8e456cc1.png through codex-clipboard-b2884d34-7a11-4fc5-9cee-8b25ed43e42c.png establish the stage-action pattern: secondary Previous/evidence controls grouped left and one primary progression or governed final action aligned right. The implementation now follows that interaction model without changing backend commands or permissions.
+- Post-change rendered comparison remains blocked pending a new local capture.
+
 final result: blocked
