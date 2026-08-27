@@ -5643,6 +5643,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
 
     expect(await screen.findByRole("navigation", { name: "Account establishment stages" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Account establishment" })).toBeInTheDocument();
+    expect(screen.getByText("Account establishment evidence")).toHaveClass("sr-only");
     fireEvent.click(screen.getByRole("button", { name: /Jurisdiction & environment/ }));
     expect(screen.getByRole("heading", { name: "Jurisdiction and environment" })).toBeInTheDocument();
     expect(screen.getByText("Botswana")).toBeInTheDocument();

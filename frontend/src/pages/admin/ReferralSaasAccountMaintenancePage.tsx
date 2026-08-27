@@ -2276,7 +2276,7 @@ export function ReferralSaasAccountMaintenancePage() {
               ) : null}
               {selectedModule === "settings" ? (
                 <section className="account-establishment" aria-labelledby="account-establishment-title">
-                  <h2 className="visually-hidden" id="account-establishment-title">Account establishment evidence</h2>
+                  <h2 className="sr-only" id="account-establishment-title">Account establishment evidence</h2>
                   <nav className="account-establishment-steps" aria-label="Account establishment stages">
                     {establishmentStages.map((stage, index) => {
                       const selected = index === selectedEstablishmentStep;

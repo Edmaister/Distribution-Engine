@@ -56,6 +56,9 @@ Findings:
 
 Comparison history:
 - Initial implementation completed from the four supplied visual states.
+- User capture C:/Users/Carla/AppData/Local/Temp/codex-clipboard-c6ab1a86-62d7-4da9-bc13-e9b9934302a1.png exposed a P1 grid-placement failure: an undefined visually-hidden class rendered the accessibility heading as a fourth grid item, displaced the three intended columns, and squeezed evidence values into vertical text.
+- Fixed by using the established sr-only utility, assigning explicit steps/main/governance grid areas, adding min-width guards, defining the two-row tablet and one-column mobile areas, and restoring the white prototype canvas.
+- Post-fix focused tests and production build passed; post-fix screenshot capture remains blocked by the Windows browser helper failure.
 - P0/P1/P2 visual comparison could not start because implementation capture failed.
 - No screenshot-driven visual fixes were claimed.
 
