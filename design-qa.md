@@ -66,4 +66,7 @@ Comparison history:
 - Corrected the visible semantics to blue for completed stages, amber for the selected stage, and neutral for future stages; implemented the shared sr-only utility so the accessibility heading is removed from the visual layout.
 - Post-correction visual comparison remains blocked until a refreshed implementation capture is available.
 
+- Latest user capture showed completed markers still invisible. Root cause: color-brand was undefined, so CSS discarded the completed marker background and border while its white check remained. The shared brand alias now maps to the established signal-blue token.
+- Refreshed visual comparison remains pending.
+
 final result: blocked
