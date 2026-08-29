@@ -75,4 +75,7 @@ Comparison history:
 - User captures codex-clipboard-1544d314-8dcd-4790-8dd5-fc933df7887f.png and codex-clipboard-aafdc3f7-0242-42d4-92f0-157670c91fda.png exposed two P1 issues: Agreement incorrectly depended on the later production gate and remained Available after advancing, while the activation-result heading wrapped character-by-character and included unwanted punctuation. Both are corrected while preserving the returned backend message.
 - Refreshed rendered comparison remains pending.
 
+- Automated close-out now refreshes the backend production decision after foundation activation, presents Account establishment complete, retains activation decision evidence as secondary navigation, and makes Partner overview the primary completion destination. Human approval language and records are intentionally absent because that workflow is not implemented.
+- Refreshed rendered comparison remains pending.
+
 final result: blocked

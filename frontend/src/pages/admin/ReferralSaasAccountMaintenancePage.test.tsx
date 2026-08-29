@@ -3478,6 +3478,27 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
   });
 
+  it("closes Account establishment through the automated activation decision", async () => {
+    renderWorkspace(
+      <ReferralSaasAccountMaintenancePage />,
+      "/admin/referral-saas/account-maintenance/acct-fnb/settings",
+    );
+
+    expect(await screen.findByRole("heading", { name: "Account establishment" })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "4ActivationAvailable" }));
+    fireEvent.click(screen.getByRole("button", { name: "Activate foundation" }));
+
+    expect(await screen.findByText("Customer foundation activated")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Account establishment complete" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View activation decision" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-fnb/health",
+    );
+    expect(screen.getByRole("link", { name: "Return to Partner overview" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-fnb",
+    );
+  });
   it("does not show a customer foundation activation result for a different selected account", async () => {
     mockedRequestReferralSaasAccountFoundationActivation.mockResolvedValueOnce({
       status: "ok",
@@ -5660,7 +5681,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Continue to Activation" }));
-    expect(screen.getByRole("heading", { name: /Partner account/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Account establishment complete" })).toBeInTheDocument();
     expect(screen.getByText("Production decision")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /View activation decision|Review activation/ })).toHaveAttribute(
       "href",

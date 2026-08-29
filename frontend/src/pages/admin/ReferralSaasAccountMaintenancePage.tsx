@@ -680,6 +680,7 @@ export function ReferralSaasAccountMaintenancePage() {
   const {
     data: productionActivation,
     error: productionActivationError,
+    refetch: refetchProductionActivation,
     isLoading: isProductionActivationLoading,
   } = useReferralSaasProductionActivation(
     selectedAccount?.accountId || "",
@@ -887,6 +888,7 @@ export function ReferralSaasAccountMaintenancePage() {
         refetchAccountRegistry(),
         refetchMembershipPosture(),
         refetchActivationReadiness(),
+        refetchProductionActivation(),
       ]);
       setAccountActivationResult({
         accountId: response.activation.accountId,
@@ -1045,7 +1047,8 @@ export function ReferralSaasAccountMaintenancePage() {
     selectedExternalTenantRef,
   )}&organisation_ref=${encodeURIComponent(selectedOrganisationRef)}`;
   const isAccountFoundationActive =
-    (selectedAccount?.accountStatus || "").toUpperCase() === "ACTIVE";
+    (selectedAccount?.accountStatus || "").toUpperCase() === "ACTIVE" ||
+    accountActivationResult?.accountId === selectedAccount?.accountId;
   const canActivateAccountFoundation = Boolean(
     isAmplifiAdmin && selectedAccount && selectedExternalTenantRef && !isAccountFoundationActive,
   );
@@ -1179,9 +1182,9 @@ export function ReferralSaasAccountMaintenancePage() {
     {
       label: "Activation",
       complete: isAccountFoundationActive,
-      title: isAccountFoundationActive ? "Partner account activated" : "Partner account activation",
+      title: isAccountFoundationActive ? "Account establishment complete" : "Partner account activation",
       copy: isAccountFoundationActive
-        ? "Organisation, jurisdiction, and account-foundation gates have passed the governed activation command."
+        ? "The customer foundation is active and the automated production decision has been refreshed. Any remaining launch gates continue in their customer workspaces."
         : "Activation remains controlled by account-foundation readiness, permissions, and the existing governed command.",
       fields: [
         { label: "Account establishment", value: isAccountFoundationActive ? "Complete" : formatDisplay(selectedAccount?.accountStatus || "Not returned"), meta: "Backend state" },
@@ -2370,8 +2373,6 @@ export function ReferralSaasAccountMaintenancePage() {
                         {profileResult ? <div className="wizard-summary-strip success"><strong>Customer profile saved.</strong> {profileResult}</div> : null}
                       </form>
                     ) : null}
-
-                    {selectedEstablishmentStep === 3 && !isAccountFoundationActive ? accountFoundationActivationPanel : null}
                     {selectedEstablishmentStep === 3 ? accountFoundationActivationResultPanel : null}
 
                     <footer className="account-establishment-stage-actions">
@@ -2388,11 +2389,11 @@ export function ReferralSaasAccountMaintenancePage() {
                           <button className="button secondary" onClick={() => setShowProfileEditor((visible) => !visible)} type="button">
                             {showProfileEditor ? "Close organisation details" : establishmentStage.actionLabel}
                           </button>
-                        ) : selectedEstablishmentStep < establishmentStages.length - 1 || !isAccountFoundationActive ? (
+                        ) : (
                           <Link className="button secondary" to={buildCustomerModuleRoute(selectedCustomerPath, establishmentStage.actionRoute, customerQuery)}>
                             {establishmentStage.actionLabel}
                           </Link>
-                        ) : null}
+                        )}
                       </div>
                       {nextEstablishmentStage ? (
                         <button className="button" onClick={() => {
@@ -2409,8 +2410,8 @@ export function ReferralSaasAccountMaintenancePage() {
                           {accountFoundationActivationMutation.isPending ? "Activating foundation" : "Activate foundation"}
                         </button>
                       ) : (
-                        <Link className="button" to={buildCustomerModuleRoute(selectedCustomerPath, "health", customerQuery)}>
-                          View activation decision
+                        <Link className="button" to={selectedCustomerPath}>
+                          Return to Partner overview
                         </Link>
                       )}
                     </footer>
