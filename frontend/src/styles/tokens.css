@@ -10,6 +10,7 @@
   --color-signal: #1a56f0;
   --color-signal-mid: #3d70f5;
   --color-signal-light: #ebf0ff;
+  --color-brand: var(--color-signal);
   --color-success: #0d9e72;
   --color-warning: #d97706;
   --color-danger: #dc2626;

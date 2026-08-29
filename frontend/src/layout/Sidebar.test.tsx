@@ -72,6 +72,9 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: /Partner overview/ })).toHaveAttribute(
       "href", "/admin/referral-saas/account-maintenance/account-123",
     );
+    expect(screen.getByRole("link", { name: /Account establishment/ })).toHaveAttribute(
+      "href", "/admin/referral-saas/account-maintenance/account-123/settings",
+    );
     expect(screen.getByRole("link", { name: /Campaigns/ })).toHaveAttribute(
       "href", "/admin/referral-saas/account-maintenance/account-123/campaigns",
     );

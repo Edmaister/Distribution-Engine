@@ -9896,3 +9896,41 @@ Frontend impact: Changes only the selected-customer Sidebar label from Customer 
 Tests and docs expectation: Focused Sidebar test, roadmap, gap matrix, production build, and visual comparison.
 Validation method: npm test -- src/layout/Sidebar.test.tsx; npm run build; git diff --check.
 Definition of done: The selected-customer landing link reads Partner overview and still targets the selected account home. Priority: P1 UX alignment.
+
+## TASK-461: Align account-establishment terminology across customer context
+
+Status: Implementation complete; visual QA blocked (2026-08-26). Dependencies: TASK-458; TASK-460.
+Product boundary: Referral SaaS frontend.
+Required boundary docs checked: AGENTS.md; docs/product/referral-saas/PRODUCT_BRIEF.md; docs/roadmap/referral-saas/ROADMAP.md; docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md; docs/roadmap/ORDERED_TASK_LIST.md; approved selected-customer prototype.
+Shared primitive impact: Reuses the existing readiness progression and selected-customer Sidebar navigation primitives. Source duplication: No.
+Objective: Preserve the prototype's golden thread by naming both the first readiness stage and its corresponding selected-customer menu destination Account establishment.
+Backend/database/API impact: None. Existing ACCOUNT_PROFILE evidence, account status, readiness logic, permissions, settings and health routes, and activation behavior remain authoritative.
+Frontend impact: Changes the visible Account foundation readiness label and Customer profile menu label to Account establishment without changing their existing destinations or behavior.
+Tests and docs expectation: Focused selected-customer and Sidebar tests, roadmap, gap matrix, production build, and visual comparison.
+Validation method: npm test -- src/layout/Sidebar.test.tsx src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx; npm run build; git diff --check.
+Definition of done: Account establishment is the consistent visible term from readiness progression into selected-customer navigation while backend concepts and routes remain unchanged. Priority: P1 UX alignment.
+
+## TASK-462: Align Account establishment with the approved evidence journey
+
+Status: Implementation complete; visual QA blocked (2026-08-26). Dependencies: TASK-458; TASK-461.
+Product boundary: Referral SaaS frontend with Shared Platform account, entitlement, activation, routing, permission, audit, and accessibility primitives.
+Required boundary docs checked: AGENTS.md; docs/product/referral-saas/PRODUCT_BRIEF.md; docs/roadmap/referral-saas/ROADMAP.md; docs/sa/referral-saas/REFERRAL_SAAS_GAP_MATRIX.md; docs/roadmap/ORDERED_TASK_LIST.md; supplied four-state Account establishment prototype screenshots.
+Shared primitive impact: Re-composes the existing account registry, readiness, commercial entitlement, production activation, profile-maintenance command, selected-customer shell, typography, and route primitives. Source duplication: No.
+Objective: Match the approved Account establishment experience with a focused header, four-stage evidence navigator, authoritative evidence cards, governed-action rail, prototype typography and spacing, and responsive reflow.
+Backend/database/API impact: None. Existing account registry, ACCOUNT_PROFILE readiness, external references, commercial entitlement, production activation, account-foundation activation, permissions, idempotency, audit, and profile-maintenance commands remain authoritative.
+Frontend impact: Replaces the generic Customer settings panel with Organisation, Jurisdiction & environment, Agreement, and Activation evidence stages; uses bundled Sora and DM Mono typography; retains the guarded profile update behind Maintain organisation; links each later stage to the existing governed customer-scoped destination.
+Tests and docs expectation: Focused selected-customer and Sidebar tests, production build, diff check, desktop/mobile visual QA, roadmap, and gap matrix.
+Validation method: npm test -- src/layout/Sidebar.test.tsx src/pages/admin/ReferralSaasAccountMaintenancePage.test.tsx; npm run build; git diff --check. Browser comparison remains blocked because the trusted in-app browser process exits during startup.
+Definition of done: The Account establishment route follows the prototype hierarchy and interaction model using authoritative backend evidence, preserves protected commands and immutable references, and reflows without losing stage navigation or actions. Priority: P1 UX alignment.
+
+Follow-up correction (2026-08-27): A user-rendered desktop capture exposed an undefined hidden-heading utility that inserted a fourth grid item, displaced the intended steps/main/governance columns, and caused severe evidence wrapping. The route now uses the shared sr-only utility, explicit named grid areas, min-width guards, corrected tablet/mobile area maps, and a white prototype canvas. Focused layout/navigation/UX tests passed (54/54) and the production build passed; post-fix browser capture remains blocked.
+
+Progression-state correction (2026-08-27): Completed Account establishment stages use the Amplifi blue marker, the currently selected stage uses an amber marker and surface to distinguish work still in focus, and future stages remain neutral. The previously referenced but undefined sr-only accessibility utility is now implemented globally so the section label cannot re-enter the visual grid.
+
+Completion-marker correction (2026-08-27): The completed-state selector was correct, but its color referenced an undefined color-brand custom property, so the browser dropped the blue background and border while retaining a white check icon. The shared brand alias now resolves to the established Amplifi signal-blue token; backend completion semantics remain unchanged.
+
+Stage-action correction (2026-08-27): Account establishment now follows the approved sequential action model. Each non-final stage presents its evidence/review destination and Previous step as secondary controls on the left, with a right-aligned primary Continue action that advances locally to the next evidence stage. The final stage uses the existing permission-gated account-foundation activation command as its primary action and retains governed evidence navigation as secondary; no backend command, permission, status, or route was invented.
+
+Agreement/result correction (2026-08-27): Agreement-stage completion now reflects the presence of authoritative commercial-entitlement evidence independently from the later production-activation gate, so advancing to Activation shows Agreement complete without claiming launch readiness. The activation confirmation heading is rendered as the unpunctuated phrase "Customer foundation activated" with non-breaking desktop layout and responsive mobile stacking; the backend-returned message remains unchanged.
+
+Automated close-out correction (2026-08-27): Account-foundation activation now refreshes the existing read-only production-activation decision alongside account/access state. The final stage names Account establishment complete, keeps View activation decision as secondary evidence, and uses Return to Partner overview as the primary completion path. Remaining production blockers stay explicit and continue in their governed customer workspaces; no human approval workflow or approval record is implied.
