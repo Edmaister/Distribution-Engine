@@ -535,6 +535,8 @@ export function ReferralSaasAccountMaintenancePage() {
   );
   const [manualAcceptanceEvidence, setManualAcceptanceEvidence] = useState("");
   const [showAccessDiagnostics, setShowAccessDiagnostics] = useState(false);
+  const [peopleAccessStepOverride, setPeopleAccessStepOverride] = useState<number | null>(null);
+  const [showPeopleAccessSelection, setShowPeopleAccessSelection] = useState(false);
   const [accessResult, setAccessResult] = useState<string | null>(null);
   const [accessLifecycleResult, setAccessLifecycleResult] = useState<string | null>(null);
   const [deliveryResult, setDeliveryResult] = useState<string | null>(null);
@@ -1129,12 +1131,12 @@ export function ReferralSaasAccountMaintenancePage() {
   const technicalReadinessStatus = technicalSetupReadiness?.technicalSetupReadiness.overallStatus || "NOT_RETURNED";
   const productionDecisionStatus = productionActivation?.productionActivation.decisionStatus || "NOT_RETURNED";
   const customerReadinessStages = [
-    { label: "Account establishment", complete: isAccountFoundationActive, status: formatDisplay(selectedAccount?.accountStatus || "Not returned"), route: "health" },
-    { label: "People & access", complete: hasAcceptedRequiredAccess, status: formatDisplay(activationReadiness?.activationReadiness.overallStatus || "Not returned"), route: "people" },
-    { label: "Commercial entitlement", complete: Boolean(commercialEntitlement) && !commercialActivationBlocked, status: formatDisplay(commercialEntitlement?.commercialEntitlement.overallStatus || "Not returned"), route: "commercial" },
-    { label: "Production credentials", complete: technicalReadinessStatus.toUpperCase().includes("READY"), status: formatDisplay(technicalReadinessStatus), route: "integrations" },
-    { label: "Launch approval", complete: Boolean(productionActivation?.productionActivation.launchAllowed), status: formatDisplay(productionDecisionStatus), route: "campaigns" },
-  ];
+    { label: "Account establishment", complete: isAccountFoundationActive, route: "health" },
+    { label: "People & access", complete: hasAcceptedRequiredAccess, route: "people" },
+    { label: "Commercial entitlement", complete: Boolean(commercialEntitlement) && !commercialActivationBlocked, route: "commercial" },
+    { label: "Production credentials", complete: technicalReadinessStatus.toUpperCase().includes("READY"), route: "integrations" },
+    { label: "Launch approval", complete: Boolean(productionActivation?.productionActivation.launchAllowed), route: "campaigns" },
+  ].map((stage) => ({ ...stage, status: stage.complete ? "Complete" : "Incomplete" }));
   const firstIncompleteStage = customerReadinessStages.findIndex((stage) => !stage.complete);
   const establishmentStages = [
     {
@@ -1233,6 +1235,100 @@ export function ReferralSaasAccountMaintenancePage() {
       person,
     ]),
   );
+  const invitedAccessCount = activeAccessRows.filter(
+    (membership) => getValue(membership, ["status"], "") === "INVITED",
+  ).length;
+  const deliveredInvitationCount = activeAccessRows.filter((membership) =>
+    ["DELIVERED", "SENT", "ACCEPTED"].some((status) =>
+      getValue(membership, ["deliveryStatus"], "").toUpperCase().includes(status),
+    ),
+  ).length;
+  const assignedSeatCount = (activationReadiness?.activationReadiness.items || []).filter(
+    (item) => item.provisioningReadiness === "SEAT_ASSIGNED",
+  ).length;
+  const unresolvedLoginIssueCount = (identityLoginReconciliation?.identityLoginReconciliation.people || []).filter(
+    (person) => !["READY", "COMPLETE", "ACTIVE", "LOGIN_NOT_REQUIRED"].some((status) =>
+      (person.loginStatus || "").toUpperCase().includes(status),
+    ),
+  ).length;
+  const loginAccessPrerequisitesMet =
+    missingAccessRoleCount === 0 &&
+    invitedAccessCount === 0 &&
+    hasAcceptedRequiredAccess &&
+    loginSetupRows.length > 0 &&
+    loginSetupRows.every((item) => {
+      const membershipRef = getValue(item, ["membershipRef"], "");
+      const completionStatus =
+        loginCompletionReadinessByMembershipRef
+          .get(membershipRef)
+          ?.loginCompletionStatus.toUpperCase() || "";
+      const reconciliationStatus =
+        identityLoginReconciliationByMembershipRef.get(membershipRef)?.loginStatus.toUpperCase() || "";
+      return (
+        completionStatus.includes("RECORDED") ||
+        ["READY", "COMPLETE", "ACTIVE", "LOGIN_NOT_REQUIRED"].some((status) =>
+          reconciliationStatus.includes(status),
+        )
+      );
+    });
+  const peopleAccessStages = [
+    {
+      label: "Responsibilities",
+      complete: missingAccessRoleCount === 0,
+      title: "Required responsibilities",
+      copy: "Every required customer responsibility has a named accountable person.",
+      fields: peopleAccessRows.slice(0, 4).map((row) => ({
+        label: roleOptionForFamily(getValue(row, ["roleFamily"], "")).label,
+        value: (row as Record<string, unknown>).isMissingRole
+          ? "Person still needed"
+          : formatDisplay(getValue(row, ["displayName"], "Named person")),
+        meta: (row as Record<string, unknown>).isMissingRole
+          ? "Required"
+          : formatDisplay(getValue(row, ["status"], "Recorded")),
+      })),
+    },
+    {
+      label: "People",
+      complete: activeAccessRows.length > 0,
+      title: "People directory",
+      copy: "People remain distinct from invitations, accepted membership, seats and login claims.",
+      fields: [
+        { label: "Named people", value: String(activeAccessRows.length), meta: "Recorded" },
+        { label: "Accepted memberships", value: String(activeAccessCount), meta: activeAccessCount ? "Active" : "Outstanding" },
+        { label: "Assigned seats", value: String(assignedSeatCount), meta: "Reconciled" },
+        { label: "Login claims", value: approvedAuthProviderRef(technicalSetupReadiness) ? "Identity provider" : "Not returned", meta: "Read only" },
+      ],
+    },
+    {
+      label: "Invitations",
+      complete: hasAcceptedRequiredAccess,
+      title: "Invitation evidence",
+      copy: "Invitation delivery and accepted access remain separate governed evidence.",
+      fields: [
+        { label: "Delivered", value: String(deliveredInvitationCount), meta: "Returned evidence" },
+        { label: "Accepted", value: String(activeAccessCount), meta: hasAcceptedRequiredAccess ? "Complete" : "Outstanding" },
+        { label: "Awaiting acceptance", value: String(invitedAccessCount), meta: invitedAccessCount ? "Open" : "None" },
+        { label: "Manual fallback", value: isAmplifiAdmin ? "Audited path available" : "Admin controlled", meta: "Governed" },
+      ],
+    },
+    {
+      label: "Login access",
+      complete: loginAccessPrerequisitesMet,
+      title: loginAccessPrerequisitesMet ? "Access ready" : "Login access readiness",
+      copy: "Account membership and platform access reconcile without changing identity-provider claims here.",
+      fields: [
+        { label: "Partner access", value: hasAcceptedRequiredAccess ? "Ready" : "Blocked", meta: "Backend state" },
+        { label: "Platform seats", value: String(assignedSeatCount), meta: "Capability scoped" },
+        { label: "Unresolved login issues", value: String(unresolvedLoginIssueCount), meta: unresolvedLoginIssueCount ? "Needs review" : "Healthy" },
+        { label: "Readiness decision", value: formatDisplay(activationReadiness?.activationReadiness.overallStatus || "Not returned"), meta: "Current" },
+      ],
+    },
+  ];
+  const firstIncompletePeopleAccessStage = peopleAccessStages.findIndex((stage) => !stage.complete);
+  const selectedPeopleAccessStep =
+    peopleAccessStepOverride ??
+    (firstIncompletePeopleAccessStage === -1 ? peopleAccessStages.length - 1 : firstIncompletePeopleAccessStage);
+  const selectedPeopleAccessStage = peopleAccessStages[selectedPeopleAccessStep];
 
   useEffect(() => {
     if (
@@ -1342,6 +1438,14 @@ export function ReferralSaasAccountMaintenancePage() {
     setEditingMembershipRef(membershipRef);
     setManualAcceptanceEvidence("");
     setIsAccessFormOpen(true);
+  }
+
+  function openSelectedPeopleAccessWorkflow() {
+    if (selectedPeopleAccessStep <= 1) {
+      setShowPeopleAccessSelection(true);
+      return;
+    }
+    setShowAccessDiagnostics(true);
   }
 
   async function submitAccessIntent(event: FormEvent<HTMLFormElement>) {
@@ -1986,21 +2090,42 @@ export function ReferralSaasAccountMaintenancePage() {
     <>
       <section className={"page-header customer-profile-header" + (accountId && selectedAccount ? " prototype-customer-header" : "")}>
         <div>
-          {selectedModule === "settings" ? (
-            <div className="account-establishment-breadcrumb"><Link to={selectedCustomerPath}>Workspace</Link><span>/</span><span>Account establishment</span></div>
+          {selectedModule === "settings" || selectedModule === "people" ? (
+            <div className="account-establishment-breadcrumb">
+              <Link to={selectedCustomerPath}>Workspace</Link><span>/</span>
+              <span>{selectedModule === "settings" ? "Account establishment" : "People & access"}</span>
+            </div>
           ) : null}
-          <div className="page-kicker">{selectedModule === "settings" ? "Partner setup · Establish the partner account" : selectedAccount ? "Amplifi Internal · Customer Operations" : "Referral SaaS · Open a customer"}</div>
-          <h1 className="page-title">{selectedModule === "settings" ? "Account establishment" : accountId && selectedAccount ? customerName : "Find the customer to work on"}</h1>
+          <div className="page-kicker">
+            {selectedModule === "settings"
+              ? "Partner setup · Establish the partner account"
+              : selectedModule === "people"
+                ? "Partner setup · Invite, accept and manage access"
+                : selectedAccount
+                  ? "Amplifi Internal · Customer Operations"
+                  : "Referral SaaS · Open a customer"}
+          </div>
+          <h1 className="page-title">
+            {selectedModule === "settings"
+              ? "Account establishment"
+              : selectedModule === "people"
+                ? "People & access"
+                : accountId && selectedAccount
+                  ? customerName
+                  : "Find the customer to work on"}
+          </h1>
           <p className="page-copy">
             {selectedModule === "settings"
               ? "Complete and review the organisation, jurisdiction, agreement and activation evidence for this partner account."
+              : selectedModule === "people"
+                ? "Make sure every responsibility has an accountable person."
               : accountId && selectedAccount
               ? effectiveBlockedCount || effectiveMissingEvidenceCount
                 ? "This customer has " + (effectiveBlockedCount || effectiveMissingEvidenceCount) + " readiness item" + ((effectiveBlockedCount || effectiveMissingEvidenceCount) === 1 ? "" : "s") + " requiring attention."
                 : "This customer has no visible readiness blockers."
               : "Country first, then account, then open their profile."}
           </p>
-          {accountId && selectedAccount && selectedModule !== "settings" ? (
+          {accountId && selectedAccount && selectedModule !== "settings" && selectedModule !== "people" ? (
             <div className="prototype-customer-context" aria-label="Selected customer context">
               <span><strong>{selectedAccount.accountCode}</strong></span>
               <span>{operatingMarketFromAccount(selectedAccount).name}</span>
@@ -2010,8 +2135,8 @@ export function ReferralSaasAccountMaintenancePage() {
         </div>
         <div className="customer-header-actions">
           {!accountId ? <Link className="button" to="/admin/referral-saas/account-setup">Create customer</Link> : null}
-          {accountId && selectedAccount && selectedModule !== "home" && selectedModule !== "settings" ? <Link className="button secondary" to={selectedCustomerPath}>Customer home</Link> : null}
-          {accountId && selectedModule !== "settings" ? <Link className="button secondary" to="/admin/referral-saas/account-maintenance">Switch customer</Link> : null}
+          {accountId && selectedAccount && selectedModule !== "home" && selectedModule !== "settings" && selectedModule !== "people" ? <Link className="button secondary" to={selectedCustomerPath}>Customer home</Link> : null}
+          {accountId && selectedModule !== "settings" && selectedModule !== "people" ? <Link className="button secondary" to="/admin/referral-saas/account-maintenance">Switch customer</Link> : null}
         </div>
       </section>
       {isLoading ? <LoadingState label="Loading Referral SaaS customer workspace" /> : null}
@@ -2427,7 +2552,287 @@ export function ReferralSaasAccountMaintenancePage() {
                 </section>
               ) : null}
               {selectedModule === "people" ? (
-              <section className="panel" id="people-access">
+              <>
+              <section aria-labelledby="people-access-title" className="account-establishment people-access-prototype" id="people-access">
+                <h2 className="sr-only" id="people-access-title">People & access evidence</h2>
+                <nav aria-label="People and access stages" className="account-establishment-steps">
+                  {peopleAccessStages.map((stage, index) => {
+                    const selected = index === selectedPeopleAccessStep;
+                    return (
+                      <button
+                        aria-current={selected ? "step" : undefined}
+                        className={`account-establishment-step people-access-step ${selected ? "selected" : ""} ${stage.complete ? "complete" : ""}`}
+                        key={stage.label}
+                        onClick={() => {
+                          setPeopleAccessStepOverride(index);
+                          setShowPeopleAccessSelection(false);
+                        }}
+                        type="button"
+                      >
+                        <span className="account-establishment-step-marker">
+                          {stage.complete ? <CheckCircle2 aria-hidden="true" size={17} /> : index + 1}
+                        </span>
+                        <span>
+                          <strong>{stage.label}</strong>
+                          <small>{stage.complete ? "Complete" : selected ? "Selected" : "Available"}</small>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </nav>
+
+                <div className="account-establishment-main">
+                  <header className="account-establishment-stage-header">
+                    <span aria-hidden="true" className="account-establishment-stage-icon"><Users size={23} /></span>
+                    <div>
+                      <span className="page-kicker">Step {selectedPeopleAccessStep + 1} of {peopleAccessStages.length}</span>
+                      <h2>{selectedPeopleAccessStage.title}</h2>
+                      <p>{selectedPeopleAccessStage.copy}</p>
+                    </div>
+                  </header>
+
+                  <div className="account-establishment-evidence-grid">
+                    {selectedPeopleAccessStage.fields.length ? selectedPeopleAccessStage.fields.map((field) => (
+                      <div className="account-establishment-evidence" key={field.label}>
+                        <span>{field.label}</span>
+                        <div><strong>{field.value}</strong><small>{field.meta}</small></div>
+                      </div>
+                    )) : (
+                      <div className="account-establishment-evidence people-access-empty-evidence">
+                        <span>Required responsibilities</span>
+                        <div><strong>No responsibility evidence returned</strong><small>Action needed</small></div>
+                      </div>
+                    )}
+                  </div>
+
+                  {showPeopleAccessSelection && selectedPeopleAccessStep <= 1 ? (
+                    <div className="people-access-stage-workflow" aria-label="Choose responsibility or person" role="region">
+                      {peopleAccessRows.map((row) => {
+                        const membershipRef = getValue(row, ["membershipRef"], "");
+                        const roleFamily = getValue(row, ["roleFamily"], "UNKNOWN");
+                        const displayName = formatDisplay(getValue(row, ["displayName"], "Named person"));
+                        const status = getValue(row, ["status"], "");
+                        const isMissingRole = Boolean((row as Record<string, unknown>).isMissingRole);
+                        const actionLabel = isMissingRole
+                          ? `Add ${roleOptionForFamily(roleFamily).label}`
+                          : status === "INVITED"
+                            ? `Review invite for ${displayName}`
+                            : `Edit ${displayName}`;
+                        return (
+                          <div className="people-access-stage-workflow-row" key={membershipRef || roleFamily}>
+                            <div>
+                              <strong>{roleOptionForFamily(roleFamily).label}</strong>
+                              <span>{isMissingRole ? "Person still needed" : `${displayName} / ${formatDisplay(status)}`}</span>
+                            </div>
+                            <button
+                              aria-label={actionLabel}
+                              className="button secondary compact"
+                              onClick={() => {
+                                if (isMissingRole) {
+                                  startAddAccessIntent(roleFamily);
+                                } else {
+                                  startEditAccessIntent(row as Record<string, unknown>);
+                                }
+                              }}
+                              type="button"
+                            >
+                              {isMissingRole ? "Add person" : status === "INVITED" ? "Review invite" : "Edit person"}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+
+                  {showAccessDiagnostics && selectedPeopleAccessStep === 2 ? (
+                    <div className="people-access-stage-workflow" aria-label="Invitation controls" role="region">
+                      {activationReadiness?.activationReadiness.items.map((item) => {
+                        const membershipRef = getValue(item, ["membershipRef"], "");
+                        const roleFamily = getValue(item, ["roleFamily"], "UNKNOWN");
+                        const subject = getValue(item, ["subject"], "");
+                        const displayName = formatDisplay(getValue(item, ["displayName"], "Named person"));
+                        const providerRef = inviteDeliveryProviderRef(technicalSetupReadiness);
+                        const contactReady =
+                          getValue(item, ["recipientContactStatus"], "") === "CONTACT_REFERENCE_PRESENT";
+                        const membershipStatus = getValue(item, ["membershipStatus"], "");
+                        const canDeliver = Boolean(membershipRef && providerRef && contactReady) && membershipStatus === "INVITED";
+                        const canAccept = Boolean(membershipRef && subject) && membershipStatus === "INVITED";
+                        return (
+                          <div className="people-access-stage-workflow-row" key={membershipRef}>
+                            <div>
+                              <strong>{displayName}</strong>
+                              <span>{roleOptionForFamily(roleFamily).label} / {formatDisplay(membershipStatus)}</span>
+                            </div>
+                            <div className="action-cell horizontal">
+                              <button
+                                aria-label={`Send invite email for ${displayName}`}
+                                className="button secondary compact"
+                                disabled={!canDeliver || deliveryMutation.isPending}
+                                onClick={() => requestInviteDeliveryCheck(membershipRef, roleFamily)}
+                                type="button"
+                              >
+                                {deliveryMutation.isPending ? "Sending" : "Send invite email"}
+                              </button>
+                              <button
+                                aria-label={`Record accepted access for ${displayName}`}
+                                className="button secondary compact"
+                                disabled={!canAccept || activationMutation.isPending}
+                                onClick={() => requestAccessActivation(membershipRef, subject, roleFamily)}
+                                type="button"
+                              >
+                                {activationMutation.isPending ? "Recording" : "Record accepted access"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+
+                  {showAccessDiagnostics && selectedPeopleAccessStep === 3 ? (
+                    <div className="people-access-stage-workflow" aria-label="Login access controls" role="region">
+                      {loginSetupRows.map((item) => {
+                        const membershipRef = getValue(item, ["membershipRef"], "");
+                        const roleFamily = getValue(item, ["roleFamily"], "");
+                        const subject = getValue(item, ["subject"], "");
+                        const displayName = formatDisplay(getValue(item, ["displayName"], "Named person"));
+                        const seatAssigned = item.provisioningReadiness === "SEAT_ASSIGNED";
+                        const providerRef = approvedAuthProviderRef(technicalSetupReadiness);
+                        return (
+                          <div className="people-access-stage-workflow-row" key={membershipRef}>
+                            <div>
+                              <strong>{displayName}</strong>
+                              <span>{roleOptionForFamily(roleFamily).label} / {seatAssigned ? "Seat assigned" : "Seat not assigned"}</span>
+                            </div>
+                            <div className="action-cell horizontal">
+                              <button
+                                aria-label={`Assign platform seat for ${displayName}`}
+                                className="button secondary compact"
+                                disabled={seatAssigned || provisioningMutation.isPending}
+                                onClick={() => requestAccessProvisioning(membershipRef, roleFamily)}
+                                type="button"
+                              >
+                                {provisioningMutation.isPending ? "Assigning" : seatAssigned ? "Seat assigned" : "Assign platform seat"}
+                              </button>
+                              {seatAssigned ? (
+                                <>
+                                  <button
+                                    aria-label={`Record login not required for ${displayName}`}
+                                    className="button secondary compact"
+                                    disabled={loginCompletionMutation.isPending}
+                                    onClick={() => requestLoginCompletion(membershipRef, roleFamily, subject, "LOGIN_NOT_REQUIRED")}
+                                    type="button"
+                                  >
+                                    Login not required
+                                  </button>
+                                  <button
+                                    aria-label={`Record login completion for ${displayName}`}
+                                    className="button secondary compact"
+                                    disabled={!providerRef || loginCompletionMutation.isPending}
+                                    onClick={() => requestLoginCompletion(membershipRef, roleFamily, subject, "PLATFORM_LOGIN_REQUIRED")}
+                                    type="button"
+                                  >
+                                    {providerRef ? "Record login completion" : "Needs provider evidence"}
+                                  </button>
+                                </>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+
+                  <footer className="account-establishment-stage-actions">
+                    <div className="account-establishment-stage-secondary">
+                      {selectedPeopleAccessStep > 0 ? (
+                        <button className="button secondary" onClick={() => setPeopleAccessStepOverride(selectedPeopleAccessStep - 1)} type="button">
+                          Previous step
+                        </button>
+                      ) : (
+                        <Link className="button secondary" to={selectedCustomerPath}>Return to overview</Link>
+                      )}
+                      {selectedPeopleAccessStep === 0 ? (
+                        <button className="button secondary" onClick={openSelectedPeopleAccessWorkflow} type="button">
+                          Manage responsibilities
+                        </button>
+                      ) : null}
+                      {selectedPeopleAccessStep === 1 ? (
+                        <button className="button secondary" onClick={openSelectedPeopleAccessWorkflow} type="button">
+                          Open person record
+                        </button>
+                      ) : null}
+                      {selectedPeopleAccessStep === 2 ? (
+                        <button className="button secondary" onClick={openSelectedPeopleAccessWorkflow} type="button">
+                          View invitation history
+                        </button>
+                      ) : null}
+                      {selectedPeopleAccessStep === 3 ? (
+                        <button className="button secondary" onClick={openSelectedPeopleAccessWorkflow} type="button">
+                          Review access diagnostics
+                        </button>
+                      ) : null}
+                    </div>
+                    {selectedPeopleAccessStep === 0 ? (
+                      <button
+                        className="button"
+                        disabled={missingAccessRoleCount > 0}
+                        onClick={() => {
+                          setPeopleAccessStepOverride(1);
+                          setShowPeopleAccessSelection(false);
+                        }}
+                        type="button"
+                      >
+                        Continue to People
+                      </button>
+                    ) : selectedPeopleAccessStep === 1 ? (
+                      <button
+                        className="button"
+                        disabled={activeAccessRows.length === 0}
+                        onClick={() => {
+                          setPeopleAccessStepOverride(2);
+                          setShowPeopleAccessSelection(false);
+                        }}
+                        type="button"
+                      >
+                        Continue to Invitations
+                      </button>
+                    ) : selectedPeopleAccessStep === 2 ? (
+                      <button
+                        className="button"
+                        disabled={!hasAcceptedRequiredAccess}
+                        onClick={() => {
+                          setPeopleAccessStepOverride(3);
+                          setShowAccessDiagnostics(false);
+                        }}
+                        type="button"
+                      >
+                        Continue to Login access
+                      </button>
+                    ) : (
+                      loginAccessPrerequisitesMet ? (
+                        <Link className="button" to={selectedCustomerPath}>
+                          Complete Login access
+                        </Link>
+                      ) : (
+                        <button className="button" disabled type="button">
+                          Complete Login access
+                        </button>
+                      )
+                    )}
+                  </footer>
+                </div>
+
+                <aside className="account-establishment-governance">
+                  <ShieldCheck aria-hidden="true" size={30} />
+                  <span className="page-kicker">Governed evidence</span>
+                  <h2>Your account, your responsibilities.</h2>
+                  <p>Amplifi decisions are visible here, but protected access, invitation and identity actions remain controlled.</p>
+                  <Link to={buildCustomerModuleRoute(selectedCustomerPath, "health", customerQuery)}>View audit evidence</Link>
+                </aside>
+              </section>
+
+              <section className="panel people-access-management" id="people-access-management">
                 <div className="panel-header">
                   <div>
                     <h2 className="panel-title">People and access</h2>
@@ -2550,7 +2955,9 @@ export function ReferralSaasAccountMaintenancePage() {
                               />
                             </div>
                           ) : null}
-                          {editingMembershipRef ? (
+                          {editingMembershipRef &&
+                          editingAccessRow &&
+                          getValue(editingAccessRow, ["status"], "") === "INVITED" ? (
                             <div className="wizard-status-card">
                               <div>
                                 <strong>Manual access acceptance</strong>
@@ -3033,6 +3440,7 @@ export function ReferralSaasAccountMaintenancePage() {
                   ) : null}
                 </div>
               </section>
+              </>
               ) : null}
 
               {selectedModule === "integrations" || selectedModule === "technical" ? (

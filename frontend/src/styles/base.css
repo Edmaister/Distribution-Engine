@@ -6666,6 +6666,13 @@ textarea.input {
 }
 .account-establishment-step.selected strong { color: #92400e; }
 .account-establishment-step.selected small { color: #b45309; }
+.people-access-step.selected { background: #eef3ff; }
+.people-access-step.selected .account-establishment-step-marker {
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+}
+.people-access-step.selected strong { color: var(--color-ink); }
+.people-access-step.selected small { color: var(--color-brand); }
 .account-establishment-step strong {
   display: block;
   font-size: 12px;
@@ -6824,6 +6831,64 @@ textarea.input {
   gap: 10px;
   justify-content: flex-end;
   margin-top: 20px;
+}
+.people-access-empty-evidence { grid-column: 1 / -1; }
+.people-access-management {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.people-access-management > .panel-header {
+  display: none;
+}
+
+.people-access-management > .panel-body {
+  display: contents;
+}
+
+.people-access-management > .panel-body > :not(.side-drawer-backdrop) {
+  display: none;
+}
+
+.people-access-stage-workflow {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 20px;
+}
+
+.people-access-stage-workflow-row {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  padding: 14px 16px;
+}
+
+.people-access-stage-workflow-row > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.people-access-stage-workflow-row span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .people-access-stage-workflow-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .people-access-stage-workflow-row .action-cell {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 1260px) {
