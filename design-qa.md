@@ -79,3 +79,39 @@ Comparison history:
 - Refreshed rendered comparison remains pending.
 
 final result: blocked
+
+---
+
+## TASK-463 People & access
+
+Source visual truth paths:
+- C:/Users/Carla/AppData/Local/Temp/codex-clipboard-5664ccd1-bec4-47dc-a421-af3c42a58ee9.png
+- C:/Users/Carla/AppData/Local/Temp/codex-clipboard-da732734-20eb-4ce2-a503-d18e052a5e3f.png
+- C:/Users/Carla/AppData/Local/Temp/codex-clipboard-9296ac72-344c-4ed0-9adf-dc432a40dbcc.png
+- C:/Users/Carla/AppData/Local/Temp/codex-clipboard-b4a8650e-2828-4246-a358-e7a7c29de575.png
+
+Implementation route: http://127.0.0.1:5174/admin/referral-saas/account-maintenance/acct-gabs/people
+Implementation screenshot path: unavailable
+Reference viewport: desktop, approximately 1782 x 1030 pixels at browser density
+Implementation viewport and density: unavailable because capture failed
+
+Comparison evidence:
+- Blocked. The trusted in-app browser process exited during startup before the local implementation could be captured or inspected.
+- Responsibilities, People, Invitations, and Login access states are implemented from authoritative membership, activation-readiness, invitation, provisioning, and identity-login read models.
+- Prototype-specific primary action labels are present, and all existing governed maintenance commands remain in the same route below the evidence journey.
+- Primary actions are wired to the existing add/edit person drawers and invitation/provisioning/login diagnostic controls; focused tests exercise those interactions directly.
+- The duplicate legacy workspace is visually retired. Real invitation and login controls now expand inside their matching prototype stage, while the existing governed person drawer remains the single add/edit implementation.
+- Responsibility management prioritises invited memberships over already-active people, and manual acceptance is limited to authoritative INVITED state; this closes the captured Account owner selection defect.
+- Responsibility/person selection is now explicit rather than order-dependent: the operator chooses the exact role or person before the existing governed drawer opens.
+- Responsibilities now follows the prototype hierarchy: management is secondary and Continue to People is the gated primary action, enabled only when all required roles have named people.
+- People now follows the same progression hierarchy: Open person record is secondary and Continue to Invitations is the primary journey action.
+- Invitations now follows the progression hierarchy: View invitation history is secondary and Continue to Login access is the acceptance-gated primary journey action.
+- Login access now uses Review access diagnostics as secondary and a prerequisite-gated Complete Login access primary path; Access ready requires persisted per-person login resolution rather than an empty issue list.
+- A completed selected Login access stage retains its check marker and Complete label while aria-current continues to identify it as the viewed step.
+- The four stages use the repository's existing React 19, TypeScript, React Router, React Query, Vitest/Testing Library, shared stylesheet, and governed API wrapper stack; no parallel component or domain-state implementation was added.
+- Focused Sidebar and selected-customer tests passed: 53/53.
+- Targeted lint passed with no People & access-specific warnings; 15 pre-existing warnings remain elsewhere in the large shared page.
+- Production build passed.
+- Pixel-level typography, wrapping, column proportion, spacing, interaction, and console checks remain uncertified without browser-rendered evidence.
+
+final result: blocked

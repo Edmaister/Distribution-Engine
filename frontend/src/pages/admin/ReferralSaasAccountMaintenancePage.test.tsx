@@ -1298,6 +1298,7 @@ function mockSeatProvisionedMembershipActivationReadiness(): ReferralSaasMembers
 
 function mockLoginCompletionReadiness(
   status = "LOGIN_COMPLETION_BLOCKED_SEAT_NOT_ASSIGNED",
+  membershipRef = "membership-1",
 ): ReferralSaasLoginCompletionReadinessResponse {
   return {
     status: "ok",
@@ -1312,7 +1313,7 @@ function mockLoginCompletionReadiness(
     loginCompletionReadiness: {
       loginCompletionStatus: status,
       accountRef: "acct-gabs",
-      membershipRef: "membership-1",
+      membershipRef,
       person: {
         subject: "owner@gabs.example",
         displayName: "Gaborone owner",
@@ -3437,8 +3438,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("Botswana");
     expect(screen.getByLabelText("Selected customer context")).toHaveTextContent("ACC-2201");
     expect(await screen.findByRole("heading", { name: "Readiness progression" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Account establishment/ })).not.toHaveAttribute("aria-current");
-    expect(screen.getByRole("link", { name: /People & access/ })).toHaveAttribute("aria-current", "step");
+    expect(screen.getByRole("link", { name: "Account establishmentComplete" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: /People & accessIncomplete/ })).toHaveAttribute("aria-current", "step");
     expect(screen.getByRole("heading", { name: "Continue in this customer context" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Readiness summary" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Products & programmes/ })).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/acct-gabs/programmes");
@@ -3562,8 +3563,46 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs");
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: /People & access/ }));
+    expect(await screen.findByRole("heading", { name: "People & access" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Customer home" })).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/acct-gabs");
+    expect(screen.getByRole("navigation", { name: "People and access stages" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Required responsibilities" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue to People" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Manage responsibilities" }));
+    expect(screen.getByRole("region", { name: "Choose responsibility or person" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add Campaign manager" }));
+    expect(screen.getByRole("dialog", { name: "Add access intent" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Responsibility")).toHaveValue("Campaign manager");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("link", { name: "Return to overview" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "PeopleComplete" }));
+    expect(screen.getByRole("heading", { name: "People directory" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue to Invitations" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Open person record" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review invite for Gaborone owner" }));
+    expect(screen.getByRole("dialog", { name: "Edit access intent" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "3InvitationsAvailable" }));
+    expect(screen.getByRole("heading", { name: "Invitation evidence" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue to Login access" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "View invitation history" }));
+    expect(screen.getByRole("button", { name: "Hide access diagnostics" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Invitation controls" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "4Login accessAvailable" }));
+    expect(screen.getByRole("heading", { name: "Login access readiness" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Complete Login access" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Review access diagnostics" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "4Login accessSelected" })).toHaveAttribute(
+      "aria-current",
+      "step",
+    );
+    expect(screen.getByRole("link", { name: "View audit evidence" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs/health",
+    );
     expect(screen.queryByRole("heading", { name: "Readiness summary" })).not.toBeInTheDocument();
   });
 
@@ -3572,10 +3611,69 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockAcceptedRequiredMembershipActivationReadiness());
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs");
     expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
-    const peopleStage = screen.getByRole("link", { name: /People & access/ });
+    const peopleStage = screen.getByRole("link", { name: "People & accessComplete" });
     expect(peopleStage).toHaveAttribute("href", "/admin/referral-saas/account-maintenance/acct-gabs/people");
-    expect(peopleStage).toHaveTextContent("ACCESS_READY");
+    expect(peopleStage).toHaveTextContent("Complete");
+    expect(peopleStage).not.toHaveTextContent("ACCESS_READY");
     expect(peopleStage).toHaveClass("complete");
+  });
+
+  it("keeps the completion tick and Complete label on the selected Login access stage", async () => {
+    mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue(mockAcceptedRequiredMembershipPosture());
+    mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(mockAcceptedRequiredMembershipActivationReadiness());
+    mockedGetReferralSaasLoginCompletionReadiness.mockImplementation(({ membershipRef }) =>
+      Promise.resolve(mockLoginCompletionReadiness("LOGIN_COMPLETION_RECORDED", membershipRef)),
+    );
+
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/people");
+
+    expect(await screen.findByRole("heading", { name: "Access ready" })).toBeInTheDocument();
+    const loginAccessStage = screen.getByRole("button", { name: "Login accessComplete" });
+    expect(loginAccessStage).toHaveAttribute("aria-current", "step");
+    expect(loginAccessStage.querySelector("svg")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Complete Login access" })).toHaveAttribute(
+      "href",
+      "/admin/referral-saas/account-maintenance/acct-gabs",
+    );
+  });
+
+  it("prioritises an invited account owner over an already-active campaign manager", async () => {
+    const posture = mockMembershipPostureAfterCampaignManagerSave();
+    const owner = posture.membershipPosture.memberships.find(
+      (membership) => membership.roleFamily === "DISTRIBUTION_ADMIN",
+    )!;
+    const campaignManager = posture.membershipPosture.memberships.find(
+      (membership) => membership.roleFamily === "CAMPAIGN_MANAGER",
+    )!;
+    mockedGetReferralSaasAccountMembershipPosture.mockResolvedValue({
+      ...posture,
+      membershipPosture: {
+        ...posture.membershipPosture,
+        invitedCount: 1,
+        activeCount: 1,
+        memberships: [
+          { ...campaignManager, status: "ACTIVE" },
+          { ...owner, status: "INVITED" },
+        ],
+      },
+    });
+    mockedGetReferralSaasMembershipActivationReadiness.mockResolvedValue(
+      mockMembershipActivationReadinessAfterCampaignManagerSave(),
+    );
+
+    renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/people");
+
+    expect(await screen.findByRole("heading", { name: "Login access readiness" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "ResponsibilitiesComplete" }));
+    expect(screen.getByRole("heading", { name: "Required responsibilities" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue to People" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Manage responsibilities" }));
+    expect(screen.getByRole("region", { name: "Choose responsibility or person" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Review invite for Gaborone owner" }));
+    expect(screen.getByRole("dialog", { name: "Edit access intent" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Person name")).toHaveValue("Gaborone owner");
+    expect(screen.getByLabelText("Responsibility")).toHaveValue("Account owner");
+    expect(screen.getByText("Manual access acceptance")).toBeInTheDocument();
   });
 
   it("records customer-scoped people access intent without leaving Customer Profile", async () => {
@@ -3631,8 +3729,8 @@ describe("ReferralSaasAccountMaintenancePage", () => {
       "/admin/referral-saas/account-maintenance/acct-gabs/people",
     );
 
-    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "People and access" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "People & access" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Add person" }));
     expect(screen.getByText(/This saves intent only/i)).toBeInTheDocument();
     expect(screen.getByText(/Used as the access identity for this customer/i)).toBeInTheDocument();
@@ -3722,7 +3820,11 @@ describe("ReferralSaasAccountMaintenancePage", () => {
 
     await waitFor(() => expect(mockedCancelReferralSaasMembershipInvitationIntent).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Access intent updated.")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByText("Gaborone owner")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByLabelText("People and access responsibilities")).not.toHaveTextContent(
+        "Gaborone owner",
+      ),
+    );
     expect(screen.getByText("People setup needs attention")).toBeInTheDocument();
     expect(screen.getAllByText("Account owner").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Campaign manager").length).toBeGreaterThan(0);
@@ -3733,7 +3835,7 @@ describe("ReferralSaasAccountMaintenancePage", () => {
     mockedGetReferralSaasTechnicalSetupReadiness.mockResolvedValue(mockTechnicalSetupReadinessWithInviteProvider());
     renderWorkspace(<ReferralSaasAccountMaintenancePage />, "/admin/referral-saas/account-maintenance/acct-gabs/people");
 
-    expect(await screen.findByRole("heading", { name: "Gaborone Partners" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "People and access" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Show access diagnostics" }));
     const deliveryButton = await screen.findByRole("button", { name: "Send invite email" });
     expect(deliveryButton).toBeEnabled();
