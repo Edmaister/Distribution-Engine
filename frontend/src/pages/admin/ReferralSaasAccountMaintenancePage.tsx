@@ -1,3 +1,4 @@
+import { solutionModuleAllowed, solutionIncluded } from "../../api/solutionPackageAccess";
 import {
   AlertCircle,
   BarChart3,
@@ -82,6 +83,7 @@ import {
   publishReferralSaasAccountJourneyDraft,
   publishReferralSaasProgrammeDraft,
   recordReferralSaasAccountCampaignReviewDecision,
+  recordReferralSaasCommercialEntitlement,
   recordReferralSaasApiAccessVerification,
   recordReferralSaasIntegrationCredentialRequest,
   recordReferralSaasIntegrationCredentialExecutionCheck,
@@ -673,6 +675,7 @@ export function ReferralSaasAccountMaintenancePage() {
     data: commercialEntitlement,
     error: commercialEntitlementError,
     isLoading: isCommercialEntitlementLoading,
+    refetch: refetchCommercialEntitlement,
   } = useReferralSaasCommercialEntitlement(
     selectedAccount?.accountId || "",
     selectedExternalTenantRef,
@@ -2098,12 +2101,12 @@ export function ReferralSaasAccountMaintenancePage() {
           ) : null}
           <div className="page-kicker">
             {selectedModule === "settings"
-              ? "Partner setup · Establish the partner account"
+              ? "Partner setup Ã‚Â· Establish the partner account"
               : selectedModule === "people"
-                ? "Partner setup · Invite, accept and manage access"
+                ? "Partner setup Ã‚Â· Invite, accept and manage access"
                 : selectedAccount
-                  ? "Amplifi Internal · Customer Operations"
-                  : "Referral SaaS · Open a customer"}
+                  ? "Amplifi Internal Ã‚Â· Customer Operations"
+                  : "Referral SaaS Ã‚Â· Open a customer"}
           </div>
           <h1 className="page-title">
             {selectedModule === "settings"
@@ -2326,6 +2329,7 @@ export function ReferralSaasAccountMaintenancePage() {
 
           {accountId && selectedAccount ? (
             <>
+              {!solutionModuleAllowed(commercialEntitlement?.commercialEntitlement, selectedModule) ? <section className="panel"><h2>Solution package access required</h2><p>This area is not included in the current commercial approval.</p><Link to={`${selectedCustomerPath}/commercial`}>Review Commercial</Link></section> : null}
               {selectedModule === "home" ? (
                 <div className="selected-customer-home">
                   <section className="customer-readiness-progression" aria-labelledby="readiness-progression-title">
@@ -2370,13 +2374,13 @@ export function ReferralSaasAccountMaintenancePage() {
                       <p>Each area is designed for its task; customer and permission context stays with you.</p>
                     </div></div>
                     <div className="customer-workspace-grid">
-                      {customerWorkspaceDestinations.map((destination) => {
+                      {customerWorkspaceDestinations.filter((destination) => solutionModuleAllowed(commercialEntitlement?.commercialEntitlement, destination.route)).map((destination) => {
                         const Icon = destination.icon;
                         return (
                           <Link className="customer-workspace-card" key={destination.title} to={buildCustomerModuleRoute(selectedCustomerPath, destination.route, customerQuery)}>
                             <span className="customer-workspace-icon"><Icon size={21} /></span>
                             <span><small>{destination.eyebrow}</small><strong>{destination.title}</strong><p>{destination.copy}</p></span>
-                            <span className="customer-workspace-arrow" aria-hidden="true">›</span>
+                            <span className="customer-workspace-arrow" aria-hidden="true">Ã¢â‚¬Âº</span>
                           </Link>
                         );
                       })}
@@ -2397,7 +2401,7 @@ export function ReferralSaasAccountMaintenancePage() {
                           <strong role="cell">{area.label}</strong>
                           <span role="cell"><StatusBadge label={area.status} tone={statusTone(area.status)} /></span>
                           <span role="cell">{area.evidence}</span>
-                          <span className="customer-readiness-open" role="cell">Open ›</span>
+                          <span className="customer-readiness-open" role="cell">Open Ã¢â‚¬Âº</span>
                         </Link>
                       ))}
                     </div>
@@ -3455,7 +3459,7 @@ export function ReferralSaasAccountMaintenancePage() {
                 />
               ) : null}
 
-              {selectedModule === "journeys" ? (
+              {selectedModule === "journeys" && solutionModuleAllowed(commercialEntitlement?.commercialEntitlement, "journeys") ? (
                 <CustomerJourneysPage
                   customerName={customerName}
                   externalTenantRef={selectedExternalTenantRef}
@@ -3464,7 +3468,7 @@ export function ReferralSaasAccountMaintenancePage() {
                 />
               ) : null}
 
-              {selectedModule === "products" ? (
+              {selectedModule === "products" && solutionModuleAllowed(commercialEntitlement?.commercialEntitlement, "products") ? (
                 <CustomerProductsPage
                   customerName={customerName}
                   externalTenantRef={selectedExternalTenantRef}
@@ -3473,7 +3477,7 @@ export function ReferralSaasAccountMaintenancePage() {
                 />
               ) : null}
 
-              {selectedModule === "programmes" ? (
+              {selectedModule === "programmes" && solutionModuleAllowed(commercialEntitlement?.commercialEntitlement, "programmes") ? (
                 <CustomerProgrammesPage
                   customerName={customerName}
                   externalTenantRef={selectedExternalTenantRef}
@@ -3482,15 +3486,24 @@ export function ReferralSaasAccountMaintenancePage() {
                 />
               ) : null}
 
-              {selectedModule === "commercial" ? (
-                <CustomerCommercialEntitlementPage
+              {selectedModule === "commercial" && !commercialEntitlement ? <>{isCommercialEntitlementLoading ? <LoadingState label="Loading commercial approval" /> : null}{commercialEntitlementError ? <ErrorPanel error={commercialEntitlementError} /> : null}</> : null}
+              {selectedModule === "commercial" && commercialEntitlement ? (
+                <CommercialEntitlementJourney
+                  key={selectedAccount?.accountId}
+                  owners={activeAccessRows.filter((row) => getValue(row, ["status"], "") === "ACTIVE" && getValue(row, ["roleFamily"], "") === "DISTRIBUTION_ADMIN" && getValue(row, ["permissionSet"], "") === "REFERRAL_SAAS_ACCOUNT_ADMIN")}
+                  accountRef={selectedAccount?.accountId || ""}
                   entitlement={commercialEntitlement}
                   error={commercialEntitlementError}
+                  externalTenantRef={selectedExternalTenantRef}
                   isLoading={isCommercialEntitlementLoading}
                   productionActivation={productionActivation}
                   productionActivationError={productionActivationError}
                   isProductionActivationLoading={isProductionActivationLoading}
                   selectedCustomerPath={selectedCustomerPath}
+                  onRefresh={async () => {
+                    await refetchCommercialEntitlement();
+                    await refetchProductionActivation();
+                  }}
                 />
               ) : null}
 
@@ -3534,7 +3547,7 @@ export function ReferralSaasAccountMaintenancePage() {
               </section>
               ) : null}
 
-              {selectedModule === "campaigns" ? (
+              {selectedModule === "campaigns" && solutionModuleAllowed(commercialEntitlement?.commercialEntitlement, "campaigns") ? (
                 customerSubModule === "new" ? (
                   <CustomerCampaignSetupCreatePage
                     customerName={customerName}
@@ -3589,7 +3602,7 @@ export function ReferralSaasAccountMaintenancePage() {
                 )
               ) : null}
 
-              {selectedModule === "referrals" ? (
+              {selectedModule === "referrals" && solutionModuleAllowed(commercialEntitlement?.commercialEntitlement, "referrals") ? (
                 <CustomerReferralsPage
                   customerName={customerName}
                   externalTenantRef={selectedExternalTenantRef}
@@ -3597,7 +3610,7 @@ export function ReferralSaasAccountMaintenancePage() {
                 />
               ) : null}
 
-              {selectedModule === "referrers" ? (
+              {selectedModule === "referrers" && solutionModuleAllowed(commercialEntitlement?.commercialEntitlement, "referrers") ? (
                 <CustomerReferrersPage
                   customerName={customerName}
                   externalTenantRef={selectedExternalTenantRef}
@@ -3605,7 +3618,7 @@ export function ReferralSaasAccountMaintenancePage() {
                 />
               ) : null}
 
-              {selectedModule === "links" ? (
+              {selectedModule === "links" && solutionModuleAllowed(commercialEntitlement?.commercialEntitlement, "links") ? (
                 <CustomerLinksAndCodesPage
                   customerName={customerName}
                   externalTenantRef={selectedExternalTenantRef}
@@ -3659,8 +3672,10 @@ export function ReferralSaasAccountMaintenancePage() {
                 />
               ) : null}
 
-              {selectedModule === "attribution" ? (
+              {selectedModule === "attribution" && solutionModuleAllowed(commercialEntitlement?.commercialEntitlement, "attribution") ? (
                 <CustomerCampaignAttributionPage
+                  allowCampaignAttribution={solutionIncluded(commercialEntitlement?.commercialEntitlement, "CAMPAIGN_ATTRIBUTION")}
+                  allowReferralManagement={solutionIncluded(commercialEntitlement?.commercialEntitlement, "REFERRAL_MANAGEMENT")}
                   customerName={customerName}
                   externalTenantRef={selectedExternalTenantRef}
                   selectedAccount={selectedAccount}
@@ -3668,7 +3683,7 @@ export function ReferralSaasAccountMaintenancePage() {
                 />
               ) : null}
 
-              {selectedModule === "progress" ? (
+              {selectedModule === "progress" && solutionModuleAllowed(commercialEntitlement?.commercialEntitlement, "progress") ? (
                 <CustomerModulePage
                   customerName={customerName}
                   customerQuery={customerQuery}
@@ -4618,11 +4633,15 @@ function CustomerCampaignsPage({
 }
 
 function CustomerCampaignAttributionPage({
+  allowCampaignAttribution,
+  allowReferralManagement,
   customerName,
   externalTenantRef,
   selectedAccount,
   selectedCustomerPath,
 }: {
+  allowCampaignAttribution: boolean;
+  allowReferralManagement: boolean;
   customerName: string;
   externalTenantRef: string;
   selectedAccount?: AccountRegistryItem;
@@ -4636,7 +4655,7 @@ function CustomerCampaignAttributionPage({
   } = useReferralSaasAccountCampaignAttribution(
     selectedAccount?.accountId || "",
     externalTenantRef,
-    Boolean(selectedAccount && externalTenantRef),
+    Boolean(selectedAccount && externalTenantRef && allowCampaignAttribution),
     refreshKey,
   );
   const {
@@ -4646,11 +4665,11 @@ function CustomerCampaignAttributionPage({
   } = useReferralSaasAccountReferralAttribution(
     selectedAccount?.accountId || "",
     externalTenantRef,
-    Boolean(selectedAccount && externalTenantRef),
+    Boolean(selectedAccount && externalTenantRef && allowReferralManagement),
     refreshKey,
   );
-  const attribution = attributionResponse?.campaignAttribution;
-  const referralAttribution = referralAttributionResponse?.referralAttribution;
+  const attribution = allowCampaignAttribution ? attributionResponse?.campaignAttribution : undefined;
+  const referralAttribution = allowReferralManagement ? referralAttributionResponse?.referralAttribution : undefined;
   const projections = attribution?.projections || [];
   const referralProjections = referralAttribution?.referralProjections || [];
   const referrerProjections = referralAttribution?.referrerProjections || [];
@@ -4666,9 +4685,9 @@ function CustomerCampaignAttributionPage({
           </div>
         </div>
         <div className="customer-header-actions">
-          <Link className="button secondary" to={`${selectedCustomerPath}/campaigns`}>
+          {allowReferralManagement ? <Link className="button secondary" to={`${selectedCustomerPath}/campaigns`}>
             Open campaigns
-          </Link>
+          </Link> : null}
           <StatusBadge label="Customer scoped" tone="success" />
         </div>
       </div>
@@ -6094,262 +6113,138 @@ function CustomerLinksAndCodesPage({
   );
 }
 
-function CustomerCommercialEntitlementPage({
+export function CommercialEntitlementJourney({
+  owners = [],
+  accountRef,
   entitlement,
   error,
+  externalTenantRef,
   isLoading,
   productionActivation,
   productionActivationError,
   isProductionActivationLoading,
   selectedCustomerPath,
+  onRefresh,
 }: {
+  owners?: Record<string, unknown>[];
+  accountRef: string;
   entitlement?: ReferralSaasCommercialEntitlementResponse;
   error: unknown;
+  externalTenantRef: string;
   isLoading: boolean;
   productionActivation?: ReferralSaasProductionActivationResponse;
   productionActivationError: unknown;
   isProductionActivationLoading: boolean;
   selectedCustomerPath: string;
+  onRefresh: () => Promise<void>;
 }) {
   const commercial = entitlement?.commercialEntitlement;
+  const evidence = commercial?.entitlementEvidence;
+  const configured = commercial?.overallStatus === "COMMERCIAL_READY";
+  const packages = commercial?.solutionPackages || [];
+  const initialPackage = commercial?.solutionPackage;
+  const [step, setStep] = useState(configured ? 3 : 0);
+  const [showEditor, setShowEditor] = useState(!configured);
+  const [message, setMessage] = useState<string | null>(null);
+  const [draft, setDraft] = useState({
+    planCode: initialPackage?.code || "",
+    planName: initialPackage?.name || "",
+    contractSource: configured ? commercial?.plan.contractSource || "APPROVED_CONTRACT" : "APPROVED_CONTRACT",
+    reference: evidence?.reference || "",
+    effectiveFrom: evidence?.effectiveFrom || new Date().toISOString().slice(0, 10),
+    effectiveUntil: evidence?.effectiveUntil || "",
+    responsibleOwner: evidence?.responsibleOwner || "",
+  });
+  const [retry, setRetry] = useState({ payload: "", key: "" });
+  const mutation = useMutation({
+    mutationFn: () => {
+      const payload = JSON.stringify(draft);
+      const key = retry.payload === payload ? retry.key : crypto.randomUUID();
+      setRetry({ payload, key });
+      return recordReferralSaasCommercialEntitlement({
+      accountRef,
+      accountScope: { refType: "external_tenant_ref", externalRef: externalTenantRef, context: "setup" },
+      entitlement: draft,
+      correlationId: crypto.randomUUID(),
+      idempotencyKey: key,
+    });
+    },
+    onSuccess: async () => {
+      setMessage("Commercial approval evidence recorded as an operator attestation.");
+      setShowEditor(false);
+      await onRefresh();
+      setStep(1);
+    },
+  });
+  const submit = (event: FormEvent) => { event.preventDefault(); mutation.mutate(); };
+  const limits = Object.entries(commercial?.limits || {});
   const activation = productionActivation?.productionActivation;
-  const featureRows = commercial?.features || [];
-  const nextActionRows = commercial?.nextActions || [];
-  const activationGateRows = activation?.gates || [];
-  const limitRows = Object.entries(commercial?.limits || {}).map(([key, value]) => ({
-    key,
-    value: String(value),
-  }));
-
+  const stages = [
+    { label: "Solution package", title: "Solution package", copy: "Choose the capabilities approved for this customer.", complete: configured },
+    { label: "Entitlement source", title: "Entitlement evidence", copy: "Record the approved non-financial source and accountable owner.", complete: configured },
+    { label: "Limits", title: "Package limits", copy: "Contractual quotas have not been configured. Existing service safety limits still apply.", complete: configured },
+    { label: "Commercial readiness", title: "Commercial ready", copy: "Confirm the commercial gate is clear before continuing toward production.", complete: commercial?.overallStatus === "COMMERCIAL_READY" },
+  ];
+  const selected = stages[step];
   return (
-    <section className="panel customer-module-page" id="commercial-entitlement">
-      <div className="panel-header">
-        <div>
-          <div className="page-kicker">Referral SaaS &gt; Plan and entitlement</div>
-          <h2 className="panel-title">Plan and entitlement</h2>
-          <div className="panel-subtitle">
-            Check whether this customer can move from safe setup into production Referral SaaS use.
-          </div>
-        </div>
-        <StatusBadge
-          label={commercial?.productionActivationBlocked ? "Launch blocked" : "Launch allowed"}
-          tone={commercial?.productionActivationBlocked ? "warning" : "success"}
-        />
-      </div>
-      <div className="panel-body route-list">
-        {isLoading ? <LoadingState label="Checking plan and entitlement posture" /> : null}
+    <section aria-labelledby="commercial-journey-title" className="account-establishment people-access-prototype" id="commercial-entitlement">
+      <h2 className="sr-only" id="commercial-journey-title">Commercial entitlement evidence</h2>
+      <nav aria-label="Commercial entitlement stages" className="account-establishment-steps">
+        {stages.map((stage, index) => (
+          <button aria-current={step === index ? "step" : undefined} className={`account-establishment-step people-access-step ${step === index ? "selected" : ""} ${stage.complete ? "complete" : ""}`} key={stage.label} onClick={() => setStep(index)} type="button">
+            <span className="account-establishment-step-marker">{stage.complete ? <CheckCircle2 aria-hidden="true" size={17} /> : index + 1}</span>
+            <span><strong>{stage.label}</strong><small>{stage.complete ? "Complete" : step === index ? "Selected" : "Available"}</small></span>
+          </button>
+        ))}
+      </nav>
+      <div className="account-establishment-main">
+        <header className="account-establishment-stage-header">
+          <span aria-hidden="true" className="account-establishment-stage-icon"><SlidersHorizontal size={23} /></span>
+          <div><span className="page-kicker">Step {step + 1} of 4</span><h2>{selected.title}</h2><p>{selected.copy}</p></div>
+        </header>
+        {isLoading ? <LoadingState label="Checking commercial entitlement" /> : null}
         {error ? <ErrorPanel error={error} /> : null}
         {commercial ? (
-          <>
-            <div className="wizard-status-card">
-              <div>
-                <strong>In plain English</strong>
-                <p>{commercial.plainLanguageSummary}</p>
-              </div>
-              <StatusBadge label={formatDisplay(commercial.overallStatus)} tone="warning" />
-            </div>
-            <div className="grid-3">
-              <KpiCard
-                label="Plan posture"
-                value={commercial.plan.planName}
-                footnote={formatDisplay(commercial.plan.planCode)}
-                icon={SlidersHorizontal}
-              />
-              <KpiCard
-                label="Launch allowed"
-                value={commercial.launchAllowed ? "Yes" : "No"}
-                footnote={
-                  commercial.productionActivationBlocked
-                    ? "Commercial entitlement source is still required"
-                    : "Commercial launch gate is clear"
-                }
-                icon={ShieldCheck}
-              />
-              <KpiCard
-                label="Contract source"
-                value={formatDisplay(commercial.plan.contractSource)}
-                footnote="Reference only, not billing"
-                icon={FileJson}
-              />
-            </div>
-            <div className="route-card">
-              <div>
-                <strong>What this page will not do</strong>
-                <p>
-                  It does not create subscriptions, billing records, invoices, payments, seats, credentials, campaigns,
-                  go-live actions, DLaaS finance scope, or money movement.
-                </p>
-              </div>
-              <StatusBadge label="No billing or money" tone="success" />
-            </div>
-            <div className="route-card">
-              <div>
-                <strong>Commercial finance boundary</strong>
-                <p>{commercial.commercialFinanceBoundary.nextAction}</p>
-                <p className="table-subtext">
-                  H1 only reads plan posture and launch entitlement fields. Deferred finance capability:{" "}
-                  {commercial.commercialFinanceBoundary.h1DeferredCapabilities.map(formatDisplay).join(", ")}.
-                </p>
-              </div>
-              <StatusBadge label={formatDisplay(commercial.commercialFinanceBoundary.scope)} tone="warning" />
-            </div>
-            <section className="route-card">
-              <div>
-                <strong>Production activation decision</strong>
-                <p>
-                  This is the backend launch decision. The UI cannot override it; campaign activation stays blocked
-                  until every required gate passes with current evidence.
-                </p>
-              </div>
-              {isProductionActivationLoading ? (
-                <LoadingState label="Checking production activation gates" />
-              ) : null}
-              {productionActivationError ? <ErrorPanel error={productionActivationError} /> : null}
-              {activation ? (
-                <>
-                  <div className="wizard-status-card">
-                    <div>
-                      <strong>{activation.launchAllowed ? "Ready for production launch" : "Production launch is blocked"}</strong>
-                      <p>{activation.plainLanguageSummary}</p>
-                    </div>
-                    <StatusBadge
-                      label={formatDisplay(activation.decisionStatus)}
-                      tone={activation.launchAllowed ? "success" : "warning"}
-                    />
-                  </div>
-                  <DataTable
-                    rows={activationGateRows}
-                    emptyText="No production activation gates returned."
-                    columns={[
-                      {
-                        key: "gate",
-                        header: "Gate",
-                        render: (row) => <strong>{formatDisplay(getValue(row, ["label"], "Gate"))}</strong>,
-                      },
-                      {
-                        key: "status",
-                        header: "Status",
-                        render: (row) => (
-                          <StatusBadge
-                            label={formatDisplay(getValue(row, ["status"], ""))}
-                            tone={statusTone(getValue(row, ["status"], ""))}
-                          />
-                        ),
-                      },
-                      {
-                        key: "reason",
-                        header: "What it means",
-                        render: (row) => getValue(row, ["reason"], ""),
-                      },
-                      {
-                        key: "next",
-                        header: "Next action",
-                        render: (row) => {
-                          const routeHint = getValue(row, ["routeHint"], "");
-                          const nextAction = getValue(row, ["nextAction"], "Open page");
-                          if (!routeHint || routeHint === "commercial") {
-                            return <span className="table-subtext">{nextAction}</span>;
-                          }
-                          return (
-                            <Link
-                              className="button secondary compact"
-                              to={buildCustomerModuleRoute(selectedCustomerPath, routeHint, "")}
-                            >
-                              {nextAction}
-                            </Link>
-                          );
-                        },
-                      },
-                    ]}
-                  />
-                </>
-              ) : null}
-            </section>
-            <DataTable
-              rows={featureRows}
-              emptyText="No entitlement features returned."
-              columns={[
-                {
-                  key: "feature",
-                  header: "Feature",
-                  render: (row) => <strong>{formatDisplay(getValue(row, ["label"], "Feature"))}</strong>,
-                },
-                {
-                  key: "status",
-                  header: "Status",
-                  render: (row) => (
-                    <StatusBadge
-                      label={formatDisplay(getValue(row, ["status"], ""))}
-                      tone={statusTone(getValue(row, ["status"], ""))}
-                    />
-                  ),
-                },
-                {
-                  key: "reason",
-                  header: "What it means",
-                  render: (row) => getValue(row, ["reason"], ""),
-                },
-                {
-                  key: "route",
-                  header: "Next page",
-                  render: (row) => {
-                    const routeHint = getValue(row, ["routeHint"], "");
-                    if (!routeHint || routeHint === "commercial") {
-                      return <span className="table-subtext">Stay here</span>;
-                    }
-                    return (
-                      <Link className="button secondary compact" to={buildCustomerModuleRoute(selectedCustomerPath, routeHint, "")}>
-                        Open {formatDisplay(routeHint)}
-                      </Link>
-                    );
-                  },
-                },
-              ]}
-            />
-            <div className="grid-2">
-              <section className="route-card">
-                <div>
-                  <strong>Next actions</strong>
-                  <p>These actions show what an operator should resolve before production activation.</p>
-                </div>
-                <div className="route-list compact">
-                  {nextActionRows.map((action) => (
-                    <div className="route-card" key={action.actionRef}>
-                      <div>
-                        <strong>{action.label}</strong>
-                        <p>{action.reason}</p>
-                      </div>
-                      <StatusBadge label={formatDisplay(action.status)} tone={statusTone(action.status)} />
-                    </div>
-                  ))}
-                </div>
-              </section>
-              <section className="route-card">
-                <div>
-                  <strong>Plan limits</strong>
-                  <p>These are reference limits for H1 setup posture. They are not invoice terms.</p>
-                </div>
-                <DataTable
-                  rows={limitRows}
-                  emptyText="No plan limits returned."
-                  columns={[
-                    {
-                      key: "limit",
-                      header: "Limit",
-                      render: (row) => <strong>{formatDisplay(row.key)}</strong>,
-                    },
-                    {
-                      key: "value",
-                      header: "Current value",
-                      render: (row) => row.value,
-                    },
-                  ]}
-                />
-              </section>
-            </div>
-          </>
+          <div className="account-establishment-evidence-grid">
+            {step === 0 ? <>
+              <div className="account-establishment-evidence"><span>Solution package</span><div><strong>{commercial.plan.planName}</strong><small>{formatDisplay(commercial.plan.planCode)}</small></div></div>
+              <div className="account-establishment-evidence"><span>Commercial status</span><div><strong>{configured ? "Configured" : "Not configured"}</strong><small>{configured ? "Evidence recorded" : "Action needed"}</small></div></div>
+            </> : null}
+            {step === 1 ? <>
+              <div className="account-establishment-evidence"><span>Entitlement source</span><div><strong>{formatDisplay(commercial.plan.contractSource)}</strong><small>{evidence?.reference || "Reference required"}</small></div></div>
+              <div className="account-establishment-evidence"><span>Responsible owner</span><div><strong>{String(owners.find((owner) => owner.membershipRef === evidence?.responsibleOwner)?.displayName || "Account owner needs confirmation in People & access")}</strong><small>{evidence?.effectiveFrom ? `Effective ${evidence.effectiveFrom}` : "Action needed"}</small></div></div>
+            </> : null}
+            {step === 2 && limits.length === 0 ? <p>No package limits configured. No volume, price, or service tier is implied by this package.</p> : null}
+            {step === 2 ? limits.map(([key, value]) => <div className="account-establishment-evidence" key={key}><span>{formatDisplay(key)}</span><div><strong>{formatDisplay(String(value))}</strong><small>Governed plan limit</small></div></div>) : null}
+            {step === 3 ? <>
+              <div className="account-establishment-evidence"><span>Commercial gate</span><div><strong>{configured ? "Ready" : "Incomplete"}</strong><small>{formatDisplay(commercial.overallStatus)}</small></div></div>
+              <div className="account-establishment-evidence"><span>Production decision</span><div><strong>{activation?.launchAllowed ? "Launch allowed" : "Further prerequisites remain"}</strong><small>{activation ? `${activation.blockedGateCount} blocked gate(s)` : "Checking evidence"}</small></div></div>
+            </> : null}
+          </div>
         ) : null}
+        {showEditor && (step === 0 || step === 1) ? (
+          <form className="account-establishment-editor" onSubmit={submit}>
+            <div className="account-establishment-editor-heading"><div><h3>Record commercial approval evidence</h3><p>This is an operator attestation of approval. The source reference is not verified against a contract system. Saving does not activate production or create billing.</p></div><StatusBadge label="Amplifi admin only" tone="info" /></div>
+            <div className="account-establishment-editor-grid">
+              <fieldset className="field"><legend>Solution package</legend>{packages.map((pkg) => <label className="account-establishment-evidence" key={pkg.code}><input aria-label={pkg.name} type="radio" name="solution-package" value={pkg.code} checked={draft.planCode === pkg.code} onChange={() => setDraft({ ...draft, planCode: pkg.code, planName: pkg.name })} /><span><strong>{pkg.name}{pkg.recommended ? " (Recommended)" : ""}</strong><small>{pkg.description}</small></span></label>)}</fieldset>
+              <label className="field"><span>Entitlement source</span><small>The record that authorises use of the selected solution.</small><select className="input" value={draft.contractSource} onChange={(e) => setDraft({ ...draft, contractSource: e.target.value })}><option value="APPROVED_CONTRACT">Approved contract</option><option value="SIGNED_ORDER_FORM">Signed order form</option><option value="INTERNAL_APPROVAL">Internal approval</option></select></label>
+              <label className="field"><span>Approval reference</span><small>Use the contract number, signed order-form number, or internal approval record ID.</small><input className="input" value={draft.reference} onChange={(e) => setDraft({ ...draft, reference: e.target.value })} /></label>
+              <label className="field"><span>Responsible Account owner</span><select className="input" value={draft.responsibleOwner} onChange={(e) => setDraft({ ...draft, responsibleOwner: e.target.value })}><option value="">Select from People &amp; access</option>{owners.map((owner) => <option key={String(owner.membershipRef)} value={String(owner.membershipRef)}>{String(owner.displayName || owner.subject || "Account owner")}</option>)}</select><small>An active Account owner must be assigned in People &amp; access.</small></label>
+              <label className="field"><span>Effective from</span><input className="input" type="date" value={draft.effectiveFrom} onChange={(e) => setDraft({ ...draft, effectiveFrom: e.target.value })} /></label>
+              <label className="field"><span>Effective until (optional)</span><input className="input" type="date" value={draft.effectiveUntil} onChange={(e) => setDraft({ ...draft, effectiveUntil: e.target.value })} /></label>
+            </div>
+            <div className="account-establishment-editor-actions"><button className="button secondary" onClick={() => setShowEditor(false)} type="button">Cancel</button><button className="button" disabled={!draft.planCode || !draft.reference.trim() || !owners.some((owner) => owner.membershipRef === draft.responsibleOwner) || mutation.isPending} type="submit">{mutation.isPending ? "Recording evidence" : "Record commercial approval evidence"}</button></div>
+            {mutation.error ? <ErrorPanel error={mutation.error} /> : null}{message ? <div className="wizard-summary-strip success"><strong>{message}</strong></div> : null}
+          </form>
+        ) : null}
+        {step === 3 && isProductionActivationLoading ? <LoadingState label="Checking production readiness" /> : null}
+        {step === 3 && productionActivationError ? <ErrorPanel error={productionActivationError} /> : null}
+        <footer className="account-establishment-stage-actions">
+          <div className="account-establishment-stage-secondary">{step > 0 ? <button className="button secondary" onClick={() => setStep(step - 1)} type="button">Previous step</button> : <Link className="button secondary" to={selectedCustomerPath}>Return to overview</Link>}{!showEditor && (step === 0 || step === 1) ? <button className="button secondary" onClick={() => setShowEditor(true)} type="button">{configured ? "Update entitlement" : "Record commercial approval evidence"}</button> : null}{step === 3 ? <Link className="button secondary" to={buildCustomerModuleRoute(selectedCustomerPath, "health", "")}>Review production diagnostics</Link> : null}</div>
+          {step < 3 ? <button className="button" disabled={(step === 0 || step === 1) && !configured} onClick={() => setStep(step + 1)} type="button">Continue to {stages[step + 1].label}</button> : configured ? <Link className="button" to={selectedCustomerPath}>Complete Commercial entitlement</Link> : <button className="button" disabled type="button">Complete Commercial entitlement</button>}
+        </footer>
       </div>
+      <aside className="account-establishment-governance"><ShieldCheck aria-hidden="true" size={30} /><span className="page-kicker">Governed evidence</span><h2>Your solution, your approval.</h2><p>Commercial readiness is visible here, while billing, invoices, payments and money movement remain outside this journey.</p><Link to={buildCustomerModuleRoute(selectedCustomerPath, "health", "")}>View audit evidence</Link></aside>
     </section>
   );
 }

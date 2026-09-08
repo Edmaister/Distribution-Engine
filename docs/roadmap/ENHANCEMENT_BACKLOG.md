@@ -427,3 +427,16 @@ Risks: Building this before safe status and tenant isolation could leak sensitiv
 Priority: Later / P3.
 Blocked by: Tenant isolation, public API contracts, partner/customer safe statuses.
 Recommended task breakdown: Define branding config; define domain verification flow; define allowed origins; define embed client/token; define SDK candidates; add security tests.
+
+
+### TASK-464 commercial solution package correction (2026-09-08)
+
+Referral SaaS / Shared Platform; source duplication: No. The Commercial journey
+now records Referral Management, Campaign Attribution, or their composed package
+through the existing account metadata and audit command. It validates an active
+Account owner and effective dates, enforces packaged customer routes, filters
+navigation, and displays unconfigured limits honestly. Campaign registration and
+composite validation remain shared prerequisites; arbitrary external campaign
+ingestion and financial operations are not introduced. See
+`docs/sa/referral-saas/REFERRAL_SAAS_COMMERCIAL_FINANCE_BOUNDARY.md` for the verified
+architecture, compatibility treatment and proof scope.

@@ -3075,3 +3075,16 @@ No task may fork account registry/onboarding services, invent absent prototype f
 - TASK-455 is complete: Customer Accounts and Create customer now use the approved prototype's content measure, title and copy scale, tab density, form hierarchy, and responsive spacing without changing any governed command or lifecycle.
 - TASK-456 is complete: Customer Accounts discovery now uses the quiet Amplifi Global operations shell, explicit URL-restorable search, compact prototype-aligned guidance, stable real-data result columns, and responsive labels without changing the permission-safe portfolio API or customer lifecycle.
 
+
+
+### TASK-464 commercial solution package correction (2026-09-08)
+
+Referral SaaS / Shared Platform; source duplication: No. The Commercial journey
+now records Referral Management, Campaign Attribution, or their composed package
+through the existing account metadata and audit command. It validates an active
+Account owner and effective dates, enforces packaged customer routes, filters
+navigation, and displays unconfigured limits honestly. Campaign registration and
+composite validation remain shared prerequisites; arbitrary external campaign
+ingestion and financial operations are not introduced. See
+`docs/sa/referral-saas/REFERRAL_SAAS_COMMERCIAL_FINANCE_BOUNDARY.md` for the verified
+architecture, compatibility treatment and proof scope.

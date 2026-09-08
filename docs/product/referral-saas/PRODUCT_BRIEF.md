@@ -84,3 +84,13 @@ status, audit evidence, and report.
 
 Compatibility does not mean DLaaS expansion work is required for first launch.
 
+
+
+## Commercial solution packages
+
+TASK-464 defines Referral Management, Campaign Attribution, and their composed
+package. The package selects customer capabilities, not a price or service tier.
+Campaign Attribution uses registered campaign evidence supplied through the
+existing platform primitives. The Commercial finance boundary document records
+the verified dependencies, scoped API enforcement, attested approval evidence,
+and the limits of this packaging. Shared source remains single-source.

@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import date
 import json
 from typing import Any, Iterable
 
 from utils.db import db_connection
+from services.referral_saas_solution_packages import (
+    SOLUTION_PACKAGES, evidence_is_current, package_for, package_modules,
+)
 
 ACTIVE_ACCOUNT_STATUSES = frozenset({"ACTIVE"})
 ACTIVE_EXTERNAL_REFERENCE_STATUSES = frozenset({"ACTIVE"})
@@ -81,13 +85,21 @@ ALLOWED_CUSTOMER_TYPES = frozenset(
 )
 COMMERCIAL_ENTITLEMENT_GUARDRAILS = [
     "REFERRAL_SAAS_H1_ENTITLEMENT_POSTURE",
-    "READ_ONLY_COMMERCIAL_POSTURE",
-    "PLAN_LIMIT_REFERENCE_ONLY",
+    "MINIMUM_ENTITLEMENT_EVIDENCE_ONLY",
+    "NO_CONTRACTUAL_LIMITS_CONFIGURED",
     "NO_BILLING_RECORD_CREATED",
     "NO_INVOICE_CREATED",
     "NO_PAYMENT_OR_MONEY_MOVEMENT",
     "NO_DLAAS_FINANCE_SCOPE",
 ]
+COMMERCIAL_ENTITLEMENT_MAINTENANCE_ROLES = PROFILE_MAINTENANCE_ROLES
+COMMERCIAL_ENTITLEMENT_PLAN_CODES = frozenset(
+    SOLUTION_PACKAGES
+)
+COMMERCIAL_ENTITLEMENT_CONTRACT_SOURCES = frozenset(
+    {"APPROVED_CONTRACT", "SIGNED_ORDER_FORM", "INTERNAL_APPROVAL"}
+)
+COMMERCIAL_ENTITLEMENT_EVENT_TYPE = "COMMERCIAL_ENTITLEMENT_RECORDED"
 COMMERCIAL_ENTITLEMENT_REDACTIONS = [
     "internal_tenant_identifier",
     "billing_account_identifier",
@@ -99,6 +111,10 @@ COMMERCIAL_FINANCE_H1_ENTITLEMENT_FIELDS = [
     "planCode",
     "planName",
     "contractSource",
+    "entitlementReference",
+    "effectiveFrom",
+    "effectiveUntil",
+    "responsibleOwner",
     "launchAllowed",
     "productionActivationBlocked",
     "referenceLimits",
@@ -235,6 +251,31 @@ class AccountProfileUnsafePayload(AccountProfileMaintenanceError):
     safe_code = "REJECTED_UNSAFE_PAYLOAD"
 
 
+class CommercialEntitlementMaintenanceError(Exception):
+    safe_code = "COMMERCIAL_ENTITLEMENT_MAINTENANCE_FAILED"
+
+    def __init__(self, message: str, *, safe_code: str | None = None):
+        super().__init__(message)
+        if safe_code:
+            self.safe_code = safe_code
+
+
+class CommercialEntitlementPermissionDenied(CommercialEntitlementMaintenanceError):
+    safe_code = "PERMISSION_DENIED"
+
+
+class CommercialEntitlementValidationError(CommercialEntitlementMaintenanceError):
+    safe_code = "VALIDATION_ERROR"
+
+
+class CommercialEntitlementNotFound(CommercialEntitlementMaintenanceError):
+    safe_code = "ACCOUNT_NOT_FOUND"
+
+
+class CommercialEntitlementIdempotencyConflict(CommercialEntitlementMaintenanceError):
+    safe_code = "IDEMPOTENCY_CONFLICT"
+
+
 class AccountFoundationActivationError(Exception):
     safe_code = "ACCOUNT_FOUNDATION_ACTIVATION_FAILED"
 
@@ -285,6 +326,8 @@ class AccountFoundationContext:
     tenant_link_status: str | None
     is_primary: bool
     source: str = "external_reference"
+    account_metadata: dict[str, Any] = field(default_factory=dict)
+    commercial_owner_active: bool = False
 
     def to_safe_dict(self, *, include_internal: bool = False) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -508,6 +551,12 @@ class CommercialEntitlementProjection:
     plain_language_summary: str
     guardrails: tuple[str, ...]
     redactions: tuple[str, ...]
+    entitlement_reference: str | None = None
+    effective_from: str | None = None
+    effective_until: str | None = None
+    responsible_owner: str | None = None
+    solution_package: dict[str, Any] | None = None
+    enabled_modules: tuple[str, ...] = ()
 
     def to_safe_dict(self) -> dict[str, Any]:
         return {
@@ -521,6 +570,17 @@ class CommercialEntitlementProjection:
                 "planCode": self.plan_code,
                 "planName": self.plan_name,
                 "contractSource": self.contract_source,
+            },
+            "solutionPackages": list(SOLUTION_PACKAGES.values()),
+            "solutionPackage": self.solution_package,
+            "enabledModules": list(self.enabled_modules),
+            "limitsStatus": "NOT_CONFIGURED",
+            "entitlementEvidence": {
+                "verificationStatus": "OPERATOR_ATTESTATION",
+                "reference": self.entitlement_reference,
+                "effectiveFrom": self.effective_from,
+                "effectiveUntil": self.effective_until,
+                "responsibleOwner": self.responsible_owner,
             },
             "launchAllowed": self.launch_allowed,
             "productionActivationBlocked": self.production_activation_blocked,
@@ -736,6 +796,8 @@ def _as_context(row: dict[str, Any]) -> AccountFoundationContext:
             str(row["tenant_link_status"]) if row.get("tenant_link_status") else None
         ),
         is_primary=bool(row.get("is_primary")),
+        account_metadata=_json_object(row.get("account_metadata")),
+        commercial_owner_active=bool(row.get("commercial_owner_active")),
     )
 
 
@@ -763,6 +825,16 @@ async def resolve_account_by_external_reference(
                 account.account_type,
                 account.status AS account_status,
                 account.onboarding_status,
+                COALESCE(account.metadata, '{}'::jsonb) AS account_metadata,
+                EXISTS (
+                    SELECT 1 FROM platform_memberships owner
+                    WHERE owner.account_id = account.account_id
+                      AND owner.membership_id::text = account.metadata->'referral_saas_commercial_entitlement'->>'responsible_owner'
+                      AND owner.status = 'ACTIVE' AND owner.role_family = 'DISTRIBUTION_ADMIN'
+                      AND owner.permission_set = 'REFERRAL_SAAS_ACCOUNT_ADMIN'
+                      AND owner.user_id IS NOT NULL
+                      AND (owner.tenant_code = external_ref.tenant_code OR owner.tenant_code IS NULL)
+                ) AS commercial_owner_active,
                 COALESCE(account.operating_jurisdiction_code, 'ZA') AS operating_jurisdiction_code,
                 external_ref.external_ref_id,
                 external_ref.ref_type,
@@ -1415,13 +1487,18 @@ def build_referral_saas_commercial_entitlement_projection(
     if not reference_active:
         disabled_reasons.append("CUSTOMER_REFERENCE_NOT_ACTIVE")
 
-    # H1 has entitlement posture, not a billing/subscription system. Keep this
-    # visible so production activation cannot imply an invoice or payment exists.
-    disabled_reasons.append("COMMERCIAL_ENTITLEMENT_SOURCE_NOT_CONFIGURED")
+    configured = _json_object(account_context.account_metadata.get("referral_saas_commercial_entitlement"))
+    contract_source = _safe_text(configured.get("contract_source")).upper()
+    entitlement_configured = evidence_is_current(configured) and account_context.commercial_owner_active
+    solution_package = package_for(configured)
+    if not entitlement_configured:
+        disabled_reasons.append("COMMERCIAL_ENTITLEMENT_SOURCE_NOT_CONFIGURED")
+    if configured and not account_context.commercial_owner_active:
+        disabled_reasons.append("COMMERCIAL_OWNER_NOT_ACTIVE")
 
-    launch_allowed = False
-    overall_status = "COMMERCIAL_SETUP_REQUIRED"
-    commercial_status = "REFERENCE_POSTURE_ONLY"
+    launch_allowed = production_foundation_ready and entitlement_configured
+    overall_status = "COMMERCIAL_READY" if launch_allowed else "COMMERCIAL_SETUP_REQUIRED"
+    commercial_status = "ENTITLEMENT_RECORDED" if entitlement_configured else "REFERENCE_POSTURE_ONLY"
     environment_status = (
         "CUSTOMER_FOUNDATION_READY"
         if production_foundation_ready
@@ -1461,8 +1538,8 @@ def build_referral_saas_commercial_entitlement_projection(
         CommercialEntitlementFeature(
             feature_ref="PRODUCTION_ACTIVATION",
             label="Production activation",
-            status="BLOCKED",
-            reason="A contracted plan or launch entitlement source has not been configured.",
+            status="READY" if launch_allowed else "BLOCKED",
+            reason=("Commercial entitlement evidence is recorded." if entitlement_configured else "Current approval, a supported solution package and an active Account owner are required."),
             route_hint="commercial",
         ),
         CommercialEntitlementFeature(
@@ -1473,11 +1550,19 @@ def build_referral_saas_commercial_entitlement_projection(
             route_hint="commercial",
         ),
     )
+    features = tuple(
+        CommercialEntitlementFeature(
+            feature_ref=feature.feature_ref, label=feature.label,
+            status="NOT_INCLUDED", reason="Not included in the selected solution package.",
+            route_hint=feature.route_hint,
+        ) if solution_package and feature.route_hint == "campaigns" and "campaigns" not in package_modules(configured) else feature
+        for feature in features
+    )
     next_actions = (
         WorkspaceOverviewAction(
             action_ref="record_commercial_entitlement_source",
             label="Record the commercial entitlement source",
-            status="BLOCKED",
+            status="READY" if entitlement_configured else "BLOCKED",
             priority="FIRST",
             route_hint="commercial",
             reason="Production-capable actions need an explicit plan or entitlement source before launch.",
@@ -1494,8 +1579,9 @@ def build_referral_saas_commercial_entitlement_projection(
         ),
     )
     plain_summary = (
-        f"{account_context.account_name} can stay in safe setup mode, but production activation is blocked until a "
-        "commercial entitlement source is configured. No billing, invoice, payment, or money movement exists here."
+        f"{account_context.account_name} has recorded commercial entitlement evidence. No billing, invoice, payment, or money movement was created."
+        if entitlement_configured
+        else f"{account_context.account_name} can stay in safe setup mode, but production activation requires a supported solution package, current approval dates and an active Account owner. No billing, invoice, payment, or money movement exists here."
     )
 
     return CommercialEntitlementProjection(
@@ -1505,25 +1591,24 @@ def build_referral_saas_commercial_entitlement_projection(
         overall_status=overall_status,
         commercial_status=commercial_status,
         environment_status=environment_status,
-        plan_code="REFERRAL_SAAS_H1_REFERENCE",
-        plan_name="Referral SaaS H1 reference posture",
-        contract_source="NOT_CONFIGURED",
+        plan_code=_safe_text(configured.get("plan_code")) or "REFERRAL_SAAS_H1_REFERENCE",
+        plan_name=solution_package["name"] if solution_package else "Solution package not selected",
+        contract_source=contract_source or "NOT_CONFIGURED",
         launch_allowed=launch_allowed,
-        production_activation_blocked=True,
-        limits={
-            "source": "REFERENCE_POSTURE_NOT_BILLING",
-            "operatingJurisdictionCode": account_context.operating_jurisdiction_code,
-            "campaignsPerCustomer": "REVIEW_REQUIRED",
-            "monthlyReferralEvents": "REVIEW_REQUIRED",
-            "reportExportRows": 50000,
-            "messageChannels": "CONFIGURED_IN_INTEGRATIONS",
-        },
+        production_activation_blocked=not launch_allowed,
+        limits={},
         features=features,
         disabled_reasons=tuple(disabled_reasons),
         next_actions=next_actions,
         plain_language_summary=plain_summary,
         guardrails=tuple(COMMERCIAL_ENTITLEMENT_GUARDRAILS),
         redactions=tuple(COMMERCIAL_ENTITLEMENT_REDACTIONS),
+        entitlement_reference=_safe_text(configured.get("entitlement_reference")) or None,
+        effective_from=_safe_text(configured.get("effective_from")) or None,
+        effective_until=_safe_text(configured.get("effective_until")) or None,
+        responsible_owner=_safe_text(configured.get("responsible_owner")) or None,
+        solution_package=solution_package,
+        enabled_modules=tuple(package_modules(configured)) if entitlement_configured else (),
     )
 
 
@@ -1546,6 +1631,7 @@ def build_referral_saas_production_activation_decision(
     )
     people_ready = _safe_text(people_access_status).upper() == "ACCESS_READY"
     integrations_ready = _safe_text(integrations_status).upper() == "READY"
+    attribution_only = commercial.plan_code == "CAMPAIGN_ATTRIBUTION"
     campaign_ready = _safe_text(campaign_status).upper() == "READY_TO_ACTIVATE"
     commercial_ready = commercial.launch_allowed and not commercial.production_activation_blocked
     evidence_ready = _safe_text(evidence_freshness_status).upper() == "FRESH"
@@ -1589,15 +1675,16 @@ def build_referral_saas_production_activation_decision(
         ),
         ProductionActivationGate(
             gate_ref="CAMPAIGN_READINESS",
-            label="Campaign readiness",
+            label="Registered campaign evidence" if attribution_only else "Campaign readiness",
             status="PASS" if campaign_ready else "BLOCKED",
             reason=(
                 "Campaign readiness has been checked for activation."
                 if campaign_ready
+                else "Confirm registered, active campaign evidence through platform administration." if attribution_only
                 else "Select a reviewed campaign and run the campaign activation checklist."
             ),
-            next_action="Open Campaigns",
-            route_hint="campaigns",
+            next_action="Review campaign evidence" if attribution_only else "Open Campaigns",
+            route_hint="attribution" if attribution_only else "campaigns",
         ),
         ProductionActivationGate(
             gate_ref="COMMERCIAL_ENTITLEMENT",
@@ -1877,6 +1964,138 @@ async def update_referral_saas_account_profile(
         guardrails=list(PROFILE_MAINTENANCE_GUARDRAILS),
         redactions=list(PROFILE_MAINTENANCE_REDACTIONS),
     )
+
+
+async def record_referral_saas_commercial_entitlement(
+    *,
+    account_ref: str,
+    plan_code: str,
+    plan_name: str,
+    contract_source: str,
+    entitlement_reference: str,
+    effective_from: str,
+    effective_until: str | None,
+    responsible_owner: str,
+    actor_ref: str,
+    actor_role: str,
+    correlation_id: str,
+    idempotency_key_hash: str,
+    command_payload_hash: str,
+) -> dict[str, Any]:
+    role = _safe_text(actor_role).upper()
+    if role not in COMMERCIAL_ENTITLEMENT_MAINTENANCE_ROLES:
+        raise CommercialEntitlementPermissionDenied(
+            "Actor is not authorised to record commercial entitlement evidence."
+        )
+    safe_account_ref = _safe_text(account_ref)
+    safe_plan_code = _safe_text(plan_code).upper()
+    safe_plan_name = (SOLUTION_PACKAGES.get(safe_plan_code) or {}).get("name", "")
+    safe_contract_source = _safe_text(contract_source).upper()
+    safe_entitlement_reference = _safe_text(entitlement_reference)
+    safe_effective_from = _safe_text(effective_from)
+    safe_effective_until = _safe_text(effective_until) or None
+    safe_owner = _safe_text(responsible_owner)
+    if safe_plan_code not in COMMERCIAL_ENTITLEMENT_PLAN_CODES:
+        raise CommercialEntitlementValidationError("Solution package is not supported.")
+    if not 2 <= len(safe_plan_name) <= 120:
+        raise CommercialEntitlementValidationError("Plan name must be between 2 and 120 characters.")
+    if safe_contract_source not in COMMERCIAL_ENTITLEMENT_CONTRACT_SOURCES:
+        raise CommercialEntitlementValidationError("Entitlement source is not supported.")
+    if not 3 <= len(safe_entitlement_reference) <= 120:
+        raise CommercialEntitlementValidationError("Entitlement reference must be between 3 and 120 characters.")
+    if not 2 <= len(safe_owner) <= 120:
+        raise CommercialEntitlementValidationError("Responsible owner must be between 2 and 120 characters.")
+    try:
+        start_date = date.fromisoformat(safe_effective_from)
+        end_date = date.fromisoformat(safe_effective_until) if safe_effective_until else None
+    except ValueError as exc:
+        raise CommercialEntitlementValidationError("Effective dates must use YYYY-MM-DD.") from exc
+    if end_date and end_date < start_date:
+        raise CommercialEntitlementValidationError("Effective until cannot be before effective from.")
+
+    safe_idempotency_hash = _safe_text(idempotency_key_hash)
+    safe_payload_hash = _safe_text(command_payload_hash)
+    evidence = {
+        "plan_code": safe_plan_code,
+        "plan_name": safe_plan_name,
+        "contract_source": safe_contract_source,
+        "entitlement_reference": safe_entitlement_reference,
+        "effective_from": safe_effective_from,
+        "effective_until": safe_effective_until,
+        "responsible_owner": safe_owner,
+        "command_payload_hash": safe_payload_hash,
+        "no_billing_record_created_confirmed": True,
+        "no_invoice_created_confirmed": True,
+        "no_payment_or_money_movement_confirmed": True,
+        "no_dlaas_finance_scope_confirmed": True,
+    }
+    if not safe_idempotency_hash or not safe_payload_hash:
+        raise CommercialEntitlementValidationError("Idempotency and payload hashes are required.")
+    async with db_connection() as conn:
+        async with conn.transaction():
+            current = await conn.fetchrow(
+                """SELECT account_id, status, metadata FROM platform_accounts
+                WHERE (account_id::text = $1 OR account_code = $1)
+                  AND archived_at IS NULL LIMIT 1 FOR UPDATE""", safe_account_ref,
+            )
+            if not current:
+                raise CommercialEntitlementNotFound("Account was not found.")
+            replay = await conn.fetchrow(
+                """SELECT account_audit_event_id, evidence_summary
+                FROM platform_account_audit_events
+                WHERE account_id = $1::uuid AND event_type = $2 AND idempotency_key_hash = $3
+                ORDER BY created_at DESC LIMIT 1""",
+                str(current["account_id"]), COMMERCIAL_ENTITLEMENT_EVENT_TYPE, safe_idempotency_hash,
+            )
+            if replay:
+                replay_evidence = _json_object(replay["evidence_summary"])
+                if replay_evidence.get("command_payload_hash") != safe_payload_hash:
+                    raise CommercialEntitlementIdempotencyConflict("Idempotency key was reused with different entitlement evidence.")
+                return {
+                    "commandStatus": "COMMERCIAL_ENTITLEMENT_REPLAYED", "idempotencyStatus": "REPLAYED",
+                    "auditEventId": str(replay["account_audit_event_id"]),
+                    "evidence": {k: v for k, v in replay_evidence.items() if k != "command_payload_hash"},
+                }
+            if _safe_text(current["status"]).upper() not in PROFILE_MAINTENANCE_ACCOUNT_STATUSES:
+                raise CommercialEntitlementValidationError("Account is not in a maintainable state.")
+            owner = await conn.fetchrow(
+                """SELECT membership_id FROM platform_memberships
+                WHERE account_id = $1::uuid AND membership_id::text = $2
+                  AND status = 'ACTIVE' AND role_family = 'DISTRIBUTION_ADMIN'
+                  AND permission_set = 'REFERRAL_SAAS_ACCOUNT_ADMIN' AND user_id IS NOT NULL
+                  AND (tenant_code IS NULL OR tenant_code IN (
+                    SELECT tenant_code FROM platform_account_tenants
+                    WHERE account_id = $1::uuid AND archived_at IS NULL
+                  )) FOR SHARE""", str(current["account_id"]), safe_owner,
+            )
+            if not owner:
+                raise CommercialEntitlementValidationError("Select an active Account owner from this customer's People & access.")
+            await conn.execute(
+                """UPDATE platform_accounts
+                SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
+                    'referral_saas_commercial_entitlement', $2::jsonb),
+                    updated_by_ref = $3, updated_at = NOW()
+                WHERE account_id = $1::uuid""",
+                str(current["account_id"]), _jsonb(evidence), _safe_text(actor_ref),
+            )
+            previous = _json_object(_json_object(current["metadata"]).get("referral_saas_commercial_entitlement"))
+            audit = await conn.fetchrow(
+                """INSERT INTO platform_account_audit_events (
+                    account_id, event_type, event_status, actor_ref, actor_role,
+                    previous_status, next_status, reason_code, correlation_id,
+                    idempotency_key_hash, evidence_summary, redactions
+                ) VALUES ($1::uuid, $2, 'RECORDED', $3, $4, $5, 'ENTITLEMENT_RECORDED',
+                    'COMMERCIAL_ENTITLEMENT_EVIDENCE_RECORDED', $6, $7, $8::jsonb, $9::jsonb)
+                RETURNING account_audit_event_id""",
+                str(current["account_id"]), COMMERCIAL_ENTITLEMENT_EVENT_TYPE,
+                _safe_text(actor_ref), role, "ENTITLEMENT_RECORDED" if previous else "COMMERCIAL_SETUP_REQUIRED",
+                _safe_text(correlation_id), safe_idempotency_hash, _jsonb(evidence), _jsonb(COMMERCIAL_ENTITLEMENT_REDACTIONS),
+            )
+    return {
+        "commandStatus": "COMMERCIAL_ENTITLEMENT_RECORDED", "idempotencyStatus": "RECORDED",
+        "auditEventId": str(audit["account_audit_event_id"]),
+        "evidence": {k: v for k, v in evidence.items() if k != "command_payload_hash"},
+    }
 
 
 async def activate_referral_saas_account_foundation(
