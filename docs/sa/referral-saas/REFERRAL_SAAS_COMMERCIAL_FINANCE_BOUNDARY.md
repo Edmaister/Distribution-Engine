@@ -16,9 +16,11 @@ setup can move toward production-capable use:
 - `productionActivationBlocked`
 - reference limits, such as campaign/event/export posture
 
-These fields are read-only posture and launch-gate evidence. They are not a
-billing account, subscription, invoice, payment, payout, funding reservation, or
-settlement instruction.
+These fields are launch-gate evidence. TASK-464 permits Amplifi Admin to record
+the minimum non-financial entitlement source, reference, effective window, and
+responsible owner against the existing customer account with idempotency and
+audit evidence. They are not a billing account, subscription, invoice, payment,
+payout, funding reservation, or settlement instruction.
 
 ## Deferred Commercial Finance Capabilities
 
@@ -50,7 +52,8 @@ workstream when the product needs:
 
 ## UI And API Guardrails
 
-- H1 UI may show plan posture, launch blockers, and no-money boundaries.
+- H1 UI may show plan posture, launch blockers, no-money boundaries, and the
+  governed minimum entitlement-evidence action defined by TASK-464.
 - H1 UI must not show billing, invoice, funding, settlement, payout, wallet, or
   treasury actions as Referral SaaS product actions.
 - H1 APIs must not expose Referral SaaS write routes for billing, invoices,

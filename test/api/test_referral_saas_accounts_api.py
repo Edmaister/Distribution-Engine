@@ -4942,6 +4942,10 @@ async def test_referral_saas_account_reader_can_read_commercial_entitlement(
         "planCode",
         "planName",
         "contractSource",
+        "entitlementReference",
+        "effectiveFrom",
+        "effectiveUntil",
+        "responsibleOwner",
         "launchAllowed",
         "productionActivationBlocked",
         "referenceLimits",
@@ -5000,6 +5004,55 @@ async def test_referral_saas_commercial_entitlement_rejects_path_scope_mismatch(
     assert response.status_code == 400
     detail = response.json()["detail"]
     assert detail["code"] == "REJECTED_UNSAFE_SCOPE"
+
+
+async def test_referral_saas_admin_records_commercial_entitlement_evidence(monkeypatch):
+    recorded: list[dict] = []
+    configured = False
+
+    async def fake_resolve_setup_account_by_external_reference(**kwargs):
+        metadata = {}
+        if configured:
+            metadata = {
+                "referral_saas_commercial_entitlement": {
+                    "plan_code": "REFERRAL_SAAS_H1_STANDARD",
+                    "plan_name": "Referral SaaS H1 standard",
+                    "contract_source": "SIGNED_ORDER_FORM",
+                    "entitlement_reference": "SO-2026-0042",
+                    "effective_from": "2026-09-08",
+                    "effective_until": None,
+                    "responsible_owner": "Commercial Operations",
+                }
+            }
+        return _context(account_id="acct-1", account_code="ACCT_FNB", account_metadata=metadata)
+
+    async def fake_record_referral_saas_commercial_entitlement(**kwargs):
+        nonlocal configured
+        recorded.append(kwargs)
+        configured = True
+        return {"commandStatus": "COMMERCIAL_ENTITLEMENT_RECORDED", "idempotencyStatus": "RECORDED", "auditEventId": "audit-1"}
+
+    monkeypatch.setattr(referral_saas_accounts, "resolve_setup_account_by_external_reference", fake_resolve_setup_account_by_external_reference)
+    monkeypatch.setattr(referral_saas_accounts, "record_referral_saas_commercial_entitlement", fake_record_referral_saas_commercial_entitlement)
+
+    payload = {
+        "accountScope": {"refType": "external_tenant_ref", "externalRef": "fnb-referrals", "context": "setup"},
+        "entitlement": {
+            "planCode": "REFERRAL_SAAS_H1_STANDARD", "planName": "Referral SaaS H1 standard",
+            "contractSource": "SIGNED_ORDER_FORM", "reference": "SO-2026-0042",
+            "effectiveFrom": "2026-09-08", "responsibleOwner": "Commercial Operations",
+        },
+        "correlationId": "corr-commercial-1", "idempotencyKey": "idem-commercial-1",
+    }
+    async with AsyncClient(app=app, base_url="http://test", headers=ADMIN_HEADERS) as client:
+        response = await client.put("/v1/referral-saas/accounts/acct-1/commercial-entitlement", json=payload)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["commercialEntitlement"]["overallStatus"] == "COMMERCIAL_READY"
+    assert body["commercialEntitlement"]["entitlementEvidence"]["reference"] == "SO-2026-0042"
+    assert body["no_payment_or_money_movement_confirmed"] is True
+    assert recorded[0]["actor_role"] == "ADMIN"
 
 
 async def test_referral_saas_account_reader_can_read_production_activation(

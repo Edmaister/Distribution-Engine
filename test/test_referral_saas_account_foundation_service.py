@@ -214,6 +214,41 @@ async def test_commercial_entitlement_projection_blocks_launch_without_entitleme
     assert projection["noDlaasFinanceScopeConfirmed"] is True
 
 
+async def test_commercial_entitlement_projection_clears_gate_from_recorded_evidence():
+    context = svc.AccountFoundationContext(
+        **_row(
+            operating_jurisdiction_code="ZA",
+            account_metadata={
+                "referral_saas_commercial_entitlement": {
+                    "plan_code": "REFERRAL_SAAS_H1_STANDARD",
+                    "plan_name": "Referral SaaS H1 standard",
+                    "contract_source": "SIGNED_ORDER_FORM",
+                    "entitlement_reference": "SO-2026-0042",
+                    "effective_from": "2026-09-08",
+                    "effective_until": None,
+                    "responsible_owner": "Commercial Operations",
+                }
+            },
+        )
+    )
+
+    projection = svc.build_referral_saas_commercial_entitlement_projection(
+        account_context=context,
+    ).to_safe_dict()
+
+    assert projection["overallStatus"] == "COMMERCIAL_READY"
+    assert projection["launchAllowed"] is True
+    assert projection["productionActivationBlocked"] is False
+    assert projection["plan"]["contractSource"] == "SIGNED_ORDER_FORM"
+    assert projection["entitlementEvidence"] == {
+        "reference": "SO-2026-0042",
+        "effectiveFrom": "2026-09-08",
+        "effectiveUntil": None,
+        "responsibleOwner": "Commercial Operations",
+    }
+    assert "COMMERCIAL_ENTITLEMENT_SOURCE_NOT_CONFIGURED" not in projection["disabledReasons"]
+
+
 async def test_production_activation_decision_blocks_incomplete_gates():
     context = svc.AccountFoundationContext(
         **_row(operating_jurisdiction_code="ZA")

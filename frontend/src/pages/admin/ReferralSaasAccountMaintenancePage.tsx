@@ -82,6 +82,7 @@ import {
   publishReferralSaasAccountJourneyDraft,
   publishReferralSaasProgrammeDraft,
   recordReferralSaasAccountCampaignReviewDecision,
+  recordReferralSaasCommercialEntitlement,
   recordReferralSaasApiAccessVerification,
   recordReferralSaasIntegrationCredentialRequest,
   recordReferralSaasIntegrationCredentialExecutionCheck,
@@ -673,6 +674,7 @@ export function ReferralSaasAccountMaintenancePage() {
     data: commercialEntitlement,
     error: commercialEntitlementError,
     isLoading: isCommercialEntitlementLoading,
+    refetch: refetchCommercialEntitlement,
   } = useReferralSaasCommercialEntitlement(
     selectedAccount?.accountId || "",
     selectedExternalTenantRef,
@@ -3484,13 +3486,19 @@ export function ReferralSaasAccountMaintenancePage() {
 
               {selectedModule === "commercial" ? (
                 <CustomerCommercialEntitlementPage
+                  accountRef={selectedAccount?.accountId || ""}
                   entitlement={commercialEntitlement}
                   error={commercialEntitlementError}
+                  externalTenantRef={selectedExternalTenantRef}
                   isLoading={isCommercialEntitlementLoading}
                   productionActivation={productionActivation}
                   productionActivationError={productionActivationError}
                   isProductionActivationLoading={isProductionActivationLoading}
                   selectedCustomerPath={selectedCustomerPath}
+                  onRefresh={async () => {
+                    await refetchCommercialEntitlement();
+                    await refetchProductionActivation();
+                  }}
                 />
               ) : null}
 
@@ -6094,25 +6102,158 @@ function CustomerLinksAndCodesPage({
   );
 }
 
-function CustomerCommercialEntitlementPage({
+function CommercialEntitlementJourney({
+  accountRef,
   entitlement,
   error,
+  externalTenantRef,
   isLoading,
   productionActivation,
   productionActivationError,
   isProductionActivationLoading,
   selectedCustomerPath,
+  onRefresh,
 }: {
+  accountRef: string;
   entitlement?: ReferralSaasCommercialEntitlementResponse;
   error: unknown;
+  externalTenantRef: string;
   isLoading: boolean;
   productionActivation?: ReferralSaasProductionActivationResponse;
   productionActivationError: unknown;
   isProductionActivationLoading: boolean;
   selectedCustomerPath: string;
+  onRefresh: () => Promise<void>;
 }) {
   const commercial = entitlement?.commercialEntitlement;
+  const evidence = commercial?.entitlementEvidence;
+  const configured = Boolean(commercial && commercial.plan.contractSource !== "NOT_CONFIGURED");
+  const [step, setStep] = useState(configured ? 3 : 0);
+  const [showEditor, setShowEditor] = useState(!configured);
+  const [message, setMessage] = useState<string | null>(null);
+  const [draft, setDraft] = useState({
+    planCode: commercial?.plan.planCode === "REFERRAL_SAAS_H1_ENTERPRISE" ? "REFERRAL_SAAS_H1_ENTERPRISE" : "REFERRAL_SAAS_H1_STANDARD",
+    planName: commercial?.plan.planName || "Referral SaaS H1 standard",
+    contractSource: configured ? commercial?.plan.contractSource || "APPROVED_CONTRACT" : "APPROVED_CONTRACT",
+    reference: evidence?.reference || "",
+    effectiveFrom: evidence?.effectiveFrom || new Date().toISOString().slice(0, 10),
+    effectiveUntil: evidence?.effectiveUntil || "",
+    responsibleOwner: evidence?.responsibleOwner || "",
+  });
+  const mutation = useMutation({
+    mutationFn: () => recordReferralSaasCommercialEntitlement({
+      accountRef,
+      accountScope: { refType: "external_tenant_ref", externalRef: externalTenantRef, context: "setup" },
+      entitlement: draft,
+      correlationId: crypto.randomUUID(),
+      idempotencyKey: crypto.randomUUID(),
+    }),
+    onSuccess: async () => {
+      setMessage("Commercial entitlement evidence recorded.");
+      setShowEditor(false);
+      await onRefresh();
+      setStep(1);
+    },
+  });
+  const submit = (event: FormEvent) => { event.preventDefault(); mutation.mutate(); };
+  const limits = Object.entries(commercial?.limits || {});
   const activation = productionActivation?.productionActivation;
+  const stages = [
+    { label: "Plan", title: "Plan selection", copy: "Confirm the Referral SaaS plan that governs this customer.", complete: configured },
+    { label: "Entitlement source", title: "Entitlement evidence", copy: "Record the approved non-financial source and accountable owner.", complete: configured },
+    { label: "Limits", title: "Plan limits", copy: "Review the operational limits and where each is controlled.", complete: configured && limits.length > 0 },
+    { label: "Commercial readiness", title: "Commercial ready", copy: "Confirm the commercial gate is clear before continuing toward production.", complete: commercial?.overallStatus === "COMMERCIAL_READY" },
+  ];
+  const selected = stages[step];
+  return (
+    <section aria-labelledby="commercial-journey-title" className="account-establishment people-access-prototype" id="commercial-entitlement">
+      <h2 className="sr-only" id="commercial-journey-title">Commercial entitlement evidence</h2>
+      <nav aria-label="Commercial entitlement stages" className="account-establishment-steps">
+        {stages.map((stage, index) => (
+          <button className={`account-establishment-step people-access-step ${step === index ? "selected" : ""} ${stage.complete ? "complete" : ""}`} key={stage.label} onClick={() => setStep(index)} type="button">
+            <span className="account-establishment-step-marker">{stage.complete ? <CheckCircle2 aria-hidden="true" size={17} /> : index + 1}</span>
+            <span><strong>{stage.label}</strong><small>{stage.complete ? "Complete" : step === index ? "Selected" : "Available"}</small></span>
+          </button>
+        ))}
+      </nav>
+      <div className="account-establishment-main">
+        <header className="account-establishment-stage-header">
+          <span aria-hidden="true" className="account-establishment-stage-icon"><SlidersHorizontal size={23} /></span>
+          <div><span className="page-kicker">Step {step + 1} of 4</span><h2>{selected.title}</h2><p>{selected.copy}</p></div>
+        </header>
+        {isLoading ? <LoadingState label="Checking commercial entitlement" /> : null}
+        {error ? <ErrorPanel error={error} /> : null}
+        {commercial ? (
+          <div className="account-establishment-evidence-grid">
+            {step === 0 ? <>
+              <div className="account-establishment-evidence"><span>Plan</span><div><strong>{commercial.plan.planName}</strong><small>{formatDisplay(commercial.plan.planCode)}</small></div></div>
+              <div className="account-establishment-evidence"><span>Commercial status</span><div><strong>{configured ? "Configured" : "Not configured"}</strong><small>{configured ? "Evidence recorded" : "Action needed"}</small></div></div>
+            </> : null}
+            {step === 1 ? <>
+              <div className="account-establishment-evidence"><span>Entitlement source</span><div><strong>{formatDisplay(commercial.plan.contractSource)}</strong><small>{evidence?.reference || "Reference required"}</small></div></div>
+              <div className="account-establishment-evidence"><span>Responsible owner</span><div><strong>{evidence?.responsibleOwner || "Not recorded"}</strong><small>{evidence?.effectiveFrom ? `Effective ${evidence.effectiveFrom}` : "Action needed"}</small></div></div>
+            </> : null}
+            {step === 2 ? limits.map(([key, value]) => <div className="account-establishment-evidence" key={key}><span>{formatDisplay(key)}</span><div><strong>{formatDisplay(String(value))}</strong><small>Governed plan limit</small></div></div>) : null}
+            {step === 3 ? <>
+              <div className="account-establishment-evidence"><span>Commercial gate</span><div><strong>{configured ? "Ready" : "Incomplete"}</strong><small>{formatDisplay(commercial.overallStatus)}</small></div></div>
+              <div className="account-establishment-evidence"><span>Production decision</span><div><strong>{activation?.launchAllowed ? "Launch allowed" : "Further prerequisites remain"}</strong><small>{activation ? `${activation.blockedGateCount} blocked gate(s)` : "Checking evidence"}</small></div></div>
+            </> : null}
+          </div>
+        ) : null}
+        {showEditor && (step === 0 || step === 1) ? (
+          <form className="account-establishment-editor" onSubmit={submit}>
+            <div className="account-establishment-editor-heading"><div><h3>Record entitlement evidence</h3><p>This records launch entitlement only. It does not create billing, invoices, payments, or money movement.</p></div><StatusBadge label="Amplifi admin only" tone="info" /></div>
+            <div className="account-establishment-editor-grid">
+              <label className="field"><span>Plan</span><select className="input" value={draft.planCode} onChange={(e) => setDraft({ ...draft, planCode: e.target.value, planName: e.target.value.endsWith("ENTERPRISE") ? "Referral SaaS H1 enterprise" : "Referral SaaS H1 standard" })}><option value="REFERRAL_SAAS_H1_STANDARD">Referral SaaS H1 standard</option><option value="REFERRAL_SAAS_H1_ENTERPRISE">Referral SaaS H1 enterprise</option></select></label>
+              <label className="field"><span>Entitlement source</span><select className="input" value={draft.contractSource} onChange={(e) => setDraft({ ...draft, contractSource: e.target.value })}><option value="APPROVED_CONTRACT">Approved contract</option><option value="SIGNED_ORDER_FORM">Signed order form</option><option value="INTERNAL_APPROVAL">Internal approval</option></select></label>
+              <label className="field"><span>Entitlement reference</span><input className="input" value={draft.reference} onChange={(e) => setDraft({ ...draft, reference: e.target.value })} /></label>
+              <label className="field"><span>Responsible owner</span><input className="input" value={draft.responsibleOwner} onChange={(e) => setDraft({ ...draft, responsibleOwner: e.target.value })} /></label>
+              <label className="field"><span>Effective from</span><input className="input" type="date" value={draft.effectiveFrom} onChange={(e) => setDraft({ ...draft, effectiveFrom: e.target.value })} /></label>
+              <label className="field"><span>Effective until (optional)</span><input className="input" type="date" value={draft.effectiveUntil} onChange={(e) => setDraft({ ...draft, effectiveUntil: e.target.value })} /></label>
+            </div>
+            <div className="account-establishment-editor-actions"><button className="button secondary" onClick={() => setShowEditor(false)} type="button">Cancel</button><button className="button" disabled={!draft.reference.trim() || !draft.responsibleOwner.trim() || mutation.isPending} type="submit">{mutation.isPending ? "Recording evidence" : "Record entitlement"}</button></div>
+            {mutation.error ? <ErrorPanel error={mutation.error} /> : null}{message ? <div className="wizard-summary-strip success"><strong>{message}</strong></div> : null}
+          </form>
+        ) : null}
+        {step === 3 && isProductionActivationLoading ? <LoadingState label="Checking production readiness" /> : null}
+        {step === 3 && productionActivationError ? <ErrorPanel error={productionActivationError} /> : null}
+        <footer className="account-establishment-stage-actions">
+          <div className="account-establishment-stage-secondary">{step > 0 ? <button className="button secondary" onClick={() => setStep(step - 1)} type="button">Previous step</button> : <Link className="button secondary" to={selectedCustomerPath}>Return to overview</Link>}{(step === 0 || step === 1) ? <button className="button secondary" onClick={() => setShowEditor(true)} type="button">{configured ? "Update entitlement" : "Record entitlement"}</button> : null}{step === 3 ? <Link className="button secondary" to={buildCustomerModuleRoute(selectedCustomerPath, "health", "")}>Review production diagnostics</Link> : null}</div>
+          {step < 3 ? <button className="button" disabled={(step === 0 || step === 1) && !configured} onClick={() => setStep(step + 1)} type="button">Continue to {stages[step + 1].label}</button> : configured ? <Link className="button" to={selectedCustomerPath}>Complete Commercial entitlement</Link> : <button className="button" disabled type="button">Complete Commercial entitlement</button>}
+        </footer>
+      </div>
+      <aside className="account-establishment-governance"><ShieldCheck aria-hidden="true" size={30} /><span className="page-kicker">Governed evidence</span><h2>Your plan, your entitlement.</h2><p>Commercial readiness is visible here, while billing, invoices, payments and money movement remain outside this journey.</p><Link to={buildCustomerModuleRoute(selectedCustomerPath, "health", "")}>View audit evidence</Link></aside>
+    </section>
+  );
+}
+
+function CustomerCommercialEntitlementPage({
+  accountRef,
+  entitlement,
+  error,
+  externalTenantRef,
+  isLoading,
+  productionActivation,
+  productionActivationError,
+  isProductionActivationLoading,
+  selectedCustomerPath,
+  onRefresh,
+}: {
+  accountRef: string;
+  entitlement?: ReferralSaasCommercialEntitlementResponse;
+  error: unknown;
+  externalTenantRef: string;
+  isLoading: boolean;
+  productionActivation?: ReferralSaasProductionActivationResponse;
+  productionActivationError: unknown;
+  isProductionActivationLoading: boolean;
+  selectedCustomerPath: string;
+  onRefresh: () => Promise<void>;
+}) {
+  return <CommercialEntitlementJourney accountRef={accountRef} entitlement={entitlement} error={error} externalTenantRef={externalTenantRef} isLoading={isLoading} productionActivation={productionActivation} productionActivationError={productionActivationError} isProductionActivationLoading={isProductionActivationLoading} selectedCustomerPath={selectedCustomerPath} onRefresh={onRefresh} />;
+  /* Legacy diagnostics retained temporarily below for regression comparison. */
+  const commercial = entitlement!.commercialEntitlement;
+  const activation = productionActivation!.productionActivation;
   const featureRows = commercial?.features || [];
   const nextActionRows = commercial?.nextActions || [];
   const activationGateRows = activation?.gates || [];

@@ -33,6 +33,11 @@ from services.referral_saas_account_foundation_service import (
     AccountProfilePermissionDenied,
     AccountProfileUnsafePayload,
     AccountProfileValidationError,
+    CommercialEntitlementIdempotencyConflict,
+    CommercialEntitlementMaintenanceError,
+    CommercialEntitlementNotFound,
+    CommercialEntitlementPermissionDenied,
+    CommercialEntitlementValidationError,
     ExternalReferenceConflict,
     ExternalReferenceNotActive,
     ExternalReferenceNotFound,
@@ -48,6 +53,7 @@ from services.referral_saas_account_foundation_service import (
     list_referral_saas_accounts,
     resolve_account_by_external_reference,
     resolve_setup_account_by_external_reference,
+    record_referral_saas_commercial_entitlement,
     update_referral_saas_account_profile,
 )
 from services.referral_saas_account_membership_service import (
@@ -538,6 +544,14 @@ class ReferralSaasReportDeliveryScheduleRequest(BaseModel):
 class ReferralSaasAccountFoundationActivationRequest(BaseModel):
     accountScope: dict[str, Any] = Field(default_factory=dict)
     activation: dict[str, Any] | None = Field(default=None)
+    reasonCode: str | None = Field(default=None)
+    correlationId: str | None = Field(default=None)
+    idempotencyKey: str | None = Field(default=None)
+
+
+class ReferralSaasCommercialEntitlementMaintenanceRequest(BaseModel):
+    accountScope: dict[str, Any] = Field(default_factory=dict)
+    entitlement: dict[str, Any] = Field(default_factory=dict)
     reasonCode: str | None = Field(default=None)
     correlationId: str | None = Field(default=None)
     idempotencyKey: str | None = Field(default=None)
@@ -2173,6 +2187,33 @@ def _account_foundation_activation_error(
             "no_campaign_activation_confirmed": True,
             "no_go_live_action_confirmed": True,
             "no_billing_or_money_movement_confirmed": True,
+        },
+    )
+
+
+def _commercial_entitlement_error(
+    exc: CommercialEntitlementMaintenanceError,
+) -> HTTPException:
+    if isinstance(exc, CommercialEntitlementPermissionDenied):
+        status_code = status.HTTP_403_FORBIDDEN
+    elif isinstance(exc, CommercialEntitlementNotFound):
+        status_code = status.HTTP_404_NOT_FOUND
+    elif isinstance(exc, CommercialEntitlementValidationError):
+        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    elif isinstance(exc, CommercialEntitlementIdempotencyConflict):
+        status_code = status.HTTP_409_CONFLICT
+    else:
+        status_code = status.HTTP_400_BAD_REQUEST
+    return HTTPException(
+        status_code=status_code,
+        detail={
+            "code": exc.safe_code,
+            "message": str(exc),
+            "guardrails": ["MINIMUM_ENTITLEMENT_EVIDENCE_ONLY"],
+            "redactions": ["billing_account", "invoice", "payment", "money_movement"],
+            "no_billing_record_created_confirmed": True,
+            "no_invoice_created_confirmed": True,
+            "no_payment_or_money_movement_confirmed": True,
         },
     )
 
@@ -6781,13 +6822,90 @@ async def read_referral_saas_commercial_entitlement(
         "account": account.to_safe_dict(),
         "commercialEntitlement": entitlement,
         "guardrail": (
-            "Read-only Referral SaaS commercial entitlement and plan posture. "
-            "This endpoint exposes whether production-capable Referral SaaS "
+            "Governed Referral SaaS commercial entitlement and plan posture. "
+            "This read endpoint exposes whether production-capable Referral SaaS "
             "actions have a configured launch entitlement source. It does not "
             "create subscriptions, billing records, invoices, payments, seats, "
             "credentials, auth claims, campaigns, go-live actions, DLaaS finance "
             "scope, or money movement."
         ),
+        "redactions": entitlement["redactions"],
+        "no_billing_record_created_confirmed": True,
+        "no_invoice_created_confirmed": True,
+        "no_payment_or_money_movement_confirmed": True,
+        "no_dlaas_finance_scope_confirmed": True,
+    }
+
+
+@router.put("/accounts/{account_ref}/commercial-entitlement")
+async def maintain_referral_saas_commercial_entitlement(
+    account_ref: str,
+    request: ReferralSaasCommercialEntitlementMaintenanceRequest,
+    identity: dict = Depends(require_session_key),
+) -> dict[str, Any]:
+    admin_identity = _require_referral_saas_account_reader(identity)
+    account_scope = request.accountScope or {}
+    evidence = request.entitlement or {}
+    ref_type = _optional_text(account_scope.get("refType"))
+    external_ref = _optional_text(account_scope.get("externalRef"))
+    context = (_optional_text(account_scope.get("context")) or "setup").lower()
+    idempotency_key = _optional_text(request.idempotencyKey)
+    correlation_id = _optional_text(request.correlationId)
+    allowed_keys = {
+        "planCode", "planName", "contractSource", "reference",
+        "effectiveFrom", "effectiveUntil", "responsibleOwner",
+    }
+    if set(evidence) - allowed_keys:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "REJECTED_UNSAFE_PAYLOAD", "message": "Only minimum non-financial entitlement evidence is accepted."},
+        )
+    if not ref_type or not external_ref or not idempotency_key or not correlation_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "VALIDATION_ERROR", "message": "Account scope, correlationId, and idempotencyKey are required."},
+        )
+    if context != "setup":
+        raise HTTPException(status_code=400, detail={"code": "VALIDATION_ERROR", "message": "Commercial entitlement maintenance requires setup context."})
+    normalised_context, account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=admin_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_ADMIN",
+    )
+    safe_account_ref = _assert_account_path_scope(account_ref, account)
+    command_payload = {"accountScope": account_scope, "entitlement": evidence, "reasonCode": request.reasonCode}
+    try:
+        command = await record_referral_saas_commercial_entitlement(
+            account_ref=safe_account_ref,
+            plan_code=_optional_text(evidence.get("planCode")) or "",
+            plan_name=_optional_text(evidence.get("planName")) or "",
+            contract_source=_optional_text(evidence.get("contractSource")) or "",
+            entitlement_reference=_optional_text(evidence.get("reference")) or "",
+            effective_from=_optional_text(evidence.get("effectiveFrom")) or "",
+            effective_until=_optional_text(evidence.get("effectiveUntil")),
+            responsible_owner=_optional_text(evidence.get("responsibleOwner")) or "",
+            actor_ref=_actor_ref(admin_identity),
+            actor_role=str(admin_identity.get("role") or "").upper(),
+            correlation_id=correlation_id,
+            idempotency_key_hash=hash_payload({"operation": "REFERRAL_SAAS_COMMERCIAL_ENTITLEMENT", "account_ref": safe_account_ref, "idempotency_key": idempotency_key}),
+            command_payload_hash=hash_payload(command_payload),
+        )
+    except CommercialEntitlementMaintenanceError as exc:
+        raise _commercial_entitlement_error(exc) from exc
+    refreshed_context, refreshed_account = await _resolve_referral_saas_account_context(
+        ref_type=ref_type,
+        external_ref=external_ref,
+        context=context,
+        identity=admin_identity,
+        required_capability="REFERRAL_SAAS_ACCOUNT_READ",
+    )
+    entitlement = build_referral_saas_commercial_entitlement_projection(account_context=refreshed_account).to_safe_dict()
+    return {
+        "status": "ok", "context": refreshed_context, "account": refreshed_account.to_safe_dict(),
+        "command": command, "commercialEntitlement": entitlement,
+        "guardrail": "Minimum non-financial launch-entitlement evidence only.",
         "redactions": entitlement["redactions"],
         "no_billing_record_created_confirmed": True,
         "no_invoice_created_confirmed": True,

@@ -984,6 +984,12 @@ export type ReferralSaasCommercialEntitlement = {
     planName: string;
     contractSource: string;
   };
+  entitlementEvidence: {
+    reference: string | null;
+    effectiveFrom: string | null;
+    effectiveUntil: string | null;
+    responsibleOwner: string | null;
+  };
   launchAllowed: boolean;
   productionActivationBlocked: boolean;
   limits: Record<string, unknown>;
@@ -1021,6 +1027,22 @@ export type ReferralSaasCommercialEntitlementResponse = {
   no_invoice_created_confirmed: boolean;
   no_payment_or_money_movement_confirmed: boolean;
   no_dlaas_finance_scope_confirmed: boolean;
+};
+
+export type ReferralSaasCommercialEntitlementMaintenanceRequest = {
+  accountRef: string;
+  accountScope: Record<string, unknown>;
+  entitlement: {
+    planCode: string;
+    planName: string;
+    contractSource: string;
+    reference: string;
+    effectiveFrom: string;
+    effectiveUntil?: string;
+    responsibleOwner: string;
+  };
+  correlationId: string;
+  idempotencyKey: string;
 };
 
 export type ReferralSaasProductionActivationGate = {
@@ -4149,6 +4171,16 @@ export function getReferralSaasCommercialEntitlement({
         context,
       },
     },
+  );
+}
+
+export function recordReferralSaasCommercialEntitlement({
+  accountRef,
+  ...body
+}: ReferralSaasCommercialEntitlementMaintenanceRequest): Promise<ReferralSaasCommercialEntitlementResponse> {
+  return apiRequest<ReferralSaasCommercialEntitlementResponse>(
+    `v1/referral-saas/accounts/${encodeURIComponent(accountRef.trim())}/commercial-entitlement`,
+    { method: "PUT", body },
   );
 }
 
