@@ -207,7 +207,7 @@ async def test_commercial_entitlement_projection_blocks_launch_without_entitleme
     assert projection["plan"]["planCode"] == "REFERRAL_SAAS_H1_REFERENCE"
     assert projection["plan"]["contractSource"] == "NOT_CONFIGURED"
     assert "COMMERCIAL_ENTITLEMENT_SOURCE_NOT_CONFIGURED" in projection["disabledReasons"]
-    assert projection["limits"]["source"] == "REFERENCE_POSTURE_NOT_BILLING"
+    assert projection["limits"] == {}
     assert projection["noBillingRecordCreatedConfirmed"] is True
     assert projection["noInvoiceCreatedConfirmed"] is True
     assert projection["noPaymentOrMoneyMovementConfirmed"] is True
@@ -218,10 +218,11 @@ async def test_commercial_entitlement_projection_clears_gate_from_recorded_evide
     context = svc.AccountFoundationContext(
         **_row(
             operating_jurisdiction_code="ZA",
+            commercial_owner_active=True,
             account_metadata={
                 "referral_saas_commercial_entitlement": {
-                    "plan_code": "REFERRAL_SAAS_H1_STANDARD",
-                    "plan_name": "Referral SaaS H1 standard",
+                    "plan_code": "REFERRAL_MANAGEMENT_AND_ATTRIBUTION",
+                    "plan_name": "Referral Management + Campaign Attribution",
                     "contract_source": "SIGNED_ORDER_FORM",
                     "entitlement_reference": "SO-2026-0042",
                     "effective_from": "2026-09-08",
@@ -241,6 +242,7 @@ async def test_commercial_entitlement_projection_clears_gate_from_recorded_evide
     assert projection["productionActivationBlocked"] is False
     assert projection["plan"]["contractSource"] == "SIGNED_ORDER_FORM"
     assert projection["entitlementEvidence"] == {
+        "verificationStatus": "OPERATOR_ATTESTATION",
         "reference": "SO-2026-0042",
         "effectiveFrom": "2026-09-08",
         "effectiveUntil": None,

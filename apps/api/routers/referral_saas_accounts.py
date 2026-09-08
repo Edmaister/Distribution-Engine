@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from services.referral_saas_solution_packages import solution_access_allowed
+
 import inspect
 from datetime import datetime, timezone
 from typing import Annotated, Any
@@ -1485,7 +1487,7 @@ async def _resolve_active_campaign_link_code_context(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     campaign = await get_referral_saas_account_campaign(
         tenant_code=account.tenant_code,
         campaign_code=campaign_code,
@@ -1572,7 +1574,7 @@ async def _resolve_programme_configuration_account_context(
         identity=identity,
         required_capability="REFERRAL_SAAS_ACCOUNT_READ",
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     return normalised_context, account
 
 
@@ -1616,7 +1618,7 @@ async def _resolve_referral_saas_account_context(
     return normalised_context, account
 
 
-def _assert_account_path_scope(account_ref: str, account: Any) -> str:
+def _assert_account_path_scope(account_ref: str, account: Any, required_solution: str | None = None) -> str:
     safe_account_ref = _optional_text(account_ref)
     if safe_account_ref not in {account.account_id, account.account_code}:
         raise _membership_invitation_error(
@@ -1624,6 +1626,13 @@ def _assert_account_path_scope(account_ref: str, account: Any) -> str:
                 "Path account reference does not match resolved account context."
             )
         )
+    if required_solution:
+        evidence = (getattr(account, "account_metadata", {}) or {}).get("referral_saas_commercial_entitlement", {})
+        if not solution_access_allowed(evidence, required_solution) or (evidence and not getattr(account, "commercial_owner_active", False)):
+            raise HTTPException(status_code=403, detail={
+                "code": "SOLUTION_PACKAGE_NOT_ENTITLED",
+                "message": "This capability is not included in a current solution package for this customer.",
+            })
     return safe_account_ref
 
 
@@ -4534,7 +4543,7 @@ async def list_referral_saas_programme_configuration_versions(
         identity=reader_identity,
         required_capability="REFERRAL_SAAS_ACCOUNT_READ",
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
 
     versions = await list_referral_saas_programme_versions(
         account_id=account.account_id,
@@ -4607,7 +4616,7 @@ async def get_referral_saas_programme_analytics(
         identity=reader_identity,
         required_capability="REFERRAL_SAAS_ACCOUNT_READ",
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
 
     analytics = await build_referral_saas_programme_analytics_read_model(
         account_id=account.account_id,
@@ -4670,7 +4679,7 @@ async def list_referral_saas_programme_incentive_binding_configuration(
         identity=reader_identity,
         required_capability="REFERRAL_SAAS_ACCOUNT_READ",
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
 
     bindings = await list_referral_saas_programme_incentive_bindings(
         account_id=account.account_id,
@@ -4737,7 +4746,7 @@ async def bind_referral_saas_programme_incentive_binding_route(
         identity=admin_identity,
         required_capability=REFERRAL_SAAS_CAMPAIGN_POLICY_WRITE_CAPABILITY,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
 
     request_payload = request.model_dump(exclude_none=True)
     try:
@@ -4842,7 +4851,7 @@ async def retire_referral_saas_programme_incentive_binding_route(
         identity=admin_identity,
         required_capability=REFERRAL_SAAS_CAMPAIGN_POLICY_WRITE_CAPABILITY,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
 
     request_payload = request.model_dump(exclude_none=True)
     try:
@@ -4936,7 +4945,7 @@ async def get_referral_saas_programme_configuration_catalogue(
         identity=reader_identity,
         required_capability="REFERRAL_SAAS_ACCOUNT_READ",
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
 
     catalogue = await get_referral_saas_programme_catalogue(
         account_id=account.account_id,
@@ -4984,7 +4993,7 @@ async def get_referral_saas_programme_configuration_draft(
         identity=reader_identity,
         required_capability="REFERRAL_SAAS_ACCOUNT_READ",
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     try:
         draft = await get_referral_saas_programme_draft(
             account_id=account.account_id,
@@ -5298,7 +5307,7 @@ async def get_referral_saas_customer_product_catalogue(
         identity=reader_identity,
         required_capability="REFERRAL_SAAS_ACCOUNT_READ",
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     catalogue = await list_referral_saas_customer_product_catalogue(
         account_id=account.account_id,
         limit=limit,
@@ -5343,7 +5352,7 @@ async def get_referral_saas_customer_product_line_route(
         identity=reader_identity,
         required_capability="REFERRAL_SAAS_ACCOUNT_READ",
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     try:
         line = await get_referral_saas_customer_product_line(
             account_id=account.account_id,
@@ -10956,7 +10965,7 @@ async def list_referral_saas_account_referral_registry(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=actor_identity,
         account=account,
@@ -11031,7 +11040,7 @@ async def read_referral_saas_account_referral_detail(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=actor_identity,
         account=account,
@@ -11113,7 +11122,7 @@ async def list_referral_saas_account_referrer_identities(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=actor_identity,
         account=account,
@@ -11188,7 +11197,7 @@ async def read_referral_saas_account_referrer_identity(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=actor_identity,
         account=account,
@@ -11271,7 +11280,7 @@ async def get_referral_saas_account_referral_attribution_projection(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=actor_identity,
         account=account,
@@ -11347,7 +11356,7 @@ async def list_referral_saas_account_campaign_registry(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=actor_identity,
         account=account,
@@ -11417,7 +11426,7 @@ async def get_referral_saas_account_campaign_attribution_projection(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "CAMPAIGN_ATTRIBUTION")
     _enforce_referral_saas_account_boundary(
         identity=actor_identity,
         account=account,
@@ -11623,7 +11632,7 @@ async def create_referral_saas_account_campaign_route(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=admin_identity,
         account=account,
@@ -11746,7 +11755,7 @@ async def read_referral_saas_account_campaign(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=actor_identity,
         account=account,
@@ -11824,7 +11833,7 @@ async def read_referral_saas_account_campaign_journey_binding(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=admin_identity,
         account=account,
@@ -11896,7 +11905,7 @@ async def bind_referral_saas_account_campaign_journey_binding_route(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=admin_identity,
         account=account,
@@ -12001,7 +12010,7 @@ async def bind_referral_saas_account_campaign_programme_binding_route(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=admin_identity,
         account=account,
@@ -12108,7 +12117,7 @@ async def upsert_referral_saas_account_campaign_policy_settings_route(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=admin_identity,
         account=account,
@@ -12258,7 +12267,7 @@ async def upsert_referral_saas_account_campaign_override_route(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=admin_identity,
         account=account,
@@ -12389,7 +12398,7 @@ async def submit_referral_saas_account_campaign_review_route(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=admin_identity,
         account=account,
@@ -12518,7 +12527,7 @@ async def record_referral_saas_account_campaign_review_decision_route(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=admin_identity,
         account=account,
@@ -12644,7 +12653,7 @@ async def request_referral_saas_account_campaign_activation_route(
     )
     if context == "campaign_activation":
         normalised_context = "campaign_activation"
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=admin_identity,
         account=account,
@@ -12813,7 +12822,7 @@ async def read_referral_saas_account_campaign_lifecycle_route(
         external_ref=external_ref,
         context=context,
     )
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=admin_identity,
         account=account,
@@ -12909,7 +12918,7 @@ async def record_referral_saas_account_campaign_lifecycle_route(
     )
     if context == "campaign_lifecycle":
         normalised_context = "campaign_lifecycle"
-    _assert_account_path_scope(account_ref, account)
+    _assert_account_path_scope(account_ref, account, "REFERRAL_MANAGEMENT")
     _enforce_referral_saas_account_boundary(
         identity=admin_identity,
         account=account,

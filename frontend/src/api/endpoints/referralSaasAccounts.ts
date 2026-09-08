@@ -972,7 +972,19 @@ export type ReferralSaasCommercialEntitlementFeature = {
   routeHint: string;
 };
 
+export type ReferralSaasSolutionPackage = {
+  code: string;
+  name: string;
+  description: string;
+  solutions: string[];
+  recommended: boolean;
+};
+
 export type ReferralSaasCommercialEntitlement = {
+  solutionPackages?: ReferralSaasSolutionPackage[];
+  solutionPackage?: ReferralSaasSolutionPackage | null;
+  enabledModules?: string[];
+  limitsStatus?: string;
   accountId: string;
   accountCode: string;
   accountName: string;

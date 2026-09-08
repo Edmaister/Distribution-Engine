@@ -774,3 +774,16 @@ rescoped as a separate task with money/audit/live-state guardrails.
 | People & access remained a long maintenance panel instead of a guided evidence journey | Authoritative membership, invitation, seat, identity, login, and audit capabilities existed, but their primary route did not match the supplied Responsibilities, People, Invitations, and Login access composition | TASK-463 re-composes the existing read models into four prototype-aligned evidence stages while retaining the governed maintenance commands below the journey | Implementation complete; visual QA blocked |
 
 These are UX composition and release-proof gaps. They do not justify a second account registry, onboarding service, customer schema, or product-domain fork.
+
+
+### TASK-464 commercial solution package correction (2026-09-08)
+
+Referral SaaS / Shared Platform; source duplication: No. The Commercial journey
+now records Referral Management, Campaign Attribution, or their composed package
+through the existing account metadata and audit command. It validates an active
+Account owner and effective dates, enforces packaged customer routes, filters
+navigation, and displays unconfigured limits honestly. Campaign registration and
+composite validation remain shared prerequisites; arbitrary external campaign
+ingestion and financial operations are not introduced. See
+`docs/sa/referral-saas/REFERRAL_SAAS_COMMERCIAL_FINANCE_BOUNDARY.md` for the verified
+architecture, compatibility treatment and proof scope.

@@ -5015,8 +5015,8 @@ async def test_referral_saas_admin_records_commercial_entitlement_evidence(monke
         if configured:
             metadata = {
                 "referral_saas_commercial_entitlement": {
-                    "plan_code": "REFERRAL_SAAS_H1_STANDARD",
-                    "plan_name": "Referral SaaS H1 standard",
+                    "plan_code": "REFERRAL_MANAGEMENT_AND_ATTRIBUTION",
+                    "plan_name": "Referral Management + Campaign Attribution",
                     "contract_source": "SIGNED_ORDER_FORM",
                     "entitlement_reference": "SO-2026-0042",
                     "effective_from": "2026-09-08",
@@ -5024,7 +5024,7 @@ async def test_referral_saas_admin_records_commercial_entitlement_evidence(monke
                     "responsible_owner": "Commercial Operations",
                 }
             }
-        return _context(account_id="acct-1", account_code="ACCT_FNB", account_metadata=metadata)
+        return _context(account_id="acct-1", account_code="ACCT_FNB", account_metadata=metadata, commercial_owner_active=True)
 
     async def fake_record_referral_saas_commercial_entitlement(**kwargs):
         nonlocal configured
@@ -5038,7 +5038,7 @@ async def test_referral_saas_admin_records_commercial_entitlement_evidence(monke
     payload = {
         "accountScope": {"refType": "external_tenant_ref", "externalRef": "fnb-referrals", "context": "setup"},
         "entitlement": {
-            "planCode": "REFERRAL_SAAS_H1_STANDARD", "planName": "Referral SaaS H1 standard",
+            "planCode": "REFERRAL_MANAGEMENT_AND_ATTRIBUTION", "planName": "Referral Management + Campaign Attribution",
             "contractSource": "SIGNED_ORDER_FORM", "reference": "SO-2026-0042",
             "effectiveFrom": "2026-09-08", "responsibleOwner": "Commercial Operations",
         },

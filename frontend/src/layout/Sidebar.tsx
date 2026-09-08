@@ -1,3 +1,7 @@
+import { useSyncExternalStore } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import type { ReferralSaasCommercialEntitlementResponse } from "../api/endpoints/referralSaasAccounts";
+import { solutionModuleAllowed } from "../api/solutionPackageAccess";
 import {
   Activity,
   BriefcaseBusiness,
@@ -161,9 +165,16 @@ export function Sidebar() {
   const selectedCustomerMatch = location.pathname.match(/^\/admin\/referral-saas\/account-maintenance\/[^/]+/);
   const inSelectedCustomerContext = Boolean(selectedCustomerMatch);
   const selectedCustomerBase = selectedCustomerMatch?.[0] || "/admin/referral-saas/account-maintenance";
+  const queryClient = useQueryClient();
+  const accountId = selectedCustomerBase.split("/").slice(-1)[0];
+  const commercial = useSyncExternalStore(
+    (notify) => queryClient.getQueryCache().subscribe(notify),
+    () => queryClient.getQueryCache().findAll({ queryKey: ["referral-saas", "commercial-entitlement", accountId] })
+      .sort((a, b) => b.state.dataUpdatedAt - a.state.dataUpdatedAt)[0]?.state.data as ReferralSaasCommercialEntitlementResponse | undefined,
+  );
   const sections = inReferralSaasWorkspace
     ? inSelectedCustomerContext
-      ? referralSaasCustomerSections(selectedCustomerBase)
+      ? referralSaasCustomerSections(selectedCustomerBase).map((section) => ({ ...section, links: section.links.filter((link) => solutionModuleAllowed(commercial?.commercialEntitlement, link.to.split("/").slice(-1)[0] || "")) })).filter((section) => section.links.length)
       : referralSaasGlobalSections
     : platformSections;
 
